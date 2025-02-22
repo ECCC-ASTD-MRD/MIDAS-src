@@ -126,7 +126,7 @@ contains
       do latIndex = 1, statevector_template%hco%nj
         do lonIndex = 1, statevector_template%hco%ni
           binCategory = binCategory + 1
-          if (lonIndex >= myLonBeg .and. lonIndex <= myLatEnd .and. &
+          if (lonIndex >= myLonBeg .and. lonIndex <= myLonEnd .and. &
               latIndex >= myLatBeg .and. latIndex <= myLatEnd ) then
             bin2d(lonIndex,latIndex,1) = real(binCategory,4)
           end if
@@ -337,13 +337,14 @@ contains
   !--------------------------------------------------------------------------
   ! gbi_stdDev_ens
   !--------------------------------------------------------------------------
-  subroutine gbi_stdDev_ens(gbi, ens, statevector)
+  subroutine gbi_stdDev_ens(gbi, ens, statevector, containsScaledPerts_opt)
     implicit none
 
     ! Arguments:
     type(struct_gbi), intent(in)    :: gbi
     type(struct_ens), intent(inout) :: ens
     type(struct_gsv), intent(inout) :: statevector
+    logical, optional, intent(in)    :: containsScaledPerts_opt
 
     ! Locals:
     integer :: myBinCount(gbi%numBins2d)
@@ -358,10 +359,26 @@ contains
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex, memberIndex
     integer :: nVarLev, nStep, nEns, ier
     character(len=4), pointer :: varNamesList(:)
-
+    logical :: containsScaledPerts
+    real(8) :: scalingFactor
+    
     if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
       write(*,*) 'gbi_stdDev_ens: Starting...'
+    end if
+
+    if (present(containsScaledPerts_opt)) then
+      containsScaledPerts = containsScaledPerts_opt
+    else
+      containsScaledPerts = .false.
+    end if
+
+    if (containsScaledPerts) then
+      ! take into account that we are dealing with previously scaled ensemble perturbations 
+      !  (i.e. pert = (fcst-mean)/(nEns-1) )
+      scalingFactor = sqrt(1.0d0*dble(ens_getNumMembers(ens)-1))
+    else
+      scalingFactor = 1.d0
     end if
 
     if (.not. gsv_isAllocated(statevector)) then
@@ -397,7 +414,8 @@ contains
             if (binIndex /= -1) then
               do memberIndex = 1, nEns
                 myBinCount(binIndex) = myBinCount(binIndex) + 1
-                myBinSum(binIndex)   = myBinSum(binIndex)   + real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8)**2
+                myBinSum(binIndex)   = myBinSum(binIndex)   + &
+                     (scalingFactor*real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8))**2
               end do
             end if
           end do

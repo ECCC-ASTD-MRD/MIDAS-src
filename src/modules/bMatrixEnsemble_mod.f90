@@ -912,6 +912,13 @@ CONTAINS
       end do
     end if
 
+    if ( trim(bEns(instanceIndex)%vertLocalizationType) == 'ScaleDependent' .and. &
+         (gsv_varExist(varName='P0') .and. .not. gsv_varExist(varName='P_T')) ) then
+      ! We need to add P_T to allow the vertical scale decomposition of P0
+      bEns(instanceIndex)%numIncludeAnlVar = bEns(instanceIndex)%numIncludeAnlVar+1
+      bEns(instanceIndex)%includeAnlVar(bEns(instanceIndex)%numIncludeAnlVar) = 'P_T'
+    end if
+
     !- 2.2 Read the ensemble data
     call setupEnsemble(instanceIndex)
 
@@ -1351,7 +1358,7 @@ CONTAINS
                           varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), & 
                           containsFullField_opt=bEns(instanceIndex)%ensContainsFullField)
 
-    if (any(bEns(instanceIndex)%includeAnlVar(:) == 'P_M') .and. any(bEns(instanceIndex)%includeAnlVar(:) == 'P_T')) then
+    if (any(bEns(instanceIndex)%includeAnlVar(:) == 'P_M') .or. any(bEns(instanceIndex)%includeAnlVar(:) == 'P_T')) then
       call gvt_transform(bEns(instanceIndex)%ensPerts(1,1),'ZandP_nl') ! Only P will be added since Z cannot be an analysis variable
     end if
 
@@ -2060,6 +2067,21 @@ CONTAINS
       lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
       varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
+      if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
+        if (gsv_getDataKind(statevector_out) == 4) then
+          call gsv_getField(statevector_out, increment_out_r4, 'HU')
+        else
+          call gsv_getField(statevector_out, increment_out_r8, 'HU')
+        end if
+      else
+        if (.not. gsv_varExist(statevector_out,varName)) cycle ! skip any extra variable in the ensemble
+        if (gsv_getDataKind(statevector_out) == 4) then
+          call gsv_getField(statevector_out, increment_out_r4, varName)
+        else
+          call gsv_getField(statevector_out, increment_out_r8, varName)
+        end if
+      end if
+
       !$OMP PARALLEL DO PRIVATE (latIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         increment_out2(:,:,latIndex) = 0.0d0
@@ -2187,19 +2209,19 @@ CONTAINS
       end if
       lev2 = lev - 1 + topLevOffset
 
-      if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-        if (gsv_getDataKind(statevector_out) == 4) then
-          call gsv_getField(statevector_out, increment_out_r4, 'HU')
-        else
-          call gsv_getField(statevector_out, increment_out_r8, 'HU')
-        end if
-      else
-        if (gsv_getDataKind(statevector_out) == 4) then
-          call gsv_getField(statevector_out, increment_out_r4, varName)
-        else
-          call gsv_getField(statevector_out, increment_out_r8, varName)
-        end if
-      end if
+      !if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
+      !  if (gsv_getDataKind(statevector_out) == 4) then
+      !    call gsv_getField(statevector_out, increment_out_r4, 'HU')
+      !  else
+      !    call gsv_getField(statevector_out, increment_out_r8, 'HU')
+      !  end if
+      !else
+      !  if (gsv_getDataKind(statevector_out) == 4) then
+      !    call gsv_getField(statevector_out, increment_out_r4, varName)
+      !  else
+      !    call gsv_getField(statevector_out, increment_out_r8, varName)
+      !  end if
+      !end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
@@ -2311,6 +2333,7 @@ CONTAINS
           call gsv_getField(statevector_in, increment_in_r8, 'HU')
         end if
       else
+        if (.not. gsv_varExist(statevector_in,varName)) cycle ! skip any extra variable in the ensemble
         if (gsv_getDataKind(statevector_in) == 4) then
           call gsv_getField(statevector_in, increment_in_r4, varName)
         else
@@ -2448,7 +2471,8 @@ CONTAINS
     character(len=*), intent(in) :: mode
 
     ! Locals:
-    type(struct_gsv) :: statevector, statevector_temp
+    type(struct_gsv) :: statevector
+    type(struct_gbi) :: gbi_globalMean, gbi_gridPoint
     integer :: nHorizWaveBandToDiagnose, horizWaveBandIndex
     integer :: nVertWaveBandToDiagnose, vertWaveBandIndex
     integer :: memberIndex
@@ -2458,7 +2482,7 @@ CONTAINS
     character(len=2) :: horizWaveBandNumber
     character(len=2) :: vertWaveBandNumber
     character(len=2) :: instanceNumber
-
+    
     if ( trim(mode) == 'FullPerturbations') then
       nHorizWaveBandToDiagnose = 1
       nVertWaveBandToDiagnose = 1
@@ -2482,23 +2506,28 @@ CONTAINS
     if ( mmpi_myid == 0 ) write(*,*)
     if ( mmpi_myid == 0 ) write(*,*) 'EnsembleDiagnostic in mode: ', mode
 
+    call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                      varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar))
+    
     !
     !- Write each wave band for a selected member
     !
     if ( mmpi_myid == 0 ) write(*,*) '   writing perturbations for member 001'
     memberIndex = 1
     dnens2 = sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-1))
+    
     do vertWaveBandIndex = 1, nVertWaveBandToDiagnose
       if ( mmpi_myid == 0 ) write(*,*) '     vertWaveBandIndex = ', vertWaveBandIndex
+
       do horizWaveBandIndex = 1, nHorizWaveBandToDiagnose
         if ( mmpi_myid == 0 ) write(*,*) '     --- horizWaveBandIndex = ', horizWaveBandIndex
-        call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
-                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
+
         call ben_getPerturbation(statevector,                           & ! OUT
                                  memberIndex, 'ConstantValue',          & ! IN
                                  horizWaveBandIndex, vertWaveBandIndex, & ! IN
                                  instanceIndex_opt=instanceIndex)         ! IN
+
         if ( trim(mode) == 'FullPerturbations') then
           etiket = 'M001_FULL'
         else
@@ -2512,7 +2541,6 @@ CONTAINS
         call gio_writeToFile(statevector,fileName,etiket, &                               ! IN
                              scaleFactor_opt=dnens2, &                                    ! IN
                              HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )       ! IN
-        call gsv_deallocate(statevector)
       end do
     end do
 
@@ -2520,38 +2548,16 @@ CONTAINS
     !- Compute the standard deviations for each wave band
     !
     if ( mmpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
-    call gsv_allocate(statevector_temp, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
-                      mpi_local_opt=.true., dataKind_opt=ens_getDataKind(bEns(instanceIndex)%ensPerts(1,1)), &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
-
+    
+    call gbi_setup(gbi_gridPoint , 'GridPoint'     , statevector, bEns(instanceIndex)%hco_ens)
+    call gbi_setup(gbi_globalMean, 'HorizontalMean', statevector, bEns(instanceIndex)%hco_ens)
+    
     do vertWaveBandIndex = 1, nVertWaveBandToDiagnose
       if ( mmpi_myid == 0 ) write(*,*) '     vertWaveBandIndex = ', vertWaveBandIndex
+
       do horizWaveBandIndex = 1, nHorizWaveBandToDiagnose
         if ( mmpi_myid == 0 ) write(*,*) '     --- horizWaveBandIndex = ', horizWaveBandIndex
-        call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
-                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                          dataKind_opt=ens_getDataKind(bEns(instanceIndex)%ensPerts(1,1)), &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
-        call gsv_zero(statevector)
-        do memberIndex = 1, bEns(instanceIndex)%nEns
-          !- Get normalized perturbations
-          call ens_copyMember(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex), & ! IN
-                              statevector_temp,                                                   & ! OUT
-                              memberIndex)                                                          ! IN
 
-          !- Square
-          call gsv_power(statevector_temp, & ! INOUT
-                         2.d0)               ! IN
-          !- Sum square values, result in statevector
-          call gsv_add(statevector_temp, & ! IN
-                       statevector)        ! INOUT
-        end do
-
-        !- Convert to StdDev
-        call gsv_power(statevector, & ! INOUT
-                       0.5d0)         ! IN
-
-        !- Write to file
         if ( trim(mode) == 'FullPerturbations') then
           etiket = 'STDV_FULL'
         else
@@ -2560,15 +2566,25 @@ CONTAINS
           etiket = 'STDV_H' // trim(horizWaveBandNumber) // '_V' // trim(vertWaveBandNumber)
         end if
         write(instanceNumber,'(I2.2)') instanceIndex
-        fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
 
+        call gbi_stdDev(gbi_gridPoint, bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex), & ! IN
+                        statevector,                                                                       & ! OUT
+                        containsScaledPerts_opt=.true.)                                                      ! IN
+        fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
         call gio_writeToFile(statevector,fileName,etiket,                         & ! IN
                              HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
-        call gsv_deallocate(statevector)
+
+        call gbi_stdDev(gbi_globalMean, bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex), & ! IN
+                        statevector,                                                                        & ! OUT
+                        containsScaledPerts_opt=.true.)                                                       ! IN
+        fileName = './ens_stddev_horizmean_i' // trim(instanceNumber) // '.fst'
+        call gio_writeToFile(statevector,fileName,etiket,                         & ! IN
+                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
+        
       end do
     end do
 
-    call gsv_deallocate(statevector_temp)
+    call gsv_deallocate(statevector)
 
   end subroutine ensembleDiagnostic
 

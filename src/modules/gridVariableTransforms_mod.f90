@@ -1775,7 +1775,7 @@ CONTAINS
       call czp_calcZandP_nl(gridStateVector_oneMember)
 
       !- 2.3 Put the result back in the input ensembleStateVector
-      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex) !, varNamesToSkip_opt=(/'Z_T','Z_M'/))
+      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex)
     end do
 
     !

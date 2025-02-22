@@ -436,6 +436,7 @@ contains
 
     ! Locals:
     type(struct_gsv), allocatable :: gridStateVector_oneMember(:)
+    type(struct_gsv) :: gridStateVector_ensMean
     type(struct_hco), pointer :: hco
     real(8), allocatable :: vertModesState4d(:,:,:,:)
     real(8), allocatable :: vertModesState4dFiltered(:,:,:,:)
@@ -461,6 +462,7 @@ contains
     integer :: vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
     logical :: writeResponseFunction
     logical :: writeTransformInfo
+    logical :: expanded2dfield
     type(struct_vms), save :: vModes
     logical,          save :: firstTime = .true.
 
@@ -602,12 +604,22 @@ contains
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
     end if
 
+    if (ens_varExist(ensembleStateVector(1),'P_M') .or. ens_varExist(ensembleStateVector(1),'P_T')) then
+      call gsv_allocate(gridStateVector_ensMean, numStep,                                       &
+                        ens_getHco(ensembleStateVector(1)), ens_getVco(ensembleStateVector(1)), &
+                        varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
+                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
+      call ens_copyEnsMean(ensembleStateVector(1),  & ! IN
+                           gridStateVector_ensMean)   ! OUT
+    end if
+
     do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
       call ens_copyMember(ensembleStateVector(1), gridStateVector_oneMember(1), memberIndex) ! extract all the vertical scales
       
       do varIndex = 1, numVar
-
+        
         varNameForTransform = varNamesList(varIndex)
+        expanded2dfield = .false.
         nullify(ptr4d_r8)
         if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
           nLev  = nLev_M
@@ -620,17 +632,27 @@ contains
           if (trim(varNamesList(varIndex)) == 'TG') then
             if (trim(TGhandling) == 'expandWithTT') then
               if (allocated(gridState4d)) deallocate(gridState4d)
-              call expandTG(gridStateVector_oneMember(1), gridState4d, nLev)
-              ptr4d_r8 => gridState4d
               varNameForTransform = 'TT'
+              if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
+                call utl_abort('scd_vertical: TT not available to expand TG')
+              end if
+              call expand2dTo3d(gridStateVector_oneMember(1), gridState4d, nLev, &
+                                varNamesList(varIndex), varNameForTransform)
+              expanded2dfield = .true.
+              ptr4d_r8 => gridState4d
             else
               cycle ! varIndex
             end if
           else if (trim(varNamesList(varIndex)) == 'P0') then
-            ! Temporary measures
-            call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
-            ptr4d_r8(:,:,:,:) = 0.d0
-            cycle ! varIndex
+            if (allocated(gridState4d)) deallocate(gridState4d)
+            varNameForTransform = 'P_T'
+            if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
+              call utl_abort('scd_vertical: P_T not available to expand P0')
+            end if
+            call expand2dto3d(gridStateVector_oneMember(1), gridState4d, nLev, &
+                              varNamesList(varIndex), varNameForTransform)
+            expanded2dfield = .true.
+            ptr4d_r8 => gridState4d
           else
             write(*,*)
             write(*,*) 'varname  = ', trim(varNamesList(varIndex))
@@ -639,7 +661,11 @@ contains
           end if
         end if
         nMode = nLev
-        
+
+        if (trim(varNameForTransform) == 'P_M' .or. trim(varNameForTransform) == 'P_T') then
+           call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'scale')
+        end if
+
         if (allocated(vertModesState4d)) deallocate(vertModesState4d)
         allocate(vertModesState4d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
 
@@ -651,15 +677,21 @@ contains
                              varNameForTransform, modeEnd_opt=mTrunc)
         end do
 
+        if (trim(varNamesList(varIndex)) == 'P_T' .and. ens_varExist(ensembleStateVector(1),'P0')) then
+          ! Gridded P_T perturbations unscaling to allow their usage again in the decomposition of P0
+           call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'unscale')
+        end if
+
         !- Filtering
         if (allocated(vertModesState4dFiltered)) deallocate(vertModesState4dFiltered)
         allocate(vertModesState4dFiltered(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
-        
+
         do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
 
-          if (trim(decompositionMode) == 'Split' .and. trim(varNamesList(varIndex)) /= 'TG' ) then
-            ! Note that this step will only be done if TGhandling = 'expandWithTT'
-            nullify(ptr4d_r8)
+           if (trim(decompositionMode) == 'Split' .and. .not. expanded2dfield) then
+             ! For expanded 2d fields, no need to reset ptr4d_r8 since the insertion of the scale decomposition
+             ! in gridStateVector_oneMember will be made later in the call of extract2dFrom3d
+             nullify(ptr4d_r8)
             call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),ptr4d_r8,varName_opt=varNamesList(varIndex))
           end if
 
@@ -698,19 +730,24 @@ contains
 
           end do ! stepIndex
 
-          if (trim(varNamesList(varIndex)) == 'TG') then
-            ! Note that this step will only be done if TGhandling = 'expandWithTT'
+          if (trim(varNameForTransform) == 'P_M' .or. trim(varNameForTransform) == 'P_T') then
+            call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'unscale')
+          end if
+
+          if (expanded2dfield) then
             if (trim(decompositionMode) == 'Split') then
-              call extractTG(gridStateVector_oneMember(vertWaveBandIndex), gridState4d, nLev)
+              call extract2dFrom3d(gridStateVector_oneMember(vertWaveBandIndex), ptr4d_r8, nLev, &
+                                   varNamesList(varIndex))
             else
-              call extractTG(gridStateVector_oneMember(1), gridState4d, nLev)
+              call extract2dFrom3d(gridStateVector_oneMember(1), ptr4d_r8, nLev, &
+                                   varNamesList(varIndex))
             end if
           end if
           
         end do ! vertWaveBandIndex
       end do ! variables
 
-      if (ens_varExist(ensembleStateVector(1),'TG') .and. trim(TGhandling) /= 'expandWithTT') then
+      if (ens_varExist(ensembleStateVector(1),'TG') .and. .not. expanded2dfield) then
         call adhocTGdecomposition(gridStateVector_oneMember, decompositionMode, TGhandling, &
                                   vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, &
                                   vertWaveBandIndexLoopDirection, nVertWaveBand)
@@ -735,6 +772,9 @@ contains
       end do
     else
       call gsv_deallocate(gridStateVector_oneMember(1))
+    end if
+    if (ens_varExist(ensembleStateVector(1),'P_M') .or. ens_varExist(ensembleStateVector(1),'P_T')) then
+      call gsv_deallocate(gridStateVector_ensMean)
     end if
     deallocate(responseFunction)
     
@@ -878,28 +918,81 @@ contains
   end function scd_filterResponseFunction
 
   !--------------------------------------------------------------------------
-  ! expandTG
+  ! ensMeanScaling
   !--------------------------------------------------------------------------
-   subroutine expandTG(statevector, gridState4d, nLev)
+   subroutine ensMeanScaling(Ppert_ptr4d_r8,statevector_ensMean, varName, mode)
     !
-    ! :Purpose: Combine TT and TG to create a new 4D field with TG at the lower boundary
+    ! :Purpose: scale or unscale perturbations using the ensemble mean value
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), pointer, intent(inout) :: Ppert_ptr4d_r8(:,:,:,:) ! Pressure perturations field
+    type(struct_gsv), intent(in)    :: statevector_EnsMean     ! Gridded state vector contaning the ensemble mean
+    character(len=*), intent(in)    :: varName                 ! variable name
+    character(len=*), intent(in)    :: mode                    ! scale or unscale
+
+    ! Locals:
+    real(8), pointer     :: Pmean_ptr4d_r8(:,:,:,:)
+    integer :: stepIndex, levIndex, lonIndex, latIndex, nLev
+
+    if (mode /= 'scale' .and. mode /= 'unscale') then
+      write(*,*)
+      write(*,*) 'ensMeanScaling: mode selected = ', mode
+      call utl_abort('ensMeanScaling: mode can on be "scale" or "unscale"')
+    end if
+    
+    call gsv_getField(statevector_ensMean,Pmean_ptr4d_r8,varName_opt=varName)
+
+    nLev = gsv_getNumLevFromVarName(statevector_ensMean, varName)
+
+    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
+    do stepIndex = 1, statevector_ensMean%numStep
+      do levIndex = 1, nLev
+        do latIndex = statevector_ensMean%myLatBeg, stateVector_ensMean%myLatEnd
+          do lonIndex = statevector_ensMean%myLonBeg, statevector_ensMean%myLonEnd
+
+            if (mode == 'scale') then
+              Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) = Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) / &
+                                                                     Pmean_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+            else
+              Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) = Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) * &
+                                                                     Pmean_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+            end if
+
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine ensMeanScaling
+
+  !--------------------------------------------------------------------------
+  ! expand2dTo3d
+  !--------------------------------------------------------------------------
+   subroutine expand2dTo3d(statevector, gridState4d, nLev, varName2d, varName3d)
+    !
+    ! :Purpose: Combine varName2d and varName3d to create a new 3D field with varName2d at the lower boundary
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
-    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined TT and TG gridded state
-    integer             , intent(out) :: nLev ! Number of vertical levels for the 3D temperature field
+    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
+    integer             , intent(out) :: nLev ! Number of vertical levels for the 3D field
+    character(len=*)    , intent(in)  :: varName2d ! Variable name of the 2d field
+    character(len=*)    , intent(in)  :: varName3d ! Variable name of the 3d field
 
     ! Locals:
-    real(8), pointer     :: TTptr4d_r8(:,:,:,:)
-    real(8), pointer     :: TGptr4d_r8(:,:,:,:)
+    real(8), pointer     :: var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: var3d_ptr4d_r8(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex
 
-    call gsv_getField(stateVector,TTptr4d_r8,varName_opt='TT')
-    call gsv_getField(stateVector,TGptr4d_r8,varName_opt='TG')
+    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
+    call gsv_getField(stateVector,var3d_ptr4d_r8,varName_opt=varName3d)
 
-    nLev = gsv_getNumLevFromVarName(stateVector,'TT')
+    nLev = gsv_getNumLevFromVarName(stateVector,varName3d)
 
     allocate(gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep))
 
@@ -909,9 +1002,9 @@ contains
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             if (levIndex == nLev) then
-              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = TGptr4d_r8(lonIndex,latIndex,1,stepIndex)
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex)
             else
-              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = TTptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
             end if
           end do
         end do
@@ -919,39 +1012,40 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine expandTG
+  end subroutine expand2dTo3d
 
   !--------------------------------------------------------------------------
-  ! extractTG
+  ! extract2dFrom3d
   !--------------------------------------------------------------------------
-  subroutine extractTG(statevector, gridState4d, nLev)
+  subroutine extract2dFrom3d(statevector, gridState4d, nLev, varName2d)
     !
-    ! :Purpose: Copy the TG field from gridState4d into the input stateVector
+    ! :Purpose: Copy the first level field from gridState4d into the input stateVector
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector ! Gridded state vector contaning a vertical scale decomposed ensemble member
     integer,          intent(in)    :: nLev ! Number of vertical levels for the 3D temperature field
-    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined TT and TG gridded state after vertical scale decomposition
+    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined 2d + 3d gridded state after vertical scale decomposition
+    character(len=*), intent(in)    :: varName2d ! Variable name of the 2d field
 
     ! Locals:
-    real(8), pointer :: TGptr4d_r8(:,:,:,:)
+    real(8), pointer :: var2d_ptr4d_r8(:,:,:,:)
     integer :: stepIndex, lonIndex, latIndex
 
-    call gsv_getField(stateVector,TGptr4d_r8,varName_opt='TG')
+    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
     
     !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
     do stepIndex = 1, stateVector%numStep
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-          TGptr4d_r8(lonIndex,latIndex,1,stepIndex) = gridState4d(lonIndex,latIndex,nLev,stepIndex)
+          var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) = gridState4d(lonIndex,latIndex,nLev,stepIndex)
         end do
       end do
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine extractTG
+  end subroutine extract2dFrom3d
 
   !--------------------------------------------------------------------------
   ! adhocTGdecomposition
