@@ -211,7 +211,8 @@ contains
     integer :: deldist  ! minimal distance in km between adjacent observations
     character(len=20) :: SWQI(maxSat)
 
-    namelist /thin_satwind/deltemps, deldist, SWQI
+    namelist /thin_satwind/ deltemps, deldist
+    namelist /NAMSW/ SWQI
 
     ! return if no satwind obs
     if (.not. obs_famExist(obsdat,'SW')) return
@@ -219,7 +220,7 @@ contains
     ! Default values for namelist variables
     deltemps = 6
     deldist  = 200
-    SWQI(:)  = '                    '
+    SWQI(:)  = ''
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
@@ -227,6 +228,9 @@ contains
       read(utl_flnml, nml=thin_satwind, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
+      read(utl_flnml, nml=NAMSW, iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading NAMSW namelist')
+      if (mmpi_myid == 0) write(*,nml=NAMSW)
       call utl_tmg_stop(181)
     else
       write(*,*)
@@ -238,6 +242,8 @@ contains
     nsats = get_num_sats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
+
+    call SplitString(nsats,SWQI,SWname,QIvalue)
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist, nsats, SWname, QIvalue)
@@ -275,7 +281,7 @@ contains
         get_num_sats = 0
 
         do varIndex = 1, maxSat
-          if (vars(varIndex) /= '                    ') get_num_sats = get_num_sats + 1
+          if (trim(vars(varIndex)) /= '') get_num_sats = get_num_sats + 1
         end do
 
       end function get_num_sats
@@ -3875,10 +3881,8 @@ contains
         if ( trim(SWname(satIndex)) == trim(stnId(2:)) ) then
           select case (trim(QIvalue(satIndex)))
             case ('qi1')
-              write(*,*) 'thn_satWindsByDistance: ', trim(SWname(satIndex)), ' ', trim(QIvalue(satIndex))
               quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
             case ('qi2')
-              write(*,*) 'thn_satWindsByDistance: ', trim(SWname(satIndex)), ' ', trim(QIvalue(satIndex))
               quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ2, headerIndex)
             case default
               call utl_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
