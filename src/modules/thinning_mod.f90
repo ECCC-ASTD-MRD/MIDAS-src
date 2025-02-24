@@ -202,9 +202,10 @@ contains
 
     ! Locals:
     integer :: ierr
-    integer :: nsats
+    integer :: nsats, isat
     integer, parameter :: maxSat = 99
     character(len=20), allocatable :: SWname(:), QIvalue(:)
+    character(len=20), allocatable :: SWQIArray(:)
 
     ! Namelist variables:
     integer :: deltemps ! number of time bins between adjacent observations
@@ -242,33 +243,19 @@ contains
     nsats = get_num_sats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
-
-    call SplitString(nsats,SWQI,SWname,QIvalue)
+    !call SplitString(nsats,SWQI,SWname,QIvalue)
+    do isat = 1, nsats
+      call utl_splitString(SWQI(isat),':',SWQIArray)
+      SWname(isat) = SWQIArray(1)
+      QIvalue(isat) = SWQIArray(2)
+      deallocate(SWQIArray)
+    end do
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist, nsats, SWname, QIvalue)
     call utl_tmg_stop(114)
 
     contains
-
-      subroutine splitString(ndim, varIn, split1, split2)
-
-        implicit none
-
-        integer, intent(in)            :: ndim
-        character(len=20), intent(in)  :: varIn(ndim)
-        character(len=20), intent(out) :: split1(ndim), split2(ndim)
-
-        ! local variables
-        integer :: varIndex, colonPos
-
-        do varIndex = 1, ndim
-          colonPos         = INDEX(varIn(varIndex), ':')
-          split1(varIndex) = varIn(varIndex)(1:colonPos-1)
-          split2(varIndex) = varIn(varIndex)(colonPos+1:)
-        end do
-
-      end subroutine splitString
 
       integer function get_num_sats(maxSat,vars)
 
