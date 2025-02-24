@@ -3871,6 +3871,10 @@ contains
               quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
             case ('qi2')
               quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ2, headerIndex)
+              ! consider the case where iqiv2 <= 0
+              if (quality(headerIndex) <= 0) then
+                quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+              end if
             case default
               call utl_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
           end select
