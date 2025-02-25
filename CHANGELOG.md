@@ -8,38 +8,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Improve timingTool and option to process from stdin (#1038 and !944)
- * Introduce distance-based thinning for ATMS (#867 and !936)
- * Do not select observations exactly at the edge of the LETKF localization volume (#1032 and !934)
-   * very minor impact on results
- * GEM-H and SLEVE support for monthly static B-matrices (#1028 and !935)
+ * (Nothing yet)
 
 ### Changed
 
- * Update `cmda/libs` to version `20250129-alpha` (#1043 and !943)
- * Use BLAS routines to multiply matrices in `enkf_calcYbTinvRYb` (#1040 and !942)
-   * minor impact on results for program `midas-letkf`
- * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
-   * Impacts some CH-family flag values in output obs files.
- * Update LibRMN to `20.1.0-a9` (#1013 and !941)
+ * (Nothing yet)
 
 ### Fixed
 
- * Load `rpn/utils/burp-tools` before launching the program in `midas.mpirun` (#1045 and !947)
- * New bending angle operator for RO, extensively rewritten. (#708 and !919)
-   * Small impact on results when assimilating bending operator (not used operationally)
- * Fix links to module dependency diagrams in online documentation (#1042 and !945)
- * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
- * Remediation of accidentally removed functionality as of about `v_4.0.0` for recognizing GEM-MACH constituent variable names (#1034 and !937)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
 
-## [4.1.0-b1]
+## [4.1.0]
 
 ### Added
 
+ * Improve timingTool and option to process from stdin (#1038 and !944)
+ * Introduce distance-based thinning for ATMS (#867 and !936)
+ * Do not select observations exactly at the edge of the LETKF localization volume (#1032 and !934)
+   * very minor impact on results
+ * GEM-H and SLEVE support for monthly static B-matrices (#1028 and !935)
  * Implement SLEVE for GEM-H, also fixes `qlim_rttovLimit` for GEM-H (#1017 and !932)
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
    * very minor impact on results
@@ -64,12 +55,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Update `cmda/libs` to version `20250129-alpha` (#1043 and !943)
+ * Use BLAS routines to multiply matrices in `enkf_calcYbTinvRYb` (#1040 and !942)
+   * minor impact on results for program `midas-letkf`
+ * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
+   * Impacts some CH-family flag values in output obs files.
+ * Update LibRMN to `20.1.0-a9` (#1013 and !941)
  * Several improvements and interface change to `humidityLimits_mod` (#1026 and !929)
  * Update LibRMN to `20.1.0-a8` and RTTOV to `13v2.0` (#1008 and !911)
    * minor impact on results
 
 ### Fixed
 
+ * Load `rpn/utils/burp-tools` before launching the program in `midas.mpirun` (#1045 and !947)
+ * New bending angle operator for RO, extensively rewritten. (#708 and !919)
+   * Small impact on results when assimilating bending operator (not used operationally)
+ * Fix links to module dependency diagrams in online documentation (#1042 and !945)
+ * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
+ * Remediation of accidentally removed functionality as of about `v_4.0.0` for recognizing GEM-MACH constituent variable names (#1034 and !937)
  * Avoid overwriting `OBS_OMP` with NL operator outputs for outerLoopIndex greater than 1 (#1023 and !939)
  * Bug fixes in `qlim_rttovLimit` for GEM-H (#1017 and !932)
    * Minor impact on results for humidity
