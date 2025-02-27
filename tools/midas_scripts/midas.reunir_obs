@@ -32,7 +32,7 @@ eval `cclargs_lite -D "" $0 \
   ++ $arguments`
 
 if [ "${splitobs_mode}" = 'splitobs' ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Regrouping the observations with program ${reunir_obs}"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Regrouping the observations with program ${reunir_obs}"
 fi
 
 ## La liste des repertoires a travailler

@@ -29,7 +29,7 @@ else
     fi
 fi
 
-${__midas_mpirun_nodelogger__} -n $SEQ_NODE -s infox -m  "Launching program ${__midas_mpirun_msg__}"
+${__midas_mpirun_nodelogger__} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m  "Launching program ${__midas_mpirun_msg__}"
 unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
