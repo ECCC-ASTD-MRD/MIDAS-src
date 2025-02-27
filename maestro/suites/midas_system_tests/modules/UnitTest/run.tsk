@@ -108,7 +108,7 @@ cat << EOF > ptopo_nml
 EOF
 
 pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
-${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
+${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
     echo mpiscript >> localFilesNotToErase
@@ -151,21 +151,21 @@ status=0
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively."
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use:"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "to launch an interactive job."
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively."
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You can use:"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "    ${SEQ_EXP_HOME}/modules/UnitTest/scripts/launch_interactive.sh -exp ${SEQ_EXP_HOME} -node ${SEQ_NODE} -date ${SEQ_DATE}"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "to launch an interactive job."
     if [ "${status}" -ne 0 ]; then
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The program aborted!"
+        ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The program aborted!"
         exit 1
     fi
     SEQ_XFER=stop
 elif [ -n "${UnitTest_run_vtune_mode}" ]; then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you inspect the 'vtune' profiling data with the commands:"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   cd ${TASK_WORK}"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   vtune-gui ./vtune.*"
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "Select only one of the 'vtune.*' directories"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you inspect the 'vtune' profiling data with the commands:"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   cd ${TASK_WORK}"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   vtune-gui ./vtune.*"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "Select only one of the 'vtune.*' directories"
     SEQ_XFER=stop
 else
     if [ "${status}" -ne 0 ]; then
@@ -177,11 +177,11 @@ else
 
     ## If we will not check the runtime, then issue the message now
     if [ -z "${UnitTest_maximum_execution_time}" ]; then
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
+        ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
     fi
 
     if (( $(echo "${RUNTIME} < 3" | bc -l) )); then
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
+        ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is really short."
         exit 1
     fi
 
@@ -230,12 +230,12 @@ else
 
         if (( $(echo "${RUNTIME} > ${max_seconds}" | bc -l) )); then
             max_seconds=$(printf "%.2f" ${max_seconds})
-            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
+            ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${max_seconds}"
             if [ "${UnitTest_abort_when_over_maximum_exection_time}" = abort ]; then
                 exit 1
             fi
         else
-            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
+            ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "The runtime was ${RUNTIME} seconds."
         fi
     fi ## Fin du 'if [ -n "${UnitTest_maximum_execution_time}" ]'
 

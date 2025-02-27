@@ -17,8 +17,8 @@ shift
 ##     ${TASK_BIN}/r.run_in_parallel -npex 10 -npey 10
 __midas_mpirun_call_program__=$@
 
-if [ -x ${SEQ_BIN}/nodelogger ]; then
-    __midas_mpirun_nodelogger__=${SEQ_BIN}/nodelogger
+if [ -x ${MAESTRO_BIN}/nodelogger ]; then
+    __midas_mpirun_nodelogger__=${MAESTRO_BIN}/nodelogger
 else
     __midas_mpirun_nodelogger__=$(which nodelogger || true)
     if [ -z "${__midas_mpirun_nodelogger__}" ]; then

@@ -4,7 +4,7 @@ cd ${TMPDIR}
 unittest=$(dirname ${SEQ_CONTAINER})
 
 if [ "${UnitTest_cleanup}" = yes ]; then
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Erasing test ${unittest}: ${testworkdir}"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Erasing test ${unittest}: ${testworkdir}"
 
     backend_path=$(${TASK_BIN}/true_path ${SEQ_EXP_HOME}/hub/${BACKEND}/work/${SEQ_DATE}/${unittest} || true)
     frontend_path=$(${TASK_BIN}/true_path ${SEQ_EXP_HOME}/hub/${FRONTEND}/work/${SEQ_DATE}/${unittest} || true)
@@ -24,5 +24,5 @@ if [ "${UnitTest_cleanup}" = yes ]; then
     fi
 
 else
-    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "We do not erase the working directory for unit test ${unittest}: ${testworkdir}"
+    ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "We do not erase the working directory for unit test ${unittest}: ${testworkdir}"
 fi

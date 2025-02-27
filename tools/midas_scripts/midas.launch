@@ -130,8 +130,8 @@ fi
 mkdir ${workdir}
 cd ${workdir}
 
-if [ -x ${SEQ_BIN}/nodelogger ]; then
-    nodelogger=${SEQ_BIN}/nodelogger
+if [ -x ${MAESTRO_BIN}/nodelogger ]; then
+    nodelogger=${MAESTRO_BIN}/nodelogger
 else
     nodelogger=$(which nodelogger || true)
     if [ -z "${nodelogger}" ]; then
