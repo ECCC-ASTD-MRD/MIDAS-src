@@ -96,6 +96,24 @@ foreach(prog ${PROJECT_PROGRAMS})
 endforeach()
 
 install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+file(WRITE ${CMAKE_BINARY_DIR}/install_programs_script.cmake "
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE TRUE_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    foreach(prog ${PROJECT_PROGRAMS})
+        set(old_name \"${CMAKE_INSTALL_PREFIX}/midas-\${prog}_${AddToProgName}.Abs\")
+        set(new_name \"${CMAKE_INSTALL_PREFIX}/midas-\${prog}_${AddToProgName}-\${TRUE_VERSION}.Abs\")
+        file(RENAME  \"\${old_name}\" \"\${new_name}\")
+    endforeach()
+")
+
+# Install the custom script to run after the targets are installed
+install(SCRIPT ${CMAKE_BINARY_DIR}/install_programs_script.cmake)
+
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs")

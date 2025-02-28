@@ -19,8 +19,36 @@ install(TARGETS splitobs DESTINATION ${CMAKE_INSTALL_PREFIX})
 add_executable(monitor monitor/monitor.c)
 # monitor is not associated to a specific platform, thus the shorter suffix
 set_target_properties(monitor PROPERTIES
-   OUTPUT_NAME midas.monitor_${PROJECT_VERSION}.Abs)
+   OUTPUT_NAME midas.monitor.Abs)
 install(TARGETS monitor DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+file(WRITE ${CMAKE_BINARY_DIR}/install_splitobs_script.cmake "
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE TRUE_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+        set(old_name \"${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}.Abs\")
+        set(new_name \"${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-\${TRUE_VERSION}.Abs\")
+        file(RENAME  \"\${old_name}\" \"\${new_name}\")
+")
+
+file(WRITE ${CMAKE_BINARY_DIR}/install_monitor_script.cmake "
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE TRUE_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+        set(old_name \"${CMAKE_INSTALL_PREFIX}/midas.monitor.Abs\")
+        set(new_name \"${CMAKE_INSTALL_PREFIX}/midas.monitor-\${TRUE_VERSION}.Abs\")
+        file(RENAME  \"\${old_name}\" \"\${new_name}\")
+")
+
+# Install the custom scripts to run after the targets are installed
+install(SCRIPT ${CMAKE_BINARY_DIR}/install_splitobs_script.cmake)
+install(SCRIPT ${CMAKE_BINARY_DIR}/install_monitor_script.cmake)
 
 if(BUILD_TESTING)
    find_program(BASH_COMMAND bash)
