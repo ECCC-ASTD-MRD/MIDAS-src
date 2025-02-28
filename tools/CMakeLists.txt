@@ -9,7 +9,7 @@ target_compile_options(splitobs PRIVATE "-O2")
 target_link_libraries(splitobs PRIVATE
   MPI::MPI_C
   SQLite::SQLite3
-  burp_c
+  burpc
   rmn::rmn-ompi
 )
 set_target_properties(splitobs PROPERTIES
