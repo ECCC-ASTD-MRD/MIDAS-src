@@ -54,7 +54,8 @@ module tovsNL_mod
        elevmax                     ,&
        wmax                        ,&
        pmin                        ,&
-       pmax
+       pmax                        ,&
+       speedl
   use parkind1, only : jpim, jplm
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
@@ -102,6 +103,7 @@ module tovsNL_mod
   public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
   public :: tvs_mwAllskyAssim
   ! public procedures
+  public :: tvs_rttov_scatt_setupindex
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -2977,7 +2979,7 @@ contains
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
         call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
         if (runObsOperatorWithHydrometeors) then
-          call rttov_scatt_setupindex (  &
+          call tvs_rttov_scatt_setupindex (  &
                rttov_err_stat,           &
                profileCount,             &  ! number of profiles
                tvs_nchan(sensorId),      &  ! number of channels 
@@ -3332,6 +3334,111 @@ contains
     deallocate(sensorTovsIndexes)
 
   end subroutine tvs_rttov
+
+  !--------------------------------------------------------------------------
+  ! tvs_rttov_scatt_setupindex
+  !--------------------------------------------------------------------------
+  subroutine tvs_rttov_scatt_setupindex (errorStatus, nprofiles, n_chan, coef_rttov, coef_scatt, nchannels, chanprof, frequencies, lchannel_subset)
+    !
+    ! :Purpose: modified version of RTTOV's library rttov_scatt_setupindex
+    !           the modification (bug fix ?) allows to use RTTOVscatt with only
+    !           a subset of channels intitilized as it is the case in analysis check mode 
+    !
+    implicit none
+
+    integer (kind=jpim), intent(out)          :: errorStatus                        ! error status
+    integer (kind=jpim), intent(in)           :: nprofiles                          ! number of profiles
+    integer (kind=jpim), intent(in)           :: n_chan                             ! number of channels 
+    type  (rttov_coefs), intent(in)           :: coef_rttov                         ! Rttov coefficients
+    type (rttov_scatt_coef), intent(in)       :: coef_scatt                         ! RTTOV_SCATT Coefficients
+    integer (kind=jpim), intent(in)           :: nchannels                          ! number of calculated channels
+    logical (kind=jplm), optional, intent(in) :: lchannel_subset(nprofiles, n_chan) ! array of logical flags to indicate a subset of channels
+    integer  (kind=jpim), intent (out), dimension (nchannels) :: frequencies        ! array, frequency number for each "channel"
+    type(rttov_chanprof), Intent (out), dimension (nchannels) :: chanprof           ! Channel and profile indices
+
+    integer (kind=jpim) :: i_prof, i_chan, j_chan, i_freq, polid
+    integer (kind=jpim) :: old_polid
+    real (kind=jprb)    :: cwn, old_cwn, freq1, freq2
+    logical (kind=jplm) :: luse(nprofiles, n_chan)
+    logical (kind=jplm) :: lpolarised_scattering
+
+
+    errorstatus = errorstatus_success
+
+    luse(:,:) = .true.
+    if (present(lchannel_subset)) luse = lchannel_subset
+
+    !* Set index arrays
+    j_chan = 0  ! counter to store calculated channels
+    old_cwn = 0.0_jprb
+    old_polid = -1
+
+    lpolarised_scattering = any(coef_scatt%mpol /= -1)
+    write(*,*) "lpolarised_scattering ", lpolarised_scattering
+    do i_prof = 1, nprofiles
+      i_freq = 0
+      do i_chan = 1, n_chan
+        polid = coef_rttov % coef % fastem_polar (i_chan) + 1 ! polarisation ID of this channel
+        cwn = coef_rttov % coef % ff_cwn(i_chan)
+
+        if (lpolarised_scattering) then
+
+          ! Scattering coefficients are tabulated per-frequency and per-polarisation
+      
+          i_freq = i_freq + 1
+          if ( (coef_scatt%mpol(i_freq)+1) /= polid) then
+            call rttov_errorreport (errorstatus_fatal, 'Incorrect channel polarisations in hydrotable', 'rttov_scatt ')
+            return
+          end if
+
+        else
+
+          ! Scattering coefficients are tabulated per-frequency and are independent of polarisation
+          
+          ! Below is a test to see if this channel represents a new frequency.
+          ! The following 3 conditions must all hold in order to be same frequency as
+          ! previous channel:
+          !   1) Same central wave number as previous channel
+          !      (NB check the absolute diff because some SSMI/S channel pairs have
+          !          slightly different central wavenumbers: 1E-3 cm-1 == 0.03 GHz)
+          !   2) Polarization ID eq 4,5,6 or 7 (single V or H polarisation only)
+          !   3) Polarization ID different from last channel
+          if ( (abs(cwn - old_cwn) > 1.E-3_jprb) .or. &
+              & ((polid /= 4) .and. (polid /= 5) .and. (polid /= 6) .and. (polid /= 7)) &
+              & .or. (polid == old_polid) ) then
+
+            i_freq = i_freq + 1
+
+          end if
+        end if
+
+        if( luse(i_prof,i_chan) ) then
+
+          ! Profile and frequency number for each calculated channel
+          j_chan = j_chan + 1
+          chanprof   (j_chan)%chan  = i_chan
+          !frequencies(j_chan)       = i_freq ! the actual bug
+          chanprof   (j_chan)%prof  = i_prof
+          freq1 = speedl * coef_rttov % coef % ff_cwn(i_chan) / 1000000000.d0 ! conversion from cm-1 to GHz
+          freq2 = coef_scatt % freq(i_freq) 
+          if (abs(freq1-freq2) > 0.05d0) then
+            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, i_chan, i_freq
+          end if
+          frequencies(j_chan) = coef_rttov % coef % ff_ori_chn( i_freq ) ! the bug fix
+          freq2 = coef_scatt % freq( frequencies(j_chan) )
+          if (abs(freq1-freq2) > 0.05d0) then
+            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, i_chan, i_freq
+            call utl_abort('tvs_rttov_scatt_setupindex')
+          end if
+        end if
+
+        old_polid = polid
+        old_cwn = cwn
+        
+      end do
+    end do
+
+  end subroutine tvs_rttov_scatt_setupindex
 
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
