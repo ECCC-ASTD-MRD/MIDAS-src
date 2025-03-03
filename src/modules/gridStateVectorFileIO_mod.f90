@@ -1768,7 +1768,7 @@ module gridStateVectorFileIO_mod
       fstRecords(:)%ip2 = 0
     end if
 
-    if (statevector%etiket /= 'UNDEFINED') then
+    if (trim(etiket_in) == '') then
       fstRecords(:)%etiket = statevector%etiket
     else
       fstRecords(:)%etiket = trim(etiket_in)

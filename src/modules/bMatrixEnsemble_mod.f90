@@ -2477,15 +2477,17 @@ CONTAINS
     integer :: nVertWaveBandToDiagnose, vertWaveBandIndex
     integer :: memberIndex
     real(8) :: dnens2
-    character(len=48):: fileName
+    character(len=48):: fileNameOut
     character(len=12):: etiket
     character(len=2) :: horizWaveBandNumber
     character(len=2) :: vertWaveBandNumber
     character(len=2) :: instanceNumber
+    logical :: computeOverallStats
     
     if ( trim(mode) == 'FullPerturbations') then
       nHorizWaveBandToDiagnose = 1
       nVertWaveBandToDiagnose = 1
+      computeOverallStats = .false.
     else if ( trim(mode) == 'WaveBandPerturbations' ) then
       if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
         nHorizWaveBandToDiagnose = bEns(instanceIndex)%nHorizWaveBand
@@ -2497,6 +2499,7 @@ CONTAINS
       else
         nVertWaveBandToDiagnose = 1
       end if
+      computeOverallStats=.true.
     else
       write(*,*)
       write(*,*) 'mode = ', trim(mode)
@@ -2509,6 +2512,8 @@ CONTAINS
     call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                       varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar))
+
+    write(instanceNumber,'(I2.2)') instanceIndex
     
     !
     !- Write each wave band for a selected member
@@ -2535,10 +2540,9 @@ CONTAINS
           write(vertWaveBandNumber,'(I2.2)') vertWaveBandIndex
           etiket = 'M001_H' // trim(horizWaveBandNumber) // '_V' //trim(vertWaveBandNumber)
         end if
-        write(instanceNumber,'(I2.2)') instanceIndex
-        fileName = './ens_pert001_i' // trim(instanceNumber) // '.fst'
+        fileNameOut = './ens_pert001_i' // trim(instanceNumber) // '.fst'
 
-        call gio_writeToFile(statevector,fileName,etiket, &                               ! IN
+        call gio_writeToFile(statevector,fileNameOut,etiket, &                               ! IN
                              scaleFactor_opt=dnens2, &                                    ! IN
                              HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )       ! IN
       end do
@@ -2565,29 +2569,133 @@ CONTAINS
           write(vertWaveBandNumber,'(I2.2)') vertWaveBandIndex
           etiket = 'STDV_H' // trim(horizWaveBandNumber) // '_V' // trim(vertWaveBandNumber)
         end if
-        write(instanceNumber,'(I2.2)') instanceIndex
 
         call gbi_stdDev(gbi_gridPoint, bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                         statevector,                                                                       & ! OUT
                         containsScaledPerts_opt=.true.)                                                      ! IN
-        fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
-        call gio_writeToFile(statevector,fileName,etiket,                         & ! IN
+        fileNameOut = './ens_stddev_i' // trim(instanceNumber) // '.fst'
+        call gio_writeToFile(statevector,fileNameOut,etiket,                      & ! IN
                              HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
 
         call gbi_stdDev(gbi_globalMean, bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                         statevector,                                                                        & ! OUT
                         containsScaledPerts_opt=.true.)                                                       ! IN
-        fileName = './ens_stddev_horizmean_i' // trim(instanceNumber) // '.fst'
-        call gio_writeToFile(statevector,fileName,etiket,                         & ! IN
+        fileNameOut = './ens_stddev_horizmean_i' // trim(instanceNumber) // '.fst'
+        call gio_writeToFile(statevector,fileNameOut,etiket,                      & ! IN
                              HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
         
       end do
     end do
 
     call gsv_deallocate(statevector)
+    
+    !
+    !- Compute overall stats
+    !
+    if (computeOverallStats) then
+      call calcOverallStats(instanceIndex, './ens_stddev_i' // trim(instanceNumber) // '.fst', &
+                            './ens_varStats_i' // trim(instanceNumber) // '.fst')
+      call calcOverallStats(instanceIndex, './ens_stddev_horizmean_i' // trim(instanceNumber) // '.fst', &
+                            './ens_varStats_horizmean_i' // trim(instanceNumber) // '.fst') 
+    end if
 
   end subroutine ensembleDiagnostic
 
+  !--------------------------------------------------------------------------
+  ! calcOverallStats
+  !--------------------------------------------------------------------------
+  subroutine calcOverallStats(instanceIndex, fileNameIn, fileNameOut)
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in) :: instanceIndex
+    character(len=*),  intent(in) :: fileNameIn
+    character(len=*),  intent(in) :: fileNameOut
+
+    ! Locals:
+    type(struct_gsv) :: statevector, statevector_sum, statevector_temp
+    integer :: horizWaveBandIndex, vertWaveBandIndex
+    integer :: stepIndex, varIndex
+    character(len=12):: etiket
+    character(len=4) :: varNamesToRead(vnl_numvarmax)
+    character(len=2) :: horizWaveBandNumber
+    character(len=2) :: vertWaveBandNumber
+    
+    do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
+      if (bEns(instanceIndex)%includeAnlVar(varIndex) == 'HU' .and. bEns(instanceIndex)%gsvHUcontainsLQ) then
+        varNamesToRead(varIndex) = 'LQ'
+      else
+        varNamesToRead(varIndex) = bEns(instanceIndex)%includeAnlVar(varIndex)
+      end if
+    end do
+    
+    call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                                 &
+                      varNames_opt = varNamesToRead(1:bEns(instanceIndex)%numIncludeAnlVar))
+    call gsv_allocate(statevector_sum, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                                     &
+                      varNames_opt = varNamesToRead(1:bEns(instanceIndex)%numIncludeAnlVar))
+    call gsv_allocate(statevector_temp, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                                      &
+                      varNames_opt = varNamesToRead(1:bEns(instanceIndex)%numIncludeAnlVar))
+      
+    ! Read to full perturbations std Dev and convert to variance
+    etiket = 'STDV_FULL'
+    do stepIndex = 1, tim_nstepobsinc
+      call gio_readFromFile(statevector, fileNameIn, etiket, ' ',  &
+                            stepIndex_opt = stepIndex, unitConversion_opt = .false., &
+                            readHeightSfc_opt = .false.)
+    end do
+    call gsv_power(statevector, 2.d0 ) ! StdDev -> Variance
+
+    etiket = 'VAR_FULL'
+    call gio_writeToFile(statevector, fileNameOut, etiket, unitConversion_opt = .false.,  & ! IN
+                         HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)              ! IN
+      
+    ! Compute to sum of the variances from each waveBands
+    call gsv_zero(statevector_sum)
+
+    do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand
+      do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand
+
+        write(horizWaveBandNumber,'(I2.2)') horizWaveBandIndex
+        write(vertWaveBandNumber,'(I2.2)') vertWaveBandIndex
+        etiket = 'STDV_H' // trim(horizWaveBandNumber) // '_V' // trim(vertWaveBandNumber)
+
+        do stepIndex = 1, tim_nstepobsinc
+          call gio_readFromFile(statevector_temp, fileNameIn, etiket, ' ',               &
+                                stepIndex_opt = stepIndex, unitConversion_opt = .false., &
+                                readHeightSfc_opt = .false.)
+        end do
+          
+        call gsv_power(statevector_temp, 2.d0 ) ! StdDev -> Variance
+        call gsv_add(statevector_temp, statevector_sum)
+
+        call gsv_schurProduct(statevector, statevector_temp, inv_opt=.true.) ! statevector_temp = statevector_temp / statevector
+
+        etiket = 'VARR_H' // trim(horizWaveBandNumber) // '_V' // trim(vertWaveBandNumber)
+        call gio_writeToFile(statevector_temp, fileNameOut, etiket, unitConversion_opt = .false., & ! IN
+                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)                  ! IN
+          
+      end do
+    end do
+
+    etiket = 'VAR_SUM'
+    call gio_writeToFile(statevector_sum, fileNameOut, etiket, unitConversion_opt = .false., & ! IN
+                         HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)                 ! IN
+
+    call gsv_schurProduct(statevector, statevector_sum, inv_opt=.true.) ! statevector_sum = statevector_sum / statevector
+
+    etiket = 'VARR_SUM'
+    call gio_writeToFile(statevector_sum, fileNameOut, etiket, unitConversion_opt = .false., & ! IN
+                         HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)                 ! IN
+
+    call gsv_deallocate(statevector)
+    call gsv_deallocate(statevector_temp)
+    call gsv_deallocate(statevector_sum)
+
+  end subroutine calcOverallStats
+  
   !--------------------------------------------------------------------------
   ! ben_writeAmplitude
   !--------------------------------------------------------------------------

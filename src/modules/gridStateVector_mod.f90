@@ -1633,7 +1633,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_schurProduct
   !--------------------------------------------------------------------------
-  subroutine gsv_schurProduct(statevector_in,statevector_inout)
+  subroutine gsv_schurProduct(statevector_in,statevector_inout,inv_opt)
     !
     ! :Purpose: Applies the Schur product of two statevector
     !           statevector_inout(i,j,k,l) = statevector_inout(i,j,k,l) * statevector_in(i,j,k,l) 
@@ -1643,10 +1643,13 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv),  intent(in)     :: statevector_in     ! first operand 
     type(struct_gsv),  intent(inout)  :: statevector_inout  ! second operand, will receive the result
-
+    logical, optional, intent(in) :: inv_opt ! compute statevector_inout / statevector_in
+    
     ! Locals:
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-
+    real(8) :: power
+    logical :: inv
+    
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
     end if
@@ -1654,6 +1657,18 @@ module gridStateVector_mod
       call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated')
     end if
 
+    if (present(inv_opt)) then
+      inv = inv_opt
+    else
+      inv = .false.
+    end if
+
+    if (inv) then
+      power = -1.d0
+    else
+      power = 1.d0
+    end if
+    
     lon1=statevector_in%myLonBeg
     lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
@@ -1670,13 +1685,12 @@ module gridStateVector_mod
             do lonIndex = lon1, lon2
               statevector_inout%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex) = &
                    statevector_inout%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex) *  &
-                   statevector_in%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex)
+                   statevector_in%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex)**power
             end do
           end do
         end do
         !$OMP END PARALLEL DO
       end do
-      
 
     else if (statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4) then
 
@@ -1687,7 +1701,7 @@ module gridStateVector_mod
             do lonIndex = lon1, lon2
               statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
                    statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) *  &
-                   statevector_in%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                   statevector_in%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex)**power
             end do
           end do
         end do
