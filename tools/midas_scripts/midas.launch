@@ -452,11 +452,11 @@ cat > ptopo_nml <<EOF
 EOF
 
 doCreateDiagnostics=1
-grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+grep -isq '^ *lWriteDiagSql *= *\.true\.' flnml || doCreateDiagnostics=0
 doThinning=1
-grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
+grep -isq "^ *doThinning *= *\.true\." flnml || doThinning=0
 dumpToSqliteAfterThinning=1
-grep -isq "^ *dumpToSqliteAfterThinning *= *.true. *$" flnml || dumpToSqliteAfterThinning=0
+grep -isq "^ *dumpToSqliteAfterThinning *= *\.true\." flnml || dumpToSqliteAfterThinning=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
