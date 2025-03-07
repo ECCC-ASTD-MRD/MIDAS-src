@@ -2464,9 +2464,9 @@ module obsOperatorsChem_mod
     !:Purpose: To prepare observation operator
     !
     implicit none
-    
+
     ! Arguments:
-    integer,              intent(in)    :: kmode ! Mode of observation operator
+    integer,              intent(in)    :: kmode           ! Mode of observation operator
     integer,              intent(in)    :: nobslevOriginal ! Number of actual obs elements in measurement
     integer,              intent(in)    :: maxnumHeaders   ! Total number of CH obs for this CPU
     integer,              intent(in)    :: headerCount     ! Obs counter/index
@@ -2474,10 +2474,10 @@ module obsOperatorsChem_mod
     real(8),              intent(out)   :: unit_conversion(obsoper%nmodlev) ! Unit conversion factor
     real(8),              intent(in)    :: stationAltitude ! Ground-station altitutde (m)
     real(8),              intent(in)    :: sfcAltitude     ! Model topography altitude (m)
-    logical,              intent(out)   :: successLocal(obsoper%nobslev) ! Success logical
+    logical,              intent(out)   :: successLocal(obsoper%nobslev)     ! Success logical
     real(8), allocatable, intent(out)   :: avg_kern(:,:)   ! Averaging kernel matrix
 
-    ! Locals:  
+    ! Locals:
     real(8), allocatable :: press_obs(:)
     integer, allocatable :: ixtrLocal(:)
     real(8) :: fdeStddev(obsoper%nmodlev,2),zhmin
@@ -2486,9 +2486,10 @@ module obsOperatorsChem_mod
     character(len=code_len) :: code    ! Must be at least as large as oopc_code_len
     character(len=20) :: message
     logical :: successDepot
+    real(8), allocatable :: zhwork(:,:),zhpwork(:,:)
 
     ! Check if obs BUFR element needs to be changed with use of averaging kernels
-    
+
     if ( obsoper%iavgkern > 0 ) then
       if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
            .and. nobslevOriginal == 1 ) then
@@ -2505,20 +2506,20 @@ module obsOperatorsChem_mod
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ', &
                       obsoper%varno,obsoper%nobslev
         call utl_abort('oopc_obsoperators: Required layer boundaries not available!')
-      else      
+      else
         ! Vertical integration operator
         obsoper%operatorCategory='Integ'
       end if
     else if (obsoper%layerIdentified) then
       ! Layer averaging operator
       obsoper%operatorCategory='LayerAvg'
-    else if (obsoper%vco == 5 .and. obsoper%nobslev == 1) then  
+    else if (obsoper%vco == 5 .and. obsoper%nobslev == 1) then
       ! Surface point (in-situ) measurement
       obsoper%operatorCategory='Surface'
-    else    
+    else
       ! Vertical interpolation operator
       obsoper%operatorCategory='Interp'
-    end if  
+    end if
 
     ! Look for pre-calculated operator
 
@@ -2533,7 +2534,7 @@ module obsOperatorsChem_mod
         if (allocated(avg_kern)) deallocate(avg_kern)
         allocate(avg_kern(oopc_avgkern%n_lvl(obsoper%iavgkern), &
                  oopc_avgkern%n_col(obsoper%iavgkern)))
-    
+
         code=oss_obsdata_get_header_code(obsoper%lon,obsoper%lat,obsoper%date, &
              obsoper%hhmm,obsoper%stnid)
         call oopc_getAvgkern(obsoper%iavgkern,oopc_avgkern%n_lvl(obsoper%iavgkern), &
@@ -2557,7 +2558,7 @@ module obsOperatorsChem_mod
            (oopc_checkType(operatorSubType(1,:),operatorSubType(2,:), &
               obsoper%stnid,'genOperInterp') .and. &
               trim(obsoper%operatorCategory) == 'Interp') ) then
-       
+
         if ( kmode == 2) then
           ! Set reference profiles for use with generalized innovation operator
           ! when kmode>=2
@@ -2585,7 +2586,7 @@ module obsOperatorsChem_mod
         obsoper%applyGenOper = .true.
       end if
     end if
-    
+
     ! Apply unit conversion (apply unit conversion later for kmode=3)
 
     select case(kmode)
@@ -2604,7 +2605,7 @@ module obsOperatorsChem_mod
     if (obsoper%applyGenOper) then
       ! Perform unit conversion on obsoper%trial when applying the generalized
       ! obs operator for kmode=2,3.
-      if (trim(obsoper%operatorCategory) == 'Interp' ) then      
+      if (trim(obsoper%operatorCategory) == 'Interp' ) then
         call oopc_convertUnits(obsoper%trial)
       else
         ! Keep obsoper%trial in ug/kg in this case.
@@ -2623,7 +2624,7 @@ module obsOperatorsChem_mod
       else
         successLocal(:) = .false.
       end if
-    end if 
+    end if
 
     ! Convert observation vertical coordinate value(s) to pressure if needed
 
@@ -2731,14 +2732,14 @@ module obsOperatorsChem_mod
     else
       obsoper%iavgkern = oopc_findAvgkern(obsoper%stnid,obsoper%varno,0)
     end if
-  
+
     ! Apply appropriate core observation operator
-   
+
     select case(trim(obsoper%operatorCategory))
     case('Interp')
 
       ! Vertical interpolation operator
-     
+
       if ( obsoper%iavgkern /= 0 ) then
         message = 'doAll&noExtrap'
       else
@@ -2768,7 +2769,7 @@ module obsOperatorsChem_mod
       ! Set range of elements for model vertical levels
       obsoper%modlevindexTop(1) = obsoper%nmodlev
       obsoper%modlevindexBot(1) = obsoper%nmodlev 
-    
+
     case('Integ')
   
       ! Layer integration operator
@@ -2778,11 +2779,11 @@ module obsOperatorsChem_mod
       else
         message = 'default'
       end if
-      
+
       call oopc_vertObsLayersWgts('integ',ixtrLocal,successLocal,kmode,message)
 
     case('LayerAvg')
-    
+
       ! Layer averaging operator
 
       if ( obsoper%iavgkern /= 0 ) then
@@ -2803,37 +2804,43 @@ module obsOperatorsChem_mod
       else
         obsoper%success(:) = .false.
       end if
-    end if 
+    end if
     deallocate(press_obs,ixtrLocal)
-  
+
     ! Apply averaging kernels if requested
 
     if (obsoper%iavgkern > 0) then
 
       allocate(avg_kern(oopc_avgkern%n_lvl(obsoper%iavgkern), &
                oopc_avgkern%n_col(obsoper%iavgkern)))
-       
+
       code=oss_obsdata_get_header_code(obsoper%lon,obsoper%lat, &
                                        obsoper%date,obsoper%hhmm,obsoper%stnid)
       call oopc_getAvgkern(obsoper%iavgkern, &
                            oopc_avgkern%n_lvl(obsoper%iavgkern), &
                            oopc_avgkern%n_col(obsoper%iavgkern),code,avg_kern)
-     
+
       if (oopc_checkType(oopc_avgkern%stnids,oopc_avgkern%type,obsoper%stnid, &
                          'default')) then
-        do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern) 
+
+        allocate(zhwork(oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nmodlev))
+        allocate(zhpwork(oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nmodlev))
+        zhwork(:,:) = 0.0d0
+        zhpwork(:,:) = 0.0d0
+
+        do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern)
           if (obsoper%success(obslevIndex)) then
 
             ! Apply averaging kernels to observation operator(s)
-            
-            obsoper%zh(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-                                        1:obsoper%nobslev),obsoper%zh(:,:))
+
+            call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             if (obsoper%applyGenOper .and.  &
                 trim(obsoper%operatorCategory) /= 'Interp') then
-              obsoper%zhp(obslevIndex,:) = &
-                matmul(avg_kern(obslevIndex,1:obsoper%nobslev),obsoper%zhp(:,:))
+              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                  obsoper%zhp(:,:),zhpwork(obslevIndex:obslevIndex,:))
             end if
-           
+
             ! Extend vertical range of obs operator according to the influence of
             ! the averaging kernel. Either extend to the entire model vertical range
             ! (commented out below) or to the vertical range with non-negligable values.
@@ -2841,37 +2848,41 @@ module obsOperatorsChem_mod
             ! obsoper%modlevindexTop(obslevIndex) = 1
             ! obsoper%modlevindexBot(obslevIndex) = obsoper%nmodlev
 
-            zhmin=1.0D-10*maxval(abs(obsoper%zh(obslevIndex,:)))
+            zhmin=1.0D-10*maxval(abs(zhwork(obslevIndex,:)))
             do modlevIndex=1,obsoper%modlevindexTop(obslevIndex)
-              if (abs(obsoper%zh(obslevIndex,modlevIndex)) > zhmin) exit
+              if (abs(zhwork(obslevIndex,modlevIndex)) > zhmin) exit
             end do
             if (modlevIndex > obsoper%modlevindexTop(obslevIndex)) then
               modlevIndex=obsoper%modlevindexTop(obslevIndex)
             end if
             obsoper%modlevindexTop(obslevIndex) = modlevIndex
             do modlevIndex=obsoper%nmodlev,obsoper%modlevindexBot(obslevIndex),-1
-              if (abs(obsoper%zh(obslevIndex,modlevIndex)) > zhmin) exit
+              if (abs(zhwork(obslevIndex,modlevIndex)) > zhmin) exit
             end do
             if (modlevIndex.lt.obsoper%modlevindexBot(obslevIndex)) then
               modlevIndex=obsoper%modlevindexBot(obslevIndex)
             end if
             obsoper%modlevindexBot(obslevIndex) = modlevIndex
-           
+
           end if
         end do
- 
+
+        obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),:) = zhwork(:,:)
+        obsoper%zhp(1:oopc_avgkern%n_lvl(obsoper%iavgkern),:) = zhpwork(:,:)
+        deallocate(zhwork,zhpwork)
+
       else if (oopc_checkType(oopc_avgkern%stnids,oopc_avgkern%type, &
                obsoper%stnid,'log')) then
-              
+
         if (kmode == 0) then
-        
+
           ! Apply log-space averaging kernel below - no transformation needed here
-          ! Do not merge the averaging kernel (avgkern) and the vertical interpolator (zh) 
-          
-        else 
-              
-          ! Apply linearization of operator involving the log-space averaging kernel 
-                      
+          ! Do not merge the averaging kernel (avgkern) and the vertical interpolator (zh)
+
+        else
+
+          ! Apply linearization of operator involving the log-space averaging kernel
+
           do obslevIndex=1,obsoper%nobslev
             avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex) = &
               avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex) /   &
@@ -2879,24 +2890,28 @@ module obsOperatorsChem_mod
               obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
               obsoper%trial(obsoper%modlevindexTop(obslevIndex): &
                             obsoper%modlevindexBot(obslevIndex)) )
-          end do                                 
+          end do
 
-          do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern) 
+          allocate(zhwork(oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nmodlev))
+          zhwork(:,:) = 0.0d0
+
+          do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern)
             if (obsoper%success(obslevIndex)) then
               avg_kern(obslevIndex,1:obsoper%nobslev) =  &
                 obsoper%obsSpaceTrial(obslevIndex)*avg_kern(obslevIndex, &
                 1:obsoper%nobslev)
 
-              ! Merge the averaging kernel matrix (avgkern) and the 
+              ! Merge the averaging kernel matrix (avgkern) and the
               ! vertical interpolator (initial zh)
-              obsoper%zh(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-                1:obsoper%nobslev),obsoper%zh(:,:))
-             
+              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                  obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             end if
           end do
-           
-        end if  
-       
+          obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),:) = zhwork(:,:)
+          deallocate(zhwork)
+
+        end if
+
         ! Note that obsoper%applyGenOper=.true. is not set up for this case
         if (obsoper%applyGenOper) then
           call utl_abort('prepareOperator: Log ' // &
@@ -2919,15 +2934,15 @@ module obsOperatorsChem_mod
     if (obsoper%applyGenOper) then
       if (trim(obsoper%operatorCategory) == 'Interp') then
         call oopc_genOperInterp(kmode)
-      else 
+      else
         call oopc_genOper(kmode)
       end if
     end if
 
     ! Save operator if needed
-    
+
     successDepot = oopc_operatorDepot(headerCount,maxnumHeaders,kmode,'save')
-    
+
   end subroutine oopc_prepareOperator
 
   !--------------------------------------------------------------------------
