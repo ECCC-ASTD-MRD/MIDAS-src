@@ -37,7 +37,7 @@ function print_number {
 }
 
 if [ "${checkEnsStartMemberNumber}" -gt 1 ]; then
-    ${nodelogger} -n ${SEQ_NODE} -s info -m "starting member number to check for missing members is ${checkEnsStartMemberNumber}"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "starting member number to check for missing members is ${checkEnsStartMemberNumber}"
 fi
 
 memberNumberToSearch=${checkEnsStartMemberNumber}
@@ -59,21 +59,21 @@ while [ "${memberNumberToSearch}" -le "${lastMemberNumberToSearch}" ]; do
 done
 
 if [ -n "${missing_members}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s info -m "Some ensemble members are missing: ${missing_members}"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "Some ensemble members are missing: ${missing_members}"
 fi
 
 [[ -d "${ensemble_output}" ]] && rm -rf ${ensemble_output}
 
 if [ "${MEMBER_MISSING}" -gt 0 ]; then
     if [ "${fallback_mode}" = 'abort' ]; then
-        ${nodelogger} -n ${SEQ_NODE} -s info -m "At least one ensemble member is missing and 'fallback_mode' is 'abort' then ABORT!!!"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "At least one ensemble member is missing and 'fallback_mode' is 'abort' then ABORT!!!"
         if [ "${USER}" = afsiops -o "${USER}" = afsipar ]; then
-            ${nodelogger} -n ${SEQ_NODE} -s info -m "A&P: CALL CMOIS"
+            ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "A&P: CALL CMOIS"
         fi
-        ${nodelogger} -n ${SEQ_NODE} -s info -m "If you want to continue by ignoring those missing ensemble members, put 'fallback_mode=continue' in ${cfg} and relaunch this task as indicated in the web page 'https://wiki.cmc.ec.gc.ca/wiki/ARMA/envar/contingency'"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "If you want to continue by ignoring those missing ensemble members, put 'fallback_mode=continue' in ${cfg} and relaunch this task as indicated in the web page 'https://wiki.cmc.ec.gc.ca/wiki/ARMA/envar/contingency'"
         exit 1
     elif [ "${fallback_mode}" = 'continue' ]; then
-        ${nodelogger} -n ${SEQ_NODE} -s info -m "Since fallback_mode=${fallback_mode}, then continue"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "Since fallback_mode=${fallback_mode}, then continue"
     else
         echo "The variable 'fallback_mode' can only be 'abort' or 'continue' and not '${fallback_mode}'"
         exit 1
@@ -84,7 +84,7 @@ if [ "${MEMBER_MISSING}" -gt 0 ]; then
     if [ "${MEMBER_MISSING}" -lt "$(echo ${NUMBER_OF_MEMBERS}*${minimum_proportion_of_members} | bc -l | cut -d. -f1)" ]; then
         reponse=$(echo ${minimum_proportion_of_members} | awk '$1<0.5 {print "yes"}')
         if [ "${reponse}" = yes ]; then
-            ${nodelogger} -n $SEQ_NODE -s info -m "Le parametre 'minimum_proportion_of_members' doit etre plus grand que 0.5"
+            ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "Le parametre 'minimum_proportion_of_members' doit etre plus grand que 0.5"
             exit 1
         fi
 
@@ -117,12 +117,12 @@ if [ "${MEMBER_MISSING}" -gt 0 ]; then
                 let thisnumber=thisnumber+1
             done
 
-            ${nodelogger} -n ${SEQ_NODE} -s info -m "On remplace le membre ${numstr} par ${thisnumstr}"
+            ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "On remplace le membre ${numstr} par ${thisnumstr}"
             ln -s ${ensemble}/${date}_${ext}_${thisnumstr} ${ensemble_output}/${date}_${ext}_${numstr}
             let thisnumber=thisnumber+1
         done ## Fin du 'while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]'
     else
-        ${nodelogger} -n ${SEQ_NODE} -s info -m "Trop de membres sont absents alors nous tournerons sans les ensemble (3D-Var)"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "Trop de membres sont absents alors nous tournerons sans les ensemble (3D-Var)"
         ## On enleve la partie '&NAMBEN ... /' dans le namelist pour tourner sans ceux-ci.
         cat > convert_to_3DVar.py <<EOF
 import re

@@ -130,8 +130,8 @@ fi
 mkdir ${workdir}
 cd ${workdir}
 
-if [ -x ${SEQ_BIN}/nodelogger ]; then
-    nodelogger=${SEQ_BIN}/nodelogger
+if [ -x ${MAESTRO_BIN}/nodelogger ]; then
+    nodelogger=${MAESTRO_BIN}/nodelogger
 else
     nodelogger=$(which nodelogger || true)
     if [ -z "${nodelogger}" ]; then
@@ -193,7 +193,7 @@ function copyOrLink {
 }
 
 if [ -n "${observations}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Get observations files"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Get observations files"
     ## We do copy the observations files since they are changed in place
     mkdir obsfiles
     if [ -d "${observations}" ]; then
@@ -207,7 +207,7 @@ if [ -n "${observations}" ]; then
 fi
 
 if [ -n "${trials}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Get trials"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Get trials"
     trlm_ndigits=2
     counter=1
     if [ -d "${trials}" ]; then
@@ -253,17 +253,17 @@ if [ -n "${trials}" ]; then
 fi
 
 if [ -L "${analinc_mask}" -o -f "${analinc_mask}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Get Analinc mask file"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Get Analinc mask file"
     copyOrLink ${analinc_mask} analinc_mask
 fi
 
 if [ -L "${preconin}" -o -f "${preconin}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Get Preconditioning file"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Get Preconditioning file"
     copyOrLink ${preconin} preconin
 fi
 
 if [ -f "${bgcov}" ]; then
-   ${nodelogger} -n $SEQ_NODE -s infox -m "bgcov=${bgcov}"
+   ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "bgcov=${bgcov}"
    copyOrLink ${bgcov} bgcov
    ## Pour garder une compatibilite arriere, on fait un lien de 'glbcov' vers 'bgcov'
    ln -s bgcov glbcov
@@ -278,24 +278,24 @@ if [ -f "${obscov}" -o  -d "${obscov}" ]; then
 fi
 
 if [ -d "${coefsat}" ]; then
-   ${nodelogger} -n $SEQ_NODE -s infox -m "coefsat=${coefsat}"
+   ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "coefsat=${coefsat}"
    copyOrLink ${coefsat}/* .
 fi
 
 if [ -d "${statsat}" ]; then
-   ${nodelogger} -n $SEQ_NODE -s infox -m "statsat=${statsat}"
+   ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "statsat=${statsat}"
    copyOrLink ${statsat}/* .
 fi
 
 ## ici, on sélectionne un 'stats_tovs' si necessaire
 if [ "${stats_tovs}" != stats_tovs ]; then
     [ -f stats_tovs ] && rm stats_tovs
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Using ${stats_tovs} as stats_tovs"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Using ${stats_tovs} as stats_tovs"
     copyOrLink ${stats_tovs} stats_tovs
 fi
 
 if [ -d "${biascoeff}" ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "biascoeff=${biascoeff}"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "biascoeff=${biascoeff}"
     for file in ${biascoeff}/*; do
         file2=$(echo ${file##*/} | sed 's/_analysis_/_background_/')
         copyOrLink $file $file2
@@ -315,13 +315,13 @@ fi
 
 if [ -n "${ensObsDirectory}" ]; then
     if [ -d "${ensObsDirectory}" ]; then
-        ${nodelogger} -n $SEQ_NODE -s infox -m "Input ensObs main path=${ensObsDirectory}"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Input ensObs main path=${ensObsDirectory}"
 
         for folder in ${ensObsDirectory}/*; do
             ln -svi ${folder} .
         done
     else
-        ${nodelogger} -n $SEQ_NODE -s info -m "The directory ${ensObsDirectory} does not exist"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "The directory ${ensObsDirectory} does not exist"
         exit 1
     fi
 fi
@@ -330,7 +330,7 @@ if [ -n "${trialMeanFile}" ]; then
     if [ -f "${trialMeanFile}" ]; then
         copyOrLink ${trialMeanFile} ${date_trial}_006_trialmean
     else
-        ${nodelogger} -n $SEQ_NODE -s info -m "The file ${trialMeanFile} does not exist"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "The file ${trialMeanFile} does not exist"
         exit 1
     fi
 fi
@@ -343,7 +343,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
             ## check if all ensemble members are present
             NUMBER_OF_MEMBERS=$(grep -i 'NENS *=' ${namelist} | cut -d= -f2)
             if [ "${NUMBER_OF_MEMBERS}" -lt 1 ]; then
-                ${nodelogger} -n $SEQ_NODE -s info -m "On ne peut determiner le nombre de membres a partir du namelist ${namelist}"
+                ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "On ne peut determiner le nombre de membres a partir du namelist ${namelist}"
                 exit 1
             fi
         fi
@@ -361,7 +361,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
             date_file=${date_trial}
             ext=${ensemble_trial_extension}
         fi
-        ${nodelogger} -n $SEQ_NODE -s infox -m "Get ensemble ${ensname}"
+        ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Get ensemble ${ensname}"
 
         ${midas_check_ensemble} -cfg ${cfg}                           \
             -namelist            ${namelist}                          \
@@ -392,13 +392,13 @@ if [ -n "${aux_input}" ]; then
        is_directory=
        ssh ${aux_input%%:*} test ! -d ${aux_input##*:} || is_directory=yes
        if [ "${is_directory}" = yes ]; then
-           ${nodelogger} -n $SEQ_NODE -s infox -m "Acquiring file(s) from remote supplementary input dir ${aux_input}"
+           ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Acquiring file(s) from remote supplementary input dir ${aux_input}"
            ${remote_copy} ${aux_input}/* ./
        else
            is_file=
            ssh ${aux_input%%:*} test ! -f ${aux_input##*:} || is_file=yes
            if [ "${is_file}" = yes ]; then
-               ${nodelogger} -n $SEQ_NODE -s infox -m "Acquiring remote supplementary input file ${aux_input}"
+               ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Acquiring remote supplementary input file ${aux_input}"
                ${remote_copy} ${aux_input} ./
           else
                echo "${aux_input} is not available!!"
@@ -406,10 +406,10 @@ if [ -n "${aux_input}" ]; then
           fi
        fi
     elif [ -f "${aux_input}" -o -L "${aux_input}" ]; then
-       ${nodelogger} -n $SEQ_NODE -s infox -m "Acquiring supplementary input file ${aux_input}"
+       ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Acquiring supplementary input file ${aux_input}"
        ln -s ${aux_input} ./${aux_input##*/}
     elif [ -d "${aux_input}" ]; then
-       ${nodelogger} -n $SEQ_NODE -s infox -m "Acquiring file(s) from supplementary input dir ${aux_input}"
+       ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Acquiring file(s) from supplementary input dir ${aux_input}"
        files=$(ls ${aux_input}/* 2>/dev/null)
        if [ "${files}" != "" ]; then
           for file in $files ; do
@@ -432,7 +432,7 @@ fi
 export TMG_ON=YES
 export MIDAS_DATE=${date}
 
-${nodelogger} -n $SEQ_NODE -s infox -m "Building namelist"
+${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s infox -m "Building namelist"
 
 if [ -f flnml ]; then
     mv flnml flnml.no_tripote
@@ -452,11 +452,11 @@ cat > ptopo_nml <<EOF
 EOF
 
 doCreateDiagnostics=1
-grep -isq '^ *lWriteDiagSql *= *.true. *$' flnml || doCreateDiagnostics=0
+grep -isq '^ *lWriteDiagSql *= *\.true\.' flnml || doCreateDiagnostics=0
 doThinning=1
-grep -isq "^ *doThinning *= *.true. *$" flnml || doThinning=0
+grep -isq "^ *doThinning *= *\.true\." flnml || doThinning=0
 dumpToSqliteAfterThinning=1
-grep -isq "^ *dumpToSqliteAfterThinning *= *.true. *$" flnml || dumpToSqliteAfterThinning=0
+grep -isq "^ *dumpToSqliteAfterThinning *= *\.true\." flnml || dumpToSqliteAfterThinning=0
 
 if [ -n "${observations}" ]; then
     observations_files=$(ls -SLr obsfiles/obs*)
@@ -581,7 +581,7 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-hostname_cmd      $(which hostname)
 
 if [ "${midas_reunir_obs}" != no -a "${updatedObsFilesNeeded}" != yes ]; then
-    ${nodelogger} -n ${SEQ_NODE} -s info -m "If reunir_obs, updatedObsFilesNeeded should be 'yes'"
+    ${nodelogger} -n ${SEQ_NODE} ${SEQ_LOOP_ARGS} -s info -m "If reunir_obs, updatedObsFilesNeeded should be 'yes'"
     exit 1
 fi
 

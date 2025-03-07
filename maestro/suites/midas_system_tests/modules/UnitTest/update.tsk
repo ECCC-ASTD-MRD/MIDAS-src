@@ -16,9 +16,9 @@ if [ "${SEQ_NODE}" = /Tests/letkf/glb_10km/UnitTest/update ]; then
     ##   /home/sanl000/data_maestro/${REFERENCE_MACHINE}/UnitTests/midas/letkf/glb_10km/0001_48x52
     other_updated_results=$(echo ${updated_results} | sed "s/_${LETKF_GLB10KM_MPITOPOLOGY}$/_${other_mpitopo}/")
     if [ -d "${other_updated_results}" ]; then
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The other MPI topology seems already updated, if not, check that!!! (${other_updated_results})"
+        ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The other MPI topology seems already updated, if not, check that!!! (${other_updated_results})"
     else
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You must also update for the other MPI topology (${other_mpitopo}) in ${other_updated_results}"
+        ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You must also update for the other MPI topology (${other_mpitopo}) in ${other_updated_results}"
     fi
 fi
 
@@ -150,7 +150,7 @@ fi
 cd ..
 
 ## collect the listings
-tasks=$(${SEQ_BIN}/nodeinfo -n ${SEQ_NODE} | awk -F= '/^node\.sibling=/ {print $2}' | grep -v clean)
+tasks=$(${MAESTRO_BIN}/nodeinfo -n ${SEQ_NODE} | awk -F= '/^node\.sibling=/ {print $2}' | grep -v clean)
 for task in ${tasks}; do
     nodename=${SEQ_CONTAINER}/${task}
     filename=$(echo ${nodename} | cut -c2- | sed 's!/!\.!g')
@@ -180,5 +180,5 @@ for file in results*.ca listings.ca; do
     fi
 done
 
-$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "You can update the configuration file '${UNITTEST_PGM_CFG}' with:"
-$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "    UnitTest_reference=${updated_results}"
+${MAESTRO_BIN}/nodelogger -n $SEQ_NODE -s info -m "You can update the configuration file '${UNITTEST_PGM_CFG}' with:"
+${MAESTRO_BIN}/nodelogger -n $SEQ_NODE -s info -m "    UnitTest_reference=${updated_results}"
