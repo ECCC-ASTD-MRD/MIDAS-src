@@ -1451,8 +1451,8 @@ module obsOperatorsChem_mod
     !    |       |     | Observation Operator  |                                   |
     !    +=======+=====+=======================+===================================+
     !    |  nl   |  0  |for general simulation |OmP and total Jo(x_background)     |
-    !    |       |     |operator               |for CH. OmP saved in OBS_OMP of    |
-    !    |       |     |(non-linear and linear)|obsSpaceData                       |
+    !    |       |     |operator               |for CH. OmP saved in destObsColumn |
+    !    |       |     |(non-linear and linear)|of obsSpaceData                    |
     !    +-------+-----+-----------------------+-----------------------------------+
     !    | HBHT  |  1  |for identification or  |background error standard dev.     |
     !    |       |     |determination of       |in observation space saved in      |
@@ -1464,7 +1464,7 @@ module obsOperatorsChem_mod
     !    |       |     |operator               |obsSpaceData                       |
     !    +------+-----+-----------------------+-----------------------------------+
     !    |adjoint|  3  |for adjoint of tangent |H^T * R^-1 (OmP-Hdx) in            |
-    !    |       |     |linear operator        |columnAnlInc_opt                      |
+    !    |       |     |linear operator        |columnAnlInc_opt                   |
     !    +-------+-----+-----------------------+-----------------------------------+    
     !
     !   :columnAnlInc_opt:  Optional argument for input/output of column of
@@ -1793,7 +1793,7 @@ module obsOperatorsChem_mod
             obsoper%obs(obslevIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
             obsoper%obsSpaceTrial(obslevIndex) = &
                  obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) &
-                 - obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                 - obs_bodyElem_r(obsSpaceData,destObsColumn,bodyIndex)
           end if
             
         end do BODY1
@@ -1842,7 +1842,7 @@ module obsOperatorsChem_mod
           if (process_obs(obslevIndex) .and. .not.obsoper%success(obslevIndex)) then
             ! Observation was flagged within this call of oopc_CHobsoperators
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
+            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
@@ -1853,7 +1853,7 @@ module obsOperatorsChem_mod
             ! Observation was flagged previous to this call of oopc_CHobsoperators
             ! Ensure appropriate value settings.
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
+            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
