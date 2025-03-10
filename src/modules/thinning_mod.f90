@@ -5629,9 +5629,8 @@ contains
     integer            :: centreOrigGlobal(3)
     integer, external  :: newdate
 
-
     write(*,*) 'thn_removeRarsDuplicates: start'
-
+ 
     centreOrigGlobal = centreOrigGlobal_amsu
     if (trim(instrumName) == "mwhs2") then
       centreOrigGlobal = centreOrigGlobal_mwhs2
