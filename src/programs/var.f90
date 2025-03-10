@@ -495,7 +495,7 @@ program midas_var
     end if
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
-    deallocInterpInfoNL = ( numOuterLoopIterations <= 1 )
+    deallocInterpInfoNL = ( numOuterLoopIterations == 1 )
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorUpdateHighRes, &
                                    deallocInterpInfoNL_opt=deallocInterpInfoNL )
