@@ -1885,114 +1885,113 @@ contains
     integer :: numChanInAsciiList, numChanInNamtovList
     logical :: isChannelInNamtovList, isChannelInAsciiList
 
-    do sensorIndex = 1, tvs_nsensors
-      if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(:,sensorIndex))) then
-        instrumId = tvs_instruments(sensorIndex)
-      
-        ! all-sky HU
-        if (tvs_isInstrumUsingHydrometeors(instrumId)) then
-          sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
+    sensorLoop: do sensorIndex = 1, tvs_nsensors
+      if (.not. tvs_mwAllskyAssim .or. .not. any(useStateDepSigmaObs(:,sensorIndex))) cycle sensorLoop
 
-          ! check tvs_channelsUsingHydrometeors and useStateDepSigmaObs have same length for this instrument
-          if (instrumId == tvs_getInstrumentId('atms')) then
-            chanNumWithOffsetStart = atmsHuChanNum(1)
-            chanNumWithOffsetEnd = atmsHuChanNum(size(atmsHuChanNum(:)))
-          else
-            chanNumWithOffsetStart = 1
-            chanNumWithOffsetEnd = tvs_maxChannelNumber
-          end if
-          numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
-          numChanInNamtovList = count(tvs_channelsUsingHydrometeors(sensorIndex2,:)>0)
-          if (numChanInAsciiList /= numChanInNamtovList) then
+      instrumId = tvs_instruments(sensorIndex)
+    
+      ! all-sky HU
+      if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+        sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
+
+        ! check tvs_channelsUsingHydrometeors and useStateDepSigmaObs have same length for this instrument
+        if (instrumId == tvs_getInstrumentId('atms')) then
+          chanNumWithOffsetStart = atmsHuChanNum(1)
+          chanNumWithOffsetEnd = atmsHuChanNum(size(atmsHuChanNum(:)))
+        else
+          chanNumWithOffsetStart = 1
+          chanNumWithOffsetEnd = tvs_maxChannelNumber
+        end if
+        numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
+        numChanInNamtovList = count(tvs_channelsUsingHydrometeors(sensorIndex2,:)>0)
+        if (numChanInAsciiList /= numChanInNamtovList) then
+          write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                    ', numChanInAsciiList=', numChanInAsciiList, &
+                    ', numChanInNamtovList=', numChanInNamtovList, &
+                    ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
+                    ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
+                    ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
+                    
+          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingHydrometeors')
+        end if
+
+        ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
+        do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
+          chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
+
+          isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),chanNum) > 0)
+          isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+          if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+
+          if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
+              (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
+
             write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
-                      ', numChanInAsciiList=', numChanInAsciiList, &
-                      ', numChanInNamtovList=', numChanInNamtovList, &
-                      ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
-                      ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
-                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
-                      
-            call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingHydrometeors')
+                      ', sensorIndex2=', sensorIndex2, &
+                      ', inst=', instrumId, &
+                      ', chanNum (or tvs_channelsUsingHydrometeors)=', chanNum, &
+                      ', isChannelInNamtovList=', isChannelInNamtovList, &
+                      ', chanNumWithOffset=', chanNumWithOffset, &
+                      ', isChannelInAsciiList=', isChannelInAsciiList, &
+                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
           end if
+        end do ! do chanNum = 1, tvs_maxNumberOfChannels
+      end if ! if (tvs_isInstrumUsingHydrometeors(instrumId)) then
 
-          ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
-          do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
-            chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
+      ! all-sky TT
+      if (tvs_isInstrumUsingCLW(instrumId)) then
+        sensorIndex2 = tvs_getClwIndex(instrumId)
 
-            isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),chanNum) > 0)
-            isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+        ! check tvs_channelsUsingClw and useStateDepSigmaObs have same length for this instrument
+        if (instrumId == tvs_getInstrumentId('atms')) then
+          chanNumWithOffsetStart = atmsTtChanNum(1)
+          chanNumWithOffsetEnd = atmsTtChanNum(size(atmsTtChanNum(:)))
+        else
+          chanNumWithOffsetStart = 1
+          chanNumWithOffsetEnd = tvs_maxChannelNumber
+        end if
+        numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
+        numChanInNamtovList = count(tvs_channelsUsingClw(sensorIndex2,:)>0)
+        if (numChanInAsciiList /= numChanInNamtovList) then
+          write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                    ', numChanInAsciiList=', numChanInAsciiList, &
+                    ', numChanInNamtovList=', numChanInNamtovList, &            
+                    ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
+                    ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
+                    ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
+                    
+          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingClw')
+        end if          
 
-            if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+        ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
+        do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
+          chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
 
-            if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
-                (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
+          isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),chanNum) > 0)
+          isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
-              write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
-                        ', sensorIndex2=', sensorIndex2, &
-                        ', inst=', instrumId, &
-                        ', chanNum (or tvs_channelsUsingHydrometeors)=', chanNum, &
-                        ', isChannelInNamtovList=', isChannelInNamtovList, &
-                        ', chanNumWithOffset=', chanNumWithOffset, &
-                        ', isChannelInAsciiList=', isChannelInAsciiList, &
-                        ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+          if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
 
-              call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
-            end if
-          end do ! do chanNum = 1, tvs_maxNumberOfChannels
-        end if ! if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+          if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
+              (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
 
-        ! all-sky TT
-        if (tvs_isInstrumUsingCLW(instrumId)) then
-          sensorIndex2 = tvs_getClwIndex(instrumId)
-
-          ! check tvs_channelsUsingClw and useStateDepSigmaObs have same length for this instrument
-          if (instrumId == tvs_getInstrumentId('atms')) then
-            chanNumWithOffsetStart = atmsTtChanNum(1)
-            chanNumWithOffsetEnd = atmsTtChanNum(size(atmsTtChanNum(:)))
-          else
-            chanNumWithOffsetStart = 1
-            chanNumWithOffsetEnd = tvs_maxChannelNumber
-          end if
-          numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
-          numChanInNamtovList = count(tvs_channelsUsingClw(sensorIndex2,:)>0)
-          if (numChanInAsciiList /= numChanInNamtovList) then
             write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
-                      ', numChanInAsciiList=', numChanInAsciiList, &
-                      ', numChanInNamtovList=', numChanInNamtovList, &            
-                      ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
-                      ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
-                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
-                      
-            call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingClw')
-          end if          
+                      ', sensorIndex2=', sensorIndex2, &
+                      ', inst=', instrumId, &
+                      ', chanNum (or tvs_channelsUsingClw)=', chanNum, &
+                      ', isChannelInNamtovList=', isChannelInNamtovList, &
+                      ', chanNumWithOffset=', chanNumWithOffset, &
+                      ', isChannelInAsciiList=', isChannelInAsciiList, &
+                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
-          ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
-          do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
-            chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
-
-            isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),chanNum) > 0)
-            isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
-
-            if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
-
-            if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
-                (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
-
-              write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
-                        ', sensorIndex2=', sensorIndex2, &
-                        ', inst=', instrumId, &
-                        ', chanNum (or tvs_channelsUsingClw)=', chanNum, &
-                        ', isChannelInNamtovList=', isChannelInNamtovList, &
-                        ', chanNumWithOffset=', chanNumWithOffset, &
-                        ', isChannelInAsciiList=', isChannelInAsciiList, &
-                        ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
-
-              call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
-            end if
-          end do ! do chanNum = 1, tvs_maxNumberOfChannels
-        end if ! if (tvs_isInstrumUsingCLW(instrumId)) then
-
-      end if ! if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(:,sensorIndex)) then
-    end do
+            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
+          end if
+        end do ! do chanNum = 1, tvs_maxNumberOfChannels
+      end if ! if (tvs_isInstrumUsingCLW(instrumId)) then
+    end do sensorLoop
 
   end subroutine tvs_checkAllskyChanNum
 
