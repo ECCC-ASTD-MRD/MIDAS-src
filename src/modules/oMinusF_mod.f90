@@ -123,10 +123,10 @@ module oMinusF_mod
 
       ! Apply optional bias corrections when namelist logicals {fam}BiasActive are TRUE
       ! (Only reverse existing corrections when namelist logicals {fam}RevOnly are TRUE)
-      if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)    
+      if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)
       if (obs_famExist(obsSpaceData,'GP')) call bcc_applyGPBcor(obsSpaceData)
       if (obs_famExist(obsSpaceData,'UA')) call bcc_applyUABcor(obsSpaceData)
-      
+
       !- 1.11 Basic setup of columnData module
       call col_setup
 
@@ -186,8 +186,8 @@ module oMinusF_mod
     !--------------------------------------------------------------------------
     ! omf_oMinusFens
     !--------------------------------------------------------------------------
-    subroutine omf_oMinusFens(ensObs, obsSpaceData, nEns, ensPathName, &
-                              midasMode, addHBHT, addSigmaO)
+    subroutine omf_oMinusFens(ensObs, obsSpaceData, nEns, includeMember0, &
+                              ensPathName, midasMode, addHBHT, addSigmaO)
       !
       ! :Purpose: compute Observation-minus-Forecast (OmF) for ensembles
       !
@@ -197,6 +197,7 @@ module oMinusF_mod
       type(struct_eob), target, intent(inout) :: ensObs
       type(struct_obs), target, intent(inout) :: obsSpaceData
       integer,                  intent(in)    :: nEns
+      logical,                  intent(in)    :: includeMember0
       character(len=*),         intent(in)    :: ensPathName
       character(len=*),         intent(in)    :: midasMode
       logical,                  intent(in)    :: addHBHT
@@ -208,7 +209,8 @@ module oMinusF_mod
       type(struct_ens)          :: ensembleTrl4D
       type(struct_gsv)          :: stateVector4D
       type(struct_gsv)          :: stateVectorWithZandP4D
-      type(struct_gsv)          :: stateVectorHeightSfc            
+      type(struct_gsv)          :: stateVectorHeightSfc
+      type(struct_gsv)          :: stateVectorMember0
       type(struct_vco), pointer :: vco_anl  => null()
       type(struct_hco), pointer :: hco_anl  => null()
       type(struct_hco), pointer :: hco_ens  => null()
@@ -217,8 +219,9 @@ module oMinusF_mod
       character(len=256) :: ensFileName
       character(len=48)  :: obsMpiStrategy
       character(len=3)   :: obsColumnMode
-      integer, allocatable :: dateStampList(:)      
-      integer :: datestamp, memberIndex
+      character(len=4), pointer :: varNames(:) => null()
+      integer, allocatable :: dateStampList(:)
+      integer :: datestamp, memberIndex, stepIndex, firstMember
 
       write(*,*) " -----------------------------------------"
       write(*,*) " ---  START OF SUBROUTINE oMinusFens   ---"
@@ -233,20 +236,20 @@ module oMinusF_mod
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
- 
+
       !- 1.3 RAM disk usage
       call ram_setup
 
       !- 1.4 Horizontal, vertical and temporal dimensions
       call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1)
-      
+
       call tim_setup( fileNameForDate_opt=trim(ensFileName) )
       allocate(dateStampList(tim_nstepobs))
       call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
-      
+
       call hco_setupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
       call vco_setupFromFile(vco_ens, ensFileName)
-      
+
       !- 1.5 Observation file names and get datestamp, but do not use it
       call obsf_setup(dateStamp, trim(midasMode))
 
@@ -284,10 +287,10 @@ module oMinusF_mod
 
       ! Apply optional bias corrections when namelist logicals {fam}BiasActive are TRUE
       ! (Only reverse existing corrections when namelist logicals {fam}RevOnly are TRUE)
-      if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)    
+      if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)
       if (obs_famExist(obsSpaceData,'GP')) call bcc_applyGPBcor(obsSpaceData)
       if (obs_famExist(obsSpaceData,'UA')) call bcc_applyUABcor(obsSpaceData)
-      
+
       !- 1.11 Basic setup of columnData module
       call col_setup
       call col_setVco(columTrlOnTrlLev, vco_ens)
@@ -307,7 +310,8 @@ module oMinusF_mod
       end if
 
       !- 1.14 Allocate and initialize eob object for storing y-HX values
-      call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+      call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData, &
+                        includeMember0_opt=includeMember0)
       call eob_zero(ensObs)
       call eob_setLatLonObsCod(ensObs)
 
@@ -324,7 +328,7 @@ module oMinusF_mod
                         dataKind_opt=4, allocHeightSfc_opt=.true., &
                         allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_zero(stateVector4D)
-      
+
       !- 1.16 Read the sfc height from ensemble member 1
       call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -335,7 +339,28 @@ module oMinusF_mod
       !- 1.17 Reading ensemble
       call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
       call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
-      
+
+      !- 1.18 Allocate statevector and read member 0000
+      if (includeMember0) then
+        call ens_varNamesList(varNames,ensembleTrl4D)
+        write(*,*) 'omf_oMinusFens: varNames = ', varNames(:)
+        call gsv_allocate(stateVectorMember0, tim_nstepobs, hco_ens, vco_ens, &
+                          dateStamp_opt=tim_getDateStamp(), varNames_opt=varNames, &
+                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                          dataKind_opt=4, allocHeightSfc_opt=.true.)
+        call gsv_zero(stateVectorMember0)
+
+        call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=0, &
+                             shouldExist_opt=.true.)
+        do stepIndex = 1, tim_nstepobs
+          write(*,*) 'Reading control member, stepIndex = ', stepIndex
+          call gio_readFromFile(stateVectorMember0, ensFileName, ' ', ' ',  &
+                                stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                                readHeightSfc_opt = .true.)
+        end do
+
+      end if
+
       write(*,*)
       write(*,*) '> omf_oMinusFens: setup - END'
       call msg_memUsage('omf_oMinusFens')
@@ -343,22 +368,34 @@ module oMinusF_mod
       !
       !- 2.  O-F computation
       !
-      do memberIndex = 1, nEns
+      ! Start with member 0 or 1?
+      if (includeMember0) then
+        firstMember = 0
+      else
+        firstMember = 1
+      end if
+      do memberIndex = firstMember, nEns
         write(*,*) ''
         write(*,*) 'oMinusFens: compute O-P for ensemble member ', memberIndex
         call msg_memUsage('omf_oMinusFens')
 
         !- 2.1 Copy selected member to a stateVector
-        call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
-        call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                      beSilent_opt=.true.)
+        if (memberIndex == 0) then
+          write(*,*) 'Copy control member instead of ensemble member'
+          call gsv_copy(stateVectorMember0, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                        beSilent_opt=.true.)
+        else
+          call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
+          call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                        beSilent_opt=.true.)
+        end if
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
 
         !- 2.2 Compute and set Yb in ensObs
         call s2c_nl(stateVectorWithZandP4D, obsSpaceData, columTrlOnTrlLev, hco_ens, &
                    timeInterpType='LINEAR', dealloc_opt=.false., &
                    beSilent_opt=.true.)
-        
+
         !- 2.3 Compute innovation
         call inn_computeInnovation(columTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false., beSilent_opt=.true.)
 
@@ -383,7 +420,8 @@ module oMinusF_mod
       call gsv_deallocate(stateVectorWithZandP4D)
       call gsv_deallocate(stateVector4D)
       call gsv_deallocate(stateVectorHeightSfc)
+      call gsv_deallocate(stateVectorMember0)
 
     end subroutine omf_oMinusFens
-    
+
 end module oMinusF_mod
