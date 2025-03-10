@@ -176,6 +176,7 @@
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    instrumentNamesUsingCLW(1) = 'amsua'
+   channelsUsingClw(1,1:5) = 1,2,3,4,5
    mwInstrumUsingCLW_tl = .true.
    cloudScaleFactor = 0.5D0
    mwAllskyAssim = .true.

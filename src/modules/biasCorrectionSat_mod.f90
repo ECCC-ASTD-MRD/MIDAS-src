@@ -2460,7 +2460,7 @@ contains
     ! Locals:
     integer :: bodyIndex, headerIndex, instrumentIndex, sensorIndex
     integer, allocatable :: instrumentList(:)
-    integer :: assim, flag, codtyp, channelNumber
+    integer :: flag, codtyp, channelNumber, channelNumber_WithOffset
     integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, chanIndx
     logical :: lHyperIr, lGeo, lSsmis, lTovs
     logical :: condition, condition1, condition2, channelIsAllsky
@@ -2533,127 +2533,136 @@ contains
         if (bodyIndex < 0) exit BODY
 
         ! determine if instrument/channel function in all-sky mode
-        channelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-        channelIsAllsky = .false.
-        if ((tvs_isInstrumUsingCLW(tvs_instruments(idsat)) .or. &
-             tvs_isInstrumUsingHydrometeors(tvs_instruments(idsat))) .and. &
-            oer_useStateDepSigmaObs(channelNumber, idsat)) then
-          channelIsAllsky = .true.
-        end if
+        channelNumber_WithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
+        channelNumber = channelNumber_WithOffset - tvs_channelOffset(idsat)
+        channelIsAllsky = (tvs_isChanNumInAllskyNamtovList(inst,'TT',channelNumber) .or. &
+                           tvs_isChanNumInAllskyNamtovList(inst,'HU',channelNumber))
+
         channelIsPassive = .false.
         if (passiveChannelNumber(instrumentList(idsat)) > 0) then
-          channelIsPassive = (utl_findloc(passiveChannelList(instrumentList(idsat),1:passiveChannelNumber(instrumentList(idsat))), channelNumber) > 0)
+          channelIsPassive = (utl_findloc(passiveChannelList(instrumentList(idsat),1:passiveChannelNumber(instrumentList(idsat))), channelNumber_WithOffset) > 0)
         end if
-        assim = obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex)
-        if (assim == obs_notAssimilated) then
-          call bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, bodyIndex)
-          if (chanIndx > 0) then
-            flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-            if (lSsmis) then   ! SSM/I and SSMIS
-              !   Here "good" means data that are not rejected by first QC program satqc_ssmi(s) (bit 7 ON).
-              !   Bit 11 is ON for data that are unselected by UTIL or for uncorrected data (or both).
-              !   Data rejected by first QC program satqc_ssmi(s) have bit 7 switched ON only (in addition to bit 9) as
-              !   rogue/topo checks are skipped. So if bit 16 (rogue) is ON, bit 7 must be off.
-              if (.not. offlineMode .and. .not. channelIsPassive) then
-                if (allModeSsmis) then
-                  !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
-                  condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
-                  !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
-                  condition2 = .not. btest(flag, 6) .and. btest(flag, 16) .and. .not. btest(flag, 18) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
-                  condition = condition1 .or. condition2
-                else
-                  !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
-                  condition = .not. btest(flag, 9) .and. .not. btest(flag, 11)       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
-                end if
+        call bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, bodyIndex)
+        if (chanIndx <= 0) cycle BODY
+        
+        flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
+        if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
+          ! assimilated obs
+          if (lTovs) then
+            ! remove cloud-affected obs from the pool of "assimilated" obs before computing bias correction
+            if (channelIsAllsky .and. btest(flag, 23)) then
+              call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+            end if
+          end if
+
+        else
+          ! non-assimilated obs
+          if (lSsmis) then   ! SSM/I and SSMIS
+            !   Here "good" means data that are not rejected by first QC program satqc_ssmi(s) (bit 7 ON).
+            !   Bit 11 is ON for data that are unselected by UTIL or for uncorrected data (or both).
+            !   Data rejected by first QC program satqc_ssmi(s) have bit 7 switched ON only (in addition to bit 9) as
+            !   rogue/topo checks are skipped. So if bit 16 (rogue) is ON, bit 7 must be off.
+            if (.not. offlineMode .and. .not. channelIsPassive) then
+              if (allModeSsmis) then
+                !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
+                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+                !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
+                condition2 = .not. btest(flag, 6) .and. btest(flag, 16) .and. .not. btest(flag, 18) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
+                condition = condition1 .or. condition2
               else
-                ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
-                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'  
-                ! all good data that passed all QC    
-                ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
-                condition2 = btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
-                condition = condition1 .or. condition2
+                !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
+                condition = .not. btest(flag, 9) .and. .not. btest(flag, 11)       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
               end if
-            else if(lTovs) then
-              ! AMSU-A, AMSU-B/MHS, ATMS, MWHS-2
-              !  In AMSU case, bit 11 is set for data that are not bias corrected or for unselected channels.
-              !    BUT unlike other instruments, all AMSU data are bias corrected, whether selected or not
-              !    so bit 11 = unselected channel (like bit 8 for AIRS/IASI)
-              !  Bit 9 is set for all other rejections including rogue (9+16) and topography (9+18).
-              !  In addition, bit 7 is set for channels with bad data or data that should not be assimilated.
-              if (.not. offlineMode .and. .not. channelIsPassive) then
-                if (allModeTovs) then
-                  !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
-                  condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
-                  !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
-                  !             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing
-                  condition2 = btest(flag, 16) .and. .not. btest(flag, 6) .and. .not. btest(flag, 18) .and. .not. btest(flag, 7)!' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
-                  condition = condition1 .or. condition2
-                else
-                  !  FLAG test: selected data (bit 11 OFF) that have passed QC (bit 9 OFF)
-                  condition = .not. btest(flag, 9) .and. .not. btest(flag, 11) !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
-                end if
-              else    ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue check
-                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'  
-                ! all good data that passed all QC    
-                ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
-                condition2 =  btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18)  !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+            else
+              ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
+              condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'  
+              ! all good data that passed all QC    
+              ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
+              condition2 = btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+              condition = condition1 .or. condition2
+            end if
+          else if(lTovs) then
+            ! AMSU-A, AMSU-B/MHS, ATMS, MWHS-2
+            !  In AMSU case, bit 11 is set for data that are not bias corrected or for unselected channels.
+            !    BUT unlike other instruments, all AMSU data are bias corrected, whether selected or not
+            !    so bit 11 = unselected channel (like bit 8 for AIRS/IASI)
+            !  Bit 9 is set for all other rejections including rogue (9+16) and topography (9+18).
+            !  In addition, bit 7 is set for channels with bad data or data that should not be assimilated.
+            if (.not. offlineMode .and. .not. channelIsPassive) then
+              if (allModeTovs) then
+                !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
+                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+                !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
+                !             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing
+                condition2 = btest(flag, 16) .and. .not. btest(flag, 6) .and. .not. btest(flag, 18) .and. .not. btest(flag, 7)!' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
                 condition = condition1 .or. condition2
+              else
+                !  FLAG test: selected data (bit 11 OFF) that have passed QC (bit 9 OFF)
+                condition = .not. btest(flag, 9) .and. .not. btest(flag, 11) !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
               end if
-              if (channelIsAllsky) condition = condition .and. .not. btest(flag, 23)
-            else if(lGeo) then  ! CSR case
-              !    No flag check        =                all data that have passed QC/filtering
-              !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
-              if (allModeCsr .or. offlineMode .or. channelIsPassive) then
-                condition = .true.
-              else        
-                condition = .not. btest(flag, 18) ! ' AND (FLAG & 2048 = 0)' 
-              endif
-            else if (lHyperIr) then ! AIRS, IASI and CRIS
-              !  (FLAG & 2560 = 0)     = bits 9, 11 OFF       --> data that passed QC (rogue and other)
-              !  (FLAG & 11010176 = 0) = bits 7,19,21,23 OFF  --> "good" data (corrected/selected or not)!  (FLAG & 64 = 64)  = bit 6 ON        --> bias corrected data
-              !  (FLAG & 256 = 0)  = bit 8 OFF       --> passed selction (not blacklisted, UTIL=1)
-              !  (FLAG & 2048 = 2048)   = bit 11 ON
-              !  (FLAG & 65536 = 65536) = bit 16 ON  --> rogue check failure
-              !  (FLAG & 524288 = 0)    = bit 19 OFF --> not surface affected [experimental, bit 11 may not be on if data
-              !                                          are to be assimilated]
-              !  (FLAG & 2097152 = 0)   = bit 21 OFF --> not rejected due to model top transmittance
-              !  (FLAG & 8388608 = 0)   = bit 23 OFF --> "clear sky" radiance [experimental, bit 11 may not be on if cloudy
-              !                                          data are assimilated]!  (FLAG & 128 = 0)      = bit 7 OFF  --> not shortwave channel during day
-              !  (FLAG & 512 = 0)      = bit 9 OFF  --> non-erroneous data that passed O-P rogue check
-              !! AIRS, IASI:!    bit  8 ON: blacklisted/unselected channel (UTIL=0)
-              !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
-              !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
-              !               not bias corrected (11) (with bit 6 OFF)
-              if (.not. offlineMode .and. .not. channelIsPassive) then
-                if (allModeHyperIr) then        
-                  ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
-                  condition1  = .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
-                  ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
-                  condition2  = .not. btest(flag, 6) .and. btest(flag, 11) .and.  .not. btest(flag, 17) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) 
-                  !' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
-                  condition = condition1 .or. condition2
-                else 
-                  ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
-                  condition =  .not. btest(flag, 9) .and. .not. btest(flag, 11) .and.  .not. btest(flag, 8) .and. .not. btest(flag, 23) .and. .not. btest(flag, 19) 
-                  !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
-                end if
-              else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
-                !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
-                ! data that passed all QC 
-                condition1 =  .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) 
-                !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
-                ! good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON)
-                condition2 = btest(flag, 9) .and. btest(flag, 16) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
-                condition = condition1 .or. condition2
-              end if
+            else    ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue check
+              condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'  
+              ! all good data that passed all QC    
+              ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
+              condition2 =  btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18)  !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+              condition = condition1 .or. condition2
             end if
 
-            if (condition) assim = obs_Assimilated
-
-            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, assim)
+            ! remove cloud-affected obs from the pool of "non-assimilated" obs before computing bias correction
+            if (channelIsAllsky) condition = condition .and. .not. btest(flag, 23)
+          else if(lGeo) then  ! CSR case
+            !    No flag check        =                all data that have passed QC/filtering
+            !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
+            if (allModeCsr .or. offlineMode .or. channelIsPassive) then
+              condition = .true.
+            else        
+              condition = .not. btest(flag, 18) ! ' AND (FLAG & 2048 = 0)' 
+            endif
+          else if (lHyperIr) then ! AIRS, IASI and CRIS
+            !  (FLAG & 2560 = 0)     = bits 9, 11 OFF       --> data that passed QC (rogue and other)
+            !  (FLAG & 11010176 = 0) = bits 7,19,21,23 OFF  --> "good" data (corrected/selected or not)!  (FLAG & 64 = 64)  = bit 6 ON        --> bias corrected data
+            !  (FLAG & 256 = 0)  = bit 8 OFF       --> passed selction (not blacklisted, UTIL=1)
+            !  (FLAG & 2048 = 2048)   = bit 11 ON
+            !  (FLAG & 65536 = 65536) = bit 16 ON  --> rogue check failure
+            !  (FLAG & 524288 = 0)    = bit 19 OFF --> not surface affected [experimental, bit 11 may not be on if data
+            !                                          are to be assimilated]
+            !  (FLAG & 2097152 = 0)   = bit 21 OFF --> not rejected due to model top transmittance
+            !  (FLAG & 8388608 = 0)   = bit 23 OFF --> "clear sky" radiance [experimental, bit 11 may not be on if cloudy
+            !                                          data are assimilated]!  (FLAG & 128 = 0)      = bit 7 OFF  --> not shortwave channel during day
+            !  (FLAG & 512 = 0)      = bit 9 OFF  --> non-erroneous data that passed O-P rogue check
+            !! AIRS, IASI:!    bit  8 ON: blacklisted/unselected channel (UTIL=0)
+            !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
+            !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
+            !               not bias corrected (11) (with bit 6 OFF)
+            if (.not. offlineMode .and. .not. channelIsPassive) then
+              if (allModeHyperIr) then        
+                ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
+                condition1  = .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+                ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
+                condition2  = .not. btest(flag, 6) .and. btest(flag, 11) .and.  .not. btest(flag, 17) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) 
+                !' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+                condition = condition1 .or. condition2
+              else 
+                ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
+                condition =  .not. btest(flag, 9) .and. .not. btest(flag, 11) .and.  .not. btest(flag, 8) .and. .not. btest(flag, 23) .and. .not. btest(flag, 19) 
+                !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
+              end if
+            else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
+              !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
+              ! data that passed all QC 
+              condition1 =  .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) 
+              !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+              ! good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON)
+              condition2 = btest(flag, 9) .and. btest(flag, 16) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+              condition = condition1 .or. condition2
+            end if
           end if
-        end if
+
+          if (condition) call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_assimilated)
+
+        end if ! if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated)
+
       end do BODY
     end do HEADER
 

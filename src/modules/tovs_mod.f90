@@ -103,6 +103,7 @@ module tovs_mod
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
   public :: tvs_useSfcEmissObsSpace, tvs_emis_read_climatology, tvs_pcnt_box
   public :: tvs_rttov_tl, tvs_rttov_ad, tvs_rttov_k
+  public :: tvs_checkAllskyChanNum, tvs_isChanNumInAllskyNamtovList
   
   type surface_params
     real(8)   :: albedo   ! surface albedo (0-1)
@@ -152,6 +153,9 @@ module tovs_mod
   integer, parameter :: kslon=2160, kslat=1080 ! CERES file dimension in grid points
   integer, parameter :: maxsize = 100 ! Max number of instruments
   integer, parameter :: tvs_nlevels = 101  ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
+  integer, parameter :: atmsTtChanNum(15) = (/  1,  2,  3,  4,  5,  6, 7, 8, 9, 10, &
+                                               11, 12, 13, 14, 15 /)                  ! ATMS temperature channel numbers
+  integer, parameter :: atmsHuChanNum(7)  = (/ 16, 17, 18, 19, 20, 21, 22 /)          ! ATMS humidity channel numbers
   real(8), parameter :: microg2kg   = 1.0d-9 ! units conversion from micrograms/kg to kg/kg
 
   ! Private module variables
@@ -161,7 +165,8 @@ module tovs_mod
   integer :: tvs_numMWInstrumUsingHydrometeors
   logical :: tvs_mwInstrumUsingCLW_tl
   logical :: tvs_mwInstrumUsingHydrometeors_tl
-  integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
+  integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable, used in all-sky HU
+  integer :: tvs_channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
@@ -804,7 +809,8 @@ contains
     real(8) :: cloudScaleFactor_tl  ! Scale factor applied in rttov TL/AD to cloud increments
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
-    integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
+    integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables, used in all-sky HU
+    integer :: channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
@@ -818,7 +824,7 @@ contains
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
-    namelist /NAMTOV/ channelsUsingHydrometeors
+    namelist /NAMTOV/ channelsUsingHydrometeors, channelsUsingClw
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
@@ -854,6 +860,7 @@ contains
     mwInstrumUsingCLW_tl = .false.
     mwInstrumUsingHydrometeors_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
+    channelsUsingClw(:,:) = -1
     instrumentNamesUsingHydrometeors(:) = '***UNDEFINED***'
     channelsUsingHydrometeors(:,:) = -1
     regLimitExtrap = .true.
@@ -909,6 +916,7 @@ contains
     tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
+    tvs_channelsUsingClw(:,:) = channelsUsingClw(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
     tvs_irEmissAngularCorrection = irEmissAngularCorrection
@@ -1786,6 +1794,33 @@ contains
   end function tvs_isInstrumUsingCLW
 
   !--------------------------------------------------------------------------
+  !  tvs_getClwIndex
+  !--------------------------------------------------------------------------
+  function tvs_getClwIndex(instrumId) result(clwIndex)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
+    ! Result:
+    integer             :: clwIndex
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    clwIndex = -1
+    do instrumentIndex = 1, tvs_numMWInstrumUsingCLW
+      if (instrumId == instrumentIdsUsingCLW(instrumentIndex)) then
+        clwIndex = instrumentIndex
+        exit
+      end if
+    end do
+
+  end function tvs_getClwIndex
+
+  !--------------------------------------------------------------------------
   !  tvs_isInstrumUsingHydrometeors
   !--------------------------------------------------------------------------
   function tvs_isInstrumUsingHydrometeors(instrumId) result(idExist)
@@ -1830,6 +1865,176 @@ contains
 
   end function tvs_getHydrometeorsIndex
   
+  !--------------------------------------------------------------------------
+  !  tvs_checkAllskyChanNum
+  !--------------------------------------------------------------------------
+  subroutine tvs_checkAllskyChanNum(useStateDepSigmaObs)
+    !
+    ! :Purpose: Check all-sky channel numbers in the array filled with symmetricObsErr ascii 
+    !           file match the all-sky channel numbers from NAMTOV.
+    !
+    implicit none
+
+    ! Argument:
+    logical, intent(in) :: useStateDepSigmaObs(:,:) ! array filled with symmetricObsErr ascii
+    
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2, instrumId
+    integer :: chanNum, chanNumWithOffset
+    integer :: chanNumWithOffsetStart, chanNumWithOffsetEnd
+    integer :: numChanInAsciiList, numChanInNamtovList
+    logical :: isChannelInNamtovList, isChannelInAsciiList
+
+    sensorLoop: do sensorIndex = 1, tvs_nsensors
+      if (.not. tvs_mwAllskyAssim .or. .not. any(useStateDepSigmaObs(:,sensorIndex))) cycle sensorLoop
+
+      instrumId = tvs_instruments(sensorIndex)
+    
+      ! all-sky HU
+      if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+        sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
+
+        ! check tvs_channelsUsingHydrometeors and useStateDepSigmaObs have same length for this instrument
+        if (instrumId == tvs_getInstrumentId('atms')) then
+          chanNumWithOffsetStart = atmsHuChanNum(1)
+          chanNumWithOffsetEnd = atmsHuChanNum(size(atmsHuChanNum(:)))
+        else
+          chanNumWithOffsetStart = 1
+          chanNumWithOffsetEnd = tvs_maxChannelNumber
+        end if
+        numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
+        numChanInNamtovList = count(tvs_channelsUsingHydrometeors(sensorIndex2,:)>0)
+        if (numChanInAsciiList /= numChanInNamtovList) then
+          write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                    ', numChanInAsciiList=', numChanInAsciiList, &
+                    ', numChanInNamtovList=', numChanInNamtovList, &
+                    ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
+                    ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
+                    ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
+                    
+          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingHydrometeors')
+        end if
+
+        ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
+        do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
+          chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
+
+          isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),chanNum) > 0)
+          isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+          if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+
+          if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
+              (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
+
+            write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                      ', sensorIndex2=', sensorIndex2, &
+                      ', inst=', instrumId, &
+                      ', chanNum (or tvs_channelsUsingHydrometeors)=', chanNum, &
+                      ', isChannelInNamtovList=', isChannelInNamtovList, &
+                      ', chanNumWithOffset=', chanNumWithOffset, &
+                      ', isChannelInAsciiList=', isChannelInAsciiList, &
+                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
+          end if
+        end do ! do chanNum = 1, tvs_maxNumberOfChannels
+      end if ! if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+
+      ! all-sky TT
+      if (tvs_isInstrumUsingCLW(instrumId)) then
+        sensorIndex2 = tvs_getClwIndex(instrumId)
+
+        ! check tvs_channelsUsingClw and useStateDepSigmaObs have same length for this instrument
+        if (instrumId == tvs_getInstrumentId('atms')) then
+          chanNumWithOffsetStart = atmsTtChanNum(1)
+          chanNumWithOffsetEnd = atmsTtChanNum(size(atmsTtChanNum(:)))
+        else
+          chanNumWithOffsetStart = 1
+          chanNumWithOffsetEnd = tvs_maxChannelNumber
+        end if
+        numChanInAsciiList = count(useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex))
+        numChanInNamtovList = count(tvs_channelsUsingClw(sensorIndex2,:)>0)
+        if (numChanInAsciiList /= numChanInNamtovList) then
+          write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                    ', numChanInAsciiList=', numChanInAsciiList, &
+                    ', numChanInNamtovList=', numChanInNamtovList, &            
+                    ', chanNumWithOffsetStart=', chanNumWithOffsetStart, &
+                    ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
+                    ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
+                    
+          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingClw')
+        end if          
+
+        ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
+        do chanNumWithOffset = chanNumWithOffsetStart, chanNumWithOffsetEnd
+          chanNum = chanNumWithOffset - tvs_channelOffset(sensorIndex)
+
+          isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),chanNum) > 0)
+          isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+          if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+
+          if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
+              (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
+
+            write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                      ', sensorIndex2=', sensorIndex2, &
+                      ', inst=', instrumId, &
+                      ', chanNum (or tvs_channelsUsingClw)=', chanNum, &
+                      ', isChannelInNamtovList=', isChannelInNamtovList, &
+                      ', chanNumWithOffset=', chanNumWithOffset, &
+                      ', isChannelInAsciiList=', isChannelInAsciiList, &
+                      ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
+
+            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
+          end if
+        end do ! do chanNum = 1, tvs_maxNumberOfChannels
+      end if ! if (tvs_isInstrumUsingCLW(instrumId)) then
+    end do sensorLoop
+
+  end subroutine tvs_checkAllskyChanNum
+
+  !--------------------------------------------------------------------------
+  !  tvs_isChanNumInAllskyNamtovList
+  !--------------------------------------------------------------------------
+  function tvs_isChanNumInAllskyNamtovList(instrumId,allskyTtHu,channelNumber) result(isChannelInNamtovList)
+    !
+    ! :Purpose: check if channel number is in NAMTOV list for all-sky TT/HU of the instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: instrumId     ! input RTTOV instrument code
+    character(len=2), intent(in) :: allskyTtHu    ! 'TT' for all-sky temperature, HU for all-sky humidity
+    integer,          intent(in) :: channelNumber ! channel number
+
+    ! Result:
+    logical :: isChannelInNamtovList
+
+    ! Locals:
+    integer :: sensorIndex2 
+    
+    isChannelInNamtovList = .false.
+
+    ! all-sky HU
+    if (allskyTtHu == 'HU') then
+      if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+        sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
+        isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),channelNumber) > 0)
+      end if
+    end if
+
+    ! all-sky TT
+    if (allskyTtHu == 'TT') then
+      if (tvs_isInstrumUsingCLW(instrumId)) then
+        sensorIndex2 = tvs_getClwIndex(instrumId)
+        isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),channelNumber) > 0)
+      end if
+    end if
+
+  end function tvs_isChanNumInAllskyNamtovList
+
   !--------------------------------------------------------------------------
   !  tvs_isInstrumAllskyTtAssim
   !--------------------------------------------------------------------------

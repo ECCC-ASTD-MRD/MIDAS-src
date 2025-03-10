@@ -193,7 +193,9 @@
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    instrumentNamesUsingCLW(1) = 'amsua'
+   channelsUsingClw(1,1:5) = 1,2,3,4,5
    instrumentNamesUsingCLW(2) = 'atms'
+   channelsUsingClw(2,1:5) = 1,2,3,5,6
    instrumentNamesUsingHydrometeors(1) = 'mhs'
    channelsUsingHydrometeors(1,1:5)=1,2,3,4,5
    mwInstrumUsingCLW_tl = .true.

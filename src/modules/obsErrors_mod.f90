@@ -669,6 +669,9 @@ contains
     IER = FCLOS(ILUTOV)
     if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
 
+    ! Check all-sky channel numbers in useStateDepSigmaObs and all-sky channel numbers from NAMTOV match
+    call tvs_checkAllskyChanNum(useStateDepSigmaObs(:,:))
+
     !
     !    7. Fill the publics variables for QC purpose
     !       --------------

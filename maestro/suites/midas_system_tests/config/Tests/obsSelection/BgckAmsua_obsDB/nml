@@ -84,6 +84,7 @@
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .true.,
    INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
+   channelsUsingClw(1,1:5) = 1,2,3,4,5
    MWINSTRUMUSINGCLW_TL = .true.
    cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
