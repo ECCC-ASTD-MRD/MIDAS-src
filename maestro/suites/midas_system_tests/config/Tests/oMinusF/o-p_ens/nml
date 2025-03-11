@@ -2,6 +2,7 @@
    NENS = 5
    ADDSIGMAO = .FALSE.
    ADDHBHT   = .FALSE.
+   includeMember0 = .true.
 /
  &NAMDIMO
    NMXOBS=500000,

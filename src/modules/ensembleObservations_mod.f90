@@ -60,6 +60,7 @@ MODULE ensembleObservations_mod
     logical                       :: mpiGlobal      = .false.
     logical                       :: meanRemoved    = .false.
     integer                       :: numMembers       ! number of ensemble members
+    integer                       :: firstMember      ! starting value of member index
     integer                       :: numObs           ! number of observations
     integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
     character(len=20)             :: typeVertCoord = 'undefined' ! 'logPressure' or 'depth'
@@ -73,7 +74,7 @@ MODULE ensembleObservations_mod
     real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
     integer                       :: Ya_window = -1             ! handle to shared data "window" for Ya_r4
     type(c_ptr)                   :: Ya_baseptr                 ! pointer used to allocated shared memory
-    real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space    
+    real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space
     type(c_ptr)                   :: randPert_baseptr           ! pointer used to allocated shared memory
     real(4), pointer              :: randPert_r4(:,:) => null() ! unbiased random perturbations with covariance equal to R
     integer                       :: randPert_window = -1       ! handle to shared data "window" for Ya_r4
@@ -114,7 +115,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_init()
     !
-    !: Purpose: This subroutine reads the namelist section NAMENSOBS for this module. 
+    !: Purpose: This subroutine reads the namelist section NAMENSOBS for this module.
     !
     implicit none
 
@@ -235,7 +236,7 @@ CONTAINS
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
-                          fileMemberIndex1_opt, allocYb_opt)
+                          fileMemberIndex1_opt, allocYb_opt, includeMember0_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -246,18 +247,21 @@ CONTAINS
     integer                 , intent(in)    :: numMembers           ! number of ensemble members
     integer                 , intent(in)    :: numObs               ! number of observations
     type(struct_obs), target, intent(in)    :: obsSpaceData         ! obs object
-    integer, optional       , intent(in)    :: fileMemberIndex1_opt ! first member index of this set (default is 1) 
+    integer, optional       , intent(in)    :: fileMemberIndex1_opt ! first member index of this set (default is 1)
     logical, optional       , intent(in)    :: allocYb_opt          ! request that Yb_r4 is allocated (default is true)
+    logical, optional       , intent(in)    :: includeMember0_opt   ! choose to start at member 0 instead of 1
 
     ! Locals:
-    logical                                 :: allocYb
+    logical                                 :: allocYb, includeMember0
 
     if (ensObs%allocated) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
       call eob_deallocate(ensObs)
     end if
 
-    if (present(fileMemberIndex1_opt)) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
+    if (present(fileMemberIndex1_opt)) then
+      ensObs%fileMemberIndex1 = fileMemberIndex1_opt
+    end if
 
     if (present(allocYb_opt)) then
       allocYb = allocYb_opt
@@ -265,11 +269,23 @@ CONTAINS
       allocYb = .true.
     end if
 
+    if (present(includeMember0_opt)) then
+      includeMember0 = includeMember0_opt
+    else
+      includeMember0 = .false.
+    end if
+
     call eob_init()
 
     ensObs%obsSpaceData  => obsSpaceData
     ensObs%numMembers    = numMembers
     ensObs%numObs        = numObs
+    if (includeMember0) then
+      write(*,*) 'eob_allocate: NOTE: memberIndex starts from 0, not 1'
+      ensObs%firstMember = 0
+    else
+      ensObs%firstMember = 1
+    end if
 
     allocate(ensObs%lat(ensObs%numObs))
     allocate(ensObs%lon(ensObs%numObs))
@@ -277,7 +293,7 @@ CONTAINS
     allocate(ensObs%obsValue(ensObs%numObs))
     allocate(ensObs%obsErrInv(ensObs%numObs))
     if (eob_simObsAssim) allocate(ensObs%obsErrInv_sim(ensObs%numObs))
-    if (allocYb) allocate(ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs))
+    if (allocYb) allocate(ensObs%Yb_r4(ensObs%firstMember:ensObs%numMembers,ensObs%numObs))
     allocate(ensObs%meanYb(ensObs%numObs))
     allocate(ensObs%deterYb(ensObs%numObs))
     allocate(ensObs%assFlag(ensObs%numObs))
@@ -407,7 +423,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_clean(ensObs,ensObsClean)
     !
-    ! :Purpose: Remove all obs from the ensObs object that are not 
+    ! :Purpose: Remove all obs from the ensObs object that are not
     !           flagged for assimilation. Put the cleaned result in the
     !           locally created output object.
     !
@@ -422,6 +438,10 @@ CONTAINS
 
     if (ensObs%mpiglobal) then
       call utl_abort('eob_clean: Cannot be called with an mpiglobal object')
+    end if
+
+    if (ensObs%firstMember==0) then
+      call utl_abort('eob_clean: Cannot be called when firstMember is 0')
     end if
 
     call eob_setAssFlag(ensObs)
@@ -450,7 +470,7 @@ CONTAINS
         ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
         if (allocated(ensObs%obsErrInv_sim)) then
           ensObsClean%obsErrInv_sim(obsCleanIndex) = ensObs%obsErrInv_sim(obsIndex)
-        end if 
+        end if
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
         if (associated(ensObs%Ya_r4)) then
           ensObsClean%Ya_r4(:,obsCleanIndex) = ensObs%Ya_r4(:,obsIndex)
@@ -480,6 +500,9 @@ CONTAINS
 
     if (ensObsIn%mpiglobal) then
       call utl_abort('eob_copy: Cannot be called with an mpiglobal object')
+    end if
+    if (ensObsIn%firstMember==0) then
+      call utl_abort('eob_copy: Cannot be called when firstMember is 0')
     end if
 
     ensObsOut%lat(:)           = ensObsIn%lat(:)
@@ -530,12 +553,15 @@ CONTAINS
     integer, allocatable :: requestId(:)
     integer(kind=mpi_address_kind) :: windowSize
     real(4), allocatable :: tempBuffer(:,:)
-    
+
     write(*,*) 'eob_allGather: starting'
     call msg_memUsage('eob_allGather')
 
     if (ensObs%mpiglobal) then
       call utl_abort('eob_allGather: Input eob object is already mpiglobal')
+    end if
+    if (ensObs%firstMember == 0) then
+      call utl_abort('eob_allGather: Cannot be called when firstMember is 0')
     end if
 
     call utl_tmg_start(10,'--Observations')
@@ -570,10 +596,10 @@ CONTAINS
     ! Shared memory for Yb_r4
     call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
                                  mmpi_mpicomm_shared, ensObs_mpiglobal%Yb_baseptr, &
-                                 ensObs_mpiglobal%Yb_window, ierr)    
+                                 ensObs_mpiglobal%Yb_window, ierr)
     if (mmpi_myidHost /= 0) then
       call mpi_win_shared_query(ensObs_mpiglobal%Yb_window, 0, windowSize, dispUnit, &
-                                ensObs_mpiglobal%Yb_baseptr, ierr)     
+                                ensObs_mpiglobal%Yb_baseptr, ierr)
     end if
     call c_f_pointer(ensObs_mpiglobal%Yb_baseptr, ensObs_mpiglobal%Yb_r4, arrayShape)
 
@@ -584,7 +610,7 @@ CONTAINS
                                    ensObs_mpiglobal%Ya_window, ierr)
       if (mmpi_myidHost /= 0) then
         call mpi_win_shared_query(ensObs_mpiglobal%Ya_window, 0, windowSize, dispUnit, &
-                                  ensObs_mpiglobal%Ya_baseptr, ierr)     
+                                  ensObs_mpiglobal%Ya_baseptr, ierr)
       end if
       call c_f_pointer(ensObs_mpiglobal%Ya_baseptr, ensObs_mpiglobal%Ya_r4, arrayShape)
     end if
@@ -596,7 +622,7 @@ CONTAINS
                                    ensObs_mpiglobal%randPert_window, ierr)
       if (mmpi_myidHost /= 0) then
         call mpi_win_shared_query(ensObs_mpiglobal%randPert_window, 0, windowSize, dispUnit, &
-                                  ensObs_mpiglobal%randPert_baseptr, ierr)     
+                                  ensObs_mpiglobal%randPert_baseptr, ierr)
       end if
       call c_f_pointer(ensObs_mpiglobal%randPert_baseptr, ensObs_mpiglobal%randPert_r4, arrayShape)
     end if
@@ -703,7 +729,7 @@ CONTAINS
     if (allocated(ensObs_mpiglobal%obsErrInv_sim)) then
       call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                           0, 'GRID', ierr)
-    end if 
+    end if
     call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
@@ -825,6 +851,9 @@ CONTAINS
     if (.not. ensObs%allocated) then
       call utl_abort('eob_writeToFiles: this object is not allocated')
     end if
+    if (ensObs%firstMember == 0) then
+      call utl_abort('eob_writeToFiles: Cannot be called when firstMember is 0')
+    end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntBodyColumn(obsAssFlag, ensObs%obsSpaceData, OBS_ASS)
@@ -833,7 +862,7 @@ CONTAINS
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
-    
+
     ! write observation info to a file
     if (writeObsInfo) then
       fileName = 'eob_obsInfo_' // trim(fileNameExtention)
@@ -842,7 +871,7 @@ CONTAINS
       if ( fileExists ) then
         call utl_abort('eob_writeToFiles: file should not exist')
       end if
-      
+
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
       write(unitNum) ensObs%numMembers, ensObs%numObs
@@ -860,7 +889,7 @@ CONTAINS
     call getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
                                     numGroupsToDivideMembers_opt=numGroupsToDivideMembers_opt, &
                                     maxNumMembersPerGroup_opt=maxNumMembersPerGroup_opt)
-                                        
+
     ! Open file and write ensObs%Yb for all the members to one file
     fileName = trim(outputFilenamePrefix) // '_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFiles: writing ',trim(filename)
@@ -868,7 +897,7 @@ CONTAINS
     if (fileExists) then
       call utl_abort('eob_writeToFiles: file should not exist')
     end if
-    
+
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
     write(unitNum) ensObs%numMembers
@@ -893,7 +922,7 @@ CONTAINS
   subroutine eob_readFromFiles(ensObs, numMembersToRead, inputFilenamePrefix, &
                                readObsInfo)
     !
-    ! :Purpose: Read mpi local ensObs%Yb object from file. Several files in separate subdirectories 
+    ! :Purpose: Read mpi local ensObs%Yb object from file. Several files in separate subdirectories
     !           can be read. Some examples of path+filename are:
     !           ensObs_0001/eob_HX_0001_0001
     !           ensObs_0002/eob_HX_0001_0001
@@ -905,7 +934,7 @@ CONTAINS
     integer         , intent(in)    :: numMembersToRead     ! number of members to read
     character(len=*), intent(in)    :: inputFilenamePrefix  ! prefix of filename to read
     logical,          intent(in)    :: readObsInfo          ! read info common to all members
-    
+
     ! Locals:
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
     real(8) :: obsValueFromFile(ensObs%numObs)
@@ -925,6 +954,9 @@ CONTAINS
 
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_readFromFiles: this object is not allocated')
+    end if
+    if (ensObs%firstMember == 0) then
+      call utl_abort('eob_readFromFiles: Cannot be called when firstMember is 0')
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
@@ -962,7 +994,7 @@ CONTAINS
         read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
         read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
         read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-        
+
         if (maxval(abs(latFromFile(:) - ensObs%lat(:))) > 1.0d-5 .or. &
             maxval(abs(lonFromFile(:) - ensObs%lon(:))) > 1.0d-5 .or. &
             maxval(abs(obsValueFromFile(:) - ensObs%obsValue(:))) > 1.0d-7 .or. &
@@ -970,8 +1002,8 @@ CONTAINS
 
           call utl_abort('eob_readFromFiles: obsInfo file do not match ensObs')
         end if
-      
-        ! Read assimilation flag for of all files and apply a "logical or" to get the value 
+
+        ! Read assimilation flag for of all files and apply a "logical or" to get the value
         !   to put in obsSpaceData. Read obs flag only on the first file.
         read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
         if (numMembersAlreadyRead == 0) then
@@ -1014,11 +1046,11 @@ CONTAINS
         write(*,*) 'fileName=', fileName
         call utl_abort('eob_readFromFiles: file does not exist')
       end if
-      
+
       unitNum = 0
       ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
       read(unitNum) numMembersFromFile
-      allocate(memberIndexFromFile(numMembersFromFile))  
+      allocate(memberIndexFromFile(numMembersFromFile))
       read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
       do memberIndex = 1, numMembersFromFile
         read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
@@ -1040,7 +1072,7 @@ CONTAINS
                                    maxNumLocalObsPerType, localSelectionOutput, localObsSorting) &
                                    result(numObsSelected)
     !
-    ! :Purpose: Return a list of values of bodyIndex for all observations within 
+    ! :Purpose: Return a list of values of bodyIndex for all observations within
     !           the local volume around the specified lat/lon used for assimilation
     !           (as defined by h/vLocalize). The kdtree2 module is used to efficiently
     !           perform this task. The kdtree itself is constructed on the first call.
@@ -1201,7 +1233,7 @@ CONTAINS
             locFunSelected(numObsSelected)   = locFun(localObsIndex)
           end if
         end if
-      end do      
+      end do
     end if
 
     ! send information about this grid point to an output text file
@@ -1434,7 +1466,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_setPsvObsErrInv(ensObs)
     !
-    !:Purpose:  Updates the inverse of the observation error variance  
+    !:Purpose:  Updates the inverse of the observation error variance
     !           for passive osbervations and stores this in ensObs%obsErrInv.
     !           This is done assuming that ensObs%obsErrInv was already set.
     !
@@ -1442,7 +1474,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_eob),  intent(inout) :: ensObs ! eob object to modify
-    
+
     ! Locals:
     integer       :: obsIndex, headerIndex
     integer       :: codtyp, varnum, obsfamIndex
@@ -1476,7 +1508,7 @@ CONTAINS
           end if
         else if (numPsvVarNum(obsfamIndex) > 0) then
           ! at least 1 varnum is specified for current obs family so
-          ! see if current observation matches any of those varnums          
+          ! see if current observation matches any of those varnums
           varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
           if (ANY(psvVarNum(obsfamIndex,:) == varnum)) then
             ensObs%obsErrInv(obsIndex) = 0.0d0
@@ -1551,12 +1583,12 @@ CONTAINS
           end if
         else if (numSimVarNum(obsfamIndex) > 0) then
           ! at least 1 varnum is specified for current obs family so
-          ! see if current observation matches any of those varnums          
+          ! see if current observation matches any of those varnums
           varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
           if (ANY(simVarNum(obsfamIndex,:) == varnum)) then
             ensObs%obsErrInv(obsIndex) = 0.0d0
             simFlag = .true.
-          end if          
+          end if
         else
           ! simulated observation family doesn't include any codtype or
           ! any varnum, so set error inverse to 0 irrespective of current
@@ -1577,7 +1609,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_setVertLocation(ensObs, columnMeanTrl)
     !
-    ! :Purpose: Set the vertical location value for each observation that 
+    ! :Purpose: Set the vertical location value for each observation that
     !           will be used when doing vertical localization. For
     !           radiance observations, the level of the maximum value
     !           of the derivative of transmission is used. This value
@@ -1762,10 +1794,15 @@ CONTAINS
   subroutine eob_setYb(ensObs, memberIndex)
     implicit none
 
-    ! Arguments: 
+    ! Arguments:
     type(struct_eob), intent(inout) :: ensObs      ! eob object to modify
     integer         , intent(in)    :: memberIndex ! index of member to set
-        
+
+    if (memberIndex < ensObs%firstMember .or. memberIndex > ensObs%numMembers) then
+      write(*,*) 'memberIndex = ', memberIndex
+      call utl_abort('eob_setYb: memberIndex value is invalid')
+    end if
+
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
 
@@ -1780,7 +1817,7 @@ CONTAINS
   subroutine eob_setYa(ensObs, memberIndex, obsColumnName)
     implicit none
 
-    ! Arguments: 
+    ! Arguments:
     type(struct_eob), intent(inout)  :: ensObs        ! eob object to modify
     integer         , intent(in)     :: memberIndex   ! index of member to set
     integer         , intent(in)     :: obsColumnName ! name of obs column to get the value
@@ -1788,7 +1825,7 @@ CONTAINS
     if ( .not. associated(ensObs%Ya_r4) ) then
       call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
     end if
-        
+
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Ya_r4(memberIndex,:), ensObs%obsSpaceData, obsColumnName)
 
@@ -1825,7 +1862,7 @@ CONTAINS
         if ((numSimCodTyp(obsfamIndex) > 0) .and. (numSimVarNum(obsfamIndex) > 0)) then
           ! at least 1 codtyp AND varnum specified for current obs family so
           ! see if current observation matches any of those codtypes AND
-          ! any of those varnums      
+          ! any of those varnums
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
           varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
           if (ANY(simCodTyp(obsfamIndex,:) == codtyp) .and. ANY(simVarNum(obsfamIndex,:) == varnum)) then
@@ -1833,18 +1870,18 @@ CONTAINS
           end if
         else if (numSimCodTyp(obsfamIndex) > 0) then
           ! at least 1 codtype is specified for current obs family so
-          ! see if current observation matches any of those codtypes          
+          ! see if current observation matches any of those codtypes
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
           if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) then
             ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
           end if
         else if (numSimVarNum(obsfamIndex) > 0) then
           ! at least 1 varnum is specified for current obs family so
-          ! see if current observation matches any of those varnums          
+          ! see if current observation matches any of those varnums
           varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
           if (ANY(simVarNum(obsfamIndex,:) == varnum)) then
             ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
-          end if   
+          end if
         else
           ! simulated observation family doesn't include any codtype
           ! so set irrespective of current observation's codtype
@@ -1854,7 +1891,7 @@ CONTAINS
     end do
 
   end subroutine eob_setSimObsVal
-  
+
   !--------------------------------------------------------------------------
   ! eob_setDeterYb
   !--------------------------------------------------------------------------
@@ -1890,7 +1927,7 @@ CONTAINS
     end do
 
     ensObs%meanRemoved = .true.
-    
+
   end subroutine eob_calcAndRemoveMeanYb
 
   !--------------------------------------------------------------------------
@@ -1969,7 +2006,7 @@ CONTAINS
       do memberIndex = 1, ensObs%numMembers
         hpht = hpht + ensObs%Yb_r4(memberIndex,obsIndex)**2 / ensObs%numMembers
       end do
-      if (hpht > 0.0D0) then 
+      if (hpht > 0.0D0) then
         hpht = sqrt(hpht)
       else
         hpht = 0.0D0
@@ -2026,9 +2063,9 @@ CONTAINS
 
       ! take the same reject decision for both components of the
       ! wind vector (and any other winds for that station).
-      ! N.B.: This seems to assume only one level per header, this is generally 
+      ! N.B.: This seems to assume only one level per header, this is generally
       ! the case for wind observations currently, since radiosondes are 4D
-      if (reject_wind) then 
+      if (reject_wind) then
         ! first count how many wind observations we have for this station
         windCount = 0
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
@@ -2037,7 +2074,7 @@ CONTAINS
           end if
         end do
         if (windCount > 2) then
-          write(*,*) 'eob_backgroundCheck: WARNING' 
+          write(*,*) 'eob_backgroundCheck: WARNING'
           write(*,*) 'Station ',headerIndex,' has ',windCount,' wind observations '
           write(*,*) 'Perhaps old radiosonde format - std dev not changed for other wind component'
         else
@@ -2198,7 +2235,7 @@ CONTAINS
             reject_wind = .true.
             call obs_bodySet_r(ensObs%obsSpaceData, OBS_OER, bodyIndex, sigo_hub)
             ! this is for the special case both components of the wind innovation
-            ! suggest using the Huber norm. 
+            ! suggest using the Huber norm.
             if (sigo_hub > sigo_hub_wind) then
               sigo_hub_wind = sigo_hub
             end if
@@ -2220,7 +2257,7 @@ CONTAINS
           end if
         end do
         if (windCount > 2) then
-          write(*,*) 'Warning Hubernorm' 
+          write(*,*) 'Warning Hubernorm'
           write(*,*) 'Station ',headerIndex,' has ',windCount,' wind observations '
           write(*,*) 'Perhaps old radiosonde format - std dev not changed for other wind component'
         else
@@ -2231,7 +2268,7 @@ CONTAINS
             end if
           end do
         end if
-      end if 
+      end if
     end do
 
     call rpn_comm_allreduce(huberCount, huberCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
@@ -2274,7 +2311,7 @@ CONTAINS
           call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex,  &
                              IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, bodyIndex),9))
-        end if 
+        end if
       end if
     end do
 
@@ -2295,14 +2332,14 @@ CONTAINS
                                         numGroupsToDivideMembers_opt, &
                                         maxNumMembersPerGroup_opt)
     !
-    ! :Purpose: get memberIndex array corresponding to the full ensemble set. This 
-    !           is useful when ensObs is a subset of full ensemble members. 
+    ! :Purpose: get memberIndex array corresponding to the full ensemble set. This
+    !           is useful when ensObs is a subset of full ensemble members.
     !           If first member in ensObs is member 6, to get the full ensemble set equivalent of ensObs members:
-    !           a) When members are not grouped (numGroupsToDivideMembers=1), all members are offset by 
+    !           a) When members are not grouped (numGroupsToDivideMembers=1), all members are offset by
     !              memberIndexOffset (e.g. 6, 7, ..., 6+ensObs%numMermbers)
-    !           b) When members are grouped (numGroupsToDivideMembers/=1), members within each group 
-    !              are offset by memberIndexOffset but there is increment of maxNumMembersPerGroup_opt 
-    !              to jump to the next group (e.g. if maxNumMembersPerGroup_opt=10, for first group 6, 7, 8, 9, 
+    !           b) When members are grouped (numGroupsToDivideMembers/=1), members within each group
+    !              are offset by memberIndexOffset but there is increment of maxNumMembersPerGroup_opt
+    !              to jump to the next group (e.g. if maxNumMembersPerGroup_opt=10, for first group 6, 7, 8, 9,
     !              for second group 6+10, 7+10, 8+10, 9+10, and so on)
     !
     implicit none
@@ -2341,7 +2378,7 @@ CONTAINS
       end if
 
       memberIndex = 0
-      do groupIndex = 1, numGroupsToDivideMembers 
+      do groupIndex = 1, numGroupsToDivideMembers
         do memberIndexInGroup = 1, numMembersPerGroup
           memberIndex = memberIndex + 1
           memberIndexArray(memberIndex) = (groupIndex - 1) * maxNumMembersPerGroup_opt + &
@@ -2350,16 +2387,16 @@ CONTAINS
       end do
 
     end if
-    
+
   end subroutine getMemberIndexInFullEnsSet
-    
+
   !--------------------------------------------------------------------------
   ! max_transmission (private routine)
   !--------------------------------------------------------------------------
   subroutine max_transmission(transmission, numLevels, transIndex, rttovPres, maxLnP)
     !
-    ! :Purpose: Determine the height in log pressure where we find the maximum 
-    !           value of the first derivative of transmission with respect to 
+    ! :Purpose: Determine the height in log pressure where we find the maximum
+    !           value of the first derivative of transmission with respect to
     !           log pressure
     !
     implicit none

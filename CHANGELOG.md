@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add ability to `oMinusF` to include control member in addition to ensemble members (#1052 and !953)
 
 ### Changed
 
