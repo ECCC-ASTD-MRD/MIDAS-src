@@ -147,6 +147,7 @@ topoFinder_tests:
      - ./midas.mpiTopoFinder --unittest
    only:
      - main
+     - v_4.1
      - tags
    tags:
      - hpcr-u2
@@ -158,6 +159,7 @@ isFileInList_tests:
      - ./midas.isFileInList --unittest
    only:
      - main
+     - v_4.1
      - tags
    tags:
      - hpcr-u2
@@ -169,6 +171,7 @@ timingTool_tests:
       - ./midas.timingTool --unittest
     only:
       - main
+      - v_4.1
       - tags
     tags:
       - hpcr-u2
@@ -185,6 +188,7 @@ clean_midas_abs:
      - v_3.7
      - v_3.9
      - v_3.9-RandD
+     - v_4.1
      - tags
    tags:
      - hpcr-u2
