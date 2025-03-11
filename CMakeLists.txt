@@ -27,8 +27,6 @@ add_custom_target(check COMMAND CTEST_OUTPUT_ON_FAILURE=true ${CMAKE_CTEST_COMMA
 enable_testing()
 
 find_package(MPI REQUIRED)
-set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
-set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
 
 # To build without OpenMP, you have to add -DWITH_OPENMP=FALSE to the cmake command line
 set(WITH_OPENMP TRUE CACHE BOOL "Control whether to use OpenMP")

@@ -7,10 +7,9 @@
 add_executable(splitobs splitobs/splitobs.c splitobs/fstdlib.c)
 target_compile_options(splitobs PRIVATE "-O2")
 target_link_libraries(splitobs PRIVATE
-  MPI::MPI_C
   SQLite::SQLite3
-  burpc
-  rmn::rmn-ompi
+  burpc.a
+  rmn::rmn
 )
 set_target_properties(splitobs PROPERTIES
    OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs)
