@@ -420,7 +420,9 @@ module oMinusF_mod
       call gsv_deallocate(stateVectorWithZandP4D)
       call gsv_deallocate(stateVector4D)
       call gsv_deallocate(stateVectorHeightSfc)
-      call gsv_deallocate(stateVectorMember0)
+      if (gsv_isAllocated(stateVectorMember0)) then
+        call gsv_deallocate(stateVectorMember0)
+      end if
 
     end subroutine omf_oMinusFens
 
