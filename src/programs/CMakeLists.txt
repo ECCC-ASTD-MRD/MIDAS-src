@@ -104,6 +104,10 @@ file(WRITE ${CMAKE_BINARY_DIR}/install_programs_script.cmake "
         OUTPUT_VARIABLE TRUE_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
+    )
     foreach(prog ${PROJECT_PROGRAMS})
         set(old_name \"${CMAKE_INSTALL_PREFIX}/midas-\${prog}_${AddToProgName}.Abs\")
         set(new_name \"${CMAKE_INSTALL_PREFIX}/midas-\${prog}_${AddToProgName}-\${TRUE_VERSION}.Abs\")
