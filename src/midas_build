@@ -109,7 +109,7 @@ mv .tmp.config.out ${__listing_config}
 ##  functions
 function dryRun {
     __exitCode=1
-    __libmidas_expected_location="${MIDAS_COMPILE_DIR_MAIN}/src/modules/libmidas.a"
+    __libmidas_expected_location="${MIDAS_COMPILE_DIR_BUILD}/src/modules/libmidas.a"
     echo "Testing MIDAS static library building"
     make -n midas > /dev/null 2>&1 || return ${__exitCode}
     echo "Testing the global build"
@@ -154,9 +154,9 @@ function abs_path {
     abs_name=${1}
     platform=${2}
     if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}/midas.
     else
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}/midas-
     fi
     echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
 }
@@ -170,18 +170,14 @@ function printHeader {
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
-    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
-    else
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld"
-    fi
+    echo "| build directory : ${MIDAS_COMPILE_DIR_BUILD}"
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo "|   (will be removed if installation is successful)"
         fi
-        echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
+        echo "| installation directory : ${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}"
     else
         echo "| no installation (no absolute target)"
     fi
@@ -212,7 +208,7 @@ printHeader
 
 ##=========================================================
 # build files genration with CMake
-cd ${MIDAS_COMPILE_DIR_MAIN}
+cd ${MIDAS_COMPILE_DIR_BUILD}
 echo "Generating build files using CMake"
 cat > .tmp.cmake.out << EOF
 +-----------------------------------+
@@ -294,11 +290,10 @@ export MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION}
 
 cd ${__here}
 source ${__midas_dot_cfg}
-cd ${MIDAS_COMPILE_DIR_MAIN}
+cd ${MIDAS_COMPILE_DIR_BUILD}
 EOF
 
-__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
-__job="make  -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt} && make install"
+__job="make  -j ${MIDAS_COMPILE_NCORES} && make install"
 echo "${__job}" >> .compile_job
 
 ##=========================================================
@@ -328,7 +323,7 @@ fi
 ## waiting for compilation to terminate
 echo
 echo "Compilation underway : ${__job_or_pid_frontend}"
-echo "Working directory : ${__build_dir_version}"
+echo "Working directory : ${MIDAS_COMPILE_DIR_BUILD}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
@@ -398,7 +393,7 @@ fi
 ##  Verification of installed programs
     typeset __status=0
     typeset __abs_name
-    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+    typeset __install_dir=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}
     for __abs in ${__abs_all}; do
         typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
         if [ ! -f  "${__abs_installed}" ]; then
@@ -427,7 +422,7 @@ fi
 #        fi
         echo "+------------------------------+"
         echo
-        echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
+        echo "  > ${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}"
         echo
 #
 #        ${__toplevel}/src/update_resources.sh ${__toplevel}
@@ -439,7 +434,7 @@ fi
             echo "MIDAS_COMPILE_CLEAN=true"
             echo "(in your environment, profile or config.dot.sh)"
             echo " ... cleaning build directory "
-            make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} \
+            make clean MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_BUILD} \
                  MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE} \
                  MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
         fi

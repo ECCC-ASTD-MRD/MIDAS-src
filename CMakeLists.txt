@@ -81,7 +81,7 @@ if (${CMAKE_BUILD_TYPE} MATCHES Debug )
 endif()
 
 if(DEFINED ENV{MIDAS_COMPILE_DIR_MAIN})
-  set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_MAIN}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
+  set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_BUILD}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
 else()
   message(FATAL_ERROR "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config.dot.sh file")
 endif()

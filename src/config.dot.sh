@@ -104,9 +104,12 @@ MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
 __install_always_midas=true
 
 if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-    __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
 else
-    __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld
+    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld
+fi
+if [ ! -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+  mkdir ${MIDAS_COMPILE_DIR_BUILD}
 fi
 __keep_jobsubmit_ofile=false
 __ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
