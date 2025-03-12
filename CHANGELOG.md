@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add ability to `oMinusF` to include control member in addition to ensemble members (#1052 and !953)
+ * (Nothing yet)
 
 ### Changed
 
@@ -16,11 +16,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Adding `${SEQ_LOOP_ARGS}` to all calls to `nodelogger` (#1048 and !951)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [4.1.1]
+
+### Added
+
+ * Add ability to `oMinusF` to include control member in addition to ensemble members (#1052 and !953)
+
+### Fixed
+
+ * Adding `${SEQ_LOOP_ARGS}` to all calls to `nodelogger` (#1048 and !951)
 
 ## [4.1.0]
 
@@ -1446,8 +1456,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0-b1...HEAD
-[4.1.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0-b1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...HEAD
+[4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1
+[4.1.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0
 [4.0.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.3...v_4.0.4
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
