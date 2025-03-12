@@ -19,14 +19,3 @@ add_custom_command(
     COMMAND cp splitobs ${CMAKE_INSTALL_PREFIX}/midas.splitobs${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-add_executable(monitor monitor/monitor.c)
-
-add_custom_command(
-    TARGET monitor
-    POST_BUILD
-    # monitor is not associated to a specific platform, thus the shorter suffix
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy 'monitor' to ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
-    COMMAND cp monitor ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
