@@ -30,7 +30,6 @@ find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
 find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
-find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
 find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
 
 # Define libraries bundle
@@ -46,7 +45,6 @@ foreach(component ${rttov_FIND_COMPONENTS})
     set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
 endforeach()
 
-set(SQLITE_Libraries SQLite::SQLite3)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
