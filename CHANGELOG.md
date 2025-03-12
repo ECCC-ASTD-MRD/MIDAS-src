@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.1.2]
+
+### Added
+
  * Added thinning for chemical constituent observations with new namelist thin_CH (#945 and !990)
  * Added `allReduceForward` to `&NAMCFN` (#1079 and !985)
  * Added more efficient method for interpolating to observation locations/times (#568 and !979)
@@ -25,10 +43,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Several fixes for GEM-H, including changing treatment of MELS (#1074 and !984)
  * Fix bug related to surface variables in bMatrixEnsemble_mod with GEM-H (#1060 and !965)
  * Fix missing SSM for interactive debugging (#1059 and !964)
-
-### Removed
-
- * (Nothing yet)
 
 ## [4.1.1]
 
@@ -1482,7 +1496,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...HEAD
+[4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
 [4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1
 [4.1.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0
 [4.0.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.3...v_4.0.4
