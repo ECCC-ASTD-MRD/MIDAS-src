@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Up to 20 data sources can be specified in the namelist NAMICEBGCHECK (#1055 and !954)
 
 ### Removed
 
@@ -26,8 +26,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-* Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
-  * Adapting scripts and fortran code for the new file type code for SQLite files.
+ * Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
+ * Adapting scripts and fortran code for the new file type code for SQLite files.
 
 ## [3.9.4]
 
