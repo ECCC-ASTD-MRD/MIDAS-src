@@ -154,9 +154,9 @@ function abs_path {
     abs_name=${1}
     platform=${2}
     if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}/midas.
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
     else
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}/midas-
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
     fi
     echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
 }
@@ -177,7 +177,7 @@ function printHeader {
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo "|   (will be removed if installation is successful)"
         fi
-        echo "| installation directory : ${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}"
+        echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
         echo "| no installation (no absolute target)"
     fi
@@ -393,7 +393,7 @@ fi
 ##  Verification of installed programs
     typeset __status=0
     typeset __abs_name
-    typeset __install_dir=${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}
+    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     for __abs in ${__abs_all}; do
         typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
         if [ ! -f  "${__abs_installed}" ]; then
@@ -422,7 +422,7 @@ fi
 #        fi
         echo "+------------------------------+"
         echo
-        echo "  > ${MIDAS_COMPILE_DIR_BUILD}/${MIDAS_ABS_LEAFDIR}"
+        echo "  > ${__install_dir}"
         echo
 #
 #        ${__toplevel}/src/update_resources.sh ${__toplevel}
