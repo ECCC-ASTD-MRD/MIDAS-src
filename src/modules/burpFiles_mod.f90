@@ -23,7 +23,7 @@ module burpFiles_mod
 
   ! Public procedures
   public :: brpf_getDateStamp, brpf_readfile, brpf_updatefile
-  public :: brpf_obsSub_read, brpf_obsSub_update
+  public :: brpf_obsSubRead, brpf_obsSubUpdate
 
 contains
 
@@ -375,10 +375,10 @@ contains
   end subroutine brpf_setScaleCH
 
   !--------------------------------------------------------------------------
-  ! brpf_obsSub_read
+  ! brpf_obsSubRead
   !--------------------------------------------------------------------------
-  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt, &
-                            match_nlev_opt,codtyp_opt,numColumns_opt) result(burp_out)
+  function brpf_obsSubRead(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt, &
+                           match_nlev_opt,codtyp_opt,numColumns_opt) result(burp_out)
     !
     !:Purpose: To retrieve information from observation BURP file. Returns the
     !          data in a struct_oss_obsdata object. Can retrieve either 1D or 2D
@@ -404,26 +404,26 @@ contains
     !   :numColumns_opt:  Number of columns (if different from nlev and for ndim=2)
     !   :block_type:      block type indicated by the two rightmost bits of bknat.
     !                     Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
-    !   :match_nlev_opt: =.true. (default) causes filtering out of report if
-    !                    the report number of levels is different from the input
-    !                    argument nlev
+    !   :match_nlev_opt:  =.true. (default) causes filtering out of report if
+    !                     the report number of levels is different from the input
+    !                     argument nlev
     !
     implicit none
 
     ! Arguments:
     character(len=*),  intent(in) :: filename       ! BURP file name
     character(len=9),  intent(in) :: stnid          ! station ID of observation
-    integer,           intent(in) :: varno
+    integer,           intent(in) :: varno          ! BUFR code
     integer,           intent(in) :: nlev           ! number of levels in the observation
-    integer,           intent(in) :: ndim
-    character(len=4),  intent(in) :: block_type
-    integer, optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
-    integer, optional, intent(in) :: bkstp_opt      ! bkstp number of requested block
-    logical, optional, intent(in) :: match_nlev_opt
-    integer, optional, intent(in) :: codtyp_opt(:)  ! optional CODTYP list for search
+    integer,           intent(in) :: ndim           ! number of dimensions
+    character(len=4),  intent(in) :: block_type     ! BURP block type
+    integer, optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2; optional)
+    integer, optional, intent(in) :: bkstp_opt      ! Bkstp number of requested block (optional)
+    logical, optional, intent(in) :: match_nlev_opt ! Requirement to have same number of levels (optional)
+    integer, optional, intent(in) :: codtyp_opt(:)  ! CODTYP list for search (optional)
     ! Result:
-    type(struct_oss_obsdata) :: burp_out   ! struct_oss_obsdata object
-    
+    type(struct_oss_obsdata)      :: burp_out       ! struct_oss_obsdata object
+
     ! Locals:
     character(len=9)  :: rep_stnid
     type(burp_file)   :: brp
@@ -448,13 +448,13 @@ contains
 
     ! open the burp file
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSub_read: Could not find/open BURP file: ' // trim(filename))
+    if (error /= 0) call utl_abort('brpf_obsSubRead: Could not find/open BURP file: ' // trim(filename))
 
-    write(*,*) "brpf_obsSub_read: Reading file " // trim(filename)
-    write(*,*) "brpf_obsSub_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
-    write(*,*) "brpf_obsSub_read:           nlev = ",nlev," match_nlev = ",match_nlev
-    if (present(bkstp_opt))  write(*,*) "brpf_obsSub_read:           bkstp  = ",bkstp_opt
-    if (present(codtyp_opt)) write(*,*) "brpf_obsSub_read:           codtyp = ",codtyp_opt(:)
+    write(*,*) "brpf_obsSubRead: Reading file " // trim(filename)
+    write(*,*) "brpf_obsSubRead: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
+    write(*,*) "brpf_obsSubRead:           nlev = ",nlev," match_nlev = ",match_nlev
+    if (present(bkstp_opt))  write(*,*) "brpf_obsSubRead:           bkstp  = ",bkstp_opt
+    if (present(codtyp_opt)) write(*,*) "brpf_obsSubRead:           codtyp = ",codtyp_opt(:)
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -469,18 +469,18 @@ contains
         call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=nlev)
       end if
     end if
-    
-    icount = 0  ! counter of reports with same stnid, number of levels, and varno as input 
+
+    icount = 0  ! counter of reports with same stnid, number of levels, and varno as input
     ref_rpt = 0
-    
-    ! loop through reports    
+
+    ! loop through reports
     REPORTS: do
 
        ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
 
        if (ref_rpt<0) exit REPORTS
-       
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon, IDTYP=icodtyp) 
+
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon, IDTYP=icodtyp)
 
        if (present(codtyp_opt)) then
           if (.not.any(codtyp_opt(:) == icodtyp)) cycle REPORTS
@@ -491,10 +491,10 @@ contains
        ! loop through blocks
        ref_blk = 0
        BLOCKS: do
-          
-          ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+
+          ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)
           if (ref_blk<0) exit BLOCKS
-          
+
           call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
           if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk)) cycle BLOCKS
@@ -506,19 +506,19 @@ contains
           if (varno > 0) then
              ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
              if (ivar < 0) cycle BLOCKS
-          else 
+          else
              ! Search for first data element within elements 10000 and 16000.
              varno_ivar=-1
              do ivar=1,nele
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
                 if (varno_ivar >= 10000.and.varno_ivar < 16000) exit
              end do
-             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_obsSub_read: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_obsSubRead: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
-          
-          if (nval > nlev) call utl_abort('brpf_obsSub_read: number of levels in the report (' // trim(utl_str(nval)) // &
+
+          if (nval > nlev) call utl_abort('brpf_obsSubRead: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -528,20 +528,20 @@ contains
           if (ndim == 1) then
              ! retrieve 1D data
 
-             do ilev=1,nval                   
-               burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+             do ilev=1,nval
+               burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
              end do
-             
-             if (ivar < nele) then             
+
+             if (ivar < nele) then
                if (BURP_Get_Element(blk, INDEX=ivar+1, IOSTAT=error) == BUFR_SCALE_EXPONENT) then
                  ! Apply exponent
-                 do ilev=1,nval                   
+                 do ilev=1,nval
                    exponent = BURP_Get_Rval(blk, NELE_IND=ivar+1, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
                    burp_out%data1d(ilev,icount) = burp_out%data1d(ilev,icount) * 10**exponent
                  end do
                end if
              end if
-                   
+
           else if (ndim == 2) then
              ! retrieve 2D data
 
@@ -554,58 +554,62 @@ contains
                    ivar_previous=ivar
                    do ilev=1,nval
                       burp_out%data2d(ilev,icol,icount) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   end do                   
+                   end do
                 else if (ivar_previous == varno .and. ivar == BUFR_SCALE_EXPONENT) then
                    ivar_previous=0
                    do ilev=1,nval
                       exponent = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
                       burp_out%data2d(ilev,icol,icount) = burp_out%data2d(ilev,icol,icount) * 10**exponent
-                   end do   
+                   end do
                 else
-                   ivar_previous=0                
-                end if  
+                   ivar_previous=0
+                end if
              end do
              if (present(numColumns_opt)) then
-               if (icol /= numColumns_opt) call utl_abort('brpf_obsSub_read: number of columns (' // trim(utl_str(icol)) // &
+               if (icol /= numColumns_opt) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') is not equal to the required number (' // trim(utl_str(numColumns_opt)) // &
                                          ') for STNID ' // rep_stnid )
              else
-               if (icol > nlev ) call utl_abort('brpf_obsSub_read: number of columns (' // trim(utl_str(icol)) // &
+               if (icol > nlev ) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') exceeds the maximum number (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
              end if
           end if
 
           exit BLOCKS
-          
+
        end do BLOCKS
-      
+
     end do REPORTS
 
     ! resize first dimension of data arrays from length of nrep to icount
     call utl_resize(burp_out%code,icount)
     if (ndim == 1) then
-       call utl_resize(burp_out%data1d,nlev,icount)
+      call utl_resize(burp_out%data1d,nlev,icount)
     else if (ndim == 2) then
-       call utl_resize(burp_out%data2d,nlev,nlev,icount)
+      if (present(numColumns_opt)) then
+        call utl_resize(burp_out%data2d,nlev,numColumns_opt,icount)
+      else
+        call utl_resize(burp_out%data2d,nlev,nlev,icount)
+      end if
     end if
 
     burp_out%nrep = icount
 
-    write(*,*) "brpf_obsSub_read: Reading of file complete. Number of reports found: ",burp_out%nrep
-    
+    write(*,*) "brpf_obsSubRead: Reading of file complete. Number of reports found: ",burp_out%nrep
+
     ! deallocate
     Call BURP_Free(brp,iostat=error)
     Call BURP_Free(rep,iostat=error)
     Call BURP_Free(blk,iostat=error)
-    
-  end function brpf_obsSub_read
+
+  end function brpf_obsSubRead
 
   !--------------------------------------------------------------------------
-  ! brpf_obsSub_update
+  ! brpf_obsSubUpdate
   !--------------------------------------------------------------------------
-  function brpf_obsSub_update(obsdata,filename,varno,block_type,bkstp_opt, &
-                              multi_opt) result(nrep_modified)
+  function brpf_obsSubUpdate(obsdata,filename,varno,block_type,bkstp_opt, &
+                             multi_opt) result(nrep_modified)
     !
     !:Purpose: To add or modify data in BURP files from data stored in a
     !          struct_oss_obsdata object. Provided data can be either 1D or 2D.
@@ -627,14 +631,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata),   intent(inout) :: obsdata ! Input struct_oss_obsdata object for varno
-    character(len=*),           intent(in)    :: filename ! BURP file name
-    character(len=4),           intent(in)    :: block_type
-    integer,                    intent(in)    :: varno(:)
-    integer,          optional, intent(in)    :: bkstp_opt ! bkstp number of requested block
-    character(len=*), optional, intent(in)    :: multi_opt
+    type(struct_oss_obsdata),   intent(inout) :: obsdata       ! Input struct_oss_obsdata object for varno
+    character(len=*),           intent(in)    :: filename      ! BURP file name
+    character(len=4),           intent(in)    :: block_type    ! BURP block type
+    integer,                    intent(in)    :: varno(:)      ! BUFR code
+    integer,          optional, intent(in)    :: bkstp_opt     ! Bkstp number of requested block (optional)
+    character(len=*), optional, intent(in)    :: multi_opt     ! Indicates if report is 'UNI' or 'MULTI' level (optional)
     ! Result:
-    integer :: nrep_modified ! Number of modified reports
+    integer                                   :: nrep_modified ! Number of modified reports
 
     ! Locals:
     integer :: ncount
@@ -651,14 +655,14 @@ contains
     integer, allocatable :: address(:)
     real(4), allocatable :: new_vals(:,:,:)
     logical, allocatable :: modify(:)
-    
+
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
-      write(*,*) 'brpf_obsSub_update: Skipped due to absence of data to update.'
+      write(*,*) 'brpf_obsSubUpdate: Skipped due to absence of data to update.'
       return
     end if
-    
-    ! Identify dimensions for the input data    
+
+    ! Identify dimensions for the input data
     ndim=obsdata%ndim
     dim1=obsdata%dim1
     if (ndim == 1) then
@@ -666,14 +670,14 @@ contains
     else
       dim2=obsdata%dim2
     end if
-    
-    if (size(varno) < dim2) call utl_abort('brpf_obsSub_update: Number of BUFR elements not sufficient. ' // &
+
+    if (size(varno) < dim2) call utl_abort('brpf_obsSubUpdate: Number of BUFR elements not sufficient. ' // &
                                            trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSub_update: Length of code string' // &
+    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSubUpdate: Length of code string' // &
                                                           ' needs to be increased to ' // &
                                                           trim(utl_str(oss_obsdata_code_len())))
-     
+
     ! initialize burp file, report, and block system resources
     call BURP_Init(brp, iostat=error)
     call BURP_Init(rep, R2=rep_new, iostat=error)
@@ -681,7 +685,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSub_update: Could not open BURP file: ' // trim(filename))
+    if (error /= 0) call utl_abort('brpf_obsSubUpdate: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -712,13 +716,13 @@ contains
 
       ! Get unique identifier for search from input data
       code = oss_obsdata_get_header_code(ilon,ilat,date,time,stnid)
-       
+
       ! Determine if replacement/additional data likely present for this report
       if (dim1 == 1.and.dim2 == 1) then
         new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat_opt=istat))
       else if (dim2 == 1) then
         new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat_opt=istat))
-      else 
+      else
         new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat_opt=istat))
       end if
 
@@ -727,7 +731,7 @@ contains
           ! loop through blocks to find first data block
           ref_blk = 0
           BLOCKS1: do
-            ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+            ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)
             if (ref_blk<0) exit BLOCKS1
             if (IS_Burp_Btyp('DATA',BLOCK=blk)) then
               if (IS_Burp_Btyp(trim(multi_opt),BLOCK=blk)) modify(ncount) = .true.
@@ -740,17 +744,17 @@ contains
       end if
 
     end do REPORTS1
-    
+
     nrep_modified = count(modify)   ! number of reports with same code and, possibly, same number of obs data levels
 
     ! Generate new report
     Call BURP_New(rep_new, ALLOC_SPACE=10*LNMX, IOSTAT=error)
 
-    ! second loop through reports to include the new information to the file    
+    ! second loop through reports to include the new information to the file
     REPORTS2: do k=1,ncount
-    
+
       call BURP_Get_Report(brp, REPORT=rep, REF=address(k), IOSTAT=error)
-       
+
       ! Copy report header
       Call BURP_Copy_Header(TO=rep_new,FROM=rep)
       Call BURP_Init_Report_Write(brp,rep_new,IOSTAT=error)
@@ -758,16 +762,16 @@ contains
       ! Ignore resume records in BLOCKS do loop
       call BURP_Get_Property(rep, STNID=stnid)
 
-      if (stnid(1:2) == '>>') then                  
-        write(*,*) 'brpf_obsSub_update: reading resume record, skip reading blocks'
+      if (stnid(1:2) == '>>') then
+        write(*,*) 'brpf_obsSubUpdate: reading resume record, skip reading blocks'
       else
         ! loop through blocks
         ref_blk = 0
         BLOCKS: do
-              
-          ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+
+          ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)
           if (ref_blk<0) exit BLOCKS
-              
+
           if (modify(k)) then
 
             call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
@@ -781,40 +785,40 @@ contains
               ! existing data, otherwise will append the new data to the block.
 
               do iele=1,dim2
-                ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)           
+                ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)
                 if (ivar < 0) then
                   ivar=nele+1
                   call BURP_Resize_Block(blk,ADD_NELE=1,IOSTAT=error)
                   call BURP_Set_Element(blk,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
                 end if
-                    
-                do ilev=1,nval 
-                  call BURP_Set_Rval(blk,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=new_vals(ilev,iele,k),IOSTAT=error)                 
+
+                do ilev=1,nval
+                  call BURP_Set_Rval(blk,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=new_vals(ilev,iele,k),IOSTAT=error)
                 end do
               end do
 
             end if
           end if
-              
+
           ! The call to BURP_Write_Block has ENCODE_BLOCK and CONVERT_BLOCK set
           ! to .true. in all cases, including when the block has not been
           ! modified, due to problems that can occur when writing blocks
           ! containing negative integers with datyp=4.
           call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=.true., CONVERT_BLOCK=.true., IOSTAT=error)
-             
+
         end do BLOCKS
       end if
       call BURP_Delete_Report(brp,rep,IOSTAT=error)
-      call BURP_Write_Report(brp,rep_new,IOSTAT=error) 
-  
+      call BURP_Write_Report(brp,rep_new,IOSTAT=error)
+
     end do REPORTS2
-        
+
     ! deallocate
     deallocate(address,modify,new_vals)
     Call BURP_Free(brp,iostat=error)
     Call BURP_Free(rep,R2=rep_new,iostat=error)
     Call BURP_Free(blk,iostat=error)
-    
-  end function brpf_obsSub_update
+
+  end function brpf_obsSubUpdate
 
 end module burpFiles_mod

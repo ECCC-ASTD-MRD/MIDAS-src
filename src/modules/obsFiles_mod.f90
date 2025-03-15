@@ -45,7 +45,7 @@ module obsFiles_mod
 
   ! Public module procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
-  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
+  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSubRead, obsf_obsSubUpdate
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
   public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
 
@@ -958,48 +958,34 @@ contains
 
   end function obsf_getFileName
 
-
-  function obsf_obsSub_read( obsfam, stnid, varno, nlev, ndim, numColumns_opt, &
-                             bkstp_opt, block_opt, match_nlev_opt, codtyp_opt ) result(obsdata)
+  !--------------------------------------------------------------------------
+  ! obsf_obsSubRead
+  !--------------------------------------------------------------------------
+  function obsf_obsSubRead( obsfam, stnid, varno, nlev, ndim, numColumns_opt, &
+                            bkstp_opt, block_opt, match_nlev_opt, codtyp_opt ) result(obsdata)
     !
     ! :Purpose: Retrieves information for observations from observation files and returns the data
     !           in a struct_oss_obsdata object. Data will be retrieved for all nodes that have valid
     !           filenames for the specied observational family and combined into one struct_oss_obsdata
     !           if the observational files are split.
     !
-    ! :Arguments:
-    !           :obsfam:          observation family name
-    !           :stnid:           station ID of observation
-    !           :varno:           BUFR code (if <=0, to search through all codes to obtain first
-    !                             between 10000 and 16000)
-    !           :nlev:            number of levels in the observation
-    !           :ndim:            number of dimensions for the retrieved data in
-    !                             each report (e.g. ndim=1 for std, ndim=2 for
-    !                             averaging kernel matrices) 
-    !           :numColumns_opt:  Number of columns (if different from nlev and for ndim=2)
-    !           :bkstp_opt:       bkstp number of requested block if BURP file type (optional)
-    !           :block_opt:       block type of requested block if BURP file type (optional)
-    !                             Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
-    !                             by the two rightmost bits of bknat.
-    !           :match_nlev_opt:  determines if the report matching criteria includes checking
-    !                             if the report number of levels is the same as the input
-    !                             argument nlev (optional)
-    !           :codtyp_opt:      optional CODTYP list for search (optional)
-    !
     implicit none
 
     ! Arguments:
-    character(len=*)          , intent(in) :: obsfam
-    character(len=*)          , intent(in) :: stnid
-    integer                   , intent(in) :: varno
-    integer                   , intent(in) :: nlev
-    integer                   , intent(in) :: ndim
-    integer,          optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
-    integer,          optional, intent(in) :: bkstp_opt
-    integer,          optional, intent(in) :: codtyp_opt(:)
-    logical,          optional, intent(in) :: match_nlev_opt
-    character(len=4), optional, intent(in) :: block_opt
-    ! Result:
+    character(len=*)          , intent(in) :: obsfam  ! observation family name
+    character(len=*)          , intent(in) :: stnid   ! station ID of observation
+    integer                   , intent(in) :: varno   ! BUFR code (if <=0, to search through all codes to obtain first between 10000 and 16000)
+    integer                   , intent(in) :: nlev    ! number of levels in the observation
+    integer                   , intent(in) :: ndim    ! number of dimensions for the retrieved data in each report
+    integer,          optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2; optional)
+    integer,          optional, intent(in) :: bkstp_opt      ! bkstp number of requested block if BURP file type (optional)
+    integer,          optional, intent(in) :: codtyp_opt(:)  ! Block type of requested block if BURP file type (optional)
+                                                             ! Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
+                                                             ! by the two rightmost bits of bknat.
+    logical,          optional, intent(in) :: match_nlev_opt ! Determines if the report matching criteria includes checking
+                                                             ! if the report number of levels is the same as the input argument nlev (optional)
+    character(len=4), optional, intent(in) :: block_opt      ! CODTYP list for search (optional)
+    !Result
     type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
     ! Locals:
@@ -1010,46 +996,48 @@ contains
     filename = obsf_getFileName(obsfam,fileFound)
 
     if (fileFound) then
-       call obsf_determineSplitFileType( obsFileType, filename )
-       if (obsFileType=='BURP') then
-          if (.not.present(block_opt)) &
-               call utl_abort("obsf_obsSub_read: optional variable 'block_opt' is required for BURP observational files.")
-          if (.not.present(numColumns_opt)) then
-            obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
-                                   match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
-          else
-            obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
-                                       match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt,numColumns_opt=numColumns_opt)
-          end if 
-       else
-          call utl_abort("obsf_obsSub_read: Only BURP observational files currently supported.")
-       end if
+      call obsf_determineSplitFileType( obsFileType, filename )
+      if (obsFileType=='BURP') then
+        if (.not.present(block_opt)) &
+          call utl_abort("obsf_obsSubRead: optional variable 'block_opt' is required for BURP observational files.")
+        if (.not.present(numColumns_opt)) then
+          obsdata = brpf_obsSubRead(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
+                    match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
+        else
+          obsdata = brpf_obsSubRead(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
+                    match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt,numColumns_opt=numColumns_opt)
+        end if
+      else
+        call utl_abort("obsf_obsSubRead: Only BURP observational files currently supported.")
+      end if
 
     else
 
-       write(*,*) "obsf_obsSub_read: No observational files found for family '" // trim(obsfam) // "' for this node."
+      write(*,*) "obsf_obsSubRead: No observational files found for family '" // trim(obsfam) // "' for this node."
 
-       if (obsf_filesSplit()) then
-          ! Must allocate obsdata so that it is available from ALL processors when
-          ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
-          if (ndim == 1) then
-             call oss_obsdata_alloc(obsdata,1,dim1=nlev)
-          else
-             call oss_obsdata_alloc(obsdata,1,dim1=nlev,dim2_opt=nlev)
-          end if
-          obsdata%nrep=0
-          write(*,*) "obsf_obsSub_read: Setting empty struct_oss_obsdata object for this node."
-       else
-          call utl_abort("obsf_obsSub_read: Abort since files are not split.")
-       end if
+      if (obsf_filesSplit()) then
+        ! Must allocate obsdata so that it is available from ALL processors when
+        ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
+        if (ndim == 1) then
+          call oss_obsdata_alloc(obsdata,1,dim1=nlev)
+        else
+          call oss_obsdata_alloc(obsdata,1,dim1=nlev,dim2_opt=nlev)
+        end if
+        obsdata%nrep=0
+        write(*,*) "obsf_obsSubRead: Setting empty struct_oss_obsdata object for this node."
+      else
+        call utl_abort("obsf_obsSubRead: Abort since files are not split.")
+      end if
     end if
 
     if (obsf_filesSplit()) call oss_obsdata_MPIallgather(obsdata)
 
-  end function obsf_obsSub_read
+  end function obsf_obsSubRead
 
-
-  function obsf_obsSub_update( obsdata, obsfam, varno, bkstp_opt, block_opt, multi_opt ) &
+  !--------------------------------------------------------------------------
+  ! obsf_obsSubUpdate
+  !--------------------------------------------------------------------------
+  function obsf_obsSubUpdate( obsdata, obsfam, varno, bkstp_opt, block_opt, multi_opt ) &
                            result(nrep_modified)
     ! :Purpose: Add or modify data in observational files from data stored
     !           in a struct_oss_obsdata object.
@@ -1068,12 +1056,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata),   intent(inout) :: obsdata
-    character(len=*),           intent(in)    :: obsfam
-    integer,                    intent(in)    :: varno(:)
-    integer         , optional, intent(in)    :: bkstp_opt
-    character(len=4), optional, intent(in)    :: block_opt
-    character(len=*), optional, intent(in)    :: multi_opt
+    type(struct_oss_obsdata),   intent(inout) :: obsdata   ! struct_oss_obsdata object
+    character(len=*),           intent(in)    :: obsfam    ! Observation family name
+    integer,                    intent(in)    :: varno(:)  ! BUFR code
+    integer         , optional, intent(in)    :: bkstp_opt ! bkstp number of requested block if BURP file type (optional)
+    character(len=4), optional, intent(in)    :: block_opt ! CODTYP list for search (optional)
+    character(len=*), optional, intent(in)    :: multi_opt ! Indicates if report is 'UNI' or 'MULTI' (optional)
     ! Result:
     integer :: nrep_modified    ! Number of modified reports
 
@@ -1090,14 +1078,14 @@ contains
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
-                  call utl_abort("obsf_obsSub_update: optional varaible 'block_opt' is required for BURP observational files.")
-             nrep_modified = brpf_obsSub_update(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
+                  call utl_abort("obsf_obsSubUpdate: optional varaible 'block_opt' is required for BURP observational files.")
+             nrep_modified = brpf_obsSubUpdate(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
           else
-             call utl_abort("obsf_obsSub_update: Only BURP observational files currently supported.")
+             call utl_abort("obsf_obsSubUpdate: Only BURP observational files currently supported.")
           end if
        end if
     else
-       write(*,*) "obsf_obsSub_update: No observational files found for family '" // trim(obsfam) // "' for this node."
+       write(*,*) "obsf_obsSubUpdate: No observational files found for family '" // trim(obsfam) // "' for this node."
     end if
 
     if (obsf_filesSplit()) then
@@ -1105,7 +1093,7 @@ contains
        nrep_modified = nrep_modified_global
     end if
 
-  end function obsf_obsSub_update
+  end function obsf_obsSubUpdate
 
   !--------------------------------------------------------------------------
   ! obsf_addCloudParametersAndEmissivity
