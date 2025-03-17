@@ -109,7 +109,7 @@
   assim_stnid(2)='R2362400'  ! SBUV2 with 6 layers (Removed OMPS-NP for this test)
   assim_stnid(3)='78538700'  ! MLS on AURA
   operatorSubType(1,1)='78538700'
-  operatorSubType(2,1)='genOperInterp'
+  operatorSubType(2,1)='wgtAvgInnov'
   operatorSubType(1,2)='AUROMI00'
   operatorSubType(2,2)='genOper'
   genOperConstraintType(0)='Diff'
