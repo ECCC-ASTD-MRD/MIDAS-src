@@ -4,14 +4,14 @@ program midas_oMinusF
   !
   !          ---
   !
-  !:Algorithm: The non-linear observation operators map a gridded state vector into the 
-  !            observation space to compute the difference between the observations 
-  !            and that state in observation space. The gridded state vector can be 
-  !            background state or the analysis. In case of background state, the 
-  !            difference is the innovation vector: ``y-H(xb)``. If asked by 
-  !            the user, the diagonal of the background errors standard deviation in 
+  !:Algorithm: The non-linear observation operators map a gridded state vector into the
+  !            observation space to compute the difference between the observations
+  !            and that state in observation space. The gridded state vector can be
+  !            background state or the analysis. In case of background state, the
+  !            difference is the innovation vector: ``y-H(xb)``. If asked by
+  !            the user, the diagonal of the background errors standard deviation in
   !            observation space, :math:`{diag(H B H^{T})}^{1/2}`, are also computed.
-  !            The bias corrections are applied for satellite radiances before writing 
+  !            The bias corrections are applied for satellite radiances before writing
   !            the observation files.
   !
   !            --
@@ -58,25 +58,25 @@ program midas_oMinusF
   !
   !               - Applying optional bias corrections to some observation types.
   !
-  !               - Setup ``columnData`` module (read list of analysis variables 
+  !               - Setup ``columnData`` module (read list of analysis variables
   !                 from namelist) and allocate column object.
   !
-  !               - Allocate a stateVector object and then read the state 
+  !               - Allocate a stateVector object and then read the state
   !                 (either trials or analysis): ``gio_readTrials``.
   !
   !             - **Computation**
   !
-  !               - Compute interpolated column on trial level ``columnTrlOnTrlLev`` 
+  !               - Compute interpolated column on trial level ``columnTrlOnTrlLev``
   !                 from the state: ``inn_setupColumnsOnTrlLev``.
   !
   !               - Compute innovation from background state: ``inn_computeInnovation``.
   !
-  !               - For computing background errors in observation space, 
-  !                 ``columnTrlOnTrlLev`` are interpolated from background to analysis 
+  !               - For computing background errors in observation space,
+  !                 ``columnTrlOnTrlLev`` are interpolated from background to analysis
   !                 levels, ``columnTrlOnAnlIncLev``, and the linearize operators are
   !                 initialized: ``inn_setupColumnsOnAnlIncLev``.
   !
-  !               - Update radiance bias correction in ``obsSpaceData`` and apply 
+  !               - Update radiance bias correction in ``obsSpaceData`` and apply
   !                 the bias corrections to the observations and innovations for
   !                 radiances: ``bcs_calcBias``, ``bcs_applyBiasCorrection``.
   !
@@ -92,16 +92,16 @@ program midas_oMinusF
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            ``oMinusF`` are listed in the following table:
-  ! 
+  !
   !=========================== ========================= =========================================
   ! Module                      Namelist                  Description of what is controlled
   !=========================== ========================= =========================================
-  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction 
+  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction
   !                                                       for conventional observations.
-  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias 
-  !                                                       correction for radiosondes conventional 
+  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias
+  !                                                       correction for radiosondes conventional
   !                                                       observations.
-  ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction 
+  ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction
   !                                                       for satellite radiances.
   ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
   !=========================== ========================= =========================================
@@ -121,31 +121,32 @@ program midas_oMinusF
   implicit none
 
   ! Namelist
-  integer :: nEns       ! ensemble size
-  logical :: addHBHT    ! choose to add the value of HBHT to obsSpaceData so it can be output
-  logical :: addSigmaO  ! choose to add the value of sigma_obs to obsSpaceData so it can be output
-  NAMELIST /NAMOMF/addHBHT, addSigmaO, nEns
-  
+  integer :: nEns           ! ensemble size
+  logical :: addHBHT        ! choose to add the value of HBHT to obsSpaceData so it can be output
+  logical :: addSigmaO      ! choose to add the value of sigma_obs to obsSpaceData so it can be output
+  logical :: includeMember0 ! choose to include member 0000 in the outputs
+  NAMELIST /NAMOMF/addHBHT, addSigmaO, nEns, includeMember0
+
   integer :: ierr, headerIndex
-  
+
   type(struct_columnData),target  :: columnTrlOnAnlIncLev
   type(struct_columnData),target  :: columnTrlOnTrlLev
   type(struct_obs),       target  :: obsSpaceData
   type(struct_eob),       target  :: ensObs
-  
+
   character(len=20)  :: oMinusFmode
   character(len=256) :: ensPathName = 'ensemble'
   character(len=256) :: ensFileName
   character(len=256) :: trlFileName
 
-  logical :: ensFileExists, trlFileExists
-  
+  logical :: ensFileExists, trlFileExists, member0FileExists
+
   call ver_printNameAndVersion('oMinusF','Computation of the innovation')
 
   !
   !- 1.  Initialization
   !
-  
+
   !- 1.1 mpi
   call mmpi_initialize
 
@@ -165,9 +166,10 @@ program midas_oMinusF
   call gio_setup
 
   !- 1.3 Namelist
-  addHBHT   = .false. ! default value
-  addSigmaO = .false.
-  nEns      = 20
+  addHBHT        = .false. ! default value
+  addSigmaO      = .false.
+  nEns           = 20
+  includeMember0 = .false.
 
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namomf, iostat=ierr)
@@ -185,6 +187,9 @@ program midas_oMinusF
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
                        shouldExist_opt=.false.)
   inquire(file = trim(ensFileName), exist = ensFileExists)
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=0, &
+                       shouldExist_opt=.false.)
+  inquire(file = trim(ensFileName), exist = member0FileExists)
 
   if      (trlFileExists) then
     write(*,*)
@@ -196,6 +201,10 @@ program midas_oMinusF
     write(*,*) 'Ensemble file found'
     write(*,*) 'Setting mode to ENSEMBLE'
     oMinusFmode = 'ensemble'
+    if (includeMember0 .and. .not.member0FileExists) then
+      call utl_abort('oMinusF: Member 0 file not found, but includeMember0 is ' // &
+                     'true and ensemble mode is active')
+    end if
   else
     write(*,*)
     write(*,*) 'trlFileName = ', trim(trlFileName)
@@ -235,14 +244,14 @@ program midas_oMinusF
   else ! ensemble
 
     !- 2.1 Compute O-F and store in ensObs
-    call omf_oMinusFens( ensObs, obsSpaceData, nEns, ensPathName, &
+    call omf_oMinusFens( ensObs, obsSpaceData, nEns, includeMember0, ensPathName, &
                          'OminusF', addHBHT, addSigmaO)
 
     !- 2.3 Write the results
     call obsf_writeFiles(obsSpaceData, ensObs_opt=ensObs)
-    
-  end if  
-    
+
+  end if
+
   !
   !- 3.  Ending
   !
@@ -251,7 +260,7 @@ program midas_oMinusF
 
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
   call eob_deallocate(ensObs)
-  
+
   call utl_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
