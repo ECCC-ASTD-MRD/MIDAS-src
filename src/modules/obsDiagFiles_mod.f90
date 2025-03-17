@@ -433,7 +433,7 @@ module obsDiagFiles_mod
             call utl_abort('diaf_writeSqlDiagFile: ensObs%Yb_r4 must be allocated and it is not')
           end if
           ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
-          do memberIndex = 1, ensObs_opt%numMembers
+          do memberIndex = ensObs_opt%firstMember, ensObs_opt%numMembers
             ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex)
             if (ensObs_opt%meanRemoved) then
               ENSOBSTRL = ENSOBSTRL + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back
