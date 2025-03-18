@@ -2326,8 +2326,11 @@ contains
       if (mmpi_myid == 0) write(*,nml=namsw)
       call utl_tmg_stop(181)
     else
-      write(*,*)
-      call utl_abort('oer_sw: Error reading namsw in the namelist')
+      if ( mmpi_myid == 0 ) then
+        write(*,*)
+        write(*,*) 'oer_sw: Namelist block NAMSW is missing in the namelist.'
+        write(*,*) '        The default values will be taken.'
+      end if
     end if
 
     nsats = get_num_sats(maxSat,SWQI)
@@ -2375,31 +2378,52 @@ contains
 
       ! select qi
       iqiv = -1
-      LOOP_QI: do satIndex = 1, nsats
-        if ( trim(SWname(satIndex)) == trim(cstnid(2:)) ) then
-          select case (trim(QIvalue(satIndex)))
-            case ('qi1')
-              iqiv = iqiv1
-              exit LOOP_QI
-            case ('qi2')
-              ! consider the case where iqiv2 <= 0
-              if (iqiv2 <= 0) then
-                iqiv = iqiv1
-                exit LOOP_QI
-              end if
-              iqiv = iqiv2
-              exit LOOP_QI
-            case default
-              call utl_abort('oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2)')
-          end select
-          exit LOOP_QI
+      if ( nsats == 0 ) then
+        if (iqiv1 > 0) then
+          iqiv = iqiv1
+          if ( mmpi_myid == 0 ) write(*,*) 'oer_sw: no NAMSW block in the namelist. Using QI1 as default value'
+        else
+          if (iqiv2 > 0) then
+            iqiv = iqiv2
+            if ( mmpi_myid == 0 ) write(*,*) 'oer_sw: no NAMSW block in the namelist. Using QI2 as default value'
+          else
+            write(*,*) cstnid(2:)
+            call utl_abort('oer_sw: no NAMSW block in the namelist, and QI values are not appropriate')
+          end if
         end if
-        if (satIndex == nsats) call utl_abort('oer_sw: cannot find matched satellite from the namelist')
-      end do LOOP_QI
-
-      if(iqiv == -1) then
-        write(*,*) cstnid
-        call utl_abort('oer_sw: iqiv is not set appropriately')
+      else
+        LOOP_QI: do satIndex = 1, nsats
+          if ( trim(SWname(satIndex)) == trim(cstnid(2:)) ) then
+            select case (trim(QIvalue(satIndex)))
+              case ('qi1')
+                iqiv = iqiv1
+              case ('qi2')
+                ! consider the case where iqiv2 <= 0
+                if (iqiv2 <= 0) then
+                  iqiv = iqiv1
+                end if
+                iqiv = iqiv2
+              case default
+                iqiv = iqiv1
+                write(*,*)  'oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2). Using default value QI1'
+            end select
+            exit LOOP_QI
+          end if
+          if (satIndex == nsats) then
+            if (iqiv1 > 0) then
+              iqiv = iqiv1
+              if ( mmpi_myid == 0 ) write(*,*) 'oer_sw: cannot find matched satellite. Using QI1 as default value'
+            else
+              if (iqiv2 > 0) then
+                iqiv = iqiv2
+                if ( mmpi_myid == 0 ) write(*,*) 'oer_sw: cannot find matched satellite. Using QI2 as default value'
+              else
+                write(*,*) cstnid(2:)
+                call utl_abort('oer_sw: QI values are not appropriate')
+              end if
+            end if
+          end if
+        end do LOOP_QI
       end if
 
       if(valeurs_defaut) then
