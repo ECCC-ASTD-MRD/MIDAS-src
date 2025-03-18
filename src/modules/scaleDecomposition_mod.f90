@@ -392,7 +392,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine scd_vertical(ensembleStateVector, nVertWaveBand,                &
                           vertWaveBandPeaks, vertmodesLengthScale,           &
-                          decompositionMode, vertWaveBandIndexSelected_opt,  &
+                          decompositionMode, decompositionType,              &
+                          vertWaveBandIndexSelected_opt,                     &
                           writeResponseFunction_opt, writeTransformInfo_opt, &
                           TGhandling_opt)
     !
@@ -429,6 +430,7 @@ contains
     integer,                    intent(in)    :: vertWaveBandPeaks(:) ! Eigenvectors corresponding to the peaks of each waveband
     real(8),                    intent(in)    :: vertModesLengthScale(2) ! Correlation lenghtscales used to compute the vertical correlation matrix for the eigendecomposition
     character(len=*),           intent(in)    :: decompositionMode ! 'Split' or 'Select'
+    character(len=*),           intent(in)    :: decompositionType ! 'Covariances' or 'Correlations'
     integer, optional,          intent(in)    :: vertWaveBandIndexSelected_opt ! Use the select the approprate waveband when 'decompositionMode' = 'select'
     logical, optional,          intent(in)    :: writeResponseFunction_opt ! Option to write the filter response functions to text files
     logical, optional,          intent(in)    :: writeTransformInfo_opt ! Option to write the eigenvectors to text files
@@ -436,7 +438,7 @@ contains
 
     ! Locals:
     type(struct_gsv), allocatable :: gridStateVector_oneMember(:)
-    type(struct_gsv) :: gridStateVector_ensMean
+    type(struct_gsv) :: gridStateVector_ensScaling
     type(struct_hco), pointer :: hco
     real(8), allocatable :: vertModesState4d(:,:,:,:)
     real(8), allocatable :: vertModesState4dFiltered(:,:,:,:)
@@ -518,6 +520,12 @@ contains
       call utl_abort('scd_vertical: unknown decomposition mode')
     end if
 
+    if (trim(decompositionType) /= 'Covariances' .and. trim(decompositionType) /= 'Correlations') then
+      write(*,*)
+      write(*,*) 'decomposition type = ', trim(decompositionType)
+      call utl_abort('scd_vertical: unknown decomposition type')
+    end if
+      
     nLev_M = ens_getNumLev(ensembleStateVector(1),'MM')
     nLev_T = ens_getNumLev(ensembleStateVector(1),'TH')
     nModeMax=max(nLev_M,nLev_T)
@@ -604,13 +612,20 @@ contains
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
     end if
 
-    if (ens_varExist(ensembleStateVector(1),'P_M') .or. ens_varExist(ensembleStateVector(1),'P_T')) then
-      call gsv_allocate(gridStateVector_ensMean, numStep,                                       &
+    if ( (trim(decompositionType) == 'Covariances' .and. (ens_varExist(ensembleStateVector(1),'P_M') .or. ens_varExist(ensembleStateVector(1),'P_T'))) .or. &
+          trim(decompositionType) == 'Correlations') then
+      call gsv_allocate(gridStateVector_ensScaling, numStep,                                    &
                         ens_getHco(ensembleStateVector(1)), ens_getVco(ensembleStateVector(1)), &
                         varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
-      call ens_copyEnsMean(ensembleStateVector(1),  & ! IN
-                           gridStateVector_ensMean)   ! OUT
+      if (trim(decompositionType) == 'Covariances') then 
+        call ens_copyEnsMean(ensembleStateVector(1),  & ! IN
+                             gridStateVector_ensScaling)   ! OUT
+      else
+        call ens_computeStdDev(ensembleStateVector(1), containsScaledPerts_opt=.true.)
+        call ens_copyEnsStdDev(ensembleStateVector(1),    & ! IN
+                               gridStateVector_ensScaling)  ! OUT
+      end if
     end if
 
     do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
@@ -621,13 +636,19 @@ contains
         varNameForTransform = varNamesList(varIndex)
         expanded2dfield = .false.
         nullify(ptr4d_r8)
-        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
-          nLev  = nLev_M
-          call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
-          
-        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
-          nLev  = nLev_T
-          call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM' .or. &
+            vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
+          if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
+            nLev  = nLev_M
+          else
+            nLev  = nLev_T
+          end if
+          call extract3d(gridStateVector_oneMember(1), gridState4d, nLev, &
+                         trim(varNamesList(varIndex)))
+          ptr4d_r8 => gridState4d
+          if (isScalingNeeded(decompositionType,varNameForTransform)) then
+            call ensPertScaling(ptr4d_r8, gridStateVector_ensScaling, varNameForTransform, 'scale')
+          end if
         else
           if (trim(varNamesList(varIndex)) == 'TG') then
             if (trim(TGhandling) == 'expandWithTT') then
@@ -636,10 +657,6 @@ contains
               if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
                 call utl_abort('scd_vertical: TT not available to expand TG')
               end if
-              call expand2dTo3d(gridStateVector_oneMember(1), gridState4d, nLev, &
-                                varNamesList(varIndex), varNameForTransform)
-              expanded2dfield = .true.
-              ptr4d_r8 => gridState4d
             else
               cycle ! varIndex
             end if
@@ -649,23 +666,20 @@ contains
             if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
               call utl_abort('scd_vertical: P_T not available to expand P0')
             end if
-            call expand2dto3d(gridStateVector_oneMember(1), gridState4d, nLev, &
-                              varNamesList(varIndex), varNameForTransform)
-            expanded2dfield = .true.
-            ptr4d_r8 => gridState4d
           else
             write(*,*)
             write(*,*) 'varname  = ', trim(varNamesList(varIndex))
             write(*,*) 'varlevel = ', vnl_varLevelFromVarName(trim(varNamesList(varIndex)))
             call utl_abort('scd_vertical: variable not handle yet')
           end if
+          call expand2dto3d(gridStateVector_oneMember(1), gridState4d, nLev, &
+                            varNamesList(varIndex), varNameForTransform,     &
+                            gridStateVector_ensScaling, decompositionType)
+          expanded2dfield = .true.
+          ptr4d_r8 => gridState4d
         end if
         nMode = nLev
-
-        if (trim(varNameForTransform) == 'P_M' .or. trim(varNameForTransform) == 'P_T') then
-           call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'scale')
-        end if
-
+        
         if (allocated(vertModesState4d)) deallocate(vertModesState4d)
         allocate(vertModesState4d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
 
@@ -677,21 +691,16 @@ contains
                              varNameForTransform, modeEnd_opt=mTrunc)
         end do
 
-        if (trim(varNamesList(varIndex)) == 'P_T' .and. ens_varExist(ensembleStateVector(1),'P0')) then
-          ! Gridded P_T perturbations unscaling to allow their usage again in the decomposition of P0
-           call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'unscale')
-        end if
-
         !- Filtering
         if (allocated(vertModesState4dFiltered)) deallocate(vertModesState4dFiltered)
         allocate(vertModesState4dFiltered(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
 
         do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
 
-           if (trim(decompositionMode) == 'Split' .and. .not. expanded2dfield) then
-             ! For expanded 2d fields, no need to reset ptr4d_r8 since the insertion of the scale decomposition
-             ! in gridStateVector_oneMember will be made later in the call of extract2dFrom3d
-             nullify(ptr4d_r8)
+          if (trim(decompositionMode) == 'Split' .and. .not. expanded2dfield) then
+            ! For expanded 2d fields, no need to reset ptr4d_r8 since the insertion of the scale decomposition
+            ! in gridStateVector_oneMember will be made later in the call of extract2dFrom3d
+            nullify(ptr4d_r8)
             call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),ptr4d_r8,varName_opt=varNamesList(varIndex))
           end if
 
@@ -706,7 +715,7 @@ contains
             modeBeg = vertWaveBandPeaks(vertWaveBandIndex+1)
             modeEnd = nMode
           end if
-          
+
           do stepIndex = 1, numStep ! Loop on ensemble time bin
             
             !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
@@ -730,24 +739,22 @@ contains
 
           end do ! stepIndex
 
-          if (trim(varNameForTransform) == 'P_M' .or. trim(varNameForTransform) == 'P_T') then
-            call ensMeanScaling(ptr4d_r8, gridStateVector_ensMean, varNameForTransform, 'unscale')
-          end if
-
           if (expanded2dfield) then
             if (trim(decompositionMode) == 'Split') then
               call extract2dFrom3d(gridStateVector_oneMember(vertWaveBandIndex), ptr4d_r8, nLev, &
-                                   varNamesList(varIndex))
+                                   varNamesList(varIndex), gridStateVector_ensScaling, decompositionType)
             else
               call extract2dFrom3d(gridStateVector_oneMember(1), ptr4d_r8, nLev, &
-                                   varNamesList(varIndex))
+                                   varNamesList(varIndex), gridStateVector_ensScaling, decompositionType)
             end if
+          else if (isScalingNeeded(decompositionType,varNameForTransform)) then
+              call ensPertScaling(ptr4d_r8, gridStateVector_ensScaling, varNameForTransform, 'unscale')
           end if
           
         end do ! vertWaveBandIndex
       end do ! variables
 
-      if (ens_varExist(ensembleStateVector(1),'TG') .and. .not. expanded2dfield) then
+      if (ens_varExist(ensembleStateVector(1),'TG') .and. trim(TGhandling) /= 'expandWithTT') then
         call adhocTGdecomposition(gridStateVector_oneMember, decompositionMode, TGhandling, &
                                   vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, &
                                   vertWaveBandIndexLoopDirection, nVertWaveBand)
@@ -774,10 +781,10 @@ contains
       call gsv_deallocate(gridStateVector_oneMember(1))
     end if
     if (ens_varExist(ensembleStateVector(1),'P_M') .or. ens_varExist(ensembleStateVector(1),'P_T')) then
-      call gsv_deallocate(gridStateVector_ensMean)
+      call gsv_deallocate(gridStateVector_ensScaling)
     end if
     deallocate(responseFunction)
-    
+
     !
     !- 3.  In split mode, isolate the shallowest scales in vertWaveBandIndex = 1 by difference in grid point space
     !
@@ -918,81 +925,113 @@ contains
   end function scd_filterResponseFunction
 
   !--------------------------------------------------------------------------
-  ! ensMeanScaling
+  ! isScalingNeeded
   !--------------------------------------------------------------------------
-   subroutine ensMeanScaling(Ppert_ptr4d_r8,statevector_ensMean, varName, mode)
+  function isScalingNeeded(decompositionType, varName) result(scalingNeeded)
     !
-    ! :Purpose: scale or unscale perturbations using the ensemble mean value
+    ! :Purpose: Determine if scaling is needed based
+    !           on the decomposition type and the variable name
     !
     implicit none
 
     ! Arguments:
-    real(8), pointer, intent(inout) :: Ppert_ptr4d_r8(:,:,:,:) ! Pressure perturations field
-    type(struct_gsv), intent(in)    :: statevector_EnsMean     ! Gridded state vector contaning the ensemble mean
-    character(len=*), intent(in)    :: varName                 ! variable name
-    character(len=*), intent(in)    :: mode                    ! scale or unscale
+    character(len=*), intent(in)  :: decompositionType ! Covariances or Correlations
+    character(len=*), intent(in)  :: varName ! Variable name
+ 
+    ! Result:
+    logical :: scalingNeeded ! Needed or not
+
+    if ( (trim(decompositionType) == 'Covariances' .and. &
+         (trim(varName) == 'P_M' .or. trim(varName) == 'P_T' .or. trim(varName) == 'P0')) .or. &
+         trim(decompositionType) == 'Correlations') then
+      scalingNeeded = .true.
+    else
+      scalingNeeded = .false.
+    end if
+    
+  end function isScalingNeeded
+  
+  !--------------------------------------------------------------------------
+  ! ensPertScaling
+  !--------------------------------------------------------------------------
+   subroutine ensPertScaling(pert_ptr4d_r8,statevector_ensScaling, varName, mode)
+    !
+    ! :Purpose: scale or unscale perturbations using the ensemble mean or StdDev values
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), pointer, intent(inout) :: pert_ptr4d_r8(:,:,:,:) ! ensemble perturations
+    type(struct_gsv), intent(in)    :: statevector_ensScaling ! statevector contaning the ensemble mean or StdDev
+    character(len=*), intent(in)    :: varName                ! variable name
+    character(len=*), intent(in)    :: mode                   ! scale or unscale
 
     ! Locals:
-    real(8), pointer     :: Pmean_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: norm_ptr4d_r8(:,:,:,:)
+    real(8) :: factor
     integer :: stepIndex, levIndex, lonIndex, latIndex, nLev
 
     if (mode /= 'scale' .and. mode /= 'unscale') then
       write(*,*)
-      write(*,*) 'ensMeanScaling: mode selected = ', mode
-      call utl_abort('ensMeanScaling: mode can on be "scale" or "unscale"')
+      write(*,*) 'ensPertScaling: mode selected = ', mode
+      call utl_abort('ensPertScaling: mode can on be "scale" or "unscale"')
     end if
     
-    call gsv_getField(statevector_ensMean,Pmean_ptr4d_r8,varName_opt=varName)
+    call gsv_getField(statevector_ensScaling,norm_ptr4d_r8,varName_opt=varName)
 
-    nLev = gsv_getNumLevFromVarName(statevector_ensMean, varName)
+    nLev = gsv_getNumLevFromVarName(statevector_ensScaling, varName)
 
     !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
-    do stepIndex = 1, statevector_ensMean%numStep
+    do stepIndex = 1, statevector_ensScaling%numStep
       do levIndex = 1, nLev
-        do latIndex = statevector_ensMean%myLatBeg, stateVector_ensMean%myLatEnd
-          do lonIndex = statevector_ensMean%myLonBeg, statevector_ensMean%myLonEnd
+        do latIndex = statevector_ensScaling%myLatBeg, stateVector_ensScaling%myLatEnd
+          do lonIndex = statevector_ensScaling%myLonBeg, statevector_ensScaling%myLonEnd
 
             if (mode == 'scale') then
-              Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) = Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) / &
-                                                                     Pmean_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+              if (norm_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.0d0) then
+                factor = 1.d0 / norm_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+              else
+                factor = 0.d0
+              end if
             else
-              Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) = Ppert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) * &
-                                                                     Pmean_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+              factor = norm_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
             end if
 
+            pert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) = pert_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) * &
+                                                                  factor
+            
           end do
         end do
       end do
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine ensMeanScaling
+  end subroutine ensPertScaling
 
   !--------------------------------------------------------------------------
-  ! expand2dTo3d
+  ! extract3d
   !--------------------------------------------------------------------------
-   subroutine expand2dTo3d(statevector, gridState4d, nLev, varName2d, varName3d)
+  subroutine extract3d(statevector, gridState4d, nLev, varName3d)
     !
-    ! :Purpose: Combine varName2d and varName3d to create a new 3D field with varName2d at the lower boundary
+    ! :Purpose: ExtractvarName3d and insert the results in gridState4d
     !
     implicit none
-
+    
     ! Arguments:
     type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
     real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
     integer             , intent(out) :: nLev ! Number of vertical levels for the 3D field
-    character(len=*)    , intent(in)  :: varName2d ! Variable name of the 2d field
     character(len=*)    , intent(in)  :: varName3d ! Variable name of the 3d field
 
     ! Locals:
-    real(8), pointer     :: var2d_ptr4d_r8(:,:,:,:)
     real(8), pointer     :: var3d_ptr4d_r8(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex
 
-    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
     call gsv_getField(stateVector,var3d_ptr4d_r8,varName_opt=varName3d)
 
     nLev = gsv_getNumLevFromVarName(stateVector,varName3d)
+
+    if (allocated(gridState4d)) deallocate(gridState4d)
 
     allocate(gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep))
 
@@ -1001,10 +1040,85 @@ contains
       do levIndex = 1, nLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+    
+  end subroutine extract3d
+  
+  !--------------------------------------------------------------------------
+  ! expand2dTo3d
+  !--------------------------------------------------------------------------
+  subroutine expand2dTo3d(statevector, gridState4d, nLev, varName2d, varName3d, &
+                          statevector_ensScaling, decompositionType)
+    !
+    ! :Purpose: Combine varName2d and varName3d to create a new 3D field with varName2d at the lower boundary
+    !
+    implicit none
+    
+    ! Arguments:
+    type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
+    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
+    integer             , intent(out) :: nLev ! Number of vertical levels for the 3D field
+    character(len=*)    , intent(in)  :: varName2d ! Variable name of the 2d field
+    character(len=*)    , intent(in)  :: varName3d ! Variable name of the 3d field
+    type(struct_gsv)    , intent(in)  :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
+    character(len=*)    , intent(in)  :: decompositionType ! Covariances or Correlations
+
+    ! Locals:
+    real(8), pointer     :: var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: var3d_ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: norm_var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: norm_var3d_ptr4d_r8(:,:,:,:)
+    real(8) :: factor
+    integer :: stepIndex, levIndex, lonIndex, latIndex
+    logical :: scalingNeeded
+
+    scalingNeeded = isScalingNeeded(decompositionType,varName3d)
+    
+    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
+    call gsv_getField(stateVector,var3d_ptr4d_r8,varName_opt=varName3d)
+    
+    if (scalingNeeded) then
+      call gsv_getField(stateVector_ensScaling,norm_var2d_ptr4d_r8,varName_opt=varName2d)
+      call gsv_getField(stateVector_ensScaling,norm_var3d_ptr4d_r8,varName_opt=varName3d)
+    end if
+    
+    nLev = gsv_getNumLevFromVarName(stateVector,varName3d)
+
+    if (allocated(gridState4d)) deallocate(gridState4d)
+    allocate(gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep))
+
+    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
+    do stepIndex = 1, statevector%numStep
+      do levIndex = 1, nLev
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             if (levIndex == nLev) then
-              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex)
+              if (scalingNeeded) then
+                if (norm_var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) > 0.0d0) then
+                  factor = 1.d0 / norm_var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex)
+                else
+                  factor = 0.d0
+                end if
+              else
+                factor = 1.d0
+              end if
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) * factor
             else
-              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+              if (scalingNeeded) then
+                if (norm_var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) > 0.0d0) then
+                  factor = 1.d0 / norm_var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+                else
+                  factor = 0.d0
+                end if
+              else
+                factor = 1.d0
+              end if
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = var3d_ptr4d_r8(lonIndex,latIndex,levIndex,stepIndex) * factor
             end if
           end do
         end do
@@ -1017,29 +1131,50 @@ contains
   !--------------------------------------------------------------------------
   ! extract2dFrom3d
   !--------------------------------------------------------------------------
-  subroutine extract2dFrom3d(statevector, gridState4d, nLev, varName2d)
+  subroutine extract2dFrom3d(statevector, gridState4d, nLev, varName2d, &
+                             statevector_ensScaling, decompositionType)
     !
     ! :Purpose: Copy the first level field from gridState4d into the input stateVector
     !
     implicit none
-
+    
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector ! Gridded state vector contaning a vertical scale decomposed ensemble member
     integer,          intent(in)    :: nLev ! Number of vertical levels for the 3D temperature field
     real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined 2d + 3d gridded state after vertical scale decomposition
     character(len=*), intent(in)    :: varName2d ! Variable name of the 2d field
-
+    type(struct_gsv), intent(in)  :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
+    character(len=*), intent(in)  :: decompositionType ! Covariances or Correlations
+    
     ! Locals:
     real(8), pointer :: var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: norm_var2d_ptr4d_r8(:,:,:,:)
+    real(8) :: factor
     integer :: stepIndex, lonIndex, latIndex
+    logical :: scalingNeeded
 
-    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
+    scalingNeeded = isScalingNeeded(decompositionType,varName2d)
     
+    call gsv_getField(stateVector,var2d_ptr4d_r8,varName_opt=varName2d)
+
+    if (scalingNeeded) then
+      call gsv_getField(stateVector_ensScaling,norm_var2d_ptr4d_r8,varName_opt=varName2d)
+    end if
+
     !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
     do stepIndex = 1, stateVector%numStep
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
-          var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) = gridState4d(lonIndex,latIndex,nLev,stepIndex)
+          if (scalingNeeded) then
+            if (norm_var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) > 0.0d0) then
+              factor = norm_var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex)
+            else
+              factor = 0.d0
+            end if
+          else
+            factor = 1.d0
+          end if
+          var2d_ptr4d_r8(lonIndex,latIndex,1,stepIndex) = gridState4d(lonIndex,latIndex,nLev,stepIndex) * factor
         end do
       end do
     end do

@@ -124,7 +124,9 @@ module bMatrixEnsemble_mod
     integer             :: horizWaveBandPeaks(maxNumLocalLength)
     integer             :: horizWaveBandIndexSelected
     integer             :: vertWaveBandPeaks(maxNumLocalLength)
-    real(8)             :: vertModesLengthScale(2) 
+    real(8)             :: vertModesLengthScale(2)
+    character(len=32)   :: vertDecompositionType
+    character(len=32)   :: vertDecompositionTGhandling
     logical             :: ensDiagnostic
     logical             :: advDiagnostic
     character(len=2)    :: ctrlVarHumidity
@@ -204,6 +206,8 @@ CONTAINS
     integer             :: horizWaveBandIndexSelected             ! for multiple NAMBEN blocks, horizontal waveband index of this block
     integer             :: vertWaveBandPeaks(maxNumLocalLength)   ! mode corresponding to peak of each waveband for SDL in the vertical
     real(8)             :: vertModesLengthScale(2)                ! LengthScale of the correlation function use to perform vertical-scale-decomposition
+    character(len=32)   :: vertDecompositionType                  ! "Covariances" or "Correlations"
+    character(len=32)   :: vertDecompositionTGhandling            ! Option related to the handling of the 2D field TG, see scaleDecomposition_mod
     logical             :: ensDiagnostic                          ! when `.true.` write diagnostic info related to ens. to files
     logical             :: advDiagnostic                          ! when `.true.` write diagnostic info related to advection to files 
     character(len=2)    :: ctrlVarHumidity                        ! name of humidity variable used for ensemble perturbations (LQ or HU)
@@ -233,7 +237,7 @@ CONTAINS
          ensContainsFullField, varianceSmoothing, footprintRadius, footprintTopoThreshold,              &
          useCmatrixOnly, horizWaveBandIndexSelected, ensDateOfValidity, transformVarKindCH,             &
          huMinValue, hInterpolationDegree, vertLocalizationType, vertWaveBandPeaks,                     &
-         vertModesLengthScale
+         vertModesLengthScale, vertDecompositionType, vertDecompositionTGhandling
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -274,6 +278,8 @@ CONTAINS
       vertWaveBandPeaks(:)       =   -1.0d0
       vertModesLengthScale(:)    =   -1.0d0
       vertModesLengthScale(1)    =    6.0d0
+      vertDecompositionType = 'Covariances'
+      vertDecompositionTGhandling = 'fullPertsInMediumScales'
       ensDiagnostic         = .false.
       advDiagnostic         = .false.
       hLocalize(:)          =   -1.0d0
@@ -351,6 +357,8 @@ CONTAINS
       bEns(nInstance)%vertLocalizationType       = vertLocalizationType
       bEns(nInstance)%vertWaveBandPeaks(:)       = vertWaveBandPeaks(:)
       bEns(nInstance)%vertModesLengthScale(:)    = vertModesLengthScale(:)
+      bEns(nInstance)%vertDecompositionType      = vertDecompositionType
+      bEns(nInstance)%vertDecompositionTGhandling= vertDecompositionTGhandling
       bEns(nInstance)%ensDiagnostic              = ensDiagnostic
       bEns(nInstance)%advDiagnostic              = advDiagnostic
       bEns(nInstance)%ctrlVarHumidity            = ctrlVarHumidity
@@ -1174,7 +1182,8 @@ CONTAINS
                             bEns(instanceIndex)%nVertWaveBand,                        & ! IN
                             bEns(instanceIndex)%vertWaveBandPeaks,                    & ! IN
                             bEns(nInstance)%vertModesLengthScale,                     & ! IN
-                            'Split')                                                    ! IN
+                            'Split', bEns(nInstance)%vertDecompositionType,           & ! IN
+                            TGhandling_opt=bEns(nInstance)%vertDecompositionTGhandling) ! IN
         end do
       end if
       
