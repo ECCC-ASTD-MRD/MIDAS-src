@@ -175,7 +175,8 @@ working.
 
 This setup is building an interactive environment to launch again and
 again the program you are debugging.  This is the script
-`launch_program.sh`.  You launch the program with:
+`launch_program.sh`.  From the interactive node and after having executed the
+instructions provided at connection, launch the program with:
 ```bash
 ./launch_program.sh ${path_to_program}
 ```
