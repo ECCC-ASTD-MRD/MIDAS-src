@@ -731,7 +731,7 @@ contains
 
     ! Locals:
     integer :: rank, index1, index2, info, sizework
-    real(8) :: sizework_r8
+    real(8) :: sizework_r8(1)
     real(8), allocatable :: work(:), eigenVectorsOrig(:,:), eigenValuesOrig(:)
     logical :: printInformation
 
@@ -764,7 +764,7 @@ contains
                sizework_r8, sizework, info)
 
     ! Compute the eigenvalues/vectors
-    sizework = int(sizework_r8)
+    sizework = int(sizework_r8(1))
     allocate(work(sizework))
     call dsyev('V', 'U', rank, eigenVectorsOrig, rank, eigenValuesOrig,  &
                work, sizework, info)
