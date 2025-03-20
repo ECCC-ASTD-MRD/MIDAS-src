@@ -350,7 +350,7 @@ contains
     do jk3 = 1,nk
       do jk2 = 1,nj
         do jk1 = 1,ni
-          buffer4(jk1,jk2,jk3) = fld8(jk1,jk2,jk3)
+          buffer4(jk1,jk2,jk3) = real(fld8(jk1,jk2,jk3))
         end do
       end do
     end do
