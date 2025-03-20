@@ -24,6 +24,7 @@ module physicsFunctions_mod
   public :: phf_convertZtoPressure,phf_convertZtoGZ
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
+  public :: phf_Rad_CCoC, phf_delR
 
   logical           :: phf_initialized = .false.
 
@@ -1447,6 +1448,94 @@ module physicsFunctions_mod
     endif
 
   end subroutine phf_height2geopotential
+
+  subroutine phf_Rad_CCoC(latr, lonr, azmr, PRad, QRad, CCoC)
+    implicit none
+    integer, parameter   :: nx = 3
+    real(8), parameter   :: ba2 = ec_wgs_ba**2
+    real(8), intent(in)  :: latr, lonr, azmr
+    real(8), intent(out) :: PRad, QRad, CCoC(nx)
+    real(8)              :: xo(nx), unitx(nx), unity(nx), unitz(nx)
+    real(8)              :: clat, slat, clon, slon, cazm, sazm, RNc, RMc
+
+    ! Normal and Meridional radii of curvature
+    call phf_gpsRadii(latr, RNc, RMc)
+
+    clat = cos(latr)
+    slat = sin(latr)
+    clon = cos(lonr)
+    slon = sin(lonr)
+    cazm = cos(azmr)
+    sazm = sin(azmr)
+
+    ! Radii along azimuth PRad and across QRad
+    PRad  = 1.d0/(cazm*cazm/RMc + sazm*sazm/RNc)
+    QRad  = 1.d0/(sazm*sazm/RMc + cazm*cazm/RNc)
+
+    ! Surface (at ellipsoid) location of reference point
+    xo    = (/ RNc*clat*clon , RNc*clat*slon , (ba2*RNc)*slat /)
+
+    ! Unit vectors at location (upwards z, eastwards x, northwards y)
+    unitz = (/     clat*clon ,     clat*slon ,           slat /)
+    unitx = (/         -slon ,          clon ,           0.d0 /)
+    unity = (/    -slat*clon ,    -slat*slon ,           clat /)
+
+    ! Center of Curvature
+    CCoC  = xo-PRad*unitz
+  end subroutine phf_Rad_CCoC
+
+  subroutine phf_gpsRadii(Latitude, RadN, RadM)
+    implicit none
+    real(8), intent(in)  :: Latitude
+    real(8), intent(out) :: RadN, RadM
+    real(8)              :: sLat, e2s
+
+    sLat = sin(Latitude)
+    e2s  = 1.d0 - ec_wgs_e2 * sLat * sLat
+    RadN = ec_wgs_a / sqrt(e2s)
+    RadM = ec_wgs_a * (1.d0 - ec_wgs_e2) / (e2s*sqrt(e2s))
+  end subroutine phf_gpsRadii
+
+  subroutine phf_PathRadius(lat, azim, P, Q)
+    implicit none
+    real(8), intent(in)  :: lat, azim
+    real(8), intent(out) :: P, Q
+    real(8)              :: N, M, cosMA, cosMA2, sinMA2
+
+    call phf_gpsRadii(lat, N, M)
+    cosMA = cos(azim)
+    cosMA2 = cosMA * cosMA
+    sinMA2 = 1.d0 - cosMA2
+    ! Euler's formula for the curvature along nonprincipal directions:
+    P = 1.d0 / (cosMA2 / M + sinMA2 / N)
+    Q = 1.d0 / (sinMA2 / M + cosMA2 / N)
+  end subroutine phf_PathRadius
+
+  subroutine phf_WGS84Position(lat, lon, h, p)
+    implicit none
+    real(8), intent(in)  :: lat, lon, h
+    real(8), intent(out) :: p(3)
+    real(8)              :: N, M
+    real(8), parameter   :: ba2 = ec_wgs_ba**2
+
+    call phf_gpsRadii(lat, N, M)
+    p(1) = (    N+h) * cos(lat)*cos(lon)
+    p(2) = (    N+h) * cos(lat)*sin(lon)
+    p(3) = (ba2*N+h) * sin(lat)
+  end subroutine phf_WGS84Position
+
+  subroutine phf_delR(lati, loni, CCoC, PRad, dR)
+    implicit none
+    real(8), intent(in)  :: lati, loni, CCoC(3), PRad
+    real(8), intent(out) :: dR
+    real(8)              :: h, xi(3)
+
+    ! XYZ location for lati, loni at ellipsoid's surface
+    h = 0.d0
+    call phf_WGS84Position(lati, loni, h, xi)
+    ! Altitude of ellipsoid point above reference sphere
+    dR = norm2(xi - CCoC) - PRad
+  end subroutine phf_delR
 
   !--------------------------------------------------------------------------
   ! phf_getFreezingPoint

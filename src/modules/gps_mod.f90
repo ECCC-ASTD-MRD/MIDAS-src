@@ -8,6 +8,7 @@ module gps_mod
   use utilities_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -18,6 +19,7 @@ module gps_mod
 
   ! Public variables
   integer,           public, protected, allocatable :: gps_vRO_IndexPrf(:,:) ! index for each profile
+  real(8),           public, protected, allocatable :: gps_vRO_dR(:,:)       ! vertical asphericity shift for each datum
   integer,           public, protected :: gps_numROProfiles
   integer,           public, protected :: gps_Level_RO, gps_RO_MAXPRFSIZE
   real(8),           public, protected :: gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
@@ -25,6 +27,11 @@ module gps_mod
   real(4),           public, protected :: gps_Wgps(0:1023,4)
   character(len=20), public, protected :: gps_roError
   logical,           public, protected :: gps_roBNorm
+  logical,           public, protected :: gps_roEotvos
+  logical,           public, protected :: gps_roEllipsoid
+  logical,           public, protected :: gps_roNCurv
+  integer,           public, protected :: gps_roNFlavour
+  real(8),           public, protected :: gps_roYear
   integer,           public, protected :: gps_gb_numZTD ! number of ZTD data to be assimilated
   integer,           public, protected, allocatable :: gps_ZTD_Index (:) ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
   real(8),           public, protected :: gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
@@ -48,8 +55,6 @@ module gps_mod
   integer, parameter :: gps_Level_RO_Bnd       = 1
   integer, parameter :: gps_Level_RO_Ref       = 2
   integer, parameter :: gps_Level_RO_BndandRef = 3
-
-  logical :: gps_gpsroEotvos
 
 !modgps00base
   
@@ -313,7 +318,6 @@ contains
     RadN = ec_wgs_a / sqrt(e2s)
     RadM = ec_wgs_a * (1._dp - ec_wgs_e2) / (e2s*sqrt(e2s))
   end subroutine gpsRadii
-
 
 !modgps03diff
   pure subroutine gpsdiffasfd(gd1, d2)
@@ -793,13 +797,38 @@ contains
 
     ! Locals:
     integer(i4)                    :: i
-    real(dp) , parameter           :: delta = 0.6077686814144_dp
+    real(dp)                       :: delta
     type(gps_diff)                 :: cmp(ngpssize)
-    real(dp)                       :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
+    real(dp)                       :: h0,dh,Rgh,Eot,Eot2, sLat, cLat, q1, q2, q3, q4, md, mw, ym2k, wa, wb
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, z
     type(gps_diff)                 :: mold, dd, dw, dx, n0, nd1, nw1, tvm
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
+
+    if (gps_roNFlavour .EQ. 0) then
+       md = gps_p_md
+       mw = gps_p_mw
+       wa = gps_p_wa
+       wb = gps_p_wb
+       delta = 0.6077686814144_dp
+       q1 =  222.682_dp
+       q2 =    0.069_dp
+       q3 = 6701.605_dp
+       q4 = 6385.886_dp
+    else
+       ym2k = gps_roYear - 2000.d0
+       !md = 28.96530_dp    ! To be updated using year function, here Year=2024
+       !q1 =  222.661_dp    ! To be updated using year function, here Year=2024
+       md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
+       mw = 18.01525_dp
+       wa = md/mw
+       wb = (md-mw)/mw
+       delta = wb
+       q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
+       q2 =    0.097_dp
+       q3 = 6703.497_dp
+       q4 = 6393.484_dp
+    endif
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -850,16 +879,16 @@ contains
        p  = prf%pst(i)
        t  = prf%tst(i)
        q  = prf%qst(i)
-       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       x  = wa*q/(1._dp+wb*q)
 
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
-       dw = mold * x         * (gps_p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (md/1000._dp)
+       dw = mold * x         * (mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
-       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       nd1= (q1+q2*tr) * dd
+       nw1= (q3+q4*tr) * dw
        n0 = (nd1+nw1)
        prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
@@ -869,16 +898,16 @@ contains
        p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
        t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
        q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
-       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       x  = wa*q/(1._dp+wb*q)
        
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
-       dw = mold * x         * (gps_p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (md/1000._dp)
+       dw = mold * x         * (mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
-       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       nd1= (q1+q2*tr) * dd
+       nw1= (q3+q4*tr) * dw
        n0 = (nd1+nw1)
        prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
@@ -962,12 +991,37 @@ contains
 
     ! Locals:
     integer(i4)                   :: i
-    real(dp)                      :: rALT_E(ngpssize)
-    real(dp) , parameter           :: delta = 0.6077686814144_dp
+    real(dp)                      :: rALT_E(ngpssize), q1, q2, q3, q4, md, mw, wa, wb, ym2k
+    real(dp)                      :: delta
     type(gps_diff)                 :: cmp(ngpssize)
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr, tv
     type(gps_diff)                 :: mold, dd, dw, n0, nd1, nw1
+
+    if (gps_roNFlavour .EQ. 0) then
+       md = gps_p_md
+       mw = gps_p_mw
+       wa = gps_p_wa
+       wb = gps_p_wb
+       delta = 0.6077686814144_dp
+       q1 =  222.682_dp
+       q2 =    0.069_dp
+       q3 = 6701.605_dp
+       q4 = 6385.886_dp
+    else
+       ym2k = gps_roYear - 2000.d0
+       !md = 28.96530_dp    ! To be updated using year function, here Year=2024
+       !q1 =  222.661_dp    ! To be updated using year function, here Year=2024
+       md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
+       mw = 18.01525_dp
+       wa = md/mw
+       wb = (md-mw)/mw
+       delta = wb
+       q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
+       q2 =    0.097_dp
+       q3 = 6703.497_dp
+       q4 = 6393.484_dp
+    endif
 
     prf%ngpslev = ngpslev
     prf%rLat    = rLat
@@ -1011,7 +1065,7 @@ contains
     !
     ! Fill altitude placeholders:
     !
-    if (gps_gpsroEotvos) then
+    if (gps_roEotvos) then
       call gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
     else
       rALT_E(1:ngpslev) = rALT(1:ngpslev)
@@ -1032,16 +1086,16 @@ contains
        p  = prf%pst(i)
        t  = prf%tst(i)
        q  = prf%qst(i)
-       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       x  = wa*q/(1._dp+wb*q)
 
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
-       dw = mold * x         * (gps_p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (md/1000._dp)
+       dw = mold * x         * (mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
-       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       nd1= (q1+q2*tr) * dd
+       nw1= (q3+q4*tr) * dw
        n0 = (nd1+nw1)
        prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
@@ -1051,16 +1105,16 @@ contains
        p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
        t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
        q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
-       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       x  = wa*q/(1._dp+wb*q)
        
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
-       dw = mold * x         * (gps_p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (md/1000._dp)
+       dw = mold * x         * (mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
-       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       nd1= (q1+q2*tr) * dd
+       nw1= (q3+q4*tr) * dw
        n0 = (nd1+nw1)
        prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
@@ -1679,6 +1733,7 @@ contains
     type(gps_diff)                     :: dz
     type(gps_diff)                     :: dzm
     type(gps_diff)                     :: dzp
+    type(gps_diff)                     :: m, dt, tav2
     
     ngpslev=prf%ngpslev
     iSize = size(hv)
@@ -1717,8 +1772,15 @@ contains
        
           dzm = h - prf%gst(jloc+1)
           dzp = prf%gst(jloc) - h
-       
-          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
+
+          if (.not. gps_roNCurv) then
+            refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
+          else
+            dt = prf%tst(jloc) - prf%tst(jloc+1)
+            tav2 = prf%tst(jloc) * prf%tst(jloc+1)
+            m = ec_wgs_GammaM * dt/dz /(2*MPC_RGAS_DRY_AIR_R8*tav2)
+            refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz + m*dzp*dzm)
+          end if
        else
           !
           ! Or exp extrapolation at the lower edge
@@ -3004,9 +3066,12 @@ contains
     LOGICAL :: gpsroBNorm       ! Choose to normalize based on B=H(x) (default=.True.), or approximate exponential reference
     LOGICAL :: gpsroEotvos      ! Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
     REAL(8) :: gpsroNsigma      ! Factor applied to observation error for background departure check when gpsroBNorm is .true. (default 1.d6)
-
+    LOGICAL :: gpsroEllipsoid   ! Apply vertical shift to account for asphericity of ellipsoid wrt reference tangent sphere
+    LOGICAL :: gpsroNCurv       ! Add small curvature in the log-linear vertical interpolation of N
+    INTEGER :: gpsroNFlavour    ! Choice of refractivity constants: 0 for AL11, 1 for the 2015-25 update.
+    INTEGER :: dateStamp, hour, day, month, ndays, yyyy, JD
     NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
-        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma
+        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma, gpsroEllipsoid, gpsroNCurv, gpsroNFlavour
 
     !
     !   Define default values:
@@ -3022,6 +3087,9 @@ contains
     gpsroBNorm = .True.
     gpsroEotvos= .False.
     gpsroNsigma= 1000000.d0
+    gpsroEllipsoid= .False.
+    gpsroNCurv = .False.
+    gpsroNFlavour = 0
     !
     !   Force a pre-NML default for the effective data weight of all
     !   GPSRO satellites. This array has rows 0-1023 (following BUFR element
@@ -3050,18 +3118,30 @@ contains
     gps_BgckBand      = BGCKBAND
     gps_roError       = gpsroError
     gps_roBNorm       = gpsroBNorm
-    gps_WGPS = WGPS
-    gps_gpsroEotvos = gpsroEotvos
-    gps_roNsigma = gpsroNsigma
+    gps_WGPS          = WGPS
+    gps_roEotvos      = gpsroEotvos
+    gps_roNsigma      = gpsroNsigma
+    gps_roEllipsoid   = gpsroEllipsoid
+    gps_roNCurv       = gpsroNCurv
+    gps_roNFlavour    = gpsroNFlavour
+
+    dateStamp = tim_getDatestamp()
+    call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy, .False.)
+    call JDATEC(JD,YYYY,month,day)
+    gps_roYear = 2000.d0+(JD-2451545.d0)/365.25d0
+    if (gps_roYear < 1990.d0) gps_roYear = 1990.d0
+    if (gps_roYear > 2100.d0) gps_roYear = 2100.d0
 
     if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SurfMin, gps_HsfMin, &
-           gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gpsroEotvos
+           gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gps_roEotvos, &
+           gps_roNsigma, gps_roEllipsoid, gps_roNCurv, gps_roNFlavour
       do SatID = 0, 1023
         if (WGPS(SatID,2) /= 0.) then
           write(*,*)'WGPS', SatID, gps_WGPS(SatID, 1:4)
         end if
       end do
+      write(*,*)'ROSetup Epoch:', yyyy, ndays, month, day, hour, gps_roYear
     end if
   end subroutine gps_setupro
 
@@ -3072,11 +3152,13 @@ contains
     integer, intent(in) :: numROProfiles
 
     gps_numROProfiles = numROProfiles
-    if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
-
+    if (gps_numROProfiles > 0) then
+      if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
+      if(.not.allocated(gps_vRO_dR)      ) allocate(gps_vRO_dR(      gps_numROProfiles, gps_RO_MAXPRFSIZE))
+    end if
   end subroutine gps_setNumROProfiles
 
-  subroutine gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC)
+  subroutine gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC, dR)
     implicit none
 
     ! Arguments:
@@ -3085,12 +3167,13 @@ contains
     integer, intent(in) :: varNum
     integer, intent(in) :: ISAT
     integer, intent(in) :: IDSC
+    real(8), intent(in) :: dR(:)
 
     gps_vRO_IndexPrf(iProfile, 1) = INDEX_HEADER
     gps_vRO_IndexPrf(iProfile, 2) = varNum
     gps_vRO_IndexPrf(iProfile, 3) = ISAT
     gps_vRO_IndexPrf(iProfile, 4) = IDSC
-
+    gps_vRO_dR(      iProfile, :) = dR(:)
   end subroutine gps_setROIndexPrf
 
   integer function gps_iprofile_from_index(index)

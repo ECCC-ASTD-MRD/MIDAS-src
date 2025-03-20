@@ -2538,7 +2538,7 @@ contains
     REAL(8), allocatable :: zHeight(:)
     REAL(8), allocatable :: ZUU(:)
     REAL(8), allocatable :: ZVV(:)
-    REAL(8) DH,DDH
+    REAL(8) DH,DDH,dR(gps_ro_maxprfsize)
     REAL(8) zMT, Rad, Geo, zP0
     REAL(8) HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
     integer JL, isat, JH, NGPSLEV, NWNDLEV
@@ -2603,6 +2603,7 @@ contains
         IF (ASSIM) then
           iProfile=gps_iprofile_from_index(headerIndex)
           varNum = gps_vRO_IndexPrf(iProfile, 2)
+          dR(:)  = gps_vRO_dR      (iProfile, :)
              !
              !     *        Basic geometric variables of the profile:
              !
@@ -2684,9 +2685,9 @@ contains
              !     *        Apply the observation operator:
              !
           IF (varNum == bufr_nebd) then
-            call GPS_BNDOPV2(H, AZMV, NH, PRF, RSTV)
+            call GPS_BNDOPV2(H-dR(1:NH), AZMV, NH, PRF, RSTV)
           ELSE
-            call GPS_REFOPV (H,       NH, PRF, RSTV)
+            call GPS_REFOPV (H-dR(1:NH),       NH, PRF, RSTV)
           end if
              !
              !     *        Perform the (H(x)-Y)/R operation:
