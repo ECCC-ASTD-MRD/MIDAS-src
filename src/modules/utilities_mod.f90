@@ -2897,6 +2897,7 @@ contains
     ! Locals:
     integer :: numFound, arrayIndex
 
+    location = 0
     numFound = 0
     LOOP: do arrayIndex = 1, size(charArray)
       if (trim(charArray(arrayIndex)) == trim(value)) then
@@ -3185,6 +3186,7 @@ contains
       median = sortedArray((vectorDim + 1) / 2)
     end if
 
+    medianIndex =  MPC_missingValue_INT
     do vectorIndex = 1, vectorDim
       if (inputVector(vectorIndex) == median) then
         medianIndex = vectorIndex
