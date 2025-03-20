@@ -1336,7 +1336,7 @@ module obsSpaceErrorStdDev_mod
     REAL(8), allocatable :: zHT(:)
     REAL(8), allocatable :: zUU(:)
     REAL(8), allocatable :: zVV(:)
-    REAL(8) ZP0, ZMT
+    REAL(8) ZP0, ZMT, dR(gps_ro_maxprfsize)
     REAL(8) ZFGE, ZERR
     INTEGER JV, NGPSLEV, NWNDLEV
     LOGICAL  ASSIM, LFIRST, FIRSTHEADER
@@ -1393,6 +1393,7 @@ module obsSpaceErrorStdDev_mod
       IF ( IDATYP .EQ. 169 ) THEN
         iProfile = gps_iprofile_from_index(index_header)
         varNum = gps_vRO_IndexPrf(iProfile, 2)
+        dR(:)  = gps_vRO_dR      (iProfile, :)
 
         ! Scan for requested data values of the profile, and count them
 
@@ -1480,9 +1481,9 @@ module obsSpaceErrorStdDev_mod
             ! Apply the observation operator:
 
             IF (varNum == bufr_nebd) THEN
-              CALL GPS_BNDOPV2(H, AZMV, NH, PRF, RSTV)
+              CALL GPS_BNDOPV2(H-dR(1:NH), AZMV, NH, PRF, RSTV)
             ELSE
-              CALL GPS_REFOPV (H,       NH, PRF, RSTV)
+              CALL GPS_REFOPV (H-dR(1:NH),       NH, PRF, RSTV)
             ENDIF
             DO NH1=1,NH
               ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
