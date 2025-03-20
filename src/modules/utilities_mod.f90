@@ -864,7 +864,7 @@ contains
     allocate(work(1))
     !first call to query work array work size
     call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
-    lwork = work(1)
+    lwork = int(work(1))
     call utl_reallocate(work, lwork)
     call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
     if (info < 0) then
