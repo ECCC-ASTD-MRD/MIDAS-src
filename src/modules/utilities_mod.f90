@@ -1799,14 +1799,14 @@ contains
 
         ! Set B type lat-long grid
 
-        dincr=360.0d0/(ni-1)
+        dincr=360.0e0/(ni-1)
         do i=1,ni
           xlong_opt(i) = (i-1)*dincr
         end do
 
         if (ig1 == 0) then
           ! Global
-          dincr=180.0d0/(nj-1)
+          dincr=180.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = -90.0 + (i-1)*dincr
@@ -1818,7 +1818,7 @@ contains
           end if
         else if (ig1 == 1) then
           ! Northern hemispheric
-          dincr=90.0d0/(nj-1)
+          dincr=90.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = 0.0 + (i-1)*dincr
@@ -1830,7 +1830,7 @@ contains
           end if
         else
           ! Southern hemispheric
-          dincr=90.0d0/(nj-1)
+          dincr=90.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = -90.0 + (i-1)*dincr
