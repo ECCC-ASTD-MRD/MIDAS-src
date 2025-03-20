@@ -600,7 +600,7 @@ contains
     
     ! Locals:
     integer :: index1, index2, info, sizework
-    real(8) :: sizework_r8, eigenValueMin
+    real(8) :: sizework_r8(1), eigenValueMin
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
 
@@ -633,9 +633,9 @@ contains
     call dsyev('V','U',rank, eigenVectors, rank, eigenValues, sizework_r8, sizework, info)
 
     ! compute the eigenvalues
-    sizework=int(sizework_r8)
+    sizework=int(sizework_r8(1))
     allocate(work(sizework))
-    call dsyev('V','U',rank, eigenVectors,rank, eigenValues,work, sizework, info)
+    call dsyev('V','U',rank, eigenVectors,rank, eigenValues, work, sizework, info)
     deallocate(work)
 
     if (printInformation) then
