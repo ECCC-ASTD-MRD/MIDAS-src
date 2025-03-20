@@ -993,7 +993,7 @@ contains
     real(8), allocatable :: zHeight(:)
     real(8), allocatable :: zuu(:)
     real(8), allocatable :: zvv(:)
-    real(8) :: zp0, zmt
+    real(8) :: zp0, zmt, dR(gps_ro_maxprfsize)
     real(8) :: hnh1, zobs, zmhx, zoer, zinc
     integer headerIndex, idatyp, bodyIndex
     integer jl, ngpslev, nwndlev
@@ -1059,6 +1059,7 @@ contains
        if (.not.assim) cycle HEADER
        iProfile = gps_iprofile_from_index(headerIndex)
        varNum   = gps_vRO_IndexPrf(iProfile, 2)
+       dR(:)    = gps_vRO_dR      (iProfile, :)
        !
        ! Basic geometric variables of the profile:
        !
@@ -1136,9 +1137,9 @@ contains
        ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
        iProfile = gps_iprofile_from_index(headerIndex)
        if (varNum == bufr_nebd) then
-          call gps_bndopv2(h, azmv, nh, prf, rstv)
+          call gps_bndopv2(h-dR(1:nh), azmv, nh, prf, rstv)
        else
-          call gps_refopv (h,       nh, prf, rstv)
+          call gps_refopv (h-dR(1:nh),       nh, prf, rstv)
        end if
        !
        ! Perform the (H(x)-Y)/S operation:
@@ -1189,7 +1190,9 @@ contains
                write(*,  &
                     '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
                     headerIndex,lat,lon,azm,hnh1,zobs,zoer,  &
-                    zmhx,zinc,pjob,prf%gst(ngpslev)%var
+                    zmhx,zinc,pjob,prf%gst(ngpslev)%var,dR(nh1), &
+                    obs_bodyElem_r(obsSpaceData,OBS_LATD,bodyIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+                    obs_bodyElem_r(obsSpaceData,OBS_LOND,bodyIndex)*MPC_DEGREES_PER_RADIAN_R8
              end if
              call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, zobs - zmhx)
           end if
@@ -3449,7 +3452,7 @@ contains
     integer :: isat
     real(8) :: rad, geo, zp0
     real(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
-    real(8) :: zmt
+    real(8) :: zmt, dR(gps_ro_maxprfsize)
     integer :: IDATYP, varNum
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
@@ -3524,6 +3527,7 @@ contains
           iProfile = gps_iprofile_from_index(headerIndex)
           if (oop_vRO_lJac(iProfile)) cycle                  ! If already done, end this HEADER
           varNum = gps_vRO_IndexPrf(iProfile, 2)
+          dR(:)  = gps_vRO_dR      (iProfile, :)
 
           ! Profile at the observation location:
           ! Basic geometric variables of the profile:
@@ -3584,9 +3588,9 @@ contains
           ! Apply the observation operator:
           ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
           if (varNum == bufr_nebd) then
-            call gps_bndopv2(h, azmv, nh, prf, rstv)
+            call gps_bndopv2(h-dR(1:nh), azmv, nh, prf, rstv)
           else
-            call gps_refopv (h, nh, prf, rstv)
+            call gps_refopv (h-dR(1:nh),       nh, prf, rstv)
           end if
           do nh1 = 1, nh
             oop_vRO_Jacobian(iprofile,nh1,1:4*ngpslev)= rstv(nh1)%dvar(1:4*ngpslev)

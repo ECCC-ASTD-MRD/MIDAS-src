@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Introduce flexibility to select either QI1 or QI2 for thinning of AMVs (#1006 and !958)
+ * Improvement to the vertical RO interpolation, and to the vertical height registration (#1016)
+   * added option to select the detailed relationship between temperature and refractivity
 
 ### Changed
 

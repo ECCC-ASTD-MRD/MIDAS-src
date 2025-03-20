@@ -241,7 +241,7 @@ contains
 
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.FALSE.
-        NELE_INFO=16
+        NELE_INFO=21
       CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
@@ -2037,7 +2037,7 @@ contains
         vcord_type(2)=7040
 
         call BRPACMA_NML('namburp_filter_conv')
-        NELE_INFO=18
+        NELE_INFO=21
       CASE('TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
