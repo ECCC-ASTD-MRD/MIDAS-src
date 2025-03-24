@@ -297,11 +297,16 @@ contains
     contains
 
       integer function getNumSats(maxSat,vars)
-
+        !
+        !:Purpose: count the number of satellites, i.e. count the number of non ''
+        !
         implicit none
 
+        ! Arguments:
         integer, intent(in)           :: maxSat
         character(len=20), intent(in) :: vars(maxSat)
+
+        ! Locals:
         integer                       :: varIndex
 
         getNumSats = 0
