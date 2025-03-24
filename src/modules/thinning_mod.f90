@@ -229,15 +229,25 @@ contains
       read(utl_flnml, nml=thin_satwind, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
-      read(utl_flnml, nml=NAMSW, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading NAMSW namelist')
-      if (mmpi_myid == 0) write(*,nml=NAMSW)
       call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatWinds: Namelist block thin_satwind is missing in the namelist.'
       write(*,*) '                  The default value will be taken.'
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
+    end if
+
+    if (utl_isNamelistPresent('NAMSW','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=NAMSW, iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading NAMSW namelist')
+      if (mmpi_myid == 0) write(*,nml=NAMSW)
+      call utl_tmg_stop(181)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinSatWinds: Namelist block NAMSW is missing in the namelist.'
+      write(*,*) '                  The default value will be taken.'
+      if (mmpi_myid == 0) write(*,nml=NAMSW)
     end if
 
     nsats = get_num_sats(maxSat,SWQI)
