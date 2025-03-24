@@ -748,6 +748,7 @@ contains
     integer  :: headerIndex, bodyIndex, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
+    integer  :: status
     real(8)  :: predictor(NumPredictors)
     real(8)  :: biasCor
     real(8)  :: sunzen, sunaz, satzen, sataz
@@ -764,6 +765,7 @@ contains
     integer            :: tovsFileNameListSize
     character(len=20)  :: tovsFileNameList(30)
     character(len=256) :: fileName
+    character(len=256) :: dirName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
     logical :: fromGenCoeff
 
@@ -854,14 +856,22 @@ contains
         else
           fileNameExtension = ' '
         end if
-
+	! Create sqlite files from genCoeff
         if (fromGenCoeff) then
-          fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
-              // '_' // trim(filenameExtension)
+          dirName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated'
         else
-          fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
-              // '_' // trim(filenameExtension)
+          dirName = 'obs'
         end if
+        ! Check if the directory exists; if not, create one based on the directory name above
+        status = clib_isdir(trim(dirName))
+        if (status /= clib_ok) then
+          status = clib_mkdir_r(trim(dirName))
+          if (status /= clib_ok) then
+            call utl_abort('bcs_dumpBiasToSqliteAfterThinning: Failed to create directory: ' // trim(dirName))
+          end if
+        end if
+        ! Construct full path of sqlite files from genCoeff
+        fileName = trim(dirName) // '/bcr' // trim(tovsFileNameList(fileIndex)) // '_' // trim(fileNameExtension)
 
         call fSQL_open(db(fileIndex), fileName, stat)
         write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)

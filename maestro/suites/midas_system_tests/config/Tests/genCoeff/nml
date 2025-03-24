@@ -1,3 +1,9 @@
+&namWriteDiag
+    lwritediagsql = .true.,
+    onlyAssimObs = .false.,
+    addFSOdiag = .false.,
+    writeObsDb = .false.,
+ /
  &NAMBIASSAT
     outOmFPredCov=.TRUE.,
     biasActive=.TRUE.,
@@ -65,6 +71,7 @@
     cinst(14)="AHI"		
     nbscan(14)=1
     cglobal(14)="OUI"
+    dumpToSqliteAfterThinning = .true.
 /
  &NAMINC
    etiket_rebm ='XXXXXX'
