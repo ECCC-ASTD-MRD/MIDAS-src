@@ -222,6 +222,32 @@ contains
     deltemps = 6
     deldist  = 200
     SWQI(:)  = ''
+    SWQI(1)  = 'METSAT7:qi1'
+    SWQI(2)  = 'METSAT8:qi1'
+    SWQI(3)  = 'METSAT9:qi1'
+    SWQI(4)  = 'METSAT10:qi1'
+    SWQI(5)  = 'METSAT11:qi1'
+    SWQI(6)  = 'HMWARI-8:qi1'
+    SWQI(7)  = 'HMWARI-9:qi1'
+    SWQI(8)  = 'GOES13:qi1'
+    SWQI(9)  = 'GOES15:qi1'
+    SWQI(10) = 'GOES16:qi1'
+    SWQI(11) = 'GOES17:qi1'
+    SWQI(12) = 'GOES18:qi1'
+    SWQI(13) = 'NOAA15:qi1'
+    SWQI(14) = 'NOAA16:qi1'
+    SWQI(15) = 'NOAA18:qi1'
+    SWQI(16) = 'NOAA19:qi1'
+    SWQI(17) = 'NOAA20:qi1'
+    SWQI(18) = 'NOAA21:qi1'
+    SWQI(19) = 'NPP:qi1'
+    SWQI(20) = 'AQUA:qi1'
+    SWQI(21) = 'TERRA:qi1'
+    SWQI(22) = 'METOP-1:qi1'
+    SWQI(23) = 'METOP-2:qi1'
+    SWQI(24) = 'METOP-3:qi1'
+    SWQI(25) = 'METOP1-3:qi1'
+    SWQI(26) = 'GEO-POL:qi1'
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
