@@ -2483,7 +2483,6 @@ contains
     deallocate(QIvalue)
     deallocate(SWname)
 
-
     contains
 
       integer function getNumSats(maxSat,vars)
