@@ -276,7 +276,7 @@ contains
       if (mmpi_myid == 0) write(*,nml=NAMSW)
     end if
 
-    nsats = get_num_sats(maxSat,SWQI)
+    nsats = getNumSats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
     !call SplitString(nsats,SWQI,SWname,QIvalue)
@@ -291,9 +291,12 @@ contains
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist, nsats, SWname, QIvalue)
     call utl_tmg_stop(114)
 
+    deallocate(QIvalue)
+    deallocate(SWname)
+
     contains
 
-      integer function get_num_sats(maxSat,vars)
+      integer function getNumSats(maxSat,vars)
 
         implicit none
 
@@ -301,10 +304,10 @@ contains
         character(len=20), intent(in) :: vars(maxSat)
         integer                       :: varIndex
 
-        get_num_sats = 0
+        getNumSats = 0
 
         do varIndex = 1, maxSat
-          if (trim(vars(varIndex)) /= '') get_num_sats = get_num_sats + 1
+          if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
         end do
 
       end function get_num_sats
