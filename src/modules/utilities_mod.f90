@@ -2476,7 +2476,7 @@ contains
 
   subroutine utl_splitString(string, separator, stringArray)
     !
-    ! Purpose: Divide a string into several parts using a specified separator
+    !:Purpose: Divide a string into several parts using a specified separator
     !
     implicit none
 
