@@ -310,7 +310,7 @@ contains
           if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
         end do
 
-      end function get_num_sats
+      end function getNumSats
 
   end subroutine thn_thinSatWinds
 
