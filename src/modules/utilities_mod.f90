@@ -2475,10 +2475,17 @@ contains
 
 
   subroutine utl_splitString(string, separator, stringArray)
+    !
+    ! Purpose: Divide a string into several parts using a specified separator
+    !
     implicit none
-    character(len=*), intent(in) :: string
-    character(len=*), intent(in) :: separator
-    character(len=*), allocatable, intent(inout) :: stringArray(:)
+
+    ! Arguments:
+    character(len=*), intent(in)                 :: string ! input string
+    character(len=*), intent(in)                 :: separator ! separator
+    character(len=*), allocatable, intent(inout) :: stringArray(:) ! seperated strings
+
+    ! Locals:
     integer :: stringArraySize, start, sepPos, substringIndex
 
     ! Calculate the number of substrings
