@@ -68,7 +68,7 @@ done
 
 # check to insure the interactive environement has been loaded and prevent unwanted deletion
 if [ ! -f "./localFilesNotToErase" ]; then
-    echo './localFilesNotToErase absent, probably not loaded proper interactive environment.'
+    echo './localFilesNotToErase absent, probably not in a working directory appropriate for interactive launnching'
     exit 1
 fi
 
