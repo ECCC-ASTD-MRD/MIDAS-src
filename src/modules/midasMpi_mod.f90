@@ -54,7 +54,7 @@ module midasMpi_mod
 
     ! Locals:
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
-    integer :: ierr, numNodeMasters
+    integer :: ierr, numNodeMasters, myidHost(1)
     integer :: rpn_comm_comm, rpn_comm_datyp
     integer, allocatable :: allMyidHost(:)
     logical :: flag
@@ -92,7 +92,8 @@ module midasMpi_mod
 
     ! Determine list of node masters (i.e. first task on each node)
     allocate(allMyidHost(mmpi_nprocs))
-    call rpn_comm_allgather(mmpi_myidHost,    1, 'mpi_integer',  &
+    myidHost(1) = mmpi_myidHost
+    call rpn_comm_allgather(myidHost,    1, 'mpi_integer', &
                             allMyidHost, 1, 'mpi_integer', &
                             'GRID', ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
