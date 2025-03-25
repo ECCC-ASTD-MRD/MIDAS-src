@@ -303,7 +303,7 @@ contains
         implicit none
 
         ! Arguments:
-        integer, intent(in)           :: maxSat
+        integer,           intent(in) :: maxSat
         character(len=20), intent(in) :: vars(maxSat)
 
         ! Locals:
