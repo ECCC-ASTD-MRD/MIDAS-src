@@ -726,12 +726,14 @@ contains
     real(8), pointer     :: P0_ptr_r8(:,:,:,:)
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+    type(struct_vco), pointer :: vco_ptr
 
     call msg('calcHeight_gsv_nl_vcode5xxx (czp)', 'START', verb_opt=4)
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco_ptr => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco_ptr)
     numStep = statevector%numStep
 
     allocate(tv(nlev_T))
@@ -744,10 +746,10 @@ contains
     end if
 
     if (Vcode == 5005 .or. Vcode == 5100) then
-      status = vgd_get( gsv_getVco(statevector)%vgrid, &
+      status = vgd_get( vco_ptr%vgrid, &
                         key='DHM - height of the diagnostic level (m)', &
                         value=heightSfcOffset_M_r4)
-      status = vgd_get( gsv_getVco(statevector)%vgrid, &
+      status = vgd_get( vco_ptr%vgrid, &
                         key='DHT - height of the diagnostic level (t)', &
                         value=heightSfcOffset_T_r4)
       call msg('calcHeight_gsv_nl_vcode5xxx (czp)', &
