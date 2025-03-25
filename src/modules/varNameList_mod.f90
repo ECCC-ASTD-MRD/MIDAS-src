@@ -882,7 +882,10 @@ module varNameList_mod
       character(len=10)  :: varNameNetCDF
 
       unit = 0
-      
+      ! Set 'found' to '.false' first so we are sure it is set to a
+      ! value in the function.
+      found = .false.
+
       if (present(typvar_opt)) then
         typvar = trim(typvar_opt)
       else
