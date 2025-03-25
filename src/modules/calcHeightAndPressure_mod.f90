@@ -1877,6 +1877,7 @@ contains
     real(8), pointer     :: P0_ptr_r8(:,:,:,:)
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+    type(struct_vco), pointer :: vco_ptr
 
     call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'START', verb_opt=4)
     
@@ -1890,10 +1891,11 @@ contains
       call utl_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
     end if
 
-    status = vgd_get( gsv_getVco(statevector)%vgrid, &
+    vco_ptr => gsv_getVco(statevector)
+    status = vgd_get( vco_ptr%vgrid, &
                       key='DHM - height of the diagnostic level (m)', &
                       value=heightSfcOffset_M_r4)
-    status = vgd_get( gsv_getVco(statevector)%vgrid, &
+    status = vgd_get( vco_ptr%vgrid, &
                       key='DHT - height of the diagnostic level (t)', &
                       value=heightSfcOffset_T_r4)
     call msg('calcPressure_gsv_nl_vcode2100x (czp)', &
