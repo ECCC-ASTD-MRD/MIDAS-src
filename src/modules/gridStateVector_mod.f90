@@ -232,7 +232,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_getMpiIdFromVarLev
   !--------------------------------------------------------------------------
-  function gsv_getMpiIdFromVarLev(statevector,varLevIndex) result(MpiId)
+  function gsv_getMpiIdFromVarLev(statevector,varLevIndex) result(mpiId)
     !
     ! :Purpose: Returns MPI id from the given varLevIndex
     !
@@ -242,15 +242,16 @@ module gridStateVector_mod
     type(struct_gsv), intent(in) :: statevector
     integer,          intent(in) :: varLevIndex
     ! Result:
-    integer                      :: MpiId
+    integer                      :: mpiId
     
     ! Locals:
     integer             :: procIndex
 
+    mpiId = MPC_missingValue_INT
     do procIndex = 1, mmpi_nprocs
       if ((varLevIndex >= statevector%allVarLevBeg(procIndex)) .and.  &
           (varLevIndex <= statevector%allVarLevEnd(procIndex))) then
-          MpiId = procIndex - 1
+          mpiId = procIndex - 1
           return
       end if
     end do
