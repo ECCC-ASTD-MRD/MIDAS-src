@@ -4310,7 +4310,7 @@ module gridStateVector_mod
 
                 statevector_out%gd_r8(ilon_out, ilat_out, :, stepIndex) =  &
                   statevector_out%gd_r8(ilon_out, ilat_out, :, stepIndex) +  &
-                  statevector_in%gd_r8(lonIndex_in, ilat_in, :, stepIndex)
+                  statevector_in%gd_r8(lonIndex_in, latIndex_in, :, stepIndex)
 
               end do ! lonIndex_in
             end do ! lonIndex
