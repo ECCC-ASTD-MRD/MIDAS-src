@@ -96,6 +96,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="radianceO3"/>
+      <FAMILY  name="radianceO3">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="Var3D"/>
     <FAMILY  name="Var3D">
