@@ -584,20 +584,22 @@ contains
 
     ! Locals:
     integer ::  numStep, stepIndex
-    real(kind=8), pointer   :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    real(kind=8),     pointer :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    type(struct_vco), pointer :: vco_ptr
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
     Hsfc => gsv_getHeightSfc(statevector)
     numStep = statevector%numStep
+    vco_ptr => gsv_getVco(statevector)
 
     do stepIndex = 1, numStep
-      if (gsv_getVco(statevector)%sleveCoord) then
+      if (vco_ptr%sleveCoord) then
         ! Need to get MELS!
-        call fetch3DLevels_r8(gsv_getVco(statevector), sfcFld=Hsfc, sfcFldLS_opt=Hsfc, &
+        call fetch3DLevels_r8(vco_ptr, sfcFld=Hsfc, sfcFldLS_opt=Hsfc, &
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       else
-        call fetch3DLevels_r8(gsv_getVco(statevector), sfcFld=Hsfc, &
+        call fetch3DLevels_r8(vco_ptr, sfcFld=Hsfc, &
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       end if
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out, skipDiagLevel=.true.)
