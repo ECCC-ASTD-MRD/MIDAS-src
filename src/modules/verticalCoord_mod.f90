@@ -798,6 +798,7 @@ contains
     ! Locals:
     integer :: varListIndex
 
+    nlev = -999
     if (varLevel == 'MM') then
       nlev = vco%nlev_M
     else if (varLevel == 'TH') then
