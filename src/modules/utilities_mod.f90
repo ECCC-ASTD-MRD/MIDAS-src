@@ -2481,8 +2481,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)                 :: string ! input string
-    character(len=*), intent(in)                 :: separator ! separator
+    character(len=*),              intent(in)    :: string         ! input string
+    character(len=*),              intent(in)    :: separator      ! separator
     character(len=*), allocatable, intent(inout) :: stringArray(:) ! seperated strings
 
     ! Locals:
