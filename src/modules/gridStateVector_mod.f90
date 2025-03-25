@@ -2842,6 +2842,7 @@ module gridStateVector_mod
     deallocate(statevector%allUVvarLevEnd)
     deallocate(statevector%allUVvarLevCount)
 
+    ierr = -1
     if (statevector%dataKind == 8) then
       deallocate(statevector%gd_r8,stat=ierr)
       nullify(statevector%gd_r8)
