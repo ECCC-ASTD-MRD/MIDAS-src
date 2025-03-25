@@ -2125,6 +2125,7 @@ contains
     !
     ! Search where it is located
     !
+    jloc = MPC_missingValue_INT
     do j = 1, ngpslev-1
       if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
         jloc = j   ! the model level above the observation
