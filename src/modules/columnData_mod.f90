@@ -480,6 +480,7 @@ contains
     ! Locals:
     integer :: varIndex
 
+    levIndex = MPC_missingValue_INT
     do varIndex = 1, vnl_numvarmax
       if ( column%varExistList(varIndex) ) then
         if ( (varLevIndex >= (column%varOffset(varIndex) + 1)) .and.  &
