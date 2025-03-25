@@ -2349,7 +2349,6 @@ contains
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = NAMSW, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_sw: Error reading namelist')
-      if (mmpi_myid == 0) write(*,nml=namsw)
       call utl_tmg_stop(181)
     else
       if ( mmpi_myid == 0 ) then
@@ -2358,6 +2357,7 @@ contains
         write(*,*) '        The default values will be taken.'
       end if
     end if
+    if (mmpi_myid == 0) write(*,nml=namsw)
 
     nsats = getNumSats(maxSat,SWQI)
     allocate(SWname(nsats))
