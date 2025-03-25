@@ -215,6 +215,7 @@ module gridStateVector_mod
     ! Locals
     integer             :: varIndex
 
+    levIndex =  MPC_missingValue_INT
     do varIndex = 1, vnl_numvarmax
       if (statevector%varExistList(varIndex)) then
         if ((varLevIndex >= (statevector%varOffset(varIndex) + 1)) .and.  &
