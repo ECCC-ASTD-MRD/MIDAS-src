@@ -2950,8 +2950,8 @@ contains
       if (kat%Var > 1.d0/3000.d0) then
         kat = 1.d0/3000.d0
       end if
+      Ntp = nu(imax)
       if (.not.lTooHigh) then
-        Ntp = nu(imax)
         zk = kat*zma
         alpha_top = 1.d-6*sqrt(2*MPC_PI_R8*a*kat)*Ntp*exp(zk)*(1.d0-erf(sqrt(zk)))
       else
