@@ -2278,7 +2278,7 @@ contains
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
-    integer :: ierr, satIndex, nsats, isat
+    integer :: ierr, nsats, isat
     integer, parameter :: maxSat = 99
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
@@ -2403,9 +2403,9 @@ contains
 
       ! select qi
       iqiv = -1
-      LOOP_QI: do satIndex = 1, nsats
-        if ( trim(SWname(satIndex)) == trim(cstnid(2:)) ) then
-          select case (trim(QIvalue(satIndex)))
+      LOOP_QI: do isat = 1, nsats
+        if ( trim(SWname(isat)) == trim(cstnid(2:)) ) then
+          select case (trim(QIvalue(isat)))
             case ('qi1')
               iqiv = iqiv1
             case ('qi2')
@@ -2420,7 +2420,7 @@ contains
           end select
           exit LOOP_QI
         end if
-        if (satIndex == nsats) then
+        if (isat == nsats) then
           write(*,*) cstnid
           call utl_abort('oer_sw: not supported satname')
         end if
