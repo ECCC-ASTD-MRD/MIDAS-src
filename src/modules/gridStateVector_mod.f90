@@ -3905,6 +3905,7 @@ module gridStateVector_mod
 
     inKind = statevector_in%dataKind
     outKind = statevector_out%dataKind
+    sendrecvKind = MPC_missingValue_INT
     if (inKind == 4 .and. outKind == 4) then
       sendrecvKind = 4
     else if (inKind == 8 .and. outKind == 8) then
