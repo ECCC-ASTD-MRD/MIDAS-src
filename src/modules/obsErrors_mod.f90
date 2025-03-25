@@ -2362,7 +2362,6 @@ contains
     nsats = getNumSats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
-    !call SplitString(nsats,SWQI,SWname,QIvalue)
     do isat = 1, nsats
       call utl_splitString(SWQI(isat),':',SWQIArray)
       SWname(isat) = SWQIArray(1)
