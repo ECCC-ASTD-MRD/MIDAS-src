@@ -879,7 +879,6 @@ module varNameList_mod
       integer :: ni, nj, nk, key, ierr
       integer :: unit, ncid, varID
       character(len=2)   :: typvar
-      logical, parameter :: beSilent = .true.
       character(len=10)  :: varNameNetCDF
 
       unit = 0
