@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Replace `obs_omp` column with `destObsColumn` in CH obs operator (#1053 and !952)
 
 ### Fixed
 

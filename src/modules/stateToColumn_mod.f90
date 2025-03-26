@@ -1736,7 +1736,12 @@ contains
     else
       numObsBatches = 1
     end if
+
     if (.not. dealloc) then
+      if (numObsBatches /= 1) then
+        write(*,*) 's2c_nl: WARNING! numObsBatches=', numObsBatches, ' will be set to 1.'
+      end if
+      
       numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
     end if
 
