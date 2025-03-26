@@ -2474,29 +2474,38 @@ contains
   end subroutine utl_heapsort1d
 
 
-  subroutine utl_splitString(string,separator,stringArray)
+  subroutine utl_splitString(string, separator, stringArray)
+    !
+    !:Purpose: Divide a string into several parts using a specified separator
+    !
     implicit none
 
     ! Arguments:
-    character(len=*),              intent(in) :: string
-    character(len=*),              intent(in) :: separator
-    character(len=*), allocatable, intent(inout) :: stringArray(:)
+    character(len=*),              intent(in)    :: string         ! input string
+    character(len=*),              intent(in)    :: separator      ! separator
+    character(len=*), allocatable, intent(inout) :: stringArray(:) ! seperated strings
 
     ! Locals:
-    integer :: stringArraySize, stringIndex
+    integer :: stringArraySize, start, sepPos, substringIndex
 
+    ! Calculate the number of substrings
     stringArraySize = count(transfer(string, 'a', len(string)) == separator) + 1
-
     allocate(stringArray(stringArraySize))
 
-    read(string, *) stringArray(1:stringArraySize)
-
-    write(*,*) 'utl_splitString: stringArraySize = ', stringArraySize
-    write(*,*) 'utl_splitString: stringArray     = ', &
-               (trim(stringArray(stringIndex))//' ', stringIndex=1,stringArraySize)
-    
+    start = 1
+    substringIndex = 1
+    do while (start <= len(string))
+      sepPos = index(string(start:), separator)
+      if (sepPos == 0) then
+        stringArray(substringIndex) = string(start:)
+        exit
+      else
+        stringArray(substringIndex) = string(start:start+sepPos-2)
+        start = start + sepPos
+        substringIndex = substringIndex + 1
+      end if
+    end do
   end subroutine utl_splitString
-
 
   subroutine utl_combineString(string,separator,stringArray)
     implicit none

@@ -2278,6 +2278,8 @@ contains
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
+    integer :: ierr, nsats, isat
+    integer, parameter :: maxSat = 99
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -2285,9 +2287,16 @@ contains
     character(len=4) :: varName
     character(len=4) :: varLevel
     character(len=9) :: cstnid
+    character(len=20), allocatable :: SWname(:), QIvalue(:)
+    character(len=20), allocatable :: SWQIArray(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.
+
+    ! namelist variables
+    character(len=20) :: SWQI(maxSat)
+
+    namelist /NAMSW/ SWQI
 
     ! If requested, just read oer from the burp file (only 1st time)
     if(obsfile_oer_sw) then
@@ -2306,6 +2315,59 @@ contains
 
     if (firstCall) write(*,*) "Entering subroutine oer_sw"
     firstCall = .false.
+
+    ! Default values for namelist variables
+    SWQI(:)  = ''
+    SWQI(1)  = 'METSAT7:qi1'
+    SWQI(2)  = 'METSAT8:qi1'
+    SWQI(3)  = 'METSAT9:qi1'
+    SWQI(4)  = 'METSAT10:qi1'
+    SWQI(5)  = 'METSAT11:qi1'
+    SWQI(6)  = 'HMWARI-8:qi1'
+    SWQI(7)  = 'HMWARI-9:qi1'
+    SWQI(8)  = 'GOES13:qi1'
+    SWQI(9)  = 'GOES15:qi1'
+    SWQI(10) = 'GOES16:qi1'
+    SWQI(11) = 'GOES17:qi1'
+    SWQI(12) = 'GOES18:qi1'
+    SWQI(13) = 'NOAA15:qi1'
+    SWQI(14) = 'NOAA16:qi1'
+    SWQI(15) = 'NOAA18:qi1'
+    SWQI(16) = 'NOAA19:qi1'
+    SWQI(17) = 'NOAA20:qi1'
+    SWQI(18) = 'NOAA21:qi1'
+    SWQI(19) = 'NPP:qi1'
+    SWQI(20) = 'AQUA:qi1'
+    SWQI(21) = 'TERRA:qi1'
+    SWQI(22) = 'METOP-1:qi1'
+    SWQI(23) = 'METOP-2:qi1'
+    SWQI(24) = 'METOP-3:qi1'
+    SWQI(25) = 'METOP1-3:qi1'
+    SWQI(26) = 'GEO-POL:qi1'
+
+    if (utl_isNamelistPresent('namsw','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read (utl_flnml, nml = NAMSW, iostat = ierr)
+      if (ierr /= 0) call utl_abort('oer_sw: Error reading namelist')
+      call utl_tmg_stop(181)
+    else
+      if ( mmpi_myid == 0 ) then
+        write(*,*)
+        write(*,*) 'oer_sw: Namelist block NAMSW is missing in the namelist.'
+        write(*,*) '        The default values will be taken.'
+      end if
+    end if
+    if (mmpi_myid == 0) write(*,nml=namsw)
+
+    nsats = getNumSats(maxSat,SWQI)
+    allocate(SWname(nsats))
+    allocate(QIvalue(nsats))
+    do isat = 1, nsats
+      call utl_splitString(SWQI(isat),':',SWQIArray)
+      SWname(isat) = SWQIArray(1)
+      QIvalue(isat) = SWQIArray(2)
+      deallocate(SWQIArray)
+    end do
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
@@ -2338,9 +2400,31 @@ contains
       if(igav == 1) itrn = 2
       if(imet >  3) imet = 3
       if(ihav /= 4) ihav = 1
-      ! Use the quality score qiv2, but if it is missing then use qiv1
-      iqiv = iqiv2
-      if(iqiv < 0) iqiv = iqiv1
+
+      ! select qi
+      iqiv = -1
+      LOOP_QI: do isat = 1, nsats
+        if ( trim(SWname(isat)) == trim(cstnid(2:)) ) then
+          select case (trim(QIvalue(isat)))
+            case ('qi1')
+              iqiv = iqiv1
+            case ('qi2')
+              ! consider the case where iqiv2 <= 0
+              if (iqiv2 <= 0) then
+                iqiv = iqiv1
+              end if
+              iqiv = iqiv2
+            case default
+              iqiv = iqiv1
+              write(*,*)  'oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2). Using default value QI1'
+          end select
+          exit LOOP_QI
+        end if
+        if (isat == nsats) then
+          write(*,*) cstnid
+          call utl_abort('oer_sw: not supported satname')
+        end if
+      end do LOOP_QI
 
       if(valeurs_defaut) then
         E_DRIFT  = 2.5
@@ -2394,6 +2478,31 @@ contains
       if(print_debug) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
       
     end do BODY
+
+    deallocate(QIvalue)
+    deallocate(SWname)
+
+    contains
+
+      integer function getNumSats(maxSat,vars)
+        !
+        !:Purpose: count the number of satellites, i.e. count the number of non ''
+        !
+        implicit none
+
+        ! Arguments:
+        integer,           intent(in) :: maxSat
+        character(len=20), intent(in) :: vars(maxSat)
+
+        ! Locals:
+        integer                       :: varIndex
+
+        getNumSats = 0
+        do varIndex = 1, maxSat
+          if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
+        end do
+
+      end function getNumSats
 
   end subroutine oer_sw
 

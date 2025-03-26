@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix a bug in selection of the QI (quality index) of AMVs (#1005 and !957)
+   * Small impact on results of many programs when AMV observations used
  * Fix filtering all-sky obs before bias correction computation (#1044 and !946)
    * `channelsUsingClw` namelist variable is added to `NAMTOV`. Minor impact on results when using `bcs_filterObs` in `genCoeff`.
  * Fixed preparation of the constituent obs operators with averaging kernels (#1039 and !950)
