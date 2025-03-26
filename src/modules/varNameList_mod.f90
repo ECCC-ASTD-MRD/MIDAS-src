@@ -37,6 +37,7 @@ module varNameList_mod
   integer, parameter          :: VNLnumvarmax2D    = 39
   integer, parameter          :: VNLnumvarmaxOther =  7
   integer, parameter          :: VNLnumvarmaxCloud =  5
+  integer, parameter          :: VNLmaxvarnamelengthNetCDF = 20
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
@@ -879,7 +880,7 @@ module varNameList_mod
       integer :: ni, nj, nk, key, ierr
       integer :: unit, ncid, varID
       character(len=2)   :: typvar
-      character(len=10)  :: varNameNetCDF
+      character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF
 
       unit = 0
       ! Set 'found' to '.false' first so we are sure it is set to a
@@ -951,7 +952,7 @@ module varNameList_mod
       character(len=*), intent(in) :: fileName ! NEMO trial file   
           
       ! Result:
-      character(len=20) :: varNameNetCDF ! variable name used in NEMO netCDF
+      character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF ! variable name used in NEMO netCDF
 
       select case(trim(varName))
       
