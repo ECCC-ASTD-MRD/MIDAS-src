@@ -655,9 +655,9 @@ contains
     integer, intent(out) :: validTime
 
     ! Locals:
-    integer                 :: numDates, numWindowsPerDay, windowIndex, timeMin, timeMax, dateMin, dateMax
+    integer                 :: numDates, numWindowsPerDay, windowIndex
     integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax 
-    integer(8)              :: dateTimeMin, dateTimeMax
+    integer(8)              :: dateTimeMin, dateTimeMax, timeMin, timeMax, dateMin, dateMax
     integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
     integer                 :: ier, imode
     integer                 :: newdate, dateStampIn, dateStampOut
@@ -712,13 +712,13 @@ contains
         if (validTimeMin >= 24) then
           validTimeMin = 0
           imode = 3
-          ier = newdate(dateStampIn, dateMin, validTimeMin, imode)
+          ier = newdate(dateStampIn, int(dateMin,4), validTimeMin, imode)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
           imode = -3
           ier = newdate(dateStampOut, validDateMin, validTimeMin, imode)
           validTimeMin = 0
         else
-          validDateMin = dateMin
+          validDateMin = int(dateMin,4)
         end if
         validTimeMax = nint((windowBoundaries(windowBoundaryMax) + 60.0*tim_windowSize/2.0)/60.0)
         if (validTimeMax >= 24) then
