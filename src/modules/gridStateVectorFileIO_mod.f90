@@ -1621,7 +1621,7 @@ module gridStateVectorFileIO_mod
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
     integer :: varLevIndexBeg, varLevIndexEnd
-    real(4), allocatable :: work2d_r4(:,:,:) ! last dimension is along the thread id
+    real(4), allocatable, target :: work2d_r4(:,:,:) ! last dimension is along the thread id
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
@@ -2115,12 +2115,12 @@ module gridStateVectorFileIO_mod
     integer,                     intent(in) :: levIndex    ! index of the level in the structure 'statevector'
     type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be writtent
     logical,                     intent(in) :: interpolationToPhysicsGrid ! indicate if we should interpolate to the physics grid before writing
-    real(4),                     intent(in) :: data(:,:)   ! 2D array which will be written to the file
+    real(4), target,             intent(in) :: data(:,:)   ! 2D array which will be written to the file
 
     ! Locals:
     type(fst_record) :: fstRecordTmp
-    real(4), allocatable :: work2dFile_r4(:,:)
-    integer, allocatable :: mask(:,:)
+    real(4), allocatable, target :: work2dFile_r4(:,:)
+    integer, allocatable, target :: mask(:,:)
     logical :: success
     integer :: ierr, ezdefset, maskLevIndex
 
