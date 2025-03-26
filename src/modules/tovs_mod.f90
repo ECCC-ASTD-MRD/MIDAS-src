@@ -2995,10 +2995,6 @@ contains
         call validateRttovProfile(profiles(headerIndex) % t, 'temperature', tmin, tmax, obsSpaceData, headerIndex) 
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           profiles(headerIndex) % o3(:) = ozone(:,profileIndex) * microg2kg ! micrograms/kg to kg/kg
-          if (tvs_useO3FromTrials)  then
-            !could be removed as profiles(headerIndex) % s2m % o is not really used by RTTOV
-            profiles(headerIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * microg2kg 
-          end if
           call validateRttovProfile(profiles(headerIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
         end if
 
@@ -6417,17 +6413,6 @@ contains
         uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
         vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
 
-        !This block of code could be removed as profilesdata_ad(profileIndex) % s2m % o is not really used by RTTOV
-        if (tvs_useO3FromTrials_tl) then
-          if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
-            ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
-            o3_column => col_getColumn(columnAnlInc, headerIndex, trim(ozoneVarName))
-            o3_column(ilowlvl_T) = profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
-            ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
-          end if
-        end if
-        !end of the block of code to be removed later
-        
         if (runObsOperatorWithClw_ad) then
           clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
         end if
