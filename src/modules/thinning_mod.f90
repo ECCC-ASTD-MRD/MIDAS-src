@@ -5610,7 +5610,6 @@ contains
     real(8) :: dlhours
     logical :: global1, global2
     logical :: use055200
-    !integer, allocatable :: bufr055200(:), bufr055200Mpi(:)
     integer, allocatable :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer, allocatable :: obsFov(:), obsFovMpi(:)
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
@@ -5634,7 +5633,7 @@ contains
       write(*,*) 'thn_removeRarsDuplicates: rars detection based on the hardcoded centreOrigGlobal list ', centreOrigGlobal
       use055200 = .false.
     else if (rarsDetectionCriterium == 'Bufr055200') then
-      write(*,*) 'thn_removeRarsDuplicates: rars detection based on BUFR element 005520 contained in obsSpaceData OBS_ST1 header column'
+      write(*,*) 'thn_removeRarsDuplicates: rars detection based on BUFR element 0055200 contained in obsSpaceData OBS_ST1 header column'
       use055200 = .true.
     else
       call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
@@ -5647,13 +5646,8 @@ contains
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
     allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
-    !if (use055200) then
-    !  allocate(bufr055200(numHeaderMaxMpi))
-    !  allocate(bufr055200Mpi(numHeaderMaxMpi*mmpi_nprocs))
-    !else
-      allocate(rarsCriterium(numHeaderMaxMpi))
-      allocate(rarsCriteriumMpi(numHeaderMaxMpi*mmpi_nprocs))
-    !end if
+    allocate(rarsCriterium(numHeaderMaxMpi))
+    allocate(rarsCriteriumMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
     allocate(obsFovMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
@@ -5664,11 +5658,7 @@ contains
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     ! Some initializations
-    !if (use055200) then
-    !  bufr055200(:) = 0
-    !else
-      rarsCriterium(:) = 0
-    !end if
+    rarsCriterium(:) = 0
     obsPosition3d(:,:) = 0.0
 
     ! Loop over all observation locations
@@ -5677,8 +5667,10 @@ contains
 
       ! Originating centre of data
       if (use055200) then
+        ! flag (element 055200)
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
       else
+        ! Originating centre of data
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
       end if
       ! Station ID converted to integer array
@@ -5711,13 +5703,8 @@ contains
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
                             validMpi, nsize, 'mpi_logical', 'grid', ierr)
-    !if (use055200) then
-    !  call rpn_comm_allgather(bufr055200,    nsize, 'mpi_integer',  &
-    !                          bufr055200Mpi, nsize, 'mpi_integer', 'grid', ierr)
-    !else
-      call rpn_comm_allgather(rarsCriterium,    nsize, 'mpi_integer',  &
-                              rarsCriteriumMpi, nsize, 'mpi_integer', 'grid', ierr)
-    !end if
+    call rpn_comm_allgather(rarsCriterium,    nsize, 'mpi_integer',  &
+                            rarsCriteriumMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
                             obsFovMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDateStamp,    nsize, 'mpi_integer',  &
