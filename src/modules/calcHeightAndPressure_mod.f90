@@ -2458,18 +2458,19 @@ contains
         implicit none
 
         ! Locals:
-        real(8), allocatable  :: Psfc(:,:)
-        real(4), pointer      :: delPsfc_r4(:,:,:,:)
-        real(8), pointer      :: delPsfc_r8(:,:,:,:)
-        real(8), pointer      :: field_Psfc(:,:,:,:)
-        real(4), pointer      :: delP_T_r4(:,:,:,:)
-        real(8), pointer      :: delP_T_r8(:,:,:,:)
-        real(4), pointer      :: delP_M_r4(:,:,:,:)
-        real(8), pointer      :: delP_M_r8(:,:,:,:)
-        real(8), pointer      :: dP_dPsfc_T(:,:,:)
-        real(8), pointer      :: dP_dPsfc_M(:,:,:)
-        integer               :: status, stepIndex,lonIndex,latIndex
-        integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
+        real(8), allocatable      :: Psfc(:,:)
+        real(4), pointer          :: delPsfc_r4(:,:,:,:)
+        real(8), pointer          :: delPsfc_r8(:,:,:,:)
+        real(8), pointer          :: field_Psfc(:,:,:,:)
+        real(4), pointer          :: delP_T_r4(:,:,:,:)
+        real(8), pointer          :: delP_T_r8(:,:,:,:)
+        real(4), pointer          :: delP_M_r4(:,:,:,:)
+        real(8), pointer          :: delP_M_r8(:,:,:,:)
+        real(8), pointer          :: dP_dPsfc_T(:,:,:)
+        real(8), pointer          :: dP_dPsfc_M(:,:,:)
+        type(struct_vco), pointer :: vco_ptr
+        integer                   :: status, stepIndex,lonIndex,latIndex
+        integer                   :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
         call msg('calcPressure_gsv_tl_vcode5xxx (czp)', 'START', verb_opt=4)
 
@@ -2492,6 +2493,8 @@ contains
         nullify(field_Psfc)
         call gsv_getField(statevectorRef,field_Psfc,'P0')
 
+        vco_ptr => gsv_getVco(statevector)
+
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
         numStep = statevector%numstep
@@ -2505,8 +2508,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
-                               gsv_getVco(statevector)%ip1_M, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2540,8 +2543,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
-                               gsv_getVco(statevector)%ip1_T, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2856,18 +2859,19 @@ contains
         implicit none
 
         ! Locals:
-        real(8), allocatable     :: Psfc(:,:)
-        real(4), pointer         :: delPsfc_r4(:,:,:,:)
-        real(8), pointer         :: delPsfc_r8(:,:,:,:)
-        real(8), pointer         :: field_Psfc(:,:,:,:)
-        real(4), pointer         :: delP_T_r4(:,:,:,:)
-        real(8), pointer         :: delP_T_r8(:,:,:,:)
-        real(4), pointer         :: delP_M_r4(:,:,:,:)
-        real(8), pointer         :: delP_M_r8(:,:,:,:)
-        real(8), pointer         :: dP_dPsfc_T(:,:,:)
-        real(8), pointer         :: dP_dPsfc_M(:,:,:)
-        integer                  :: status, stepIndex,lonIndex,latIndex
-        integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
+        real(8), allocatable      :: Psfc(:,:)
+        real(4), pointer          :: delPsfc_r4(:,:,:,:)
+        real(8), pointer          :: delPsfc_r8(:,:,:,:)
+        real(8), pointer          :: field_Psfc(:,:,:,:)
+        real(4), pointer          :: delP_T_r4(:,:,:,:)
+        real(8), pointer          :: delP_T_r8(:,:,:,:)
+        real(4), pointer          :: delP_M_r4(:,:,:,:)
+        real(8), pointer          :: delP_M_r8(:,:,:,:)
+        real(8), pointer          :: dP_dPsfc_T(:,:,:)
+        real(8), pointer          :: dP_dPsfc_M(:,:,:)
+        type(struct_vco), pointer :: vco_ptr
+        integer                   :: status, stepIndex,lonIndex,latIndex
+        integer                   :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
         call msg('calcPressure_gsv_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
@@ -2889,6 +2893,8 @@ contains
         end if
         call gsv_getField(statevectorRef,field_Psfc,'P0')
 
+        vco_ptr => gsv_getVco(statevector)
+
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
         numStep = statevector%numstep
@@ -2902,8 +2908,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
-                               gsv_getVco(statevector)%ip1_M, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2939,8 +2945,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
-                               gsv_getVco(statevector)%ip1_T, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -3196,9 +3202,10 @@ contains
     real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Locals:
-    real(8), allocatable  :: hSfc(:,:)
-    real(8), pointer      :: hPtrM(:,:,:), hPtrT(:,:,:)
-    integer :: numCol, colIndex
+    real(8), allocatable      :: hSfc(:,:)
+    real(8), pointer          :: hPtrM(:,:,:), hPtrT(:,:,:)
+    type(struct_vco), pointer :: vco_ptr
+    integer                   :: numCol, colIndex
 
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -3213,12 +3220,13 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    if (col_getVco(column)%sleveCoord) then
+    vco_ptr => col_getVco(column)
+    if (vco_ptr%sleveCoord) then
       ! Need to get MELS
-      call fetch3DLevels_r8(col_getVco(column), sfcFld=hSfc, sfcFldLS_opt=hSfc, &
+      call fetch3DLevels_r8(vco_ptr, sfcFld=hSfc, sfcFldLS_opt=hSfc, &
                             fldM_opt=hPtrM, fldT_opt=hPtrT)
     else
-      call fetch3DLevels_r8(col_getVco(column), sfcFld=hSfc, &
+      call fetch3DLevels_r8(vco_ptr, sfcFld=hSfc, &
                             fldM_opt=hPtrM, fldT_opt=hPtrT)
     end if
     Z_M(:,:) = transpose(hPtrM(1,:,:))
@@ -3257,13 +3265,15 @@ contains
     real(8) :: P0, rMT, h0, hu, tt, cmp, dh, Rgh, delThick
     real(8) :: scaleFactorBottom, scaleFactorTop, ratioP, P_M1, P_Mm1
     real(4) :: heightSfcOffset_T_r4, heightSfcOffset_M_r4
+    type(struct_vco), pointer :: vco_ptr
 
     call msg('calcHeight_col_nl_vcode5xxx (czp)', 'START', verb_opt=4)
 
-    numCol = col_getNumCol(column)
-    nLev_M = col_getNumLev(column, 'MM')
-    nLev_T = col_getNumLev(column, 'TH')
-    Vcode = vco_getVcode(col_getVco(column))
+    numCol  =  col_getNumCol(column)
+    nLev_M  =  col_getNumLev(column, 'MM')
+    nLev_T  =  col_getNumLev(column, 'TH')
+    vco_ptr => col_getVco(column)
+    Vcode   =  vco_getVcode(vco_ptr)
 
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
       call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
@@ -3273,10 +3283,10 @@ contains
     end if
 
     if (Vcode == 5005 .or. Vcode == 5100) then
-      status = vgd_get( col_getVco(column)%vgrid, &
+      status = vgd_get( vco_ptr%vgrid, &
                         key='DHM - height of the diagnostic level (m)', &
                         value=heightSfcOffset_M_r4)
-      status = vgd_get( col_getVco(column)%vgrid, &
+      status = vgd_get( vco_ptr%vgrid, &
                         key='DHT - height of the diagnostic level (t)', &
                         value=heightSfcOffset_T_r4)
       call msg('calcHeight_col_nl_vcode5xxx (czp)', &
@@ -4405,6 +4415,7 @@ contains
         real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+        type(struct_vco), pointer :: vco_ptr
 
         call msg('calcPressure_col_tl_vcode5xxx (czp)', 'START', verb_opt=4)
 
@@ -4418,6 +4429,7 @@ contains
         delP_T  => col_getAllColumns(columnInc,'P_T')
         delPsfc => col_getAllColumns(columnInc,'P0')
         PsfcRef => col_getAllColumns(columnIncRef,'P0')
+        vco_ptr => col_getVco(columnInc)
 
         nlev_T = col_getNumLev(columnInc,'TH')
         nlev_M = col_getNumLev(columnInc,'MM')
@@ -4429,8 +4441,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
-                               col_getVco(columnInc)%ip1_M, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -4444,8 +4456,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
-                               col_getVco(columnInc)%ip1_T, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -4701,6 +4713,7 @@ contains
         real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+        type(struct_vco), pointer :: vco_ptr
 
         call msg('calcPressure_col_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
@@ -4719,6 +4732,7 @@ contains
         nlev_T = col_getNumLev(columnInc,'TH')
         nlev_M = col_getNumLev(columnInc,'MM')
         numColumns = col_getNumCol(columnInc)
+        vco_ptr => col_getVco(columnInc)
 
         do colIndex = 1, numColumns
 
@@ -4726,8 +4740,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
-                               col_getVco(columnInc)%ip1_M, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -4742,8 +4756,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
-                               col_getVco(columnInc)%ip1_T, &
+          status = vgd_dpidpis(vco_ptr%vgrid, &
+                               vco_ptr%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
