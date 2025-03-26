@@ -137,8 +137,8 @@ contains
     integer, intent(inout) :: dateStamp
 
     ! Locals:
-    integer    :: lengthValidDateStr, status, datePrint, timePrint, imode, ierr
-    integer(8) :: dateTimePrint
+    integer    :: lengthValidDateStr, status, imode, ierr
+    integer(8) :: dateTimePrint, datePrint, timePrint
     character(len=256) :: validDateStr
     integer    :: newdate
 
@@ -180,7 +180,7 @@ contains
 
     ! convert to CMC dateStamp
     imode = 3 ! printable to stamp
-    ierr = newdate(datestamp, datePrint, timePrint, imode)
+    ierr = newdate(datestamp, int(datePrint,4), int(timePrint,4), imode)
 
     write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
 
