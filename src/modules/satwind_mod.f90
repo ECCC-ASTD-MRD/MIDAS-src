@@ -26,8 +26,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=20), allocatable, intent(out) :: SWname(:)
-    character(len=20), allocatable, intent(out) :: QIvalue(:)
+    character(len=*), allocatable, intent(out) :: SWname(:)
+    character(len=*), allocatable, intent(out) :: QIvalue(:)
 
     ! Locals:
     integer :: ierr
@@ -105,8 +105,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in) :: maxSat
-    character(len=20), intent(in) :: vars(maxSat)
+    integer,          intent(in) :: maxSat
+    character(len=*), intent(in) :: vars(maxSat)
 
     ! Locals:
     integer                       :: varIndex
