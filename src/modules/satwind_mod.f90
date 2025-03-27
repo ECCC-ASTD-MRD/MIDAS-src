@@ -1,6 +1,6 @@
 
-module satwind_mod
-  ! MODULE satwind_mod (prefix='swd' category'=8. Low-level utilities and constants')
+module satWind_mod
+  ! MODULE satWind_mod (prefix='swd' category'=8. Low-level utilities and constants')
   !
   !:Purpose: utilities realted SW (AMV) data
   !
@@ -119,4 +119,4 @@ contains
 
   end function getNumSats
 
-end module satwind_mod
+end module satWind_mod

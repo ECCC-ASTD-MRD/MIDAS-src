@@ -23,7 +23,7 @@ module thinning_mod
   use physicsFunctions_mod
   use utilities_mod
   use kdTree2_mod
-  use satwind_mod
+  use satWind_mod
 
   implicit none
   private
