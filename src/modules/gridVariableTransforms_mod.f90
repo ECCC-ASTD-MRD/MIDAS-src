@@ -1759,7 +1759,7 @@ CONTAINS
     !- 1.  Create a working stateVector
     !
     call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ens), hco_ens, ens_getVco(ens), &
-                      varNames_opt=(/'TT','HU','P0','Z_T','Z_M','P_T','P_M'/),                  &
+                      varNames_opt=(/'TT ','HU ','P0 ','Z_T','Z_M','P_T','P_M'/),                  &
                       datestamp_opt=tim_getDatestamp(), allocHeightSfc_opt=.true.,              &
                       mpi_local_opt=.true., dataKind_opt=8)
 

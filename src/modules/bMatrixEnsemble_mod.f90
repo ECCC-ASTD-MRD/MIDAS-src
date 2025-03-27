@@ -2218,19 +2218,6 @@ CONTAINS
       end if
       lev2 = lev - 1 + topLevOffset
 
-      !if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
-      !  if (gsv_getDataKind(statevector_out) == 4) then
-      !    call gsv_getField(statevector_out, increment_out_r4, 'HU')
-      !  else
-      !    call gsv_getField(statevector_out, increment_out_r8, 'HU')
-      !  end if
-      !else
-      !  if (gsv_getDataKind(statevector_out) == 4) then
-      !    call gsv_getField(statevector_out, increment_out_r4, varName)
-      !  else
-      !    call gsv_getField(statevector_out, increment_out_r8, varName)
-      !  end if
-      !end if
       !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1

@@ -131,7 +131,7 @@ program midas_diagBmatrix
   real(8), allocatable :: zonalMeanStddev(:)
   real(8), allocatable :: controlVector(:), controlVector_global(:)
 
-  real(8) :: centralValue, centralValueLocal
+  real(8) :: centralValue, centralValueLocal, multFactor
 
   integer :: fnom, fstopc, newdate
   integer :: ierr, nsize, iseed, nultxt
@@ -326,6 +326,8 @@ program midas_diagBmatrix
         nlevs2 = nlevs
       end if
 
+      multfactor = utl_unitConv_multFactor_r8(vnl_varNameList(varIndex),'toFSTfile')
+      
       ip3 = 0
       do levIndex = 1, nlevs2
         do lonLatPosIndex = 1, nLonLatPos
@@ -339,9 +341,9 @@ program midas_diagBmatrix
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
                lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0 * multfactor
             else
-              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0 * multfactor
             end if
           end if
 
@@ -370,8 +372,11 @@ program midas_diagBmatrix
           end if
           call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
                                   "MPI_DOUBLE_PRECISION", "MPI_SUM", "GRID", ierr)
+
+
+          centralValue = centralValue * multfactor
           
-          write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
+          write(*,*) 'midas-diagBmatrix: (scaled) centralValue found = ', centralValue
           
           if (centralValue /= 0.d0) then
             call gsv_scale(statevector,1.d0/centralValue)
@@ -382,7 +387,7 @@ program midas_diagBmatrix
           do stepIndexInc = 1, tim_nstepobsinc
             call gio_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
                                  stepIndex_opt=stepIndexInc, ip3_opt=ip3,  &
-                                 unitConversion_opt=.false.)
+                                 unitConversion_opt=.true.)
           end do
 
           ! Write the ensemble amplitude fields (i.e., the alphas) when Bens is active
