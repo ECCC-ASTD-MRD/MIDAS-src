@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug related to surface variables in bMatrixEnsemble_mod with GEM-H (#1060 and !965)
  * Fix missing SSM for interactive debugging (#1059 and !964)
 
 ### Removed

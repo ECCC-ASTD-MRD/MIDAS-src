@@ -2120,10 +2120,10 @@ CONTAINS
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
 
         ! Surface variable cases (atmosphere or surface only)
-        if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-          ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
-        else ! vco_anl%Vcode == 0
+        if (bEns(instanceIndex)%vco_anl%Vcode == 0) then
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
+        else
+          ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
@@ -2406,12 +2406,12 @@ CONTAINS
             end if
 
           else if (varLevel == 'SF') then
+            
             ! Surface variable cases
-
-            if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
-              ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
-            else ! vco_anl%Vcode == 0
+            if (bEns(instanceIndex)%vco_anl%Vcode == 0) then
               ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
+            else
+              ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
             end if
             ensAmplitude_oneLev (1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
