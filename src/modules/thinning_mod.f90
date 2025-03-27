@@ -3769,7 +3769,7 @@ contains
     missingCount = 0
 
     ! get QI information
-    call swd_read_swqi(SWname,QIvalue)
+    call swd_readSwqi(SWname,QIvalue)
 
     ! First pass through observations
     numStnId = 0

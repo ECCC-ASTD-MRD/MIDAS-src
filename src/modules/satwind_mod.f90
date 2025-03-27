@@ -12,14 +12,14 @@ module satwind_mod
   private
   
   ! Public procedures
-  public :: swd_read_swqi
+  public :: swd_readSwqi
 
 contains
 
   !--------------------------------------------------------------------------
   ! swd_read_swqi
   !--------------------------------------------------------------------------
-  subroutine swd_read_swqi(SWname,QIvalue)
+  subroutine swd_readSwqi(SWname,QIvalue)
     !
     !:Purpose: read NAMSW block in the namelist
     !
@@ -93,7 +93,7 @@ contains
       deallocate(SWQIArray)
     end do
 
-  end subroutine swd_read_swqi
+  end subroutine swd_readSwqi
 
   !--------------------------------------------------------------------------
   ! getNumSats
