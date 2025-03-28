@@ -5958,7 +5958,7 @@ module gridStateVector_mod
             do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
               increment_r4(lonIndex,latIndex,varLevIndex,stepIndex) =      &
                    increment_r4(lonIndex,latIndex,varLevIndex,stepIndex) * &
-                   analIncMask(lonIndex,latIndex,1)
+                   real(analIncMask(lonIndex,latIndex,1), 4)
             end do
           end do
         end do
@@ -5974,7 +5974,7 @@ module gridStateVector_mod
             do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
               increment_r8(lonIndex,latIndex,varLevIndex,stepIndex) =      &
                    increment_r8(lonIndex,latIndex,varLevIndex,stepIndex) * &
-                   analIncMask(lonIndex,latIndex,1)
+                   real(analIncMask(lonIndex,latIndex,1), 8)
             end do
           end do
         end do
