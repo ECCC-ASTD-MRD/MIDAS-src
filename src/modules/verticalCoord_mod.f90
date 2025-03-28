@@ -547,7 +547,7 @@ contains
           vnl_varKindFromVarname(trim(nomvar)) == 'OC' .and. &
           vnl_varLevelFromVarname(trim(nomvar)) == 'DP') then
         ! check if we've NOT already recorded this depth level
-        if (.not. any(vertCoordValue == depths(1:vco%nLev_depth))) then
+        if (.not. any( abs(vertCoordValue-depths(1:vco%nLev_depth))<tiny(vertCoordValue) ) ) then
           vco%nLev_depth = vco%nLev_depth + 1
           depths(vco%nLev_depth) = vertCoordValue
           ip1_depth(vco%nLev_depth) = ip1
