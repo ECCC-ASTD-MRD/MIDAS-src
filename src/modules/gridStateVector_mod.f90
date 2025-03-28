@@ -4718,10 +4718,10 @@ module gridStateVector_mod
       if (stateVector_1step%allocated) then
         if (stateVector_1step%dataKind == 4) then
           call gsv_getField(stateVector_1step,field_in_r4_ptr)
-          allZero = (maxval(abs(field_in_r4_ptr(:, :, varLevIndex, 1))) == 0.0)
+          allZero = utl_isEqual(maxval(abs(field_in_r4_ptr(:, :, varLevIndex, 1))), 0.0)
         else if (stateVector_1step%dataKind == 8) then
           call gsv_getField(stateVector_1step,field_in_r8_ptr)
-          allZero = (maxval(abs(field_in_r8_ptr(:, :, varLevIndex, 1))) == 0.0D0)
+          allZero = utl_isEqual(maxval(abs(field_in_r8_ptr(:, :, varLevIndex, 1))), 0.0D0)
         end if
       else
         allZero = .true.
@@ -6013,10 +6013,10 @@ module gridStateVector_mod
 
     if (stateVector%dataKind == 4) then
       call gsv_getField(stateVector,field_r4_ptr)
-      allZero = (maxval(abs(field_r4_ptr(:,:,:,:))) == 0.0)
+      allZero = utl_isEqual(maxval(abs(field_r4_ptr(:,:,:,:))), 0.0)
     else if (stateVector%dataKind == 8) then
       call gsv_getField(stateVector,field_r8_ptr)
-      allZero = (maxval(abs(field_r8_ptr(:,:,:,:))) == 0.0D0)
+      allZero = utl_isEqual(maxval(abs(field_r8_ptr(:,:,:,:))), 0.0D0)
     end if
 
     call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
