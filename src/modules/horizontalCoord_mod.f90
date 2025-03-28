@@ -336,7 +336,7 @@ contains
                    xlat1_4, xlon1_4, xlat2_4, xlon2_4,           & ! OUT
                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac) ! IN
 
-      if (xlat1_4 == 0.0 .and. xlat2_4 == 0.0) then
+      if ( utl_isEqual(xlat1_4, 0.0) .and. utl_isEqual(xlat2_4, 0.0) ) then
         rotated = .false.
       else
         rotated = .true.
@@ -575,7 +575,7 @@ contains
 
     maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon, maxDeltaLat)
 
-    if (mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious) then
+    if (mmpi_myid == 0 .and. .not. utl_isEqual(maxGridSpacing, maxGridSpacingPrevious) ) then
       maxGridSpacingPrevious = maxGridSpacing
       call msg('hco_setupFromFile', 'maxGridSpacing='//str(maxGridSpacing)//' m')
       call msg('hco_setupFromFile', 'maxDeltaLat= '//str(maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
@@ -631,7 +631,7 @@ contains
 
     minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
 
-    if (mmpi_myid == 0 .and. minGridSpacing /= minGridSpacingPrevious) then
+    if (mmpi_myid == 0 .and. .not. utl_isEqual(minGridSpacing, minGridSpacingPrevious) ) then
       minGridSpacingPrevious = minGridSpacing
       call msg('hco_setupFromFile', 'minGridSpacing='//str(minGridSpacing)//' m')
       call msg('hco_setupFromFile', 'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
@@ -678,7 +678,7 @@ contains
          next_lon - lon(1) < 3.0*dx) then
       
       global = .true.
-      if (lon(1) == lon(ni)) then
+      if ( utl_isEqual(lon(1),lon(ni)) ) then
         write(*,*)
         write(*,*) ' *** Global Grid where i = ni (repetition) '
       else  
