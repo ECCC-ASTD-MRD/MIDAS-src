@@ -99,7 +99,7 @@ module stateToColumn_mod
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
   logical :: NNInterpForCloudVars          ! to perform nearest neighbour horizontal interpolation for cloudy variables
-
+  logical :: interpForDfs                  ! to perform nearest neighbour horizontal interpolation for DFS calculation
 contains 
 
 
@@ -380,7 +380,7 @@ contains
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
     namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
-    namelist /nams2c/ NNInterpForCloudVars
+    namelist /nams2c/ NNInterpForCloudVars, interpForDfs
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     call msg_memUsage('s2c_setupInterpInfo')
@@ -406,6 +406,7 @@ contains
       rejectObsNonMonotonicPressure =.true.
       rejectObsOutsideGlobalGrid = .false.
       NNInterpForCloudVars = .false.
+      interpForDfs = .false. 
 
       if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mmpi_myid == 0 ) then
@@ -3108,6 +3109,11 @@ contains
           dldx = real(nint(dldx), 8)
           dldy = real(nint(dldy), 8)
         end if
+      end if
+
+      if (interpForDfs) then       
+        dldx = real(nint(dldx), 8)
+        dldy = real(nint(dldy), 8)
       end if
       
       if ( mask(leftIndex ,bottomIndex) ) then
