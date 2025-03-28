@@ -2520,9 +2520,9 @@ contains
             do lev_M = 1, nlev_M
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delP_M_r4(lonIndex,latIndex,lev_M,stepIndex) =  &
-                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,&
-                                  latIndex-statevector%myLatBeg+1,lev_M) * &
+                  delP_M_r4(lonIndex,latIndex,lev_M,stepIndex) =                   &
+                       real(dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,            &
+                                       latIndex-statevector%myLatBeg+1,lev_M),4) * &
                        delPsfc_r4(lonIndex,latIndex,1,stepIndex)
                 end do
               end do
@@ -2531,8 +2531,8 @@ contains
             do lev_M = 1, nlev_M
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delP_M_r8(lonIndex,latIndex,lev_M,stepIndex) =  &
-                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,&
+                  delP_M_r8(lonIndex,latIndex,lev_M,stepIndex) =           &
+                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,         &
                                   latIndex-statevector%myLatBeg+1,lev_M) * &
                        delPsfc_r8(lonIndex,latIndex,1,stepIndex)
                 end do
@@ -2555,9 +2555,9 @@ contains
             do lev_T = 1, nlev_T
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delP_T_r4(lonIndex,latIndex,lev_T,stepIndex) =  &
-                       dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,&
-                                  latIndex-statevector%myLatBeg+1,lev_T) * &
+                  delP_T_r4(lonIndex,latIndex,lev_T,stepIndex) =                   &
+                       real(dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,            &
+                                       latIndex-statevector%myLatBeg+1,lev_T),4) * &
                        delPsfc_r4(lonIndex,latIndex,1,stepIndex)
                 end do
               end do
@@ -2920,10 +2920,10 @@ contains
             do lev_M = 1, nlev_M
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
-                       delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
-                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,&
-                                  latIndex-statevector%myLatBeg+1,lev_M) * &
+                  delPsfc_r4(lonIndex,latIndex,1,stepIndex) =                      &
+                       delPsfc_r4(lonIndex,latIndex,1,stepIndex) +                 &
+                       real(dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,            &
+                                       latIndex-statevector%myLatBeg+1,lev_M),4) * &
                        delP_M_r4(lonIndex,latIndex,lev_M,stepIndex)
                 end do
               end do
@@ -2932,9 +2932,9 @@ contains
             do lev_M = 1, nlev_M
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delPsfc_r8(lonIndex,latIndex,1,stepIndex) =  &
-                       delPsfc_r8(lonIndex,latIndex,1,stepIndex) + &
-                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,&
+                  delPsfc_r8(lonIndex,latIndex,1,stepIndex) =              &
+                       delPsfc_r8(lonIndex,latIndex,1,stepIndex) +         &
+                       dP_dPsfc_M(lonIndex-statevector%myLonBeg+1,         &
                                   latIndex-statevector%myLatBeg+1,lev_M) * &
                        delP_M_r8(lonIndex,latIndex,lev_M,stepIndex)
                 end do
@@ -2957,10 +2957,10 @@ contains
             do lev_T = 1, nlev_T
               do latIndex = statevector%myLatBeg, statevector%myLatEnd
                 do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-                  delPsfc_r4(lonIndex,latIndex,1,stepIndex) =  &
-                       delPsfc_r4(lonIndex,latIndex,1,stepIndex) + &
-                       dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,&
-                                  latIndex-statevector%myLatBeg+1,lev_T) * &
+                  delPsfc_r4(lonIndex,latIndex,1,stepIndex) =                      &
+                       delPsfc_r4(lonIndex,latIndex,1,stepIndex) +                 &
+                       real(dP_dPsfc_T(lonIndex-statevector%myLonBeg+1,            &
+                                       latIndex-statevector%myLatBeg+1,lev_T),4) * &
                        delP_T_r4(lonIndex,latIndex,lev_T,stepIndex)
                 end do
               end do
