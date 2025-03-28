@@ -804,8 +804,8 @@ contains
       return
     end if
 
-    equal = equal .and. (hco1%dlat == hco2%dlat)
-    equal = equal .and. (hco1%dlon == hco2%dlon)
+    equal = equal .and. utl_isEqual(hco1%dlat, hco2%dlat)
+    equal = equal .and. utl_isEqual(hco1%dlon,  hco2%dlon)
     if (.not. equal) then
       write(*,*) 'hco_equal: grid spacing not equal'
       return
@@ -820,14 +820,17 @@ contains
     end if
     
     equal = equal .and. (hco1%rotated .eqv. hco2%rotated)
-    equal = equal .and. (hco1%xlat1   ==    hco2%xlat1)
-    equal = equal .and. (hco1%xlon1   ==    hco2%xlon1)
-    equal = equal .and. (hco1%xlat2   ==    hco2%xlat2)
-    equal = equal .and. (hco1%xlon2   ==    hco2%xlon2)
-    equal = equal .and. (hco1%xlat1_yan ==  hco2%xlat1_yan)
-    equal = equal .and. (hco1%xlon1_yan ==  hco2%xlon1_yan)
-    equal = equal .and. (hco1%xlat2_yan ==  hco2%xlat2_yan)
-    equal = equal .and. (hco1%xlon2_yan ==  hco2%xlon2_yan)
+
+    equal = equal .and. utl_isEqual(hco1%xlat1, hco2%xlat1)
+    equal = equal .and. utl_isEqual(hco1%xlon1, hco2%xlon1)
+    equal = equal .and. utl_isEqual(hco1%xlat2, hco2%xlat2)
+    equal = equal .and. utl_isEqual(hco1%xlon2, hco2%xlon2)
+
+    equal = equal .and. utl_isEqual(hco1%xlat1_yan, hco2%xlat1_yan)
+    equal = equal .and. utl_isEqual(hco1%xlon1_yan, hco2%xlon1_yan)
+    equal = equal .and. utl_isEqual(hco1%xlat2_yan, hco2%xlat2_yan)
+    equal = equal .and. utl_isEqual(hco1%xlon2_yan, hco2%xlon2_yan)
+
     if (.not. equal) then
       write(*,*) 'hco_equal: rotation not equal: ', hco1%rotated, hco2%rotated
       write(*,*) 'hco_equal: xlat1: ', hco1%xlat1, hco2%xlat1

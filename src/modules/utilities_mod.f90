@@ -27,6 +27,7 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_heapsort2d
   public :: utl_heapsort1d
+  public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
@@ -88,6 +89,11 @@ module utilities_mod
     module procedure utl_cosDegrees_real4
     module procedure utl_cosDegrees_real8
   end interface utl_cosDegrees
+
+  interface utl_isEqual
+    module procedure utl_isEqual_real4
+    module procedure utl_isEqual_real8
+  end interface utl_isEqual
 
   ! For namelist reading
   character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
@@ -1792,7 +1798,7 @@ contains
              xlat1_4, xlon1_4, xlat2_4, xlon2_4,          & ! OUT
              ig1, ig2, ig3, ig4 ) ! IN
 
-        if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
+        if ( .not. utl_isEqual(xlat1_4, xlat2_4) .or. .not. utl_isEqual(xlon1_4,xlon2_4) ) &
              call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
 
       else if (trim(clgrtyp) == 'B') then
@@ -3188,7 +3194,7 @@ contains
 
     medianIndex =  MPC_missingValue_INT
     do vectorIndex = 1, vectorDim
-      if (inputVector(vectorIndex) == median) then
+      if ( utl_isEqual(inputVector(vectorIndex),median) ) then
         medianIndex = vectorIndex
         exit
       end if
@@ -3321,5 +3327,45 @@ contains
 
     cosinus = cos(radians)
   end function utl_cosDegrees_real8
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real4
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real4(firstValue, secondValue) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two real(4) values are equal according to the machine precision
+    !           All arguments are in single precision floating point numbers, real(4).
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: firstValue, secondValue ! two real(4) values to compare
+    ! Result:
+    logical :: areTheyEqual
+
+    ! tiny(X) returns the smallest positive (non zero) number in the model of the type of X.
+    areTheyEqual = abs(firstValue-secondValue) < tiny(firstValue)
+
+  end function utl_isEqual_real4
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real8
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real8(firstValue, secondValue) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two real(8) values are equal according to the machine precision
+    !           All arguments are double precision floating point numbers, real(8).
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: firstValue, secondValue ! two real(4) values to compare
+    ! Result:
+    logical :: areTheyEqual
+
+    ! tiny(X) returns the smallest positive (non zero) number in the model of the type of X.
+    areTheyEqual = abs(firstValue-secondValue) < tiny(firstValue)
+
+  end function utl_isEqual_real8
 
 end module utilities_mod
