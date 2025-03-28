@@ -93,6 +93,8 @@ module utilities_mod
   interface utl_isEqual
     module procedure utl_isEqual_real4
     module procedure utl_isEqual_real8
+    module procedure utl_isEqual_real4Arrays
+    module procedure utl_isEqual_real8Arrays
   end interface utl_isEqual
 
   ! For namelist reading
@@ -3367,5 +3369,83 @@ contains
     areTheyEqual = abs(firstValue-secondValue) < tiny(firstValue)
 
   end function utl_isEqual_real8
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real4Arrays
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real4Arrays(firstArray, secondArray) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two arrays of real(4) values are pair-wise
+    !           equal according to the machine precision
+    !           All arguments are single precision floating point numbers, real(4).
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: firstArray(:), secondArray(:) ! two real(4) arrays to compare
+    ! Result:
+    logical :: areTheyEqual
+
+    ! Locals:
+    integer :: index
+
+    ! If the arrays does not have the same sizes, they can't be equal
+    if ( size(firstArray) /= size(secondArray) ) then
+      areTheyEqual = .false.
+      return
+    end if
+
+    do index=1, size(firstArray)
+      ! If one value is different, then they are different so return
+      if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
+        areTheyEqual = .false.
+        return
+      end if
+    end do
+
+    ! If we didn't catch any different value in the array, then the
+    ! arrays are equal.
+    areTheyEqual = .true.
+
+  end function utl_isEqual_real4Arrays
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real8Arrays
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real8Arrays(firstArray, secondArray) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two arrays of real(8) values are pair-wise
+    !           equal according to the machine precision
+    !           All arguments are double precision floating point numbers, real(8).
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: firstArray(:), secondArray(:) ! two real(8) arrays to compare
+    ! Result:
+    logical :: areTheyEqual
+
+    ! Locals:
+    integer :: index
+
+    ! If the arrays does not have the same sizes, they can't be equal
+    if ( size(firstArray) /= size(secondArray) ) then
+      areTheyEqual = .false.
+      return
+    end if
+
+    do index=1, size(firstArray)
+      ! If one value is different, then they are different so return
+      if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
+        areTheyEqual = .false.
+        return
+      end if
+    end do
+
+    ! If we didn't catch any different value in the array, then the
+    ! arrays are equal.
+    areTheyEqual = .true.
+
+  end function utl_isEqual_real8Arrays
 
 end module utilities_mod

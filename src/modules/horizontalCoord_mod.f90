@@ -844,8 +844,8 @@ contains
       return
     end if
     
-    equal = equal .and. all(hco1%lat(:) == hco2%lat(:))
-    equal = equal .and. all(hco1%lon(:) == hco2%lon(:))
+    equal = equal .and. utl_isEqual(hco1%lat(:), hco2%lat(:))
+    equal = equal .and. utl_isEqual(hco1%lon(:), hco2%lon(:))
     if (.not. equal) then
       write(*,*) 'hco_equal: lat/lon not equal'
       return
