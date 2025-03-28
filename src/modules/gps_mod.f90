@@ -3142,7 +3142,7 @@ contains
            gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gps_roEotvos, &
            gps_roNsigma, gps_roCurvAnisot, gps_roNCurv, gps_roNFlavour
       do SatID = 0, 1023
-        if (WGPS(SatID,2) /= 0.) then
+        if ( .not. utl_isEqual(WGPS(SatID,2), 0.) ) then
           write(*,*)'WGPS', SatID, gps_WGPS(SatID, 1:4)
         end if
       end do
