@@ -2410,6 +2410,7 @@ module gridStateVector_mod
 
     ! Locals:
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+    real(8) :: gd_r8_tmp
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_power: gridStateVector_inout not yet allocated')
@@ -2456,27 +2457,27 @@ module gridStateVector_mod
     else if (statevector_inout%dataKind == 4) then
 
       if (present(scaleFactor_opt)) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex)    
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,gd_r8_tmp)
         do varLevIndex = k1, k2
           do stepIndex = 1, statevector_inout%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
+                gd_r8_tmp = real(statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex),8)
                 statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
-                     real(scaleFactor_opt,4) * &
-                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**power
+                     real(scaleFactor_opt * gd_r8_tmp**power, 4)
               end do
             end do
           end do
         end do
         !$OMP END PARALLEL DO
       else
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex)    
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,gd_r8_tmp)
         do varLevIndex = k1, k2
           do stepIndex = 1, statevector_inout%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
-                statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
-                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**power
+                gd_r8_tmp = real(statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex),8)
+                statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = real(gd_r8_tmp**power, 4)
               end do
             end do
           end do
