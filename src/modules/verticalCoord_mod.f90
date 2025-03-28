@@ -1125,13 +1125,13 @@ contains
     real(8), pointer :: coefB1(:), coefB2(:)
     real :: coefR11, coefR12
     real :: coefR21, coefR22
-    integer :: stat, levIndex
+    integer :: stat
 
     if (vco1%Vcode == 5002) then
       !- Ptop
       stat = vgd_get(vco1%vgrid,key='PTOP - top level pressure',value=ptop1)
       stat = vgd_get(vco2%vgrid,key='PTOP - top level pressure',value=ptop2)
-      if (ptop1 /= ptop2) then
+      if ( .not. utl_isEqual(ptop1, ptop2) ) then
         equal = .false.
         return
       end if
@@ -1142,21 +1142,21 @@ contains
       !- Pref
       stat = vgd_get(vco1%vgrid,key='PREF - reference pressure',value=ptop1)
       stat = vgd_get(vco2%vgrid,key='PREF - reference pressure',value=ptop2)
-      if (ptop1 /= ptop2) then
+      if ( .not. utl_isEqual(ptop1, ptop2) ) then
         equal = .false.
         return
       end if
       !- R-coef 1
       stat = vgd_get(vco1%vgrid,key='RC_1 - first R-coef value',value=coefR11)
       stat = vgd_get(vco2%vgrid,key='RC_1 - first R-coef value',value=coefR12)
-      if (coefR11 /= coefR12) then
+      if ( .not. utl_isEqual(coefR11, coefR12) ) then
         equal = .false.
         return
       end if
       !- R-coef 2
       stat = vgd_get(vco1%vgrid,key='RC_2 - second R-coef value',value=coefR21)
       stat = vgd_get(vco2%vgrid,key='RC_2 - second R-coef value',value=coefR22)
-      if (coefR21 /= coefR22) then
+      if ( .not. utl_isEqual(coefR21, coefR22) ) then
         equal = .false.
         return
       end if
@@ -1169,27 +1169,20 @@ contains
         equal = .false.
         return
       end if
-      do levIndex = 1, size(coefA1)
-        if (coefA1(levIndex) /= coefA2(levIndex)) then
-          equal = .false.
-          return
-        end if
-      end do
+      if (  .not. utl_isEqual(coefA1, coefA2) ) then
+        equal = .false.
+        return
+      end if
+
       !- B
       nullify(coefB1)
       nullify(coefB2)
       stat = vgd_get(vco1%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB1)
       stat = vgd_get(vco2%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB2)
-      if ( size(coefB1) /= size(coefB2) ) then
+      if (  .not. utl_isEqual(coefB1, coefB2) ) then
         equal = .false.
         return
       end if
-      do levIndex = 1, size(coefB1)
-        if (coefB1(levIndex) /= coefB2(levIndex)) then
-          equal = .false.
-          return
-        end if
-      end do
 
     end if
 

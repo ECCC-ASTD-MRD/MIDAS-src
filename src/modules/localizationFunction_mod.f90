@@ -594,7 +594,7 @@ CONTAINS
           END DO
           
           ! 2.2.4  Find the inverse of matrix GTG
-          if (gtg /= 0.d0) then
+          if ( .not. utl_isEqual(gtg, 0.d0) ) then
              gtginv = 1.d0 / gtg
           else
              write(*,*) 'Lfn_Curvefit: gtg = 0 ! Aborting the iteration process'
