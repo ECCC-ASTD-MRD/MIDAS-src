@@ -525,7 +525,7 @@ contains
     ! Locals:
     integer                             :: nLon, nLat, nLev
     type(struct_hco), pointer           :: hco
-    real(kind=4)                        :: latitude
+    real(kind=8)                        :: latitude
     real(kind=4)                        :: gzH, b1, b2, A2, A3
     integer                             :: lonIndex, latIndex, levIndex, levEnd
     
@@ -550,12 +550,12 @@ contains
       do latIndex = 1, nLat
         do levIndex = 1, levEnd
           ! explicit shift of indexes
-          latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
-                                  latIndex+statevector%myLatBeg-1)
+          latitude = real(hco%lat2d_4( lonIndex+statevector%myLonBeg-1, &
+                                       latIndex+statevector%myLatBeg-1), 8)
           gzH = gzHeight(lonIndex, latIndex, levIndex)
           ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-          b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
-          b2 = 3.0/ec_wgs_a**2
+          b1 = real(-2.d0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2), 4)
+          b2 = real(3.d0/ec_wgs_a**2, 4)
           ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
           A2 = -b1/2.0
           A3 = b1**2/2.0 - b2/3.0
