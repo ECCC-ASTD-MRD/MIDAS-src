@@ -1072,7 +1072,7 @@ contains
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
     ! Locals:
-    integer :: sindx, ierr, fnom, fclos
+    integer :: ierr, fnom, fclos
     integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
@@ -1082,9 +1082,9 @@ contains
     logical :: fileExist
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
+    integer, parameter :: sindx = 6
 
     deg2rad= MPC_RADIANS_PER_DEGREE_R8 
-    sindx  = 6
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))
