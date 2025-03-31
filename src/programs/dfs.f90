@@ -681,9 +681,7 @@ contains
           headerIndex = headerIndexList(obsIndex)
           if (headerIndex /= MPC_missingValue_INT) then
             bodyIndex1 = bodyIndexList(obsIndex,channelIndex1)
-            channelNumber1 = levelList(obsIndex,channelIndex1)
             call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-
           end if          
           call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData) 
          
@@ -1094,6 +1092,7 @@ contains
     integer              :: nChannelsIn, nChannelsOut
 
     write(*,*) 'selectChannels: start'
+    call msg_memUsage('selectChannels')
     call utl_printTime()
     nChannelsIn = size(R, dim = 1)
     
