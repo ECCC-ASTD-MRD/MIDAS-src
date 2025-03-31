@@ -896,22 +896,27 @@ contains
 
     ! Locals: 
     integer :: lonIndex,latIndex,np_subd
-    real(8) :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
+    real(8) :: poids(ni,nj),x_a_8,y_a_8,sp,sf,sp1,sf1
     real(4) :: area_4(ni,nj)
 
     np_subd = 4*ni
 
-    sp    = 0.d0
-    sf    = 0.d0
+    sp = 0.d0
+    sf = 0.d0
 
     do latIndex = 1, nj
-      y_a_4 = yg(latIndex)
+      y_a_8 = real(yg(latIndex), 8)
       do lonIndex = 1, ni
+        ! TODO: simplify to use directly 'MPC_PI_R4'
+        ! Why use 'acos(-1)'?  Could use 'MPC_PI_R4'?
+        x_a_8 = xg(lonIndex)-acos(-1.d0)
 
-        x_a_4 = xg(lonIndex)-acos(-1.d0)
-
-        area_4(lonIndex,latIndex) = dx*dy*cos(yg(latIndex))
-        poids (lonIndex,latIndex) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
+        ! TODO: simplify the floating point precision conversions
+        ! This should be
+        !    area_4(lonIndex,latIndex) = real(dx*dy*cos(y_a_8),4)
+        ! but we use this formulation to avoid affecting the results
+        area_4(lonIndex,latIndex) = real(dx*dy*real(cos(yg(latIndex)),8), 4)
+        poids (lonIndex,latIndex) = yyg_weight(x_a_8,y_a_8,dx,dy,np_subd)
 
         !Check if poids <0
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
@@ -919,7 +924,6 @@ contains
         else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
           sf = sf + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
         end if
-
       end do
     end do
 
@@ -931,10 +935,10 @@ contains
     do latIndex = 1, nj
       do lonIndex = 1, ni
 
-        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
+        x_a_8 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min(1.0d0, x_a_4)
+          poids(lonIndex,latIndex) = min(1.0d0, x_a_8)
         end if
         if (poids(lonIndex,latIndex)*(1.0-poids(lonIndex,latIndex)) > 0.d0) then
           sp1 = sp1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
@@ -949,10 +953,10 @@ contains
     !-------
     do latIndex = 1, nj
       do lonIndex = 1, ni
-        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
+        x_a_8 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min(1.d0, x_a_4)
+          poids(lonIndex,latIndex) = min(1.d0, x_a_8)
         end if
  
       end do
