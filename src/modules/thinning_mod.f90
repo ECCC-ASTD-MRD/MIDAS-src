@@ -5810,7 +5810,7 @@ contains
       integer, intent(in) :: rarsCriterium
 
       if (use055200) then
-         isGlobal = ( rarsCriterium == 1024 ) 
+         isGlobal = btest(rarsCriterium,10) 
       else
          isGlobal = any(centreOrigGlobal(:) == rarsCriterium)
       end if
