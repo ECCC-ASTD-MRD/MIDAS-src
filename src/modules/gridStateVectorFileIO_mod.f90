@@ -965,9 +965,10 @@ module gridStateVectorFileIO_mod
           write(*,*) 'typvar_var = ', typvar_var
           call utl_abort('gio_readFileFst: Problem with reading surface height from file')
         end if
+        hco_file => gsv_getHco(statevector)
         heightSfc_ptr => gsv_getHeightSfc(statevector)
-        heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                          1:gsv_getHco(statevector)%nj), 8) * 10.0d0
+        heightSfc_ptr = real(gd2d_file_r4(1:hco_file%ni, &
+                                          1:hco_file%nj), 8) * 10.0d0
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -1015,7 +1016,7 @@ module gridStateVectorFileIO_mod
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
-        hco_file => statevector%hco
+        hco_file => gsv_getHco(statevector)
 
         ! Also attempt to set up the physics grid
         if (interpToPhysicsGrid) then
@@ -1260,16 +1261,16 @@ module gridStateVectorFileIO_mod
 
             if (statevector%dataKind == 4) then
               call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, varLevIndex)
-              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                1:gsv_getHco(statevector)%nj)
+              gd2d_r4_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                 = gd2d_file_r4(1:statevector%hco%ni, &
+                                1:statevector%hco%nj)
             else
               call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, varLevIndex)
-              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                     1:gsv_getHco(statevector)%nj), 8)
+              gd2d_r8_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                 = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                     1:statevector%hco%nj), 8)
             end if
 
           else if (varName == 'VV') then
@@ -1279,16 +1280,16 @@ module gridStateVectorFileIO_mod
 
             if (statevector%dataKind == 4) then
               call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, varLevIndex)
-              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                   = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                  1:gsv_getHco(statevector)%nj)
+              gd2d_r4_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                   = gd2d_file_r4(1:statevector%hco%ni, &
+                                  1:statevector%hco%nj)
             else
               call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, varLevIndex)
-              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                   = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                       1:gsv_getHco(statevector)%nj), 8)
+              gd2d_r8_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                   = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                       1:statevector%hco%nj), 8)
             end if
 
           end if
