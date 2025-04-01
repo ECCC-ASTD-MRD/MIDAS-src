@@ -106,9 +106,10 @@ contains
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
-    character(len=2)  :: typvar
-    character(len=4)  :: nomvar
-    character(len=1)  :: grtyp
+    character(len=2) :: typvar
+    character(len=4) :: nomvar
+    character(len=1) :: grtyp
+    character(len=2) :: varKind
 
     if ( associated(vco) ) then
       call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
@@ -185,9 +186,9 @@ contains
         if (.not. vnl_varnameIsValid(trim(nomvar))) cycle record_loop
 
         ! check for record with ocean data
-        call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
-        if (Ip1Kind == 0 .and. &
-            vnl_varKindFromVarname(trim(nomvar)) == 'OC') then
+        call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.)
+        varKind = vnl_varKindFromVarname(trim(nomvar))
+        if (Ip1Kind == 0 .and. varKind  == 'OC') then
           oceanFieldFound = .true.
           exit record_loop
         end if
@@ -502,9 +503,11 @@ contains
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
-    character(len=2)  :: typvar
-    character(len=4)  :: nomvar
-    character(len=1)  :: grtyp
+    character(len=2) :: typvar
+    character(len=4) :: nomvar
+    character(len=1) :: grtyp
+    character(len=4) :: varLevel
+    character(len=2) :: varKind
 
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromFile: found ocean fields in file: ', trim(templateFile)
@@ -542,10 +545,11 @@ contains
       if (.not. vnl_varnameIsValid(trim(nomvar))) cycle record_loop
 
       ! check for record with ocean data on depth levels
-      call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
+      call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.)
+      varKind = vnl_varKindFromVarname(trim(nomvar))
+      varLevel = vnl_varLevelFromVarname(trim(nomvar))
       if (Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
-          vnl_varKindFromVarname(trim(nomvar)) == 'OC' .and. &
-          vnl_varLevelFromVarname(trim(nomvar)) == 'DP') then
+          varKind  == 'OC' .and. varLevel == 'DP') then
         ! check if we've NOT already recorded this depth level
         if (.not. any( abs(vertCoordValue-depths(1:vco%nLev_depth))<tiny(vertCoordValue) ) ) then
           vco%nLev_depth = vco%nLev_depth + 1
@@ -977,13 +981,13 @@ contains
 
     equal = .true.
 
-    equal = equal .and. (vco1%Vcode == vco2%Vcode)
+    equal = vco1%Vcode == vco2%Vcode
     if (.not. equal) then
       write(*,*) 'vco_equal: Vcode not equal'
       return
     end if
     if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
-       equal = equal .and. (vco1%vgrid == vco2%vgrid)
+       equal = vco1%vgrid == vco2%vgrid
        if (.not. equal) then
           write(*,*) 'vco_equal: vgrid not equal'
           return
@@ -991,35 +995,35 @@ contains
     end if
 
     ! Even if vgrid defined, not enough just to compare vgrid, must compare everything
-    equal = equal .and. (vco1%nlev_T == vco2%nlev_T)
+    equal = vco1%nlev_T == vco2%nlev_T
     if (.not. equal) then
        write(*,*) 'vco_equal: nlev_T not equal', vco1%nlev_T, vco2%nlev_T
        return
     end if
-    equal = equal .and. (vco1%nlev_M == vco2%nlev_M)
+    equal = vco1%nlev_M == vco2%nlev_M
     if (.not. equal) then
        write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
        return
     end if
     if (vco1%vgridPresent .and. vco2%vgridPresent .and. &
         vco1%nlev_T > 0 .and. vco2%nlev_T > 0) then
-      equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
+      equal = all(vco1%ip1_T(:) == vco2%ip1_T(:))
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_T not equal'
         return
       end if
-      equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
+      equal = all(vco1%ip1_M(:) == vco2%ip1_M(:))
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_M not equal'
         return
       end if
-      equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
+      equal = vco1%ip1_sfc == vco2%ip1_sfc
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_sfc not equal'
         return
       end if
       if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005 .or. vco1%Vcode == 5100) then
-        equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
+        equal = hybridCoefEqualOrNot(vco1, vco2)
         if (.not. equal) then
           write(*,*) 'vco_equal: hybrid parameters are not equal'
           return
@@ -1029,7 +1033,7 @@ contains
 
     ! For ocean fields, check depth levels
     if (vco1%nLev_depth > 0) then
-      equal = equal .and. all(abs(vco1%depths(:)- vco2%depths(:)) < 0.01)
+      equal = all(abs(vco1%depths(:)- vco2%depths(:)) < 0.01)
       if (.not. equal) then
         write(*,*) 'vco_equal: ocean depth levels are not equal'
         return
