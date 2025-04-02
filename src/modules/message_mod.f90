@@ -597,6 +597,9 @@ module message_mod
       vertical = msg_arrayVertical
     end if
 
+    ! 'sep' and 'string' being allocatable, the code is allocating the
+    ! memory automatically according to
+    !     https://fortranwiki.org/fortran/files/character_handling_in_Fortran.html
     if (vertical) then
       sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
