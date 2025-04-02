@@ -712,7 +712,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,varLevIndex,varLevIndex2,levUV
     character(len=4) :: UVname
-    logical :: beSilent, allocPressure, allocHeight
+    logical :: beSilent, allocPressure, allocHeight, uuExist, vvExist
     integer :: verbLevel
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
@@ -761,12 +761,13 @@ module gridStateVector_mod
       if (present(allocHeight_opt)) then
         allocHeight = allocHeight_opt
       else
-        if (statevector%varExistList(vnl_varListIndex('TT ')) .and. &
-            statevector%varExistList(vnl_varListIndex('HU ')) .and. &
-            statevector%varExistList(vnl_varListIndex('P0 '))) then
-          allocHeight = .true.
-        else
-          allocHeight = .false.
+        allocHeight = .false.
+        if (statevector%varExistList(vnl_varListIndex('TT '))) then
+          if (statevector%varExistList(vnl_varListIndex('HU '))) then
+            if (statevector%varExistList(vnl_varListIndex('P0 '))) then
+              allocHeight = .true.
+            end if
+          end if
         end if
       end if
 
@@ -801,11 +802,13 @@ module gridStateVector_mod
       end if
     end if
 
-    if (statevector%vco%vcode == 5100 .and. &
-        statevector%varExistList(vnl_varListIndex('P0')) .and. &
-        .not.statevector%varExistList(vnl_varListIndex('P0LS'))) then
-      call msg('gsv_allocate', 'varNames_opt = '//str(varNames_opt))
-      call utl_abort('gsv_allocate: P0LS should be included in varNames_opt when vcode=5100')
+    if (statevector%vco%vcode == 5100) then
+      if ( statevector%varExistList(vnl_varListIndex('P0')) ) then
+        if ( .not. statevector%varExistList(vnl_varListIndex('P0LS')) ) then
+          call msg('gsv_allocate', 'varNames_opt = '//str(varNames_opt))
+          call utl_abort('gsv_allocate: P0LS should be included in varNames_opt when vcode=5100')
+        end if
+      end if
     end if
 
     if (present(horizSubSample_opt)) then
@@ -983,8 +986,8 @@ module gridStateVector_mod
     statevector%myUVvarLevBeg = 0
     statevector%myUVvarLevEnd = -1
     do varLevIndex = statevector%myVarLevBeg, statevector%myVarLevEnd
-      if (gsv_getVarNameFromVarLev(statevector,varLevIndex) == 'UU' .or.  &
-           gsv_getVarNameFromVarLev(statevector,varLevIndex) == 'VV') then
+      UVname = gsv_getVarNameFromVarLev(statevector,varLevIndex)
+      if ( UVname == 'UU' .or. UVname == 'VV' ) then
         statevector%UVComponentPresent = .true.
         if (statevector%myUVvarLevBeg == 0) statevector%myUVvarLevBeg = varLevIndex
         statevector%myUVvarLevEnd = varLevIndex
@@ -997,9 +1000,11 @@ module gridStateVector_mod
     ! are not available on same mpi task, or the statevector was allocated
     ! with only one of the components
     statevector%extraUVallocated = .false.
-    if (statevector%mpi_distribution == 'VarsLevs' .or.   &
-         (gsv_varExist(statevector,'UU') .and. .not. gsv_varExist(statevector,'VV')) .or. &
-         (gsv_varExist(statevector,'VV') .and. .not. gsv_varExist(statevector,'UU'))) then
+    uuExist = gsv_varExist(statevector,'UU')
+    vvExist = gsv_varExist(statevector,'VV')
+    if (statevector%mpi_distribution == 'VarsLevs' .or. &
+         (uuExist .and. .not. vvExist) .or. &
+         (vvExist .and. .not. uuExist) ) then
       statevector%extraUVallocated = statevector%UVComponentPresent
     end if
 
@@ -1721,7 +1726,7 @@ module gridStateVector_mod
 
     ! Locals:
     logical            :: timeMismatch, allowVarMismatch, varMismatch, allowVcoMismatch
-    logical            :: beSilent
+    logical            :: beSilent, varExistIn, varExistOut
     integer :: stepIndex, lonIndex, varLevIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
     real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
@@ -1828,7 +1833,9 @@ module gridStateVector_mod
       numCommonVar = 0
       do varIndex = 1, vnl_numvarmax
         varName = vnl_varNameList(varIndex)
-        if (gsv_varExist(statevector_in,varName) .and. gsv_varExist(statevector_out,varName)) then
+        varExistIn  = gsv_varExist(statevector_in, varName)
+        varExistOut = gsv_varExist(statevector_out,varName)
+        if ( varExistIn .and. varExistOut ) then
           numCommonVar = numCommonVar + 1
           varNameListCommon(numCommonVar) = varName 
         end if 
@@ -3554,7 +3561,7 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     real(8), allocatable :: gd_send_height(:,:), gd_recv_height(:,:,:)
-    logical :: beSilent
+    logical :: beSilent, uuExist, vvExist
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -3718,8 +3725,9 @@ module gridStateVector_mod
       end if
 
       ! send copy of wind component to task that has other component
-      if (gsv_varExist(stateVector_out, 'UU') .and.  &
-          gsv_varExist(stateVector_out, 'VV')) then
+      uuExist = gsv_varExist(stateVector_out, 'UU')
+      vvExist = gsv_varExist(stateVector_out, 'VV')
+      if ( uuExist .and. vvExist ) then
 
         numSend = 0
         numRecv = 0
@@ -3886,6 +3894,7 @@ module gridStateVector_mod
     integer :: requestIdSend(stateVector_in%numVarLev), requestIdRecv(stateVector_in%numVarLev)
     integer :: mpiStatuses(mpi_status_size,stateVector_in%numVarLev)
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
+    logical :: uuExist, vvExist
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
@@ -3917,8 +3926,9 @@ module gridStateVector_mod
     do stepIndex = 1, statevector_out%numStep
 
       ! adjoint of: send copy of wind component to task that has the other component
-      if (gsv_varExist(stateVector_in, 'UU') .and.  &
-          gsv_varExist(stateVector_in, 'VV')) then
+      uuExist = gsv_varExist(stateVector_in, 'UU')
+      vvExist = gsv_varExist(stateVector_in, 'VV')
+      if ( uuExist .and. vvExist ) then
 
         if (statevector_in%UVComponentPresent) then
           if (sendrecvKind == 4) then
@@ -4384,7 +4394,7 @@ module gridStateVector_mod
     integer :: nsize
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: varLevIndex, varLevIndex2, levUV, procIndex, stepIndex
-    logical :: thisProcIsAsender(mmpi_nprocs)
+    logical :: uuExist, vvExist, thisProcIsAsender(mmpi_nprocs)
     real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
 
@@ -4515,7 +4525,9 @@ module gridStateVector_mod
 
     ! also do extra transpose for complementary wind components when wind component present
     ! this should really be changed to only send the data needed for UV, not total k
-    if (gsv_varExist(stateVector_VarsLevs, 'UU') .or. gsv_varExist(stateVector_VarsLevs, 'VV')) then
+    uuExist = gsv_varExist(stateVector_VarsLevs, 'UU')
+    vvExist = gsv_varExist(stateVector_VarsLevs, 'VV')
+    if ( uuExist .or. vvExist ) then
       do varLevIndex = 1, maxkCount
 
         ! prepare the complete 1 timestep for sending on all tasks that read something
