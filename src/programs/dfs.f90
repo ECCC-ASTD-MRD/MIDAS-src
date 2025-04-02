@@ -222,7 +222,7 @@ program midas_dfs
   real(8) :: highResWaterFractionThreshold       ! value for the highResWaterFraction threshold
   real(8) :: lowResWaterFractionThreshold        ! value for the lowResWaterFraction threshold
   
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect,  nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
