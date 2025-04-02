@@ -181,13 +181,15 @@ contains
 
     contains
 
-      logical function varneed(varName)
+      logical pure function varneed(varName)
         !
         !:Purpose: Detemine if the given variable name is to be included for allocation.
         !
         implicit none
 
-        character(len=*) :: varName
+        ! Arguments:
+        character(len=*), intent(in) :: varName
+        ! Locals:
         integer :: jvar
  
         varneed = .false.
@@ -267,11 +269,13 @@ contains
       column%varExistList(:) = varExistList(:)
     end if
 
-    if ( column%varExistList(vnl_varListIndex('TT')) .and. &
-         column%varExistList(vnl_varListIndex('HU')) .and. &
-         column%varExistList(vnl_varListIndex('P0')) ) then
-      if ( col_getNumLev(column,'TH') > 0 ) column%varExistList(vnl_varListIndex('Z_T')) = .true.
-      if ( col_getNumLev(column,'MM') > 0 ) column%varExistList(vnl_varListIndex('Z_M')) = .true.
+    if (column%varExistList(vnl_varListIndex('TT'))) then
+      if (column%varExistList(vnl_varListIndex('HU'))) then
+        if (column%varExistList(vnl_varListIndex('P0'))) then
+          if ( col_getNumLev(column,'TH') > 0 ) column%varExistList(vnl_varListIndex('Z_T')) = .true.
+          if ( col_getNumLev(column,'MM') > 0 ) column%varExistList(vnl_varListIndex('Z_M')) = .true.
+        end if
+      end if
     end if
 
     if ( column%varExistList(vnl_varListIndex('P0')) ) then
@@ -550,16 +554,19 @@ contains
 
     ! Locals:
     integer                             :: ilev1
+    logical                             :: ptExist, pmExist
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
       call utl_abort('col_getPressure: headerIndex out of range')
     end if
 
-    if (varLevel == 'TH' .and. col_varExist(column,'P_T')) then
+    ptExist = col_varExist(column,'P_T')
+    pmExist = col_varExist(column,'P_M')
+    if (varLevel == 'TH' .and. ptExist) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
-    elseif (varLevel == 'MM' .and. col_varExist(column,'P_M') ) then
+    elseif (varLevel == 'MM' .and. pmExist) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
     else
