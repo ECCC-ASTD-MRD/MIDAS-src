@@ -17,7 +17,7 @@ module satWind_mod
 contains
 
   !--------------------------------------------------------------------------
-  ! swd_read_swqi
+  ! swd_readSwqi
   !--------------------------------------------------------------------------
   subroutine swd_readSwqi(SWname,QIvalue)
     !
