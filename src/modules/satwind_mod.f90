@@ -105,8 +105,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: maxSat
-    character(len=*), intent(in) :: vars(maxSat)
+    integer,          intent(in) :: maxSat       ! the maximum number of satellite
+    character(len=*), intent(in) :: vars(maxSat) ! strings to be sepearted
 
     ! Locals:
     integer                       :: varIndex
