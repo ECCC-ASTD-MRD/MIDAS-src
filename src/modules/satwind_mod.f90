@@ -106,7 +106,7 @@ contains
 
     ! Arguments:
     integer,          intent(in) :: maxSat       ! the maximum number of satellite
-    character(len=*), intent(in) :: vars(maxSat) ! strings to be sepearted
+    character(len=*), intent(in) :: vars(maxSat) ! array of character strings to be counted
 
     ! Locals:
     integer                       :: varIndex
