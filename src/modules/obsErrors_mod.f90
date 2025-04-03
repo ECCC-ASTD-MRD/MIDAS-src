@@ -2280,7 +2280,6 @@ contains
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     integer :: ierr, nsats, isat
-    integer, parameter :: maxSat = 99
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -2425,28 +2424,6 @@ contains
 
     deallocate(QIvalue)
     deallocate(SWname)
-
-    contains
-
-      integer function getNumSats(maxSat,vars)
-        !
-        !:Purpose: count the number of satellites, i.e. count the number of non ''
-        !
-        implicit none
-
-        ! Arguments:
-        integer,           intent(in) :: maxSat
-        character(len=20), intent(in) :: vars(maxSat)
-
-        ! Locals:
-        integer                       :: varIndex
-
-        getNumSats = 0
-        do varIndex = 1, maxSat
-          if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
-        end do
-
-      end function getNumSats
 
   end subroutine oer_sw
 
