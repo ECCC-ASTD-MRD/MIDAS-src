@@ -26,8 +26,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), allocatable, intent(out) :: SWname(:)
-    character(len=*), allocatable, intent(out) :: QIvalue(:)
+    character(len=*), allocatable, intent(out) :: SWname(:)  ! the name of satellite
+    character(len=*), allocatable, intent(out) :: QIvalue(:) ! Quality Indicator (QI) for AMV
 
     ! Locals:
     integer :: ierr
