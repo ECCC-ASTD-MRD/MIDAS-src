@@ -981,7 +981,7 @@ contains
 
     nLev = gsv_getNumLevFromVarName(statevector_ensScaling, varName)
 
-    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
+    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex,factor)
     do stepIndex = 1, statevector_ensScaling%numStep
       do levIndex = 1, nLev
         do latIndex = statevector_ensScaling%myLatBeg, stateVector_ensScaling%myLatEnd
@@ -1092,7 +1092,7 @@ contains
     if (allocated(gridState4d)) deallocate(gridState4d)
     allocate(gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep))
 
-    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
+    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex,factor)
     do stepIndex = 1, statevector%numStep
       do levIndex = 1, nLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -1161,7 +1161,7 @@ contains
       call gsv_getField(stateVector_ensScaling,norm_var2d_ptr4d_r8,varName_opt=varName2d)
     end if
 
-    !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
+    !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex,factor)
     do stepIndex = 1, stateVector%numStep
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
