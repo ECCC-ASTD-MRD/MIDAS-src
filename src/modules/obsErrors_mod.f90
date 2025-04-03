@@ -25,6 +25,7 @@ module obsErrors_mod
   use burp_module
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
+  use satWind_mod
 
   implicit none
   save
@@ -2288,15 +2289,9 @@ contains
     character(len=4) :: varLevel
     character(len=9) :: cstnid
     character(len=20), allocatable :: SWname(:), QIvalue(:)
-    character(len=20), allocatable :: SWQIArray(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.
-
-    ! namelist variables
-    character(len=20) :: SWQI(maxSat)
-
-    namelist /NAMSW/ SWQI
 
     ! If requested, just read oer from the burp file (only 1st time)
     if(obsfile_oer_sw) then
@@ -2316,58 +2311,7 @@ contains
     if (firstCall) write(*,*) "Entering subroutine oer_sw"
     firstCall = .false.
 
-    ! Default values for namelist variables
-    SWQI(:)  = ''
-    SWQI(1)  = 'METSAT7:qi1'
-    SWQI(2)  = 'METSAT8:qi1'
-    SWQI(3)  = 'METSAT9:qi1'
-    SWQI(4)  = 'METSAT10:qi1'
-    SWQI(5)  = 'METSAT11:qi1'
-    SWQI(6)  = 'HMWARI-8:qi1'
-    SWQI(7)  = 'HMWARI-9:qi1'
-    SWQI(8)  = 'GOES13:qi1'
-    SWQI(9)  = 'GOES15:qi1'
-    SWQI(10) = 'GOES16:qi1'
-    SWQI(11) = 'GOES17:qi1'
-    SWQI(12) = 'GOES18:qi1'
-    SWQI(13) = 'NOAA15:qi1'
-    SWQI(14) = 'NOAA16:qi1'
-    SWQI(15) = 'NOAA18:qi1'
-    SWQI(16) = 'NOAA19:qi1'
-    SWQI(17) = 'NOAA20:qi1'
-    SWQI(18) = 'NOAA21:qi1'
-    SWQI(19) = 'NPP:qi1'
-    SWQI(20) = 'AQUA:qi1'
-    SWQI(21) = 'TERRA:qi1'
-    SWQI(22) = 'METOP-1:qi1'
-    SWQI(23) = 'METOP-2:qi1'
-    SWQI(24) = 'METOP-3:qi1'
-    SWQI(25) = 'METOP1-3:qi1'
-    SWQI(26) = 'GEO-POL:qi1'
-
-    if (utl_isNamelistPresent('namsw','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
-      read (utl_flnml, nml = NAMSW, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_sw: Error reading namelist')
-      call utl_tmg_stop(181)
-    else
-      if ( mmpi_myid == 0 ) then
-        write(*,*)
-        write(*,*) 'oer_sw: Namelist block NAMSW is missing in the namelist.'
-        write(*,*) '        The default values will be taken.'
-      end if
-    end if
-    if (mmpi_myid == 0) write(*,nml=namsw)
-
-    nsats = getNumSats(maxSat,SWQI)
-    allocate(SWname(nsats))
-    allocate(QIvalue(nsats))
-    do isat = 1, nsats
-      call utl_splitString(SWQI(isat),':',SWQIArray)
-      SWname(isat) = SWQIArray(1)
-      QIvalue(isat) = SWQIArray(2)
-      deallocate(SWQIArray)
-    end do
+    call swd_readSwqi(SWname,QIvalue)
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
