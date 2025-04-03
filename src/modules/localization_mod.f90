@@ -115,7 +115,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)    :: loc
+    type(struct_loc), intent(inout) :: loc
     integer,          intent(in)    :: stepIndex
     real(8),          intent(in)    :: controlVector(:)
     type(struct_ens), intent(inout) :: ensAmplitude
@@ -140,7 +140,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)    :: loc
+    type(struct_loc), intent(inout) :: loc
     integer,          intent(in)    :: stepIndex
     real(8),          intent(out)   :: controlVector(:)
     type(struct_ens), intent(inout) :: ensAmplitude
@@ -186,9 +186,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)  :: loc
-    real(8),          intent(out) :: cv_mpilocal(:)
-    real(8),          intent(in)  :: cv_mpiglobal(:)
+    type(struct_loc), intent(inout) :: loc
+    real(8),          intent(out)   :: cv_mpilocal(:)
+    real(8),          intent(in)    :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal'
 
@@ -210,9 +210,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)  :: loc
-    real(4),          intent(out) :: cv_mpilocal(:)
-    real(4),          intent(in)  :: cv_mpiglobal(:)
+    type(struct_loc), intent(inout) :: loc
+    real(4),          intent(out)   :: cv_mpilocal(:)
+    real(4),          intent(in)    :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal_r4'
 
@@ -234,9 +234,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)  :: loc
-    real(8),          intent(in)  :: cv_mpilocal(:)
-    real(8),          intent(out) :: cv_mpiglobal(:)
+    type(struct_loc), intent(inout) :: loc
+    real(8),          intent(in)    :: cv_mpilocal(:)
+    real(8),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
     
@@ -257,9 +257,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc), intent(in)  :: loc
-    real(4),          intent(in)  :: cv_mpilocal(:)
-    real(4),          intent(out) :: cv_mpiglobal(:)
+    type(struct_loc), intent(inout) :: loc
+    real(4),          intent(in)    :: cv_mpilocal(:)
+    real(4),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
     
