@@ -2,7 +2,7 @@
 module satWind_mod
   ! MODULE satWind_mod (prefix='swd' category'=8. Low-level utilities and constants')
   !
-  !:Purpose: utilities realted SW (AMV) data
+  !:Purpose: utilities related to SW (AMV) data
   !
   use midasMpi_mod
   use utilities_mod
