@@ -109,13 +109,17 @@ contains
     character(len=*), intent(in) :: vars(maxSat) ! array of character strings to be counted
 
     ! Locals:
-    integer                       :: varIndex
+    integer                       :: satIndex
 
     getNumSats = 0
 
-    do varIndex = 1, maxSat
-      if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
-    end do
+    satLoop: do satIndex = 1, maxSat
+      if (trim(vars(satIndex)) == '') then
+        exit satLoop
+      else
+        getNumSats = getNumSats + 1
+      end if
+    end do satLoop
 
   end function getNumSats
 
