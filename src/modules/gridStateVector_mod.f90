@@ -1641,13 +1641,13 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in     ! first operand 
-    type(struct_gsv),  intent(inout)  :: statevector_inout  ! second operand, will receive the result
-    logical, optional, intent(in) :: inv_opt ! compute statevector_inout / statevector_in
+    type(struct_gsv),  intent(in)    :: statevector_in    ! first operand 
+    type(struct_gsv),  intent(inout) :: statevector_inout ! second operand, will receive the result
+    logical, optional, intent(in)    :: inv_opt           ! compute statevector_inout / statevector_in
     
     ! Locals:
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-    real(8) :: power
+    integer :: power
     logical :: inv
     
     if (.not.statevector_in%allocated) then
@@ -1664,9 +1664,9 @@ module gridStateVector_mod
     end if
 
     if (inv) then
-      power = -1.d0
+      power = -1
     else
-      power = 1.d0
+      power = 1
     end if
     
     lon1=statevector_in%myLonBeg

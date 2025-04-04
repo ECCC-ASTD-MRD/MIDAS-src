@@ -2601,12 +2601,16 @@ CONTAINS
   ! calcOverallStats
   !--------------------------------------------------------------------------
   subroutine calcOverallStats(instanceIndex, fileNameIn, fileNameOut)
+    !
+    !:Purpose: To compute diagnostics that compares the variances of the full perturbations
+    !          and the variances of the scale-decomposed perturbations
+    !
     implicit none
 
     ! Arguments:
-    integer,           intent(in) :: instanceIndex
-    character(len=*),  intent(in) :: fileNameIn
-    character(len=*),  intent(in) :: fileNameOut
+    integer,           intent(in) :: instanceIndex ! ensemble B index
+    character(len=*),  intent(in) :: fileNameIn    ! input filename containing previously computed std dev
+    character(len=*),  intent(in) :: fileNameOut   ! output filname containing the variance-based diagnostics
 
     ! Locals:
     type(struct_gsv) :: statevector, statevector_sum, statevector_temp

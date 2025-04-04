@@ -326,7 +326,7 @@ program midas_diagBmatrix
         nlevs2 = nlevs
       end if
 
-      multfactor = utl_unitConv_multFactor_r8(vnl_varNameList(varIndex),'toFSTfile')
+      multfactor = utl_unitConvMultFactor_r8(vnl_varNameList(varIndex),'toFSTfile')
       
       ip3 = 0
       do levIndex = 1, nlevs2
@@ -341,9 +341,9 @@ program midas_diagBmatrix
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
                lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0 * multfactor
+              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = multfactor
             else
-              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0 * multfactor
+              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = multfactor
             end if
           end if
 

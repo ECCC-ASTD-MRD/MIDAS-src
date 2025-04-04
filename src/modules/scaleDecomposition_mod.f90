@@ -1060,13 +1060,13 @@ contains
     implicit none
     
     ! Arguments:
-    type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
-    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
-    integer             , intent(out) :: nLev ! Number of vertical levels for the 3D field
-    character(len=*)    , intent(in)  :: varName2d ! Variable name of the 2d field
-    character(len=*)    , intent(in)  :: varName3d ! Variable name of the 3d field
-    type(struct_gsv)    , intent(in)  :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
-    character(len=*)    , intent(in)  :: decompositionType ! Covariances or Correlations
+    type(struct_gsv)    , intent(in)    :: statevector ! Gridded state vector contaning the full state of an ensemble member
+    real(8), allocatable, intent(inout) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
+    integer             , intent(out)   :: nLev ! Number of vertical levels for the 3D field
+    character(len=*)    , intent(in)    :: varName2d ! Variable name of the 2d field
+    character(len=*)    , intent(in)    :: varName3d ! Variable name of the 3d field
+    type(struct_gsv)    , intent(in)    :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
+    character(len=*)    , intent(in)    :: decompositionType ! Covariances or Correlations
 
     ! Locals:
     real(8), pointer     :: var2d_ptr4d_r8(:,:,:,:)

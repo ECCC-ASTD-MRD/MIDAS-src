@@ -967,7 +967,7 @@ module gridStateVectorFileIO_mod
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                          1:gsv_getHco(statevector)%nj), 8) * utl_unitConv_multFactor_r8(varName, 'fromFSTfile')
+                                          1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -1882,7 +1882,7 @@ module gridStateVectorFileIO_mod
           fstRecords(0)%nomvar = nomvar
 
           !- Scale
-          factor_r4 = utl_unitConv_multFactor_r4(nomvar,'toFSTfile')
+          factor_r4 = utl_unitConvMultFactor_r4(nomvar,'toFSTfile')
           work2d_r4(:,:,0) = factor_r4 * work2d_r4(:,:,0)
 
           fstRecords(0)%data = c_loc(work2d_r4(:,:,0))
@@ -2001,7 +2001,7 @@ module gridStateVectorFileIO_mod
           if (vnl_varKindFromVarname(trim(nomvar)) == 'CH') then
             if (gsv_conversionVarKindCHtoMicrograms) then
               if (trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L') then
-                factor_r4 = utl_unitConv_multFactor_r4(nomvar, 'toFSTfile')
+                factor_r4 = utl_unitConvMultFactor_r4(nomvar, 'toFSTfile')
               else
                 factor_r4 = 1.0 ! no conversion
               end if
@@ -2009,7 +2009,7 @@ module gridStateVectorFileIO_mod
               factor_r4 = 1.0 ! no conversion
             end if
           else
-            factor_r4 = utl_unitConv_multFactor_r4(nomvar, 'toFSTfile')
+            factor_r4 = utl_unitConvMultFactor_r4(nomvar, 'toFSTfile')
           end if
         else
           factor_r4 = 1.0 ! no conversion
@@ -2502,7 +2502,7 @@ module gridStateVectorFileIO_mod
         if (vnl_varKindFromVarname(trim(varName)) == 'CH') then
           if (gsv_conversionVarKindCHtoMicrograms) then
             if (trim(varName) == 'TO3' .or. trim(varName) == 'O3L') then
-              multFactor = utl_unitConv_multFactor_r8(varName, 'fromFSTfile')
+              multFactor = utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
             else
               multFactor = 1.0d0 ! no conversion
             end if
@@ -2510,7 +2510,7 @@ module gridStateVectorFileIO_mod
             multFactor = 1.0d0 ! no conversion
           end if
         else
-          multFactor = utl_unitConv_multFactor_r8(varName, 'fromFSTfile')
+          multFactor = utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
         end if
 
         if (multFactor /= 1.0d0) then
@@ -2588,7 +2588,7 @@ module gridStateVectorFileIO_mod
 
       ! Do unit conversion for extra copy of winds, if present
       IFWINDS: if (statevector%extraUVallocated) then
-        multFactor = utl_unitConv_multFactor_r8('UV', 'fromFSTfile')
+        multFactor = utl_unitConvMultFactor_r8('UV', 'fromFSTfile')
 
         if (statevector%dataKind == 4) then
           !$OMP PARALLEL DO PRIVATE (varLevIndex, fieldUV_r4_ptr)

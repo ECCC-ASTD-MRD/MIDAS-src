@@ -16,7 +16,7 @@ module utilities_mod
   ! Public procedures
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
-  public :: utl_unitConv_multFactor_r8, utl_unitConv_multFactor_r4
+  public :: utl_unitConvMultFactor_r8, utl_unitConvMultFactor_r4
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse
   public :: utl_pseudo_inverse, utl_fastMatMul
   public :: utl_writeStatus, utl_getfldprm, utl_abort
@@ -493,9 +493,9 @@ contains
   end subroutine utl_fastMatMul
 
   !--------------------------------------------------------------------------
-  ! utl_unitConv_multFactor_r4
+  ! utl_unitConvMultFactor_r4
   !--------------------------------------------------------------------------
-  function utl_unitConv_multFactor_r4(varName, direction) result(multFactor)
+  function utl_unitConvMultFactor_r4(varName, direction) result(multFactor)
     !
     !:Purpose: Return the multiplicative factor for unit conversion between
     !          FST files and MIDAS (real 4 version)
@@ -509,18 +509,18 @@ contains
     real(4) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConv_multFactor: invalid direction ' // direction )
+      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
     select case(trim(varName))
-    case ('P0','P0LS')
+    case ('P0','P0LS','PB','UP')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_pa_per_mbar_r4 ! hPa -> Pa
       else
         multFactor = 0.01 ! Pa -> hPa
       end if
-    case ('UU','VV','UV','UP','PB')
+    case ('UU','VV','UV')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_m_per_s_per_knot_r4 ! knots -> m/s
       else
@@ -544,12 +544,12 @@ contains
       multFactor = 1.0
     end select 
     
-  end function utl_unitConv_multFactor_r4
+  end function utl_unitConvMultFactor_r4
   
   !--------------------------------------------------------------------------
-  ! utl_unitConv_multFactor_r8
+  ! utl_unitConvMultFactor_r8
   !--------------------------------------------------------------------------
-  function utl_unitConv_multFactor_r8(varName, direction) result(multFactor)
+  function utl_unitConvMultFactor_r8(varName, direction) result(multFactor)
     !
     !:Purpose: Return the multiplicative factor for unit conversion between
     !          FST files and MIDAS (real 8 version)
@@ -563,18 +563,18 @@ contains
     real(8) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConv_multFactor: invalid direction ' // direction )
+      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
     select case(trim(varName))
-    case ('P0','P0LS')
+    case ('P0','P0LS','UP','PB')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
       else
         multFactor = 0.01d0 ! Pa -> hPa
       end if
-    case ('UU','VV','UV','UP','PB')
+    case ('UU','VV','UV')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
       else
@@ -598,7 +598,7 @@ contains
       multFactor = 1.d0
     end select
  
-  end function utl_unitConv_multFactor_r8
+  end function utl_unitConvMultFactor_r8
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 

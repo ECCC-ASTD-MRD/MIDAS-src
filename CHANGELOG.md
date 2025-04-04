@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Complete vertical-scale-dependent vertical localization in bMatrixEnsemble_mod, i.e., including surface pressure, is now possible with GEM-H ensembles (#1033 and !969)
 
 ### Changed
 
