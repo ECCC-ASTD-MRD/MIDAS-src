@@ -25,6 +25,7 @@ module obsErrors_mod
   use burp_module
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
+  use satWind_mod
 
   implicit none
   save
@@ -2279,7 +2280,6 @@ contains
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     integer :: ierr, nsats, isat
-    integer, parameter :: maxSat = 99
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -2288,15 +2288,9 @@ contains
     character(len=4) :: varLevel
     character(len=9) :: cstnid
     character(len=20), allocatable :: SWname(:), QIvalue(:)
-    character(len=20), allocatable :: SWQIArray(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.
-
-    ! namelist variables
-    character(len=20) :: SWQI(maxSat)
-
-    namelist /NAMSW/ SWQI
 
     ! If requested, just read oer from the burp file (only 1st time)
     if(obsfile_oer_sw) then
@@ -2316,58 +2310,8 @@ contains
     if (firstCall) write(*,*) "Entering subroutine oer_sw"
     firstCall = .false.
 
-    ! Default values for namelist variables
-    SWQI(:)  = ''
-    SWQI(1)  = 'METSAT7:qi1'
-    SWQI(2)  = 'METSAT8:qi1'
-    SWQI(3)  = 'METSAT9:qi1'
-    SWQI(4)  = 'METSAT10:qi1'
-    SWQI(5)  = 'METSAT11:qi1'
-    SWQI(6)  = 'HMWARI-8:qi1'
-    SWQI(7)  = 'HMWARI-9:qi1'
-    SWQI(8)  = 'GOES13:qi1'
-    SWQI(9)  = 'GOES15:qi1'
-    SWQI(10) = 'GOES16:qi1'
-    SWQI(11) = 'GOES17:qi1'
-    SWQI(12) = 'GOES18:qi1'
-    SWQI(13) = 'NOAA15:qi1'
-    SWQI(14) = 'NOAA16:qi1'
-    SWQI(15) = 'NOAA18:qi1'
-    SWQI(16) = 'NOAA19:qi1'
-    SWQI(17) = 'NOAA20:qi1'
-    SWQI(18) = 'NOAA21:qi1'
-    SWQI(19) = 'NPP:qi1'
-    SWQI(20) = 'AQUA:qi1'
-    SWQI(21) = 'TERRA:qi1'
-    SWQI(22) = 'METOP-1:qi1'
-    SWQI(23) = 'METOP-2:qi1'
-    SWQI(24) = 'METOP-3:qi1'
-    SWQI(25) = 'METOP1-3:qi1'
-    SWQI(26) = 'GEO-POL:qi1'
-
-    if (utl_isNamelistPresent('namsw','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
-      read (utl_flnml, nml = NAMSW, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_sw: Error reading namelist')
-      call utl_tmg_stop(181)
-    else
-      if ( mmpi_myid == 0 ) then
-        write(*,*)
-        write(*,*) 'oer_sw: Namelist block NAMSW is missing in the namelist.'
-        write(*,*) '        The default values will be taken.'
-      end if
-    end if
-    if (mmpi_myid == 0) write(*,nml=namsw)
-
-    nsats = getNumSats(maxSat,SWQI)
-    allocate(SWname(nsats))
-    allocate(QIvalue(nsats))
-    do isat = 1, nsats
-      call utl_splitString(SWQI(isat),':',SWQIArray)
-      SWname(isat) = SWQIArray(1)
-      QIvalue(isat) = SWQIArray(2)
-      deallocate(SWQIArray)
-    end do
+    call swd_readSwqi(SWname,QIvalue)
+    nsats = size(QIvalue)
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
@@ -2411,9 +2355,11 @@ contains
             case ('qi2')
               ! consider the case where iqiv2 <= 0
               if (iqiv2 <= 0) then
+                write(*,*) 'oer_sw: : QI2 <= 0 thus QI1 will be used ', cstnId
                 iqiv = iqiv1
+              else
+                iqiv = iqiv2
               end if
-              iqiv = iqiv2
             case default
               iqiv = iqiv1
               write(*,*)  'oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2). Using default value QI1'
@@ -2481,28 +2427,6 @@ contains
 
     deallocate(QIvalue)
     deallocate(SWname)
-
-    contains
-
-      integer function getNumSats(maxSat,vars)
-        !
-        !:Purpose: count the number of satellites, i.e. count the number of non ''
-        !
-        implicit none
-
-        ! Arguments:
-        integer,           intent(in) :: maxSat
-        character(len=20), intent(in) :: vars(maxSat)
-
-        ! Locals:
-        integer                       :: varIndex
-
-        getNumSats = 0
-        do varIndex = 1, maxSat
-          if (trim(vars(varIndex)) /= '') getNumSats = getNumSats + 1
-        end do
-
-      end function getNumSats
 
   end subroutine oer_sw
 

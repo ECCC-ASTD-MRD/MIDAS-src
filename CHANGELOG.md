@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Introduce flexibility to select either QI1 or QI2 for thinning of AMVs (#1006 and !958)
 
 ### Changed
 

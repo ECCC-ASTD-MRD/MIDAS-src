@@ -23,6 +23,7 @@ module thinning_mod
   use physicsFunctions_mod
   use utilities_mod
   use kdTree2_mod
+  use satWind_mod
 
   implicit none
   private
@@ -207,7 +208,7 @@ contains
     integer :: deltemps ! number of time bins between adjacent observations
     integer :: deldist  ! minimal distance in km between adjacent observations
 
-    namelist /thin_satwind/deltemps, deldist
+    namelist /thin_satwind/ deltemps, deldist
 
     ! return if no satwind obs
     if (.not. obs_famExist(obsdat,'SW')) return
@@ -3691,6 +3692,7 @@ contains
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
+    integer :: satIndex
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
@@ -3699,14 +3701,15 @@ contains
     logical :: obsAlreadySameStep, skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
-    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
-    integer, allocatable :: quality(:), qualityMpi(:)
-    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
-    integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
-    integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
-    integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
-    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
+    integer,           allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
+    integer,           allocatable :: quality(:), qualityMpi(:)
+    integer,           allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
+    integer,           allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
+    integer,           allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
+    integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
+    integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:)
+    logical,           allocatable :: valid(:), validMpi(:), validMpi2(:)
+    character(len=20), allocatable :: SWname(:), QIvalue(:)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
@@ -3765,6 +3768,9 @@ contains
     bgckCount = 0
     missingCount = 0
 
+    ! get QI information
+    call swd_readSwqi(SWname,QIvalue)
+
     ! First pass through observations
     numStnId = 0
     call obs_set_current_header_list(obsdat,trim(familyType))
@@ -3820,8 +3826,26 @@ contains
       ! extract additional information
       obsMethod(headerIndex) = obs_headElem_i(obsdat, OBS_SWMT, headerIndex)
 
-      ! set the observation quality based on QI1
-      quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+      ! set the observation quality based on QI1 or QI2
+      LOOP_QI: do satIndex = 1, size(SWname)
+        if ( trim(SWname(satIndex)) == trim(stnId(2:)) ) then
+          select case (trim(QIvalue(satIndex)))
+            case ('qi1')
+              quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+            case ('qi2')
+              quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ2, headerIndex)
+              ! consider the case where iqiv2 <= 0
+              if (quality(headerIndex) <= 0) then
+                write(*,*) "thn_satWindsByDistance: QI2 <= 0 thus QI1 will be used ", stnId
+                quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+              end if
+            case default
+              call utl_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
+          end select
+          exit LOOP_QI
+        end if
+        if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
+      end do LOOP_QI
 
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = nullValue
