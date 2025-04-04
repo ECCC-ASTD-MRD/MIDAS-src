@@ -656,15 +656,16 @@ contains
     ! Locals:
     integer :: ierr                       ! status flag
     integer, parameter :: maxStnIdNum=100 ! Max allowed stnid for thinning
+    integer, parameter :: maxLayerNum=100 ! Max allowed number of averaging layer boundaries
     integer :: stnIdIndex                 ! Station ID loop index   
 
     ! Namelist variables:
-    integer           :: deltemps        ! number of time bins between adjacent observations
-    integer           :: deldist         ! minimal horizontal distance in km between adjacent observations
+    integer           :: deltemps(maxStnIdNum)        ! number of time bins between adjacent observations
+    integer           :: deldist(maxStnIdNum)         ! minimal horizontal distance in km between adjacent observations
     integer           :: keepNthVertical(maxStnIdNum) ! keep every nth vertical datum
     real(8)           :: maxSunList(maxStnIdNum)      ! max solar zenith angle (degrees)
     character(len=9)  :: stnIdList(maxStnIdNum)       ! Station ID of obs sources to be thinned
-    character(len=10) :: methodList(maxStnIdNum)      ! Thinning method
+    character(len=20) :: methodList(maxStnIdNum)      ! Thinning method
     
     namelist /thin_CH/deltemps, deldist, stnIdList, methodList, maxSunList, &
                       keepNthVertical
@@ -673,13 +674,13 @@ contains
     if (.not. obs_famExist(obsdat,'CH')) return
 
     ! Default values for namelist variables
-    deltemps     = 1
-    deldist      = 100.0d0
-    stnidList(:) = ''
+    deltemps(:)   = 1
+    deldist(:)    = 100.0d0
+    stnIdList(:)  = ''
     methodList(:) = ''
     maxSunList(:) = 90.0d0
     keepNthVertical(:) = 1
-
+    
     ! Read the namelist for CH family observations (if it exists)
     if (utl_isNamelistPresent('thin_CH','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
@@ -700,13 +701,13 @@ contains
       if (trim(stnidList(stnIdIndex)) == '') exit STNIDLOOP
       if (trim(methodList(stnIdIndex)) == 'byDistance') then
         call utl_tmg_start(114,'--ObsThinning for ' // stnIdList(stnIdIndex) )
-        call thn_CHfamByDistance(obsdat, deltemps, deldist, &
+        call thn_CHfamByDistance(obsdat, deltemps(stnIdIndex), deldist(stnIdIndex), &
                                  maxSunList(stnIdIndex), stnIdList(stnIdIndex))
         call utl_tmg_stop(114)
       else if (trim(methodList(stnIdIndex)) == 'byNthLevel' .and. &
                keepNthVertical(stnIdIndex) > 1) then
         call utl_tmg_start(114,'--ObsThinning for ' // stnIdList(stnIdIndex) )
-        call thn_keepNthObs2(obsdat, 'CH', keepNthVertical(stnIdIndex), &
+        call thn_keepNthObs(obsdat, 'CH', keepNthVertical(stnIdIndex), &
                              stnId_opt = stnIdList(stnIdIndex))
         call utl_tmg_stop(114)
       else
@@ -5395,106 +5396,13 @@ contains
   !--------------------------------------------------------------------------
   ! thn_keepNthObs
   !--------------------------------------------------------------------------
-  subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical)
+  subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical, stnId_opt)
     !
     ! :Purpose: Of the observations in a column that have not already been
     !           rejected, keep every nth observation and throw out the rest.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
     !
-    implicit none
-
-    ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: keepNthVertical
-
-    ! Locals:
-    integer, parameter :: PROFILE_NOT_FOUND=-1
-    integer :: headerIndex, bodyIndex
-    integer :: flag
-    integer :: countKeepN ! count to keep every Nth observation in the column
-    integer :: newProfileId
-
-    write(*,*)
-    write(*,*) 'thn_keepNthObs: Starting'
-    write(*,*)
-
-    countKeepN=0
-
-    ! Loop over all body indices (columns) of the family of interest and
-    ! thin each column independently of the others
-    call obs_set_current_body_list(obsdat, familyType)
-    BODY: do
-      bodyIndex = obs_getBodyIndex(obsdat)
-      if (bodyIndex < 0) exit BODY
-
-      ! If datum already rejected, ignore it
-      flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-      if ( btest(flag,9) .or. &
-           btest(flag,11) ) cycle BODY
-
-      headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
-      newProfileId = obs_headElem_i(obsdat, OBS_PRFL, headerIndex)
-
-      countKeepN=countKeepN + 1
-      if ( countKeepN == keepNthVertical .or. &
-           new_column() ) then
-        ! Reset the counter and keep this observation
-        countKeepN=0
-      else
-        ! Reject this observation
-        call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
-      end if
-
-    end do BODY
-
-    write(*,*)
-    write(*,*) 'thn_keepNthObs: Finished'
-    write(*,*)
-
-  contains
-    function new_column()
-      !
-      ! :Purpose: Determine whether the current observation begins a new vertical column
-      !           (Assume that observations are in chronological order)
-      !
-      ! :Note:  This method has been written with aladin observations in mind.
-      !         It might be necessary to generalize the method.
-      !
-      implicit none
-
-      ! Result:
-      logical :: new_column
-
-      ! Locals:
-      integer, save :: previousProfileId=huge(previousProfileId)
-
-      if (newProfileId == PROFILE_NOT_FOUND) then
-        ! The profile ID for this element is missing.
-        ! Assume that it is the same as the previous element
-        newProfileId = previousProfileId
-      end if
-
-      if (newProfileId /= previousProfileId) then
-        previousProfileId = newProfileId
-        new_column=.true.
-      else
-        new_column=.false.
-      end if
-    end function new_column
-
-  end subroutine thn_keepNthObs
-
-  !--------------------------------------------------------------------------
-  ! thn_keepNthObs2
-  !--------------------------------------------------------------------------
-  subroutine thn_keepNthObs2(obsdat, familyType, keepNthVertical, stnId_opt)
-    !
-    ! :Purpose: Of the observations in a column that have not already been
-    !           rejected, keep every nth observation and throw out the rest.
-    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-    !
-    ! :Comments: Based on thn_keepNthObs
+    ! :Comments: Based on original thn_keepNthObs for AL
     !
     implicit none
 
@@ -5510,13 +5418,10 @@ contains
     integer :: countKeepN ! count to keep every Nth observation in the column
 
     write(*,*)
-    write(*,*) 'thn_keepNthObs2: Starting'
+    write(*,*) 'thn_keepNthObs: Starting'
     write(*,*)
 
-    countKeepN=0
-
-    ! Loop over all body indices (columns) of the family of interest and
-    ! thin each column independently of the others
+    ! Loop over all obs of the family of interest and thin each obs column
 
     call obs_set_current_header_list(obsdat,familyType)
     HEADER: do
@@ -5534,7 +5439,14 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
-            BUFR_SCALE_EXPONENT) cycle BODY
+            BUFR_SCALE_EXPONENT) then
+          if (countKeepN /= 0) then
+            ! Reject exponent associated to the observation
+            ! Assumes/requires the exponent to follow the mantissa
+            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
+          end if  
+          cycle BODY
+        end if
 
         ! If datum already rejected, ignore it
         flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
@@ -5555,10 +5467,10 @@ contains
     end do HEADER
     
     write(*,*)
-    write(*,*) 'thn_keepNthObs2: Finished'
+    write(*,*) 'thn_keepNthObs: Finished'
     write(*,*)
 
-  end subroutine thn_keepNthObs2
+  end subroutine thn_keepNthObs
 
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
