@@ -3844,7 +3844,7 @@ contains
           end select
           exit LOOP_QI
         end if
-        if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannout find matched satellite from the namelist')
+        if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
 
       ! find observation flags (assumes 1 level only per headerIndex)
