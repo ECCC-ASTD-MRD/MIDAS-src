@@ -2311,6 +2311,7 @@ contains
     firstCall = .false.
 
     call swd_readSwqi(SWname,QIvalue)
+    nsats = size(QIvalue)
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
