@@ -2355,9 +2355,11 @@ contains
             case ('qi2')
               ! consider the case where iqiv2 <= 0
               if (iqiv2 <= 0) then
+                write(*,*) 'oer_sw: : QI2 <= 0 thus QI1 will be used ', cstnId
                 iqiv = iqiv1
+              else
+                iqiv = iqiv2
               end if
-              iqiv = iqiv2
             case default
               iqiv = iqiv1
               write(*,*)  'oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2). Using default value QI1'
