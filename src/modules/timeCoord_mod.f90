@@ -724,7 +724,7 @@ contains
         if (validTimeMax >= 24) then
           validTimeMax = 0
           imode = 3
-          ier = newdate(dateStampIn, dateMax, validTimeMax, imode)
+          ier = newdate(dateStampIn, int(dateMax,4), validTimeMax, imode)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
           imode = -3
           ier = newdate(dateStampOut, validDateMax, validTimeMax, imode)
