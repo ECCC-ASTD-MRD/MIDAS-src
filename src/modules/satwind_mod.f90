@@ -73,12 +73,12 @@ contains
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=NAMSW, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading NAMSW namelist')
+      if (ierr /= 0) call utl_abort('swd_readSwqi: Error reading NAMSW namelist')
       call utl_tmg_stop(181)
     else
       write(*,*)
-      write(*,*) 'thn_thinSatWinds: Namelist block NAMSW is missing in the namelist.'
-      write(*,*) '                  The default value will be taken.'
+      write(*,*) 'swd_readSwqi: Namelist block NAMSW is missing in the namelist.'
+      write(*,*) '              The default value will be taken.'
     end if
     if (mmpi_myid == 0) write(*,nml=NAMSW)
 
