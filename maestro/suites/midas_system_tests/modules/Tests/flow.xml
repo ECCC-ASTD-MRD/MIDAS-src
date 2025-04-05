@@ -355,6 +355,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="thin_CH"/>
+      <FAMILY  name="thin_CH">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>    
     </FAMILY>
 
   </FAMILY>

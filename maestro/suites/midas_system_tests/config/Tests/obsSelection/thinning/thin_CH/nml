@@ -1,0 +1,54 @@
+ &namObsSelection
+   doBgck     = .false.
+   doBiasCorr = .false.
+   doThinning = .true.
+/
+ &THIN_CH
+  stnIdList(1)='AUROMI00'  ! OMI on AURA
+  stnIdList(2)='22*94700'  ! OMPS-NM on NPP 
+  stnIdList(3)='22*94700'  ! OMPS-NM on NOAA-20
+  stnIdList(4)='....'      ! Ozonesondes
+  methodList(1:3)='byDistance'
+  methodList(4)='byNthLevel'
+  maxSunList(1:3)=84.0
+  keepNthVertical(4)=5 
+/
+ &NAMTIME
+  DSTEPOBS = 0.25D0
+/
+ &NAMFILT
+   NLIST(1)=15198,
+   NLIST(2)=15199,
+   NLIST(3)=15208,
+   NLIST(4)=15008,
+   NLIST(5)=15208,
+   NLIST(6)=15230,
+   NLIST(7)=12001,
+   NLISTFLG(1)=2,
+   NLISTFLG(2)=4,
+   NLISTFLG(3)=5,
+   NLISTFLG(4)=6,
+   NLISTFLG(5)=11,
+   NLISTFLG(6)=-5,
+   NLISTFLG(7)=-8,
+   RLIMLVHU=70.,
+/
+ &NAMDIMO
+   NMXOBS=200000,
+   NDATAMX=2000000,
+/
+ &NAMCODTYP
+   cnames(1)='CHEMREMOTE',
+   icod(1)=195, 
+   cnames(2)='CHEMINSITU',
+   icod(2)=196, 
+/
+&NAMBURP_FILTER_CHM_SFC
+  BLISTELEMENTS_SFC=15198,15208,8090 
+/
+&NAMBURP_FILTER_CHM
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
+/
+ &NAMCHEM
+  MODELNAME='GEM'   ! To identify O3L instead of TO3 from BUFR no.
+/
