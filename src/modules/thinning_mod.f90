@@ -645,7 +645,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine thn_thinCH(obsdat)
     !
-    ! :Purpose: Main thinning subroutine for CH family retrieved constituent 
+    ! :Purpose: Main thinning subroutine for CH family retrieved constituent
     !           observations.
     !
     implicit none
@@ -657,7 +657,7 @@ contains
     integer :: ierr                       ! status flag
     integer, parameter :: maxStnIdNum=100 ! Max allowed stnid for thinning
     integer, parameter :: maxLayerNum=100 ! Max allowed number of averaging layer boundaries
-    integer :: stnIdIndex                 ! Station ID loop index   
+    integer :: stnIdIndex                 ! Station ID loop index
 
     ! Namelist variables:
     integer           :: deltemps(maxStnIdNum)        ! number of time bins between adjacent observations
@@ -666,7 +666,7 @@ contains
     real(8)           :: maxSunList(maxStnIdNum)      ! max solar zenith angle (degrees)
     character(len=9)  :: stnIdList(maxStnIdNum)       ! Station ID of obs sources to be thinned
     character(len=20) :: methodList(maxStnIdNum)      ! Thinning method
-    
+
     namelist /thin_CH/deltemps, deldist, stnIdList, methodList, maxSunList, &
                       keepNthVertical
 
@@ -680,7 +680,7 @@ contains
     methodList(:) = ''
     maxSunList(:) = 90.0d0
     keepNthVertical(:) = 1
-    
+
     ! Read the namelist for CH family observations (if it exists)
     if (utl_isNamelistPresent('thin_CH','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
@@ -715,7 +715,7 @@ contains
                         'or identified for ' //  stnIdList(stnIdIndex))
       end if
    end do STNIDLOOP
-      
+
   end subroutine thn_thinCH
 
   !--------------------------------------------------------------------------
@@ -3788,14 +3788,13 @@ contains
                             'mpi_max', 'grid', ierr)
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
 
-
     ! Identify set of observations to be treated in thinning
     countObs = 0
     oountRejectedInObs = 0
     allocate(quality(numHeaderMaxMpi))
     allocate(qualityMpi(numHeaderMpi))
     quality(:) = nullValue
-    qualityMpI(:) = nullValue    
+    qualityMpI(:) = nullValue
     call obs_set_current_header_list(obsdat,'CH')
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -3825,6 +3824,13 @@ contains
           quality(headerIndex) = 1
         else
           oountRejectedInObs = oountRejectedInObs + 1
+          call obs_set_current_body_list(obsdat, headerIndex)
+          BODY01b: do
+            bodyIndex = obs_getBodyIndex(obsdat)
+            if (bodyIndex < 0) exit BODY01b
+            obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          end do BODY01b
         end if
       else
         ! Flag and exclude data beyond solar zenith angle threshold
@@ -3857,7 +3863,7 @@ contains
                countObs, countObsInMpi
     write(*,*) 'thn_CHfamByDistance: number of rejected initial obs  = ', &
                oountRejectedInObs, countRejectedInObsMpi
-               
+
     thinDistance = real(deldist)
 
     if (mmpi_myid == 0) then
@@ -3874,7 +3880,7 @@ contains
       write(*,*) 'Minimum number of time bins between obs = ', deltemps
       write(*,*) 'Central time bin                        = ', middleStep
       write(*,*)
-    end if 
+    end if
 
     ! Allocations:
     allocate(obsLatBurpFile(numHeaderMaxMpi))
@@ -3908,7 +3914,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER1
       if (quality(headerIndex) == nullValue) cycle HEADER1
-      
+
       ! get latitude and longitude
       obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LON, headerIndex)
       obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
@@ -4035,7 +4041,7 @@ contains
       write(*,'(a50,i10)') 'Number of output obs                  = ', countObsOutMpi
       write(*,'(a60,i10)') 'Number of rejects outside time window = ', badTimeCountMpi
     end if
-    
+
     write(*,*)
     write(*,*) 'thn_CHfamByDistance: Finished'
     write(*,*)
@@ -5416,6 +5422,7 @@ contains
     integer :: headerIndex, bodyIndex
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
+    logical :: flagged
 
     write(*,*)
     write(*,*) 'thn_keepNthObs: Starting'
@@ -5440,11 +5447,13 @@ contains
         if (bodyIndex < 0) exit BODY
         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
             BUFR_SCALE_EXPONENT) then
-          if (countKeepN /= 0) then
+          ! Exponent expected to follow the datum
+          if (flagged) then
             ! Reject exponent associated to the observation
             ! Assumes/requires the exponent to follow the mantissa
+            flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
             call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
-          end if  
+          end if
           cycle BODY
         end if
 
@@ -5452,20 +5461,25 @@ contains
         flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if (btest(flag,18) .or. btest(flag,17) .or. btest(flag,16) .or. &
             btest(flag,9) .or. btest(flag,8) .or. btest(flag,4) .or. &
-            btest(flag,3) .or. btest(flag,2)) cycle body
+            btest(flag,3) .or. btest(flag,2))
+          flagged = .false.
+          cycle body
+        end if
 
         countKeepN=countKeepN + 1
         if ( countKeepN == keepNthVertical ) then
           ! Reset the counter and keep this observation
+          flagged = .false.
           countKeepN=0
         else
           ! Reject this observation
+          flagged = .true.
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
         end if
 
       end do BODY
     end do HEADER
-    
+
     write(*,*)
     write(*,*) 'thn_keepNthObs: Finished'
     write(*,*)
