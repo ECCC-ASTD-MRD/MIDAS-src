@@ -1769,7 +1769,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (trim(etiket_in) == '') then
-      fstRecords(:)%etiket = statevector%etiket
+      fstRecords(:)%etiket = trim(statevector%etiket)
     else
       fstRecords(:)%etiket = trim(etiket_in)
     end if
