@@ -5608,12 +5608,12 @@ contains
     integer :: obsDate, obsTime
     real(4) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
-    logical :: global1, global2
     logical :: use055200
     integer, allocatable :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer, allocatable :: obsFov(:), obsFovMpi(:)
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
+    logical, allocatable :: isGlobal(:), isGlobalMpi(:)
     logical, allocatable :: validMpi(:)
     character(len=12)    :: stnId
     type(kdtree2), pointer            :: tree
@@ -5648,6 +5648,8 @@ contains
     allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
     allocate(rarsCriterium(numHeaderMaxMpi))
     allocate(rarsCriteriumMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(isGlobal(numHeaderMaxMpi))
+    allocate(isGlobalMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
     allocate(obsFovMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
@@ -5669,9 +5671,12 @@ contains
       if (use055200) then
         ! flag (element 055200)
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
+        isGlobal(headerIndex) =  btest(rarsCriterium(headerIndex),10) .and. &
+                          (.not. btest(rarsCriterium(headerIndex),22) )
       else
         ! Originating centre of data
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
+        isGlobal(headerIndex) = any(centreOrigGlobal(:) == rarsCriterium(headerIndex))
       end if
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
@@ -5705,6 +5710,8 @@ contains
                             validMpi, nsize, 'mpi_logical', 'grid', ierr)
     call rpn_comm_allgather(rarsCriterium,    nsize, 'mpi_integer',  &
                             rarsCriteriumMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(isGlobal,    nsize, 'mpi_logical',  &
+                            isGlobalMpi, nsize, 'mpi_logical', 'grid', ierr)
     call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
                             obsFovMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDateStamp,    nsize, 'mpi_integer',  &
@@ -5754,17 +5761,14 @@ contains
               if ( abs(dlhours) <= 0.1 ) then
 
                 ! si l'element_i est global, on doit le garder et rejeter l'element_j
-                global1 = isGlobal( rarsCriteriumMpi(headerIndex1) )
-                if (global1) then 
+                if (isGlobalMpi(headerIndex1)) then  
                   validMpi(headerIndex2) = .false.
                 else
                   ! toutefois, ca ne signifie pas que l'element_j est un rars
                   ! VERIFIER SI LA STATION 2 EST RARS
-                  global2 = isGlobal( rarsCriteriumMpi(headerIndex2) )
-
                   ! Si l'element_j est global, rejeter l'element_i
                   ! Si les 2 elements sont rars, garder le 1er
-                  if (global2) then 
+                  if (isGlobalMpi(headerIndex2)) then 
                     validMpi(headerIndex1) = .false.
                     cycle HEADER1
                   else
@@ -5791,6 +5795,8 @@ contains
     deallocate(obsPosition3dMpi)
     deallocate(rarsCriterium)
     deallocate(rarsCriteriumMpi)
+    deallocate(isGlobal)
+    deallocate(isGlobalMpi)
     deallocate(obsFov)
     deallocate(obsFovMpi)
     deallocate(obsDateStamp)
@@ -5798,24 +5804,6 @@ contains
     deallocate(validMpi)
     deallocate(stnIdInt)
     deallocate(stnIdIntMpi)
-
-  contains
-
-    logical function isGlobal(rarsCriterium)
-      !
-      ! :Purpose: is the observation global (.true.) or from Rars (.false.)
-      !
-      implicit none
-
-      integer, intent(in) :: rarsCriterium
-
-      if (use055200) then
-         isGlobal = btest(rarsCriterium,10) .and. (.not. btest(rarsCriterium,22) )
-      else
-         isGlobal = any(centreOrigGlobal(:) == rarsCriterium)
-      end if
-      
-    end function isGlobal
 
   end subroutine thn_removeRarsDuplicates
 
