@@ -674,11 +674,11 @@ contains
     if (.not. obs_famExist(obsdat,'CH')) return
 
     ! Default values for namelist variables
-    deltemps(:)   = 1
-    deldist(:)    = 100.0d0
+    deltemps(:)   = 1        ! default is a single time bin for thinning time intervals
+    deldist(:)    = 111.32d0 ! default value is for 1 degree of arc on the Earth's surface at the equator
     stnIdList(:)  = ''
     methodList(:) = ''
-    maxSunList(:) = 90.0d0
+    maxSunList(:) = 90.0d0 
     keepNthVertical(:) = 1
 
     ! Read the namelist for CH family observations (if it exists)
@@ -3813,9 +3813,10 @@ contains
               BUFR_SCALE_EXPONENT) cycle BODY01
           flagCount = flagCount + 1
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          if (btest(obsFlag,18) .or. btest(obsFlag,17) .or. btest(obsFlag,16) &
-              .or. btest(obsFlag,9) .or. btest(obsFlag,8) .or. btest(obsFlag,4) &
-              .or. btest(obsFlag,3) .or. btest(obsFlag,2)) then
+          if (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
+              btest(obsFlag,9) .or. btest(obsFlag,8) .or. &
+              btest(obsFlag,4) .or. btest(obsFlag,3) .or. &
+              btest(obsFlag,2)) then
             badFlagCount = badFlagCount + 1
           end if
         end do BODY01
@@ -5459,11 +5460,13 @@ contains
 
         ! If datum already rejected, ignore it
         flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-        if (btest(flag,18) .or. btest(flag,17) .or. btest(flag,16) .or. &
-            btest(flag,9) .or. btest(flag,8) .or. btest(flag,4) .or. &
-            btest(flag,3) .or. btest(flag,2))
+        if (trim(familyType) == 'AL') then
+          if ( btest(flag,9) .or. btest(flag,11) ) cycle BODY            
+        else if (btest(flag,18) .or. btest(flag,16) .or. &
+                 btest(flag,11) .or. btest(flag,9) .or.  btest(flag,8) .or. &
+                 btest(flag,4) .or. btest(flag,3) .or. btest(flag,2)) then
           flagged = .false.
-          cycle body
+          cycle BODY
         end if
 
         countKeepN=countKeepN + 1
