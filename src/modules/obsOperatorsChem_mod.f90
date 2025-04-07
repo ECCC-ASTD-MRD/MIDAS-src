@@ -3836,7 +3836,6 @@ module obsOperatorsChem_mod
 
       !$OMP PARALLEL DO PRIVATE(modlevIndex)
       do modlevIndex=levelIndexTop,levelIndexBot
-
         work(modlevIndex)=sum(obsoper%zhp(obslevIndex,levelIndexTop:levelIndexBot) &
           *bgStats%corvert(modlevIndex,levelIndexTop:levelIndexBot,varIndex) &
           *fdeStddev(levelIndexTop:levelIndexBot,1))*fdeStddev(modlevIndex,1)

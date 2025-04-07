@@ -1419,11 +1419,11 @@ contains
   subroutine ppo_vertLayersSetup(operatorType,pressInput,numInputLevs)
     !
     !:Purpose: Preliminary calculations for producing components required for
-    !          vertical integration (or averaging) w.r.t. pressure for the full  
-    !          vertical rangeor a set of target layers. To be called before 
+    !          vertical integration (or averaging) w.r.t. pressure for the full
+    !          vertical range or a set of target layers. To be called before
     !          routine ppo_vertIntegWgts or ppo_vertAvgWgts.
     !
-    !          Integration calculations are performed appling quadratic interpolation 
+    !          Integration calculations are performed appling quadratic interpolation
     !          in P between level. 
     !
     !:Input:
@@ -1455,7 +1455,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: operatorType       ! 'integ' for integration; 'avg' for averaging
+    character(len=*), intent(in) :: operatorType             ! 'integ' for integration; 'avg' for averaging
     integer,          intent(in) :: numInputLevs             ! # of model vertical levels
     real(8),          intent(in) :: pressInput(numInputLevs) ! Reference input levels
 
@@ -1466,43 +1466,43 @@ contains
     ! Determine P boundaries of layers and save weights for
     ! use in setting integration (or averaging) weights.
     ! N.B.: Boundaries of layers set to mid-point between input levels
-      
+
     ! Calculate layer boundaries
 
     if (allocated(boundaries)) deallocate(boundaries)
     allocate(boundaries(numInputLevs+1))
-    
+
     boundaries(1)=pressInput(1)
     boundaries(numInputLevs+1)= pressInput(numInputLevs)
 
-    !$OMP PARALLEL DO PRIVATE(levelIndex)    
+    !$OMP PARALLEL DO PRIVATE(levelIndex)
     DO levelIndex = 2, numInputLevs
        boundaries(levelIndex)=sqrt(pressInput(levelIndex-1)*pressInput(levelIndex))
     END DO
-    !$OMP END PARALLEL DO 
+    !$OMP END PARALLEL DO
 
     if (allocated(weights)) deallocate(weights)
-    
+
     if ( trim(operatorType) == 'avg' ) then
-    
+
       ! Initialize weights as scaling factors of unity.
 
-      allocate(weights(numInputLevs,1))      
+      allocate(weights(numInputLevs,1))
       weights(:,:) = 1.0d0
-    
+
     else
 
       ! Set second degree Lagrangian interpolator weights
 
-      allocate(weights(numInputLevs,numInputLevs))            
+      allocate(weights(numInputLevs,numInputLevs))
       weights(:,:) = 0.0d0
-    
+
       ! Interpolation to mid-layer level in P using
       ! second degree Lagrangian interpolator.
       ! N.B.: Integration is w.r.t. P
-    
+
       ! Calculating for levelIndex=1
-    
+
       zp1= pressInput(1)
       zp2= pressInput(2)
       zp3= pressInput(3)
@@ -1514,7 +1514,7 @@ contains
       weights(2,1)=zr2
       weights(3,1)=zr3
 
-      !$OMP PARALLEL DO PRIVATE(levelIndex,zp1,zp2,zp3,zp,zr1,zr2,zr3)    
+      !$OMP PARALLEL DO PRIVATE(levelIndex,zp1,zp2,zp3,zp,zr1,zr2,zr3)
       DO levelIndex=2,numInputLevs-1
         zp1=pressInput(levelIndex-1)
         zp2=pressInput(levelIndex)
@@ -1527,10 +1527,10 @@ contains
         weights(levelIndex,levelIndex)=zr2
         weights(levelIndex+1,levelIndex)=zr3
       ENDDO
-      !$OMP END PARALLEL DO 
-    
+      !$OMP END PARALLEL DO
+
       ! Calculating  for levelIndex=numInputLevs
-    
+
       zp1= pressInput(numInputLevs-2)
       zp2= pressInput(numInputLevs-1)
       zp3= pressInput(numInputLevs)
@@ -1551,19 +1551,19 @@ contains
   !--------------------------------------------------------------------------
   subroutine ppo_vertIntegWgts(targetLayersTop,targetLayersBot,numInputLevs, &
                                 numTargetLevs,kstart,kend,wgts,wgts_opt,skipType_opt, &
-                                outbound_opt,success_opt,dealloc_opt)   
+                                outbound_opt,success_opt,dealloc_opt)
     !
     !:Purpose: To calculate integration weights "wgts" required for vertical integration w.r.t.
-    !          pressure for the full vertical range or a set of target layers. 
-    !          Given the calculated weights and a user intergrand array vector X, the integral 
+    !          pressure for the full vertical range or a set of target layers.
+    !          Given the calculated weights and a user intergrand array vector X, the integral
     !          for a given layer i would be given by sum(wgts(i,:)*X(:))
     !
-    !          Integration calculations are performed applying quadratic interpolation 
+    !          Integration calculations are performed applying quadratic interpolation
     !          in P between level.
     !
     !          Routine ppo_vertLayersSetup to be called beforehand to generate Lagrangian weights
     !          and related layer boundaries (arrays 'weights' and 'boundaries')
-    ! 
+    !
     !:Input:
     !         :targetLayersTop:    top of target layers
     !         :targetLayersBot:    bottom of target layers
@@ -1571,7 +1571,7 @@ contains
     !         :numTargetLevs:      # of target vertical levels
     !         :kstart:             Index of first relevant original/input level for each target level
     !         :kend:               Index of last relevant original/input level for each target level
-    !                              If kstart and kend are non-zero on input, 
+    !                              If kstart and kend are non-zero on input,
     !                              the input are initial estimates of the values.
     !         :weights:            See routine ppo_vertLayersSetup
     !         :boundaries:         Boundaries of input layers
@@ -1603,19 +1603,19 @@ contains
     logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
-    integer :: TargetIndex   
+    integer :: TargetIndex
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
     integer, parameter :: ivweights=2  ! Order of Lagrangian interpolation.
     integer :: levelIndex,JK,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: zp, zp1, zp2, zp3, zr1, zr2, zr3, ptop, pbtm
-    
+
     if (present(skipType_opt)) then
       skipType = skipType_opt
     else
       skipType = 'default'
-    end if 
+    end if
  
     if (present(success_opt)) then
       if ( trim(skipType) == 'doAll&noExtrap') then
@@ -1630,16 +1630,16 @@ contains
         end if
       else
         success(:) = success_opt(:)
-      end if 
+      end if
     else
       success(:) = .true.
     end if
-        
+
     do TargetIndex=1,numTargetLevs
 
       if ( .not.success(TargetIndex) ) then
         wgts(TargetIndex,:) = 0.0D0
-        wgts_opt(TargetIndex,:) = 0.0D0          
+        wgts_opt(TargetIndex,:) = 0.0D0
         kstart(TargetIndex)=1
         kend(TargetIndex)=1
         cycle
@@ -1647,10 +1647,10 @@ contains
 
       ptop = targetLayersTop(TargetIndex)
       pbtm = targetLayersBot(TargetIndex)
-         
+
       ! Find the range of vertical levels over which to perform the integration
       ! and set the integration weights over this range.
-          
+
       ilmin=1
       ilmax=numInputLevs
       if (ptop <= boundaries(1)*1.01 .and. &
@@ -1658,7 +1658,7 @@ contains
 
         ! Total column integration part
 
-        !$OMP PARALLEL DO PRIVATE(jk,levelIndex)                  
+        !$OMP PARALLEL DO PRIVATE(jk,levelIndex)
         do jk = 1,numInputLevs
           do levelIndex=max(1,jk-ivweights),min(numInputLevs,jk+ivweights)
             wgts(TargetIndex,jk) = wgts(TargetIndex,jk) &
@@ -1669,21 +1669,21 @@ contains
                                             weights(jk,levelIndex)
           end do
         end do
-        !$OMP END PARALLEL DO                 
-             
+        !$OMP END PARALLEL DO
+
       else
 
         ! Partial column integration part (special treatment at boundaries)
-     
+
         ! Identify input layer boundaries just within the target layer.
-             
+
         ilmin = ppo_getLevelIndex(ptop, boundaries, 'top', numInputLevs+1)
         ilmax = ppo_getLevelIndex(pbtm, boundaries, 'btm', numInputLevs+1)
-               
+
         if (ilmin == ilmax+1) then
 
           ! Entire target layer within one input layer
-                
+
           levelIndex=ilmax
           if (levelIndex < 3) levelIndex=3
           if (levelIndex > numInputLevs) levelIndex=numInputLevs
@@ -1694,7 +1694,7 @@ contains
           zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
           zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
           zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                
+
           wgts(TargetIndex,levelIndex-2)=(pbtm-ptop)*zr1
           wgts(TargetIndex,levelIndex-1)=(pbtm-ptop)*zr2
           wgts(TargetIndex,levelIndex)=(pbtm-ptop)*zr3
@@ -1705,12 +1705,12 @@ contains
           end if
           ilmin=levelIndex-2
           ilmax=levelIndex
-                  
+
         else
-                
+
           ! Determine terms from the inner layers (excluding the lower and upper
           ! boundary layers when these layers not covering entire input layers)
-                
+
           if (pbtm >= boundaries(numInputLevs)*0.99) then
             ilmax2=numInputLevs
           else
@@ -1723,7 +1723,7 @@ contains
             ilmin2=ilmin
           end if
           if (ilmin2 <= ilmax2) then
-            !$OMP PARALLEL DO PRIVATE(jk,levelIndex)                  
+            !$OMP PARALLEL DO PRIVATE(jk,levelIndex)             
             do jk = ilmin2,ilmax2
               do levelIndex=max(1,jk-ivweights),min(numInputLevs,jk+ivweights)
                 wgts(TargetIndex,jk)=wgts(TargetIndex,jk)+(boundaries(levelIndex+1) &
@@ -1732,14 +1732,14 @@ contains
                   wgts_opt(TargetIndex,jk)=wgts_opt(TargetIndex,jk)+weights(jk,levelIndex)
               end do
             end do
-            !$OMP END PARALLEL DO               
+            !$OMP END PARALLEL DO
           end if
-                
+
           ! Determine terms from the lower and upper boundary layers
           ! when these layers do not cover entire input layers.
-                
+
           if (pbtm < boundaries(numInputLevs)*0.99) then
-                     
+
             levelIndex=ilmax+1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
             if (levelIndex < 3) levelIndex=3
@@ -1750,22 +1750,22 @@ contains
             zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
             zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
             zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                   
+
             wgts(TargetIndex,levelIndex-2)=wgts(TargetIndex,levelIndex-2)+(pbtm - boundaries(ilmax))*zr1
             wgts(TargetIndex,levelIndex-1)=wgts(TargetIndex,levelIndex-1)+(pbtm - boundaries(ilmax))*zr2
             wgts(TargetIndex,levelIndex)=wgts(TargetIndex,levelIndex)+(pbtm - boundaries(ilmax))*zr3
-           
+
             if (present(wgts_opt)) then
               wgts_opt(TargetIndex,levelIndex-2)=wgts_opt(TargetIndex,levelIndex-2)+zr1
               wgts_opt(TargetIndex,levelIndex-1)=wgts_opt(TargetIndex,levelIndex-1)+zr2
               wgts_opt(TargetIndex,levelIndex)=wgts_opt(TargetIndex,levelIndex)+zr3
             end if
             ilmax=levelIndex
-                  
+
           end if
-                  
+
           if (ptop > boundaries(1)*1.01) then
-                     
+
             levelIndex=ilmin-1
             if (levelIndex < 1) levelIndex=1
             if (levelIndex > numInputLevs-2) levelIndex=numInputLevs-2
@@ -1776,11 +1776,11 @@ contains
             zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
             zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
             zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                   
+
             wgts(TargetIndex,levelIndex)=wgts(TargetIndex,levelIndex)+(boundaries(ilmin)-ptop)*zr1
             wgts(TargetIndex,levelIndex+1)=wgts(TargetIndex,levelIndex+1)+(boundaries(ilmin)-ptop)*zr2
             wgts(TargetIndex,levelIndex+2)=wgts(TargetIndex,levelIndex+2)+(boundaries(ilmin)-ptop)*zr3
-                   
+
             if (present(wgts_opt)) then
               wgts_opt(TargetIndex,levelIndex)=wgts_opt(TargetIndex,levelIndex)+zr1
               wgts_opt(TargetIndex,levelIndex+1)=wgts_opt(TargetIndex,levelIndex+1)+zr2
@@ -1788,7 +1788,7 @@ contains
             end if
             ilmin=levelIndex
             if (ilmax < levelIndex+2) ilmax=levelIndex+2
-                   
+
           end if
           if (ilmin > ilmax-2) ilmin=ilmax-2
         end if
@@ -1805,13 +1805,13 @@ contains
 
       kstart(TargetIndex)=ilmin
       kend(TargetIndex)=ilmax
-       
+
     end do
 
     if (present(dealloc_opt)) then
       if (dealloc_opt) deallocate(weights,boundaries)
     end if
-    
+
   end subroutine ppo_vertIntegWgts
 
   !--------------------------------------------------------------------------
@@ -1820,13 +1820,13 @@ contains
   integer function ppo_getLevelIndex(level, layerBoundaryLevels, topbtm, numBoundaries)
     !
     !:Purpose: To get the vertical input level index for level
-    !          within target layer and nearest specified layer boundary.  
+    !          within target layer and nearest specified layer boundary.
     !
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: numBoundaries  ! Number of layer boundaries       
-    real(8),          intent(in) :: level          ! Target layer index      
+    integer,          intent(in) :: numBoundaries  ! Number of layer boundaries
+    real(8),          intent(in) :: level          ! Target layer index
     real(8),          intent(in) :: layerBoundaryLevels(numBoundaries) ! Layer boundaries
     character(len=*), intent(in) :: topbtm         ! indicating whether we are looking for top or bottom level
 
@@ -1834,19 +1834,19 @@ contains
     integer     :: ilev1, ilev2
     integer     :: levelIndex
 
-    ! Find the model levels adjacent to pressure level 
+    ! Find the model levels adjacent to pressure level
 
     ! Default values
-    
+
     if (level < 0.0d0) then
       if ((topbtm == 'btm') .or. (topbtm == 'BTM')) then
         ppo_getLevelIndex = numBoundaries
       endif
       if ((topbtm == 'top') .or. (topbtm == 'TOP')) then
         ppo_getLevelIndex = 1
-      endif                                                  
+      endif     
     endif
-      
+
     ilev1=0
     ilev2=1
     do levelIndex=1,numBoundaries
@@ -1860,10 +1860,10 @@ contains
 
     ! Find the input level index
 
-    ! If we are looking for top level, the index is the level immediately 
-    ! below. if looking for bottom level, the index is the one immediately 
+    ! If we are looking for top level, the index is the level immediately
+    ! below. if looking for bottom level, the index is the one immediately
     ! above.
-    
+
     if ((topbtm == 'btm') .or. (topbtm == 'BTM')) then
       ppo_getLevelIndex=ilev1
     else if ((topbtm == 'top') .or. (topbtm == 'TOP')) then
@@ -1872,7 +1872,7 @@ contains
 
     if (ppo_getLevelIndex < 1) ppo_getLevelIndex=1
     if (ppo_getLevelIndex > numBoundaries) ppo_getLevelIndex=numBoundaries
-  
+
   end function ppo_getLevelIndex
 
   !--------------------------------------------------------------------------
@@ -1880,11 +1880,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine ppo_vertAvgWgts(targetLayersTop,targetLayersBot,numInputLevs, &
                              numTargetLevs,kstart,kend,wgts,wgts_opt,skipType_opt, &
-                             outbound_opt,success_opt,dealloc_opt)   
+                             outbound_opt,success_opt,dealloc_opt)
     !
     !:Purpose: To calculate averaging weights "wgts" required for vertical averaging 
-    !          w.r.t. ln(pressure) for the full vertical range or a set of target layers. 
-    !          Given the calculated weights and a user input array vector X, the average 
+    !          w.r.t. ln(pressure) for the full vertical range or a set of target layers.
+    !          Given the calculated weights and a user input array vector X, the average
     !          for a given layer i would be given by sum(wgts(i,:)*X(:))
     !
     !          Routine ppo_vertLayersSetup to be called beforehand to initial weigths
@@ -1897,7 +1897,7 @@ contains
     !         :numTargetLevs:      # of target vertical levels
     !         :kstart:             Index of first relevant original/input level for each target level
     !         :kend:               Index of last relevant original/input level for each target level
-    !                              If kstart and kend are non-zero on input, 
+    !                              If kstart and kend are non-zero on input,
     !                              the input are initial estimates of the values.
     ! 
     !         :weights:            See routine ppo_vertLayersSetup
@@ -1930,19 +1930,19 @@ contains
     logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
-    integer :: TargetIndex   
+    integer :: TargetIndex
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
     integer :: levelIndex,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: SumWeights, TargetLayerThickWgt, ptop, pbtm
-    
+
     if (present(skipType_opt)) then
       skipType = skipType_opt
     else
       skipType = 'default'
-    end if 
- 
+    end if
+
     if (present(success_opt)) then
       if ( trim(skipType) == 'doAll&noExtrap') then
         if (present(outbound_opt)) then
@@ -1956,16 +1956,16 @@ contains
         end if
       else
         success(:) = success_opt(:)
-      end if 
+      end if
     else
       success(:) = .true.
     end if
-        
+
     do TargetIndex=1,numTargetLevs
 
       if ( .not.success(TargetIndex) ) then
         wgts(TargetIndex,:) = 0.0D0
-        wgts_opt(TargetIndex,:) = 0.0D0          
+        wgts_opt(TargetIndex,:) = 0.0D0
         kstart(TargetIndex)=1
         kend(TargetIndex)=1
         cycle
@@ -1974,10 +1974,10 @@ contains
       ptop = targetLayersTop(TargetIndex)
       pbtm = targetLayersBot(TargetIndex)
       TargetLayerThickWgt=1.0D0/(min(pbtm,boundaries(numInputLevs+1))-max(ptop,boundaries(1)))
-         
+
       ! Find the range of vertical levels over which to perform the averaging
       ! and set the averaging weights over this range.
-          
+
       ilmin=1
       ilmax=numInputLevs
       if (ptop <= boundaries(1)*1.01 .and. pbtm >= boundaries(numInputLevs+1)*0.99) then
@@ -1985,29 +1985,29 @@ contains
         ! Total column averaging part
 
         SumWeights=1.0D0/sum(weights(1:numInputLevs,1))
-        !$OMP PARALLEL DO PRIVATE(levelIndex)                  
+        !$OMP PARALLEL DO PRIVATE(levelIndex)
         do levelIndex = 1,numInputLevs
           wgts(TargetIndex,levelIndex)=(boundaries(levelIndex+1) &
                 -boundaries(levelIndex))*TargetLayerThickWgt
           if (present(wgts_opt)) &
             wgts_opt(TargetIndex,levelIndex)=SumWeights
         end do
-        !$OMP END PARALLEL DO                 
-             
+        !$OMP END PARALLEL DO
+
       else
 
         ! Partial column averaging part (special treatment at boundaries)
-     
+
         ! Identify the vertical input level indices for levels
-        ! within target layer and nearest specified layer boundary. 
+        ! within target layer and nearest specified layer boundary.
 
         ilmin = ppo_getLevelIndex(ptop, boundaries, 'top', numInputLevs+1)
         ilmax = ppo_getLevelIndex(pbtm, boundaries, 'btm', numInputLevs+1)
-               
+
         if (ilmin == ilmax+1) then
 
           ! Entire target layer within one input layer
-                
+
           levelIndex=ilmin
           if (levelIndex < 1) levelIndex=1
           if (levelIndex > numInputLevs) levelIndex=numInputLevs
@@ -2016,12 +2016,12 @@ contains
           if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=1.0D0
           ilmin=levelIndex
           ilmax=levelIndex+1
-                  
+
         else
-                
+
           ! Determine terms from the inner layers (excluding the lower and upper
           ! boundary layers when these layers not covering entire input layers)
-                
+
           if (pbtm >= boundaries(numInputLevs)*0.99) then
             ilmax2=numInputLevs
           else
@@ -2037,39 +2037,39 @@ contains
           SumWeights=1.0D0/sum(weights(ilmin:ilmax,1))
 
           if (ilmin2 <= ilmax2) then
-            !$OMP PARALLEL DO PRIVATE(levelIndex)                  
+            !$OMP PARALLEL DO PRIVATE(levelIndex)
             do levelIndex = ilmin2,ilmax2
               wgts(TargetIndex,levelIndex) = &
                    (boundaries(levelIndex+1)-boundaries(levelIndex))*TargetLayerThickWgt
               if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
             end do
-            !$OMP END PARALLEL DO               
+            !$OMP END PARALLEL DO
           end if
-                
+
           ! Determine terms from the lower and upper boundary layers
           ! when these layers do not cover entire input layers.
-                
+
           if (pbtm < boundaries(numInputLevs)*0.99) then
-                     
+
             levelIndex=ilmax+1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
             if (levelIndex < 1) levelIndex=1
-                   
+
             wgts(TargetIndex,levelIndex)= &
                  (pbtm - boundaries(ilmax))*TargetLayerThickWgt
-            
+
             if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
 
             ilmax=levelIndex
-                  
+
           end if
-                  
+
           if (ptop > boundaries(1)*1.01) then
-                     
+
             levelIndex=ilmin-1
             if (levelIndex < 1) levelIndex=1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
-                   
+
             wgts(TargetIndex,levelIndex)= &
                  (boundaries(ilmin)-ptop)*TargetLayerThickWgt
 
@@ -2077,7 +2077,7 @@ contains
 
             ilmin=levelIndex
             if (ilmax < levelIndex+1) ilmax=levelIndex+1
-                   
+
           end if
           if (ilmin > ilmax-1) ilmin=ilmax-1
         end if
@@ -2085,13 +2085,13 @@ contains
 
       kstart(TargetIndex)=ilmin
       kend(TargetIndex)=ilmax
-       
+
     end do
 
     if (present(dealloc_opt)) then
       if (dealloc_opt) deallocate(weights,boundaries)
     end if
-    
+
   end subroutine ppo_vertAvgWgts
-   
+
 end module presProfileOperators_mod
