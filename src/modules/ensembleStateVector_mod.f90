@@ -1198,6 +1198,11 @@ CONTAINS
     if (.not. gsv_isAllocated(statevector)) then
       call utl_abort('ens_copyMember: statevector not allocated')
     else
+      if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
+        write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
+        write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
+        call utl_abort('ens_copyMember: mpi distibution not compatible')
+      end if
       nullify(varNamesInGsv)
       call gsv_varNamesList(varNamesInGsv, statevector)
     end if
@@ -1315,6 +1320,12 @@ CONTAINS
       call utl_abort('ens_insertMember: ens not allocated')
     end if
 
+    if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
+      write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
+      write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
+      call utl_abort('ens_insertMember: mpi distibution not compatible')
+    end if
+    
     numStep = ens%statevector_work%numStep
 
     nullify(varNamesInEns)
@@ -1366,6 +1377,9 @@ CONTAINS
 
       do varIndex = 1, size(varNamesInGsv)
         varName = varNamesInGsv(varIndex)
+
+        if (.not. ens_varExist(ens,varName)) cycle
+
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName),varName)
         if (ens%dataKind == 8) then
           call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)

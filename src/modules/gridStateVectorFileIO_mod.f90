@@ -967,7 +967,7 @@ module gridStateVectorFileIO_mod
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                          1:gsv_getHco(statevector)%nj), 8) * 10.0d0
+                                          1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -1768,8 +1768,8 @@ module gridStateVectorFileIO_mod
       fstRecords(:)%ip2 = 0
     end if
 
-    if (statevector%etiket /= 'UNDEFINED') then
-      fstRecords(:)%etiket = statevector%etiket
+    if (trim(etiket_in) == '') then
+      fstRecords(:)%etiket = trim(statevector%etiket)
     else
       fstRecords(:)%etiket = trim(etiket_in)
     end if
@@ -1882,7 +1882,7 @@ module gridStateVectorFileIO_mod
           fstRecords(0)%nomvar = nomvar
 
           !- Scale
-          factor_r4 = real(1.0d0 / 10.0d0, 4)
+          factor_r4 = utl_unitConvMultFactor_r4(nomvar,'toFSTfile')
           work2d_r4(:,:,0) = factor_r4 * work2d_r4(:,:,0)
 
           fstRecords(0)%data = c_loc(work2d_r4(:,:,0))
@@ -1998,18 +1998,10 @@ module gridStateVectorFileIO_mod
 
         ! Set the conversion factor
         if (unitConversion) then
-
-          if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-            factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-          else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-               trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
-            factor_r4 = 0.01 ! Pa -> hPa
-          else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
-            if ( gsv_conversionVarKindCHtoMicrograms ) then
-              ! Apply inverse transform of unit conversion
-              if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
-                factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                     vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+          if (vnl_varKindFromVarname(trim(nomvar)) == 'CH') then
+            if (gsv_conversionVarKindCHtoMicrograms) then
+              if (trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L') then
+                factor_r4 = utl_unitConvMultFactor_r4(nomvar, 'toFSTfile')
               else
                 factor_r4 = 1.0 ! no conversion
               end if
@@ -2017,7 +2009,7 @@ module gridStateVectorFileIO_mod
               factor_r4 = 1.0 ! no conversion
             end if
           else
-            factor_r4 = 1.0 ! no conversion
+            factor_r4 = utl_unitConvMultFactor_r4(nomvar, 'toFSTfile')
           end if
         else
           factor_r4 = 1.0 ! no conversion
@@ -2507,17 +2499,10 @@ module gridStateVectorFileIO_mod
       VARLEVCYCLE: do varLevIndex = stateVector%myVarLevBeg, stateVector%myVarLevEnd
         varName = gsv_getVarNameFromVarLev(statevector, varLevIndex)
 
-        if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
-          multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
-        else if (trim(varName) == 'P0' .or. trim(varName) == 'P0LS') then
-          multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
-        else if (vnl_varKindFromVarname(trim(varName)) == 'CH') then 
+        if (vnl_varKindFromVarname(trim(varName)) == 'CH') then
           if (gsv_conversionVarKindCHtoMicrograms) then
             if (trim(varName) == 'TO3' .or. trim(varName) == 'O3L') then
-              ! Convert from volume mixing ratio to micrograms/kg
-              ! Standard ozone input would not require this conversion as it is already in micrograms/kg
-              multFactor = 1.0d9 * vnl_varMassFromVarName(trim(varName)) / &
-                           mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+              multFactor = utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
             else
               multFactor = 1.0d0 ! no conversion
             end if
@@ -2525,7 +2510,7 @@ module gridStateVectorFileIO_mod
             multFactor = 1.0d0 ! no conversion
           end if
         else
-          multFactor = 1.0d0 ! no conversion
+          multFactor = utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
         end if
 
         if (multFactor /= 1.0d0) then
@@ -2603,7 +2588,7 @@ module gridStateVectorFileIO_mod
 
       ! Do unit conversion for extra copy of winds, if present
       IFWINDS: if (statevector%extraUVallocated) then
-        multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+        multFactor = utl_unitConvMultFactor_r8('UV', 'fromFSTfile')
 
         if (statevector%dataKind == 4) then
           !$OMP PARALLEL DO PRIVATE (varLevIndex, fieldUV_r4_ptr)

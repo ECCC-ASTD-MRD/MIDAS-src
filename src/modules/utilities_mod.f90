@@ -16,6 +16,7 @@ module utilities_mod
   ! Public procedures
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
+  public :: utl_unitConvMultFactor_r8, utl_unitConvMultFactor_r4
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse
   public :: utl_pseudo_inverse, utl_fastMatMul
   public :: utl_writeStatus, utl_getfldprm, utl_abort
@@ -490,6 +491,114 @@ contains
     call utl_tmg_stop(184)
 
   end subroutine utl_fastMatMul
+
+  !--------------------------------------------------------------------------
+  ! utl_unitConvMultFactor_r4
+  !--------------------------------------------------------------------------
+  function utl_unitConvMultFactor_r4(varName, direction) result(multFactor)
+    !
+    !:Purpose: Return the multiplicative factor for unit conversion between
+    !          FST files and MIDAS (real 4 version)
+    !
+    implicit none
+
+    ! arguments
+    character(len=*), intent(in) :: varName
+    character(len=*), intent(in) :: direction ! toFSTfile (writing) or fromFSTfile (reading)
+    ! output
+    real(4) :: multFactor
+
+    if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
+      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+    end if
+
+    ! Multiplicative factor for data conversion
+    select case(trim(varName))
+    case ('P0','P0LS','PB','UP')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = mpc_pa_per_mbar_r4 ! hPa -> Pa
+      else
+        multFactor = 0.01 ! Pa -> hPa
+      end if
+    case ('UU','VV','UV')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = mpc_m_per_s_per_knot_r4 ! knots -> m/s
+      else
+        multFactor = mpc_knots_per_m_per_s_r4 ! m/s -> knots
+      end if
+    case ('GZ')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = 10.0 ! dam -> m
+      else
+        multFactor = real(1.0d0 / 10.0d0,4) ! m -> dam
+      end if 
+    case ('TO3','O3L')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = 1.0E9 * mpc_molar_mass_O3_r4 / &
+                     mpc_molar_mass_dry_air_r4 ! vmr -> micrograms/kg
+      else
+        multFactor = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
+                     mpc_molar_mass_O3_r4 ! micrograms/kg -> vmr
+      end if
+    case default
+      multFactor = 1.0
+    end select 
+    
+  end function utl_unitConvMultFactor_r4
+  
+  !--------------------------------------------------------------------------
+  ! utl_unitConvMultFactor_r8
+  !--------------------------------------------------------------------------
+  function utl_unitConvMultFactor_r8(varName, direction) result(multFactor)
+    !
+    !:Purpose: Return the multiplicative factor for unit conversion between
+    !          FST files and MIDAS (real 8 version)
+    !
+    implicit none
+
+    ! arguments
+    character(len=*), intent(in) :: varName
+    character(len=*), intent(in) :: direction ! toFSTfile (writing) or fromFSTfile (reading)
+    ! output
+    real(8) :: multFactor
+
+    if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
+      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+    end if
+
+    ! Multiplicative factor for data conversion
+    select case(trim(varName))
+    case ('P0','P0LS','UP','PB')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
+      else
+        multFactor = 0.01d0 ! Pa -> hPa
+      end if
+    case ('UU','VV','UV')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+      else
+        multFactor = mpc_knots_per_m_per_s_r8 ! m/s -> knots
+      end if
+    case ('GZ')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = 10.0d0 ! dam -> m
+      else
+        multFactor = 1.0d0 / 10.0d0 ! m -> dam
+      end if
+    case ('TO3','O3L')
+      if (trim(direction) == 'fromFSTfile' ) then
+        multFactor = 1.0d9 * mpc_molar_mass_O3_r8 / &
+                     mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+      else
+        multFactor = 1.0d-9 * mpc_molar_mass_dry_air_r8 / &
+                     mpc_molar_mass_O3_r8 ! micrograms/kg -> vmr
+      end if
+    case default
+      multFactor = 1.d0
+    end select
+ 
+  end function utl_unitConvMultFactor_r8
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
