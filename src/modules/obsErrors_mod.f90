@@ -3206,14 +3206,14 @@ contains
 
     ! read from the observation file if requested
     do istnid=1,chm_std%n_stnid
-       if (chm_std%source(istnid).ge.1) then
-          
-          ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_std%obsStdDev(istnid) = obsf_obsSub_read('CH',chm_std%stnids(istnid),chm_std%element(istnid), &
-                                 chm_std%n_lvl(istnid),ndim,bkstp_opt=14,block_opt='DATA', &
-                                 match_nlev_opt=chm_std%source(istnid).eq.1)
+      if (chm_std%source(istnid).ge.1) then
 
-       end if
+        ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
+        chm_std%obsStdDev(istnid) = obsf_obsSubRead('CH',chm_std%stnids(istnid),chm_std%element(istnid), &
+                                    chm_std%n_lvl(istnid),ndim,bkstp_opt=14,block_opt='DATA', &
+                                    match_nlev_opt=chm_std%source(istnid).eq.1)
+
+      end if
     end do
 
   end subroutine chm_read_obs_err_stddev

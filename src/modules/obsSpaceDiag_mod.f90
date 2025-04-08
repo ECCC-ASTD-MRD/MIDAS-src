@@ -1162,8 +1162,8 @@ contains
     ! (with ndim=1, bkstp=15 and block_type='DATA')
 
     status_hpht=.true.
-    SqrtHPHT_struct = obsf_obsSub_read(obsfam,stnid,-1,max_nlev,ndim,bkstp_opt=15,block_opt='DATA', &
-                                    match_nlev_opt=.false.,codtyp_opt=codtyplist)
+    SqrtHPHT_struct = obsf_obsSubRead(obsfam,stnid,-1,max_nlev,ndim,bkstp_opt=15,block_opt='DATA', &
+                                      match_nlev_opt=.false.,codtyp_opt=codtyplist)
 
     if (SqrtHPHT_struct%nrep == 0) then
        write(*,*) 'osd_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'

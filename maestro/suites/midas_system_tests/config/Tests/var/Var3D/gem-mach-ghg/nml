@@ -77,8 +77,12 @@
 /
  &NAMCHEM
   assim_all=.false.
-  assim_num=3
+  assim_num=4
   assim_stnid(1)='AICON003'  ! Aircraft CO2 obs
   assim_stnid(2)='SI***003'  ! Sfc CO2 obs
   assim_stnid(3)='TI***003'  ! Tower CO2 obs
+  assim_stnid(4)='28943203'  ! OCO-2 XCO2 
+  operatorSubType(1,1)='28943203'
+  operatorSubType(2,1)='genOperInterp'
+  genOperConstraintType(3)='Trial'
 /

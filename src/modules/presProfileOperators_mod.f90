@@ -308,7 +308,7 @@ contains
 
   !==========================================================================
   !---- Stand-alone interpolation routine providing interpolation weights ---
-  ! For weights W(:,:) and initial vector X(:), the integrated values would be W*X.  
+  ! For weights W(:,:) and initial vector X(:), the integrated values would be W*X.
 
   !--------------------------------------------------------------------------
   ! ppo_vertInterpWgts
@@ -316,7 +316,7 @@ contains
   subroutine ppo_vertInterpWgts(pressInput,pressTarget,numInputLevs,numTargetLevs, &
                                 wgts,kstart,kend,method_opt,skipType_opt,outbound_opt,success_opt)
     !
-    !:Purpose: Determination of interpolation weights for interpolation to points 
+    !:Purpose: Determination of interpolation weights for interpolation to points
     !          in a profile. Applies interpolation in log(Pressure).
     !
     !:Input:
@@ -331,13 +331,13 @@ contains
     !                          'doAll&noExtrap'  - no extrapolation only (all other levels processed)
     !:InOut:
     !       :outbound_opt:     Flag set when beyond range of reference levels
-    !       :success_opt:      LOgical indicating a valid target level
+    !       :success_opt:      Logical indicating a valid target level
     !
     !:Output:
     !
     !       :wgts:             Interpolation coefficients/weights
-    !       :kstart:           Index of first relevant referenence/input level for each target level
-    !       :kend:             Index of last relevant referenence/input level for each target levbel
+    !       :kstart:           Index of first relevant reference/input level for each target level
+    !       :kend:             Index of last relevant reference/input level for each target level
     ! 
     implicit none
 
@@ -355,7 +355,7 @@ contains
     integer,                    intent(out)   :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
 
     ! Locals:
-    integer :: TargetIndex 
+    integer :: TargetIndex
     real(8) :: logPressInput(numInputLevs),logPressTarget(numTargetLevs)
     real(8) :: pieceLinearWgts(numTargetLevs,2)
     logical :: success(numTargetLevs)
@@ -366,25 +366,25 @@ contains
     else
       method = 'default'
     end if
-        
+
     if (present(skipType_opt)) then
       skipType = skipType_opt
     else
       skipType = 'default'
-    end if 
+    end if
  
     if (present(success_opt)) then
       if ( trim(skipType) == 'doAll&noExtrap' ) then
         success(:)=.true.
       else
         success(:) = success_opt(:)
-      end if 
+      end if
     else
       success(:) = .true.
     end if
-    
+
     ! Flag to prevent extrapolation beyond the range of the reference column levels
-        
+
     if ( trim(skipType) == 'noExtrap' .or. trim(skipType) == 'doAll&noExtrap' ) then
 
       do TargetIndex=1,numTargetLevs
@@ -403,21 +403,21 @@ contains
         end if
       end do
     end if
-        
+
     if ( trim(method) == 'default' ) then
 
       ! Piecewise log-linear interpolation
-      
+
       logPressInput(:) = log(PressInput(:))
       logPressTarget(:) = log(PressTarget(:))
 
       call ppo_piecewiseLinearWgts(logPressTarget,logPressInput,numTargetLevs,numInputLevs, &
                                  pieceLinearWgts,kstart,success)
-                                              
-      kend(:) = kstart(:) + 1      
+
+      kend(:) = kstart(:) + 1
       do TargetIndex=1,numTargetLevs
         if (success(TargetIndex)) then
-          kend(TargetIndex) = kstart(TargetIndex) + 1      
+          kend(TargetIndex) = kstart(TargetIndex) + 1
           wgts(TargetIndex,kstart(TargetIndex))=pieceLinearWgts(TargetIndex,1)
           wgts(TargetIndex,kend(TargetIndex))=pieceLinearWgts(TargetIndex,2)
         else
@@ -427,26 +427,26 @@ contains
         end if
       end do
 
-    else if ( (trim(method) == 'wgtAvg' .or. trim(method) == 'genOperInterp') &
-              .and. numTargetLevs > 1) then
-    
+    else if ( (trim(method) == 'wgtAvg' .or. trim(method) == 'genOperInterp' .or. &
+               trim(method) == 'wgtAvgInnov') .and. numTargetLevs > 1) then
+
       ! Piecewise weighted averaging according to distance 
       ! Involves all model levels within the profile range
-      
+
       logPressInput(:) = log(PressInput(:))
       logPressTarget(:) = log(PressTarget(:))
-      
+
       call ppo_layeravgInterpWgts(logPressTarget,logPressInput,numTargetLevs,numInputLevs, &
                                   wgts,kstart,kend,validLevel_opt=success)
 
     else
       call utl_abort('ppo_vertInterpWgts: This interpolation observation operator is not recognized')
     end if
-    
+
   end subroutine ppo_vertInterpWgts
-  
+
   !------------ routines for interface ppo_linearInterpWgts ----------------
-  
+
   !--------------------------------------------------------------------------
   ! ppo_piecewiseLinearWgts
   !--------------------------------------------------------------------------
@@ -465,29 +465,29 @@ contains
     real(8),           intent(out) :: wgts(kno,2)  ! Interpolation weights (destination)
     integer,           intent(out) :: kstart(kno)  ! Index i of pvlev level associated to pvo(j,1); pvo(j,2) is for pvlev level i+1
     logical, optional, intent(out) :: validLevel_opt(kno)
-    
+
     ! Locals:
     integer :: pviIndex, pvoIndex, ik
-    integer :: lowerlevel(0:KNO)     
+    integer :: lowerlevel(0:KNO)
     real(8) :: zw1, zp2
     logical :: validLevel(kno)
-      
+
     if (present(validLevel_opt)) then
       validLevel(:) = validLevel_opt(:)
     else
       validLevel(:) = .true.
     end if
-    
+
     ! Find the adjacent level below
-    
+
     lowerlevel(:)=1
     lowerlevel(1:kno) = 0
     do pvoIndex=1,kno
-      if (.not.validLevel(pvoIndex)) cycle 
+      if (.not.validLevel(pvoIndex)) cycle
       do pviIndex=max(1,lowerlevel(pvoIndex-1)),kni
         if ( pvo(pvoIndex) < pvi(pviIndex) ) then
           lowerlevel(pvoIndex) = pviIndex
-          exit 
+          exit
         end if
       end do
       if (pviIndex > kni .or. lowerlevel(pvoIndex) == 0 ) then
@@ -495,18 +495,18 @@ contains
         exit
       end if
     end do
-    
+
     ! Determine interpolation/extrapolation weights
-  
-    !$OMP PARALLEL DO PRIVATE(pvoIndex,ik,zp2,zw1)    
+
+    !$OMP PARALLEL DO PRIVATE(pvoIndex,ik,zp2,zw1)
     do pvoIndex=1,kno
-      if (.not.validLevel(pvoIndex)) then    
+      if (.not.validLevel(pvoIndex)) then
         kstart(pvoIndex)=1
         wgts(pvoIndex,1) = 0.0d0
         wgts(pvoIndex,2) = 0.0d0
         cycle
       end if
-      
+
       ik = lowerlevel(pvoIndex)
       if (ik <=1 ) then
         kstart(pvoIndex)=1
@@ -525,7 +525,7 @@ contains
       end if
     end do
     !$OMP END PARALLEL DO
-           
+
   end subroutine ppo_piecewiseLinearWgts
 
   !--------------------------------------------------------------------------
@@ -534,15 +534,15 @@ contains
   subroutine ppo_layeravgInterpWgts(PX1,PX2,KN1,KN2,PZ,kstart,kend,PZS1_opt, &
                                      PZS2_opt,PZDPS_opt,rttov_opt,validLevel_opt)
     !
-    !:Purpose: Determine profile interpolation weights by considering integrations 
-    !          over of series of  segments [PX1(KI-1),PX1(KI+1)] using  piecewise 
+    !:Purpose: Determine profile interpolation weights by considering integrations
+    !          over of series of  segments [PX1(KI-1),PX1(KI+1)] using  piecewise
     !          linear weighting with weights of zero at  KI-1 and KI+1 and 
     !          max weight at KI. KI ranges from 1 to KN1.
     !
-    !          Can also provide gradient contributions from both 
-    !          linear and non-linear components of interpolator. The non-linear 
-    !          components (case PZS* is present) stem from vertical coordinate 
-    !          independent variables (e.g. dependency on Ps). The gradients 
+    !          Can also provide gradient contributions from both
+    !          linear and non-linear components of interpolator. The non-linear
+    !          components (case PZS* is present) stem from vertical coordinate
+    !          independent variables (e.g. dependency on Ps). The gradients
     !          contributions from the linear components are the interpolation weights.
     !
     !          For the interpolation model f(x) where
@@ -551,10 +551,10 @@ contains
     !                       ~ F(vo)*xo + F(vo)*(x-xo) + (dF/dv)*xo*(v-vo)
     !                       = F(vo)*x + (dF/dv)*xo*(v-vo)                (eqn 1)
     ! 
-    !          
+    !
     !                 F(vo):  array of interpolation weights
     !                         = array of gradients from the linear component
-    !                 (dF/dv)*xo:  
+    !                 (dF/dv)*xo:
     !                         array of gradients from linearized component.
     !                         (dF/dv) or (dF/dv)*(v-vo) provided when pzs* is present
     !
@@ -568,61 +568,61 @@ contains
     !
     !               URL:
     !               http://www3.interscience.wiley.com/cgi-bin/fulltext/116320452/PDFSTART
-    !  
+    !
     !:Comments:
-    !                    
+    !
     !     Assumption: PX1(i)<PX1(i+1) & PX2(i)<PX2(i+1)
     !
     !     1) The input profile is now extrapolated at constant value.
     !
-    !     The impact is of most practical significance for instruments where 
+    !     The impact is of most practical significance for instruments where
     !     the weighting function peaks at or near the surface such as SSMI.
     !
     !     This approach increases the weights of contribution from
     !     the lowest and highest input domain levels for output
     !     layers intersecting these input domain boundaries. It consists
-    !     of applying contant value extrapolation by introducing  
-    !     'fake' or 'virtual' layers. For the lowest level of the input domain, 
-    !     as example, this implies creating a virtual surface layer which 
-    !     extends to the lower boundary of the output domain layer which 
+    !     of applying contant value extrapolation by introducing
+    !     'fake' or 'virtual' layers. For the lowest level of the input domain,
+    !     as example, this implies creating a virtual surface layer which
+    !     extends to the lower boundary of the output domain layer which
     !     contains the input domain surface. This increases the
-    !     contributing weight of the surface which would be otherwise 
-    !     understimated in the original code due to the interpolator 
+    !     contributing weight of the surface which would be otherwise
+    !     understimated in the original code due to the interpolator
     !     actually doing piecewise weighted averaging.
     !
-    !     2) COmment out use of 'zb' for consistency with RTTOV-9 when 
+    !     2) COmment out use of 'zb' for consistency with RTTOV-9 when
     !     rttov_opt = .true.
     !     See the four lines ending with !C1 and version 7 comment above.
     !
     !     3) A major reduction in computational time results from only
     !     assigning values to the non-zero ranges of the 2D output
     !     arrays. These ranges of the 2D areas are identified by 'kstart'
-    !     and 'kend'. Initialization to zero for values within these ranges 
+    !     and 'kend'. Initialization to zero for values within these ranges
     !     is done using 1D work arrays 'zpz' and 'zpzd', with the resulting
-    !     values then being assigned to the related elements of 'PZ' and 
+    !     values then being assigned to the related elements of 'PZ' and
     !     'PZDPS'.
     !
-    !     Therefore, elements of 'PZ' and 'PZDPS' outside these ranges 
+    !     Therefore, elements of 'PZ' and 'PZDPS' outside these ranges
     !     could be undefined (i.e. NaN if not 0.0) and should not be used.
     !
     !     Other notable reductions in computational time stem (a) from inlining
     !     of 'sublayer' code (applied to a reduced degree in 'layeravg' as
-    !     compared to 'rttov_layeravg_*) and (b) from updating the start 
+    !     compared to 'rttov_layeravg_*) and (b) from updating the start
     !     position 'istart' of the loops over J. The latter was faciliated 
     !     by moving the loop over KI inside 'layeravg'.
     !
-    !     These improvements were originally devised and implemented by 
-    !     Deborah Salmond and Mats Hamrud (ECMWF) in the RTTOV-9 routines 
+    !     These improvements were originally devised and implemented by
+    !     Deborah Salmond and Mats Hamrud (ECMWF) in the RTTOV-9 routines
     !     'rttov_layeravg*'.
     !
-    !     4) Contributors to improvements and changes to the original version 
-    !     of 'layeravg' and to 'rttov_layeravg*': members of the RTTOV9 
+    !     4) Contributors to improvements and changes to the original version
+    !     of 'layeravg' and to 'rttov_layeravg*': members of the RTTOV9
     !     development team, namely Niels Bormann, Alan Geer, Deborah Salmond,
-    !     and Mats Hamrud of ECMWF, Peter Rayer and Roger Saunders of the 
+    !     and Mats Hamrud of ECMWF, Peter Rayer and Roger Saunders of the
     !     Met Office and Pascal Brunel of Meteo-France, and Y.J. Rochon (EC).
-    !                                
+    !
     implicit none
-     
+
     ! Arguments:
     integer,           intent(in)  :: KN1          ! Dimension of PX1
     integer,           intent(in)  :: KN2          ! Dimension of other arrays
@@ -636,8 +636,8 @@ contains
     real(8), optional, intent(out) :: PZDPS_opt(KN1,KN2) ! dF/dv or perturbations (dF/dv)*(v-vo): Resultant accumulated factors for the gradients w.r.t. v (or perturbations) associated to coordinates
     logical, optional, intent(in)  :: RTTOV_OPT  ! Commented out use of 'zb' when .true. for consistency with RTTOV-9
     logical, optional, intent(in)  :: validLevel_opt(kn1) ! Logical indicating validity of each output level
-                  
-    ! Locals:                
+
+    ! Locals:
     logical  :: LGRADP,lgradp1,lgradp2,validLevel(kn1)
     integer  :: J,IC,ISTART,KI
     real(8)  :: Z1(0:KN1+1),ZW1,ZW2,ZSUM,ZB,ZBPS,ZWPS1,ZWPS2,ZDXD
@@ -649,16 +649,16 @@ contains
 
     !- Set integration/averaging range boundaries for output domain.
     !  Range of integration for each layer ki is z1(ki-1) to z1(ki+1).
-    !  Weighting function is linear with weights of 0.0 at z1(ki-1) and 
+    !  Weighting function is linear with weights of 0.0 at z1(ki-1) and
     !  z1(ki+1) and a weight of 1.0 at z1(ki).
 
     z1(1:kn1)=px1(1:kn1)
     z1(0)=2.0*px1(1)-px1(2)
     z1(kn1+1)=2.0*px1(kn1)-px1(kn1-1)
 
-    if (present(pzs1_opt)) then 
+    if (present(pzs1_opt)) then
       lgradp1=.true.
-      lgradp=.true.     
+      lgradp=.true.
       pz1(1:kn1)=pzs1_opt(1:kn1)
       pz1(0)=2.0*pzs1_opt(1)-pzs1_opt(2)
       pz1(kn1+1)=2.0*pzs1_opt(kn1)-pzs1_opt(kn1-1)
@@ -667,20 +667,20 @@ contains
       lgradp=.false.
       pz1(0:kn1+1)=0.0d0
     end if
-    if (present(pzs2_opt)) then 
+    if (present(pzs2_opt)) then
       lgradp2=.true. 
-      lgradp=.true.     
+      lgradp=.true.
       pzs2(:)=pzs2_opt(:)
     else
       lgradp2=.false.
       pzs2(:)=0.0d0
-    end if       
+    end if
     if (present(validLevel_opt)) then
       validLevel(:) = validLevel_opt(:)
     else
       validLevel(:) = .true.
     end if
-     
+
     !- Pre-calculate values (dzd and dxd) used by subroutine sublayer
 
     dz(1:kn1+1)=z1(1:kn1+1)-z1(0:kn1)
@@ -691,9 +691,9 @@ contains
     dxd(kn2+1)=dxd(kn2)
 
     !- Determine forward interpolator or TLM coefficients
-       
-    !- Loop over output domain levels for determining 
-    !  contributing weights of input domain levels over 
+
+    !- Loop over output domain levels for determining
+    !  contributing weights of input domain levels over
     !  segments [PX1(KI-1),PX1(KI+1)]
 
     istart=1
@@ -705,9 +705,9 @@ contains
          pz(ki,:) = 0.0d0
          if (lgradp) pzdps_opt(ki,:)=0.0d0
          cycle
-      end if         
-      
-      ! -- Consider constant value extrapolations cases for output domain 
+      end if
+
+      ! -- Consider constant value extrapolations cases for output domain
       !    layers entirely outside the input domain.
 
       if (z1(ki+1).le.px2(1)) then
@@ -723,7 +723,7 @@ contains
 
       else if (z1(ki-1).ge.px2(kn2)) then
 
-        ! pz(ki:kni,kn2) is set to 1.0 to force constant value extrapolation 
+        ! pz(ki:kni,kn2) is set to 1.0 to force constant value extrapolation
         ! of field (e.g. temperature) below lowest input level.
  
         pz(ki:kn1,kn2)=1.0d0
@@ -731,15 +731,15 @@ contains
         kstart(ki:kn1)=kn2
         kend(ki:kn1)=kn2
         return
-      end if   
+      end if
 
       ! -- Consider piecewise averaging interpolation for output domain
       !    layers and layer segments within the input domain.
       !
-      ! -- Loop over input layers within the (z1(ki-1),z1(ki)) and 
+      ! -- Loop over input layers within the (z1(ki-1),z1(ki)) and
       !    (z1(ki),z1(ki+1)) integration ranges.
       !
-      ! Accumulate contributions to integration components over the 
+      ! Accumulate contributions to integration components over the
       !     different segments.
 
       ic=0
@@ -778,7 +778,7 @@ contains
         enddo
 
         if (ic.eq.0) then
-          j=kn2    
+          j=kn2
           pz(ki,j)=1.0d0
           pzdps_opt(ki,j)=0.0
           kstart(ki)=j
@@ -792,9 +792,9 @@ contains
 
       else
 
-        ! Same as above but with a compressed subset of 'sublayer' inlined 
+        ! Same as above but with a compressed subset of 'sublayer' inlined
         ! for improved speed at least in setting interplation weights.
-        ! This follows the corresponding change in 'rttov_layeravg' 
+        ! This follows the corresponding change in 'rttov_layeravg'
         ! by Deborah Salmond and Mats Hamrud (ECMWF) and takes advantage
         ! of the known wgt* values in each case.
         !
@@ -849,7 +849,7 @@ contains
               dy=(y2-px2(j))*dzd(ki+1)
               zpz(j)=zpz(j)+dy*wx1
               zpz(j+1)=zpz(j+1)+dy*wx2
-            else  
+            else
               dad=dxd(j+1)*dz(ki+1)*(z1(ki)-px2(j))
               dy=(y2-z1(ki))*dzd(ki+1)
               zpz(j)=zpz(j)+dy*(dz(ki+1)-dad)
@@ -861,7 +861,7 @@ contains
         enddo
 
         if (ic.eq.0) then
-          j=kn2    
+          j=kn2
           pz(ki,j)=1.0d0
           kstart(ki)=j
           kend(ki)=j
@@ -880,13 +880,13 @@ contains
       ! -- Extend to below (and/or above) lowest (and/or highest) input levels
       !    if output layer intersects the corresponding input domain boundary.
       !
-      !    A virtual layer covering the region between the input domain boundary 
+      !    A virtual layer covering the region between the input domain boundary
       !    and the boundary of the output layer is added. This increases the
-      !    contributing in weight of the input domain boundary roughly by the 
-      !    relative thickness of the virtual layer to the entire output layer 
+      !    contributing in weight of the input domain boundary roughly by the
+      !    relative thickness of the virtual layer to the entire output layer
       !    thickness.
       !
-      !    This follows updates by Alan Geer (ECMWF) in rttov_layeravg 
+      !    This follows updates by Alan Geer (ECMWF) in rttov_layeravg
       !    of RTTOV-9. It is done for two reasons:
       !
       !       1) Piecewise weighted averaging using only the region
@@ -895,8 +895,8 @@ contains
       !
       !       2) The regression coefficients of the output domain
       !          model are based on complete output domain layers, this being
-      !          consistent with RTTOV convention. 
-    
+      !          consistent with RTTOV convention.
+
       if (z1(ki+1).gt.px2(kn2).and.z1(ki-1).lt.px2(kn2)) then
 
         ! Increase contribution from lowest input level.
@@ -913,7 +913,7 @@ contains
               zb=2*px2(kn2)-px2(kn2-1)                                    !C1
               zbps=2*pzs2(kn2)-pzs2(kn2-1)                                !C1
             end if                                                        !C1
-          end if                                                       
+          end if
         end if
         zdxd=1.0d0/(zb-px2(kn2))
         if (z1(ki).lt.zb) then
@@ -930,7 +930,7 @@ contains
         end if
         zpz(kn2)=zpz(kn2)+zw1+zw2
         if (lgradp) zpzd(kn2)=zpzd(kn2)+zwps1+zwps2
-      end if       
+      end if
       if (z1(ki-1).lt.px2(1).and.z1(ki+1).gt.px2(1)) then
 
         ! Increase contribution from highest input level.
@@ -976,10 +976,10 @@ contains
 
         ! Normalize and account for denominator gradients, i.e.
 
-        ! d[sum1(w*t)/sum2(w)]/dv = sum1[t*(dw/dv)]/sum2(w) 
-        !                          -sum1[t*w]*sum2[(dw/dv)]/sum2(w)^2       
+        ! d[sum1(w*t)/sum2(w)]/dv = sum1[t*(dw/dv)]/sum2(w)
+        !                          -sum1[t*w]*sum2[(dw/dv)]/sum2(w)^2
 
-        pzdps_opt(ki,kstart(ki):kend(ki))=(zpzd(kstart(ki):kend(ki)) & 
+        pzdps_opt(ki,kstart(ki):kend(ki))=(zpzd(kstart(ki):kend(ki)) &
                              -pz(ki,kstart(ki):kend(ki)) &
                              *sum(zpzd(kstart(ki):kend(ki))))*zsum
       end if
@@ -995,7 +995,7 @@ contains
                                      pzs1,pzs2,pxs1,pxs2,wps1,wps2,lgradpx,lgradpz)
     !
     !:Purpose: Determine weight coefficient contributions to w1 and w2 to assign
-    !          to input domain (e.g. NWP model) variables at x1 and x2. Weights 
+    !          to input domain (e.g. NWP model) variables at x1 and x2. Weights
     !          are determined from integration over the intersecting segment (y1,y2) 
     !          of the ranges (x1,x2) for the input domain and (z1,z2) for the 
     !          output domain. Integrals are approximated via the trapezoidal rule:
@@ -1005,16 +1005,16 @@ contains
     !                                      = (f(y1)+f(y2))/2*(y2-y1)
     !                                      = w(y1)*t(y1)+w(y2)*t(y2)
     !                                      = w1*t(x1)+w2*t(x2)
-    !                                      = w1*t1+w2*t2     
+    !                                      = w1*t1+w2*t2
     !
     !          This is synonomous to having an integrand linear in x.
     !
-    !          In the above (and below) equation(s), w1 and w2 are contributions to 
+    !          In the above (and below) equation(s), w1 and w2 are contributions to
     !          the input values.
     !
     !          The weights for linearized contributions of non-linear interpolator
-    !          components, i.e. gradient w.r.t. the vertical coordinate 
-    !          independent variable (e.g. v*=Ps), are calculated 
+    !          components, i.e. gradient w.r.t. the vertical coordinate
+    !          independent variable (e.g. v*=Ps), are calculated
     !          when LGRADP* is .true.:
     !
     !                pzps = pzps + (df/dx1)*(dx1/dvx1)+(df/dx2)*(dx2/dvx2)
@@ -1027,7 +1027,7 @@ contains
     !
     !          This routine provides terms on the right-hand-side.
     !
-    !          Note: pxs* and pzs* can be provided either as gradients or 
+    !          Note: pxs* and pzs* can be provided either as gradients or
     !          perturbations.
     ! 
     !          Method:
@@ -1035,16 +1035,16 @@ contains
     !          - Journal reference:
     !            Rochon, Y.J., L. Garand, D.S. Turner, and S. Polavarapu.
     !            Jacobian mapping between coordinate systems in data assimilation,
-    !            Q. J. of the Royal Met. Soc., vol 133, 1547-1558, 2007. 
+    !            Q. J. of the Royal Met. Soc., vol 133, 1547-1558, 2007.
     !            (www.interscience.wiley.com) DOI:10.1002/qj.117
     !
-    !           URL: 
-    !           http://www3.interscience.wiley.com/cgi-bin/fulltext/116320452/PDFSTART 
+    !           URL:
+    !           http://www3.interscience.wiley.com/cgi-bin/fulltext/116320452/PDFSTART
     !
     !:Comments:
     !
     !     Assumptions:
-    !     
+    !
     !        1) x1<x2
     !
     !        2) z1<z2
@@ -1066,7 +1066,7 @@ contains
     !     is omitted as normalization is performed in the calling routine
     !     LAYERAVG.
     !
-    !     4) The code version of the interpolator part of 'int_sublayerInterpWgts'
+    !     4) The code version of the interpolator part of 'ppo_sublayerInterpWgts'
     !     provided for RTTOV-9 assumed the following conditions:
     !
     !        (wgt1,wgt2)=(0,1),  d1=(y1-x1)=0 from y1=x1 or
@@ -1079,17 +1079,17 @@ contains
     !     and took account of the implications on d* and wy*.
     !
     !     The version presented here has each step accompanied by
-    !     related equations. It does not assume the above restrictions on  
-    !     wgt1 and wgt2. This version is provided in the 
+    !     related equations. It does not assume the above restrictions on
+    !     wgt1 and wgt2. This version is provided in the
     !     comments section of the RTTOV-9 module 'rttov_sublayer'.
     !
-    !     5)  When LGRADP*=.true., this routine provides terms needed for 
-    !     the gradients w.r.t.the vertical coordinate independent variable, 
-    !     e.g. Ps. 
-    !                           
+    !     5)  When LGRADP*=.true., this routine provides terms needed for
+    !     the gradients w.r.t.the vertical coordinate independent variable,
+    !     e.g. Ps.
+    !
     implicit none
 
-    ! Arguments:                           
+    ! Arguments:
     logical, intent(in)    :: LGRADPz ! Output domain logical indicating if gradient w.r.t. vertical coordinate independent variable if required i.e. d/dv where P(v) (e.g. v=Ps).
     logical, intent(in)    :: LGRADPx ! Input domain logical indicating if gradient w.r.t. vertical coordinate independent variable if required i.e. d/dv where P(v) (e.g. v=Ps).
     real(8), intent(in)    :: z1   ! Upper level of output domain half-layer (z1<z2)
@@ -1108,8 +1108,8 @@ contains
     real(8), intent(inout) :: w2 ! Starting (in) and updated (out) weight assigned to variable at upper level x2
     real(8), intent(inout) :: wps1 ! Starting (in) and updated (out) value of (pxs1*dw1/dx1 + pxs2*dw1/dx2 +pzs1*dw1/dz1 + pzs2*dw1/dz2)
     real(8), intent(inout) :: wps2 ! Starting (in) and updated (out) value of pxs1*dw2/dx1 + pxs2*dw2/dx2 +pzs1*dw2/dz1 + pzs2*dw2/dz2) (required when LGRADP*=.true.)
-     
-    ! Locals:           
+
+    ! Locals:
     real(8) :: y1  ! Upper boundary of integral range (y1<y2)
     real(8) :: y2  ! Lower boundary of integral range
     real(8) :: d1,d2,wx1,wx2,wy1,wy2,dy,dzdd
@@ -1137,13 +1137,13 @@ contains
     dy=y2-y1
 
     !- Verify for negative and zero (and near-zero) y2-y1 values.
-     
+
     zthreshold=epsilon(1.0d0)*100.0
     c1=abs(y2)*zthreshold
 
     if (dy.lt.-c1) then
-      write(*,*) 'y1,y2 = ',y1,y2 
-      write(*,*) 'z1,z2 = ',z1,z2 
+      write(*,*) 'y1,y2 = ',y1,y2
+      write(*,*) 'z1,z2 = ',z1,z2
       write(*,*) 'x1,x2 = ',x1,x2
       call utl_abort("ppo_sublayerInterpWgts: dy is negative")
     else if (dy.lt.c1) then
@@ -1151,7 +1151,7 @@ contains
       ! w1 and w2 unchanged.
       return
     end if
-    
+
     !  2. Interpolation weights (equivalent to gradient contributions from
     !     linear component of interpolator)
 
@@ -1164,17 +1164,17 @@ contains
     dzdd=dzd*(wgt2-wgt1)
     dy1z1=y1-z1
     wx1=wgt1+dy1z1*dzdd
-     
+
     dydzdd=dy*dzdd
     wx2=wx1+dydzdd    !  wx2=wgt1+(y2-z1)*dzdd=wgt2+(y2-z2)*dzdd
-     
+
     wy1=dy*wx1
     wy2=dy*wx2
 
-   !- Determine contribution of w1 and w2 for f=w1*t(x1)+w2*t(x2). 
+   !- Determine contribution of w1 and w2 for f=w1*t(x1)+w2*t(x2).
 
    !  The w1 and w2 contributions above are determined by expanding t(y1)
-   !  and t(y2) in f = w(y1)*t(y1)+w(y2)*t(y2) as linear functions of 
+   !  and t(y2) in f = w(y1)*t(y1)+w(y2)*t(y2) as linear functions of
    !  t(x1)=t1 and t(x2)=t2.
    !
    !        t(y1) = t1+(y1-x1)*(t2-t1)/(x2-x1) = t1+(y1-x1)*dxd*(t2-t1)
@@ -1189,18 +1189,18 @@ contains
    !           +t2*[wy1*(y1-x1)*dxd+wy2+wy2*(y2-x2)*dxd]
    !
    !  Aside: Contribution to w1+w2 = wy1+wy2 = 2 * w[(y2+y1)/2]
- 
+
     dxy1=y1-x1
     d1=dxy1*dxd
 
     dxy2=y2-x2
     d2=dxy2*dxd
-    
+
     d1d1=1.0d0-d1
-    d1d2=1.0d0+d2  
+    d1d2=1.0d0+d2
 
     w1=w1+wy1*d1d1-wy2*d2
-    w2=w2+wy1*d1+wy2*d1d2  
+    w2=w2+wy1*d1+wy2*d1d2
 
     !  Aside used below: wy1*d1d1-wy2*d2 = wy1 + wy2 - (wy1*d1d1-wy2*d2)
 
@@ -1208,9 +1208,9 @@ contains
     !     component of interpolator (i.e. vertical coordinate dependency)
 
     if (LGRADPx) then
-     
+
       !  -- 3.1 Provide linearized contribution of non-linear interpolator
-      !     component to TLM - this part in relation to the input vertical  
+      !     component to TLM - this part in relation to the input vertical
       !     coordinate:
       !
       !                    (df/dx1)*(dx1/dv)+(df/dx2)*(dx2/dv)
@@ -1221,13 +1221,13 @@ contains
       !
       !     Gradients of w1 and w2 with respect to x1 and x2 are done in two parts:
       !
-      !          - Part I:  The gradients calc excludes the cases where one 
+      !          - Part I:  The gradients calc excludes the cases where one
       !                     might have y1=x1 and or y2=x2.
       !          - Part II: The gradient terms related to y1=x1 and or y2=x2 are
       !                     added.
       !
       !  -- Gradient of f w.r.t x1
-      !    
+      !
       !  -- Gradients of w1 and w2 w.r.t. x1:
       !
       !     PART I:
@@ -1240,9 +1240,9 @@ contains
       !            d(wy1)/dx1=0, d(wy2)/dx1=0
       !
       !         Note: d(dj)/dx* = 0.0 when dj=0.0 due to y1=x1 or y2=x2
-      
+
       dxyd1=d1*dxd
-      dxyd2=d2*dxd                                
+      dxyd2=d2*dxd
       a1=wy1*(dxd-dxyd1)-wy2*dxyd2
       a2=-a1        ! a2=wy1*(-dxd+dxyd1)+wy2*dxyd2
 
@@ -1255,7 +1255,7 @@ contains
       !
       !            d(wy1)/dy1 = -wx1+dzdd*dy
       !            d(wy2)/dy1 = -wx2
-      
+
       if (itop.eq.1) then
 
         ! Case y1=x1 (d1=0)
@@ -1283,20 +1283,20 @@ contains
       !            d(d2)/dx2 = -dxd*(1+dxy2*dxd)
       !
       !            d(wy1)/dx2=0,  d(wy2)/dx2=0
-      
+
       a1=wy1*dxyd1+wy2*(dxd+dxyd2)
       a2=-a1         ! a2=-wy1*dxyd1-wy2*(dxd+dxyd2)
-                    
+
       !     PART II:
       !     
       !        For the extra terms: (gradients w.r.t. y2=x2)
       !
       !            d(d1)/dy2 = 0
       !            d(d2)/dy2 = dxd
-      !            
+      !
       !            d(wy1)/dy2 = wx1
       !            d(wy2)/dy2 = wx2+dzdd*dy
-                
+
       if (ibot.eq.1) then
 
         ! Case y2=x2 (d2=0)
@@ -1315,7 +1315,7 @@ contains
     end if
 
     if (LGRADPz) then
-     
+
       !  -- 3.2 Provide linearized contribution of non-linear interpolator
       !     component to the TLM - this part in relation to the output vertical 
       !     coordinate:
@@ -1329,7 +1329,7 @@ contains
       !
       !     Gradients of w1 and w2 with respect to z1 and z2 are done in two parts:
       !
-      !          - Part I:  The gradients calc excludes the cases where one 
+      !          - Part I:  The gradients calc excludes the cases where one
       !                     might have y1=z1 and or y2=z2.
       !          - Part II: The gradient terms related to y1=z1 and or y2=z2 are
       !                     added.
@@ -1342,22 +1342,22 @@ contains
       !
       !        d(wy1)/dz1 = dy*dzdd*((y1-z1)*dzd-1)=dy*dzdd*(y1-z2)*dzd
       !        d(wy2)/dz1 = dy*dzdd*(y2-z2)*dzd
-      
+
       dy2z2=y2-z2
       dxyd2=dydzdd*dzd
       dxyd1=dxyd2*dy1z1
       dxyd2=dxyd2*dy2z2
       a1=(dxyd1-dydzdd)*d1d1-dxyd2*d2
-      a2=dxyd1+dxyd2-(dydzdd+a1) 
+      a2=dxyd1+dxyd2-(dydzdd+a1)
 
-      if (itop.eq.0) then 
+      if (itop.eq.0) then
 
         ! PART II: y1=z1
         !
         !          d(d1)/dy1 = dxd
         !          d(d2)/dy1 = 0
         !
-        !          d(wy1)/dy1 = -wx1+dzdd*dy 
+        !          d(wy1)/dy1 = -wx1+dzdd*dy
         !          d(wy2)/dy1 = -wx2
 
         c1=wy1*dxd
@@ -1379,24 +1379,24 @@ contains
       !
       !         d(wy1)/dz2 = -dy*dzdd*(y1-z1)*dzd
       !         d(wy2)/dz2 = -dy*dzdd*(1+(y2-z2)*dzd)=-dy*dzdd*(y2-z1)*dzd
-      
+
       a1=-dxyd1*d1d1+(dxyd2+dydzdd)*d2
       a2=-(dxyd1+dxyd2+dydzdd+a1)
 
       if (ibot.eq.0) then
 
         ! PART II: y2=z2
-        !     
+        !
         !          d(d1)/dy2 = 0
         !          d(d2)/dy2 = dxd
-        !            
+        !
         !          d(wy1)/dy2 = wx1
         !          d(wy2)/dy2 = wx2+dzdd*dy
-        
+
         c1=wy2*dxd
         c2=wx2+dydzdd
         a1=a1-c1-c2*d2+wx1*d1d1
-        a2=a2+c1+c2*d1d2+wx1*d1 
+        a2=a2+c1+c2*d1d2+wx1*d1
       end if
 
       !  -- Add to accumulated gradient terms
@@ -1410,8 +1410,8 @@ contains
 
   !==========================================================================
   !--- Stand-alone integration (and averaging) routines providing weights ---
-  ! For weights W(:,:) and initial vector X(:), the integrated (or average) 
-  ! values would be W*X.  
+  ! For weights W(:,:) and initial vector X(:), the integrated (or average)
+  ! values would be W*X.
 
   !--------------------------------------------------------------------------
   ! ppo_vertLayersSetup
@@ -1419,11 +1419,11 @@ contains
   subroutine ppo_vertLayersSetup(operatorType,pressInput,numInputLevs)
     !
     !:Purpose: Preliminary calculations for producing components required for
-    !          vertical integration (or averaging) w.r.t. pressure for the full  
-    !          vertical rangeor a set of target layers. To be called before 
+    !          vertical integration (or averaging) w.r.t. pressure for the full
+    !          vertical range or a set of target layers. To be called before
     !          routine ppo_vertIntegWgts or ppo_vertAvgWgts.
     !
-    !          Integration calculations are performed appling quadratic interpolation 
+    !          Integration calculations are performed appling quadratic interpolation
     !          in P between level. 
     !
     !:Input:
@@ -1455,7 +1455,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: operatorType       ! 'integ' for integration; 'avg' for averaging
+    character(len=*), intent(in) :: operatorType             ! 'integ' for integration; 'avg' for averaging
     integer,          intent(in) :: numInputLevs             ! # of model vertical levels
     real(8),          intent(in) :: pressInput(numInputLevs) ! Reference input levels
 
@@ -1466,43 +1466,43 @@ contains
     ! Determine P boundaries of layers and save weights for
     ! use in setting integration (or averaging) weights.
     ! N.B.: Boundaries of layers set to mid-point between input levels
-      
+
     ! Calculate layer boundaries
 
     if (allocated(boundaries)) deallocate(boundaries)
     allocate(boundaries(numInputLevs+1))
-    
+
     boundaries(1)=pressInput(1)
     boundaries(numInputLevs+1)= pressInput(numInputLevs)
 
-    !$OMP PARALLEL DO PRIVATE(levelIndex)    
+    !$OMP PARALLEL DO PRIVATE(levelIndex)
     DO levelIndex = 2, numInputLevs
        boundaries(levelIndex)=sqrt(pressInput(levelIndex-1)*pressInput(levelIndex))
     END DO
-    !$OMP END PARALLEL DO 
+    !$OMP END PARALLEL DO
 
     if (allocated(weights)) deallocate(weights)
-    
+
     if ( trim(operatorType) == 'avg' ) then
-    
+
       ! Initialize weights as scaling factors of unity.
 
-      allocate(weights(numInputLevs,1))      
+      allocate(weights(numInputLevs,1))
       weights(:,:) = 1.0d0
-    
+
     else
 
       ! Set second degree Lagrangian interpolator weights
 
-      allocate(weights(numInputLevs,numInputLevs))            
+      allocate(weights(numInputLevs,numInputLevs))
       weights(:,:) = 0.0d0
-    
+
       ! Interpolation to mid-layer level in P using
       ! second degree Lagrangian interpolator.
       ! N.B.: Integration is w.r.t. P
-    
+
       ! Calculating for levelIndex=1
-    
+
       zp1= pressInput(1)
       zp2= pressInput(2)
       zp3= pressInput(3)
@@ -1514,7 +1514,7 @@ contains
       weights(2,1)=zr2
       weights(3,1)=zr3
 
-      !$OMP PARALLEL DO PRIVATE(levelIndex,zp1,zp2,zp3,zp,zr1,zr2,zr3)    
+      !$OMP PARALLEL DO PRIVATE(levelIndex,zp1,zp2,zp3,zp,zr1,zr2,zr3)
       DO levelIndex=2,numInputLevs-1
         zp1=pressInput(levelIndex-1)
         zp2=pressInput(levelIndex)
@@ -1527,10 +1527,10 @@ contains
         weights(levelIndex,levelIndex)=zr2
         weights(levelIndex+1,levelIndex)=zr3
       ENDDO
-      !$OMP END PARALLEL DO 
-    
+      !$OMP END PARALLEL DO
+
       ! Calculating  for levelIndex=numInputLevs
-    
+
       zp1= pressInput(numInputLevs-2)
       zp2= pressInput(numInputLevs-1)
       zp3= pressInput(numInputLevs)
@@ -1551,19 +1551,19 @@ contains
   !--------------------------------------------------------------------------
   subroutine ppo_vertIntegWgts(targetLayersTop,targetLayersBot,numInputLevs, &
                                 numTargetLevs,kstart,kend,wgts,wgts_opt,skipType_opt, &
-                                outbound_opt,success_opt,dealloc_opt)   
+                                outbound_opt,success_opt,dealloc_opt)
     !
     !:Purpose: To calculate integration weights "wgts" required for vertical integration w.r.t.
-    !          pressure for the full vertical range or a set of target layers. 
-    !          Given the calculated weights and a user intergrand array vector X, the integral 
+    !          pressure for the full vertical range or a set of target layers.
+    !          Given the calculated weights and a user intergrand array vector X, the integral
     !          for a given layer i would be given by sum(wgts(i,:)*X(:))
     !
-    !          Integration calculations are performed applying quadratic interpolation 
+    !          Integration calculations are performed applying quadratic interpolation
     !          in P between level.
     !
     !          Routine ppo_vertLayersSetup to be called beforehand to generate Lagrangian weights
     !          and related layer boundaries (arrays 'weights' and 'boundaries')
-    ! 
+    !
     !:Input:
     !         :targetLayersTop:    top of target layers
     !         :targetLayersBot:    bottom of target layers
@@ -1571,7 +1571,7 @@ contains
     !         :numTargetLevs:      # of target vertical levels
     !         :kstart:             Index of first relevant original/input level for each target level
     !         :kend:               Index of last relevant original/input level for each target level
-    !                              If kstart and kend are non-zero on input, 
+    !                              If kstart and kend are non-zero on input,
     !                              the input are initial estimates of the values.
     !         :weights:            See routine ppo_vertLayersSetup
     !         :boundaries:         Boundaries of input layers
@@ -1603,19 +1603,19 @@ contains
     logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
-    integer :: TargetIndex   
+    integer :: TargetIndex
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
     integer, parameter :: ivweights=2  ! Order of Lagrangian interpolation.
     integer :: levelIndex,JK,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: zp, zp1, zp2, zp3, zr1, zr2, zr3, ptop, pbtm
-    
+
     if (present(skipType_opt)) then
       skipType = skipType_opt
     else
       skipType = 'default'
-    end if 
+    end if
  
     if (present(success_opt)) then
       if ( trim(skipType) == 'doAll&noExtrap') then
@@ -1630,16 +1630,16 @@ contains
         end if
       else
         success(:) = success_opt(:)
-      end if 
+      end if
     else
       success(:) = .true.
     end if
-        
+
     do TargetIndex=1,numTargetLevs
 
       if ( .not.success(TargetIndex) ) then
         wgts(TargetIndex,:) = 0.0D0
-        wgts_opt(TargetIndex,:) = 0.0D0          
+        wgts_opt(TargetIndex,:) = 0.0D0
         kstart(TargetIndex)=1
         kend(TargetIndex)=1
         cycle
@@ -1647,10 +1647,10 @@ contains
 
       ptop = targetLayersTop(TargetIndex)
       pbtm = targetLayersBot(TargetIndex)
-         
+
       ! Find the range of vertical levels over which to perform the integration
       ! and set the integration weights over this range.
-          
+
       ilmin=1
       ilmax=numInputLevs
       if (ptop <= boundaries(1)*1.01 .and. &
@@ -1658,7 +1658,7 @@ contains
 
         ! Total column integration part
 
-        !$OMP PARALLEL DO PRIVATE(jk,levelIndex)                  
+        !$OMP PARALLEL DO PRIVATE(jk,levelIndex)
         do jk = 1,numInputLevs
           do levelIndex=max(1,jk-ivweights),min(numInputLevs,jk+ivweights)
             wgts(TargetIndex,jk) = wgts(TargetIndex,jk) &
@@ -1669,21 +1669,21 @@ contains
                                             weights(jk,levelIndex)
           end do
         end do
-        !$OMP END PARALLEL DO                 
-             
+        !$OMP END PARALLEL DO
+
       else
 
         ! Partial column integration part (special treatment at boundaries)
-     
+
         ! Identify input layer boundaries just within the target layer.
-             
+
         ilmin = ppo_getLevelIndex(ptop, boundaries, 'top', numInputLevs+1)
         ilmax = ppo_getLevelIndex(pbtm, boundaries, 'btm', numInputLevs+1)
-               
+
         if (ilmin == ilmax+1) then
 
           ! Entire target layer within one input layer
-                
+
           levelIndex=ilmax
           if (levelIndex < 3) levelIndex=3
           if (levelIndex > numInputLevs) levelIndex=numInputLevs
@@ -1694,7 +1694,7 @@ contains
           zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
           zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
           zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                
+
           wgts(TargetIndex,levelIndex-2)=(pbtm-ptop)*zr1
           wgts(TargetIndex,levelIndex-1)=(pbtm-ptop)*zr2
           wgts(TargetIndex,levelIndex)=(pbtm-ptop)*zr3
@@ -1705,12 +1705,12 @@ contains
           end if
           ilmin=levelIndex-2
           ilmax=levelIndex
-                  
+
         else
-                
+
           ! Determine terms from the inner layers (excluding the lower and upper
           ! boundary layers when these layers not covering entire input layers)
-                
+
           if (pbtm >= boundaries(numInputLevs)*0.99) then
             ilmax2=numInputLevs
           else
@@ -1723,7 +1723,7 @@ contains
             ilmin2=ilmin
           end if
           if (ilmin2 <= ilmax2) then
-            !$OMP PARALLEL DO PRIVATE(jk,levelIndex)                  
+            !$OMP PARALLEL DO PRIVATE(jk,levelIndex)             
             do jk = ilmin2,ilmax2
               do levelIndex=max(1,jk-ivweights),min(numInputLevs,jk+ivweights)
                 wgts(TargetIndex,jk)=wgts(TargetIndex,jk)+(boundaries(levelIndex+1) &
@@ -1732,14 +1732,14 @@ contains
                   wgts_opt(TargetIndex,jk)=wgts_opt(TargetIndex,jk)+weights(jk,levelIndex)
               end do
             end do
-            !$OMP END PARALLEL DO               
+            !$OMP END PARALLEL DO
           end if
-                
+
           ! Determine terms from the lower and upper boundary layers
           ! when these layers do not cover entire input layers.
-                
+
           if (pbtm < boundaries(numInputLevs)*0.99) then
-                     
+
             levelIndex=ilmax+1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
             if (levelIndex < 3) levelIndex=3
@@ -1750,22 +1750,22 @@ contains
             zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
             zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
             zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                   
+
             wgts(TargetIndex,levelIndex-2)=wgts(TargetIndex,levelIndex-2)+(pbtm - boundaries(ilmax))*zr1
             wgts(TargetIndex,levelIndex-1)=wgts(TargetIndex,levelIndex-1)+(pbtm - boundaries(ilmax))*zr2
             wgts(TargetIndex,levelIndex)=wgts(TargetIndex,levelIndex)+(pbtm - boundaries(ilmax))*zr3
-           
+
             if (present(wgts_opt)) then
               wgts_opt(TargetIndex,levelIndex-2)=wgts_opt(TargetIndex,levelIndex-2)+zr1
               wgts_opt(TargetIndex,levelIndex-1)=wgts_opt(TargetIndex,levelIndex-1)+zr2
               wgts_opt(TargetIndex,levelIndex)=wgts_opt(TargetIndex,levelIndex)+zr3
             end if
             ilmax=levelIndex
-                  
+
           end if
-                  
+
           if (ptop > boundaries(1)*1.01) then
-                     
+
             levelIndex=ilmin-1
             if (levelIndex < 1) levelIndex=1
             if (levelIndex > numInputLevs-2) levelIndex=numInputLevs-2
@@ -1776,11 +1776,11 @@ contains
             zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
             zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
             zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-                   
+
             wgts(TargetIndex,levelIndex)=wgts(TargetIndex,levelIndex)+(boundaries(ilmin)-ptop)*zr1
             wgts(TargetIndex,levelIndex+1)=wgts(TargetIndex,levelIndex+1)+(boundaries(ilmin)-ptop)*zr2
             wgts(TargetIndex,levelIndex+2)=wgts(TargetIndex,levelIndex+2)+(boundaries(ilmin)-ptop)*zr3
-                   
+
             if (present(wgts_opt)) then
               wgts_opt(TargetIndex,levelIndex)=wgts_opt(TargetIndex,levelIndex)+zr1
               wgts_opt(TargetIndex,levelIndex+1)=wgts_opt(TargetIndex,levelIndex+1)+zr2
@@ -1788,7 +1788,7 @@ contains
             end if
             ilmin=levelIndex
             if (ilmax < levelIndex+2) ilmax=levelIndex+2
-                   
+
           end if
           if (ilmin > ilmax-2) ilmin=ilmax-2
         end if
@@ -1805,13 +1805,13 @@ contains
 
       kstart(TargetIndex)=ilmin
       kend(TargetIndex)=ilmax
-       
+
     end do
 
     if (present(dealloc_opt)) then
       if (dealloc_opt) deallocate(weights,boundaries)
     end if
-    
+
   end subroutine ppo_vertIntegWgts
 
   !--------------------------------------------------------------------------
@@ -1820,13 +1820,13 @@ contains
   integer function ppo_getLevelIndex(level, layerBoundaryLevels, topbtm, numBoundaries)
     !
     !:Purpose: To get the vertical input level index for level
-    !          within target layer and nearest specified layer boundary.  
+    !          within target layer and nearest specified layer boundary.
     !
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: numBoundaries  ! Number of layer boundaries       
-    real(8),          intent(in) :: level          ! Target layer index      
+    integer,          intent(in) :: numBoundaries  ! Number of layer boundaries
+    real(8),          intent(in) :: level          ! Target layer index
     real(8),          intent(in) :: layerBoundaryLevels(numBoundaries) ! Layer boundaries
     character(len=*), intent(in) :: topbtm         ! indicating whether we are looking for top or bottom level
 
@@ -1834,19 +1834,19 @@ contains
     integer     :: ilev1, ilev2
     integer     :: levelIndex
 
-    ! Find the model levels adjacent to pressure level 
+    ! Find the model levels adjacent to pressure level
 
     ! Default values
-    
+
     if (level < 0.0d0) then
       if ((topbtm == 'btm') .or. (topbtm == 'BTM')) then
         ppo_getLevelIndex = numBoundaries
       endif
       if ((topbtm == 'top') .or. (topbtm == 'TOP')) then
         ppo_getLevelIndex = 1
-      endif                                                  
+      endif     
     endif
-      
+
     ilev1=0
     ilev2=1
     do levelIndex=1,numBoundaries
@@ -1860,10 +1860,10 @@ contains
 
     ! Find the input level index
 
-    ! If we are looking for top level, the index is the level immediately 
-    ! below. if looking for bottom level, the index is the one immediately 
+    ! If we are looking for top level, the index is the level immediately
+    ! below. if looking for bottom level, the index is the one immediately
     ! above.
-    
+
     if ((topbtm == 'btm') .or. (topbtm == 'BTM')) then
       ppo_getLevelIndex=ilev1
     else if ((topbtm == 'top') .or. (topbtm == 'TOP')) then
@@ -1872,7 +1872,7 @@ contains
 
     if (ppo_getLevelIndex < 1) ppo_getLevelIndex=1
     if (ppo_getLevelIndex > numBoundaries) ppo_getLevelIndex=numBoundaries
-  
+
   end function ppo_getLevelIndex
 
   !--------------------------------------------------------------------------
@@ -1880,11 +1880,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine ppo_vertAvgWgts(targetLayersTop,targetLayersBot,numInputLevs, &
                              numTargetLevs,kstart,kend,wgts,wgts_opt,skipType_opt, &
-                             outbound_opt,success_opt,dealloc_opt)   
+                             outbound_opt,success_opt,dealloc_opt)
     !
     !:Purpose: To calculate averaging weights "wgts" required for vertical averaging 
-    !          w.r.t. ln(pressure) for the full vertical range or a set of target layers. 
-    !          Given the calculated weights and a user input array vector X, the average 
+    !          w.r.t. ln(pressure) for the full vertical range or a set of target layers.
+    !          Given the calculated weights and a user input array vector X, the average
     !          for a given layer i would be given by sum(wgts(i,:)*X(:))
     !
     !          Routine ppo_vertLayersSetup to be called beforehand to initial weigths
@@ -1897,7 +1897,7 @@ contains
     !         :numTargetLevs:      # of target vertical levels
     !         :kstart:             Index of first relevant original/input level for each target level
     !         :kend:               Index of last relevant original/input level for each target level
-    !                              If kstart and kend are non-zero on input, 
+    !                              If kstart and kend are non-zero on input,
     !                              the input are initial estimates of the values.
     ! 
     !         :weights:            See routine ppo_vertLayersSetup
@@ -1930,19 +1930,19 @@ contains
     logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
-    integer :: TargetIndex   
+    integer :: TargetIndex
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
     integer :: levelIndex,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: SumWeights, TargetLayerThickWgt, ptop, pbtm
-    
+
     if (present(skipType_opt)) then
       skipType = skipType_opt
     else
       skipType = 'default'
-    end if 
- 
+    end if
+
     if (present(success_opt)) then
       if ( trim(skipType) == 'doAll&noExtrap') then
         if (present(outbound_opt)) then
@@ -1956,16 +1956,16 @@ contains
         end if
       else
         success(:) = success_opt(:)
-      end if 
+      end if
     else
       success(:) = .true.
     end if
-        
+
     do TargetIndex=1,numTargetLevs
 
       if ( .not.success(TargetIndex) ) then
         wgts(TargetIndex,:) = 0.0D0
-        wgts_opt(TargetIndex,:) = 0.0D0          
+        wgts_opt(TargetIndex,:) = 0.0D0
         kstart(TargetIndex)=1
         kend(TargetIndex)=1
         cycle
@@ -1974,10 +1974,10 @@ contains
       ptop = targetLayersTop(TargetIndex)
       pbtm = targetLayersBot(TargetIndex)
       TargetLayerThickWgt=1.0D0/(min(pbtm,boundaries(numInputLevs+1))-max(ptop,boundaries(1)))
-         
+
       ! Find the range of vertical levels over which to perform the averaging
       ! and set the averaging weights over this range.
-          
+
       ilmin=1
       ilmax=numInputLevs
       if (ptop <= boundaries(1)*1.01 .and. pbtm >= boundaries(numInputLevs+1)*0.99) then
@@ -1985,29 +1985,29 @@ contains
         ! Total column averaging part
 
         SumWeights=1.0D0/sum(weights(1:numInputLevs,1))
-        !$OMP PARALLEL DO PRIVATE(levelIndex)                  
+        !$OMP PARALLEL DO PRIVATE(levelIndex)
         do levelIndex = 1,numInputLevs
           wgts(TargetIndex,levelIndex)=(boundaries(levelIndex+1) &
                 -boundaries(levelIndex))*TargetLayerThickWgt
           if (present(wgts_opt)) &
             wgts_opt(TargetIndex,levelIndex)=SumWeights
         end do
-        !$OMP END PARALLEL DO                 
-             
+        !$OMP END PARALLEL DO
+
       else
 
         ! Partial column averaging part (special treatment at boundaries)
-     
+
         ! Identify the vertical input level indices for levels
-        ! within target layer and nearest specified layer boundary. 
+        ! within target layer and nearest specified layer boundary.
 
         ilmin = ppo_getLevelIndex(ptop, boundaries, 'top', numInputLevs+1)
         ilmax = ppo_getLevelIndex(pbtm, boundaries, 'btm', numInputLevs+1)
-               
+
         if (ilmin == ilmax+1) then
 
           ! Entire target layer within one input layer
-                
+
           levelIndex=ilmin
           if (levelIndex < 1) levelIndex=1
           if (levelIndex > numInputLevs) levelIndex=numInputLevs
@@ -2016,12 +2016,12 @@ contains
           if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=1.0D0
           ilmin=levelIndex
           ilmax=levelIndex+1
-                  
+
         else
-                
+
           ! Determine terms from the inner layers (excluding the lower and upper
           ! boundary layers when these layers not covering entire input layers)
-                
+
           if (pbtm >= boundaries(numInputLevs)*0.99) then
             ilmax2=numInputLevs
           else
@@ -2037,39 +2037,39 @@ contains
           SumWeights=1.0D0/sum(weights(ilmin:ilmax,1))
 
           if (ilmin2 <= ilmax2) then
-            !$OMP PARALLEL DO PRIVATE(levelIndex)                  
+            !$OMP PARALLEL DO PRIVATE(levelIndex)
             do levelIndex = ilmin2,ilmax2
               wgts(TargetIndex,levelIndex) = &
                    (boundaries(levelIndex+1)-boundaries(levelIndex))*TargetLayerThickWgt
               if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
             end do
-            !$OMP END PARALLEL DO               
+            !$OMP END PARALLEL DO
           end if
-                
+
           ! Determine terms from the lower and upper boundary layers
           ! when these layers do not cover entire input layers.
-                
+
           if (pbtm < boundaries(numInputLevs)*0.99) then
-                     
+
             levelIndex=ilmax+1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
             if (levelIndex < 1) levelIndex=1
-                   
+
             wgts(TargetIndex,levelIndex)= &
                  (pbtm - boundaries(ilmax))*TargetLayerThickWgt
-            
+
             if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
 
             ilmax=levelIndex
-                  
+
           end if
-                  
+
           if (ptop > boundaries(1)*1.01) then
-                     
+
             levelIndex=ilmin-1
             if (levelIndex < 1) levelIndex=1
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
-                   
+
             wgts(TargetIndex,levelIndex)= &
                  (boundaries(ilmin)-ptop)*TargetLayerThickWgt
 
@@ -2077,7 +2077,7 @@ contains
 
             ilmin=levelIndex
             if (ilmax < levelIndex+1) ilmax=levelIndex+1
-                   
+
           end if
           if (ilmin > ilmax-1) ilmin=ilmax-1
         end if
@@ -2085,13 +2085,13 @@ contains
 
       kstart(TargetIndex)=ilmin
       kend(TargetIndex)=ilmax
-       
+
     end do
 
     if (present(dealloc_opt)) then
       if (dealloc_opt) deallocate(weights,boundaries)
     end if
-    
+
   end subroutine ppo_vertAvgWgts
-   
+
 end module presProfileOperators_mod

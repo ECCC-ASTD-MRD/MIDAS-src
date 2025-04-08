@@ -464,7 +464,7 @@ module varQC_mod
     DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)  &
           /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
     DATA CLITM(13), CLITM(14), CLITM(15) , CLITM(16)  &
-           /'ZTD',   'CHM',     'SST',    'ICEC'/
+           /'ZTD',   'CH',      'SST',      'ICEC'/
 
 
     do jfam = 1, ofl_numFamily
@@ -698,8 +698,7 @@ module varQC_mod
                           ZANA=(ZANA-ZFCST)/ZFCST*100.
                        end if
                        ZFCST=0.0
-                       CLDESC=vnl_varnameFromVarnum(ityp,obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex))
-                         
+
                     else if (ityp == BUFR_NETT) then
 
                        ! CONVERT FROM KELVIN TO CELCIUS
