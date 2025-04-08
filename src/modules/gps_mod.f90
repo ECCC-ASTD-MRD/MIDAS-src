@@ -28,7 +28,7 @@ module gps_mod
   character(len=20), public, protected :: gps_roError
   logical,           public, protected :: gps_roBNorm
   logical,           public, protected :: gps_roEotvos
-  logical,           public, protected :: gps_roEllipsoid
+  logical,           public, protected :: gps_roCurvAnisot
   logical,           public, protected :: gps_roNCurv
   integer,           public, protected :: gps_roNFlavour
   real(8),           public, protected :: gps_roYear
@@ -3066,12 +3066,12 @@ contains
     LOGICAL :: gpsroBNorm       ! Choose to normalize based on B=H(x) (default=.True.), or approximate exponential reference
     LOGICAL :: gpsroEotvos      ! Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
     REAL(8) :: gpsroNsigma      ! Factor applied to observation error for background departure check when gpsroBNorm is .true. (default 1.d6)
-    LOGICAL :: gpsroEllipsoid   ! Apply vertical shift to account for asphericity of ellipsoid wrt reference tangent sphere
+    LOGICAL :: gpsroCurvAnisot  ! Apply vertical shift to account for asphericity of ellipsoid wrt reference tangent sphere
     LOGICAL :: gpsroNCurv       ! Add small curvature in the log-linear vertical interpolation of N
     INTEGER :: gpsroNFlavour    ! Choice of refractivity constants: 0 for AL11, 1 for the 2015-25 update.
     INTEGER :: dateStamp, hour, day, month, ndays, yyyy, JD
     NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
-        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma, gpsroEllipsoid, gpsroNCurv, gpsroNFlavour
+        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma, gpsroCurvAnisot, gpsroNCurv, gpsroNFlavour
 
     !
     !   Define default values:
@@ -3087,7 +3087,7 @@ contains
     gpsroBNorm = .True.
     gpsroEotvos= .False.
     gpsroNsigma= 1000000.d0
-    gpsroEllipsoid= .False.
+    gpsroCurvAnisot= .False.
     gpsroNCurv = .False.
     gpsroNFlavour = 0
     !
@@ -3121,27 +3121,33 @@ contains
     gps_WGPS          = WGPS
     gps_roEotvos      = gpsroEotvos
     gps_roNsigma      = gpsroNsigma
-    gps_roEllipsoid   = gpsroEllipsoid
+    gps_roCurvAnisot  = gpsroCurvAnisot
     gps_roNCurv       = gpsroNCurv
     gps_roNFlavour    = gpsroNFlavour
 
     dateStamp = tim_getDatestamp()
     call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy, .False.)
+
+    ! Determine Julian day number from date (RMNLIB function)
     call JDATEC(JD,YYYY,month,day)
+
+    ! Continuous Julian date, in Julian years (offset to read 2000 at Jan 1st 2000):
     gps_roYear = 2000.d0+(JD-2451545.d0)/365.25d0
+
+    ! Safety limits:
     if (gps_roYear < 1990.d0) gps_roYear = 1990.d0
     if (gps_roYear > 2100.d0) gps_roYear = 2100.d0
 
     if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SurfMin, gps_HsfMin, &
            gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gps_roEotvos, &
-           gps_roNsigma, gps_roEllipsoid, gps_roNCurv, gps_roNFlavour
+           gps_roNsigma, gps_roCurvAnisot, gps_roNCurv, gps_roNFlavour
       do SatID = 0, 1023
         if (WGPS(SatID,2) /= 0.) then
           write(*,*)'WGPS', SatID, gps_WGPS(SatID, 1:4)
         end if
       end do
-      write(*,*)'ROSetup Epoch:', yyyy, ndays, month, day, hour, gps_roYear
+      write(*,*)'gps_setupRO: Epoch:', yyyy, ndays, month, day, hour, gps_roYear
     end if
   end subroutine gps_setupro
 

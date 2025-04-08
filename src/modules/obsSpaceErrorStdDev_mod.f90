@@ -1481,9 +1481,9 @@ module obsSpaceErrorStdDev_mod
             ! Apply the observation operator:
 
             IF (varNum == bufr_nebd) THEN
-              CALL GPS_BNDOPV2(H-dR(1:NH), AZMV, NH, PRF, RSTV)
+              CALL GPS_BNDOPV2(H(1:NH)-dR(1:NH), AZMV, NH, PRF, RSTV)
             ELSE
-              CALL GPS_REFOPV (H-dR(1:NH),       NH, PRF, RSTV)
+              CALL GPS_REFOPV (H(1:NH)-dR(1:NH),       NH, PRF, RSTV)
             ENDIF
             DO NH1=1,NH
               ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
