@@ -1468,7 +1468,7 @@ end subroutine filt_topoAISW
 
     ! Locals:
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY, numROProfiles
-    INTEGER :: JL, ISAT, IORI, IQLF, iProfile, IFLG, varNum, IDSC, IBD
+    INTEGER :: JL, ISAT, IQLF, iProfile, IFLG, varNum, IDSC, IBD
     REAL(8) :: ZMT, Rad, Geo, LAT, LON, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL, LDSC, LEDR
@@ -1498,7 +1498,6 @@ end subroutine filt_topoAISW
         !
         AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,INDEX_HEADER)
         ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
-        IORI = obs_headElem_i(obsSpaceData,OBS_ORI ,INDEX_HEADER)
         IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
         Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,INDEX_HEADER)
         Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,INDEX_HEADER)
@@ -1598,7 +1597,6 @@ end subroutine filt_topoAISW
           LON  = obs_headElem_r(obsSpaceData,OBS_LON ,INDEX_HEADER)
           AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,INDEX_HEADER)*MPC_RADIANS_PER_DEGREE_R8
           ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
-          IORI = obs_headElem_i(obsSpaceData,OBS_ORI ,INDEX_HEADER)
           IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
           LDSC = .not.btest(IQLF,16-3)
           if (LDSC) then
@@ -1613,10 +1611,11 @@ end subroutine filt_topoAISW
           ! For storing varNum of each profile for the 'RO' family
           !
           LAZM = (-1.58d0 < AZM .AND. AZM < 6.29d0)
-          LEDR = (LAZM .and. gps_roEllipsoid)
+          LEDR = (LAZM .and. gps_roCurvAnisot)
           if (LEDR) then
+            ! Correction for curvature anisotropy will be applied.
+            ! Evaluate here the reference center of curvature and radius
             call phf_Rad_CCoC(LAT, LON, AZM, PRad, QRad, CCoC)
-            if (.not.beSilent) write(*,*)'CoC', LAT, LON, AZM, CCoC, IORI, ISAT
           end if
           dR(:) = 0.d0
           ibd = 1
@@ -1628,6 +1627,7 @@ end subroutine filt_topoAISW
               latrd = obs_bodyElem_r(obsSpaceData,OBS_LATD,INDEX_BODY)
               lonrd = obs_bodyElem_r(obsSpaceData,OBS_LOND,INDEX_BODY)
               if (-1.58d0 < latrd .and. latrd < 1.58d0 .and. -3.15d0 < lonrd .and. lonrd < 6.29d0) then
+                ! Evaluate the offset of the ellipsoid from the reference sphere
                 call phf_delR(latrd, lonrd, CCoC, PRad, dR(ibd))
               end if
             end if
@@ -1636,7 +1636,7 @@ end subroutine filt_topoAISW
           ! Normal values of dR are approx -20 < dR(i) < 20, in m.
           ! To guard against gross latlon error, dR offsets are limited to 60 (m).
           ! If limit is reached, assume latlons are bad in this specific profile, and revert to
-          ! no ellipsoidal correction in it.
+          ! no curvature anisotropy correction in it.
           if ( any(abs(dR) > 60.d0)) dR=0.d0
           ! Store profile info, including dR, in a table. 
           call gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC, dR)

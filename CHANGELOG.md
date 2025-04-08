@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Improvement to the vertical RO interpolation, and to the vertical height registration (#1016)
+ * Improvement to the vertical RO interpolation, and to the vertical height registration (#1016 and !963)
    * added option to select the detailed relationship between temperature and refractivity
 
 ### Changed
