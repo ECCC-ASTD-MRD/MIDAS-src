@@ -6413,6 +6413,13 @@ contains
         uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
         vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
 
+        if (tvs_useO3FromTrials_tl) then
+          if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
+            ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
+          end if
+        end if
+        !end of the block of code to be removed later
+        
         if (runObsOperatorWithClw_ad) then
           clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
         end if
