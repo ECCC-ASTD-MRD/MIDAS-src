@@ -45,7 +45,7 @@ contains
     integer :: ialt, idelay, idate, irs, irunn, inblk, isup, ixaux
     integer :: insup, inxaux
     integer, allocatable :: ibuf(:)
-    integer :: inrecs, mrfcls, mrfopn, mrfopc, mrbhdr, mrfloc, mrfget, mrfmxl
+    integer :: inrecs, mrbhdr, mrfget
     integer :: istampobs, inewhh, newdate, nresume, ivals
     real(8) :: delhh
     character(len=9) :: clstnid
