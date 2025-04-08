@@ -19,15 +19,16 @@ contains
   !--------------------------------------------------------------------------
   ! swd_readSwqi
   !--------------------------------------------------------------------------
-  subroutine swd_readSwqi(SWname,QIvalue)
+  subroutine swd_readSwqi(SWname,QIvalue,SWDeweight)
     !
     !:Purpose: read NAMSW block in the namelist
     !
     implicit none
 
     ! Arguments:
-    character(len=*), allocatable, intent(out) :: SWname(:)  ! the name of satellite
-    character(len=*), allocatable, intent(out) :: QIvalue(:) ! Quality Indicator (QI) for AMV
+    character(len=*), allocatable,           intent(out) :: SWname(:)     ! the name of satellite
+    character(len=*), allocatable,           intent(out) :: QIvalue(:)    ! Quality Indicator (QI) for AMV
+    character(len=*), allocatable, optional, intent(out) :: SWDeweight(:) ! the name of satellites to be de-weighted
 
     ! Locals:
     integer :: ierr
@@ -37,6 +38,7 @@ contains
 
     ! Namelist variables
     character(len=20) :: SWQI(maxSat)
+    character(len=20) :: SWDW(maxSat)
 
     namelist /NAMSW/ SWQI
 
@@ -69,6 +71,9 @@ contains
     SWQI(25) = 'METOP1-3:qi1'
     SWQI(26) = 'GEO-POL:qi1'
 
+    SWDW(:) = ''
+    SWDW(1) = 'GEO-POL'
+
     ! Read the namelist for SatWinds observations
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
@@ -85,12 +90,17 @@ contains
     nsats = getNumSats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
-    !call SplitString(nsats,SWQI,SWname,QIvalue)
     do isat = 1, nsats
       call utl_splitString(SWQI(isat),':',SWQIArray)
       SWname(isat) = SWQIArray(1)
       QIvalue(isat) = SWQIArray(2)
       deallocate(SWQIArray)
+    end do
+
+    nsats = getNumSats(maxSat,SWDW)
+    allocate(SWDeweight(nsats))
+    do isat = 1, nsats
+      SWDeweight(isat) = SWDW(isat)
     end do
 
   end subroutine swd_readSwqi
