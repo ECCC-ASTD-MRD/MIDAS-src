@@ -63,14 +63,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens),  intent(inout) :: ensembleStateVector(:) ! Array of ensemble perturbations. Contains the full horizontal perturbations in input and one or more horinzontal wavebands in output
+    type(struct_ens),  intent(inout) :: ensembleStateVector(:) ! Full perturbations in input, one or more horiz wavebands in output
     integer,           intent(in)    :: nEnsOverDimension ! Ensemble size used for the spectral transform
     integer,           intent(in)    :: nHorizWaveBand ! Number of horizontal wavebands
-    integer,           intent(in)    :: horizWaveBandPeaks(:) ! Total wavenumbers corresponding to the peaks of each waveband
+    integer,           intent(in)    :: horizWaveBandPeaks(:) ! Total wavenumbers corresponding to peaks of each waveband
     character(len=*),  intent(in)    :: decompositionMode ! 'Split' or 'Select'
     character(len=*),  intent(in)    :: filterResponseFunctionMode ! 'SumToOne' or 'SquareSumToOne'
-    integer, optional, intent(in)    :: horizWaveBandIndexSelected_opt ! Use the select the approprate waveband when 'decompositionMode' = 'select'
-    logical, optional, intent(in)    :: writeResponseFunction_opt ! Option to write the filter response functions to text files
+    integer, optional, intent(in)    :: horizWaveBandIndexSelected_opt ! Selected waveband when 'decompositionMode' = 'select'
+    logical, optional, intent(in)    :: writeResponseFunction_opt ! Option to write filter response functions
     
     ! Locals:
     type(struct_hco), pointer :: hco
@@ -826,7 +826,8 @@ contains
   function scd_filterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, &
                                       nWaveBand) result(ResponseFunction)
     !
-    ! :Purpose: Compute the filter response function for a given total wavenumber and a given waveband
+    ! :Purpose: Compute the filter response function for a given total wavenumber
+    !           and a given waveband
     !
     implicit none
 
@@ -834,7 +835,7 @@ contains
     real(8), intent(in) :: totalWaveNumber ! Total wavenumber
     integer, intent(in) :: waveBandIndex ! Waveband wanted
     integer, intent(in) :: nWaveBand ! Number of horizontal wavebands
-    integer, intent(in) :: waveBandPeaks(:) ! Total wavenumbers corresponding to the peaks of each waveband
+    integer, intent(in) :: waveBandPeaks(:) ! Total wavenumbers corresponding to peaks of each waveband
     ! Result:
     real(8) :: ResponseFunction ! Response function value
 
@@ -936,7 +937,7 @@ contains
 
     ! Arguments:
     character(len=*), intent(in)  :: decompositionType ! Covariances or Correlations
-    character(len=*), intent(in)  :: varName ! Variable name
+    character(len=*), intent(in)  :: varName           ! Variable name
  
     ! Result:
     logical :: scalingNeeded ! Needed or not
@@ -954,15 +955,15 @@ contains
   !--------------------------------------------------------------------------
   ! ensPertScaling
   !--------------------------------------------------------------------------
-   subroutine ensPertScaling(pert_ptr4d_r8,statevector_ensScaling, varName, mode)
+  subroutine ensPertScaling(pert_ptr4d_r8,statevector_ensScaling, varName, mode)
     !
     ! :Purpose: scale or unscale perturbations using the ensemble mean or StdDev values
     !
     implicit none
 
     ! Arguments:
-    real(8), pointer, intent(inout) :: pert_ptr4d_r8(:,:,:,:) ! ensemble perturations
-    type(struct_gsv), intent(in)    :: statevector_ensScaling ! statevector contaning the ensemble mean or StdDev
+    real(8), pointer, intent(inout) :: pert_ptr4d_r8(:,:,:,:) ! ensemble perturbations
+    type(struct_gsv), intent(in)    :: statevector_ensScaling ! statevector with ensemble mean or StdDev
     character(len=*), intent(in)    :: varName                ! variable name
     character(len=*), intent(in)    :: mode                   ! scale or unscale
 
@@ -1018,8 +1019,8 @@ contains
     implicit none
     
     ! Arguments:
-    type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
-    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
+    type(struct_gsv)    , intent(in)  :: statevector ! Gridded state containing full state of member
+    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined varName2d+varName3d gridded state
     integer             , intent(out) :: nLev ! Number of vertical levels for the 3D field
     character(len=*)    , intent(in)  :: varName3d ! Variable name of the 3d field
 
@@ -1055,24 +1056,25 @@ contains
   subroutine expand2dTo3d(statevector, gridState4d, nLev, varName2d, varName3d, &
                           statevector_ensScaling, decompositionType)
     !
-    ! :Purpose: Combine varName2d and varName3d to create a new 3D field with varName2d at the lower boundary
+    ! :Purpose: Combine varName2d and varName3d to create a new 3D field with varName2d
+    !           at the lower boundary
     !
     implicit none
     
     ! Arguments:
-    type(struct_gsv)    , intent(in)    :: statevector ! Gridded state vector contaning the full state of an ensemble member
-    real(8), allocatable, intent(inout) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d gridded state
+    type(struct_gsv)    , intent(in)    :: statevector ! Gridded state: full state of an ensemble member
+    real(8), allocatable, intent(inout) :: gridState4d(:,:,:,:) ! Combined varName2d and varName3d state
     integer             , intent(out)   :: nLev ! Number of vertical levels for the 3D field
     character(len=*)    , intent(in)    :: varName2d ! Variable name of the 2d field
     character(len=*)    , intent(in)    :: varName3d ! Variable name of the 3d field
-    type(struct_gsv)    , intent(in)    :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
+    type(struct_gsv)    , intent(in)    :: statevector_ensScaling ! State vector containing data for scaling/normalization
     character(len=*)    , intent(in)    :: decompositionType ! Covariances or Correlations
 
     ! Locals:
-    real(8), pointer     :: var2d_ptr4d_r8(:,:,:,:)
-    real(8), pointer     :: var3d_ptr4d_r8(:,:,:,:)
-    real(8), pointer     :: norm_var2d_ptr4d_r8(:,:,:,:)
-    real(8), pointer     :: norm_var3d_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: var3d_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: norm_var2d_ptr4d_r8(:,:,:,:)
+    real(8), pointer :: norm_var3d_ptr4d_r8(:,:,:,:)
     real(8) :: factor
     integer :: stepIndex, levIndex, lonIndex, latIndex
     logical :: scalingNeeded
@@ -1141,10 +1143,10 @@ contains
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector ! Gridded state vector contaning a vertical scale decomposed ensemble member
     integer,          intent(in)    :: nLev ! Number of vertical levels for the 3D temperature field
-    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined 2d + 3d gridded state after vertical scale decomposition
+    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined 2d+3d state after vertical scale decomposition
     character(len=*), intent(in)    :: varName2d ! Variable name of the 2d field
-    type(struct_gsv), intent(in)  :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
-    character(len=*), intent(in)  :: decompositionType ! Covariances or Correlations
+    type(struct_gsv), intent(in)    :: statevector_ensScaling ! Gridded state vector contaning data for scaling/normalization
+    character(len=*), intent(in)    :: decompositionType      ! Covariances or Correlations
     
     ! Locals:
     real(8), pointer :: var2d_ptr4d_r8(:,:,:,:)
@@ -1194,7 +1196,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector(:) ! Gridded state vector contaning a full ensemble member in input and the scale decomposed state in output
+    type(struct_gsv), intent(inout) :: statevector(:) ! Gridded state: full member in input, scale decomposed in output
     character(len=*), intent(in)    :: decompositionMode ! 'Split' or 'Select'
     character(len=*), intent(in)    :: TGhandling ! Chosen approach to decompose the 2D field TG
     integer,          intent(in)    :: vertWaveBandIndexLoopStart ! First vertical waveband to treat
