@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix ozone related double deallocation bug (#1037 and !966)
+   * `useO3FromTrials` namelist variable replaces `useO3Climatology` in `NAMTOV` (opposite meaning).
+   * `useO3FromTrials_tl` namelist variable is added to `NAMTOV` to control contribution of radiances to increments (defaut to .false.)
  * Fix a bug in selection of the QI (quality index) of AMVs (#1005 and !957)
    * Small impact on results of many programs when AMV observations used
  * Fix filtering all-sky obs before bias correction computation (#1044 and !946)
