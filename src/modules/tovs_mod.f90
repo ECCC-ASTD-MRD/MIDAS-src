@@ -6418,7 +6418,6 @@ contains
             ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
           end if
         end if
-        !end of the block of code to be removed later
         
         if (runObsOperatorWithClw_ad) then
           clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
