@@ -3541,7 +3541,7 @@ contains
     integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:)
     logical,           allocatable :: valid(:), validMpi(:), validMpi2(:)
-    character(len=20), allocatable :: SWname(:), QIvalue(:)
+    character(len=20), allocatable :: SWname(:), QIvalue(:), SWDeweight(:)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
@@ -3598,8 +3598,8 @@ contains
     bgckCount = 0
     missingCount = 0
 
-    ! get QI information
-    call swd_readSwqi(SWname,QIvalue)
+    ! get QI and deweighting information
+    call swd_readSwqi(SWname,QIvalue,SWDeweight)
 
     ! First pass through observations
     numStnId = 0
@@ -3676,6 +3676,11 @@ contains
         end if
         if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
+
+      ! Inflate the QI value by 10 if the name of satellite is not in the SWDeweight
+      if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
+        quality(headerIndex) = quality(headerIndex)*10
+      end if
 
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = nullValue
@@ -3784,10 +3789,12 @@ contains
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
 
           ! only consider obs from current satellite
+          ! except for satellites in the SWDeweight
           do charIndex = 1, lenStnId
             stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
           end do
-          if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
+          if ( (stnidList(stnIdIndex) /= stnId) .and. &
+               .not. utl_isInArray(stnidList(stnIdIndex)(2:),SWDeweight) ) cycle OBSLOOP1
 
           ! Do not keep this obs if an already selected obs is close in time and space
           ! (jump to next)
@@ -3917,6 +3924,9 @@ contains
     deallocate(stnIdIntMpi)
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
+    deallocate(SWDeweight)
+    deallocate(QIvalue)
+    deallocate(SWname)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Finished'

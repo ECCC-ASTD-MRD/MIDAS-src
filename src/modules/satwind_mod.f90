@@ -72,7 +72,6 @@ contains
     SWQI(26) = 'GEO-POL:qi1'
 
     SWDW(:) = ''
-    SWDW(1) = 'GEO-POL'
 
     ! Read the namelist for SatWinds observations
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
