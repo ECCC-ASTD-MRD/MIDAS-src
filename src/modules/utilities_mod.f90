@@ -3424,12 +3424,14 @@ contains
 
     exists = .false.
 
-    loop_I: do i = 1, size(inarr)
-      if (trim(invar) == trim(inarr(i))) then
-        exists = .true.
-        exit loop_I
-      end if
-    end do loop_I
+    if ( size(inarr) /= 0 ) then
+      loop_I: do i = 1, size(inarr)
+        if (trim(invar) == trim(inarr(i))) then
+          exists = .true.
+          exit loop_I
+        end if
+      end do loop_I
+    end if
   
   end function utl_isInArray_char
 

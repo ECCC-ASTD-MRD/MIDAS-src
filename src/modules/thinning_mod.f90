@@ -3678,7 +3678,12 @@ contains
       end do LOOP_QI
 
       ! Inflate the QI value by 10 if the name of satellite is not in the SWDeweight
-      if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
+      if (allocated(SWDeweight)) then
+        if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
+          !write(*,*) 'inflate the IQ by 10: ', stnId(2:)
+          quality(headerIndex) = quality(headerIndex)*10
+        end if
+      else
         quality(headerIndex) = quality(headerIndex)*10
       end if
 
@@ -3793,8 +3798,14 @@ contains
           do charIndex = 1, lenStnId
             stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
           end do
-          if ( (stnidList(stnIdIndex) /= stnId) .and. &
-               .not. utl_isInArray(stnidList(stnIdIndex)(2:),SWDeweight) ) cycle OBSLOOP1
+          if (stnidList(stnIdIndex) /= stnId) then
+            if (allocated(SWDeweight)) then
+              if (.not. utl_isInarray(stnidList(stnIdIndex)(2:),SWDeweight)) cycle OBSLOOP1
+              write(*,*) stnidList(stnIdIndex), 'chk_jwk001', stnIdIndex, stnId
+            else
+              cycle OBSLOOP1
+            end if
+          end if
 
           ! Do not keep this obs if an already selected obs is close in time and space
           ! (jump to next)
@@ -3924,7 +3935,7 @@ contains
     deallocate(stnIdIntMpi)
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
-    deallocate(SWDeweight)
+    if (allocated(SWDeweight)) deallocate(SWDeweight)
     deallocate(QIvalue)
     deallocate(SWname)
 

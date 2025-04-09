@@ -97,10 +97,12 @@ contains
     end do
 
     nsats = getNumSats(maxSat,SWDW)
+    if ( nsats /= 0 ) then
     allocate(SWDeweight(nsats))
-    do isat = 1, nsats
-      SWDeweight(isat) = SWDW(isat)
-    end do
+      do isat = 1, nsats
+        SWDeweight(isat) = SWDW(isat)
+      end do
+    end if
 
   end subroutine swd_readSwqi
 
