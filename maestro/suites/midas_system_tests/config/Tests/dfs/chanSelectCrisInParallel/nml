@@ -125,7 +125,7 @@
    SLANTPATH_TO_TLAD = .FALSE.,
    SLANTPATH_RO_NL   = .TRUE.,
    calcHeightPressIncrOnColumn=.TRUE.,
-   interpForDfs = .true.
+   NNInterpForAllVars = .true.
 /
  &NAMTOV   
    CSATID(1)        = 'NPP',
