@@ -3677,14 +3677,13 @@ contains
         if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
 
-      ! Inflate the QI value by 10 if the name of satellite is not in the SWDeweight
+      ! Inflate the QI value by 100 if the name of satellite is not in the SWDeweight
       if (allocated(SWDeweight)) then
         if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
-          !write(*,*) 'inflate the IQ by 10: ', stnId(2:)
-          quality(headerIndex) = quality(headerIndex)*10
+          quality(headerIndex) = (quality(headerIndex))*1000
         end if
       else
-        quality(headerIndex) = quality(headerIndex)*10
+        quality(headerIndex) = (quality(headerIndex))*1000
       end if
 
       ! find observation flags (assumes 1 level only per headerIndex)
@@ -3717,7 +3716,7 @@ contains
 
     end do HEADER1
 
-    ! Gather needed information from all MPI tasks
+      ! Gather needed information from all MPI tasks
     allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(validMpi2(numHeaderMaxMpi*mmpi_nprocs))
     allocate(qualityMpi(numHeaderMaxMpi*mmpi_nprocs))
@@ -3792,6 +3791,7 @@ contains
 
           ! only consider obs with high quality
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
+          if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1
 
           ! only consider obs from current satellite
           ! except for satellites in the SWDeweight
@@ -3801,7 +3801,6 @@ contains
           if (stnidList(stnIdIndex) /= stnId) then
             if (allocated(SWDeweight)) then
               if (.not. utl_isInarray(stnidList(stnIdIndex)(2:),SWDeweight)) cycle OBSLOOP1
-              write(*,*) stnidList(stnIdIndex), 'chk_jwk001', stnIdIndex, stnId
             else
               cycle OBSLOOP1
             end if
