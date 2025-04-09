@@ -5124,7 +5124,7 @@ contains
     integer,           intent(in)    :: delta
     integer,           intent(in)    :: deltrad
     integer,           intent(in)    :: codtyp
-    character(len=10), intent(in)    :: rarsDetectionCriterium
+    character(len=*),  intent(in)    :: rarsDetectionCriterium
     integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
@@ -5600,7 +5600,7 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     logical,          intent(inout) :: valid(:)
-    character(len=10) , intent(in)  :: rarsDetectionCriterium
+    character(len=*), intent(in)    :: rarsDetectionCriterium
 
     ! Locals:
     integer :: nsize, ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
@@ -5608,7 +5608,6 @@ contains
     integer :: obsDate, obsTime
     real(4) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
-    logical :: use055200
     integer, allocatable :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer, allocatable :: obsFov(:), obsFovMpi(:)
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
@@ -5629,15 +5628,6 @@ contains
 
 
     write(*,*) 'thn_removeRarsDuplicates: start'
-    if (rarsDetectionCriterium == 'centreOrig') then
-      write(*,*) 'thn_removeRarsDuplicates: rars detection based on the hardcoded centreOrigGlobal list ', centreOrigGlobal
-      use055200 = .false.
-    else if (rarsDetectionCriterium == 'Bufr055200') then
-      write(*,*) 'thn_removeRarsDuplicates: rars detection based on BUFR element 0055200 contained in obsSpaceData OBS_ST1 header column'
-      use055200 = .true.
-    else
-      call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
-    end if
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -5668,15 +5658,17 @@ contains
       if ( .not. valid(headerIndex) ) cycle
 
       ! Originating centre of data
-      if (use055200) then
+      if (rarsDetectionCriterium == 'Bufr055200') then
         ! flag (element 055200)
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
         isGlobal(headerIndex) =  btest(rarsCriterium(headerIndex),10) .and. &
                           (.not. btest(rarsCriterium(headerIndex),22) )
-      else
+      else if (rarsDetectionCriterium == 'centreOrig') then
         ! Originating centre of data
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
         isGlobal(headerIndex) = any(centreOrigGlobal(:) == rarsCriterium(headerIndex))
+      else
+        call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
       end if
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
