@@ -878,6 +878,7 @@ module midasMpi_mod
     end if
 
     call rpn_comm_bcastc(charData, len(charData), 'MPI_CHARACTER', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_character')
 
   end subroutine mmpi_bcast_character
 
@@ -905,7 +906,31 @@ module midasMpi_mod
     end if
 
     call rpn_comm_bcast(logicalData, 1, 'MPI_LOGICAL', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_logical')
 
   end subroutine mmpi_bcast_logical
+
+  !--------------------------------------------------------------------------
+  ! handleMpiError
+  !--------------------------------------------------------------------------
+  subroutine handleMpiError(errCode, context)
+    !
+    !:Purpose: Handle gracefully the MPI error code
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: errCode
+    character(len=*), intent(in) :: context
+
+    ! Locals:
+    character(len=MPI_MAX_ERROR_STRING) :: errorMsg
+    integer :: resultlen, ierror
+
+    if (errCode /= MPI_SUCCESS) then
+      call MPI_Error_string(errcode, errorMsg, resultlen, ierror)
+      call utl_abort('MPI error found in ' // context // ' : ' // trim(errorMsg))
+    end if
+  end subroutine handleMpiError
 
 end module midasMpi_mod
