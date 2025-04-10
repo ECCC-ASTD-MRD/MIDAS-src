@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
 
 ### Changed
 
