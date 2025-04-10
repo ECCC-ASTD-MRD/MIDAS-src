@@ -744,22 +744,22 @@ contains
       allocate(hco%lat2d_4(hco%ni,hco%nj))
       allocate(hco%lon2d_4(hco%ni,hco%nj))
     end if
-    call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%lat, size(hco%lat))
+    call mmpi_bcast(hco%lon, size(hco%lon))
     call mmpi_bcast(hco%lat2d_4, size(hco%lat2d_4))
     call mmpi_bcast(hco%lon2d_4, size(hco%lon2d_4))
-    call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%dlat)
+    call mmpi_bcast(hco%dlon)
     call mmpi_bcast(hco%global)
     call mmpi_bcast(hco%rotated)
-    call rpn_comm_bcast(hco%xlat1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%xlat1)
+    call mmpi_bcast(hco%xlon1)
+    call mmpi_bcast(hco%xlat2)
+    call mmpi_bcast(hco%xlon2)
+    call mmpi_bcast(hco%xlat1_yan)
+    call mmpi_bcast(hco%xlon1_yan)
+    call mmpi_bcast(hco%xlat2_yan)
+    call mmpi_bcast(hco%xlon2_yan)
     if (hco%grtyp == 'U') then
       if (mmpi_myid > 0) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
@@ -1149,7 +1149,7 @@ contains
 
     call mmpi_bcast(fileExist)
     if ( fileExist ) then
-      call rpn_comm_bcast(weight, ni*njWeight, "MPI_REAL8", 0, "GRID", ierr)
+      call mmpi_bcast(weight, ni*njWeight)
       return
     end if
 

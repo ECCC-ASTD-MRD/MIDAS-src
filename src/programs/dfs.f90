@@ -863,7 +863,7 @@ contains
           call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
-            call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call mmpi_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs)
             if (mmpi_myId == 0) then
               write(nulHBHt,'(A)') trim(headerObs)
               do channelIndex2 = 1, nLevelsDfs
@@ -878,10 +878,10 @@ contains
             end if
           end if
 
-          call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+          call mmpi_bcast(dfs)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
-            call rpn_comm_bcast(dfsIncremental, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call mmpi_bcast(dfsIncremental, sizeSelect)
             call mmpi_bcast(order, sizeSelect)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)

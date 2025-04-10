@@ -1236,7 +1236,7 @@ contains
         write(errorMessage,*) "bcs_removeOutliers: MPI communication error 4", ierr 
         call utl_abort(errorMessage)
       end if
-      call rpn_comm_bcast(stdMpiGlobal, nchans*nfiles, "mpi_double_precision", 0, "GRID", ierr)
+      call mmpi_bcast(stdMpiGlobal, nchans*nfiles)
       if (ierr /=0) then
         write(errorMessage,*) "bcs_removeOutliers: MPI communication error 5", ierr 
         call utl_abort(errorMessage)
@@ -1699,7 +1699,7 @@ contains
         nsize = bias(iSensor)%numScan 
         do iChannel = 1, bias(iSensor)%numChannels
           if (bias(iSensor)%chans(iChannel)%isDynamic) &
-               call rpn_comm_bcast(bias(iSensor)%chans(iChannel)%coeffIncr_fov, nsize, "mpi_double_precision", 0, "GRID", ierr)
+               call mmpi_bcast(bias(iSensor)%chans(iChannel)%coeffIncr_fov, nsize)
         end do
       end if
     end do
@@ -1710,7 +1710,7 @@ contains
         do iChannel = 1, bias(iSensor)%numChannels
           if (bias(iSensor)%chans(iChannel)%isDynamic) then
             nsize = bias(iSensor)%chans(iChannel)%numActivePredictors 
-            call rpn_comm_bcast(bias(iSensor)%chans(iChannel)%coeffIncr, nsize, "mpi_double_precision", 0, "GRID", ierr)
+            call mmpi_bcast(bias(iSensor)%chans(iChannel)%coeffIncr, nsize)
           end if
         end do
       end if
@@ -2960,7 +2960,7 @@ contains
           where(omfCountMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
           where(omfCountMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
-        call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+        call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
         if (ierr /= 0) then
           write(errorMessage,*) "bcs_do_regression: MPI communication error 3", ierr 
           call utl_abort(errorMessage)
@@ -3079,7 +3079,7 @@ contains
         call mmpi_bcast(ndim)
         call mmpi_bcast(npred)
 
-        call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "mpi_double_precision", 0, "GRID", ierr)
+        call mmpi_bcast(LineVec(1,1:ndim), ndim)
         if (ierr /= 0) then
           write(errorMessage,*) "bcs_do_regression: MPI communication error 6", ierr 
           call utl_abort(errorMessage)
@@ -3087,7 +3087,7 @@ contains
 
         if (outCoeffCov) then
           allocate (bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim)) 
-          call rpn_comm_bcast(pIMatrix(1:ndim, 1:ndim), ndim * ndim, "mpi_double_precision", 0, "GRID", ierr)
+          call mmpi_bcast(pIMatrix(1:ndim, 1:ndim), ndim * ndim)
           bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
@@ -3208,12 +3208,12 @@ contains
           if (countMpiGlobal(channelIndex) > 0) predBiasMpiGlobal(channelIndex,:) = predBiasMpiGlobal(channelIndex,:) / countMpiGlobal(channelIndex)
         end do
       end if
-      call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
       if (ierr /= 0) then
         write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
         call utl_abort(errorMessage)
       end if
-      call rpn_comm_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      call mmpi_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal))
       if (ierr /= 0) then
         write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
         call utl_abort(errorMessage)

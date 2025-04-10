@@ -698,8 +698,7 @@ contains
         deallocate(vector)
       end if
 
-      call rpn_comm_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                          'mpi_real8', 0, 'GRID', ierr)
+      call mmpi_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
     end do
     deallocate(ObsErrSqrdMat)
     deallocate(meanObsErrMpiGlobal)

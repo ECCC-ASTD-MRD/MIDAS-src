@@ -717,24 +717,16 @@ CONTAINS
 
     deallocate(tempBuffer)
 
-    call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs)
     if (allocated(ensObs_mpiglobal%obsErrInv_sim)) then
-      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
+      call mmpi_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs)
     end if
-    call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs)
     call mmpi_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs)
     call mmpi_bcast(ensObs_mpiglobal%codTyp,  ensObs_mpiglobal%numObs)
 

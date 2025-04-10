@@ -890,7 +890,7 @@ contains
         allocate(vco%depths(vco%nlev_depth))
       end if
       call mmpi_bcast(vco%ip1_depth, vco%nlev_depth)
-      call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
+      call mmpi_bcast(vco%depths, vco%nlev_depth)
     end if
     if (vco%vgridPresent) then
       if (mmpi_myid == 0) then
@@ -931,7 +931,7 @@ contains
       call mmpi_bcast(vgdtable_dim2)
       call mmpi_bcast(vgdtable_dim3)
       if (mmpi_myid > 0) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
-      call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
+      call mmpi_bcast(vgdtable, size(vgdtable))
       ! others
       call mmpi_bcast(vgddate)
       call mmpi_bcast(vgdetik)

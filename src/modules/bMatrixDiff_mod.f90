@@ -670,7 +670,7 @@ CONTAINS
         end do
       end do
     end if 
-    call rpn_comm_bcast(gd_mpiGlobal, size(gd_mpiGlobal), 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(gd_mpiGlobal, size(gd_mpiGlobal))
     
     jn = 0
     do jlev = 1, numvar2d

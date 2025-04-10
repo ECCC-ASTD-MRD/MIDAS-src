@@ -314,7 +314,7 @@ program midas_extractBmatrixFor1Dvar
 
     end do variableLoop1
 
-    call RPN_COMM_bcast(Bmatrix, numVarLev * numVarLev, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
+    call mmpi_bcast(Bmatrix, numVarLev * numVarLev, procID_opt = columnProcIdGlobal)
     if (mmpi_myId ==0) then
       write(nulmat) latitude, longitude,  Bmatrix(:,:)
     end if
