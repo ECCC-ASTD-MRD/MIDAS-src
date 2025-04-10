@@ -1472,7 +1472,7 @@ end subroutine filt_topoAISW
     REAL(8) :: ZMT, Rad, Geo, LAT, LON, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL, LDSC, LEDR
-    REAL(8) :: PRad, QRad, CCoC(3)
+    REAL(8) :: PRad, CCoC(3)
     REAL(8) :: latrd, lonrd, dR(gps_ro_maxprfsize)
 
     if (.not.beSilent) then
@@ -1615,7 +1615,7 @@ end subroutine filt_topoAISW
           if (LEDR) then
             ! Correction for curvature anisotropy will be applied.
             ! Evaluate here the reference center of curvature and radius
-            call phf_Rad_CCoC(LAT, LON, AZM, PRad, QRad, CCoC)
+            call phf_Rad_CCoC(LAT, LON, AZM, PRad, CCoC)
           end if
           dR(:) = 0.d0
           ibd = 1
