@@ -927,7 +927,7 @@ CONTAINS
       end if
 
       ! ibrpstamp and iztrl_io must be broadcasted
-      call rpn_comm_bcast(ibrpstamp,  1, "MPI_INTEGER", 0, "GRID", ierr)
+      call mmpi_bcast(ibrpstamp)
       call rpn_comm_bcast(iztrl_io , 10, "MPI_INTEGER", 0, "GRID", ierr)
 
       !- Read the Hessian

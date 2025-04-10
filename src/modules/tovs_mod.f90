@@ -4640,7 +4640,7 @@ contains
       end do
     end if
     
-    call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(countUniqueChannel)
     call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr)
 
     deallocate(listGlobal)

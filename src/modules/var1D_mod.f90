@@ -133,7 +133,7 @@ contains
       write(*,*) 'var1D_transferColumnToYGrid: obsOffset: ', obsOffset(:)
     end if
     call rpn_comm_bcast( obsOffset, mmpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
-    call rpn_comm_bcast( var1D_validHeaderCountMax, 1, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call mmpi_bcast(var1D_validHeaderCountMax)
 
     call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)
     if (mmpi_myId ==0) then
@@ -189,7 +189,7 @@ contains
         call gsv_getField(stateVector, myField, varName_opt=varList(varIndex), stepIndex_opt=1)
         varDim = gsv_getNumLevFromVarName(stateVector, varList(varIndex))
       end if
-      call rpn_comm_bcast(varDim, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(varDim)
       allocate(dummy(varDim))
       allocate(localColumn(varDim))
       dummy(:) = MPC_missingValue_R8
