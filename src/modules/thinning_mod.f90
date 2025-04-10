@@ -532,8 +532,9 @@ contains
     ! Namelist variables:
     integer :: delta    ! thinning (dimension of box sides) (in km)
     integer :: deltrad  ! radius around box center for chosen obs (in km)
-
-    namelist /thin_tovs/delta, deltrad
+    character(len=10) :: rarsDetectionCriterium ! Criterium to decide if an observation is from RARS
+    
+    namelist /thin_tovs/ delta, deltrad, rarsDetectionCriterium
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
@@ -541,6 +542,7 @@ contains
     ! Default namelist values
     delta   = 100
     deltrad = 75
+    rarsDetectionCriterium = 'centreOrig'
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
@@ -560,16 +562,16 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'), rarsDetectionCriterium)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), rarsDetectionCriterium, &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'), rarsDetectionCriterium)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'), rarsDetectionCriterium)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'), rarsDetectionCriterium)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_stop(114)
 
@@ -5110,7 +5112,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
-  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
+  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, rarsDetectionCriterium, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -5122,6 +5124,7 @@ contains
     integer,           intent(in)    :: delta
     integer,           intent(in)    :: deltrad
     integer,           intent(in)    :: codtyp
+    character(len=*),  intent(in)    :: rarsDetectionCriterium
     integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
@@ -5186,7 +5189,7 @@ contains
                countObs, countObsMpi
 
     ! Remove RARS obs that are also present from a global originating centre
-    call thn_removeRarsDuplicates(obsdat, valid)
+    call thn_removeRarsDuplicates(obsdat, valid, rarsDetectionCriterium)
 
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
@@ -5588,7 +5591,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
-  subroutine thn_removeRarsDuplicates(obsdat, valid)
+  subroutine thn_removeRarsDuplicates(obsdat, valid, rarsDetectionCriterium)
     !
     ! :Purpose: Remove duplicate TOVS observations due to RARS.
     !
@@ -5597,6 +5600,7 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     logical,          intent(inout) :: valid(:)
+    character(len=*), intent(in)    :: rarsDetectionCriterium
 
     ! Locals:
     integer :: nsize, ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
@@ -5604,11 +5608,11 @@ contains
     integer :: obsDate, obsTime
     real(4) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
-    logical :: global1, global2
-    integer, allocatable :: centreOrig(:), centreOrigMpi(:)
+    integer, allocatable :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer, allocatable :: obsFov(:), obsFovMpi(:)
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
+    logical, allocatable :: isGlobal(:), isGlobalMpi(:)
     logical, allocatable :: validMpi(:)
     character(len=12)    :: stnId
     type(kdtree2), pointer            :: tree
@@ -5622,6 +5626,9 @@ contains
     integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
     integer, external  :: newdate
 
+
+    write(*,*) 'thn_removeRarsDuplicates: start'
+
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
@@ -5629,8 +5636,10 @@ contains
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
     allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
-    allocate(centreOrig(numHeaderMaxMpi))
-    allocate(centreOrigMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(rarsCriterium(numHeaderMaxMpi))
+    allocate(rarsCriteriumMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(isGlobal(numHeaderMaxMpi))
+    allocate(isGlobalMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
     allocate(obsFovMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
@@ -5641,7 +5650,7 @@ contains
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     ! Some initializations
-    centreOrig(:) = 0
+    rarsCriterium(:) = 0
     obsPosition3d(:,:) = 0.0
 
     ! Loop over all observation locations
@@ -5649,8 +5658,18 @@ contains
       if ( .not. valid(headerIndex) ) cycle
 
       ! Originating centre of data
-      centreOrig(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
-
+      if (rarsDetectionCriterium == 'Bufr055200') then
+        ! flag (element 055200)
+        rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
+        isGlobal(headerIndex) =  btest(rarsCriterium(headerIndex),10) .and. &
+                          (.not. btest(rarsCriterium(headerIndex),22) )
+      else if (rarsDetectionCriterium == 'centreOrig') then
+        ! Originating centre of data
+        rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
+        isGlobal(headerIndex) = any(centreOrigGlobal(:) == rarsCriterium(headerIndex))
+      else
+        call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
+      end if
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
       do charIndex = 1, lenStnId
@@ -5681,8 +5700,10 @@ contains
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
                             validMpi, nsize, 'mpi_logical', 'grid', ierr)
-    call rpn_comm_allgather(centreOrig,    nsize, 'mpi_integer',  &
-                            centreOrigMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(rarsCriterium,    nsize, 'mpi_integer',  &
+                            rarsCriteriumMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(isGlobal,    nsize, 'mpi_logical',  &
+                            isGlobalMpi, nsize, 'mpi_logical', 'grid', ierr)
     call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
                             obsFovMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDateStamp,    nsize, 'mpi_integer',  &
@@ -5719,7 +5740,7 @@ contains
         ! pas s'y fier.
         ! Il faut comparer le temps de la reception des
         ! donnees
-        if ( centreOrigMpi(headerIndex1) /= centreOrigMpi(headerIndex2) ) then
+        if ( rarsCriteriumMpi(headerIndex1) /= rarsCriteriumMpi(headerIndex2) ) then
           if ( obsFovMpi(headerIndex1) == obsFovMpi(headerIndex2) ) then
             if ( all(stnIdIntMpi(:,headerIndex1) ==  stnIdIntMpi(:,headerIndex2)) ) then
             
@@ -5732,17 +5753,14 @@ contains
               if ( abs(dlhours) <= 0.1 ) then
 
                 ! si l'element_i est global, on doit le garder et rejeter l'element_j
-                global1 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex1))
-                if (global1) then 
+                if (isGlobalMpi(headerIndex1)) then  
                   validMpi(headerIndex2) = .false.
                 else
                   ! toutefois, ca ne signifie pas que l'element_j est un rars
                   ! VERIFIER SI LA STATION 2 EST RARS
-                  global2 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex2))
-
                   ! Si l'element_j est global, rejeter l'element_i
                   ! Si les 2 elements sont rars, garder le 1er
-                  if (global2) then 
+                  if (isGlobalMpi(headerIndex2)) then 
                     validMpi(headerIndex1) = .false.
                     cycle HEADER1
                   else
@@ -5767,8 +5785,10 @@ contains
 
     deallocate(obsPosition3d)
     deallocate(obsPosition3dMpi)
-    deallocate(centreOrig)
-    deallocate(centreOrigMpi)
+    deallocate(rarsCriterium)
+    deallocate(rarsCriteriumMpi)
+    deallocate(isGlobal)
+    deallocate(isGlobalMpi)
     deallocate(obsFov)
     deallocate(obsFovMpi)
     deallocate(obsDateStamp)
