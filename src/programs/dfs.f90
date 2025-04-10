@@ -860,7 +860,7 @@ contains
             deallocate(Rsub)
           end if
         
-          call rpn_comm_bcastc(headerObs, stringLength, 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
+          call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
             call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)

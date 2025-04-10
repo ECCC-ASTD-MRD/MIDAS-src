@@ -728,12 +728,12 @@ contains
       end if
     end if
     
-    call rpn_comm_bcastc(hco%gridname, len(hco%gridname), 'MPI_CHARACTER', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%gridname)
     call rpn_comm_bcast(hco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ni, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%nj, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(hco%grtyp, len(hco%grtyp), 'MPI_CHARACTER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(hco%grtypTicTac, len(hco%grtypTicTac), 'MPI_CHARACTER', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%grtyp)
+    call mmpi_bcast(hco%grtypTicTac)
     call rpn_comm_bcast(hco%ig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
