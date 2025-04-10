@@ -349,8 +349,7 @@ module oceanMask_mod
     if (.not.associated(oceanMask%mask)) then
       call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
     end if
-    call rpn_comm_bcast(oceanMask%mask, oceanMask%hco%ni*oceanMask%hco%nj*1,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(oceanMask%mask, oceanMask%hco%ni*oceanMask%hco%nj*1)
 
     write(*,*) 'ocm_communicateMask: finished'
 

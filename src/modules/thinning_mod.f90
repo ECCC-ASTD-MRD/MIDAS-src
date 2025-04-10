@@ -2192,8 +2192,7 @@ contains
                            arrayMpi, allnsize, displs, 'mpi_logical',  &
                            0, 'GRID', ierr )
 
-    call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_logical',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(arrayMpi, length = nsizeMpi)
 
   end subroutine logicalArrayToMpi
 

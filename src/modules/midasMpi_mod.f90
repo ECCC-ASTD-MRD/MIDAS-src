@@ -48,6 +48,7 @@ module midasMpi_mod
   interface mmpi_bcast
     module procedure mmpi_bcast_character
     module procedure mmpi_bcast_logical
+    module procedure mmpi_bcast_logicalArray
     !module procedure mmpi_bcast_integer
     !module procedure mmpi_bcast_real4
     !module procedure mmpi_bcast_real8
@@ -871,7 +872,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID
 
-    if (present( procID_opt)) then
+    if (present(procID_opt)) then
       procID = procID_opt
     else
       procID = 0
@@ -899,7 +900,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID
 
-    if (present( procID_opt)) then
+    if (present(procID_opt)) then
       procID = procID_opt
     else
       procID = 0
@@ -909,6 +910,35 @@ module midasMpi_mod
     call handleMpiError(ierr, 'mmpi_bcast_logical')
 
   end subroutine mmpi_bcast_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_bcast_logicalArray
+  !--------------------------------------------------------------------------
+  subroutine mmpi_bcast_logicalArray(logicalData, length, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_bcast' for a logical array
+    !
+    implicit none
+
+    ! Arguments:
+    logical,           intent(inout) :: logicalData(:)
+    integer          , intent(in)    :: length
+    integer, optional, intent(in)    :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_logicalArray')
+
+  end subroutine mmpi_bcast_logicalArray
 
   !--------------------------------------------------------------------------
   ! handleMpiError
