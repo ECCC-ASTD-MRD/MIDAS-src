@@ -25,7 +25,10 @@
    dayList(4)=20211231,
    timeList(4)=2222,
    satZenList(4)=0.180000E+01,
-   computeInParallel=.true.
+   computeInParallel= .true.
+   highResWaterFractionThreshold = 0.99d0
+   lowResWaterFractionThreshold = 0.97d0
+
 /
  &NAMSQLTOVS
   listElem="12163"
@@ -122,6 +125,7 @@
    SLANTPATH_TO_TLAD = .FALSE.,
    SLANTPATH_RO_NL   = .TRUE.,
    calcHeightPressIncrOnColumn=.TRUE.,
+   NNInterpForAllVars = .true.
 /
  &NAMTOV   
    CSATID(1)        = 'NPP',
@@ -202,7 +206,7 @@
  &NAMCHEM 
   MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
 
-/    
+/
 &THIN_HYPER
    removeUnCorrected = .true.
    deltmax = 22

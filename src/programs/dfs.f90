@@ -218,8 +218,11 @@ program midas_dfs
   integer :: timeList(nObsMax)                   ! list of hours (HHMM) to select specific observations
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
   logical :: computeInParallel                   ! if .true. computation performed in parallel
-                                                 ! if .false. (default) observation processed one at a time (slow) 
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning
+                                                 ! if .false. (default) observation processed one at a time (slow)
+  real(8) :: highResWaterFractionThreshold       ! value for the highResWaterFraction threshold
+  real(8) :: lowResWaterFractionThreshold        ! value for the lowResWaterFraction threshold
+  
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -260,6 +263,9 @@ program midas_dfs
   satZenList(:) = MPC_missingValue_R8
   computeInParallel = .false.
   doThinning = .false.
+  highResWaterFractionThreshold=0.99d0
+  lowResWaterFractionThreshold=0.97d0
+
   
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
@@ -675,9 +681,7 @@ contains
           headerIndex = headerIndexList(obsIndex)
           if (headerIndex /= MPC_missingValue_INT) then
             bodyIndex1 = bodyIndexList(obsIndex,channelIndex1)
-            channelNumber1 = levelList(obsIndex,channelIndex1)
             call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-
           end if          
           call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData) 
          
@@ -1088,6 +1092,7 @@ contains
     integer              :: nChannelsIn, nChannelsOut
 
     write(*,*) 'selectChannels: start'
+    call msg_memUsage('selectChannels')
     call utl_printTime()
     nChannelsIn = size(R, dim = 1)
     
@@ -1183,7 +1188,7 @@ contains
 
     call tvs_pcnt_box (lowResWaterFraction, 1 ,latIndex,lonIndex, boxSize)
 
-    waterFractionTest : if (highResWaterFraction < 0.99d0 .or. lowResWaterFraction(1) < 0.97d0) then
+    waterFractionTest : if (highResWaterFraction < highResWaterFractionThreshold .or. lowResWaterFraction(1) < lowResWaterFractionThreshold) then
       selected= .false.      
     else
       
