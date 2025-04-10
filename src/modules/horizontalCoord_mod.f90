@@ -746,8 +746,8 @@ contains
     end if
     call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lat2d_4, size(hco%lat2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lon2d_4, size(hco%lon2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%lat2d_4, size(hco%lat2d_4))
+    call mmpi_bcast(hco%lon2d_4, size(hco%lon2d_4))
     call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call mmpi_bcast(hco%global)
@@ -764,7 +764,7 @@ contains
       if (mmpi_myid > 0) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
-      call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
+      call mmpi_bcast(hco%tictacU, size(hco%tictacU))
     end if
     
     if (mmpi_myid > 0) then

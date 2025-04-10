@@ -2361,7 +2361,7 @@ contains
         write(*,*) 'enkf_computeVertLocation: vertLocation min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
       end if
       nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-      call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+      call mmpi_bcast(vertLocation_r4, nsize)
 
     else if ( nLev_depth > 0 ) then ! depth for ocean fields
 

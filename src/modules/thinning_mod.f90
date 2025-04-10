@@ -2149,8 +2149,7 @@ contains
                            arrayMpi, allnsize, displs, 'mpi_real4',  &
                            0, 'GRID', ierr )
 
-    call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_real4',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(arrayMpi, nsizeMpi)
 
   end subroutine realArrayToMpi
 

@@ -51,7 +51,8 @@ module midasMpi_mod
     module procedure mmpi_bcast_logical_array
     module procedure mmpi_bcast_integer
     module procedure mmpi_bcast_integer_array
-   !module procedure mmpi_bcast_real4
+    module procedure mmpi_bcast_real4
+    module procedure mmpi_bcast_real4_array
     !module procedure mmpi_bcast_real8
   end interface mmpi_bcast
 
@@ -997,6 +998,63 @@ module midasMpi_mod
     call handleMpiError(ierr, 'mmpi_bcast_integer_array')
 
   end subroutine mmpi_bcast_integer_array
+
+  !--------------------------------------------------------------------------
+  ! mmpi_bcast_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_bcast_real4(real4Data, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_bcast' for a single real4 value
+    !
+    implicit none
+
+    ! Arguments:
+    real(4),           intent(inout) :: real4Data
+    integer, optional, intent(in)    :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_bcast(real4Data, 1, 'MPI_REAL4', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_real4')
+
+  end subroutine mmpi_bcast_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_bcast_real4_array
+  !--------------------------------------------------------------------------
+  subroutine mmpi_bcast_real4_array(real4Data, length, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_bcast' for a real4 array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4),           intent(inout) :: real4Data(..)
+    integer,           intent(in)    :: length
+    integer, optional, intent(in)    :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_real4_array')
+
+  end subroutine mmpi_bcast_real4_array
 
   !--------------------------------------------------------------------------
   ! handleMpiError
