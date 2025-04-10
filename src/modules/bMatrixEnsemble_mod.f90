@@ -1776,7 +1776,7 @@ CONTAINS
         immediateReturn = .true.
       end if
     end if
-    call rpn_comm_bcast(immediateReturn, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(immediateReturn)
     if (immediateReturn) return
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: starting'

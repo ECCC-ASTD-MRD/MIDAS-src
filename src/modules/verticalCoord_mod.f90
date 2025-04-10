@@ -873,8 +873,8 @@ contains
       end if
     end if
 
-    call rpn_comm_bcast(vco%initialized , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%vgridPresent, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(vco%initialized)
+    call mmpi_bcast(vco%vgridPresent)
     call rpn_comm_bcast(vco%nlev_T      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_M      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%ip1_sfc     , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
@@ -882,7 +882,7 @@ contains
     call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%sleveCoord  , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call  mmpi_bcast(vco%sleveCoord)
     call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_LOGICAL', 0, 'GRID', ierr)
     if (vco%nLev_depth > 0) then
       if (mmpi_myid > 0) then

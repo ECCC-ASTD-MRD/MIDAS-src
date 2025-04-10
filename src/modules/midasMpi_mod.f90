@@ -47,11 +47,10 @@ module midasMpi_mod
   ! general interface for rpn_comm_bcast and rpn_comm_bcastc
   interface mmpi_bcast
     module procedure mmpi_bcast_character
+    module procedure mmpi_bcast_logical
+    !module procedure mmpi_bcast_integer
     !module procedure mmpi_bcast_real4
     !module procedure mmpi_bcast_real8
-    !module procedure mmpi_bcast_logical
-    !module procedure mmpi_bcast_integer
-    !module procedure mmpi_bcast
   end interface mmpi_bcast
 
   contains
@@ -881,5 +880,32 @@ module midasMpi_mod
     call rpn_comm_bcastc(charData, len(charData), 'MPI_CHARACTER', procID, 'GRID', ierr)
 
   end subroutine mmpi_bcast_character
+
+  !--------------------------------------------------------------------------
+  ! mmpi_bcast_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_bcast_logical(logicalData, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_bcast' for logical value
+    !
+    implicit none
+
+    ! Arguments:
+    logical,           intent(inout) :: logicalData
+    integer, optional, intent(in)    :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present( procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_bcast(logicalData, 1, 'MPI_LOGICAL', procID, 'GRID', ierr)
+
+  end subroutine mmpi_bcast_logical
 
 end module midasMpi_mod

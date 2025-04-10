@@ -729,7 +729,7 @@ contains
     end if
     
     call mmpi_bcast(hco%gridname)
-    call rpn_comm_bcast(hco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%initialized)
     call rpn_comm_bcast(hco%ni, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%nj, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call mmpi_bcast(hco%grtyp)
@@ -750,8 +750,8 @@ contains
     call rpn_comm_bcast(hco%lon2d_4, size(hco%lon2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%global, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%rotated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%global)
+    call mmpi_bcast(hco%rotated)
     call rpn_comm_bcast(hco%xlat1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
@@ -1147,7 +1147,7 @@ contains
       end if ! End of 'if ( fileExist ) then'
     end if ! End of 'if ( mmpi_myid == 0 ) then'
 
-    call rpn_comm_bcast(fileExist, 1, "MPI_LOGICAL", 0, "GRID", ierr)
+    call mmpi_bcast(fileExist)
     if ( fileExist ) then
       call rpn_comm_bcast(weight, ni*njWeight, "MPI_REAL8", 0, "GRID", ierr)
       return

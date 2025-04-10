@@ -537,7 +537,7 @@ contains
           tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
-      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      call mmpi_bcast( tvs_isReallyPresentMpiGlobal ( sensorIndex ) )
     end do
     
     deallocate(logicalBuffer)

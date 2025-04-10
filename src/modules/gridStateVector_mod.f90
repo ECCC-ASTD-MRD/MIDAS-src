@@ -4424,8 +4424,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step_r4%allocated) then
         thisProcIsAsender(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
     end do
 
     numStepInput = 0
@@ -4644,8 +4643,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step%allocated) then
         thisProcIsAsender(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
     end do
 
     ! only send the data from tasks with data, same amount to all
@@ -4937,8 +4935,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step%allocated) then
         thisProcIsAreceiver(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAreceiver(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAreceiver(procIndex), procID_opt=procIndex-1)
     end do
 
     numStepOutput = 0

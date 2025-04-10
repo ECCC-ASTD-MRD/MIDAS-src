@@ -2723,8 +2723,7 @@ CONTAINS
             if ( mmpi_myid == (procIndex-1) .and. gsv_isAllocated(stateVector_member_r4) ) then
               thisProcIsAsender(procIndex) = .true.
             end if
-            call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                                'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+            call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
           end do
 
           do varLevIndexBeg = 1, numVarLev, numLevelsToSend

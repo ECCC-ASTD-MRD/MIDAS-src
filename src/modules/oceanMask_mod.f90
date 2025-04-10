@@ -325,15 +325,13 @@ module oceanMask_mod
 
     write(*,*) 'ocm_communicateMask: starting'
 
-    call rpn_comm_bcast(oceanMask%maskPresent, 1,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(oceanMask%maskPresent)
     if (.not.oceanMask%maskPresent) then
       write(*,*) 'ocm_communicateMask: mask not present, return'
       return
     end if
     
-    call rpn_comm_bcast(oceanMask%nLev, 1,  &
-                        'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(oceanMask%nLev)
 
     ! special treatment of hco object since EZscintID not properly communicated
     nullify(hco_temp)
