@@ -1231,7 +1231,7 @@ contains
         end where
       end if
 
-      call rpn_comm_bcast(countMpiGlobal, nchans*nfiles, "mpi_integer", 0, "GRID", ierr)
+      call mmpi_bcast(countMpiGlobal, nchans*nfiles)
       if (ierr /=0) then
         write(errorMessage,*) "bcs_removeOutliers: MPI communication error 4", ierr 
         call utl_abort(errorMessage)
@@ -3218,7 +3218,7 @@ contains
         write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
-      call rpn_comm_bcast(countMpiGlobal, size(countMpiGlobal), "mpi_integer", 0, "GRID", ierr)
+      call mmpi_bcast(countMpiGlobal, size(countMpiGlobal))
       if (ierr /= 0) then
         write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
         call utl_abort(errorMessage)

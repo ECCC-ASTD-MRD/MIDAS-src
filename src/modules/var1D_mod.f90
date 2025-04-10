@@ -132,7 +132,7 @@ contains
       end do
       write(*,*) 'var1D_transferColumnToYGrid: obsOffset: ', obsOffset(:)
     end if
-    call rpn_comm_bcast( obsOffset, mmpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call mmpi_bcast(obsOffset, mmpi_nprocs)
     call mmpi_bcast(var1D_validHeaderCountMax)
 
     call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)

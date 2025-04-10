@@ -554,17 +554,14 @@ contains
 
     ! Communicate values from proc 0 to others
     if (mmpi_nprocs > 1) then
-      call rpn_comm_bcast(numObs, size(numObs), 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(numObs, size(numObs))
       if (associated(influentObs(1,1)%bodyIndex)) then
         write(*,*) 'findObs: communicate bodyIndex, headerIndex'
         do latIndex = 1, stateVectorTrlErrorStd%hco%nj
           do lonIndex = 1, stateVectorTrlErrorStd%hco%ni
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%headerIndex,  &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%bodyIndex,    &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%procIndex,    &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%headerIndex, influentObs(lonIndex,latIndex)%numObs)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%bodyIndex,   influentObs(lonIndex,latIndex)%numObs)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%procIndex,   influentObs(lonIndex,latIndex)%numObs)
           end do
         end do
       end if

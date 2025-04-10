@@ -882,7 +882,7 @@ contains
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
             call rpn_comm_bcast(dfsIncremental, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-            call rpn_comm_bcast(order, sizeSelect, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
+            call mmpi_bcast(order, sizeSelect)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)

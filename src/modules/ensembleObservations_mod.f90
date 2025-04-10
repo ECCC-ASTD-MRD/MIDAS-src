@@ -735,10 +735,8 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%codTyp, ensObs_mpiglobal%numObs, 'mpi_integer',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%codTyp,  ensObs_mpiglobal%numObs)
 
     ! For shared memory we only need to send data to the other node masters
     nsize = ensObs_mpiglobal%numMembers*ensObs_mpiglobal%numObs

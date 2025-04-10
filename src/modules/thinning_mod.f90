@@ -2079,8 +2079,7 @@ contains
                              numLevelsMpi, allnsize, displs, 'mpi_integer',  &
                              0, 'GRID', ierr )
 
-      call rpn_comm_bcast(numLevelsMpi, nsizeMpi, 'mpi_integer',  &
-                          0, 'GRID', ierr)
+      call mmpi_bcast(numLevelsMpi, nsizeMpi)
       arrayMpi(1) = 0
       do arrayIndex = 1, nsizeMpi
         arrayMpi(arrayIndex+1) = arrayMpi(arrayIndex) + numLevelsMpi(arrayIndex)
@@ -2109,8 +2108,7 @@ contains
                              arrayMpi, allnsize, displs, 'mpi_integer',  &
                              0, 'GRID', ierr )
 
-      call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_integer',  &
-                          0, 'GRID', ierr)
+      call mmpi_bcast(arrayMpi, nsizeMpi)
     end if
 
   end subroutine intArrayToMpi

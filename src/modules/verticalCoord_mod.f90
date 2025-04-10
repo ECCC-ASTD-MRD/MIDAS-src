@@ -883,13 +883,13 @@ contains
     call mmpi_bcast(vco%nlev_depth)
     call mmpi_bcast(vco%Vcode)
     call mmpi_bcast(vco%sleveCoord)
-    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(vco%nlev_other, vnl_numvarmaxOther)
     if (vco%nLev_depth > 0) then
       if (mmpi_myid > 0) then
         allocate(vco%ip1_depth(vco%nlev_depth))
         allocate(vco%depths(vco%nlev_depth))
       end if
-      call rpn_comm_bcast(vco%ip1_depth , vco%nlev_depth, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(vco%ip1_depth, vco%nlev_depth)
       call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
     end if
     if (vco%vgridPresent) then
@@ -903,8 +903,8 @@ contains
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
       end if
-      if (vgd_nlev_M > 0) call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if (vgd_nlev_T > 0) call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if (vgd_nlev_M > 0) call mmpi_bcast(vco%ip1_M, vgd_nlev_M)
+      if (vgd_nlev_T > 0) call mmpi_bcast(vco%ip1_T, vgd_nlev_T)
     end if
 
     ! now do bcast for vgrid object

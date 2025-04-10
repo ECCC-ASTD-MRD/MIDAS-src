@@ -48,9 +48,10 @@ module midasMpi_mod
   interface mmpi_bcast
     module procedure mmpi_bcast_character
     module procedure mmpi_bcast_logical
-    module procedure mmpi_bcast_logicalArray
+    module procedure mmpi_bcast_logical_array
     module procedure mmpi_bcast_integer
-    !module procedure mmpi_bcast_real4
+    module procedure mmpi_bcast_integer_array
+   !module procedure mmpi_bcast_real4
     !module procedure mmpi_bcast_real8
   end interface mmpi_bcast
 
@@ -912,9 +913,9 @@ module midasMpi_mod
   end subroutine mmpi_bcast_logical
 
   !--------------------------------------------------------------------------
-  ! mmpi_bcast_logicalArray
+  ! mmpi_bcast_logical_array
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_logicalArray(logicalData, length, procID_opt)
+  subroutine mmpi_bcast_logical_array(logicalData, length, procID_opt)
     !
     !:Purpose: Calling 'rpn_comm_bcast' for a logical array
     !
@@ -936,9 +937,9 @@ module midasMpi_mod
     end if
 
     call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_logicalArray')
+    call handleMpiError(ierr, 'mmpi_bcast_logical_array')
 
-  end subroutine mmpi_bcast_logicalArray
+  end subroutine mmpi_bcast_logical_array
 
   !--------------------------------------------------------------------------
   ! mmpi_bcast_integer
@@ -967,6 +968,35 @@ module midasMpi_mod
     call handleMpiError(ierr, 'mmpi_bcast_integer')
 
   end subroutine mmpi_bcast_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_bcast_integer_array
+  !--------------------------------------------------------------------------
+  subroutine mmpi_bcast_integer_array(integerData, length, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_bcast' for an integer array
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(inout) :: integerData(..)
+    integer,           intent(in)    :: length
+    integer, optional, intent(in)    :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_bcast(integerData, length, 'MPI_INTEGER', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_integer_array')
+
+  end subroutine mmpi_bcast_integer_array
 
   !--------------------------------------------------------------------------
   ! handleMpiError
