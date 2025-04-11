@@ -1526,8 +1526,7 @@ contains
        allocate(cv_allmaxmpilocal(1,1))
     end if
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ier )
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
 
     deallocate(cv_maxmpilocal)
 

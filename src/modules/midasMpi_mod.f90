@@ -65,8 +65,8 @@ module midasMpi_mod
     module procedure mmpi_gather_integer8_array
     module procedure mmpi_gather_real4
     module procedure mmpi_gather_real4_array
-    !module procedure mmpi_gather_real8
-    !module procedure mmpi_gather_real8_array
+    module procedure mmpi_gather_real8
+    module procedure mmpi_gather_real8_array
   end interface mmpi_gather
 
   contains
@@ -1345,6 +1345,69 @@ module midasMpi_mod
     call handleMpiError(ierr, 'mmpi_gather_real4_array')
 
   end subroutine mmpi_gather_real4_array
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gather_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gather_real8(sending, receiving, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_gather' for a single real(8) value
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),           intent(in)  :: sending
+    real(8),           intent(out) :: receiving(:)
+    integer, optional, intent(in)  :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_gather(sending,   1, 'mpi_real8',  &
+                         receiving, 1, 'mpi_real8', procID, 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_gather_real8')
+
+  end subroutine mmpi_gather_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gather_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gather_real8_array(sending, receiving, arraySize, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_gather' for an integer array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),           intent(in)  :: sending(..)
+    real(8),           intent(out) :: receiving(..,:)
+    integer,           intent(in)  :: arraySize
+    integer, optional, intent(in)  :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_gather(sending,   arraySize, 'mpi_real8',  &
+                         receiving, arraySize, 'mpi_real8', procID, 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_gather_real8_array')
+
+  end subroutine mmpi_gather_real8_array
 
   !--------------------------------------------------------------------------
   ! handleMpiError

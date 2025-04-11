@@ -3169,9 +3169,7 @@ contains
       end if
 
       nsize=size(realHeaders_mpilocal)
-      call rpn_comm_gather(realHeaders_mpilocal    ,nsize,pre_obsMpiReal, &
-                           all_realHeaders_mpilocal,nsize,pre_obsMpiReal, &
-                           0,"GRID",ierr)
+      call mmpi_gather(realHeaders_mpilocal, all_realHeaders_mpilocal, nsize)
       deallocate(realHeaders_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3293,9 +3291,7 @@ contains
       end if
 
       nsize=size(realBodies_mpilocal)
-      call rpn_comm_gather(realBodies_mpilocal    ,nsize,pre_obsMpiReal, &
-                           all_realBodies_mpilocal,nsize,pre_obsMpiReal, &
-                           0,"GRID",ierr)
+      call mmpi_gather(realBodies_mpilocal, all_realBodies_mpilocal, nsize)
       deallocate(realBodies_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 

@@ -726,8 +726,7 @@ program midas_diagBmatrix
 
         do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(varIndex))
           nsize = statevector%latPerPE
-          call rpn_comm_gather(field3d(1,:,levIndex), nsize, 'mpi_double_precision',  &
-                               zonalMeanStddev,     nsize, 'mpi_double_precision', 0, 'NS', ierr )
+          call mmpi_gather(field3d(1,:,levIndex), zonalMeanStddev, nsize)
           if ( mmpi_myid == 0 ) then
             do latIndex = 1, statevector%nj
               write(nultxt,*) field3d(1,latIndex,levIndex)

@@ -391,19 +391,15 @@ contains
     allocate(allObsLat(numHeaderMax,mmpi_nprocs))
     call mmpi_gather(obsRln, allObsRln, numHeaderMax)
     call mmpi_gather(obsNlv, allObsNlv, numHeaderMax)
-    call rpn_comm_gather(obsLon,    numHeaderMax, 'mpi_real8',  &
-                         allObsLon, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
-    call rpn_comm_gather(obsLat,    numHeaderMax, 'mpi_real8',  &
-                         allObsLat, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
+    call mmpi_gather(obsLon, allObsLon, numHeaderMax)
+    call mmpi_gather(obsLat, allObsLat, numHeaderMax)
 
     allocate(footprintRadiusVec_r8(numHeaderMax))
     do headerIndex = 1, obs_numHeader(obsSpaceData)
       footprintRadiusVec_r8(headerIndex) = real(s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex), 8)
     end do
     allocate(allFootprintRadius_r8(numHeaderMax,mmpi_nprocs))
-    call rpn_comm_gather(footprintRadiusVec_r8,      numHeaderMax, 'MPI_REAL8', &
-                         allFootprintRadius_r8(:,:), numHeaderMax, 'MPI_REAL8', &
-                         0, 'GRID', ierr)
+    call mmpi_gather(footprintRadiusVec_r8, allFootprintRadius_r8, numHeaderMax)
 
     ! create kdtree
     write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'

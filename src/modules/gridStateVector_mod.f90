@@ -3837,8 +3837,7 @@ module gridStateVector_mod
       gd_send_height(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_height_in_ptr(:,:)
 
       nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
-      call rpn_comm_gather(gd_send_height, nsize, 'mpi_double_precision',  &
-                           gd_recv_height, nsize, 'mpi_double_precision', 0, 'grid', ierr)
+      call mmpi_gather(gd_send_height, gd_recv_height, nsize)
 
       if (mmpi_myid == 0) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
@@ -5151,9 +5150,7 @@ module gridStateVector_mod
         if (.not. thisProcIsAreceiver(procIndex)) cycle
 
         nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-        call rpn_comm_gather(gd_send_height, nsize, 'mpi_real8', &
-                             gd_recv_height, nsize, 'mpi_real8', &
-                             procIndex-1, 'grid', ierr)
+      call mmpi_gather(gd_send_height, gd_recv_height, nsize, procID_opt=procIndex-1)
 
         ! copy over the complete 1 timestep received
         if (mmpi_myid == procIndex-1) then

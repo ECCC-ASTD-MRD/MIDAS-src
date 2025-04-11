@@ -742,8 +742,7 @@ contains
         
         if (outputHBHt) then
           allocate(HBHtMatrixForOutput(nLevelsDfs,nLevelsDfs,mmpi_nprocs))
-          call rpn_comm_gather(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'mpi_real8', &
-              HBHtMatrixForOutput, nLevelsDfs*nLevelsDfs, 'mpi_real8', 0, 'grid', ierr)
+          call mmpi_gather(HBHtMatrix, HBHtMatrixForOutput, nLevelsDfs*nLevelsDfs)
           
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
@@ -764,7 +763,7 @@ contains
         end if ! if (outputHBHt)
         
         allocate(dfsForOutput(mmpi_nprocs))
-        call rpn_comm_gather(dfs, 1, 'mpi_real8', dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
+        call mmpi_gather(dfs, dfsForOutput)
         if (mmpi_myId == 0) then
           do outTaskIndex = 1, mmpi_nprocs
             if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
@@ -775,8 +774,7 @@ contains
       
         if (doChannelSelection) then
           allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
-          call rpn_comm_gather(dfsIncremental, sizeSelect, 'mpi_real8', &
-              dfsIncrementalForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
+          call mmpi_gather(dfsIncremental, dfsIncrementalForOutput, sizeSelect)
           allocate(orderForOutput(sizeSelect,mmpi_nprocs))
           call mmpi_gather(order, orderForOutput, sizeSelect)
           if (mmpi_myId == 0) then
