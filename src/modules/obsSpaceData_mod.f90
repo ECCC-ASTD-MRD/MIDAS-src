@@ -1471,22 +1471,15 @@ module ObsSpaceData_mod
    use IndexListDepot_mod
    use mathPhysConstants_mod
    use utilities_mod
+   use midasMpi_mod
+
    implicit none
    save
    private
 
-
-
    ! CLASS-CONSTANT:
-   ! CLASS-CONSTANT:
-   ! CLASS-CONSTANT:
-
    logical :: obs_class_initialized = .false.
-
    ! end of CLASS-CONSTANT variables.
-   ! end of CLASS-CONSTANT variables
-   ! end of CLASS-CONSTANT variables.
-
 
    ! PUBLIC METHODS:
    public obs_bodyElem_i ! obtain an integer body element from observation object
