@@ -2317,7 +2317,7 @@ contains
     type(struct_gsv),     intent(inout) :: stateVectorMeanTrl     ! Ensemble mean state vector
 
     ! Locals:
-    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize, ierr
+    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize
     real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step

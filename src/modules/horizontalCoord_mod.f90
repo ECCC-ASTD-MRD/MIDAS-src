@@ -715,7 +715,6 @@ contains
     type(struct_hco), pointer, intent(inout) :: hco
 
     ! Locals:
-    integer :: ierr
     integer, external :: ezqkdef
     
     write(*,*) 'hco_mpiBcast: starting'

@@ -1654,7 +1654,7 @@ contains
 
     ! Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
-    integer  :: nsize, ierr
+    integer  :: nsize
  
     if (mmpi_myid == 0) then
       write(*,*) 'bcs_cvToCoeff: start'
@@ -3209,20 +3209,8 @@ contains
         end do
       end if
       call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
       call mmpi_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal))
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
       call mmpi_bcast(countMpiGlobal, size(countMpiGlobal))
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
 
       deallocate(OmFBias)
       deallocate(predBias)

@@ -653,7 +653,7 @@ CONTAINS
     real(8), intent(in)  :: cv_mpiglobal(:)
 
     ! Locals:
-    integer :: jn, jlat, jlon, jlev, ierr
+    integer :: jn, jlat, jlon, jlev
     real(8), allocatable :: gd_mpiGlobal(:,:,:)
 
     allocate(gd_mpiGlobal(ni_l,nj_l,numvar2d))

@@ -320,7 +320,6 @@ module oceanMask_mod
     type(struct_ocm), intent(inout) :: oceanMask
 
     ! Locals:
-    integer                   :: ierr
     type(struct_hco), pointer :: hco_temp
 
     write(*,*) 'ocm_communicateMask: starting'
