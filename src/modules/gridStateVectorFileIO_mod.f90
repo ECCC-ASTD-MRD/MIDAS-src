@@ -1852,8 +1852,7 @@ module gridStateVectorFileIO_mod
                                     statevector%myLatBeg:statevector%myLatEnd),4)
         if ((mmpi_nprocs > 1) .and. statevector%mpi_local) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
-          call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4', &
-                               gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
+          call mmpi_gather(gd_send_r4, gd_recv_r4, nsize)
         else
           ! just copy when either nprocs is 1 or data is global
           gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -1925,8 +1924,7 @@ module gridStateVectorFileIO_mod
       nsize = statevector%lonPerPEmax*statevector%latPerPEmax
       if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
         call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
-        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+        call mmpi_gather(gd_send_r4, gd_recv_r4, nsize)
         call utl_tmg_stop(183)
       else
         ! just copy when either nprocs is 1 or data is global
@@ -2919,8 +2917,7 @@ module gridStateVectorFileIO_mod
 
       nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
       if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
-        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+        call mmpi_gather(gd_send_r4, gd_recv_r4, nsize)
       else
         ! just copy when either nprocs is 1 or data is global
         gd_recv_r4(:,:,1) = gd_send_r4(:,:)
