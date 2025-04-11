@@ -922,7 +922,7 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    logical,           intent(inout) :: logicalData(:)
+    logical,           intent(inout) :: logicalData(..)
     integer          , intent(in)    :: length
     integer, optional, intent(in)    :: procID_opt
 
