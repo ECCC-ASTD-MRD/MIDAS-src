@@ -59,6 +59,7 @@ module midasMpi_mod
 
   ! general interface for rpn_comm_gather
   interface mmpi_gather
+    module procedure mmpi_gather_logical
     module procedure mmpi_gather_integer
     module procedure mmpi_gather_integer_array
     module procedure mmpi_gather_integer8_array
@@ -1124,6 +1125,37 @@ module midasMpi_mod
     call handleMpiError(ierr, 'mmpi_bcast_real8_array')
 
   end subroutine mmpi_bcast_real8_array
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gather_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gather_logical(sending, receiving, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_gather' for a single logical value
+    !
+    implicit none
+
+    ! Arguments:
+    logical,           intent(in)  :: sending
+    logical,           intent(out) :: receiving(:)
+    integer, optional, intent(in)  :: procID_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+    call rpn_comm_gather(sending,   1, 'mpi_logical',  &
+                         receiving, 1, 'mpi_logical', procID, 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_gather_logical')
+
+  end subroutine mmpi_gather_logical
 
   !--------------------------------------------------------------------------
   ! mmpi_gather_integer

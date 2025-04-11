@@ -530,7 +530,7 @@ contains
     end if
     
     do sensorIndex = 1, tvs_nsensors
-      call rpn_comm_gather(tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      call mmpi_gather( tvs_isReallyPresent( sensorIndex ) , logicalBuffer )
       if (mmpi_myid == 0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
         do taskIndex = 1, mmpi_nprocs
