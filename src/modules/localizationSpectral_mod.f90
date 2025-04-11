@@ -1097,10 +1097,8 @@ CONTAINS
       ilaGlobal(:)             = -1
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
       
-      call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
-                           allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
-      call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                           allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
+      call mmpi_gather(lsp%lst%nla, allnlaLocal)
+      call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
       deallocate(ilaGlobal)
 
@@ -1326,11 +1324,9 @@ CONTAINS
       allocate(ilaGlobal(nlaMax))
       ilaGlobal(:)             = -1
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
-      
-      call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
-                           allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
-      call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                           allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
+
+      call mmpi_gather(lsp%lst%nla, allnlaLocal)
+      call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
       deallocate(ilaGlobal)
 
@@ -1476,19 +1472,13 @@ CONTAINS
           allocate(allmSkip(1))
        end if
 
-       call rpn_comm_gather(lsp%mynBeg  ,1,"mpi_integer",       &
-                            allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mynEnd  ,1,"mpi_integer",       &
-                            allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mynSkip ,1,"mpi_integer",       &
-                            allnSkip,1,"mpi_integer",0,"GRID",ierr)
+       call mmpi_gather(lsp%mynBeg,  allnBeg)
+       call mmpi_gather(lsp%mynEnd,  allnEnd)
+       call mmpi_gather(lsp%mynSkip, allnSkip)
 
-       call rpn_comm_gather(lsp%mymBeg  ,1,"mpi_integer",       &
-                            allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mymEnd  ,1,"mpi_integer",       &
-                            allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mymSkip ,1,"mpi_integer",       &
-                            allmSkip,1,"mpi_integer",0,"GRID",ierr)
+       call mmpi_gather(lsp%mymBeg,  allmBeg)
+       call mmpi_gather(lsp%mymEnd,  allmEnd)
+       call mmpi_gather(lsp%mymSkip, allmSkip)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
        if (mmpi_myid == 0) then
@@ -1578,10 +1568,8 @@ CONTAINS
        ilaGlobal(:)             = -1
        ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
-       call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
-                            allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
-       call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                            allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
+       call mmpi_gather(lsp%lst%nla, allnlaLocal)
+       call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
        deallocate(ilaGlobal)
 
@@ -1713,19 +1701,13 @@ CONTAINS
           allocate(allmSkip(1))
        end if
 
-       call rpn_comm_gather(lsp%mynBeg  ,1,"mpi_integer",       &
-                            allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mynEnd  ,1,"mpi_integer",       &
-                            allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mynSkip ,1,"mpi_integer",       &
-                            allnSkip,1,"mpi_integer",0,"GRID",ierr)
+       call mmpi_gather(lsp%mynBeg,  allnBeg)
+       call mmpi_gather(lsp%mynEnd,  allnEnd)
+       call mmpi_gather(lsp%mynSkip, allnSkip)
 
-       call rpn_comm_gather(lsp%mymBeg  ,1,"mpi_integer",       &
-                            allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mymEnd  ,1,"mpi_integer",       &
-                            allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-       call rpn_comm_gather(lsp%mymSkip ,1,"mpi_integer",       &
-                            allmSkip,1,"mpi_integer",0,"GRID",ierr)
+       call mmpi_gather(lsp%mymBeg,  allmBeg)
+       call mmpi_gather(lsp%mymEnd,  allmEnd)
+       call mmpi_gather(lsp%mymSkip, allmSkip)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
        if (mmpi_myid == 0) then
@@ -1815,10 +1797,8 @@ CONTAINS
        ilaGlobal(:)             = -1
        ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
-       call rpn_comm_gather(lsp%lst%nla, 1, "mpi_integer",       &
-                            allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
-       call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                            allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
+       call mmpi_gather(lsp%lst%nla, allnlaLocal)
+       call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
        deallocate(ilaGlobal)
 

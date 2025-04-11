@@ -2501,8 +2501,7 @@ CONTAINS
        allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if(mmpi_myid == 0) then
        allocate(allnBeg(mmpi_nprocs))
@@ -2520,19 +2519,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -2650,8 +2643,7 @@ CONTAINS
        allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if(mmpi_myid == 0) then
        allocate(allnBeg(mmpi_nprocs))
@@ -2669,19 +2661,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -2830,19 +2816,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
@@ -2960,19 +2940,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0

@@ -3114,9 +3114,7 @@ contains
          allocate(all_headerIndex_mpiglobal(1,1))
       end if
 
-      call rpn_comm_gather(headerIndex_mpiglobal    ,numHeader_mpilocalmax,"mpi_integer", &
-                           all_headerIndex_mpiglobal,numHeader_mpilocalmax,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(headerIndex_mpiglobal, all_headerIndex_mpiglobal, numHeader_mpilocalmax)
       deallocate(headerIndex_mpiglobal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3133,9 +3131,7 @@ contains
          allocate(all_headerPrimaryKey_mpilocal(1,1))
       end if
       nsize=size(headerPrimaryKey_mpilocal)
-      call rpn_comm_gather(headerPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
-                           all_headerPrimaryKey_mpilocal,nsize,"mpi_integer8", &
-                           0,"GRID",ierr)
+      call mmpi_gather(headerPrimaryKey_mpilocal, all_headerPrimaryKey_mpilocal, nsize)
       deallocate(headerPrimaryKey_mpilocal)
       
       ! make header-level integer data mpiglobal
@@ -3157,9 +3153,7 @@ contains
       end if
 
       nsize=size(intHeaders_mpilocal)
-      call rpn_comm_gather(intHeaders_mpilocal    ,nsize,"mpi_integer", &
-                           all_intHeaders_mpilocal,nsize,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(intHeaders_mpilocal, all_intHeaders_mpilocal, nsize)
       deallocate(intHeaders_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3205,9 +3199,7 @@ contains
       end if
 
       nsize=size(intStnid_mpilocal)
-      call rpn_comm_gather(intStnid_mpilocal    ,nsize,"mpi_integer", &
-                           all_intStnid_mpilocal,nsize,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(intStnid_mpilocal, all_intStnid_mpilocal, nsize)
       deallocate(intStnid_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3228,9 +3220,7 @@ contains
       end if
 
       nsize=size(intFamily_mpilocal)
-      call rpn_comm_gather(intFamily_mpilocal    ,nsize,"mpi_integer", &
-                           all_intFamily_mpilocal,nsize,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(intFamily_mpilocal, all_intFamily_mpilocal, nsize)
       deallocate(intFamily_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3248,9 +3238,7 @@ contains
          allocate(all_bodyIndex_mpiglobal(1,1))
       end if
 
-      call rpn_comm_gather(bodyIndex_mpiglobal    ,numBody_mpilocalmax,"mpi_integer", &
-                           all_BodyIndex_mpiglobal,numBody_mpilocalmax,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(bodyIndex_mpiglobal, all_BodyIndex_mpiglobal, numBody_mpilocalmax)
       deallocate(bodyIndex_mpiglobal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3267,9 +3255,7 @@ contains
          allocate(all_bodyPrimaryKey_mpilocal(1,1))
       end if
       nsize=size(bodyPrimaryKey_mpilocal)
-      call rpn_comm_gather(bodyPrimaryKey_mpilocal    ,nsize,"mpi_integer8", &
-                           all_bodyPrimaryKey_mpilocal,nsize,"mpi_integer8", &
-                           0,"GRID",ierr)
+      call mmpi_gather(bodyPrimaryKey_mpilocal, all_bodyPrimaryKey_mpilocal, nsize)
       deallocate(bodyPrimaryKey_mpilocal)
 
       ! make body-level integer data mpiglobal
@@ -3291,9 +3277,7 @@ contains
       end if
 
       nsize=size(intBodies_mpilocal)
-      call rpn_comm_gather(intBodies_mpilocal    ,nsize,"mpi_integer", &
-                           all_intBodies_mpilocal,nsize,"mpi_integer", &
-                           0,"GRID",ierr)
+      call mmpi_gather(intBodies_mpilocal, all_intBodies_mpilocal, nsize)
       deallocate(intBodies_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 

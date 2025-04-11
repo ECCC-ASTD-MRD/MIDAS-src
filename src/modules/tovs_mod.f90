@@ -4618,8 +4618,7 @@ contains
 
     call rpn_comm_barrier('GRID',ierr)
 
-    call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
-         tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    call mmpi_gather(channelsb, listGlobal, tvs_maxChannelNumber)
     countUniqueChannel = 0
     if (mmpi_myid == 0) then
       call isort(listGlobal, mmpi_nprocs*tvs_maxChannelNumber)

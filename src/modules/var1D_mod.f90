@@ -122,7 +122,7 @@ contains
       allocate(var1D_validHeaderCountAllTasks(1))
     end if
 
-    call rpn_comm_gather(var1D_validHeaderCount  , 1, 'MPI_INTEGER', var1D_validHeaderCountAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
+    call mmpi_gather(var1D_validHeaderCount, var1D_validHeaderCountAllTasks)
     if (mmpi_myId ==0) then
       var1D_validHeaderCountMpiGlobal = sum( var1D_validHeaderCountAllTasks(:) )
       var1D_validHeaderCountMax = maxval( var1D_validHeaderCountAllTasks(:) )

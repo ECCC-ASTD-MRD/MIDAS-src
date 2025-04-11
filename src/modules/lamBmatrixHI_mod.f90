@@ -1289,11 +1289,9 @@ contains
     allocate(ilaGlobal(nlaMax))
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
-    
-    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
-                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
-    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+
+    call mmpi_gather(lst_bhi%nla, allnlaLocal)
+    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
     deallocate(ilaGlobal)
 
@@ -1410,10 +1408,8 @@ contains
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
     
-    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
-                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
-    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+    call mmpi_gather(lst_bhi%nla, allnlaLocal)
+    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
     deallocate(ilaGlobal)
 
@@ -1553,10 +1549,8 @@ contains
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
 
-    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
-                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
-    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+    call mmpi_gather(lst_bhi%nla, allnlaLocal)
+    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
     deallocate(ilaGlobal)
 
@@ -1674,10 +1668,8 @@ contains
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
 
-    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
-                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
-    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
-                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+    call mmpi_gather(lst_bhi%nla, allnlaLocal)
+    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
 
     deallocate(ilaGlobal)
 

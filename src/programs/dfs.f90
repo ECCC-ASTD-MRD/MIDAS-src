@@ -733,8 +733,7 @@ contains
           stringInt(stringIndex) = iachar(headerObs(stringIndex:stringIndex))
         end do
         allocate(stringIntForOutput(stringLength,mmpi_nprocs))
-        call rpn_comm_gather(stringInt, stringLength, 'mpi_integer', &
-            stringIntForOutput, stringLength, 'mpi_integer', 0, 'grid', ierr)
+        call mmpi_gather(stringInt, stringIntForOutput, stringLength)
         do stringIndex = 1, stringLength
           do outTaskIndex = 1, mmpi_nprocs
             headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
@@ -779,8 +778,7 @@ contains
           call rpn_comm_gather(dfsIncremental, sizeSelect, 'mpi_real8', &
               dfsIncrementalForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
           allocate(orderForOutput(sizeSelect,mmpi_nprocs))
-          call rpn_comm_gather(order, sizeSelect, 'mpi_integer', &
-              orderForOutput, sizeSelect, 'mpi_integer', 0, 'grid', ierr)
+          call mmpi_gather(order, orderForOutput, sizeSelect)
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then

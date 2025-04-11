@@ -369,8 +369,7 @@ contains
         obsAss(bodyIndex) = obs_assimilated
       end if
     end do
-    call rpn_comm_gather(obsAss,    numBodyMax, 'mpi_integer',  &
-                         allObsAss, numBodyMax, 'mpi_integer', 0, 'grid', ierr)
+    call mmpi_gather(obsAss, allObsAss, numBodyMax)
     
     allocate(obsRln(numHeaderMax))
     obsRln(:) = 0
@@ -390,10 +389,8 @@ contains
     allocate(allObsNlv(numHeaderMax,mmpi_nprocs))
     allocate(allObsLon(numHeaderMax,mmpi_nprocs))
     allocate(allObsLat(numHeaderMax,mmpi_nprocs))
-    call rpn_comm_gather(obsRln,    numHeaderMax, 'mpi_integer',  &
-                         allObsRln, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
-    call rpn_comm_gather(obsNlv,    numHeaderMax, 'mpi_integer',  &
-                         allObsNlv, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+    call mmpi_gather(obsRln, allObsRln, numHeaderMax)
+    call mmpi_gather(obsNlv, allObsNlv, numHeaderMax)
     call rpn_comm_gather(obsLon,    numHeaderMax, 'mpi_real8',  &
                          allObsLon, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
     call rpn_comm_gather(obsLat,    numHeaderMax, 'mpi_real8',  &
@@ -683,8 +680,7 @@ contains
         end if
       end do
     end do
-    call rpn_comm_gather(obsAss,          numHeaderMax, 'mpi_integer',  &
-                         obsAssMpiGlobal, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+    call mmpi_gather(obsAss, obsAssMpiGlobal, numHeaderMax)
 
     if (mmpi_myid == 0) then
       do procIndex = 1, mmpi_nprocs
