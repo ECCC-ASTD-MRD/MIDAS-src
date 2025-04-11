@@ -253,6 +253,7 @@ program midas_letkf
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
+  logical  :: hLinearLoc           ! apply piece-wise linear vertical interpolation for the localization radius
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
   real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
@@ -262,7 +263,7 @@ program midas_letkf
   
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
-                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
+                     hLocalize, hLocalizePressure, hLinearLoc, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, maxNumLocalObsPerType, weightLatLonStep, alphaRandomPertPrior, &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
@@ -323,6 +324,7 @@ program midas_letkf
   localSelectionOutput     = .false.
   hLocalize(:)             = -1.0D0
   hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
+  hLinearLoc               = .false.
   vLocalize                = -1.0D0
   minDistanceToLand        = -1.0D0
   obsTimeInterpType        = 'LINEAR'
@@ -794,7 +796,7 @@ program midas_letkf
                           ensObs_mpiglobal, ensObsGain_mpiglobal, &
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
-                          hLocalize, hLocalizePressure, vLocalize, &
+                          hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                           mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
                           localSelectionOutput, localObsSorting)
 

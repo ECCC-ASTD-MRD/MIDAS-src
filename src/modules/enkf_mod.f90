@@ -62,7 +62,7 @@ contains
                                 ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
-                                hLocalize, hLocalizePressure, vLocalize,  &
+                                hLocalize, hLocalizePressure, hLinearLoc, vLocalize,  &
                                 mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
                                 localSelectionOutput, localObsSorting)
     !
@@ -99,6 +99,7 @@ contains
     integer,                     intent(in)    :: maxNumLocalObsPerType
     real(8),                     intent(in)    :: hLocalize(:)
     real(8),                     intent(in)    :: hLocalizePressure(:)
+    logical,                     intent(in)    :: hLinearLoc
     real(8),                     intent(in)    :: vLocalize
     character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
@@ -485,7 +486,7 @@ contains
                                         weightsMembersLatLon(:,:,latLonIndex), &
                                         algorithm, numSubEns, randomShuffleSubEns, &
                                         ensembleAnl, levIndex, latIndex, lonIndex, &
-                                        hLocalize, hLocalizePressure, vLocalize, &
+                                        hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                                         vertLocation_r4, numRetainedEigen, &
                                         maxNumLocalObs, maxNumLocalObsPerType, &
                                         countMaxExceeded, maxCountMaxExceeded, &
@@ -764,7 +765,7 @@ contains
   subroutine enkf_LETKFcomputeWeights(weightsMeanLatLon, weightsMembersLatLon, &
                                       algorithm, numSubEns, randomShuffleSubEns, &
                                       ensembleAnl, levIndex, latIndex, lonIndex, &
-                                      hLocalize, hLocalizePressure, vLocalize, &
+                                      hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                                       vertLocation_r4, numRetainedEigen, &
                                       maxNumLocalObs, maxNumLocalObsPerType, &
                                       countMaxExceeded, maxCountMaxExceeded, &
@@ -787,6 +788,7 @@ contains
     integer,                  intent(in)    :: lonIndex
     real(8),                  intent(in)    :: hLocalize(:)
     real(8),                  intent(in)    :: hLocalizePressure(:)
+    logical,                  intent(in)    :: hLinearLoc
     real(8),                  intent(in)    :: vLocalize
     real(4),                  intent(in)    :: vertLocation_r4(:,:,:)
     integer,                  intent(in)    :: numRetainedEigen
@@ -804,15 +806,16 @@ contains
 
     integer :: nEns, nEnsGain, matrixRank, imode, dateStamp, ierr
     integer :: datePrint, timePrint, newDate, randomSeed
-    integer :: hLocIndex, numLocalObs, numLocalObsFound, localObsIndex
+    integer :: numLocalObs, numLocalObsFound, localObsIndex
     integer :: bodyIndex, memberIndex, memberIndex1, memberIndex2
     integer :: subEnsIndex, subEnsIndex2, memberIndexCV, memberIndexCV1, memberIndexCV2
     integer :: nEnsIndependentPerSubEns, nEnsPerSubEns, nEnsPerSubEns_mod
     integer :: eigenVectorColumnIndex, memberIndexInModEns
 
-    logical :: hLocalizeIsConstant, useModulatedEns
+    !logical :: hLocalizeIsConstant, useModulatedEns
+    logical :: useModulatedEns
 
-    real(8) :: anlLat, anlLon, anlVertLocation
+    real(8) :: hLoc, anlLat, anlLon, anlVertLocation
     real(8) :: tolerance
 
     real(8), allocatable, target, save :: YbTinvRYb_pert(:,:)
@@ -1016,17 +1019,13 @@ contains
     ! lat-lon of the grid point for which we are doing the analysis
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
-    if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
+    ! if there is vertical localization or hLocalize is not constant
+    if (vLocalize > 0.0d0 .or. all(hLocalize(:) /= hLocalize(1))) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
     end if
 
-    ! Find which horizontal localization value to use for this analysis level
-    if (hLocalizeIsConstant) then
-      hLocIndex = 1
-    else
-      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
-    end if
+    ! Find which horizontal localization value to use for this vertical level
+    call enkf_getLocalizationRadius(hLocalize, hLocalizePressure, anlVertLocation, hLinearLoc, hLoc)
 
     ! Get list of nearby observations and localization functions to gridpoint.
     ! With modulated-ensembles, we get observations in entire column.
@@ -1034,7 +1033,7 @@ contains
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                           locFun, anlLat, anlLon, anlVertLocation,  &
-                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound, &
+                                          hLoc, vLocalize, numLocalObsFound, &
                                           maxNumLocalObsPerType, localSelectionOutput, localObsSorting)
     if (numLocalObsFound > maxNumLocalObs) then
       countMaxExceeded = countMaxExceeded + 1
@@ -2882,5 +2881,79 @@ contains
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
   end subroutine getModulationFactor
+
+  !--------------------------------------------------------------------------
+  ! enkf_getLocalizationRadius
+  !--------------------------------------------------------------------------
+  subroutine enkf_getLocalizationRadius(hLocalize, hLocalizePressure, &
+                                        anlVertLocation, hLinearLoc, hLoc)
+    !
+    !:Purpose: get the localization radius, interpolated or not, at a given pressure
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in)  :: hLocalize(:)         ! the list of localization radii (km)
+    real(8), intent(in)  :: hLocalizePressure(:) ! the pressures where the radius changes (hPa)
+    real(8), intent(in)  :: anlVertLocation      ! the gridpoint  vertical coordinate in log(P)
+    logical, intent(in)  :: hLinearLoc           ! apply linear vertical interpolation for the localization radius
+    real(8), intent(out) :: hLoc                 ! the gridpoint localization radius
+
+    ! Locals:
+    real(8), allocatable :: pressureBounds(:)            ! hLocalizePressure mid-points and extra limits, in ln(P) units
+    real(8)              :: topPressure, bottomPressure  ! pressure range where the localization radius varies
+    integer              :: i, hLocIndex
+    logical              :: hLocNotAssigned
+    real(8)              :: rate
+
+    ! radius is constant
+    if (all(hLocalize(:) == hLocalize(1))) then
+      hLoc = hLocalize(1)
+
+    ! radius varies vertically, and is linearly interpolated with log(P)
+    else if (hLinearLoc) then
+      ! it is assumed that size(hLocalizePressure) = 1 + size(hLocalize), usually with size(hLocalize) = 3,
+      ! and that hLocalizePressure values increase
+      hLocNotAssigned = .true.
+      allocate(pressureBounds(size(hLocalizePressure)+1))
+
+      topPressure     = 6.0d0   ! below this pressure (hPa), the radius is kept at hLocalize(1)
+      bottomPressure  = 700.0d0 ! above this pressure (hPa), the radius is kept at hLocalize(size(hLocalize))
+      ! pressureBounds is the list of pressures in log(P) for the piece-wise linear interpolation
+      pressureBounds(1) = topPressure
+      pressureBounds(size(pressureBounds)) = bottomPressure
+      ! calculate hLocalizePressure mid-points
+      pressureBounds(2:size(pressureBounds)-1) = sqrt(hLocalizePressure(:size(hLocalizePressure)-1) * &
+                                                      hLocalizePressure(2:))
+      ! convert from hPa to log(P)
+      pressureBounds = log(pressureBounds*100.0d0)
+
+      do i = 1, size(hLocalizePressure)
+        ! if the gridpoint is between two pressure values, do a linear interpolation
+        if (anlVertLocation >= pressureBounds(i)   .and. &
+            anlVertLocation <= pressureBounds(i+1) .and. &
+            hLocNotAssigned) then
+          rate = (hLocalize(i) - hLocalize(i+1)) / (pressureBounds(i) - pressureBounds(i+1))
+          hLoc = hLocalize(i) + rate * (anlVertLocation - pressureBounds(i))
+          hLocNotAssigned = .false.
+        ! constant radius value near the top of the atmosphere
+        else if (anlVertLocation <= pressureBounds(i)   .and. hLocNotAssigned) then
+          hLoc = hLocalize(1)
+        ! constant radius value near the bottom of the atmosphere
+        else if (anlVertLocation >= pressureBounds(i+1) .and. hLocNotAssigned) then
+          hLoc = hLocalize(size(hLocalize))
+        end if
+      end do
+
+      deallocate(pressureBounds)
+
+    ! radius varies vertically, but is not interpolated
+    else
+      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
+      hLoc = hLocalize(hLocIndex)
+
+    end if
+
+  end subroutine enkf_getLocalizationRadius
 
 end module enkf_mod
