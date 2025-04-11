@@ -806,28 +806,26 @@ contains
     type(gps_diff)                 :: xi(ngpssize), tv(ngpssize)
 
     if (gps_roNFlavour .EQ. 0) then
-       md = gps_p_md
-       mw = gps_p_mw
-       wa = gps_p_wa
-       wb = gps_p_wb
-       delta = 0.6077686814144_dp
-       q1 =  222.682_dp
-       q2 =    0.069_dp
-       q3 = 6701.605_dp
-       q4 = 6385.886_dp
+      md = gps_p_md
+      mw = gps_p_mw
+      wa = gps_p_wa
+      wb = gps_p_wb
+      delta = 0.6077686814144_dp
+      q1 =  222.682_dp
+      q2 =    0.069_dp
+      q3 = 6701.605_dp
+      q4 = 6385.886_dp
     else
-       ym2k = gps_roYear - 2000.d0
-       !md = 28.96530_dp    ! To be updated using year function, here Year=2024
-       !q1 =  222.661_dp    ! To be updated using year function, here Year=2024
-       md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
-       mw = 18.01525_dp
-       wa = md/mw
-       wb = (md-mw)/mw
-       delta = wb
-       q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
-       q2 =    0.097_dp
-       q3 = 6703.497_dp
-       q4 = 6393.484_dp
+      ym2k = gps_roYear - 2000.d0
+      md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
+      mw = 18.01525_dp
+      wa = md/mw
+      wb = (md-mw)/mw
+      delta = wb
+      q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
+      q2 =    0.097_dp
+      q3 = 6703.497_dp
+      q4 = 6393.484_dp
     endif
 
     prf%ngpslev = ngpslev
@@ -846,70 +844,70 @@ contains
     prf%P0%DVar              = 0._dp
     prf%P0%DVar(2*ngpslev+1) = 0.01_dp
     do i=1,ngpslev
-       prf%pst(i)%Var               = 0.01_dp*rPP(i)
-       prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp*rDP(i)
+      prf%pst(i)%Var               = 0.01_dp*rPP(i)
+      prf%pst(i)%DVar              = 0._dp
+      prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp*rDP(i)
     end do
 
     !
     ! Fill temperature placeholders:
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-       prf%tst(i)%DVar              = 0._dp
-       prf%tst(i)%DVar(i)           = 1._dp
+      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(i)%DVar              = 0._dp
+      prf%tst(i)%DVar(i)           = 1._dp
     end do
 
     !
     ! Fill moisture placeholders:
     !
     do i = 1, ngpslev
-       prf%qst(i)%Var               = rHU(i)
-       prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+      prf%qst(i)%Var               = rHU(i)
+      prf%qst(i)%DVar              = 0._dp
+      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     end do
 
     ! Compressibility:
     do i = 1, ngpslev
-       cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
+      cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
     end do
 
     ! Refractivity:
     do i = 1, ngpslev
-       p  = prf%pst(i)
-       t  = prf%tst(i)
-       q  = prf%qst(i)
-       x  = wa*q/(1._dp+wb*q)
+      p  = prf%pst(i)
+      t  = prf%tst(i)
+      q  = prf%qst(i)
+      x  = wa*q/(1._dp+wb*q)
 
-       ! Densities (molar, total, dry, water vapor):
-       mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (md/1000._dp)
-       dw = mold * x         * (mw/1000._dp)
-       ! Aparicio (2011) expression
-       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= (q1+q2*tr) * dd
-       nw1= (q3+q4*tr) * dw
-       n0 = (nd1+nw1)
-       prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+      ! Densities (molar, total, dry, water vapor):
+      mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+      dd = mold * (1._dp-x) * (md/1000._dp)
+      dw = mold * x         * (mw/1000._dp)
+      ! Aparicio (2011) expression
+      tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+      nd1= (q1+q2*tr) * dd
+      nw1= (q3+q4*tr) * dw
+      n0 = (nd1+nw1)
+      prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
 
     ! Midpoint refractivity between layers (2 to ngpslev)
     do i = 2, ngpslev
-       p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
-       t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
-       q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
-       x  = wa*q/(1._dp+wb*q)
+      p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
+      t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
+      q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+      x  = wa*q/(1._dp+wb*q)
        
-       ! Densities (molar, total, dry, water vapor):
-       mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (md/1000._dp)
-       dw = mold * x         * (mw/1000._dp)
-       ! Aparicio (2011) expression
-       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= (q1+q2*tr) * dd
-       nw1= (q3+q4*tr) * dw
-       n0 = (nd1+nw1)
-       prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+      ! Densities (molar, total, dry, water vapor):
+      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+      dd = mold * (1._dp-x) * (md/1000._dp)
+      dw = mold * x         * (mw/1000._dp)
+      ! Aparicio (2011) expression
+      tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+      nd1= (q1+q2*tr) * dd
+      nw1= (q3+q4*tr) * dw
+      n0 = (nd1+nw1)
+      prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
     prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
 
@@ -917,18 +915,18 @@ contains
     ! Hydrostatic equation
     !
     do i = 1, ngpslev
-       p = prf%pst(i)
-       t = prf%tst(i)
-       q = prf%qst(i)
-       !
-       ! Log(P)
-       !
-       xi(i) = log(p)
-       !
-       ! Virtual temperature (K) (corrected of compressibility)
-       !
-       tv(i) = (1._dp+delta*q) * t * cmp(i)
-       prf%vst(i) = tv(i)
+      p = prf%pst(i)
+      t = prf%tst(i)
+      q = prf%qst(i)
+      !
+      ! Log(P)
+      !
+      xi(i) = log(p)
+      !
+      ! Virtual temperature (K) (corrected of compressibility)
+      !
+      tv(i) = (1._dp+delta*q) * t * cmp(i)
+      prf%vst(i) = tv(i)
     end do
 
     sLat=sin(rLat)
@@ -938,22 +936,22 @@ contains
     z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
     prf%gst(ngpslev) = rMT + z
     do i=ngpslev-1,1,-1
-       dx = xi(i)-xi(i+1)
-       tvm = 0.5_dp*(tv(i)+tv(i+1))
-       !
-       ! Gravity acceleration (includes 2nd-order Eotvos effect)
-       !
-       h0  = prf%gst(i+1)%Var
-       Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
-       Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
-       Rgh = gps_gravityalt(sLat, h0)-Eot-Eot2
-       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gps_gravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
-       !
-       ! Height increment
-       !
-       z   = (-p_Rd/Rgh) * tvm * dx
-       prf%gst(i) = prf%gst(i+1) + z
+      dx = xi(i)-xi(i+1)
+      tvm = 0.5_dp*(tv(i)+tv(i+1))
+      !
+      ! Gravity acceleration (includes 2nd-order Eotvos effect)
+      !
+      h0  = prf%gst(i+1)%Var
+      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
+      Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
+      Rgh = gps_gravityalt(sLat, h0)-Eot-Eot2
+      dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
+      Rgh = gps_gravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
+      !
+      ! Height increment
+      !
+      z   = (-p_Rd/Rgh) * tvm * dx
+      prf%gst(i) = prf%gst(i+1) + z
     end do
 
     if ( present(printHeight_opt) ) then
@@ -999,28 +997,28 @@ contains
     type(gps_diff)                 :: mold, dd, dw, n0, nd1, nw1
 
     if (gps_roNFlavour .EQ. 0) then
-       md = gps_p_md
-       mw = gps_p_mw
-       wa = gps_p_wa
-       wb = gps_p_wb
-       delta = 0.6077686814144_dp
-       q1 =  222.682_dp
-       q2 =    0.069_dp
-       q3 = 6701.605_dp
-       q4 = 6385.886_dp
+      md = gps_p_md
+      mw = gps_p_mw
+      wa = gps_p_wa
+      wb = gps_p_wb
+      delta = 0.6077686814144_dp
+      q1 =  222.682_dp
+      q2 =    0.069_dp
+      q3 = 6701.605_dp
+      q4 = 6385.886_dp
     else
-       ym2k = gps_roYear - 2000.d0
-       !md = 28.96530_dp    ! To be updated using year function, here Year=2024
-       !q1 =  222.661_dp    ! To be updated using year function, here Year=2024
-       md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
-       mw = 18.01525_dp
-       wa = md/mw
-       wb = (md-mw)/mw
-       delta = wb
-       q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
-       q2 =    0.097_dp
-       q3 = 6703.497_dp
-       q4 = 6393.484_dp
+      ym2k = gps_roYear - 2000.d0
+      !md = 28.96530_dp    ! To be updated using year function, here Year=2024
+      !q1 =  222.661_dp    ! To be updated using year function, here Year=2024
+      md = 28.96496_dp +    1.30d-5*ym2k + 4.41d-8 * ym2k*ym2k
+      mw = 18.01525_dp
+      wa = md/mw
+      wb = (md-mw)/mw
+      delta = wb
+      q1 =  222.654_dp + 0.000259d0*ym2k + 2.24d-6 * ym2k*ym2k
+      q2 =    0.097_dp
+      q3 = 6703.497_dp
+      q4 = 6393.484_dp
     endif
 
     prf%ngpslev = ngpslev
@@ -1039,27 +1037,27 @@ contains
     prf%P0%DVar              = 0._dp
     prf%P0%DVar(4*ngpslev)   = 0.01_dp
     do i=1,ngpslev
-       prf%pst(i)%Var               = 0.01_dp*rPP(i)
-       prf%pst(i)%DVar              = 0._dp
-       prf%pst(i)%DVar(3*ngpslev+i) = 0.01_dp
+      prf%pst(i)%Var               = 0.01_dp*rPP(i)
+      prf%pst(i)%DVar              = 0._dp
+      prf%pst(i)%DVar(3*ngpslev+i) = 0.01_dp
     end do
 
     !
     ! Fill temperature placeholders:
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-       prf%tst(i)%DVar              = 0._dp
-       prf%tst(i)%DVar(i)           = 1._dp
+      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(i)%DVar              = 0._dp
+      prf%tst(i)%DVar(i)           = 1._dp
     end do
 
     !
     ! Fill moisture placeholders:
     !
     do i = 1, ngpslev
-       prf%qst(i)%Var               = rHU(i)
-       prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+      prf%qst(i)%Var               = rHU(i)
+      prf%qst(i)%DVar              = 0._dp
+      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     end do
 
     !
@@ -1071,52 +1069,52 @@ contains
       rALT_E(1:ngpslev) = rALT(1:ngpslev)
     end if
     do i = 1, ngpslev
-       prf%gst(i)%Var                 = rALT_E(i)
-       prf%gst(i)%DVar                = 0._dp
-       prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
+      prf%gst(i)%Var                 = rALT_E(i)
+      prf%gst(i)%DVar                = 0._dp
+      prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
     end do
 
     ! Compressibility:
     do i = 1, ngpslev
-       cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
+      cmp(i)= gpscompressibility(prf%pst(i),prf%tst(i),prf%qst(i))
     end do
 
     ! Refractivity:
     do i = 1, ngpslev
-       p  = prf%pst(i)
-       t  = prf%tst(i)
-       q  = prf%qst(i)
-       x  = wa*q/(1._dp+wb*q)
+      p  = prf%pst(i)
+      t  = prf%tst(i)
+      q  = prf%qst(i)
+      x  = wa*q/(1._dp+wb*q)
 
-       ! Densities (molar, total, dry, water vapor):
-       mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (md/1000._dp)
-       dw = mold * x         * (mw/1000._dp)
-       ! Aparicio (2011) expression
-       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= (q1+q2*tr) * dd
-       nw1= (q3+q4*tr) * dw
-       n0 = (nd1+nw1)
-       prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+      ! Densities (molar, total, dry, water vapor):
+      mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+      dd = mold * (1._dp-x) * (md/1000._dp)
+      dw = mold * x         * (mw/1000._dp)
+      ! Aparicio (2011) expression
+      tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+      nd1= (q1+q2*tr) * dd
+      nw1= (q3+q4*tr) * dw
+      n0 = (nd1+nw1)
+      prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
 
     ! Midpoint refractivity between layers (2 to ngpslev)
     do i = 2, ngpslev
-       p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
-       t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
-       q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
-       x  = wa*q/(1._dp+wb*q)
+      p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
+      t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
+      q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+      x  = wa*q/(1._dp+wb*q)
        
-       ! Densities (molar, total, dry, water vapor):
-       mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (md/1000._dp)
-       dw = mold * x         * (mw/1000._dp)
-       ! Aparicio (2011) expression
-       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
-       nd1= (q1+q2*tr) * dd
-       nw1= (q3+q4*tr) * dw
-       n0 = (nd1+nw1)
-       prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+      ! Densities (molar, total, dry, water vapor):
+      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+      dd = mold * (1._dp-x) * (md/1000._dp)
+      dw = mold * x         * (mw/1000._dp)
+      ! Aparicio (2011) expression
+      tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+      nd1= (q1+q2*tr) * dd
+      nw1= (q3+q4*tr) * dw
+      n0 = (nd1+nw1)
+      prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
     prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
 
@@ -1124,13 +1122,13 @@ contains
     ! Virtual temperature
     !
     do i = 1, ngpslev
-       t = prf%tst(i)
-       q = prf%qst(i)
-       !
-       ! Virtual temperature (K) corrected for compressibility
-       !
-       tv = (1._dp+delta*q) * t * cmp(i)
-       prf%vst(i) = tv
+      t = prf%tst(i)
+      q = prf%qst(i)
+      !
+      ! Virtual temperature (K) corrected for compressibility
+      !
+      tv = (1._dp+delta*q) * t * cmp(i)
+      prf%vst(i) = tv
     end do
 
     prf%bbst=.false.
@@ -1743,52 +1741,54 @@ contains
     !
     jloc = 1
     do i = 1, iSize
-       h = hv(i)
-       !
-       ! Search where it is located
-       !
-       if (h > prf%gst(1)%Var) then
-          jloc = 1
-       end if
+      h = hv(i)
+      !
+      ! Search where it is located
+      !
+      if (h > prf%gst(1)%Var) then
+        jloc = 1
+      end if
        
-       do j=1, ngpslev-1
-          if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
-             jloc = j
-             exit
-          end if
-       end do
+      do j=1, ngpslev-1
+        if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
+          jloc = j
+          exit
+        end if
+      end do
        
-       if (h <= prf%gst(ngpslev)%Var) then
-          jloc = ngpslev-1
-       end if
-       !
-       ! Interpolation/extrapolation
-       !
-       if (h >= prf%gst(ngpslev)%Var) then
-          !
-          ! Either linear-log interpolation
-          !
-          dz  = prf%gst(jloc) - prf%gst(jloc+1)
+      if (h <= prf%gst(ngpslev)%Var) then
+        jloc = ngpslev-1
+      end if
+      !
+      ! Interpolation/extrapolation
+      !
+      if (h >= prf%gst(ngpslev)%Var) then
+        !
+        ! Either quasi-linear-log interpolation
+        !
+        dz  = prf%gst(jloc) - prf%gst(jloc+1)
        
-          dzm = h - prf%gst(jloc+1)
-          dzp = prf%gst(jloc) - h
+        dzm = h - prf%gst(jloc+1)
+        dzp = prf%gst(jloc) - h
 
-          if (.not. gps_roNCurv) then
-            refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
-          else
-            dt = prf%tst(jloc) - prf%tst(jloc+1)
-            tav2 = prf%tst(jloc) * prf%tst(jloc+1)
-            m = ec_wgs_GammaM * dt/dz /(2*MPC_RGAS_DRY_AIR_R8*tav2)
-            refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz + m*dzp*dzm)
-          end if
-       else
-          !
-          ! Or exp extrapolation at the lower edge
-          ! (better standard exp profile than linear-log, which may be unstable)
-          !
-          dzm = h - prf%gst(jloc+1)
-          refopv(i) = prf%rst(jloc+1) * exp((-1._dp/6500._dp)*dzm)
-       end if
+        if (.not. gps_roNCurv) then
+          ! Perfect linear-log (zero curvature)
+          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
+        else
+          ! Quasi-linear-log, with fixed curvature m (depends on dT/dz)
+          dt = prf%tst(jloc) - prf%tst(jloc+1)
+          tav2 = prf%tst(jloc) * prf%tst(jloc+1)
+          m = ec_wgs_GammaM * dt/dz /(2*MPC_RGAS_DRY_AIR_R8*tav2)
+          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz + m*dzp*dzm)
+        end if
+      else
+        !
+        ! Or exp extrapolation at the lower edge
+        ! (better standard exp profile than linear-log, which may be unstable)
+        !
+        dzm = h - prf%gst(jloc+1)
+        refopv(i) = prf%rst(jloc+1) * exp((-1._dp/6500._dp)*dzm)
+      end if
     end do
   end subroutine gps_refopv
 
