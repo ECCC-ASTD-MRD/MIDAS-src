@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-	
+
+ * Improvement to the vertical RO interp, to vertical height registration, and refractivity eqn (#1016 and !963)
+   * Activated with `NAMGPSRO` variables: `gpsroNCurv`, `gpsroCurvAnisot`, `gpsroNFlavour`
  * Introduction of an option for nearest neighbour interpolation for specific case (DFS) (#1050 and !968)
  * Introduce flexibility to select either QI1 or QI2 for thinning of AMVs (#1006 and !958)
 

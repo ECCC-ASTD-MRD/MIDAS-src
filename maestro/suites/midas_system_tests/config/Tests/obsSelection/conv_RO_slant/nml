@@ -70,6 +70,9 @@
   BGCKBAND = 0.05D0,
   gpsroError = 'DYNAMIC',
   gpsroEotvos= .True.,
+  gpsroCurvAnisot = .True.,
+  gpsroNCurv = .True.,
+  gpsroNFlavour = 1,
 /
  &NAMGPSGB
    DZMIN      = 2.0D0,

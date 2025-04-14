@@ -24,6 +24,7 @@ module physicsFunctions_mod
   public :: phf_convertZtoPressure,phf_convertZtoGZ
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
+  public :: phf_Rad_CCoC, phf_delR
 
   logical           :: phf_initialized = .false.
 
@@ -1447,6 +1448,152 @@ module physicsFunctions_mod
     endif
 
   end subroutine phf_height2geopotential
+
+  !--------------------------------------------------------------------------
+  ! phf_Rad_CCoC
+  !--------------------------------------------------------------------------
+  subroutine phf_Rad_CCoC(latr, lonr, azmr, PRad, CCoC)
+    !
+    !:Purpose: At any given lat, lon, and for a given azimuth, determine
+    !          -the Earth's curvature radius PRad along that azimuth
+    !          -the center of curvature CCoC, at lat, lon, along azm.
+    !
+    implicit none
+    integer, parameter   :: nx = 3
+    ! Arguments
+    real(8), intent(in)  :: latr                        ! Latitude  (rad)
+    real(8), intent(in)  :: lonr                        ! Longitude (rad)
+    real(8), intent(in)  :: azmr                        ! Azimuth   (rad)
+    real(8), intent(out) :: PRad                        ! Radius of curvature along azimuth (m)
+    real(8), intent(out) :: CCoC(nx)                    ! Center of curvature, vector (m)
+    ! Locals
+    real(8)              :: xo(nx), unitz(nx)
+    real(8)              :: clat, slat, clon, slon, cazm, sazm, RNc, RMc
+    !
+    real(8), parameter   :: ba2 = ec_wgs_ba**2
+
+    ! Normal and Meridional radii of curvature
+    call phf_gpsRadii(latr, RNc, RMc)
+
+    clat = cos(latr)
+    slat = sin(latr)
+    clon = cos(lonr)
+    slon = sin(lonr)
+    cazm = cos(azmr)
+    sazm = sin(azmr)
+
+    ! Radius along azimuth
+    PRad  = 1.d0/(cazm*cazm/RMc + sazm*sazm/RNc)
+
+    ! Surface (at WGS84 ellipsoid) location of reference point
+    xo    = (/ RNc*clat*clon , RNc*clat*slon , (ba2*RNc)*slat /)
+
+    ! Unit vector at reference location, pointing upwards (perp to WGS84 ellipsoid)
+    unitz = (/     clat*clon ,     clat*slon ,           slat /)
+
+    ! Center of Curvature
+    CCoC  = xo-PRad*unitz
+  end subroutine phf_Rad_CCoC
+  
+  !--------------------------------------------------------------------------
+  ! phf_gpsRadii
+  !--------------------------------------------------------------------------
+  subroutine phf_gpsRadii(Latitude, RadN, RadM)
+    !
+    !:Purpose: At any given Latitude, determine
+    !          -the Earth's curvature radius RadN along the prime direction (which is EW)
+    !          -the Earth's curvature radius RadM along the meridional direction (NS)
+    !
+    implicit none
+    ! Arguments
+    real(8), intent(in)  :: Latitude                    ! Latitude (rad)
+    real(8), intent(out) :: RadN                        ! Local prime radius of ellipsoid (m)
+    real(8), intent(out) :: RadM                        ! Local meridional radius of ellipsoid (m)
+    ! Locals
+    real(8)              :: sLat, e2s
+
+    sLat = sin(Latitude)
+    e2s  = 1.d0 - ec_wgs_e2 * sLat * sLat
+    RadN = ec_wgs_a / sqrt(e2s)
+    RadM = ec_wgs_a * (1.d0 - ec_wgs_e2) / (e2s*sqrt(e2s))
+  end subroutine phf_gpsRadii
+
+  !--------------------------------------------------------------------------
+  ! phf_PathRadius
+  !--------------------------------------------------------------------------
+  subroutine phf_PathRadius(lat, azim, P, Q)
+    !
+    !:Purpose: At any given Latitude, for a given azimuth, find
+    !          -the Earth's curvature radius along the azimuth (P)
+    !          -the Earth's curvature radius perp to the azimuth (Q)
+    !
+    implicit none
+    ! Arguments
+    real(8), intent(in)  :: lat                         ! Latitude (rad)
+    real(8), intent(in)  :: azim                        ! Azimuth (rad)
+    real(8), intent(out) :: P                           ! Local radius of curvature along azimuth (m)
+    real(8), intent(out) :: Q                           ! Local radius of curvature across azimuth (m)
+    ! Locals
+    real(8)              :: N, M, cosMA, cosMA2, sinMA2
+
+    call phf_gpsRadii(lat, N, M)
+    cosMA = cos(azim)
+    cosMA2 = cosMA * cosMA
+    sinMA2 = 1.d0 - cosMA2
+    ! Euler's formula for the curvature along nonprincipal directions:
+    P = 1.d0 / (cosMA2 / M + sinMA2 / N)
+    Q = 1.d0 / (sinMA2 / M + cosMA2 / N)
+  end subroutine phf_PathRadius
+  
+  !--------------------------------------------------------------------------
+  ! phf_WGS84Position
+  !--------------------------------------------------------------------------
+  subroutine phf_WGS84Position(lat, lon, h, p)
+    !
+    !:Purpose: At any given lat, lon, and altitude above WGS84 ellipsoid, determine
+    !          -the 3D vector position of that point
+    !
+    implicit none
+    ! Arguments
+    real(8), intent(in)  :: lat                         ! Latitude (rad)
+    real(8), intent(in)  :: lon                         ! Longitude (rad)
+    real(8), intent(in)  :: h                           ! Height above ellipsoid (m)
+    real(8), intent(out) :: p(3)                        ! 3D position vector (m)
+    ! Locals
+    real(8)              :: N, M
+    real(8), parameter   :: ba2 = ec_wgs_ba**2
+
+    call phf_gpsRadii(lat, N, M)
+    p(1) = (    N+h) * cos(lat)*cos(lon)
+    p(2) = (    N+h) * cos(lat)*sin(lon)
+    p(3) = (ba2*N+h) * sin(lat)
+  end subroutine phf_WGS84Position
+  
+  !--------------------------------------------------------------------------
+  ! phf_delR
+  !--------------------------------------------------------------------------
+  subroutine phf_delR(lati, loni, CCoC, PRad, dR)
+    !
+    !:Purpose: Given lat, lon, and a reference sphere of (center CCoC and radius PRad), determine
+    !          -the height difference at that latlon point between WGS84 ellipsoid and the reference sphere
+    !          Height is measured ellipsoid minus sphere.
+    !
+    implicit none
+    ! Arguments
+    real(8), intent(in)  :: lati                        ! Latitude (rad)
+    real(8), intent(in)  :: loni                        ! Longitude (rad)
+    real(8), intent(in)  :: CCoC(3)                     ! Reference centre of curvature (3D vector, m)
+    real(8), intent(in)  :: PRad                        ! Reference radius of curvature
+    real(8), intent(out) :: dR                          ! Height difference ellipsoid-reference sphere (m)
+    ! Locals
+    real(8)              :: h, xi(3)
+
+    ! XYZ location for lati, loni at ellipsoid's surface
+    h = 0.d0
+    call phf_WGS84Position(lati, loni, h, xi)
+    ! Altitude of ellipsoid point above reference sphere
+    dR = norm2(xi - CCoC) - PRad
+  end subroutine phf_delR
 
   !--------------------------------------------------------------------------
   ! phf_getFreezingPoint
