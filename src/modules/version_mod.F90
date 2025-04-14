@@ -30,7 +30,7 @@ contains
     write(*,*) " --------------------------------------------"
     write(*,*) " ---  START OF MAIN PROGRAM midas-", trim(progName), " ---"
     write(*,*) " ---  ", trim(progDescription), " ---"
-    write(*,*) " ---  Revision: ", trim(VERSION)
+    write(*,*) " ---  Revision: ", trim(GIT_VERSION)
     write(*,*) " --------------------------------------------"
 
   end subroutine ver_printNameAndVersion
