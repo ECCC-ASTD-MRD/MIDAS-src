@@ -50,9 +50,7 @@ module midasMpi_mod
     module procedure mmpi_bcast_logical
     module procedure mmpi_bcast_integer
     module procedure mmpi_bcast_real4
-    module procedure mmpi_bcast_real4_array
     module procedure mmpi_bcast_real8
-    module procedure mmpi_bcast_real8_array
   end interface mmpi_bcast
 
   ! general interface for rpn_comm_gather
@@ -977,48 +975,20 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_bcast_real4
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_real4(real4Data, procID_opt)
+  subroutine mmpi_bcast_real4(real4Data, length_opt, procID_opt)
     !
-    !:Purpose: Calling 'rpn_comm_bcast' for a single real(4) value
-    !
-    implicit none
-
-    ! Arguments:
-    real(4),           intent(inout) :: real4Data
-    integer, optional, intent(in)    :: procID_opt
-
-    ! Locals:
-    integer :: ierr
-    integer :: procID
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
-
-    call rpn_comm_bcast(real4Data, 1, 'MPI_REAL4', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_real4')
-
-  end subroutine mmpi_bcast_real4
-
-  !--------------------------------------------------------------------------
-  ! mmpi_bcast_real4_array
-  !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_real4_array(real4Data, length, procID_opt)
-    !
-    !:Purpose: Calling 'rpn_comm_bcast' for a real(4) array
+    !:Purpose: Calling 'rpn_comm_bcast' for a real(4) scalar or array
     !
     implicit none
 
     ! Arguments:
     real(4), contiguous, intent(inout) :: real4Data(..)
-    integer,             intent(in)    :: length
+    integer, optional,   intent(in)    :: length_opt
     integer, optional,   intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
-    integer :: procID
+    integer :: procID, length
 
     if (present(procID_opt)) then
       procID = procID_opt
@@ -1026,43 +996,25 @@ module midasMpi_mod
       procID = 0
     end if
 
-    call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_real4_array')
+    if (present(length_opt)) then
+      length = length_opt
+    else
+      if ( rank(real4Data) == 0 ) then
+        length = 1
+      else
+        length = size(real4Data)
+      end if
+    end if
 
-  end subroutine mmpi_bcast_real4_array
+    call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, 'GRID', ierr)
+    call handleMpiError(ierr, 'mmpi_bcast_real4')
+
+  end subroutine mmpi_bcast_real4
 
   !--------------------------------------------------------------------------
   ! mmpi_bcast_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_real8(real8Data, procID_opt)
-    !
-    !:Purpose: Calling 'rpn_comm_bcast' for a single real(8) value
-    !
-    implicit none
-
-    ! Arguments:
-    real(8),           intent(inout) :: real8Data
-    integer, optional, intent(in)    :: procID_opt
-
-    ! Locals:
-    integer :: ierr
-    integer :: procID
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
-
-    call rpn_comm_bcast(real8Data, 1, 'MPI_REAL8', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_real8')
-
-  end subroutine mmpi_bcast_real8
-
-  !--------------------------------------------------------------------------
-  ! mmpi_bcast_real8_array
-  !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_real8_array(real8Data, length, procID_opt)
+  subroutine mmpi_bcast_real8(real8Data, length_opt, procID_opt)
     !
     !:Purpose: Calling 'rpn_comm_bcast' for a real(8) array
     !
@@ -1070,12 +1022,22 @@ module midasMpi_mod
 
     ! Arguments:
     real(8), contiguous, intent(inout) :: real8Data(..)
-    integer,             intent(in)    :: length
+    integer, optional,   intent(in)    :: length_opt
     integer, optional,   intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
-    integer :: procID
+    integer :: procID, length
+
+    if (present(length_opt)) then
+      length = length_opt
+    else
+      if ( rank(real8Data) == 0 ) then
+        length = 1
+      else
+        length = size(real8Data)
+      end if
+    end if
 
     if (present(procID_opt)) then
       procID = procID_opt
@@ -1084,9 +1046,9 @@ module midasMpi_mod
     end if
 
     call rpn_comm_bcast(real8Data, length, 'MPI_REAL8', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_real8_array')
+    call handleMpiError(ierr, 'mmpi_bcast_real8')
 
-  end subroutine mmpi_bcast_real8_array
+  end subroutine mmpi_bcast_real8
 
   !--------------------------------------------------------------------------
   ! mmpi_gather_logical
