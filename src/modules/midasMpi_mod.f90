@@ -48,7 +48,6 @@ module midasMpi_mod
   interface mmpi_bcast
     module procedure mmpi_bcast_character
     module procedure mmpi_bcast_logical
-    module procedure mmpi_bcast_logical_array
     module procedure mmpi_bcast_integer
     module procedure mmpi_bcast_integer_array
     module procedure mmpi_bcast_real4
@@ -901,48 +900,30 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_bcast_logical
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_logical(logicalData, procID_opt)
+  subroutine mmpi_bcast_logical(logicalData, length_opt, procID_opt)
     !
-    !:Purpose: Calling 'rpn_comm_bcast' for a single logical value
-    !
-    implicit none
-
-    ! Arguments:
-    logical,           intent(inout) :: logicalData
-    integer, optional, intent(in)    :: procID_opt
-
-    ! Locals:
-    integer :: ierr
-    integer :: procID
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
-
-    call rpn_comm_bcast(logicalData, 1, 'MPI_LOGICAL', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_logical')
-
-  end subroutine mmpi_bcast_logical
-
-  !--------------------------------------------------------------------------
-  ! mmpi_bcast_logical_array
-  !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_logical_array(logicalData, length, procID_opt)
-    !
-    !:Purpose: Calling 'rpn_comm_bcast' for a logical array
+    !:Purpose: Calling 'rpn_comm_bcast' for a logical value or array
     !
     implicit none
 
     ! Arguments:
     logical,           intent(inout) :: logicalData(..)
-    integer          , intent(in)    :: length
+    integer, optional, intent(in)    :: length_opt
     integer, optional, intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
-    integer :: procID
+    integer :: procID, length
+
+    if (present(length_opt)) then
+      length = length_opt
+    else
+      if ( rank(logicalData) == 0 ) then
+        length = 1
+      else
+        length = size(logicalData)
+      end if
+    end if
 
     if (present(procID_opt)) then
       procID = procID_opt
@@ -951,9 +932,9 @@ module midasMpi_mod
     end if
 
     call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, 'GRID', ierr)
-    call handleMpiError(ierr, 'mmpi_bcast_logical_array')
+    call handleMpiError(ierr, 'mmpi_bcast_logical')
 
-  end subroutine mmpi_bcast_logical_array
+  end subroutine mmpi_bcast_logical
 
   !--------------------------------------------------------------------------
   ! mmpi_bcast_integer
