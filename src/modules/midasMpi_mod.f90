@@ -993,9 +993,9 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer,           intent(inout) :: integerData(..)
-    integer,           intent(in)    :: length
-    integer, optional, intent(in)    :: procID_opt
+    integer, contiguous, intent(inout) :: integerData(..)
+    integer,             intent(in)    :: length
+    integer, optional,   intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1050,9 +1050,9 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(4),           intent(inout) :: real4Data(..)
-    integer,           intent(in)    :: length
-    integer, optional, intent(in)    :: procID_opt
+    real(4), contiguous, intent(inout) :: real4Data(..)
+    integer,             intent(in)    :: length
+    integer, optional,   intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1107,9 +1107,9 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(8),           intent(inout) :: real8Data(..)
-    integer,           intent(in)    :: length
-    integer, optional, intent(in)    :: procID_opt
+    real(8), contiguous, intent(inout) :: real8Data(..)
+    integer,             intent(in)    :: length
+    integer, optional,   intent(in)    :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1198,10 +1198,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: sending(..)
-    integer,           intent(out) :: receiving(..,:)
-    integer,           intent(in)  :: arraySize
-    integer, optional, intent(in)  :: procID_opt
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..,:)
+    integer,             intent(in)  :: arraySize
+    integer, optional,   intent(in)  :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1261,10 +1261,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer(8),        intent(in)  :: sending(..)
-    integer(8),        intent(out) :: receiving(..,:)
-    integer,           intent(in)  :: arraySize
-    integer, optional, intent(in)  :: procID_opt
+    integer(8), contiguous, intent(in)  :: sending(..)
+    integer(8), contiguous, intent(out) :: receiving(..,:)
+    integer,                intent(in)  :: arraySize
+    integer, optional,      intent(in)  :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1324,10 +1324,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(4),           intent(in)  :: sending(..)
-    real(4),           intent(out) :: receiving(..,:)
-    integer,           intent(in)  :: arraySize
-    integer, optional, intent(in)  :: procID_opt
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..,:)
+    integer,             intent(in)  :: arraySize
+    integer, optional,   intent(in)  :: procID_opt
 
     ! Locals:
     integer :: ierr
@@ -1387,10 +1387,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(8),           intent(in)  :: sending(..)
-    real(8),           intent(out) :: receiving(..,:)
-    integer,           intent(in)  :: arraySize
-    integer, optional, intent(in)  :: procID_opt
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..,:)
+    integer,             intent(in)  :: arraySize
+    integer, optional,   intent(in)  :: procID_opt
 
     ! Locals:
     integer :: ierr
