@@ -5,6 +5,7 @@
 #DEBUG_OPTIONS = -debug -optc =-w3 =-fp-speculation=safe
 #OPT_LEVEL = 2
 add_executable(splitobs splitobs/splitobs.c splitobs/fstdlib.c)
+add_dependencies(splitobs ${PROJECT_NAME}_build_info)
 target_compile_options(splitobs PRIVATE "-O2")
 target_link_libraries(splitobs PRIVATE
   SQLite::SQLite3
