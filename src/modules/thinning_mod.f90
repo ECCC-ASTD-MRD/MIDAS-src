@@ -3677,7 +3677,7 @@ contains
         if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
 
-      ! Inflate the QI value by 100 if the name of satellite is not in the SWDeweight
+      ! Inflate the QI value if the name of satellite is not in the SWDeweight
       if (allocated(SWDeweight)) then
         if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
           quality(headerIndex) = (quality(headerIndex))*1000
@@ -3791,7 +3791,7 @@ contains
 
           ! only consider obs with high quality
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
-          if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1
+          if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1 ! originally 1-10 before inflation
 
           ! only consider obs from current satellite
           ! except for satellites in the SWDeweight
@@ -3800,7 +3800,12 @@ contains
           end do
           if (stnidList(stnIdIndex) /= stnId) then
             if (allocated(SWDeweight)) then
-              if (.not. utl_isInarray(stnidList(stnIdIndex)(2:),SWDeweight)) cycle OBSLOOP1
+              ! consider only stnId not in the current satellite
+              if (utl_isInArray(stnId(2:),SWDeweight)) then
+                write(*,*) 'DEBUG: ', stnidList(stnIdIndex), ',', stnId(2:)
+              else
+                cycle OBSLOOP1
+              end if
             else
               cycle OBSLOOP1
             end if

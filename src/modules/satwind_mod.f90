@@ -40,7 +40,7 @@ contains
     character(len=20) :: SWQI(maxSat)
     character(len=20) :: SWDW(maxSat)
 
-    namelist /NAMSW/ SWQI
+    namelist /NAMSW/ SWQI, SWDW
 
     ! Defeault values for namelist variables
     SWQI(:)  = ''
@@ -96,12 +96,15 @@ contains
       deallocate(SWQIArray)
     end do
 
-    nsats = getNumSats(maxSat,SWDW)
-    if ( nsats /= 0 ) then
-    allocate(SWDeweight(nsats))
-      do isat = 1, nsats
-        SWDeweight(isat) = SWDW(isat)
-      end do
+    if (present(SWDeweight)) then
+      nsats = getNumSats(maxSat,SWDW)
+      if ( nsats /= 0 ) then
+        if (allocated(SWDeweight)) deallocate(SWDeweight)
+        allocate(SWDeweight(nsats))
+        do isat = 1, nsats
+          SWDeweight(isat) = SWDW(isat)
+        end do
+      end if
     end if
 
   end subroutine swd_readSwqi
