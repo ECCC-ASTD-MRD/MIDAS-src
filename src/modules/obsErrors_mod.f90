@@ -2279,7 +2279,7 @@ contains
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
-    integer :: ierr, nsats, isat
+    integer :: nsats, isat
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
