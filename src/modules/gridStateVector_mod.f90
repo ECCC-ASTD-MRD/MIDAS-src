@@ -2463,7 +2463,7 @@ module gridStateVector_mod
               do lonIndex = lon1, lon2
                 statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
                      real(scaleFactor_opt,4) * &
-                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**real(power,4)
+                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**power
               end do
             end do
           end do
@@ -2476,7 +2476,7 @@ module gridStateVector_mod
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
                 statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
-                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**real(power,4)
+                     (statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex))**power
               end do
             end do
           end do
