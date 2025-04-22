@@ -192,7 +192,6 @@ module midasMpi_mod
     ! Locals:
     integer :: nsize, ierr, root, rank
     real(8), allocatable :: allvalues(:)
-    real(8) :: recvValue(1)
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -210,14 +209,12 @@ module midasMpi_mod
 
     ! gather values to be added onto 1 processor
     allocate(allvalues(nsize))
-    recvValue(1) = sendRecvValue
-    call rpn_comm_gather(recvValue, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
+    call rpn_comm_gather(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if(rank.eq.root) recvValue(1) = sum(allvalues(:))
+    if(rank.eq.root) sendRecvValue = sum(allvalues(:))
     deallocate(allvalues)
-    call rpn_comm_bcast(recvValue, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
-    sendRecvValue = recvValue(1)
+    call rpn_comm_bcast(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     call utl_tmg_stop(170)
 

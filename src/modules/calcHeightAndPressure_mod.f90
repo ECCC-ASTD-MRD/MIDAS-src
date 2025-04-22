@@ -3184,7 +3184,6 @@ contains
       call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
       call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
-
     end if
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'END', verb_opt=2)
