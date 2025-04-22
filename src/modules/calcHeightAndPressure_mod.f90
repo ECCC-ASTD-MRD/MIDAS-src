@@ -554,8 +554,8 @@ contains
                                   latIndex+statevector%myLatBeg-1)
           gzH = gzHeight(lonIndex, latIndex, levIndex)
           ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-          b1 = -2.0/real(ec_wgs_a,4)*(1.0+real(ec_wgs_f,4)+real(ec_wgs_m,4)-2*real(ec_wgs_f,4)*latitude**2)
-          b2 = 3.0/real(ec_wgs_a,4)**2
+          b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
+          b2 = 3.0/ec_wgs_a**2
           ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
           A2 = -b1/2.0
           A3 = b1**2/2.0 - b2/3.0
