@@ -1076,13 +1076,15 @@ contains
     integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
-    real(8)  :: dx,dy,sum_weight
+    real(8)  :: deg2rad,dx,dy,sum_weight
     real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
     real(4), allocatable :: xg(:),yg(:)
     logical :: fileExist
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
     integer, parameter :: sindx = 6
+
+    deg2rad= MPC_RADIANS_PER_DEGREE_R8 
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))
@@ -1150,17 +1152,17 @@ contains
       allocate (xg(ni))
       allocate (yg(nj))
          
-      dx=hco%tictacU(sindx+10+1)    - hco%tictacU(sindx+10)
-      dy=hco%tictacU(sindx+10+ni+1) - hco%tictacU(sindx+10+ni)
-      dx=MPC_RADIANS_PER_DEGREE_R8 * dx
-      dy=MPC_RADIANS_PER_DEGREE_R8 * dy
+      dx = hco%tictacU(sindx+10+1) -hco%tictacU(sindx+10)
+      dy=  hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
+      dx=  deg2rad* dx
+      dy=  deg2rad* dy
       do lonIndex=1,ni
-        xg(lonIndex)=MPC_RADIANS_PER_DEGREE_R4*hco%tictacU(sindx+10+lonIndex-1)
+        xg(lonIndex)=deg2rad* hco%tictacU(sindx+10+lonIndex-1)
       end do
       do latIndex=1,nj
-        yg(latIndex)=MPC_RADIANS_PER_DEGREE_R4*hco%tictacU(sindx+10+ni+latIndex-1)
-        weight(:,latIndex)=cos(MPC_RADIANS_PER_DEGREE_R4*hco%tictacU(sindx+10+ni+latIndex-1))
-        weight(:,nj+latIndex)=weight(:,latIndex)
+        yg(latIndex)=  deg2rad*hco%tictacU(sindx+10+ni+latIndex-1)
+        weight (:,latIndex) = cos(deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
+        weight (:,nj+latIndex)= weight (:,latIndex)
       end do
       call  grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
       do latIndex=1,nj
