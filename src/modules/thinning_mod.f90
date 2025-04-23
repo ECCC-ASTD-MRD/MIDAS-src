@@ -5308,7 +5308,7 @@ contains
           do latIndex2 = 1, latIndex-1
             gridIndex = gridIndex + numGridLons(latIndex2)
           end do
-          gridIndex = gridIndex + ifix(obsLon/(360./numGridLons(latIndex)))
+          gridIndex = gridIndex + int(obsLon/(360./numGridLons(latIndex)))
           exit
         end if
       end do
