@@ -1009,7 +1009,7 @@ CONTAINS
     dlfac   = 1.d0/(1.d0+dlalpha)
     dln     = 1.d0*real(ntoar,8)
     dltemp  = (3.d0*(1.d0 + dlalpha))/(1.d0 + dlalpha/(dln*dln))
-    dltemp  = dsqrt(dltemp)
+    dltemp  = sqrt(dltemp)
 
     if (kcorrtyp == 1) then
       ! Gaussian correlation
@@ -1429,7 +1429,7 @@ CONTAINS
     do jm = 0, ntrunc
       do jn = jm, ntrunc
         jla = gst_getNIND(jm,gstID) + jn - jm
-        dlfac = 0.5d0/dsqrt((2*jn+1.d0)/2.d0)
+        dlfac = 0.5d0/sqrt((2*jn+1.d0)/2.d0)
         cortgg(jla,1) = dlfac * zsp_mpiglobal(jn+1,1,1)
         cortgg(jla,2) = dlfac * zsp_mpiglobal(jn+1,1,1)
       enddo

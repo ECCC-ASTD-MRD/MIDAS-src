@@ -386,9 +386,9 @@ CONTAINS
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
 
       CALL PRSCAL(nvadim_mpilocal,VAZG,VAZG,DLGNORM)
-      DLGNORM = DSQRT(DLGNORM)
+      DLGNORM = SQRT(DLGNORM)
       CALL PRSCAL(nvadim_mpilocal,VAZX,VAZX,DLXNORM)
-      DLXNORM = DSQRT(DLXNORM)
+      DLXNORM = SQRT(DLXNORM)
       WRITE(*,*)' |X| = ', DLXNORM
       WRITE(*,FMT=9220) ZJSP, DLGNORM
  9220 FORMAT(/4X,'J(X) = ',G23.16,4X,'|Grad J(X)| = ',G23.16)

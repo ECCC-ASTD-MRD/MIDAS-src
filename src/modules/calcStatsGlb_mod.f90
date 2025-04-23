@@ -1341,7 +1341,7 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
-          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+          rstddev(jk1,jn) = sqrt(abs(corns(jk1,jk1,jn)))
         else
           rstddev(jk1,jn) = 0.0d0
         end if
@@ -1483,7 +1483,7 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
-          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+          rstddev(jk1,jn) = sqrt(abs(corns(jk1,jk1,jn)))
         else
           rstddev(jk1,jn) = 0.0d0
         end if

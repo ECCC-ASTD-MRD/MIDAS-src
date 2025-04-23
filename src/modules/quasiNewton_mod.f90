@@ -45,11 +45,11 @@ module quasiNewton_mod
          discri=discri*fpa
          discri=z1-discri
          if (z1.ge.0.d0 .and. discri.ge.0.d0) then
-            discri=dsqrt(z1)*dsqrt(discri)
+            discri=sqrt(z1)*sqrt(discri)
             go to 120
          endif
          if (z1.le.0.d0 .and. discri.le.0.d0) then
-            discri=dsqrt(-z1)*dsqrt(-discri)
+            discri=sqrt(-z1)*sqrt(-discri)
             go to 120
          endif
          discri=-1.d0
@@ -62,7 +62,7 @@ module quasiNewton_mod
 !     
 !     discriminant nonnegative, compute solution (without overflow)
 !     
-      discri=dsqrt(discri)
+      discri=sqrt(discri)
  120  if (t-ta.lt.0.d0) discri=-discri
       sign=(t-ta)/dabs(t-ta)
       if (b*sign.gt.0.d+0) then
@@ -501,9 +501,9 @@ module quasiNewton_mod
            /5x,"number of simulations: ",i6 &
            /5x,"realized relative precision on g: ",d9.2)
       call prosca (n,x,x,ps,izs,rzs,dzs)
-      d1=dsqrt(ps)
+      d1=sqrt(ps)
       call prosca (n,g,g,ps,izs,rzs,dzs)
-      d2=dsqrt(ps)
+      d2=sqrt(ps)
       if (impres.ge.1) write (io,906) d1,f,d2
  906  format (5x,"norm of x = ",d15.8 &
            /5x,"f         = ",d15.8 &
@@ -566,7 +566,7 @@ module quasiNewton_mod
                               "mpi_max","GRID",ierr)
 !
       call prosca (n,g,g,ps,izs,rzs,dzs)
-      gnorm=dsqrt(ps)
+      gnorm=sqrt(ps)
       if (impres.ge.1) write (io,900) f,gnorm
   900 format (5x,"f         = ",d15.8 &
              /5x,"norm of g = ",d15.8)
@@ -644,9 +644,9 @@ module quasiNewton_mod
 !
       if (warm.and.impresmax.ge.5) then
           call prosca (n,g,g,ps,izs,rzs,dzs)
-          ps=dsqrt(ps)
+          ps=sqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          ps2=dsqrt(ps2)
+          ps2=sqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
           ps=dacos(ps)
@@ -773,7 +773,7 @@ module quasiNewton_mod
           !$OMP END PARALLEL DO
           if (impresmax.ge.5) then
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
-              dk1=dsqrt(ps)
+              dk1=sqrt(ps)
               if (impres.ge.5.and.niter.gt.1) write (io,930) dk1/dk
   930         format (/" n1qn3: convergence rate, s(k)/s(k-1) = ", &
                       d12.5)
@@ -791,7 +791,7 @@ module quasiNewton_mod
 !
 !         --- ybar et sbar
 !
-          d1=dsqrt(1.d+0/ys)
+          d1=sqrt(1.d+0/ys)
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 410 i=1,n
               sbar(i,jcour)=d1*sbar(i,jcour)
@@ -873,7 +873,7 @@ module quasiNewton_mod
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
                   call mmpi_allreduce_sumreal8scalar(ps2,"GRID")
-                  ps2=dsqrt(ps2/ntotal)
+                  ps2=sqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3, &
                          ", sqrt(variance) = ",d10.3)
@@ -885,7 +885,7 @@ module quasiNewton_mod
 !
       call prosca(n,g,g,ps,izs,rzs,dzs)
       eps1=ps
-      eps1=dsqrt(eps1)/gnorm
+      eps1=sqrt(eps1)/gnorm
 !
       if (impres.ge.5) write (io,940) eps1
   940 format (/" n1qn3: stopping criterion on g: ",d12.5)
@@ -943,9 +943,9 @@ module quasiNewton_mod
       endif
       if (impresmax.ge.5) then
           call prosca (n,g,g,ps,izs,rzs,dzs)
-          ps=dsqrt(ps)
+          ps=sqrt(ps)
           call prosca (n,d,d,ps2,izs,rzs,dzs)
-          ps2=dsqrt(ps2)
+          ps2=sqrt(ps2)
           ps=hp0/ps/ps2
           ps=dmin1(-ps,1.d+0)
           ps=dacos(ps)

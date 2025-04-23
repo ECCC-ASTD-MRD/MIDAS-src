@@ -3587,7 +3587,7 @@ contains
 
     do jn = 0, gst(gstID_in)%ntrunc
        dln = 1.d0*real(jn,8)
-       dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
+       dlnorm(jn) = sqrt((2.d0*dln + 1.d0)/2.d0)
     enddo
 
     do jn = 1, gst(gstID_in)%ntrunc-1
