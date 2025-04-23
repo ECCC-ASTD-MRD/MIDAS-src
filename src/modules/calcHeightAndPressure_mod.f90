@@ -3169,17 +3169,17 @@ contains
 
     ! Locals:
     integer :: vcode
+    logical :: p0Exists, ttExists, huExists
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = vco_getVcode(col_getVco(column))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
-      if ( .not. col_varExist(column,'P0') ) then
-        if ( col_varExist(column,'TT') ) then
-          if ( col_varExist(column,'HU')  ) then
-            call utl_abort('czp_calcReturnHeight_col_nl: for vcode 5xxx, variables P0, TT and HU must be allocated in column')
-          end if
-        end if
+      p0Exists = col_varExist(column,'P0')
+      ttExists = col_varExist(column,'TT')
+      huExists = col_varExist(column,'HU')
+      if ( .not. ( p0Exists .and. ttExists .and. huExists ) ) then
+        call utl_abort('czp_calcReturnHeight_col_nl: for vcode 5xxx, variables P0, TT and HU must be allocated in column')
       end if
       call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
@@ -3999,6 +3999,7 @@ contains
 
     ! Locals:
     integer :: Vcode
+    logical :: p0Exists, ttExists, huExists
 
     call msg('czp_calcReturnPressure_col_nl (czp)', 'START', verb_opt=2)
 
@@ -4009,12 +4010,11 @@ contains
       end if
       call calcPressure_col_nl_vcode5xxx(column, P_T, P_M)
     else if (Vcode == 21001) then
-      if ( .not. col_varExist(column,'P0') ) then
-        if ( col_varExist(column,'TT') ) then
-          if ( col_varExist(column,'HU')  ) then
-            call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 2100x, variables P0, TT and HU must be allocated in column')
-          end if
-        end if
+      p0Exists = col_varExist(column,'P0')
+      ttExists = col_varExist(column,'TT')
+      huExists = col_varExist(column,'HU')
+      if ( .not. ( p0Exists .and. ttExists .and. huExists ) ) then
+        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 2100x, variables P0, TT and HU must be allocated in column')
       end if
       call calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     end if
