@@ -3813,17 +3813,31 @@ contains
     integer :: i,j
 
     if ( n.le.m ) n = m + 1
+
     n = n - 1
-1   n = n + 1
-    i = n
-2   do 3 j=1,l
-       if( mod(i,k(j)) .eq. 0 ) go to 4
-3   continue
-    go to 1
-4   i = i/k(j)
-    if( i .ne. 1 ) go to 2
+    outer: do
+      n = n + 1
+      i = n
 
+      middle: do
+
+        inner: do j = 1, l
+
+          if( mod(i,k(j)) == 0 ) then
+            i = i/k(j)
+
+            if ( i /= 1 ) then
+              cycle middle
+            else
+              exit outer
+            end if
+          end if
+
+        end do inner
+
+        cycle outer
+      end do middle
+
+    end do outer
   end subroutine ngfft
-
-
 end module globalSpectralTransform_mod
