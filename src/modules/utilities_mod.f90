@@ -3361,7 +3361,7 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: firstValue, secondValue ! two real(4) values to compare
+    real(8), intent(in) :: firstValue, secondValue ! two real(8) values to compare
     ! Result:
     logical :: areTheyEqual
 
@@ -3395,7 +3395,7 @@ contains
       return
     end if
 
-    do index=1, size(firstArray)
+    do index = 1, size(firstArray)
       ! If one value is different, then they are different so return
       if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
         areTheyEqual = .false.
@@ -3434,7 +3434,7 @@ contains
       return
     end if
 
-    do index=1, size(firstArray)
+    do index = 1, size(firstArray)
       ! If one value is different, then they are different so return
       if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
         areTheyEqual = .false.
