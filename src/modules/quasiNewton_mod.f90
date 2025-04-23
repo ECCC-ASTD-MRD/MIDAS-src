@@ -76,8 +76,8 @@ module quasiNewton_mod
             t=tupper
          endif
       endif
- 900  t=dmax1(t,tlower)
-      t=dmin1(t,tupper)
+ 900  t=max(t,tlower)
+      t=min(t,tupper)
 !     return
       end subroutine
 
@@ -648,7 +648,7 @@ module quasiNewton_mod
           call prosca (n,d,d,ps2,izs,rzs,dzs)
           ps2=sqrt(ps2)
           ps=hp0/ps/ps2
-          ps=dmin1(-ps,1.d+0)
+          ps=min(-ps,1.d+0)
           ps=dacos(ps)
           d1=ps*180.d+0/pi
           if(impres.ge.5) write (io,906) real(d1,4)
@@ -947,7 +947,7 @@ module quasiNewton_mod
           call prosca (n,d,d,ps2,izs,rzs,dzs)
           ps2=sqrt(ps2)
           ps=hp0/ps/ps2
-          ps=dmin1(-ps,1.d+0)
+          ps=min(-ps,1.d+0)
           ps=dacos(ps)
           d1=ps
           d1=d1*180.d0/pi
@@ -1159,10 +1159,10 @@ module quasiNewton_mod
       call dcube (t,f,fp,ta,fa,fpa,gauche,droite)
       ta=taa
       if (t.gt.gauche .and. t.lt.droite) then
-          barr=dmax1(barmin,barr/barmul)
+          barr=max(barmin,barr/barmul)
 !         barr=barmin
         else
-          barr=dmin1(barmul*barr,barmax)
+          barr=min(barmul*barr,barmax)
       endif
 !
 ! --- fin de boucle
