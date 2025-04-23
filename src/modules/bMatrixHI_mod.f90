@@ -1018,7 +1018,7 @@ CONTAINS
         dlc = 0.5d0*dlc*dlc
         do  jlat = myLatBeg, myLatEnd
           zr = ec_ra * acos(gst_getRmu(jlat,gstID))
-          dlcorr = dexp(-(zr**2)*dlc)
+          dlcorr = exp(-(zr**2)*dlc)
           do  jlon = myLonBeg, myLonEnd
             zgd(jlon,jlat,levIndex) = dlcorr
           enddo
@@ -1031,8 +1031,8 @@ CONTAINS
         dlcsurn = dlc/dln
         do jlat = myLatBeg, myLatEnd
           zr = ec_ra * acos(gst_getRmu(jlat,gstID))
-          dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*dexp(-zr*dlc)    &
-            + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
+          dlcorr = (1.d0 + dlc*zr + zr*dlc*zr*dlc/3.d0)*exp(-zr*dlc)    &
+            + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*exp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
           do jlon = myLonBeg, myLonEnd
             zgd(jlon,jlat,levIndex) = dlcorr
@@ -1506,7 +1506,7 @@ CONTAINS
         dlc = 0.5d0*dlc*dlc
         do jlat = 1, nj_l
           zr = ec_ra * acos(zrmu(jlat))
-          dlfact = dexp(-(zr**2)*dlc)
+          dlfact = exp(-(zr**2)*dlc)
           zgr(jlat,jk) = dlfact*zgr(jlat,jk)
         enddo
       endif

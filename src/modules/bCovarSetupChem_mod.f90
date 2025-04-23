@@ -837,7 +837,7 @@ module bCovarSetupChem_mod
         dlc = 0.5d0*dlc*dlc
         do latIndex = 1, bgStats%nj
           zr = ec_ra * acos(zrmu(latIndex))
-          dlfact = dexp(-(zr**2)*dlc)
+          dlfact = exp(-(zr**2)*dlc)
           zgr(latIndex,jk) = dlfact*zgr(latIndex,jk)
         end do
       end if
