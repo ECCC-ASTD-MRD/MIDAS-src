@@ -1076,15 +1076,13 @@ contains
     integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
-    real(8)  :: deg2rad,dx,dy,sum_weight
+    real(8)  :: dx,dy,sum_weight,tictacRad_r8
     real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
     real(4), allocatable :: xg(:),yg(:)
     logical :: fileExist
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
     integer, parameter :: sindx = 6
-
-    deg2rad= MPC_RADIANS_PER_DEGREE_R8 
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))
@@ -1153,21 +1151,29 @@ contains
       allocate (yg(nj))
          
       dx = hco%tictacU(sindx+10+1) -hco%tictacU(sindx+10)
-      dy=  hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
-      dx=  deg2rad* dx
-      dy=  deg2rad* dy
+      dy = hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
+      dx = MPC_RADIANS_PER_DEGREE_R8 * dx
+      dy = MPC_RADIANS_PER_DEGREE_R8 * dy
       do lonIndex=1,ni
-        xg(lonIndex)=deg2rad* hco%tictacU(sindx+10+lonIndex-1)
+        ! TODO: simplify the floating point precision conversions
+        ! We use this logic just to keep results unchanged but it is arbitrary
+        ! 'hco%tictacU' is 'real(4)'
+        tictacRad_r8 = MPC_RADIANS_PER_DEGREE_R8 * real(hco%tictacU(sindx+10+lonIndex-1),8)
+        xg(lonIndex)=real(tictacRad_r8, 4)
       end do
       do latIndex=1,nj
-        yg(latIndex)=  deg2rad*hco%tictacU(sindx+10+ni+latIndex-1)
-        weight (:,latIndex) = cos(deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
-        weight (:,nj+latIndex)= weight (:,latIndex)
+        ! TODO: simplify the floating point precision conversions
+        ! We use this logic just to keep results unchanged but it is arbitrary
+        ! 'hco%tictacU' is 'real(4)'
+        tictacRad_r8 = MPC_RADIANS_PER_DEGREE_R8 * real(hco%tictacU(sindx+10+ni+latIndex-1),8)
+        yg(latIndex) = real(tictacRad_r8, 4)
+        weight(:,latIndex) = cos(tictacRad_r8)
+        weight(:,nj+latIndex) = weight(:,latIndex)
       end do
       call  grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
       do latIndex=1,nj
         F_mask (:,latIndex) = F_mask_8(:,latIndex)
-        F_mask (:,nj+latIndex)= F_mask (:,latIndex)
+        F_mask (:,nj+latIndex) = F_mask (:,latIndex)
       end do
       do latIndex=1,njWeight
         weight(:,latIndex) = weight(:, latIndex) * F_mask(:, latIndex)
