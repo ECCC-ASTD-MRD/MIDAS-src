@@ -523,8 +523,14 @@ contains
     hco%xlon2_yan            = real(xlon2_yan_4,8)
     hco%initialized          = .true.
 
-    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
-    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
+    ! TODO: We should simplify the floating point precision conversions by using
+    !    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
+    !    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
+    ! but to avoid affecting the results, we will use instead explicit
+    ! prevision conversion
+    hco%lat2d_4(:,:) = real( real(hco%lat2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
+    hco%lon2d_4(:,:) = real( real(hco%lon2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
+
 
     deallocate(lat_8)
     deallocate(lon_8)
