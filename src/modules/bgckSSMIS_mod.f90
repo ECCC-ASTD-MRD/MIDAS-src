@@ -1295,14 +1295,14 @@ contains
       boxPointIndex = 0
 
       do latIndex = -nLat, nLat
-        rlatIndex = float(latIndex)
+        rlatIndex = real(latIndex,4)
         xLat = obsLatitude(obsIndex) + rLatIndex*dLat
         xLat = max( -90.0, min(90.0,xLat) )
         xLatRad = xLat*pi/180.0
 
         do lonIndex = -nLon, nLon
           dLon = rLonKm / ( rKmPerDeg*cos(xLatRad) )
-          rLonIndex = float(lonIndex)
+          rLonIndex = real(lonIndex,4)
           boxPointIndex = boxPointIndex + 1
           xLon = obsLongitude(obsIndex) + rLonIndex*dLon
           if ( xLon < -180. ) xLon = xLon + 360.
@@ -2925,7 +2925,7 @@ contains
       percentInovQcFlags(:) = 0.0
     else
       do indexFlags = 1,9
-        percentInovQcFlags(indexFlags) = float(statsInovQcFlags(indexFlags))/float(statsInovQcFlags(10)-statsInovQcFlags(2))*100
+        percentInovQcFlags(indexFlags) = real(statsInovQcFlags(indexFlags),4)/real(statsInovQcFlags(10)-statsInovQcFlags(2),4)*100
       end do
     end if
 

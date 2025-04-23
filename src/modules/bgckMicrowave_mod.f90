@@ -4535,14 +4535,14 @@ contains
     indx = 0
 
     do ii = -nlat, nlat
-      rii = float(ii)
+      rii = real(ii,4)
       xlat = obsLat + rii*dlat
       xlat = max( -90.0, min(90.0,xlat) )
       xlatrad = xlat * pi / 180.0
 
       do jj = -nlon, nlon
         dlon = rlon_km / ( rkm_per_deg*cos(xlatrad) )
-        rjj = float(jj)
+        rjj = real(jj,4)
         indx = indx + 1
         xlon = obsLon + rjj*dlon
         if ( xlon < -180. ) xlon = xlon + 360.

@@ -3497,11 +3497,11 @@ contains
 
       ! Give preference to obs near middle or end of the assimilation window
       if (winpos == 'mid') then
-        finalZtdScore = finalZtdScore + 25.0*float(abs(middleStep-obsStepIndex(headerIndex))) / &
-                        float(middleStep-1)
+        finalZtdScore = finalZtdScore + 25.0*real(abs(middleStep-obsStepIndex(headerIndex)),4) / &
+                        real(middleStep-1,4)
       else if (winpos == 'end') then
-        finalZtdScore = finalZtdScore + 25.0*float(tim_nstepobs-obsStepIndex(headerIndex)) / &
-                        float(tim_nstepobs-1)
+        finalZtdScore = finalZtdScore + 25.0*real(tim_nstepobs-obsStepIndex(headerIndex),4) / &
+                        real(tim_nstepobs-1,4)
       end if
 
       ! Quality (lower is better), typical values 20->100, if no zdscore then > 1600
@@ -5399,7 +5399,7 @@ contains
         obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
         obsLon = obsLonBurpFile(headerIndex) / 100.
         obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-             float(latLength) / 90.
+             real(latLength,4) / 90.
       end if
     end do
 
@@ -5566,9 +5566,9 @@ contains
     countOther = countObsMpi - countKeptMpi - countQcMpi
 
     percentTotal = 100.0
-    percentQc    = (float(countQcMpi)   / float(countObsMpi)) * 100.0
-    percentOther = (float(countOther)   / float(countObsMpi)) * 100.0
-    percentKept  = (float(countKeptMpi) / float(countObsMpi)) * 100.0
+    percentQc    = real(countQcMpi,4)   / real(countObsMpi,4) * 100.0
+    percentOther = real(countOther,4)   / real(countObsMpi,4) * 100.0
+    percentKept  = real(countKeptMpi,4) / real(countObsMpi,4) * 100.0
 
     write(*,100)
 100 format(/,' SOMMAIRE DES RESULTATS',/)
