@@ -2820,16 +2820,16 @@ contains
 
         if (levIndex == 1) then
           presTop = presInterp(stationIndex,levIndex)
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
         else if (levIndex == numLev) then
-          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
           presBottom = presInterp(stationIndex,levIndex)
         else
-          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
         end if
 
@@ -3008,19 +3008,19 @@ contains
         write (*,'(a80,f10.2,i10)') 'lowest model layer-------------> ',presBottom,levIndex
         do while(obsValues(varIndexPres,obsLevOffset(stationIndex)+1) < presBottom)
           levIndex = levIndex - 1
-          presBottom = exp(0.5 * alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp(0.5 * log(presInterp(stationIndex,levIndex+1) * &
                            presInterp(stationIndex,levIndex)))
         end do
         if (levIndex == numLev) levIndex = numLev - 1
 
         do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
 
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
           do while(obsValues(varIndexPres,levStnIndex) < presBottom)
             write (*,'(a80,f10.2,i10)') 'model layer---------------> ',presBottom,levIndex
             levIndex = levIndex - 1
-            presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+            presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                          presInterp(stationIndex,levIndex)) )
           end do
           write (*,'(5f8.2,4i8)') obsValues(varIndexPres,levStnIndex), &
@@ -3086,13 +3086,13 @@ contains
 
         if (levIndex == 1) then
           presBottom = levelsES(levIndex)
-          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
         else if (levIndex == numLevES) then
-          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
+          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
           presTop = levelsES(levIndex)
         else
-          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
-          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
+          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
         end if
 
         ! Select the levels between presTop and presBottom

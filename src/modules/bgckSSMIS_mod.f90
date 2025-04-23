@@ -553,18 +553,18 @@ contains
       end if
 
       if ( (Ta19v < RT) .and. (Ta22v < RT) ) then
-        ALG1 = -3.20 * ( ALOG(290.0-Ta19v) - 2.80 - 0.42*ALOG(290.0-Ta22v) )          !TA
-        ! ALG1 = -3.20 * ( ALOG(290.0-Tb19v) - 2.84 - 0.40*ALOG(290.0-Tb22v) )      !TB
+        ALG1 = -3.20 * ( LOG(290.0-Ta19v) - 2.80 - 0.42*LOG(290.0-Ta22v) )          !TA
+        ! ALG1 = -3.20 * ( LOG(290.0-Tb19v) - 2.84 - 0.40*LOG(290.0-Tb22v) )      !TB
       end if
 
       if ( (Ta37v < RT) .and. (Ta22v < RT) ) then
-        ALG2 = -1.66 * ( ALOG(290.0-Ta37v) - 2.90 - 0.349*ALOG(290.0-Ta22v) )   !TA
-        ! ALG2 = -1.66 * ( ALOG(290.0-Tb37v) - 2.99 - 0.32*ALOG(290.0-Tb22v) )    !TB
+        ALG2 = -1.66 * ( LOG(290.0-Ta37v) - 2.90 - 0.349*LOG(290.0-Ta22v) )   !TA
+        ! ALG2 = -1.66 * ( LOG(290.0-Tb37v) - 2.99 - 0.32*LOG(290.0-Tb22v) )    !TB
       end if
 
       if ( (Ta85h < RT) .and. (Ta22v < RT) ) then
-        ALG3 = -0.44 * ( ALOG(290.0-Ta85h) + 1.60 - 1.354*ALOG(290.0-Ta22v) )     !TA
-        ! ALG3 = -0.44 * ( ALOG(290.0-Tb85h) + 1.11 - 1.26*ALOG(290.0-Tb22v) )      !TB
+        ALG3 = -0.44 * ( LOG(290.0-Ta85h) + 1.60 - 1.354*LOG(290.0-Ta22v) )     !TA
+        ! ALG3 = -0.44 * ( LOG(290.0-Tb85h) + 1.11 - 1.26*LOG(290.0-Tb22v) )      !TB
       end if
 
       if ( ALG1 > 0.70 ) then
