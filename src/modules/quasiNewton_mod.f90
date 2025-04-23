@@ -649,7 +649,7 @@ module quasiNewton_mod
           ps2=sqrt(ps2)
           ps=hp0/ps/ps2
           ps=min(-ps,1.d+0)
-          ps=dacos(ps)
+          ps=acos(ps)
           d1=ps*180.d+0/pi
           if(impres.ge.5) write (io,906) real(d1,4)
       endif
@@ -948,7 +948,7 @@ module quasiNewton_mod
           ps2=sqrt(ps2)
           ps=hp0/ps/ps2
           ps=min(-ps,1.d+0)
-          ps=dacos(ps)
+          ps=acos(ps)
           d1=ps
           d1=d1*180.d0/pi
           if (impres.ge.5) write (io,906) real(d1,4)
