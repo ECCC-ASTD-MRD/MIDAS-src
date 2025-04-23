@@ -123,50 +123,50 @@ module quasiNewton_mod
 !
 !         phase de descente
 !
-      do 100 j=jfin,jmin,-1
+      do j = jfin, jmin , -1
           jp=j
           if (jp.gt.nm) jp=jp-nm
           call prosca (n,depl,sbar(1,jp),ps,izs,rzs,dzs)
           r=ps
           alpha(jp)=r
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 20 i=1,n
-              depl(i)=depl(i)-r*ybar(i,jp)
-20        continue
+          do i = 1, n
+            depl(i)=depl(i)-r*ybar(i,jp)
+          end do
           !$OMP END PARALLEL DO
-100   continue
+      end do
 !
 !         preconditionnement
 !
       if (sscale) then
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 150 i=1,n
-              depl(i)=depl(i)*precos
-  150     continue
+          do i = 1, n
+            depl(i)=depl(i)*precos
+          end do
           !$OMP END PARALLEL DO
       else
           call dtonb (n,depl,aux,izs,rzs,dzs)
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 151 i=1,n
-              aux(i)=aux(i)*diag(i)
-  151     continue
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
+          do i = 1, n
+            aux(i)=aux(i)*diag(i)
+          end do
           !$OMP END PARALLEL DO
           call dtcab (n,aux,depl,izs,rzs,dzs)
       endif
 !
 !         remontee
 !
-      do 200 j=jmin,jfin
-          jp=j
-          if (jp.gt.nm) jp=jp-nm
-          call prosca (n,depl,ybar(1,jp),ps,izs,rzs,dzs)
-          r=alpha(jp)-ps
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 120 i=1,n
-              depl(i)=depl(i)+r*sbar(i,jp)
-120       continue
-          !$OMP END PARALLEL DO
-200   continue
+      do j = jmin, jfin
+        jp=j
+        if (jp.gt.nm) jp=jp-nm
+        call prosca (n,depl,ybar(1,jp),ps,izs,rzs,dzs)
+        r=alpha(jp)-ps
+        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
+        do i = 1, n
+          depl(i)=depl(i)+r*sbar(i,jp)
+        end do
+        !$OMP END PARALLEL DO
+      end do
 
       end subroutine ddd
 
@@ -199,42 +199,42 @@ module quasiNewton_mod
 !
 !         phase de descente
 !
-      do 100 j=jfin,jmin,-1
-          jp=j
-          if (jp.gt.nm) jp=jp-nm
-          call prosca (n,depl,sbar,ps,izs,rzs,dzs)
-          r=ps
-          alpha(jp)=r
-          do 20 i=1,n
-              depl(i)=depl(i)-r*ybar(i)
-20        continue
-100   continue
+      do j = jfin, jmin, -1
+        jp=j
+        if (jp.gt.nm) jp=jp-nm
+        call prosca (n,depl,sbar,ps,izs,rzs,dzs)
+        r=ps
+        alpha(jp)=r
+        do i = 1, n
+          depl(i)=depl(i)-r*ybar(i)
+        end do
+      end do
 !
 !         preconditionnement
 !
       if (sscale) then
-          do 150 i=1,n
-              depl(i)=depl(i)*precos
-  150     continue
+          do i = 1, n
+            depl(i)=depl(i)*precos
+          end do
       else
           call dtonb (n,depl,aux,izs,rzs,dzs)
-          do 151 i=1,n
-              aux(i)=aux(i)*diag(i)
-  151     continue
+          do i = 1, n
+            aux(i)=aux(i)*diag(i)
+          end do
           call dtcab (n,aux,depl,izs,rzs,dzs)
       endif
 !
 !         remontee
 !
-      do 200 j=jmin,jfin
-          jp=j
-          if (jp.gt.nm) jp=jp-nm
-          call prosca (n,depl,ybar(1),ps,izs,rzs,dzs)
-          r=alpha(jp)-ps
-          do 120 i=1,n
-              depl(i)=depl(i)+r*sbar(i)
-120       continue
-200   continue
+      do j = jmin, jfin
+        jp=j
+        if (jp.gt.nm) jp=jp-nm
+        call prosca (n,depl,ybar(1),ps,izs,rzs,dzs)
+        r=alpha(jp)-ps
+        do i = 1, n
+          depl(i)=depl(i)+r*sbar(i)
+        end do
+      end do
 
       end subroutine ddds
 
@@ -593,10 +593,10 @@ module quasiNewton_mod
 !         --- use Fletcher's scaling and initialize diag to 1.
 !
           precos=2.d+0*df1/gnorm**2
-          do 10 i=1,n
-              d(i)=-g(i)*precos
-              diag(i)=1.d+0
-   10     continue
+          do i = 1, n
+            d(i)=-g(i)*precos
+            diag(i)=1.d+0
+          end do
           if (impres.ge.5) write(io,902) precos
   902     format (/" n1qn3a: descent direction -g: precon = ",d10.3)
       else
@@ -607,9 +607,9 @@ module quasiNewton_mod
               call prosca (n,ybar(1,jcour),ybar(1,jcour),ps,izs,rzs,dzs)
               precos=1.d+0/ps
           endif
-          do 11 i=1,n
-              d(i)=-g(i)
-  11      continue
+          do i = 1, n
+            d(i)=-g(i)
+          end do
           if (inmemo) then
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                        precos,diag,ybar,sbar,izs,rzs,dzs)
@@ -675,9 +675,9 @@ module quasiNewton_mod
   910 format (" n1qn3: iter ",i3,", simul ",i3, &
               ", f=",d15.8,", h'(0)=",d12.5)
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-      do 101 i=1,n
-          gg(i)=g(i)
-101   continue
+      do i = 1, n
+        gg(i)=g(i)
+      end do
       !$OMP END PARALLEL DO
       ff=f
 !
@@ -689,9 +689,9 @@ module quasiNewton_mod
 !         --- calcul de tmin
 !
       tmin=0.d+0
-      do 200 i=1,n
-          tmin=max(tmin,abs(d(i)))
-200   continue
+      do i = 1, n
+        tmin=max(tmin,abs(d(i)))
+      end do
       call rpn_comm_allreduce(tmin,tmin_mpiglobal,1, &
                               "mpi_double_precision", &
                               "mpi_max","GRID",ierr)
@@ -766,10 +766,10 @@ module quasiNewton_mod
 !         --- y, s et (y,s)
 !
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 400 i=1,n
-              sbar(i,jcour)=t*d(i)
-              ybar(i,jcour)=g(i)-gg(i)
-400       continue
+          do i = 1, n
+            sbar(i,jcour)=t*d(i)
+            ybar(i,jcour)=g(i)-gg(i)
+          end do
           !$OMP END PARALLEL DO
           if (impresmax.ge.5) then
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
@@ -793,10 +793,10 @@ module quasiNewton_mod
 !
           d1=sqrt(1.d+0/ys)
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 410 i=1,n
-              sbar(i,jcour)=d1*sbar(i,jcour)
-              ybar(i,jcour)=d1*ybar(i,jcour)
-  410     continue
+          do i = 1, n
+            sbar(i,jcour)=d1*sbar(i,jcour)
+            ybar(i,jcour)=d1*ybar(i,jcour)
+          end do
           !$OMP END PARALLEL DO
 !
 !         --- compute the scalar or diagonal preconditioner
@@ -821,9 +821,9 @@ module quasiNewton_mod
           else
               call dtonb (n,ybar(1,jcour),aux,izs,rzs,dzs)
               ps=0.d0
-              do 420 i=1,n
-                  ps=ps+diag(i)*aux(i)*aux(i)
-  420         continue
+              do i = 1, n
+                ps=ps+diag(i)*aux(i)*aux(i)
+              end do
               call mmpi_allreduce_sumreal8scalar(ps,"GRID")
               d1=1.d0/ps
               if (impres.ge.5) then
@@ -831,9 +831,9 @@ module quasiNewton_mod
   934             format(5x,"fitting the ellipsoid: factor = ",d10.3)
               endif
               !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-              do 421 i=1,n
-                  diag(i)=diag(i)*d1
-  421         continue
+              do i = 1, n
+                diag(i)=diag(i)*d1
+              end do
               !$OMP END PARALLEL DO
 !
 !             --- update the diagonal
@@ -841,37 +841,37 @@ module quasiNewton_mod
 !
               call dtonb (n,sbar(1,jcour),gg,izs,rzs,dzs)
               ps=0.d0
-              do 430 i=1,n
-                  ps=ps+gg(i)*gg(i)/diag(i)
-  430         continue
+              do i = 1, n
+                ps=ps+gg(i)*gg(i)/diag(i)
+              end do
               call mmpi_allreduce_sumreal8scalar(ps,"GRID")
               den=ps
               !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-              do 431 i=1,n
-                  diag(i)=1.d0/ &
-                         (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
-                  if (diag(i).le.0.d0) then
-                      if (impres.ge.5) write (io,935) i,diag(i),rmin
-                      diag(i)=rmin
-                  endif
-  431         continue
+              do i = 1, n
+                diag(i)=1.d0/ &
+                     (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
+                if (diag(i).le.0.d0) then
+                  if (impres.ge.5) write (io,935) i,diag(i),rmin
+                  diag(i)=rmin
+                endif
+              end do
               !$OMP END PARALLEL DO
   935         format (/" >>> n1qn3-WARNING: diagonal element ",i8, &
                        " is negative (",d10.3,"), reset to ",d10.3)
 !
               if (impresmax.ge.5) then
                   ps=0.d0
-                  do 440 i=1,n
+                  do i = 1, n
                       ps=ps+diag(i)
-  440             continue
+                    end do
                   call mmpi_allreduce_sumreal8scalar(ps,"GRID")
                   ps=ps/ntotal
                   preco=ps
 !
                   ps2=0.d0
-                  do 441 i=1,n
-                      ps2=ps2+(diag(i)-ps)**2
-  441             continue
+                  do i = 1, n
+                    ps2=ps2+(diag(i)-ps)**2
+                  end do
                   call mmpi_allreduce_sumreal8scalar(ps2,"GRID")
                   ps2=sqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
@@ -913,15 +913,15 @@ module quasiNewton_mod
       if (m.eq.0) then
           preco=2.d0*(ff-f)/(eps1*gnorm)**2
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 500 i=1,n
-              d(i)=-g(i)*preco
-  500     continue
+          do i = 1, n
+            d(i)=-g(i)*preco
+          end do
           !$OMP END PARALLEL DO
       else
           !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
-          do 510 i=1,n
-              d(i)=-g(i)
-  510     continue
+          do i = 1, n
+            d(i)=-g(i)
+          end do
           !$OMP END PARALLEL DO
           if (inmemo) then
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
@@ -1048,9 +1048,9 @@ module quasiNewton_mod
 !
 !     --- nouveau x
 !
-      do 50 i=1,n
-          x(i)=xn(i)+t*d(i)
-   50 continue
+      do i = 1, n
+        x(i)=xn(i)+t*d(i)
+      end do
 !
 ! --- boucle
 !
@@ -1058,9 +1058,9 @@ module quasiNewton_mod
       if(nap.gt.napmax) then
           logic=4
           fn=fg
-          do 120 i=1,n
-              xn(i)=xn(i)+tg*d(i)
-  120     continue
+          do i = 1, n
+            xn(i)=xn(i)+tg*d(i)
+          end do
           go to 999
       endif
       indic=4
@@ -1074,9 +1074,9 @@ module quasiNewton_mod
 !
           logic=5
           fn=f
-          do 170 i=1,n
-              xn(i)=x(i)
-  170     continue
+          do i = 1, n
+            xn(i)=x(i)
+          end do
           go to 999
       endif
       if(indic.lt.0) then
@@ -1121,9 +1121,9 @@ module quasiNewton_mod
 !     --- test 2 ok, donc pas serieux, on sort
 !
   320 fn=f
-      do 330 i=1,n
-          xn(i)=x(i)
-  330 continue
+      do i = 1, n
+        xn(i)=x(i)
+      end do
       go to 999
 !
 !
@@ -1181,7 +1181,7 @@ module quasiNewton_mod
 !     --- limite de precision machine (arret de secours) ?
 !
       lfound=.false.
-      do i=1,n
+      do i = 1, n
           z=xn(i)+t*d(i)
           if (z.ne.xn(i).and.z.ne.x(i)) then
             lfound=.true.
@@ -1205,7 +1205,7 @@ module quasiNewton_mod
 !
       if (tg.eq.0.d0) go to 940
       fn=fg
-      do i=1,n
+      do i = 1, n
         xn(i)=xn(i)+tg*d(i)
       end do
   940 if (imp.le.0) go to 999
@@ -1217,7 +1217,7 @@ module quasiNewton_mod
 !
 !               recopiage de x et boucle
 !
-  950 do i=1,n
+  950 do i = 1, n
         x(i)=xn(i)+t*d(i)
       end do
       go to 100
