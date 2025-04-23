@@ -38,7 +38,7 @@ module quasiNewton_mod
 !     
 !     first compute the discriminant (without overflow)
 !     
-      if (dabs(z1).le.1.d0) then
+      if (abs(z1).le.1.d0) then
          discri=z1*z1-fp*fpa
       else
          discri=fp/z1
@@ -64,13 +64,13 @@ module quasiNewton_mod
 !     
       discri=sqrt(discri)
  120  if (t-ta.lt.0.d0) discri=-discri
-      sign=(t-ta)/dabs(t-ta)
+      sign=(t-ta)/abs(t-ta)
       if (b*sign.gt.0.d+0) then
          t=t+fp*(ta-t)/(b+discri)
       else
          den=z1+b+fpa
          anum=b-discri
-         if (dabs((t-ta)*anum).lt.(tupper-tlower)*dabs(den)) then
+         if (abs((t-ta)*anum).lt.(tupper-tlower)*abs(den)) then
             t=t+anum*(ta-t)/den
          else
             t=tupper
@@ -690,7 +690,7 @@ module quasiNewton_mod
 !
       tmin=0.d+0
       do 200 i=1,n
-          tmin=max(tmin,dabs(d(i)))
+          tmin=max(tmin,abs(d(i)))
 200   continue
       call rpn_comm_allreduce(tmin,tmin_mpiglobal,1, &
                               "mpi_double_precision", &
