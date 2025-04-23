@@ -651,7 +651,7 @@ module quasiNewton_mod
           ps=dmin1(-ps,1.d+0)
           ps=dacos(ps)
           d1=ps*180.d+0/pi
-          if(impres.ge.5) write (io,906) sngl(d1)
+          if(impres.ge.5) write (io,906) real(d1,4)
       endif
   906 format (/" n1qn3: descent direction d: ", &
               "angle(-g,d) = ",f5.1," degrees")
@@ -951,7 +951,7 @@ module quasiNewton_mod
           ps=dacos(ps)
           d1=ps
           d1=d1*180.d0/pi
-          if (impres.ge.5) write (io,906) sngl(d1)
+          if (impres.ge.5) write (io,906) real(d1,4)
       endif
 !
 !---- on poursuit les iterations
