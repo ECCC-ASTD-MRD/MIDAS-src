@@ -523,8 +523,8 @@ contains
     hco%xlon2_yan            = real(xlon2_yan_4,8)
     hco%initialized          = .true.
 
-    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
-    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
+    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
+    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
 
     deallocate(lat_8)
     deallocate(lon_8)
