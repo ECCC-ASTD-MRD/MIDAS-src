@@ -907,10 +907,10 @@ contains
     do latIndex = 1, nj
       y_a_4 = yg(latIndex)
       do lonIndex = 1, ni
-        ! Why use 'acos(-1)'?  Could use 'MPC_PI_R4'?
+
         x_a_4 = xg(lonIndex)-acos(-1.d0)
 
-        area_4(lonIndex,latIndex) = real(dx*dy,4)*cos(yg(latIndex))
+        area_4(lonIndex,latIndex) = dx*dy*cos(yg(latIndex))
         poids (lonIndex,latIndex) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
 
         !Check if poids <0
