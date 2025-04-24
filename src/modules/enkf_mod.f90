@@ -2893,59 +2893,43 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)  :: hLocalize(:)         ! the list of localization radii (km)
-    real(8), intent(in)  :: hLocalizePressure(:) ! the pressures where the radius changes (hPa)
+    real(8), intent(in)  :: hLocalize(:)         ! the list of localization radii (m)
+    real(8), intent(in)  :: hLocalizePressure(:) ! the pressures where the radius changes (log(P))
     real(8), intent(in)  :: anlVertLocation      ! the gridpoint  vertical coordinate in log(P)
     logical, intent(in)  :: hLinearLoc           ! apply linear vertical interpolation for the localization radius
     real(8), intent(out) :: hLoc                 ! the gridpoint localization radius
 
     ! Locals:
-    real(8), allocatable :: pressureBounds(:)            ! hLocalizePressure mid-points and extra limits, in ln(P) units
-    real(8)              :: topPressure, bottomPressure  ! pressure range where the localization radius varies
-    integer              :: i, hLocIndex
+    integer              :: hLocIndex
     logical              :: hLocNotAssigned
-    real(8)              :: rate
 
     ! radius is constant
-    if (all(hLocalize(:) == hLocalize(1))) then
+    if ( all(hLocalize(:) == hLocalize(1)) ) then
       hLoc = hLocalize(1)
 
     ! radius varies vertically, and is linearly interpolated with log(P)
     else if (hLinearLoc) then
-      ! it is assumed that size(hLocalizePressure) = 1 + size(hLocalize), usually with size(hLocalize) = 3,
-      ! and that hLocalizePressure values increase
       hLocNotAssigned = .true.
-      allocate(pressureBounds(size(hLocalizePressure)+1))
-
-      topPressure     = 6.0d0   ! below this pressure (hPa), the radius is kept at hLocalize(1)
-      bottomPressure  = 700.0d0 ! above this pressure (hPa), the radius is kept at hLocalize(size(hLocalize))
-      ! pressureBounds is the list of pressures in log(P) for the piece-wise linear interpolation
-      pressureBounds(1) = topPressure
-      pressureBounds(size(pressureBounds)) = bottomPressure
-      ! calculate hLocalizePressure mid-points
-      pressureBounds(2:size(pressureBounds)-1) = sqrt(hLocalizePressure(:size(hLocalizePressure)-1) * &
-                                                      hLocalizePressure(2:))
-      ! convert from hPa to log(P)
-      pressureBounds = log(pressureBounds*100.0d0)
-
-      do i = 1, size(hLocalizePressure)
-        ! if the gridpoint is between two pressure values, do a linear interpolation
-        if (anlVertLocation >= pressureBounds(i)   .and. &
-            anlVertLocation <= pressureBounds(i+1) .and. &
-            hLocNotAssigned) then
-          rate = (hLocalize(i) - hLocalize(i+1)) / (pressureBounds(i) - pressureBounds(i+1))
-          hLoc = hLocalize(i) + rate * (anlVertLocation - pressureBounds(i))
+      do hLocIndex = 1, count(hLocalize > 0.0d0) - 1
+        ! piece-wise linear interpolation
+        if ( anlVertLocation >= hLocalizePressure(hLocIndex)   .and. &
+             anlVertLocation <= hLocalizePressure(hLocIndex+1) .and. &
+             hLocNotAssigned ) then
+          hLoc = hLocalize(hLocIndex) + &
+                 (anlVertLocation - hLocalizePressure(hLocIndex)) * &
+                 (hLocalize(hLocIndex+1) - hLocalize(hLocIndex))  / &
+                 (hLocalizePressure(hLocIndex+1) - hLocalizePressure(hLocIndex))
           hLocNotAssigned = .false.
         ! constant radius value near the top of the atmosphere
-        else if (anlVertLocation <= pressureBounds(i)   .and. hLocNotAssigned) then
+        else if ( anlVertLocation <= hLocalizePressure(hLocIndex)   .and. &
+                  hLocNotAssigned ) then
           hLoc = hLocalize(1)
         ! constant radius value near the bottom of the atmosphere
-        else if (anlVertLocation >= pressureBounds(i+1) .and. hLocNotAssigned) then
-          hLoc = hLocalize(size(hLocalize))
+        else if ( anlVertLocation >= hLocalizePressure(hLocIndex+1) .and. &
+                  hLocNotAssigned ) then
+          hLoc = hLocalize(count(hLocalize > 0.0d0))
         end if
       end do
-
-      deallocate(pressureBounds)
 
     ! radius varies vertically, but is not interpolated
     else

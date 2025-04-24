@@ -210,6 +210,8 @@ program midas_letkf
   integer :: get_max_rss, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
+  integer, parameter   :: maxNumLocalize = 10 ! hLocalize size
+  integer :: locIndex
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
   character(len=9)   :: obsColumnMode
@@ -251,8 +253,8 @@ program midas_letkf
   logical  :: localSelectionOutput ! write output about the local selection of observations
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
-  real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
-  real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
+  real(8)  :: hLocalize(maxNumLocalize)         ! horizontal localization radius (in km)
+  real(8)  :: hLocalizePressure(maxNumLocalize) ! pressures where horizontal localization changes (in hPa)
   logical  :: hLinearLoc           ! apply piece-wise linear vertical interpolation for the localization radius
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
   real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
@@ -322,8 +324,10 @@ program midas_letkf
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
   localSelectionOutput     = .false.
-  hLocalize(:)             = -1.0D0
-  hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
+  hLocalize(:)             = -1.0d0
+  hLocalizePressure(:)     = -1.0d0
+  !hLocalizePressure(1:4)   = (/6.0d0, 144.0d0, 237.0d0, 700.0d0/) ! midpoints
+  hLocalizePressure(1:3)   = (/14.0d0, 140.0d0, 400.0d0/) ! transition values
   hLinearLoc               = .false.
   vLocalize                = -1.0D0
   minDistanceToLand        = -1.0D0
@@ -345,16 +349,58 @@ program midas_letkf
   call utl_tmg_stop(181)
 
   !- 1.3 Some minor modifications of namelist values
-  if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
+
+  if ( mmpi_myid == 0 ) then
+    write(*,*) 'midas-letkf: hLocalize',hlocalize
+    write(*,*) 'midas-letkf: hLocalizePressure',hlocalizePressure
+    write(*,*) 'midas-letkf: hLocalize count',count(hlocalize > 0.0d0)
+    write(*,*) 'midas-letkf: hLocalizePressure count',count(hlocalizePressure > 0.0d0)
+  endif
+
+  if (hLocalize(1) > 0.0d0 .and. hLocalize(2) < 0.0d0) then
     ! if only 1 value given for hLocalize, use it for entire column
-    hLocalize(2:4) = hLocalize(1)
-    if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
-                                    'hLocalize(2:4)=', hLocalize(1)
-  else if ( hLocalize(1) < 0.0D0 ) then
-    call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
+    hLocalize(:) = hLocalize(1)
+    if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize is modified after reading namelist. ' // &
+                                     'hLocalize(2:4)=', hLocalize(1)
+  else if (hLocalize(1) < 0.0d0) then
+    call utl_abort('midas-letkf: hLocalize(1) < 0.0d0')
+  else
+    ! for a linearly varying localization radius, the radius is set for the hLocalizePressure values
+    ! therefore, hLocalizePressure has the same length as hLocalize
+    ! for a step varying localization radius, hLocalizePressure values are the transition values between hLocalize values
+    ! therefore, hLocalizePressurec has one value less than hLocalize
+    if ( (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0)     .and.       hLinearLoc) .or. &
+         (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0) + 1 .and. .not. hLinearLoc) ) then
+      !if ( mmpi_myid == 0 ) then
+        write(*,*) 'midas-letkf: hLocalize and hLocalizePressure have inconsistent lengths.'
+        write(*,*) 'midas-letkf: hLocalize has',count(hLocalize > 0.0d0),'positive values'
+        write(*,*) 'midas-letkf: hLocalizePressure has',count(hLocalizePressure > 0.0d0),'positive values'
+        write(*,*) 'midas-letkf: hLocalize = ',hLocalize(:)
+        write(*,*) 'midas-letkf: hLocalizePressure = ',hLocalizePressure(:)
+      !endif
+      call utl_abort('midas-letkf: hLocalize and hLocalizePressure inconsistency')
+    endif
   end if
-  hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
-  hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
+
+  do locIndex = 1,maxNumLocalize-2
+   ! check if hLocalizePressure positive values decrease
+   if ((hLocalizePressure(locIndex) >= hLocalizePressure(locIndex+1)) .and. &
+        hLocalizePressure(locIndex+1) > 0.0d0) then
+      write(*,*) 'midas-letkf: hLocalizePressure = ',hLocalizePressure(:)
+      call utl_abort('midas-letkf: hLocalizePressure does not decrease')
+    end if
+  enddo
+
+  do locIndex=1,maxNumLocalize-2
+    ! convert localization radius from km to m
+    if (hLocalize(locIndex) > 0.0d0) then
+      hLocalize(locIndex) = hLocalize(locIndex) * 1000.0d0
+    end if
+    ! convert pressure from hPa to log(Pa)
+    if (hLocalizePressure(locIndex) > 0.0d0) then
+      hLocalizePressure(locIndex) = log(hLocalizePressure(locIndex) * MPC_PA_PER_MBAR_R8)
+    end if
+  enddo
 
   if (minDistanceToLand > 0.0D0) then
     minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
@@ -385,7 +431,7 @@ program midas_letkf
   end if
   
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns ) then
+  if ( .not. all(hLocalize(:) == hLocalize(1)) .and. useModulatedEns ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
   end if
