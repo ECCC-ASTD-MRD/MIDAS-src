@@ -3341,7 +3341,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: firstValue, secondValue ! two real(4) values to compare
+    real(4), intent(in) :: firstValue  ! First  real(4) value to compare with the second value
+    real(4), intent(in) :: secondValue ! Second real(4) value to compare with the first value
     ! Result:
     logical :: areTheyEqual
 
@@ -3361,7 +3362,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: firstValue, secondValue ! two real(8) values to compare
+    real(8), intent(in) :: firstValue  ! First  real(8) value to compare with the second value
+    real(8), intent(in) :: secondValue ! Second real(8) value to compare with the first value
     ! Result:
     logical :: areTheyEqual
 
@@ -3382,7 +3384,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: firstArray(:), secondArray(:) ! two real(4) arrays to compare
+    real(4), intent(in) :: firstArray(:)  ! First  array of real(4) values to compare with the second value
+    real(4), intent(in) :: secondArray(:) ! Second array of real(4) values to compare with the first value
     ! Result:
     logical :: areTheyEqual
 
@@ -3421,7 +3424,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: firstArray(:), secondArray(:) ! two real(8) arrays to compare
+    real(8), intent(in) :: firstArray(:)  ! First  array of real(8) values to compare with the second value
+    real(8), intent(in) :: secondArray(:) ! Second array of real(8) values to compare with the first value
     ! Result:
     logical :: areTheyEqual
 
