@@ -3808,9 +3808,9 @@ contains
 
     ! Locals:
     integer, parameter :: l = 3
-    integer :: k(l), m
-    data m , k / 8 , 2 , 3 , 5 /
-    integer :: i,j
+    integer, parameter :: m = 8
+    integer, parameter :: k(l) = (/2, 3, 5/)
+    integer :: i, j
 
     if ( n.le.m ) n = m + 1
 
