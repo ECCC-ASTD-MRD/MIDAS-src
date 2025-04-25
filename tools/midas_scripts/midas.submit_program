@@ -100,7 +100,7 @@ done
 unset launch_arg
 
 if [[ "${env}" = main ]]; then
-    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
+    ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
 elif [[ "${env}" = 4.0.0 ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
 elif [[ "${env}" = 4.0.* ]]; then
