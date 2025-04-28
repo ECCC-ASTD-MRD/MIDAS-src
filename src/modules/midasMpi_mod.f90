@@ -39,12 +39,13 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
+  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall, mmpi_allReduce
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
   !   The longest possible value for the communicator is "BLOCMASTER" which is 10 characters
   integer, parameter :: mmpi_communicator_max_length = 10
+  character(len=*), parameter :: mmpi_communicator_grid = 'GRID'
 
   ! module interfaces
   ! -----------------
@@ -82,6 +83,15 @@ module midasMpi_mod
     module procedure mmpi_alltoall_real4
     module procedure mmpi_alltoall_real8
   end interface mmpi_alltoall
+
+  ! general interface for rpn_comm_allReduce
+  interface mmpi_allReduce
+    module procedure mmpi_allReduce_logical
+    module procedure mmpi_allReduce_integer
+    module procedure mmpi_allReduce_integer8
+    module procedure mmpi_allReduce_real4
+    module procedure mmpi_allReduce_real8
+  end interface mmpi_allReduce
 
 contains
 
@@ -138,7 +148,7 @@ contains
     allocate(allMyidHost(mmpi_nprocs))
     call rpn_comm_allgather(mmpi_myidHost,    1, 'mpi_integer',  &
                             allMyidHost, 1, 'mpi_integer', &
-                            'GRID', ierr)
+                            mmpi_communicator_grid, ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
     allocate(mmpi_nodeMasters(numNodeMasters))
     mmpi_nodeMasters = utl_findlocs(allMyidHost,0) - 1
@@ -158,7 +168,7 @@ contains
     ! use of standard mpi routines
     mmpi_comm_EW = rpn_comm_comm('EW')
     mmpi_comm_NS = rpn_comm_comm('NS')
-    mmpi_comm_GRID = rpn_comm_comm('GRID')
+    mmpi_comm_GRID = rpn_comm_comm(mmpi_communicator_grid)
 
     mmpi_datyp_real4 = rpn_comm_datyp('MPI_REAL4')
     mmpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
@@ -907,7 +917,7 @@ contains
       procID = 0
     end if
 
-    call rpn_comm_bcastc(charData, len(charData), 'MPI_CHARACTER', procID, 'GRID', ierr)
+    call rpn_comm_bcastc(charData, len(charData), 'MPI_CHARACTER', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_character')
 
   end subroutine mmpi_bcast_character
@@ -933,7 +943,7 @@ contains
     call handleLengthProcID(length_opt, procID_opt, length, procID, &
                             rank(logicalData), size(logicalData))
 
-    call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, 'GRID', ierr)
+    call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_logical')
 
   end subroutine mmpi_bcast_logical
@@ -959,7 +969,7 @@ contains
     call handleLengthProcID(length_opt, procID_opt, length, procID, &
                             rank(integerData), size(integerData))
 
-    call rpn_comm_bcast(integerData, length, 'MPI_INTEGER', procID, 'GRID', ierr)
+    call rpn_comm_bcast(integerData, length, 'MPI_INTEGER', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_integer')
 
   end subroutine mmpi_bcast_integer
@@ -984,7 +994,7 @@ contains
 
     call handleLengthProcID(length_opt, procID_opt, length, procID, rank(real4Data), size(real4Data))
 
-    call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, 'GRID', ierr)
+    call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real4')
 
   end subroutine mmpi_bcast_real4
@@ -1009,7 +1019,7 @@ contains
 
     call handleLengthProcID(length_opt, procID_opt, length, procID, rank(real8Data), size(real8Data))
 
-    call rpn_comm_bcast(real8Data, length, 'MPI_REAL8', procID, 'GRID', ierr)
+    call rpn_comm_bcast(real8Data, length, 'MPI_REAL8', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real8')
 
   end subroutine mmpi_bcast_real8
@@ -1387,6 +1397,141 @@ contains
   end subroutine mmpi_alltoall_real8
 
   !--------------------------------------------------------------------------
+  ! mmpi_allReduce_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_logical(sending, receiving, oper, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allReduce' for a logical scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    logical, contiguous, intent(in)  :: sending(..)
+    logical, contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allReduce(sending, receiving, length, 'mpi_logical', oper, &
+                            mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allReduce_logical')
+
+  end subroutine mmpi_allReduce_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_integer(sending, receiving, oper, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allReduce' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allReduce(sending, receiving, length, 'mpi_integer', oper, &
+                            mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allReduce_integer')
+
+  end subroutine mmpi_allReduce_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_integer8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_integer8(sending, receiving, oper, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allReduce' for a integer(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer(8), contiguous, intent(in)  :: sending(..)
+    integer(8), contiguous, intent(out) :: receiving(..)
+    character(len=*),       intent(in)  :: oper
+    integer, optional,      intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allReduce(sending, receiving, length, 'mpi_integer8', oper, &
+                            mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allReduce_integer8')
+
+  end subroutine mmpi_allReduce_integer8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_real4(sending, receiving, oper, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allReduce' for a real(4) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allReduce(sending, receiving, length, 'mpi_real4', oper, &
+                            mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allReduce_real4')
+
+  end subroutine mmpi_allReduce_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_real8(sending, receiving, oper, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allReduce' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allReduce(sending, receiving, length, 'mpi_real8', oper, &
+                            mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allReduce_real8')
+
+  end subroutine mmpi_allReduce_real8
+
+  !--------------------------------------------------------------------------
   ! handleCommunicator
   !--------------------------------------------------------------------------
   subroutine handleCommunicator(communicator_opt, communicator)
@@ -1402,7 +1547,7 @@ contains
     if ( present(communicator_opt) ) then
       communicator = communicator_opt
     else
-      communicator = 'GRID'
+      communicator = mmpi_communicator_grid
     end if
 
   end subroutine handleCommunicator
