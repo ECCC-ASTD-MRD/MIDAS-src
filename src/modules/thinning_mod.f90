@@ -4493,8 +4493,7 @@ contains
     ! Return if no aircraft obs to thin
     allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     if (count(validMpi(:)) == 0) then
       write(*,*) 'thn_aircraftByBoxes: no aircraft observations present'
       return
@@ -4803,8 +4802,7 @@ contains
 
     ! Make all inputs to the following tests mpiglobal
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     call rpn_comm_allgather(obsLatIndexVec, nsize, 'mpi_integer',  &
                             obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonIndexVec, nsize, 'mpi_integer',  &
@@ -4821,10 +4819,8 @@ contains
                             obsVVMpi, nsize, 'mpi_real4', 'grid', ierr)
     call rpn_comm_allgather(obsTT,    nsize, 'mpi_real4',  &
                             obsTTMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsUVPresent,    nsize, 'mpi_logical',  &
-                            obsUVPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
-    call rpn_comm_allgather(obsTTPresent,    nsize, 'mpi_logical',  &
-                            obsTTPresentMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(obsUVPresent, obsUVPresentMpi, nsize)
+    call mmpi_allGather(obsTTPresent, obsTTPresentMpi, nsize)
 
     STEP: do stepIndex = 1, tim_nstepobs
       handlesGrid(:,:,:) = -1
@@ -5859,8 +5855,7 @@ contains
                             obsLonMpi, numHeaderMaxMpi, 'mpi_real4', 'grid', ierr)
     call rpn_comm_allgather(stepObsIndexint,numHeaderMaxMpi, 'mpi_integer', &
                             stepObsIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid',ierr)
-    call rpn_comm_allgather(valid,    numHeaderMaxMpi, 'mpi_logical', &
-                            validMpi, numHeaderMaxMpi, 'mpi_logical', 'grid',ierr)
+    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
 
     !allocate(headerIndexSorted(numHeaderMpi))
     !do headerIndex = 1, numHeaderMpi
@@ -6240,8 +6235,7 @@ contains
     call rpn_comm_allgather(obsPosition3d,    nsize, 'mpi_real8',  &
                             obsPosition3dMpi, nsize, 'mpi_real8', 'grid', ierr)
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     call rpn_comm_allgather(centreOrig,    nsize, 'mpi_integer',  &
                             centreOrigMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsFov,    nsize, 'mpi_integer',  &
@@ -6496,8 +6490,7 @@ contains
     end do HEADER1
 
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     nsize = lenStnId * numHeaderMaxMpi
     call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
                             stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
@@ -6626,8 +6619,7 @@ contains
 
     ! Gather data from all MPI tasks
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     call rpn_comm_allgather(obsLatIndex,    nsize, 'mpi_integer',  &
                             obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonIndex,    nsize, 'mpi_integer',  &
@@ -7126,8 +7118,7 @@ contains
 
     ! Gather data from all MPI tasks
     nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, nsize)
     call rpn_comm_allgather(obsLatIndex,    nsize, 'mpi_integer',  &
                             obsLatIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonIndex,    nsize, 'mpi_integer',  &
@@ -7966,8 +7957,7 @@ contains
     ! Return if no satellite SST obs to thin
     allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
     validMpi(:) = .false.
-    call rpn_comm_allgather(valid,    numHeaderMaxMpi, 'mpi_logical',  &
-                            validMpi, numHeaderMaxMpi, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
     if (count(validMpi(:)) == 0) then
       write(*,*) 'thn_satelliteSSTByGridCell: no ', trim(dataSet), ' SST data present'
       return
@@ -8088,8 +8078,7 @@ contains
     end do HEADER
 
     ! Make all inputs to the following tests mpiglobal
-    call rpn_comm_allgather(valid          , numHeaderMaxMpi, 'mpi_logical',  &
-                            validMpi       , numHeaderMaxMpi, 'mpi_logical', 'grid', ierr)
+    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
     call rpn_comm_allgather(obsLatIndexVec , numHeaderMaxMpi, 'mpi_integer',  &
                             obsLatIndexMpi , numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonIndexVec , numHeaderMaxMpi, 'mpi_integer',  &

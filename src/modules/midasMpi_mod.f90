@@ -39,7 +39,7 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-  public :: mmpi_bcast, mmpi_gather
+  public :: mmpi_bcast, mmpi_gather, mmpi_allGather
 
   ! module interfaces
   ! -----------------
@@ -61,6 +61,15 @@ module midasMpi_mod
     module procedure mmpi_gather_real4
     module procedure mmpi_gather_real8
   end interface mmpi_gather
+
+  ! general interface for rpn_comm_allGather
+  interface mmpi_allGather
+    module procedure mmpi_allGather_logical
+    !module procedure mmpi_allGather_integer
+    !module procedure mmpi_allGather_integer8
+    !module procedure mmpi_allGather_real4
+    !module procedure mmpi_allGather_real8
+  end interface mmpi_allGather
 
 contains
 
@@ -1132,6 +1141,34 @@ contains
     call handleMpiError(ierr, 'mmpi_gather_real8')
 
   end subroutine mmpi_gather_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allGather_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allGather_logical(sending, receiving, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allGather' for a logical scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    logical, contiguous, intent(in)  :: sending(..)
+    logical, contiguous, intent(out) :: receiving(..,:)
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr
+    integer :: procID, procID_opt, length
+
+    procID_opt = 0
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
+
+    call rpn_comm_allGather(sending,   length, 'mpi_logical',  &
+                            receiving, length, 'mpi_logical', 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_allGather_logical')
+
+  end subroutine mmpi_allGather_logical
 
   !--------------------------------------------------------------------------
   ! handleLengthProcID
