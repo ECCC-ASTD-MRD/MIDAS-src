@@ -6232,8 +6232,7 @@ contains
     end do
 
     nsize = 3 * numHeaderMaxMpi
-    call rpn_comm_allgather(obsPosition3d,    nsize, 'mpi_real8',  &
-                            obsPosition3dMpi, nsize, 'mpi_real8', 'grid', ierr)
+    call mmpi_allGather(obsPosition3d, obsPosition3dMpi, nsize)
     nsize = numHeaderMaxMpi
     call mmpi_allGather(valid, validMpi, nsize)
     call rpn_comm_allgather(centreOrig,    nsize, 'mpi_integer',  &

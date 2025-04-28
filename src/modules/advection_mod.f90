@@ -578,12 +578,10 @@ CONTAINS
       ! No vertical interpolation is needed
       do stepIndexSF = 1, numStepSteeringFlow
         ! gather the winds for this level
-        call rpn_comm_allgather(uu_steeringFlow_ptr4d(:,:,levIndex,stepIndexSF)  , nsize, "mpi_double_precision", &
-                                uu_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize, "mpi_double_precision", &
-                                "GRID", ierr )
-        call rpn_comm_allgather(vv_steeringFlow_ptr4d(:,:,levIndex,stepIndexSF)  , nsize, "mpi_double_precision", &
-                                vv_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize, "mpi_double_precision", &
-                                "GRID", ierr )
+        call mmpi_allGather(uu_steeringFlow_ptr4d(:,:,levIndex,stepIndexSF), &
+                            uu_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize)
+        call mmpi_allGather(vv_steeringFlow_ptr4d(:,:,levIndex,stepIndexSF), &
+                            vv_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize)
       end do
     else if (levTypeIndex == THindex ) then
       ! Vertical interpolation is needed...
@@ -617,13 +615,8 @@ CONTAINS
         end if
 
         ! gather the INTERPOLATED winds for this level
-        call rpn_comm_allgather(uu_steeringFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
-                                uu_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize, "mpi_double_precision",  &
-                                "GRID", ierr )
-        call rpn_comm_allgather(uu_steeringFlow_ThermoLevel                      , nsize, "mpi_double_precision",  &
-                                vv_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize, "mpi_double_precision",  &
-                                "GRID", ierr )
-
+        call mmpi_allGather(uu_steeringFlow_ThermoLevel, uu_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize)
+        call mmpi_allGather(vv_steeringFlow_ThermoLevel, vv_steeringFlow_mpiGlobalTiles(stepIndexSF,:,:,:), nsize)
       end do
 
     else
@@ -1029,9 +1022,8 @@ CONTAINS
 
           ! gather the global field to be interpolated on all tasks
           nsize = nEns*adv%lonPerPE*adv%latPerPE
-          call rpn_comm_allgather(ens_oneLev(1:nEns,adv%timeStepIndexSource(stepIndexAF),:,:), nsize, "mpi_double_precision",  &
-                                  ens1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_double_precision",  &
-                                  "GRID", ierr )
+          call mmpi_allGather(ens_oneLev(1:nEns,adv%timeStepIndexSource(stepIndexAF),:,:), &
+                              ens1_mpiglobal_tiles(:,:,:,:), nsize)
 
           ! rearrange gathered fields for convenience
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
@@ -1391,9 +1383,8 @@ CONTAINS
           call rpn_comm_barrier('GRID',ierr)
           call utl_tmg_start(101,'----ADV_GSV_Comm')
           nsize = adv%lonPerPE*adv%latPerPE
-          call rpn_comm_allgather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), nsize, "mpi_double_precision",  &
-                                  field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
-                                  "GRID", ierr )
+          call mmpi_allGather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), &
+                              field2D_mpiglobal_tiles(:,:,:), nsize)
           call utl_tmg_stop(101)
 
           ! rearrange gathered fields for convenience

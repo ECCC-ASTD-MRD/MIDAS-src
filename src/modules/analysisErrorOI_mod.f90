@@ -954,8 +954,7 @@ contains
       do bodyIndex = 1, obs_numBody(obsSpaceData)
         iceScaling(bodyIndex) = oop_iceScaling(obsSpaceData, bodyIndex)
       end do
-      call rpn_comm_allGather(iceScaling,    numBodyMax, 'MPI_REAL8', &
-                              allIceScaling, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
+      call mmpi_allGather(iceScaling, allIceScaling, numBodyMax)
     end if
 
     allocate(obsOer(numBodyMax))
@@ -964,8 +963,7 @@ contains
       obsOer(bodyIndex) = obs_bodyElem_r(obsSpaceData, OBS_OER, &
                                          bodyIndex)
     end do
-    call rpn_comm_allGather(obsOer,    numBodyMax, 'MPI_REAL8', &
-                            allObsOer, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
+    call mmpi_allGather(obsOer, allObsOer, numBodyMax)
 
     numStep = stateVectorTrlErrorStd%numStep
     numLev = gsv_getNumLev(stateVectorTrlErrorStd, vnl_varLevelFromVarname(analysisVariable))

@@ -908,10 +908,8 @@ contains
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call rpn_comm_allgather(latColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
-                                allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-        call rpn_comm_allgather(lonColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
-                                allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_allgather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:), numHeaderUsedMax)
+        call mmpi_allGather(lonColumn(:,allVarLevBeg(1)), allLonOneLev(:,:), numHeaderUsedMax)
 
         k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do procIndex = 1, mmpi_nprocs

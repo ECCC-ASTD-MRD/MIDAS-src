@@ -5310,8 +5310,7 @@ module gridStateVector_mod
           stateVector_tiles%HeightSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                                       stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
 
-      call rpn_comm_allGather(gd_send_r8, nsize, 'mpi_real8',  &
-                              gd_recv_r8, nsize, 'mpi_real8', 'grid', ierr)
+      call mmpi_allGather(gd_send_r8, gd_recv_r8, nsize)
 
       if (stateVector_mpiGlobal%allocated) then
 

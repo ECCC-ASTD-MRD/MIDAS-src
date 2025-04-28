@@ -318,9 +318,7 @@ contains
     timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
     nsize = numHeaderMax * numStep 
-    call rpn_comm_allgather(timeInterpWeightMax,           nsize, 'MPI_REAL8',  &
-                            oti%timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
-                            'GRID', ierr)
+    call mmpi_allgather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal, nsize)
 
     deallocate(timeInterpWeightMax)
 
