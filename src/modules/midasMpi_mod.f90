@@ -39,7 +39,7 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-  public :: mmpi_bcast, mmpi_gather, mmpi_allGather
+  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -74,6 +74,14 @@ module midasMpi_mod
     module procedure mmpi_allGather_real4
     module procedure mmpi_allGather_real8
   end interface mmpi_allGather
+
+  ! general interface for rpn_comm_alltoall
+  interface mmpi_alltoall
+    module procedure mmpi_alltoall_integer
+    module procedure mmpi_alltoall_integer8
+    module procedure mmpi_alltoall_real4
+    module procedure mmpi_alltoall_real8
+  end interface mmpi_alltoall
 
 contains
 
@@ -1261,6 +1269,122 @@ contains
     call handleMpiError(ierr, 'mmpi_allGather_real8')
 
   end subroutine mmpi_allGather_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoall_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_integer(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoall' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..)
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_alltoall(sending,   length, 'mpi_integer',  &
+                           receiving, length, 'mpi_integer', communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_integer')
+
+  end subroutine mmpi_alltoall_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoall_integer8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_integer8(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoall' for a integer(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer(8), contiguous, intent(in)  :: sending(..)
+    integer(8), contiguous, intent(out) :: receiving(..)
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_alltoall(sending,   length, 'mpi_integer8',  &
+                           receiving, length, 'mpi_integer8', communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_integer8')
+
+  end subroutine mmpi_alltoall_integer8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoall_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_real4(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoall' for a real(4) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_alltoall(sending,   length, 'mpi_real4',  &
+                           receiving, length, 'mpi_real4', communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_real4')
+
+  end subroutine mmpi_alltoall_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoall_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_real8(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoall' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_alltoall(sending,   length, 'mpi_real8',  &
+                           receiving, length, 'mpi_real8', communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_real8')
+
+  end subroutine mmpi_alltoall_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator

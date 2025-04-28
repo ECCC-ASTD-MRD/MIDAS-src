@@ -4870,24 +4870,19 @@ contains
       ! do mpi communication: header-level data
       if(nprocs_mpi > 1) then
         nsize = numHeader_mpimessage
-        call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
-                               primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
+        call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
 
         nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%realHeaders)
-        call rpn_comm_alltoall(real_send,nsize,"mpi_double_precision",  &
-                               real_recv,nsize,"mpi_double_precision","GRID",ierr)
+        call mmpi_alltoall(real_send, real_recv, nsize)
 
         nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%intHeaders)
-        call rpn_comm_alltoall(int_send,nsize,"mpi_integer",  &
-                               int_recv,nsize,"mpi_integer","GRID",ierr)
+        call mmpi_alltoall(int_send, int_recv, nsize)
 
         nsize = numHeader_mpimessage*len(obsdat_inout%cstnid(1))
-        call rpn_comm_alltoall(intcstnid_send,nsize,"mpi_integer",  &
-                               intcstnid_recv,nsize,"mpi_integer","GRID",ierr)
+        call mmpi_alltoall(intcstnid_send, intcstnid_recv, nsize)
 
         nsize = numHeader_mpimessage*len(obsdat_inout%cfamily(1))
-        call rpn_comm_alltoall(intcfamily_send,nsize,"mpi_integer",  &
-                               intcfamily_recv,nsize,"mpi_integer","GRID",ierr)
+        call mmpi_alltoall(intcfamily_send, intcfamily_recv, nsize)
       else
         primaryKey_recv(:,1)   = primaryKey_send(:,1)
         real_recv(:,:,1)       = real_send(:,:,1)
@@ -4983,8 +4978,7 @@ contains
       enddo
       if(nprocs_mpi > 1) then
          nsize = numBody_mpimessage
-         call rpn_comm_alltoall(primaryKey_send,nsize,"mpi_integer8",  &
-                                primaryKey_recv,nsize,"mpi_integer8","GRID",ierr)
+         call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
       else
          primaryKey_recv(:,1) = primaryKey_send(:,1)
       endif
@@ -5044,8 +5038,7 @@ contains
          ! do mpi communication: body-level data
          if(nprocs_mpi > 1) then
            nsize = numBody_mpimessage
-           call rpn_comm_alltoall(real_send_2d,nsize,"mpi_double_precision",  &
-                                  real_recv_2d,nsize,"mpi_double_precision","GRID",ierr)
+           call mmpi_alltoall(real_send_2d, real_recv_2d, nsize)
          else
            real_recv_2d(:,1)       = real_send_2d(:,1)
          endif
@@ -5114,8 +5107,7 @@ contains
          ! do mpi communication: body-level data
          if(nprocs_mpi > 1) then
            nsize = numBody_mpimessage
-           call rpn_comm_alltoall(int_send_2d,nsize,"mpi_integer",  &
-                                  int_recv_2d,nsize,"mpi_integer","GRID",ierr)
+           call mmpi_alltoall(int_send_2d, int_recv_2d, nsize)
          else
            int_recv_2d(:,1)        = int_send_2d(:,1)
          endif

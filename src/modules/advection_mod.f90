@@ -1291,8 +1291,7 @@ CONTAINS
 
       nsize = nEns*adv%lonPerPE*adv%latPerPE
       if (mmpi_nprocs > 1) then
-        call rpn_comm_alltoall(ens1_mpiglobal_tiles, nsize,"mpi_double_precision",  &
-                               ens1_mpiglobal_tiles2,nsize,"mpi_double_precision","GRID",ierr)
+        call mmpi_alltoall(ens1_mpiglobal_tiles, ens1_mpiglobal_tiles2, nsize)
       else
         ens1_mpiglobal_tiles2(:,:,:,1) = ens1_mpiglobal_tiles(:,:,:,1)
       end if
@@ -1545,8 +1544,7 @@ CONTAINS
 
         nsize = adv%lonPerPE*adv%latPerPE
         if (mmpi_nprocs > 1) then
-          call rpn_comm_alltoall(field2D_mpiglobal_tiles, nsize,"mpi_double_precision",  &
-                                 field2D_mpiglobal_tiles2,nsize,"mpi_double_precision","GRID",ierr)
+          call mmpi_alltoall(field2D_mpiglobal_tiles, field2D_mpiglobal_tiles2, nsize)
         else
           field2D_mpiglobal_tiles2(:,:,1) = field2D_mpiglobal_tiles(:,:,1)
         end if

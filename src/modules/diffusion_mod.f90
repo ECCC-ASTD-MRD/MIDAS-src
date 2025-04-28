@@ -916,8 +916,7 @@ contains
 
     nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mmpi_nprocs > 1) then
-      call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
-                             xrecv, nsize, 'mpi_real8', 'grid', ierr)
+      call mmpi_alltoall(xsend, xrecv, nsize)
     else
       xrecv(:,:,1) = xsend(:,:,1)
     end if
@@ -976,8 +975,7 @@ contains
 
     nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mmpi_nprocs > 1) then
-      call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
-                             xrecv, nsize, 'mpi_real8', 'grid', ierr)
+      call mmpi_alltoall(xsend, xrecv, nsize)
     else
       xrecv(:,:,1) = xsend(:,:,1)
     end if

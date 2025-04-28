@@ -1370,8 +1370,7 @@ contains
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                               cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_alltoall(cols_send, cols_recv, nsize)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
@@ -1554,8 +1553,7 @@ contains
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                               cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_alltoall(cols_send, cols_recv, nsize)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if

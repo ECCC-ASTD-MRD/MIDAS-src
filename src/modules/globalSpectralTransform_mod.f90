@@ -708,8 +708,7 @@ contains
 
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
-                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
+      call mmpi_alltoall(sp_send, sp_recv, nsize, communicator_opt = 'EW')
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -769,8 +768,7 @@ contains
 
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
-                             sp_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
+      call mmpi_alltoall(sp_send, sp_recv, nsize, communicator_opt = 'EW')
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -835,8 +833,7 @@ contains
 
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -907,8 +904,7 @@ contains
 
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -978,8 +974,7 @@ contains
 
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1050,8 +1045,7 @@ contains
 
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'NS', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1113,8 +1107,7 @@ contains
 
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send,nsize,pre_specTransMpiReal,  &
-                             gd_recv,nsize,pre_specTransMpiReal,'EW',ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1153,8 +1146,7 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
+      call mmpi_alltoall(pgd_in, pgd_out, communicator_opt = 'EW')
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1189,8 +1181,7 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
+      call mmpi_alltoall(pgd_in_r4, pgd_out_r4, communicator_opt = 'EW')
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
@@ -1233,8 +1224,7 @@ contains
 
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,   &
-                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1287,8 +1277,7 @@ contains
 
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1328,8 +1317,7 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
+      call mmpi_alltoall(pgd_in, pgd_out, communicator_opt = 'EW')
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1364,8 +1352,7 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
+      call mmpi_alltoall(pgd_in_r4, pgd_out_r4, communicator_opt = 'EW')
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
@@ -1409,8 +1396,7 @@ contains
 
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
-                             gd_recv, nsize, pre_specTransMpiReal, 'EW', ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif

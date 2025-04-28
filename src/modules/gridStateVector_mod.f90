@@ -3404,11 +3404,9 @@ module gridStateVector_mod
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
         end if
       else
         if (sendrecvKind == 4) then
@@ -3650,11 +3648,9 @@ module gridStateVector_mod
       nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
         end if
       else
         if (sendrecvKind == 4) then
@@ -4114,11 +4110,9 @@ module gridStateVector_mod
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
         end if
       else
         if (sendrecvKind == 4) then

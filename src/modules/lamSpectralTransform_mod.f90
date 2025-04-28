@@ -1451,8 +1451,7 @@ contains
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1493,8 +1492,7 @@ contains
 
     nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
     if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,      1, lst%sendType_LonToLev,  &
-                        gd_out,     1, lst%recvType_LonToLev, mmpi_comm_EW, ierr)
+      call mmpi_alltoall(gd_in, gd_out, communicator_opt = 'EW')
     else
        gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1543,8 +1541,7 @@ contains
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1603,8 +1600,7 @@ contains
     
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1644,8 +1640,7 @@ contains
 
     nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
     if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,      1, lst%sendType_LevToLon,  &
-                        gd_out,     1, lst%recvType_LevToLon, mmpi_comm_EW, ierr) 
+      call mmpi_alltoall(gd_in, gd_out, communicator_opt = 'EW')
     else
       gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1694,8 +1689,7 @@ contains
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1761,8 +1755,7 @@ contains
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1835,8 +1828,7 @@ contains
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1910,8 +1902,7 @@ contains
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1984,8 +1975,7 @@ contains
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -2060,8 +2050,7 @@ contains
     
     nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2124,8 +2113,7 @@ contains
 
     nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2177,8 +2165,7 @@ contains
 
     nsize = lst%maxnla * 4* lst%maxLevCount
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2246,8 +2233,7 @@ contains
     
     nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
