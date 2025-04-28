@@ -546,32 +546,26 @@ contains
     call gst_ilaList_mpiglobal(gst(gstID)%ilaList,gst(gstID)%myNla,gst(gstID)%maxMyNla,gstID,  &
                                gst(gstID)%mymBeg,gst(gstID)%mymEnd,gst(gstID)%mymSkip,  &
                                gst(gstID)%mynBeg,gst(gstID)%mynEnd,gst(gstID)%mynSkip)
+
     allocate(gst(gstID)%allNla(mmpi_npex))
-    call rpn_comm_allgather(gst(gstID)%myNla,1,'mpi_integer',  &
-                            gst(gstID)%allNla,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allIlaList(gst(gstID)%maxMyNla,mmpi_npex))
-    call rpn_comm_allgather(gst(gstID)%ilaList,gst(gstID)%maxMyNla,'mpi_integer',  &
-                            gst(gstID)%allIlaList,gst(gstID)%maxMyNla,'mpi_integer','EW',ierr)
+    call mmpi_allGather(gst(gstID)%myNla,   gst(gstID)%allNla, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%ilaList, gst(gstID)%allIlaList, gst(gstID)%maxMyNla, &
+                        communicator_opt = 'EW')
 
     allocate(gst(gstID)%allLonBeg(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%myLonBeg,1,'mpi_integer',       &
-                            gst(gstID)%allLonBeg,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allLonEnd(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%myLonEnd,1,'mpi_integer',       &
-                            gst(gstID)%allLonEnd,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allLonPerPE(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%lonPerPE,1,'mpi_integer',       &
-                            gst(gstID)%allLonPerPE,1,'mpi_integer','EW',ierr)
+    call mmpi_allGather(gst(gstID)%myLonBeg, gst(gstID)%allLonBeg,   communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%myLonEnd, gst(gstID)%allLonEnd,   communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%lonPerPE, gst(gstID)%allLonPerPE, communicator_opt = 'EW')
 
     allocate(gst(gstID)%allLatBeg(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%myLatBeg,1,'mpi_integer',       &
-                            gst(gstID)%allLatBeg,1,'mpi_integer','NS',ierr)
     allocate(gst(gstID)%allLatEnd(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%myLatEnd,1,'mpi_integer',       &
-                            gst(gstID)%allLatEnd,1,'mpi_integer','NS',ierr)
     allocate(gst(gstID)%allLatPerPE(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%latPerPE,1,'mpi_integer',       &
-                            gst(gstID)%allLatPerPE,1,'mpi_integer','NS',ierr)
+    call mmpi_allGather(gst(gstID)%myLatBeg, gst(gstID)%allLatBeg,   communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%myLatEnd, gst(gstID)%allLatEnd,   communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%latPerPE, gst(gstID)%allLatPerPE, communicator_opt = 'NS')
 
     allocate(gst(gstID)%mymIndex(gst(gstID)%mymBeg:gst(gstID)%mymEnd))
     gst(gstID)%mymIndex(:) = 0
@@ -585,31 +579,23 @@ contains
     enddo
 
     allocate(gst(gstID)%allnBeg(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%mynBeg,1,'mpi_integer',       &
-                            gst(gstID)%allnBeg,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allnEnd(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%mynEnd,1,'mpi_integer',       &
-                            gst(gstID)%allnEnd,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allnSkip(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%mynSkip,1,'mpi_integer',       &
-                            gst(gstID)%allnSkip,1,'mpi_integer','EW',ierr)
+    call mmpi_allGather(gst(gstID)%mynBeg,  gst(gstID)%allnBeg,  communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%mynEnd,  gst(gstID)%allnEnd,  communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%mynSkip, gst(gstID)%allnSkip, communicator_opt = 'EW')
 
     allocate(gst(gstID)%allmBeg(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%mymBeg,1,'mpi_integer',       &
-                            gst(gstID)%allmBeg,1,'mpi_integer','NS',ierr)
     allocate(gst(gstID)%allmEnd(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%mymEnd,1,'mpi_integer',       &
-                            gst(gstID)%allmEnd,1,'mpi_integer','NS',ierr)
     allocate(gst(gstID)%allmSkip(mmpi_npey))
-    CALL rpn_comm_allgather(gst(gstID)%mymSkip,1,'mpi_integer',       &
-                            gst(gstID)%allmSkip,1,'mpi_integer','NS',ierr)
+    call mmpi_allGather(gst(gstID)%mymBeg, gst(gstID)%allmBeg,   communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%mymEnd, gst(gstID)%allmEnd,   communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%mymSkip, gst(gstID)%allmSkip, communicator_opt = 'NS')
 
     allocate(gst(gstID)%allLevBeg(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%myLevBeg,1,'mpi_integer',       &
-                            gst(gstID)%allLevBeg,1,'mpi_integer','EW',ierr)
     allocate(gst(gstID)%allLevEnd(mmpi_npex))
-    CALL rpn_comm_allgather(gst(gstID)%myLevEnd,1,'mpi_integer',       &
-                            gst(gstID)%allLevEnd,1,'mpi_integer','EW',ierr)
+    call mmpi_allGather(gst(gstID)%myLevBeg, gst(gstID)%allLevBeg, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%myLevEnd, gst(gstID)%allLevEnd, communicator_opt = 'EW')
 
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allLonBeg=',gst(gstID)%allLonBeg
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allLonEnd=',gst(gstID)%allLonEnd

@@ -463,8 +463,7 @@ contains
       myVarLevBeg = stateVector%myVarLevBeg
     end if   
 
-    call rpn_comm_allgather(myVarLevBeg, 1,'mpi_integer',       &
-                            allVarLevBeg,1,'mpi_integer','grid',ierr)
+    call mmpi_allGather(myVarLevBeg, allVarLevBeg)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if (stateVector%hco%grtyp == 'G' .or. &
@@ -490,11 +489,9 @@ contains
         numHeaderUsed = numHeaderUsed + 1
 
       end do header_loop1
-      ! gather the number of obs over all processors for each timestep
-      call rpn_comm_allgather(numHeaderUsed,                 1, 'MPI_INTEGER', &
-                              allNumHeaderUsed(stepIndex,:), 1, 'MPI_INTEGER', &
-                              'GRID',ierr)
 
+      ! gather the number of obs over all processors for each timestep
+      call mmpi_allGather(numHeaderUsed, allNumHeaderUsed(stepIndex,:))
     end do
 
     numHeaderUsedMax = maxval(allNumHeaderUsed(:,:))
@@ -906,7 +903,7 @@ contains
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call mmpi_allgather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:), numHeaderUsedMax)
+        call mmpi_allGather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:), numHeaderUsedMax)
         call mmpi_allGather(lonColumn(:,allVarLevBeg(1)), allLonOneLev(:,:), numHeaderUsedMax)
 
         k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
@@ -940,9 +937,7 @@ contains
 
     allocate(allHeaderIndex(numHeaderUsedMax,numStep,mmpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            'GRID',ierr)
+    call mmpi_allGather(headerIndexVec, allHeaderIndex, numHeaderUsedMax*numStep)
 
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
@@ -1812,11 +1807,9 @@ contains
       numHeader = headerIndexEnd - headerIndexBeg + 1
       call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                               'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
-     
-      call rpn_comm_allgather(numHeader,   1,'mpi_integer', &
-                              allNumHeader,1,'mpi_integer','grid',ierr)
-      call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
-                              allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
+
+      call mmpi_allGather(numHeader,      allNumHeader)
+      call mmpi_allGather(headerIndexBeg, allHeaderIndexBeg)
       if ( .not. beSilent ) then
         write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
              headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax

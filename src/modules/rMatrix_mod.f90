@@ -638,10 +638,9 @@ contains
     end do HEADER1
 
     ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
-    call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors, 'MPI_INTEGER', 'GRID', ierr)
-    call mmpi_allgather(obsErrSum, obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal))
-    call rpn_comm_allgather(chanList, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', &
-                            chanListAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', 'GRID', ierr)
+    call mmpi_allGather(headerCount, headerCountAllTasks, tvs_nsensors)
+    call mmpi_allGather(obsErrSum, obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal))
+    call mmpi_allGather(chanList, chanListAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal))
     deallocate(headerCount)
     
     Sensor: do sensorIndex = 1, tvs_nsensors

@@ -4024,10 +4024,8 @@ contains
     end do HEADERCOUNT
     allocate(allNumHeader(mmpi_nprocs))
     allocate(allNumBody(mmpi_nprocs))
-    call rpn_comm_allgather(numHeader, 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
-    call rpn_comm_allgather(numBody, 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(numHeader, allNumHeader)
+    call mmpi_allGather(numBody,   allNumBody)
     if (mmpi_myid > 0) then
       idObs = sum(allNumHeader(1:mmpi_myid))
       idData = sum(allNumBody(1:mmpi_myid))

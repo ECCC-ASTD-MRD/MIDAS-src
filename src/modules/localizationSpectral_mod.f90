@@ -973,8 +973,7 @@ CONTAINS
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
+    call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
     ! assign part of mpiglobal vector from current mpi process
 
@@ -982,26 +981,19 @@ CONTAINS
 
       ! Global
 
-      allocate(allnBeg(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
-                              allnBeg,1,"mpi_integer","GRID",ierr)
-      allocate(allnEnd(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
-                              allnEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allnBeg (mmpi_nprocs))
+      allocate(allnEnd (mmpi_nprocs))
       allocate(allnSkip(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
-                              allnSkip,1,"mpi_integer","GRID",ierr)
+      call mmpi_allGather(lsp%mynBeg,  allnBeg)
+      call mmpi_allGather(lsp%mynEnd,  allnEnd)
+      call mmpi_allGather(lsp%mynSkip, allnSkip)
 
-      allocate(allmBeg(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
-                              allmBeg,1,"mpi_integer","GRID",ierr)
-      allocate(allmEnd(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
-                              allmEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allmBeg (mmpi_nprocs))
+      allocate(allmEnd (mmpi_nprocs))
       allocate(allmSkip(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
-                              allmSkip,1,"mpi_integer","GRID",ierr)
-
+      call mmpi_allGather(lsp%mymBeg,  allmBeg)
+      call mmpi_allGather(lsp%mymEnd,  allmEnd)
+      call mmpi_allGather(lsp%mymSkip, allmSkip)
 
       if (mmpi_myid == 0) then
 
@@ -1201,8 +1193,7 @@ CONTAINS
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
+    call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
     ! assign part of mpiglobal vector from current mpi process
 
@@ -1210,26 +1201,19 @@ CONTAINS
 
       ! Global
 
-      allocate(allnBeg(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
-                              allnBeg,1,"mpi_integer","GRID",ierr)
-      allocate(allnEnd(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
-                              allnEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allnBeg (mmpi_nprocs))
+      allocate(allnEnd (mmpi_nprocs))
       allocate(allnSkip(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
-                              allnSkip,1,"mpi_integer","GRID",ierr)
+      call mmpi_allGather(lsp%mynBeg,  allnBeg)
+      call mmpi_allGather(lsp%mynEnd,  allnEnd)
+      call mmpi_allGather(lsp%mynSkip, allnSkip)
 
-      allocate(allmBeg(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
-                              allmBeg,1,"mpi_integer","GRID",ierr)
-      allocate(allmEnd(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
-                              allmEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allmBeg (mmpi_nprocs))
+      allocate(allmEnd (mmpi_nprocs))
       allocate(allmSkip(mmpi_nprocs))
-      call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
-                              allmSkip,1,"mpi_integer","GRID",ierr)
-
+      call mmpi_allGather(lsp%mymBeg,  allmBeg)
+      call mmpi_allGather(lsp%mymEnd,  allmEnd)
+      call mmpi_allGather(lsp%mymSkip, allmSkip)
 
       if (mmpi_myid == 0) then
 
@@ -1429,8 +1413,7 @@ CONTAINS
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
+    call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
@@ -1657,8 +1640,7 @@ CONTAINS
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
+    call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 

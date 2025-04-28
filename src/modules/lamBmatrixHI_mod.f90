@@ -1273,8 +1273,7 @@ contains
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
-    call rpn_comm_allgather(cvDim   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+    call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
 
@@ -1391,8 +1390,7 @@ contains
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
-    call rpn_comm_allgather(cvDim   ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+    call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
 
@@ -1509,8 +1507,7 @@ contains
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(cvDim            ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+    call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
 
@@ -1627,8 +1624,7 @@ contains
     !- 1.  Gather all local control vectors onto mpi task 0
     !
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
-    call rpn_comm_allgather(cvDim            ,1,"mpi_integer",       &
-                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+    call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
     call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
 

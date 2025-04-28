@@ -641,7 +641,7 @@ contains
     allocate(nrep(nproc))
     nrep(:)=0
 
-    call rpn_comm_allgather(obsdata%nrep,1,"MPI_INTEGER",nrep,1,"MPI_INTEGER","GRID",ierr)
+    call mmpi_allGather(obsdata%nrep, nrep)
 
     nrep_total=sum(nrep)
 
@@ -664,7 +664,6 @@ contains
     call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,nproc,"GRID",ierr)
 
     if (obsdata%ndim == 1) then
-
        allocate(data1d_local(obsdata%dim1,nrep_max))
        allocate(data1d_global(obsdata%dim1,nrep_max,nproc))
 
@@ -672,10 +671,8 @@ contains
        if (obsdata%nrep > 0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
        
        array_size = nrep_max*obsdata%dim1
-
-       call rpn_comm_allgather(data1d_local,array_size,pre_obsMpiReal,data1d_global,array_size,pre_obsMpiReal,"GRID",ierr)
+       call mmpi_allGather(data1d_local, data1d_global, array_size)
     else 
-       
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
        allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,nproc))
        
@@ -683,9 +680,7 @@ contains
        if (obsdata%nrep > 0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
 
        array_size = nrep_max*obsdata%dim1*obsdata%dim2
-
-       call rpn_comm_allgather(data2d_local,array_size,pre_obsMpiReal,data2d_global,array_size,pre_obsMpiReal,"GRID",ierr)
-
+       call mmpi_allGather(data2d_local, data2d_global, array_size)
     end if
   
     deallocate(code_local)
@@ -944,9 +939,9 @@ contains
           
           if(mmpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
-          call rpn_comm_allgather(num_unique,1,"MPI_INTEGER",num_unique_all,1,"MPI_INTEGER","GRID",ierr)
+          call mmpi_allGather(num_unique, num_unique_all)
           call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
-          if (iset >= 2) call rpn_comm_allgather(varno_unique,nmax,"MPI_INTEGER",varno_unique_all,nmax,"MPI_INTEGER","GRID",ierr)
+          if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all,  nmax)
           if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all, nmax)
           
           stnid_unique(:) = ''

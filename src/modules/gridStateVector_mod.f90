@@ -1022,35 +1022,23 @@ module gridStateVector_mod
     allocate(statevector%allUVvarLevEnd(mmpi_nprocs))
 
     if (statevector%mpi_local) then
-      CALL rpn_comm_allgather(statevector%myLonBeg,1,'mpi_integer',       &
-                              statevector%allLonBeg,1,'mpi_integer','EW',ierr)
-      CALL rpn_comm_allgather(statevector%myLonEnd,1,'mpi_integer',       &
-                              statevector%allLonEnd,1,'mpi_integer','EW',ierr)
-      CALL rpn_comm_allgather(statevector%lonPerPE,1,'mpi_integer',       &
-                              statevector%allLonPerPE,1,'mpi_integer','EW',ierr)
-  
-      CALL rpn_comm_allgather(statevector%myLatBeg,1,'mpi_integer',       &
-                              statevector%allLatBeg,1,'mpi_integer','NS',ierr)
-      CALL rpn_comm_allgather(statevector%myLatEnd,1,'mpi_integer',       &
-                              statevector%allLatEnd,1,'mpi_integer','NS',ierr)
-      CALL rpn_comm_allgather(statevector%LatPerPE,1,'mpi_integer',       &
-                              statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
+      call mmpi_allGather(statevector%myLonBeg, statevector%allLonBeg,   communicator_opt = 'EW')
+      call mmpi_allGather(statevector%myLonEnd, statevector%allLonEnd,   communicator_opt = 'EW')
+      call mmpi_allGather(statevector%lonPerPE, statevector%allLonPerPE, communicator_opt = 'EW')
+
+      call mmpi_allGather(statevector%myLatBeg, statevector%allLatBeg,   communicator_opt = 'NS')
+      call mmpi_allGather(statevector%myLatEnd, statevector%allLatEnd,   communicator_opt = 'NS')
+      call mmpi_allGather(statevector%latPerPE, statevector%allLatPerPE, communicator_opt = 'NS')
 
       call gsv_checkMpiDistribution(stateVector)
 
-      CALL rpn_comm_allgather(statevector%myVarLevCount,1,'mpi_integer',       &
-                              statevector%allVarLevCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myVarLevBeg,1,'mpi_integer',       &
-                              statevector%allVarLevBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myVarLevEnd,1,'mpi_integer',       &
-                              statevector%allVarLevEnd,1,'mpi_integer','grid',ierr)
+      call mmpi_allGather(statevector%myVarLevCount, statevector%allVarLevCount)
+      call mmpi_allGather(statevector%myVarLevBeg,   statevector%allVarLevBeg)
+      call mmpi_allGather(statevector%myVarLevEnd,   statevector%allVarLevEnd)
 
-      CALL rpn_comm_allgather(statevector%myUVvarLevCount,1,'mpi_integer',       &
-                              statevector%allUVvarLevCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVvarLevBeg,1,'mpi_integer',       &
-                              statevector%allUVvarLevBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVvarLevEnd,1,'mpi_integer',       &
-                              statevector%allUVvarLevEnd,1,'mpi_integer','grid',ierr)
+      call mmpi_allGather(statevector%myUVvarLevCount, statevector%allUVvarLevCount)
+      call mmpi_allGather(statevector%myUVvarLevBeg,   statevector%allUVvarLevBeg)
+      call mmpi_allGather(statevector%myUVvarLevEnd,   statevector%allUVvarLevEnd)
     else
 
       statevector%allLonBeg(:) = statevector%myLonBeg

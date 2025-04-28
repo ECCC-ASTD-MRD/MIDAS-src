@@ -318,7 +318,7 @@ contains
     timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
     nsize = numHeaderMax * numStep 
-    call mmpi_allgather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal, nsize)
+    call mmpi_allGather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal, nsize)
 
     deallocate(timeInterpWeightMax)
 

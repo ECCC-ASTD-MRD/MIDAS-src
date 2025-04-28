@@ -856,8 +856,7 @@ contains
     integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
     logical :: fileExists
 
-    call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
-                             all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
+    call mmpi_allGather(obsf_nfiles, all_nfiles)
     fileExists = .false.
     procid_loop: do procID = 0, (mmpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
@@ -1287,10 +1286,8 @@ contains
 
     allocate(allNumHeaderRead(mmpi_nprocs))
     allocate(allNumBodyRead(mmpi_nprocs))
-    call rpn_comm_allgather(numHeaderRead,1,'mpi_integer',       &
-                            allNumHeaderRead,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(numBodyRead,1,'mpi_integer',       &
-                            allNumBodyRead,1,'mpi_integer','GRID',ierr)
+    call mmpi_allGather(numHeaderRead, allNumHeaderRead)
+    call mmpi_allGather(numBodyRead, allNumBodyRead)
     if (mmpi_myid > 0) then
       initialHeaderindex = sum(allNumHeaderRead(1:mmpi_myid))
       initialBodyindex = sum(allNumBodyRead(1:mmpi_myid))

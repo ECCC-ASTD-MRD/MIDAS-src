@@ -291,65 +291,53 @@ contains
 
       ! Gathering with respect to Longitude
       allocate(lst%allLonBeg(mmpi_npex))
-      call rpn_comm_allgather(lst%myLonBeg ,1,"mpi_integer",       &
-                              lst%allLonBeg,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%myLonBeg, lst%allLonBeg, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllLonBeg =', lst%allLonBeg(:)
 
       allocate(lst%allLonEnd(mmpi_npex))
-      call rpn_comm_allgather(lst%myLonEnd ,1,"mpi_integer",       &
-                              lst%allLonEnd,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%myLonEnd, lst%allLonEnd, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllLonEnd =', lst%allLonEnd(:)
 
       allocate(lst%allLonPerPE(mmpi_npex))
-      call rpn_comm_allgather(lst%lonPerPE ,1,"mpi_integer",       &
-                              lst%allLonPerPE,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%lonPerPE, lst%allLonPerPE, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllLonPerPE =', lst%allLonPerPE(:)
 
       ! Gathering with respect to Latitude
       allocate(lst%allLatBeg(mmpi_npey))
-      call rpn_comm_allgather(lst%myLatBeg ,1,"mpi_integer",       &
-                              lst%allLatBeg,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'AllLatBeg =', lst%allLatBeg(:)
 
       allocate(lst%allLatEnd(mmpi_npey))
-      call rpn_comm_allgather(lst%myLatEnd ,1,"mpi_integer",       &
-                              lst%allLatEnd,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%myLatEnd, lst%allLatEnd, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'AllLatEnd =', lst%allLatEnd(:)
 
       allocate(lst%allLatPerPE(mmpi_npey))
-      call rpn_comm_allgather(lst%latPerPE ,1,"mpi_integer",       &
-                              lst%allLatPerPE,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'AllLatPerPE =', lst%allLatPerPE(:)
 
       ! Gathering with respect to M
       allocate(lst%allmBeg(mmpi_npey))
-      call rpn_comm_allgather(lst%mymBeg ,1,"mpi_integer",       &
-                              lst%allmBeg,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%mymBeg, lst%allmBeg, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'AllmBeg =', lst%allmBeg(:)
 
       allocate(lst%allmEnd(mmpi_npey))
-      call rpn_comm_allgather(lst%mymEnd ,1,"mpi_integer",       &
-                              lst%allmEnd,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%mymEnd, lst%allmEnd, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'allmEnd =', lst%allmEnd(:)
     
       allocate(lst%allmSkip(mmpi_npey))
-      call rpn_comm_allgather(lst%mymSkip ,1,"mpi_integer",       &
-                              lst%allmSkip,1,"mpi_integer","NS",ier)
+      call mmpi_allGather(lst%mymSkip, lst%allmSkip, communicator_opt = 'NS')
       if (mmpi_myid == 0) write(*,*) 'allmSkip = ', lst%allmSkip(:)
 
       allocate(lst%allnBeg(mmpi_npex))
-      call rpn_comm_allgather(lst%mynBeg ,1,"mpi_integer",       &
-                              lst%allnBeg,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%mynBeg, lst%allnBeg, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllnBeg =', lst%allnBeg(:)
 
       allocate(lst%allnEnd(mmpi_npex))
-      call rpn_comm_allgather(lst%mynEnd ,1,"mpi_integer",       &
-                              lst%allnEnd,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%mynEnd, lst%allnEnd, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllnEnd =', lst%allnEnd(:)
     
       allocate(lst%allnSkip(mmpi_npex))
-      call rpn_comm_allgather(lst%mynSkip ,1,"mpi_integer",       &
-                              lst%allnSkip,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%mynSkip, lst%allnSkip, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
 
       ! Gathering with respect to levels
@@ -358,13 +346,11 @@ contains
       if (mmpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
 
       allocate(lst%allLevBeg(mmpi_npex))
-      call rpn_comm_allgather(lst%myLevBeg ,1,"mpi_integer",       &
-                              lst%allLevBeg,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%myLevBeg, lst%allLevBeg, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllLevBeg =', lst%allLevBeg(:)
 
       allocate(lst%allLevEnd(mmpi_npex))
-      call rpn_comm_allgather(lst%myLevEnd ,1,"mpi_integer",       &
-                              lst%allLevEnd,1,"mpi_integer","EW",ier)
+      call mmpi_allGather(lst%myLevEnd, lst%allLevEnd, communicator_opt = 'EW')
       if (mmpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
 
       ! Setup mpi derived types used in transposes (only used when grid is divisible)

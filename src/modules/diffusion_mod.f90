@@ -894,14 +894,10 @@ contains
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
-                            allLonBeg                      ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLonEnd_transpose,1,'mpi_integer',       &
-                            allLonEnd                      ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLatBeg,1,'mpi_integer',       &
-                            allLatBeg            ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
-                            allLatEnd            ,1,'mpi_integer','GRID',ierr)
+    call mmpi_allGather(diff(diffID)%myLonBeg_transpose, allLonBeg)
+    call mmpi_allGather(diff(diffID)%myLonEnd_transpose, allLonEnd)
+    call mmpi_allGather(diff(diffID)%myLatBeg,           allLatBeg)
+    call mmpi_allGather(diff(diffID)%myLatEnd,           allLatEnd)
 
     allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
     allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
@@ -958,14 +954,10 @@ contains
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
-                            allLonBeg                      ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLonEnd_transpose,1,'mpi_integer',       &
-                            allLonEnd                      ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLatBeg,1,'mpi_integer',       &
-                            allLatBeg            ,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
-                            allLatEnd            ,1,'mpi_integer','GRID',ierr)
+    call mmpi_allGather(diff(diffID)%myLonBeg_transpose, allLonBeg)
+    call mmpi_allGather(diff(diffID)%myLonEnd_transpose, allLonEnd)
+    call mmpi_allGather(diff(diffID)%myLatBeg,           allLatBeg)
+    call mmpi_allGather(diff(diffID)%myLatEnd,           allLatEnd)
 
     allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
     allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))

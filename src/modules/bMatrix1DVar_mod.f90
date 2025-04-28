@@ -987,8 +987,8 @@ contains
       end if
     end do COLUMN1
     call rpn_comm_barrier('GRID', ierr)
-    
-    call rpn_comm_allgather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 'GRID', ierr)
+
+    call mmpi_allGather(countDumped, countDumpedAllTasks)
     countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
     countDumpedMax = maxval( countDumpedAllTasks(:) )
     obsOffset(0) = 0

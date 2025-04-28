@@ -1739,9 +1739,7 @@ contains
         maxNumHeader = maxNumHeader + 1
       end do HEADER1
 
-      call rpn_comm_allGather(maxNumHeader,       1, 'mpi_integer',  &
-                              maxNumHeaderAllMpi, 1, 'mpi_integer', &
-                              'GRID', ierr)
+      call mmpi_allGather(maxNumHeader, maxNumHeaderAllMpi)
 
       ! Set the midasKey to start counting based on the latest value from the previous 
       ! mpi task
@@ -1986,10 +1984,8 @@ contains
           maxNumBody = maxNumBody + 1
         end do BODY1
       end do HEADER1
-      
-      call rpn_comm_allGather(maxNumBody,       1, 'mpi_integer',  &
-                              maxNumBodyAllMpi, 1, 'mpi_integer', &
-                            'GRID', ierr )
+
+      call mmpi_allGather(maxNumBody, maxNumBodyAllMpi)
 
       ! Set the midasKey to start counting based on the latest value from the previous 
       ! mpi task

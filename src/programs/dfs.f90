@@ -619,21 +619,11 @@ contains
       levelListMpi(:,:,:) = MPC_missingValue_INT
       bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
       stdDevListMpi(:,:,:) = MPC_missingValue_R8
-    
-      call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
-                              headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
 
-      call rpn_comm_allgather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-                              levelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
-
-      call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-                              bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
-
-      call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
-                              stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
+      call mmpi_allGather(headerIndexList(1:maxCountObsMpi), headerIndexListMpi, maxCountObsMpi)
+      call mmpi_allGather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), levelListMpi, maxCountObsMpi*maxCountChannelMpi)
+      call mmpi_allGather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), bodyIndexListMpi, maxCountObsMpi*maxCountChannelMpi)
+      call mmpi_allGather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), stdDevListMpi,  maxCountObsMpi*maxCountChannelMpi)
 
       call rpn_comm_barrier('GRID', ierr)
     

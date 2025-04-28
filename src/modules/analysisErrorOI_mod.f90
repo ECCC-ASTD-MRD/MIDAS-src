@@ -344,7 +344,7 @@ contains
     integer, allocatable :: obsAss(:), allObsAss(:,:)
     integer, allocatable :: obsRln(:), allObsRln(:,:)
     integer, allocatable :: obsNlv(:), allObsNlv(:,:)
-    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
+    integer :: numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
     real(8), allocatable :: footprintRadiusVec_r8(:), allFootprintRadius_r8(:,:)
     real(8), allocatable :: obsLon(:), allObsLon(:,:), obsLat(:), allObsLat(:,:)
 
@@ -353,11 +353,9 @@ contains
 
     ! Communicate some quantities to all MPI tasks
 
-    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numHeader(obsSpaceData), allNumHeader)
     numHeaderMax = maxval(allNumHeader)
-    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numBody(obsSpaceData), allNumBody)
     numBodyMax = maxval(allNumBody)
 
     allocate(obsAss(numBodyMax))
@@ -606,7 +604,7 @@ contains
     type(struct_columnData) :: column, columng
     real(8) :: leadTimeInHours, interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs)
+    integer :: numHeaderMax, allNumHeader(mmpi_nprocs)
     integer, allocatable :: obsAss(:), obsAssMpiGlobal(:,:)
 
     write(*,*) '**********************************************************'
@@ -622,8 +620,7 @@ contains
                       mpi_local_opt = .false., mpi_distribution_opt = 'None', &
                       varNames_opt = (/'DSLO'/), dataKind_opt = 8)
 
-    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numHeader(obsSpaceData), allNumHeader)
 
     if (propagateDSLO) then
       call aer_propagateDSLO(stateVectorTrlDSLO, inputFileName, outputFileName, &
@@ -943,8 +940,7 @@ contains
     anlErrorStdDev_ptr(:,:,:,:) = 0.0d0
 
     ! Communicate some values from proc 0 to all others
-    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numBody(obsSpaceData), allNumBody)
     numBodyMax = maxval(allNumBody)
     write(*,*) 'aer_computeAnlErrorStd: numBodyMax = ', numBodyMax
 

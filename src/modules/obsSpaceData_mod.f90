@@ -3061,13 +3061,9 @@ contains
          endif
 
          allocate( all_numHeader_mpilocal(nprocs_mpi) )
-         call rpn_comm_allgather(numHeader_mpilocal,     1, "mpi_integer", &
-                                 all_numHeader_mpilocal, 1, "mpi_integer", &
-                                 "GRID",ierr)
-         allocate( all_numBody_mpilocal(nprocs_mpi) )
-         call rpn_comm_allgather(numBody_mpilocal,     1, "mpi_integer", &
-                                 all_numBody_mpilocal, 1, "mpi_integer", &
-                                 "GRID",ierr)
+         allocate( all_numBody_mpilocal  (nprocs_mpi) )
+         call mmpi_allGather(numHeader_mpilocal, all_numHeader_mpilocal)
+         call mmpi_allGather(numBody_mpilocal,   all_numBody_mpilocal)
 
          headerIndexOffset = 0
          bodyIndexOffset = 0

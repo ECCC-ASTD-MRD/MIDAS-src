@@ -572,9 +572,7 @@ CONTAINS
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
 
-    call rpn_comm_allgather(ensObsClean%numObs, 1, 'mpi_integer',  &
-                            allNumObs, 1, 'mpi_integer', &
-                            'GRID', ierr)
+    call mmpi_allGather(ensObsClean%numObs, allNumObs)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then

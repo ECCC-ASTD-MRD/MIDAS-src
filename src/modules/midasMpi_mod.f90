@@ -41,6 +41,11 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather
 
+  ! Private module variables
+  ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
+  !   The longest possible value for the communicator is "BLOCMASTER" which is 10 characters
+  integer, parameter :: mmpi_communicator_max_length = 10
+
   ! module interfaces
   ! -----------------
 
@@ -65,8 +70,7 @@ module midasMpi_mod
   ! general interface for rpn_comm_allGather
   interface mmpi_allGather
     module procedure mmpi_allGather_logical
-    !module procedure mmpi_allGather_integer
-    !module procedure mmpi_allGather_integer8
+    module procedure mmpi_allGather_integer
     module procedure mmpi_allGather_real4
     module procedure mmpi_allGather_real8
   end interface mmpi_allGather
@@ -1145,7 +1149,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allGather_logical
   !--------------------------------------------------------------------------
-  subroutine mmpi_allGather_logical(sending, receiving, length_opt)
+  subroutine mmpi_allGather_logical(sending, receiving, length_opt, communicator_opt)
     !
     !:Purpose: Calling 'rpn_comm_allGather' for a logical scalar or array
     !
@@ -1155,23 +1159,55 @@ contains
     logical, contiguous, intent(in)  :: sending(..)
     logical, contiguous, intent(out) :: receiving(..,:)
     integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
 
     ! Locals:
     integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
 
     call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
 
     call rpn_comm_allGather(sending,   length, 'mpi_logical',  &
-                            receiving, length, 'mpi_logical', 'grid', ierr)
+                            receiving, length, 'mpi_logical', communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
   end subroutine mmpi_allGather_logical
 
   !--------------------------------------------------------------------------
+  ! mmpi_allGather_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allGather_integer(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allGather' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..,:)
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_allGather(sending,   length, 'mpi_integer',  &
+                            receiving, length, 'mpi_integer', communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allGather_integer')
+
+  end subroutine mmpi_allGather_integer
+
+  !--------------------------------------------------------------------------
   ! mmpi_allGather_real4
   !--------------------------------------------------------------------------
-  subroutine mmpi_allGather_real4(sending, receiving, length_opt)
+  subroutine mmpi_allGather_real4(sending, receiving, length_opt, communicator_opt)
     !
     !:Purpose: Calling 'rpn_comm_allGather' for a real(4) scalar or array
     !
@@ -1181,14 +1217,17 @@ contains
     real(4), contiguous, intent(in)  :: sending(..)
     real(4), contiguous, intent(out) :: receiving(..,:)
     integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
 
     ! Locals:
     integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
 
     call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
 
     call rpn_comm_allGather(sending,   length, 'mpi_real4',  &
-                            receiving, length, 'mpi_real4', 'grid', ierr)
+                            receiving, length, 'mpi_real4', communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real4')
 
@@ -1197,7 +1236,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allGather_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_allGather_real8(sending, receiving, length_opt)
+  subroutine mmpi_allGather_real8(sending, receiving, length_opt, communicator_opt)
     !
     !:Purpose: Calling 'rpn_comm_allGather' for a real(8) scalar or array
     !
@@ -1207,18 +1246,42 @@ contains
     real(8), contiguous, intent(in)  :: sending(..)
     real(8), contiguous, intent(out) :: receiving(..,:)
     integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in)  :: communicator_opt
 
     ! Locals:
     integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
 
     call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
 
     call rpn_comm_allGather(sending,   length, 'mpi_real8',  &
-                            receiving, length, 'mpi_real8', 'grid', ierr)
+                            receiving, length, 'mpi_real8', communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real8')
 
   end subroutine mmpi_allGather_real8
+
+  !--------------------------------------------------------------------------
+  ! handleCommunicator
+  !--------------------------------------------------------------------------
+  subroutine handleCommunicator(communicator_opt, communicator)
+    !
+    !:Purpose: Process 'communicator_opt' optional argument
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), optional, intent(in)  :: communicator_opt
+    character(len=mmpi_communicator_max_length), intent(out) :: communicator
+
+    if ( present(communicator_opt) ) then
+      communicator = communicator_opt
+    else
+      communicator = 'GRID'
+    end if
+
+  end subroutine handleCommunicator
 
   !--------------------------------------------------------------------------
   ! handleLengthProcID

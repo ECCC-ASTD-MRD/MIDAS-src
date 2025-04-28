@@ -221,11 +221,9 @@ CONTAINS
     call mmpi_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
          divisible_opt=nlon_equalAcrossMpiTasks)
     allocate(adv%allLonBeg(mmpi_npex))
-    call rpn_comm_allgather(adv%myLonBeg,1,"mpi_integer",       &
-         adv%allLonBeg,1,"mpi_integer","EW",ierr)
+    call mmpi_allGather(adv%myLonBeg,  adv%allLonBeg, communicator_opt = "EW")
     allocate(adv%allLatBeg(mmpi_npey))
-    call rpn_comm_allgather(adv%myLatBeg,1,"mpi_integer",       &
-         adv%allLatBeg,1,"mpi_integer","NS",ierr)
+    call mmpi_allGather(adv%myLatBeg,  adv%allLatBeg, communicator_opt = "NS")
 
     lonPerPE = adv%lonPerPE 
     latPerPE = adv%latPerPE
