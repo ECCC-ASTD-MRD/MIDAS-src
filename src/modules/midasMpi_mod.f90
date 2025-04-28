@@ -1157,11 +1157,9 @@ contains
     integer, optional,   intent(in)  :: length_opt
 
     ! Locals:
-    integer :: ierr
-    integer :: procID, procID_opt, length
+    integer :: ierr, length
 
-    procID_opt = 0
-    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call rpn_comm_allGather(sending,   length, 'mpi_logical',  &
                             receiving, length, 'mpi_logical', 'grid', ierr)
@@ -1175,8 +1173,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine handleLengthProcID(length_opt, procID_opt, length, procID, rankSend, sizeSend)
     !
-    !:Purpose: Calling 'rpn_comm_gatherv' for an integer scalar or array
-    !          The displacement vector is computed from the data itself
+    !:Purpose: Process 'length_opt' and 'procID_opt' optional arguments
     !
     implicit none
 
@@ -1185,6 +1182,47 @@ contains
     integer, optional, intent(in)  :: procID_opt
     integer,           intent(out) :: length
     integer,           intent(out) :: procID
+    integer,           intent(in)  :: rankSend
+    integer,           intent(in)  :: sizeSend
+
+    call handleLength(length_opt, length, rankSend, sizeSend)
+    call handleProcID(procID_opt, procID)
+
+  end subroutine handleLengthProcID
+
+  !--------------------------------------------------------------------------
+  ! handleProcID
+  !--------------------------------------------------------------------------
+  subroutine handleProcID(procID_opt, procID)
+    !
+    !:Purpose: Process 'procID_opt' optional argument
+    !
+    implicit none
+
+    ! Arguments:
+    integer, optional, intent(in)  :: procID_opt
+    integer,           intent(out) :: procID
+
+    if (present(procID_opt)) then
+      procID = procID_opt
+    else
+      procID = 0
+    end if
+
+  end subroutine handleProcID
+
+  !--------------------------------------------------------------------------
+  ! handleLength
+  !--------------------------------------------------------------------------
+  subroutine handleLength(length_opt, length, rankSend, sizeSend)
+    !
+    !:Purpose: Process 'length_opt' optional argument
+    !
+    implicit none
+
+    ! Arguments:
+    integer, optional, intent(in)  :: length_opt
+    integer,           intent(out) :: length
     integer,           intent(in)  :: rankSend
     integer,           intent(in)  :: sizeSend
 
@@ -1198,13 +1236,7 @@ contains
       end if
     end if
 
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
-
-  end subroutine handleLengthProcID
+  end subroutine handleLength
 
   !--------------------------------------------------------------------------
   ! handleMpiError
