@@ -2025,7 +2025,7 @@ contains
     logical, optional, intent(in)  :: is_obsLevOffset_opt
 
     ! Locals:
-    integer :: ierr, procIndex, arrayIndex
+    integer :: procIndex, arrayIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
     logical :: is_obsLevOffset
     integer, allocatable :: numLevels(:), numLevelsMpi(:)
@@ -2058,9 +2058,7 @@ contains
       do arrayIndex = 1, nsize
         numLevels(arrayIndex) = array(arrayIndex+1) - array(arrayIndex)
       end do
-      call rpn_comm_gatherv( numLevels   , nsize, 'mpi_integer', &
-                             numLevelsMpi, allnsize, displs, 'mpi_integer',  &
-                             0, 'GRID', ierr )
+      call mmpi_gatherv(numLevels, numLevelsMpi, nsize, allnsize, displs)
 
       call mmpi_bcast(numLevelsMpi, nsizeMpi)
       arrayMpi(1) = 0
@@ -2085,9 +2083,7 @@ contains
         displs(:) = 0
       end if
 
-      call rpn_comm_gatherv( array   , nsize, 'mpi_integer', &
-                             arrayMpi, allnsize, displs, 'mpi_integer',  &
-                             0, 'GRID', ierr )
+      call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
       call mmpi_bcast(arrayMpi, nsizeMpi)
     end if
@@ -2108,7 +2104,7 @@ contains
     real(4), intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: ierr, procIndex
+    integer :: procIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
@@ -2124,9 +2120,7 @@ contains
       displs(:) = 0
     end if
 
-    call rpn_comm_gatherv( array   , nsize, 'mpi_real4', &
-                           arrayMpi, allnsize, displs, 'mpi_real4',  &
-                           0, 'GRID', ierr )
+    call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
     call mmpi_bcast(arrayMpi, nsizeMpi)
 
@@ -2146,7 +2140,7 @@ contains
     logical, intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: ierr, procIndex
+    integer :: procIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
@@ -2162,9 +2156,7 @@ contains
       displs(:) = 0
     end if
 
-    call rpn_comm_gatherv( array   , nsize, 'mpi_logical', &
-                           arrayMpi, allnsize, displs, 'mpi_logical',  &
-                           0, 'GRID', ierr )
+    call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
     call mmpi_bcast(arrayMpi, length_opt = nsizeMpi)
 

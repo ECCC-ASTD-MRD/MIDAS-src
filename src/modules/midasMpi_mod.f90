@@ -39,7 +39,8 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall, mmpi_allReduce
+  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
+  public :: mmpi_allReduce, mmpi_gatherv
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -93,6 +94,14 @@ module midasMpi_mod
     module procedure mmpi_allReduce_real8
     module procedure mmpi_allReduce_scalar_integer
   end interface mmpi_allReduce
+
+  ! general interface for rpn_comm_alltoall
+  interface mmpi_gatherv
+    module procedure mmpi_gatherv_logical
+    module procedure mmpi_gatherv_integer
+    module procedure mmpi_gatherv_real4
+    module procedure mmpi_gatherv_real8
+  end interface mmpi_gatherv
 
 contains
 
@@ -1553,6 +1562,118 @@ contains
     localGlobalValue = globalValue
 
   end subroutine mmpi_allReduce_scalar_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_logical(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    logical, contiguous, intent(in)  :: sending(..)
+    logical, contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_gatherv(sending,   length,                    'mpi_logical', &
+                          receiving, allLengths, displacements, 'mpi_logical', &
+                          procID, mmpi_communicator_grid , ierr )
+
+    call handleMpiError(ierr, 'mmpi_gatherv_logical')
+
+  end subroutine mmpi_gatherv_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_integer(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_gatherv(sending,   length,                    'mpi_integer', &
+                          receiving, allLengths, displacements, 'mpi_integer', &
+                          procID, mmpi_communicator_grid , ierr )
+
+    call handleMpiError(ierr, 'mmpi_gatherv_integer')
+
+  end subroutine mmpi_gatherv_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_real4(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a real4 scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_gatherv(sending,   length,                    'mpi_real4', &
+                          receiving, allLengths, displacements, 'mpi_real4', &
+                          procID, mmpi_communicator_grid , ierr )
+
+    call handleMpiError(ierr, 'mmpi_gatherv_real4')
+
+  end subroutine mmpi_gatherv_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_real8(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_gatherv(sending,   length,                    'mpi_real8', &
+                          receiving, allLengths, displacements, 'mpi_real8', &
+                          procID, mmpi_communicator_grid , ierr )
+
+    call handleMpiError(ierr, 'mmpi_gatherv_real8')
+
+  end subroutine mmpi_gatherv_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator

@@ -644,43 +644,21 @@ CONTAINS
       displs(:) = 0
     end if
 
-    call rpn_comm_gatherv(ensObsClean%lat, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%lat, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%lon, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%vertLocation, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%obsValue, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%obsErrInv, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%meanYb, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%deterYb, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%deterYb, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
-                          ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%codTyp, ensObsClean%numObs, 'mpi_integer', &
-                          ensObs_mpiglobal%codTyp, allNumObs, displs, 'mpi_integer',  &
-                          0, 'GRID', ierr)
+    call mmpi_gatherv(ensObsClean%lat, ensObs_mpiglobal%lat, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%lon, ensObs_mpiglobal%lon, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%vertLocation, ensObs_mpiglobal%vertLocation, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%obsValue, ensObs_mpiglobal%obsValue, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%obsErrInv, ensObs_mpiglobal%obsErrInv, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%meanYb, ensObs_mpiglobal%meanYb, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%deterYb, ensObs_mpiglobal%deterYb, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%assFlag, ensObs_mpiglobal%assFlag, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%codTyp, ensObs_mpiglobal%codTyp, ensObsClean%numObs, allNumObs, displs)
     if (allocated(ensObsClean%obsErrInv_sim)) then
-      call rpn_comm_gatherv(ensObsClean%obsErrInv_sim, ensObsClean%numObs, 'mpi_real8', &
-                            ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
-                            0, 'GRID', ierr)
+      call mmpi_gatherv(ensObsClean%obsErrInv_sim, ensObs_mpiglobal%obsErrInv_sim, ensObsClean%numObs, allNumObs, displs)
     end if
 
     do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                            tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                            0, 'GRID', ierr)
+      call mmpi_gatherv(ensObsClean%Yb_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
     end do
     if (mmpi_myid == 0) then
       ensObs_mpiglobal%Yb_r4(:,:) = tempBuffer(:,:)
@@ -689,9 +667,7 @@ CONTAINS
 
     if (associated(ensObsClean%Ya_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
+        call mmpi_gatherv(ensObsClean%Ya_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%Ya_r4(:,:) = tempBuffer(:,:)
@@ -701,9 +677,7 @@ CONTAINS
 
     if (associated(ensObsClean%randPert_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
+        call mmpi_gatherv(ensObsClean%randPert_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%randPert_r4(:,:) = tempBuffer(:,:)
