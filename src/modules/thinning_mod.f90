@@ -4811,14 +4811,10 @@ contains
                             obsLevIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsTimeIndexVec,nsize, 'mpi_integer',  &
                             obsTimeIndexMpi,nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
-                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsUU,    nsize, 'mpi_real4',  &
-                            obsUUMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsVV,    nsize, 'mpi_real4',  &
-                            obsVVMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsTT,    nsize, 'mpi_real4',  &
-                            obsTTMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(obsDistance, obsDistanceMpi, nsize)
+    call mmpi_allGather(obsUU, obsUUMpi, nsize)
+    call mmpi_allGather(obsVV, obsVVMpi, nsize)
+    call mmpi_allGather(obsTT, obsTTMpi, nsize)
     call mmpi_allGather(obsUVPresent, obsUVPresentMpi, nsize)
     call mmpi_allGather(obsTTPresent, obsTTPresentMpi, nsize)
 
@@ -5473,8 +5469,7 @@ contains
         end if
 
         ! Communicate the distance of chosen observation among all mpi tasks
-        call rpn_comm_allgather(minDistance,    1, 'mpi_real4',  &
-                                minDistanceMpi, 1, 'mpi_real4', 'grid', ierr)
+        call mmpi_allGather(minDistance, minDistanceMpi, 1)
 
         ! Choose the closest to the center of the box among all mpi tasks
         minDistance = 1000000.
@@ -5849,10 +5844,8 @@ contains
 
     ! Gather lat/long/time bin information from all MPI tasks into obsLatMpi and obsLonMpi
 
-    call rpn_comm_allgather(obsLatinRad,    numHeaderMaxMpi, 'mpi_real4',  &
-                            obsLatMpi, numHeaderMaxMpi, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsLoninRad,    numHeaderMaxMpi, 'mpi_real4',  &
-                            obsLonMpi, numHeaderMaxMpi, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(obsLatinRad, obsLatMpi, numHeaderMaxMpi)
+    call mmpi_allGather(obsLoninRad, obsLonMpi, numHeaderMaxMpi)
     call rpn_comm_allgather(stepObsIndexint,numHeaderMaxMpi, 'mpi_integer', &
                             stepObsIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid',ierr)
     call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
@@ -6627,8 +6620,7 @@ contains
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDelMinutes,    nsize, 'mpi_integer',  &
                             obsDelMinutesMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
-                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(obsDistance,   obsDistanceMpi, nsize)
 
     ! Apply thinning algorithm
     HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
@@ -7126,16 +7118,13 @@ contains
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(numChannel,    nsize, 'mpi_integer',  &
                             numChannelMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsAngle,    nsize, 'mpi_real4',  &
-                            obsAngleMpi, nsize, 'mpi_real4', 'grid', ierr)
-    call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
-                            obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(obsAngle,    obsAngleMpi, nsize)
+    call mmpi_allGather(obsDistance, obsDistanceMpi, nsize)
 
     nsize = maxNumChan * numHeaderMaxMpi
     call rpn_comm_allgather(channelAssim,    nsize, 'mpi_integer',  &
                             channelAssimMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsCloud,    nsize, 'mpi_real4',  &
-                            obsCloudMpi, nsize, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(obsCloud, obsCloudMpi, nsize)
 
     nsize = lenStnId * numHeaderMaxMpi
     call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
@@ -7612,8 +7601,7 @@ contains
 
     ! communicate results to all other mpi tasks
     nsize = numLat * numLon * tim_nstepobs
-    call rpn_comm_allgather(distanceKeep,     nsize, 'mpi_real4',  &
-                            distanceKeepMpi,  nsize, 'mpi_real4', 'grid', ierr)
+    call mmpi_allGather(distanceKeep, distanceKeepMpi, nsize)
     call rpn_comm_allgather(delMinutesKeep,     nsize, 'mpi_integer',  &
                             delMinutesKeepMpi,  nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(numChannelsKeep,     nsize, 'mpi_integer',  &
@@ -8084,8 +8072,7 @@ contains
                             obsLonIndexMpi , numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsTimeIndexVec, numHeaderMaxMpi, 'mpi_integer',  &
                             obsTimeIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsSST         , numHeaderMaxMpi, 'mpi_real4'  ,  &
-                            obsSSTMpi      , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
+    call mmpi_allGather(obsSST, obsSSTMpi, numHeaderMaxMpi)
 
     TIMESTEP: do stepIndex = 1, numTimesteps
 

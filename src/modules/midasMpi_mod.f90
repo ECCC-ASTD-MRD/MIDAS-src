@@ -67,7 +67,7 @@ module midasMpi_mod
     module procedure mmpi_allGather_logical
     !module procedure mmpi_allGather_integer
     !module procedure mmpi_allGather_integer8
-    !module procedure mmpi_allGather_real4
+    module procedure mmpi_allGather_real4
     module procedure mmpi_allGather_real8
   end interface mmpi_allGather
 
@@ -1167,6 +1167,32 @@ contains
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
   end subroutine mmpi_allGather_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allGather_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allGather_real4(sending, receiving, length_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_allGather' for a real(4) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..,:)
+    integer, optional,   intent(in)  :: length_opt
+
+    ! Locals:
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+
+    call rpn_comm_allGather(sending,   length, 'mpi_real4',  &
+                            receiving, length, 'mpi_real4', 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_allGather_real4')
+
+  end subroutine mmpi_allGather_real4
 
   !--------------------------------------------------------------------------
   ! mmpi_allGather_real8

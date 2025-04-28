@@ -5262,8 +5262,7 @@ module gridStateVector_mod
                                 varLevIndex, stepIndex), 4)
         end if
 
-        call rpn_comm_allgather(gd_send_r4, nsize, 'mpi_real4',  &
-                                gd_recv_r4, nsize, 'mpi_real4', 'grid', ierr)
+        call mmpi_allGather(gd_send_r4, gd_recv_r4, nsize)
 
         ! copy over the complete 2D field for 1 stepIndex received
         if (stateVector_mpiGlobal%allocated) then

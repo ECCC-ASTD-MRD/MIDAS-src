@@ -659,9 +659,7 @@ contains
 
       end do header_loop2
 
-      call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
-                              allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
-                              'GRID', ierr)
+      call mmpi_allGather(footprintRadiusVec_r4, allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax)
 
       allocate(latColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
       allocate(lonColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))

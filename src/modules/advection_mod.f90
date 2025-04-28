@@ -1128,9 +1128,8 @@ CONTAINS
 
           ! gather the global field to be interpolated on all tasks
           nsize = nEns*adv%lonPerPE*adv%latPerPE
-          call rpn_comm_allgather(ens_oneLev(1:nEns,adv%timeStepIndexSource(stepIndexAF),:,:), nsize, "mpi_real4",  &
-                                  ens1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_real4",  &
-                                  "GRID", ierr )
+          call mmpi_allGather(ens_oneLev(1:nEns,adv%timeStepIndexSource(stepIndexAF),:,:), &
+                              ens1_mpiglobal_tiles(:,:,:,:), nsize)
 
           ! rearrange gathered fields for convenience
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
