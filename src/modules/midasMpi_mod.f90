@@ -62,7 +62,7 @@ module midasMpi_mod
     module procedure mmpi_gather_real8
   end interface mmpi_gather
 
-  contains
+contains
 
   !--------------------------------------------------------------------------
   ! mmpi_initialize
@@ -909,21 +909,8 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(logicalData) == 0 ) then
-        length = 1
-      else
-        length = size(logicalData)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, &
+                            rank(logicalData), size(logicalData))
 
     call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, 'GRID', ierr)
     call handleMpiError(ierr, 'mmpi_bcast_logical')
@@ -948,21 +935,8 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(integerData) == 0 ) then
-        length = 1
-      else
-        length = size(integerData)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, &
+                            rank(integerData), size(integerData))
 
     call rpn_comm_bcast(integerData, length, 'MPI_INTEGER', procID, 'GRID', ierr)
     call handleMpiError(ierr, 'mmpi_bcast_integer')
@@ -987,21 +961,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
-
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(real4Data) == 0 ) then
-        length = 1
-      else
-        length = size(real4Data)
-      end if
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(real4Data), size(real4Data))
 
     call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, 'GRID', ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real4')
@@ -1026,21 +986,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(real8Data) == 0 ) then
-        length = 1
-      else
-        length = size(real8Data)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(real8Data), size(real8Data))
 
     call rpn_comm_bcast(real8Data, length, 'MPI_REAL8', procID, 'GRID', ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real8')
@@ -1066,21 +1012,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(sending) == 0 ) then
-        length = 1
-      else
-        length = size(sending)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
 
     call rpn_comm_gather(sending,   length, 'mpi_logical',  &
                          receiving, length, 'mpi_logical', procID, 'grid', ierr)
@@ -1108,21 +1040,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(sending) == 0 ) then
-        length = 1
-      else
-        length = size(sending)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
 
     call rpn_comm_gather(sending,   length, 'mpi_integer',  &
                          receiving, length, 'mpi_integer', procID, 'grid', ierr)
@@ -1150,21 +1068,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(sending) == 0 ) then
-        length = 1
-      else
-        length = size(sending)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
 
     call rpn_comm_gather(sending,   length, 'mpi_integer8',  &
                          receiving, length, 'mpi_integer8', procID, 'grid', ierr)
@@ -1192,21 +1096,7 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
-    if (present(length_opt)) then
-      length = length_opt
-    else
-      if ( rank(sending) == 0 ) then
-        length = 1
-      else
-        length = size(sending)
-      end if
-    end if
-
-    if (present(procID_opt)) then
-      procID = procID_opt
-    else
-      procID = 0
-    end if
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
 
     call rpn_comm_gather(sending,   length, 'mpi_real4',  &
                          receiving, length, 'mpi_real4', procID, 'grid', ierr)
@@ -1234,13 +1124,40 @@ module midasMpi_mod
     integer :: ierr
     integer :: procID, length
 
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
+
+    call rpn_comm_gather(sending,   length, 'mpi_real8',  &
+                         receiving, length, 'mpi_real8', procID, 'grid', ierr)
+
+    call handleMpiError(ierr, 'mmpi_gather_real8')
+
+  end subroutine mmpi_gather_real8
+
+  !--------------------------------------------------------------------------
+  ! handleLengthProcID
+  !--------------------------------------------------------------------------
+  subroutine handleLengthProcID(length_opt, procID_opt, length, procID, rankSend, sizeSend)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for an integer scalar or array
+    !          The displacement vector is computed from the data itself
+    !
+    implicit none
+
+    ! Arguments:
+    integer, optional, intent(in)  :: length_opt
+    integer, optional, intent(in)  :: procID_opt
+    integer,           intent(out) :: length
+    integer,           intent(out) :: procID
+    integer,           intent(in)  :: rankSend
+    integer,           intent(in)  :: sizeSend
+
     if (present(length_opt)) then
       length = length_opt
     else
-      if ( rank(sending) == 0 ) then
+      if ( rankSend == 0 ) then
         length = 1
       else
-        length = size(sending)
+        length = sizeSend
       end if
     end if
 
@@ -1250,12 +1167,7 @@ module midasMpi_mod
       procID = 0
     end if
 
-    call rpn_comm_gather(sending,   length, 'mpi_real8',  &
-                         receiving, length, 'mpi_real8', procID, 'grid', ierr)
-
-    call handleMpiError(ierr, 'mmpi_gather_real8')
-
-  end subroutine mmpi_gather_real8
+  end subroutine handleLengthProcID
 
   !--------------------------------------------------------------------------
   ! handleMpiError
