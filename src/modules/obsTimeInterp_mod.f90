@@ -293,7 +293,7 @@ contains
     type(struct_oti), pointer, intent(inout) :: oti
 
     ! Locals:
-    integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
+    integer              :: numHeader, numHeaderMax, numStep, nsize
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
     if ( .not.associated(oti%timeInterpWeight) ) then

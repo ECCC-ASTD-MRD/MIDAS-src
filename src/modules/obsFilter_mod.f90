@@ -290,7 +290,7 @@ contains
 
     ! Locals:
     integer :: bodyIndex, headerIndex
-    integer :: ipres, ivco, ierr, loopIndex
+    integer :: ipres, ivco, loopIndex
     integer :: idburp, ivnm, iflg, ibad, iknt, iknt_mpiglobal, ilansea
     logical :: llok, llrej, llbogus
 

@@ -1471,7 +1471,7 @@ contains
     real(8), allocatable :: Jpa_global(:,:,:), diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
     logical :: assim_global
-    integer :: nlat,nlon,nlev,nstat,nbin,ierr
+    integer :: nlat,nlon,nlev,nstat,nbin
 
     nlat = obs_diagn%nlat
     nlon = obs_diagn%nlon

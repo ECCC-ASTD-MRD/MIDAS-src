@@ -2852,7 +2852,7 @@ contains
     ! Locals:
     integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, varLevIndex
     integer :: numHeader, numHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    integer :: subGridIndex, gridptIndex, ierr, nsize
+    integer :: subGridIndex, gridptIndex, nsize
     integer, save :: numWrites = 0
     logical, allocatable :: allRejectObs(:,:), allRejectObsMpiGlobal(:,:)
 

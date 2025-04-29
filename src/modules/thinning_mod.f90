@@ -1336,7 +1336,7 @@ contains
     ! Locals:
     integer :: countObs, countObsMpi
     integer :: countObsReject, countObsRejectMpi, countObsTotal, countObsTotalMpi
-    integer :: headerIndex, bodyIndex, ierr
+    integer :: headerIndex, bodyIndex
     integer :: numLev
     integer :: levIndex, obsVarNo, obsFlag
     real(8) :: nextHeightMin
@@ -3147,7 +3147,7 @@ contains
 
     ! Locals:
     logical :: conditionTT, conditionES, rejectES
-    integer :: ierr, stationIndex, levStnIndex, varIndexES, varIndexTT, varIndexPres
+    integer :: stationIndex, levStnIndex, varIndexES, varIndexTT, varIndexPres
     integer :: type, countReject0p, countReject0t, countReject1p, countReject1t
     integer :: countReject0pMpi, countReject0tMpi, countReject1pMpi, countReject1tMpi
     integer :: countTotalES, countTotalESMpi
@@ -3293,7 +3293,7 @@ contains
     real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
     integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
     character(len=3), parameter :: winpos='mid' ! Preference to obs close to middle of window
-    integer :: ierr, numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsOutMpi, countObsInMpi
     integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag, nsize
     integer :: bgckCount, bgckCountMpi, blackListCount, blackListCountMpi
@@ -3641,7 +3641,7 @@ contains
     real(4), parameter :: layer(numLayers) = (/ 100000., 92500., 85000., 70000., &
                                                 50000., 40000., 30000., 25000., &
                                                 20000., 15000., 10000. /)
-    integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
+    integer :: numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
     integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
     integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi, nsize
@@ -5074,7 +5074,7 @@ contains
 
     ! Locals:
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
-    integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
+    integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
     integer :: loscan, hiscan, obsFlag, numObs, minLonBurpFileMpi(mmpi_nprocs)
     integer :: procIndex, procIndexKeep, minLonBurpFile, countObs, countObsMpi
@@ -5572,7 +5572,6 @@ contains
     integer, parameter :: mxscanssmis=90
     integer, parameter :: flg_mpi=2  ! time bin based parallelization.
                                      ! Setting to one chooses region based parallelization.
-    integer :: ierr
     integer :: timbin
     real(8) :: distance
     integer :: nreg
@@ -6267,7 +6266,7 @@ contains
     integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
     integer :: uObsFlag, vObsFlag, obsVarno, stnIdIndex, numStnId, stnIdIndexFound
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
-    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi
+    integer :: headerIndex, numHeader, numHeaderMaxMpi
     integer :: headerIndexBeg, headerIndexEnd
     integer :: countObs, countObsInMpi, countObsOutMpi
     integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
@@ -6753,7 +6752,7 @@ contains
     integer, parameter :: maxNumChan = 15    ! nb max de canaux
     integer :: bodyIndex, channelIndex, charIndex, nsize, lenStnId
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
-    integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi, channelList(maxNumChan)
+    integer :: headerIndex, numHeader, numHeaderMaxMpi, channelList(maxNumChan)
     integer :: headerIndexBeg, headerIndexEnd, countObs, countObsMpi
     integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
     real(4) :: latInRadians, distance, obsLat, obsLon, gridLat, gridLon
@@ -7203,7 +7202,7 @@ contains
     integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, lenStnId
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex, charIndex
-    integer :: ierr, nsize, procIndex, countHeader, countHeaderMpi
+    integer :: nsize, procIndex, countHeader, countHeaderMpi
     real(4) :: latInRadians, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
@@ -7775,7 +7774,7 @@ contains
     ! Locals:
     type(struct_hco), pointer :: hco_thinning
     integer :: headerIndexBeg, headerIndexEnd
-    integer :: ierr, lonIndex, latIndex, stepIndex, codeType
+    integer :: lonIndex, latIndex, stepIndex, codeType
     integer :: obsLonIndex, obsLatIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
     integer :: satSSTCount, satSSTCountMpi

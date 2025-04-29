@@ -2293,7 +2293,7 @@ module obsSpaceErrorStdDev_mod
     
     ! Locals:
     logical :: availableOmP
-    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp, ierr
+    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
     real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP,medianOmP
     character(len=12) :: stnid

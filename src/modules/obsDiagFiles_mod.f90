@@ -545,7 +545,7 @@ module obsDiagFiles_mod
     character(len=*), intent(out)   :: obsFamilyListCommon(:)
 
     ! Locals:
-    integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize, ierr
+    integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize
     integer                       :: obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, obsFamilyListSizeMax
     character(len=2), allocatable :: obsFamilyListMpiLocal(:)
     character(len=2), allocatable :: obsFamilyListMpiGlobal(:,:)
