@@ -948,11 +948,10 @@ module bCovarSetupChem_mod
       end do
     end do
     
-    nsize=bgStats%nJ*(bgStats%ntrunc+1)    
-    call rpn_comm_allreduce(wtemp(0:bgStats%ntrunc,1:bgStats%nJ,1), &
-         zleg(0:bgStats%ntrunc,1:bgStats%nJ),nsize,"mpi_double_precision", &
-         "mpi_sum","GRID",ierr)
-
+    nsize=bgStats%nJ*(bgStats%ntrunc+1)
+    call mmpi_allReduce(wtemp(0:bgStats%ntrunc, 1:bgStats%nJ,1), &
+                        zleg (0:bgStats%ntrunc, 1:bgStats%nJ),    &
+                        "mpi_sum", nsize)
     deallocate(wtemp)
     allocate(wtemp(bgStats%nj, bgStats%nlev, &
       bgStats%numvar3d+bgStats%numvar2d))
@@ -976,9 +975,8 @@ module bCovarSetupChem_mod
       levelIndex = levelIndex+1
     end do
     
-    nsize=bgStats%nj*bgStats%numVarLev   
-    call rpn_comm_allreduce(wtemp,hcorrel,nsize,"mpi_double_precision", &
-                            "mpi_sum","GRID",ierr)
+    nsize=bgStats%nj*bgStats%numVarLev
+    call mmpi_allReduce(wtemp, hcorrel, "mpi_sum", nsize)
     deallocate(wtemp)
 
     varIndex = 1
@@ -1453,7 +1451,7 @@ module bCovarSetupChem_mod
     real(8) :: eigenval(bgStats%numVarLev)
     real(8) :: eigenvalsqrt(bgStats%numVarLev)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
-    integer :: jn,jk1,jk2,varIndex,ierr
+    integer :: jn,jk1,jk2,varIndex
     integer :: ilwork,info,jnum,jstart,nsize
     real(8) :: zwork(2*4*bgStats%numVarLev)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
@@ -1568,9 +1566,9 @@ module bCovarSetupChem_mod
          end do ! jn
   
          nsize = jnum*jnum*(bgStats%ntrunc+1)
-         call rpn_comm_allreduce(corns_temp, &
+         call mmpi_allReduce(corns_temp,                                  &
               bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
-              nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+              "mpi_sum", nsize)
          deallocate(corns_temp,eigenvec,result)
 
       end if

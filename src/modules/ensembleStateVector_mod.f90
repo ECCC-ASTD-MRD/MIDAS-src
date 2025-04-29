@@ -2121,7 +2121,7 @@ CONTAINS
     type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
     real(8)  :: globalMean, globalMean_mpiglobal
 
@@ -2149,9 +2149,8 @@ CONTAINS
                    real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
             end do
           end do
-          
-          call rpn_comm_allreduce(globalMean, globalMean_mpiglobal,1,&
-                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+
+          call mmpi_allReduce(globalMean, globalMean_mpiglobal, "mpi_sum")
           globalMean_mpiglobal = globalMean_mpiglobal / &
                (real(ens%statevector_work%ni,8)*real(ens%statevector_work%nj,8))
 

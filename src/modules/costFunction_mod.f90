@@ -87,7 +87,7 @@ contains
   
     real(8), allocatable :: joSSTInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
-    integer :: SSTdatasetIndex, codeType, ierr
+    integer :: SSTdatasetIndex, codeType
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -273,8 +273,7 @@ contains
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
       call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
-      call rpn_comm_allreduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
-                              1, "mpi_integer", "mpi_sum", "grid", ierr)
+      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), "mpi_sum")
     end do
 
     if ( mmpi_myid == 0 .and. .not. beSilent ) then

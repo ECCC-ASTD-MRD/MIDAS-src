@@ -663,8 +663,7 @@ CONTAINS
     if ( trim(ben_mode) == 'Analysis' ) then
 
       call mmpi_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
-      call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-           1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+      call mmpi_allReduce(myMemberCount, maxMyMemberCount, "MPI_MAX")
       bEns(instanceIndex)%nEnsOverDimension = mmpi_npex * maxMyMemberCount
 
       !- Horizontal Localization

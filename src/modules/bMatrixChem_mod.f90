@@ -59,7 +59,6 @@ module bMatrixChem_mod
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
-  integer             :: maxMyNla
   integer             :: myLatBeg,myLatEnd
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -99,8 +98,8 @@ module bMatrixChem_mod
     integer,                   intent(out) :: cvDim_out
 
     ! Locals:
-    integer :: jn,jm
-    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, nlev_T_even, ierr
+    integer :: jn, jm, maxMyNla
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, nlev_T_even
     logical :: covarNeeded
 
     ! Read and prepare covariances and related elements
@@ -163,8 +162,7 @@ module bMatrixChem_mod
     cvDim_out = cvDim_mpilocal
 
     ! Also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_mpiglobal, 1, &
-                            "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal,  "mpi_sum")
 
     initialized = .true.
    
@@ -687,8 +685,7 @@ module bMatrixChem_mod
 
     if (.not.initialized) return
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -834,8 +831,7 @@ module bMatrixChem_mod
 
     if (.not.initialized) return
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -976,14 +972,14 @@ module bMatrixChem_mod
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     if (.not.initialized) return
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1106,14 +1102,14 @@ module bMatrixChem_mod
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     if (.not.initialized) return
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 

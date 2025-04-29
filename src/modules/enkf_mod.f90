@@ -2408,7 +2408,7 @@ contains
     integer :: latIndex, lonIndex, procIndex, latLonIndex, myLatLonIndex, latLonIndexMpiGlobal
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: numLatLonRecvMax, myNumLatLon, numLatLonMax, ierr
+    integer :: numLatLonRecvMax, myNumLatLon, numLatLonMax
     integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
     integer, allocatable :: allLatIndexesSend(:,:), allLonIndexesSend(:,:)
     integer, allocatable :: localLatIndexesSend(:), localLonIndexesSend(:)
@@ -2479,8 +2479,7 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call rpn_comm_allreduce(myNumLatLon, numLatLonMpiGlobal, &
-                            1,"mpi_integer","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, "mpi_sum")
     call mmpi_allGather(myNumLatLon, allNumLatLon)
     numLatLonMax = maxval(allNumLatLon)
 
@@ -2585,7 +2584,7 @@ contains
     integer, intent(in)  :: myLonIndexesRecv(:)     ! Input lonIndex list for locally needed weights
 
     ! Locals:
-    integer :: ierr, ni, nj, lonIndex, latIndex
+    integer :: ni, nj, lonIndex, latIndex
     integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: countTags, myNumLatLonRecv, numLatLonRecvMax
@@ -2629,8 +2628,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call rpn_comm_allreduce(tagNeededMpiLocal, tagNeededMpiGlobal, ni*nj, &
-                            'mpi_logical','mpi_lor','GRID',ierr)
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor', ni*nj)
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0

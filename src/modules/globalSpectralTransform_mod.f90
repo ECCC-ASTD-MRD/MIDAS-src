@@ -364,7 +364,7 @@ contains
     ! Arguments:
     integer, pointer, intent(out) :: ilaList(:)
     integer,          intent(out) :: myNla
-    integer,          intent(in)  :: maxMyNla
+    integer,          intent(out) :: maxMyNla
     integer,          intent(in)  :: gstID_in
     integer,          intent(in)  :: mymBeg
     integer,          intent(in)  :: mymEnd
@@ -374,7 +374,7 @@ contains
     integer,          intent(in)  :: mynSkip
 
     ! Locals:
-    integer          :: jm, jn, ierr
+    integer          :: jm, jn
 
     ! compute mpilocal value of nla
     myNla = 0
@@ -387,7 +387,7 @@ contains
     enddo
 
     ! determine maximum value of myNla over all processors (used for dimensioning)
-    call rpn_comm_allreduce(myNla,maxMyNla,1,'MPI_INTEGER','MPI_MAX','GRID',ierr)
+    call mmpi_allReduce(myNla, maxMyNla, 'MPI_MAX')
 
     allocate(ilaList(maxMyNla))
     ilaList(:) = 0
@@ -526,14 +526,12 @@ contains
     gst(gstID)%mymEnd = mymEnd
     gst(gstID)%mymSkip = mymSkip
     gst(gstID)%mymCount = mymCount
-    call rpn_comm_allreduce(gst(gstID)%mymCount,gst(gstID)%maxmCount, &
-                            1,'MPI_INTEGER','MPI_MAX','GRID',ierr)
+    call mmpi_allReduce(gst(gstID)%mymCount, gst(gstID)%maxmCount, 'MPI_MAX')
     ! range of levels handled by this processor when in spectral space
     gst(gstID)%myLevBeg = myLevBeg
     gst(gstID)%myLevEnd = myLevEnd      
     gst(gstID)%myLevCount = myLevCount
-    call rpn_comm_allreduce(gst(gstID)%myLevCount,gst(gstID)%maxMyLevCount, &
-                            1,'MPI_INTEGER','MPI_MAX','GRID',ierr)
+    call mmpi_allReduce(gst(gstID)%myLevCount, gst(gstID)%maxMyLevCount, 'MPI_MAX')
 
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allocating comleg...'
     call allocate_comleg

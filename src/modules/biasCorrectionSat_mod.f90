@@ -628,8 +628,7 @@ contains
 
         temp_nobs(:) = 0
         nsize = size(temp_nobs)
-        call rpn_comm_allreduce(temp_nobs2(iSensor,:), temp_nobs, nsize, "mpi_integer", &
-             "mpi_sum", "GRID", ierr)
+        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum", nsize)
         if (ierr /= 0) then
           call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 2")
         end if

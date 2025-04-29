@@ -2022,7 +2022,7 @@ CONTAINS
 
     ! Locals:
     integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
-    integer :: numRejected, numRejectedMpiGlobal, ierr, windCount
+    integer :: numRejected, numRejectedMpiGlobal, windCount
     real    :: sigo, sigb, omp, sig, reject_limit
     logical :: reject_wind
 
@@ -2086,7 +2086,7 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_backgroundCheck: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2112,7 +2112,7 @@ CONTAINS
 
     ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
-    integer :: numRejected, numRejectedMpiGlobal, ierr
+    integer :: numRejected, numRejectedMpiGlobal
     real(8) :: obsLon, obsLat
 
     write(*,*) 'eob_removeObsNearLand: starting'
@@ -2143,7 +2143,7 @@ CONTAINS
       end do BODY_LOOP
     end do HEADER_LOOP
 
-    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2197,7 +2197,7 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
-    integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
+    integer           :: huberCount, huberCountMpiGlobal, ivar, windCount
     integer           :: bodyIndex, bodyIndexBeg, bodyIndexEnd, headerIndex
     real(pre_obsReal) :: c_limit, sig, sigo, sigb, omp, sigo_hub, sigo_hub_wind
     logical           :: reject_wind
@@ -2262,7 +2262,7 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(huberCount, huberCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(huberCount, huberCountMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (local) = ', huberCount
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (global)= ', huberCountMpiGlobal
@@ -2284,7 +2284,7 @@ CONTAINS
 
     ! Locals:
     integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
-    integer :: varNumber, bodyIndex, ierr
+    integer :: varNumber, bodyIndex
     ! reject lower than 975 hPa
     real, parameter    :: logPresRadianceLimit = 11.4876E0
 
@@ -2306,8 +2306,8 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(acceptCount, acceptCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(rejectCount, rejectCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (local) : ',  &
                acceptCount, rejectCount

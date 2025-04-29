@@ -509,7 +509,7 @@ contains
 
       lambdaLocal(myLonBeg : myLonEnd, myLatBeg : myLatEnd) = diff(diffID)%Lambda(myLonBeg : myLonEnd, myLatBeg : myLatEnd)    
       nsize = ni * nj
-      call rpn_comm_allreduce(lambdaLocal, diff(diffID)%Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr)
+      call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, "mpi_sum", nsize)
 
       if (mmpi_myid == 0) then
  

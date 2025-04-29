@@ -1321,7 +1321,7 @@ contains
     ! Arguments:
     integer(8), contiguous, intent(in)  :: sending(..)
     integer(8), contiguous, intent(out) :: receiving(..)
-    integer, optional,   intent(in)  :: length_opt
+    integer,    optional,   intent(in)  :: length_opt
     character(len=*), optional, intent(in)  :: communicator_opt
 
     ! Locals:

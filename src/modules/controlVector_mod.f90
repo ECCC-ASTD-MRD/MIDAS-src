@@ -5,6 +5,7 @@ module controlVector_mod
   !:Purpose: The control vector and related information.  
   !
   use utilities_mod
+  use midasMpi_mod
 
   implicit none
   save
@@ -46,14 +47,13 @@ contains
     integer,          intent(in) :: dimVector
 
     ! Locals:
-    integer :: ierr, dimVector_mpiglobal
+    integer :: dimVector_mpiglobal
 
     if ( numVectors == maxNumVectors ) then
       call utl_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
     end if
 
-    call rpn_comm_allreduce(dimVector, dimVector_mpiglobal,  &
-                            1, 'MPI_INTEGER', 'MPI_SUM', 'GRID', ierr)
+    call mmpi_allReduce(dimVector, dimVector_mpiglobal, 'MPI_SUM')
 
     ! just return if subVector dimension is zero on all MPI tasks
     if ( dimVector_mpiglobal == 0 ) return

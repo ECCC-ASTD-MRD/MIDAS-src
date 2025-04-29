@@ -91,7 +91,6 @@ MODULE bMatrixHI_mod
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
-  integer             :: maxMyNla
   integer             :: myLatBeg,myLatEnd
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -111,7 +110,7 @@ CONTAINS
     ! Locals:
     character(len=15)        :: bhi_mode
     integer                  :: jlev, ierr, fnom, fclos, fstouv, fstfrm
-    integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
+    integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl, maxMyNla
     logical                  :: llfound, lExists
     real(8)                  :: pSurfRef, hSurfRef
     real(8), pointer         :: vertCoordProfile_M(:),vertCoordProfile_T(:)
@@ -287,7 +286,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "mpi_sum")
 
     allocate(PtoT(nlev_T+1,nlev_M,nj_l))
     allocate(tantheta(nlev_M,nj_l))
@@ -845,7 +844,7 @@ CONTAINS
     enddo ! jn
 
     nsize = numVarLev2*numVarLev2*(ntrunc+1)
-    call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(corns_temp, corns, "mpi_sum", nsize)
     deallocate(corns_temp)
 
     if(mmpi_myid==0) then
@@ -1397,7 +1396,7 @@ CONTAINS
       enddo
     enddo
     nsize = 2*nla_mpiglobal
-    call rpn_comm_allreduce(my_zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(my_zsp_mpiglobal(:,:,1), zsp_mpiglobal(:,:,1), "mpi_sum", nsize)
     deallocate(my_zsp_mpiglobal) 
     ! 2.4.4  Check positiveness
     llpb = .false.
@@ -2492,8 +2491,7 @@ CONTAINS
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2634,8 +2632,7 @@ CONTAINS
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2773,12 +2770,12 @@ CONTAINS
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -2896,12 +2893,12 @@ CONTAINS
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 

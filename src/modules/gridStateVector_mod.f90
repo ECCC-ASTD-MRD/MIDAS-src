@@ -1194,26 +1194,21 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
-    integer :: deet, ierr
+    integer :: deet
     integer :: ip2List(statevector%numStep), npasList(statevector%numStep)
     integer :: dateOriginList(statevector%numStep)
     logical :: onPhysicsGrid(vnl_numVarMax)
 
-    call rpn_comm_allreduce(statevector%deet, deet, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%deet, deet, 'MPI_MAX')
     statevector%deet = deet
-    call rpn_comm_allreduce(statevector%ip2List, ip2List, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%ip2List, ip2List, 'MPI_MAX', statevector%numStep)
     statevector%ip2List(:) = ip2List(:)
-    call rpn_comm_allreduce(statevector%npasList, npasList, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%npasList, npasList, 'MPI_MAX', statevector%numStep)
     statevector%npasList(:) = npasList(:)
-    call rpn_comm_allreduce(statevector%dateOriginList, dateOriginList, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%dateOriginList, dateOriginList, 'MPI_MAX', statevector%numStep)
     statevector%dateOriginList(:) = dateOriginList(:)
 
-    call rpn_comm_allreduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), size(onPhysicsGrid),  &
-                            'MPI_LOGICAL', 'MPI_LOR', 'GRID', ierr)
+    call mmpi_allReduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), 'MPI_LOR')
     statevector%onPhysicsGrid(:) = onPhysicsGrid(:)
 
     call msg('gsv_communicateTimeParams', 'deet = '//str(deet) &
@@ -4666,8 +4661,7 @@ module gridStateVector_mod
     else
       inKindLocal = -1
     end if
-    call rpn_comm_allreduce(inKindLocal, inKind, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(inKindLocal, inKind, 'MPI_MAX')
     outKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -4718,7 +4712,7 @@ module gridStateVector_mod
       else
         allZero = .true.
       end if
-      call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+      call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
       if (allZero_mpiglobal) then
         ! Field equal to zero, skipping this varLevIndex to save time
         cycle varLevIndex_Loop
@@ -4957,8 +4951,7 @@ module gridStateVector_mod
     else
       outKindLocal = -1
     end if
-    call rpn_comm_allreduce(outKindLocal, outKind, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(outKindLocal, outKind, 'MPI_MAX')
     inKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -5991,7 +5984,6 @@ module gridStateVector_mod
     real(4), pointer             :: field_r4_ptr(:,:,:,:)
     real(8), pointer             :: field_r8_ptr(:,:,:,:)
     logical                      :: allZero, allZero_mpiglobal
-    integer                      :: ierr
 
     if (.not. stateVector%allocated) then
       stateVectorHasNonZeroValue = .false.
@@ -6006,7 +5998,7 @@ module gridStateVector_mod
       allZero = utl_isEqual(maxval(abs(field_r8_ptr(:,:,:,:))), 0.0D0)
     end if
 
-    call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+    call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
     stateVectorHasNonZeroValue = .not. allZero_mpiglobal
 
   end function gsv_containsNonZeroValues
