@@ -889,7 +889,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj )
 
     ! Locals:
-    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
+    integer :: yourid, nsize, numLonPoints, numLatPoints
     integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
@@ -948,7 +948,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
+    integer :: yourid, nsize, numLonPoints, numLatPoints
     integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)

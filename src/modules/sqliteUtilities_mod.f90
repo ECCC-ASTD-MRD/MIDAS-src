@@ -411,7 +411,7 @@ contains
     integer, optional, intent(in)    :: codeTypeList_opt(:)
 
     ! Locals:
-    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer                :: headerIndex, numHeader, numBody, codeType
     integer, allocatable   :: allNumHeader(:), allNumBody(:)
 
     numHeader = 0

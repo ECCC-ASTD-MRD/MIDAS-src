@@ -1993,7 +1993,7 @@ contains
     character(len=*), intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: ierr, arrayIndex, charIndex, lenString
+    integer :: arrayIndex, charIndex, lenString
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs)
     integer, allocatable :: stringInt(:), stringIntMpi(:)
 

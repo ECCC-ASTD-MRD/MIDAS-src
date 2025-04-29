@@ -853,7 +853,7 @@ contains
     character(len=*), intent(out) :: obsFileType
 
     ! Locals:
-    integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
+    integer :: procID, all_nfiles(0:(mmpi_nprocs-1))
     logical :: fileExists
 
     call mmpi_allGather(obsf_nfiles, all_nfiles)
@@ -1272,7 +1272,6 @@ contains
     integer    :: numHeaders, numBodies
     integer    :: headerIndex, bodyIndex
     integer    :: headerIndexBegin, headerIndexEnd, bodyIndexBegin, bodyIndexEnd
-    integer    :: ierr
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
     integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 

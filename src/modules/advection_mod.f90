@@ -564,7 +564,7 @@ CONTAINS
     real(8), intent(out) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     ! Locals:
-    integer :: stepIndexSF, nsize, ierr 
+    integer :: stepIndexSF, nsize
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
     integer :: lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levIndexBelow, levIndexAbove
@@ -987,7 +987,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
     integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     logical :: gatheringDone
@@ -1093,7 +1093,7 @@ CONTAINS
     real(4), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal(:,:,:)
     integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     logical :: gatheringDone
@@ -1200,7 +1200,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles2(:,:,:,:)
     integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     character(len=4) :: varName
@@ -1457,7 +1457,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal_tiles (:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles2(:,:,:)
     integer :: levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     character(len=4) :: varName
