@@ -1146,7 +1146,8 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(pgd_in, pgd_out, communicator_opt = 'EW')
+      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
+                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1181,7 +1182,8 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mmpi_alltoall(pgd_in_r4, pgd_out_r4, communicator_opt = 'EW')
+      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
+                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
@@ -1317,7 +1319,8 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(pgd_in, pgd_out, communicator_opt = 'EW')
+      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LonToLev,  &
+                        pgd_out, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1352,7 +1355,8 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mmpi_alltoall(pgd_in_r4, pgd_out_r4, communicator_opt = 'EW')
+      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
+                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)

@@ -1492,7 +1492,8 @@ contains
 
     nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_in, gd_out, communicator_opt = 'EW')
+      call mpi_alltoall(gd_in,  1, lst%sendType_LonToLev,  &
+                        gd_out, 1, lst%recvType_LonToLev, mmpi_comm_EW, ierr)
     else
        gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1640,7 +1641,8 @@ contains
 
     nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_in, gd_out, communicator_opt = 'EW')
+      call mpi_alltoall(gd_in,  1, lst%sendType_LevToLon,  &
+                        gd_out, 1, lst%recvType_LevToLon, mmpi_comm_EW, ierr)
     else
       gd_out(:,:,:) = gd_in(:,:,:)
     end if
