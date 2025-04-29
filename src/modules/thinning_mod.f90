@@ -3541,7 +3541,7 @@ contains
     integer,           allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    logical,           allocatable :: valid(:), validMpi(:), validMpi2(:), validMpi3(:)
+    logical,           allocatable :: valid(:), valid2(:), validMpi(:), validMpi2(:), validMpi3(:)
     character(len=20), allocatable :: SWname(:), QIvalue(:), SWDeweight(:)
 
     write(*,*)
@@ -3575,6 +3575,7 @@ contains
 
     ! Allocations:
     allocate(valid(numHeaderMaxMpi))
+    allocate(valid2(numHeaderMaxMpi))
     allocate(quality(numHeaderMaxMpi))
     allocate(obsLatBurpFile(numHeaderMaxMpi))
     allocate(obsLonBurpFile(numHeaderMaxMpi))
@@ -3681,13 +3682,13 @@ contains
       end do LOOP_QI
 
       ! Inflate the QI value if the name of satellite is not in the SWDeweight
-      if (allocated(SWDeweight)) then
-        if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
-          quality(headerIndex) = (quality(headerIndex))*1000
-        end if
-      else
-        quality(headerIndex) = (quality(headerIndex))*1000
-      end if
+      !if (allocated(SWDeweight)) then
+      !  if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
+      !    quality(headerIndex) = quality(headerIndex)*1000
+      !  end if
+      !else
+      !  quality(headerIndex) = quality(headerIndex)*1000
+      !end if
 
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = nullValue
@@ -3795,7 +3796,7 @@ contains
 
           ! only consider obs with high quality
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
-          if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1 ! originally 1-10 before inflation
+          !if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1 ! originally 1-10 before inflation
 
           ! only consider obs from current satellite
           do charIndex = 1, lenStnId
@@ -3845,6 +3846,7 @@ contains
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
 
+    !###############
     ! additional thnning for selected satellites (e.g. GEO-POL)
     if (allocated(SWDeweight)) then
       STNIDLOOP2: do stnIdIndex = 1, numStnId
@@ -3862,6 +3864,9 @@ contains
 
             OBSLOOP4: do obsIndex1 = 1, numHeaderMpi
 
+              ! only consider obs with current layer being considered
+              if (obsLayerIndexMpi(obsIndex1) /= layerIndex) cycle OBSLOOP4
+
               ! only for available AMVs after first thinning
               if (.not. validMpi(obsIndex1)) cycle OBSLOOP4
 
@@ -3871,19 +3876,17 @@ contains
               end do
               if (.not. utl_isInArray(stnId(2:),SWDeweight)) cycle OBSLOOP4
 
-              ! only consider obs with current layer being considered
-              if (obsLayerIndexMpi(obsIndex1) /= layerIndex) cycle OBSLOOP4
-
               write(*,*) 'thn_satWindsByDistance: DEBUG ', stnId(2:), obsIndex1, numHeaderMpi
 
               ! We count the number of observations that are already selected
               skipthisObs = .false.
               OBSLOOP5: do obsIndex2 = 1, numHeaderMpi
 
+                ! only consider obs with current layer being considered
+                if (obsLayerIndexMpi(obsIndex2) /= layerIndex) cycle OBSLOOP4
+
                 ! only works for already selected AMVs
                 if (.not. validMpi(obsIndex2)) cycle OBSLOOP5
-
-                !headerIndex2 = headerIndexSorted(numHeaderMpi-obsIndex2+1)
 
                 ! only consider AMVs not in the SWDeweight
                 do charIndex = 1, lenStnId
@@ -3893,6 +3896,7 @@ contains
                 ! only consider satellites not in SWDeweight
                 if (utl_isInArray(stnId2(2:),SWDeweight)) cycle OBSLOOP5
 
+                ! Calculates the distances between the current data and all other relevant data
                 if ( abs(obsStepIndexMpi(obsIndex1) - &
                          obsStepIndexMpi(obsIndex2) ) < delTemps ) then
                   deltaLat = abs(obsLatBurpFileMpi(obsIndex1) - &
@@ -3910,8 +3914,8 @@ contains
               end do OBSLOOP5
 
               if (skipthisObs) then
-                write(*,*) 'thn_satWindsByDistance: DEBUG skip this obs ', stnId(2:), stnId2(2:), obsIndex1, obsIndex2, validMpi(obsIndex1)
-                !validMpi(obsIndex1) = .false.
+                write(*,*) 'thn_satWindsByDistance: DEBUG skip this obs ', stnId(2:), stnId2(2:), obsIndex1, obsIndex2, validMpi(obsIndex1), validMpi(obsIndex2)
+                validMpi(obsIndex1) = .false.
               end if
 
             end do OBSLOOP4
@@ -3919,17 +3923,34 @@ contains
         end if
       end do STNIDLOOP2
 
-      ! communicate values of validMpi computed on each mpi task (one more)
-      nsize = numHeaderMaxMpi * mmpi_nprocs
-      call rpn_comm_allReduce(validMpi, validMpi3, nsize, 'mpi_logical', &
-                              'mpi_lor','grid',ierr)
-
-      ! Update local copy of valid from global mpi version (one more)
-      headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
-      headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
-      valid(:) = validMpi3(headerIndexBeg:headerIndexEnd)
-
     end if
+    !################
+
+    ! communicate values of validMpi computed on each mpi task (one more)
+    nsize = numHeaderMaxMpi * mmpi_nprocs
+    call rpn_comm_allReduce(validMpi, validMpi3, nsize, 'mpi_logical', &
+                            'mpi_lor','grid',ierr)
+
+    ! DEBUG: compare the arrays and print differences
+    if (mmpi_myid == 0) then
+      do obsIndex1 = 1, numHeaderMpi
+        if (validMpi2(obsIndex1) .neqv. validMpi3(obsIndex1)) then
+          write(*,*) 'thnDEBUG: ', obsIndex1, validMpi2(obsIndex1), validMpi3(obsIndex1)
+        end if
+      end do
+    end if
+
+    ! Update local copy of valid from global mpi version (one more)
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi3(headerIndexBeg:headerIndexEnd)
+
+    ! DEBUG: compare the arrays and print differences (II)
+    !do obsIndex1 = 1, numHeaderMaxMpi
+    !  if (valid(obsIndex1) .neqv. valid2(obsIndex1)) then
+    !    write(*,*) 'thn_valid_DEBUG: ', mmpi_myid, obsIndex1, valid(obsIndex1), valid2(obsIndex1)
+    !  end if
+    !end do
 
     countObs = count(valid)
     call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
@@ -3999,6 +4020,7 @@ contains
 
     ! Deallocations:
     deallocate(valid)
+    deallocate(valid2)
     deallocate(quality)
     deallocate(obsLatBurpFile)
     deallocate(obsLonBurpFile)
