@@ -236,7 +236,7 @@ program midas_adjointTest
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 contains
 

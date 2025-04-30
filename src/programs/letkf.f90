@@ -829,7 +829,7 @@ program midas_letkf
   end if
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
   call msg_memUsage('midas-letkf')
 

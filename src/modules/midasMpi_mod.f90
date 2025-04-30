@@ -41,7 +41,7 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
-  public :: mmpi_send, mmpi_recv, mmpi_sendrecv
+  public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -231,6 +231,24 @@ contains
     write(*,*) ' '
 
   end subroutine mmpi_initialize
+
+  !--------------------------------------------------------------------------
+  ! mmpi_finalize
+  !--------------------------------------------------------------------------
+  subroutine mmpi_finalize
+    !
+    !:Purpose: Finalize the MPI mode to terminate the MPI program gracefully.
+    !
+    implicit none
+
+    ! Locals:
+    integer :: ierr
+
+    call rpn_comm_finalize(ierr)
+
+    call handleMpiError(ierr, 'mmpi_finalize')
+
+  end subroutine mmpi_finalize
 
   !--------------------------------------------------------------------------
   ! mmpi_getptopo

@@ -116,7 +116,7 @@ program midas_analysisErrorOI
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStampFromObs
+  integer :: dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   character(len=*), parameter :: myName = 'analysisErrorOI'
 
@@ -254,6 +254,6 @@ program midas_analysisErrorOI
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 end program midas_analysisErrorOI

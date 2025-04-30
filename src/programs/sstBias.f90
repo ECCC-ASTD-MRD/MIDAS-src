@@ -123,7 +123,7 @@ program midas_sstBias
   implicit none
 
   integer, external :: exdb, exfin, fnom, fclos
-  integer :: ierr, istamp
+  integer :: istamp
 
   type(struct_obs), target    :: obsSpaceData
   type(struct_hco), pointer   :: hco_anl => null()
@@ -174,7 +174,7 @@ program midas_sstBias
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
   contains
 

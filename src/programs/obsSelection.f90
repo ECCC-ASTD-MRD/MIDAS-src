@@ -623,7 +623,7 @@ program midas_obsSelection
   write(*,*) '> midas-obsSelection: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
-  call rpn_comm_finalize(ierr)
+  call mmpi_finalize
 
   call utl_printTime()
   call utl_tmg_stop(0)

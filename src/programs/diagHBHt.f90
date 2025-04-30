@@ -264,7 +264,7 @@ program midas_diagHBHt
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 contains
 
@@ -403,7 +403,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
-    integer :: index_body, local_dimension, jj, ierr, dateprnt, timeprnt, nrandseed, istat
+    integer :: index_body, local_dimension, jj, dateprnt, timeprnt, nrandseed, istat
     integer ,external :: newdate
     real(8) ,external :: gasdev
 

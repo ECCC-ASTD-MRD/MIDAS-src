@@ -167,7 +167,7 @@ program midas_obsImpact
 
   implicit none
 
-  integer :: istamp,exdb,exfin,ierr, dateStampFromObs
+  integer :: istamp,exdb,exfin,dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -366,6 +366,6 @@ program midas_obsImpact
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr)
+  call mmpi_finalize
 
 end program midas_obsImpact 
