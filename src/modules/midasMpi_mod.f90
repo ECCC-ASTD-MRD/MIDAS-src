@@ -91,6 +91,7 @@ module midasMpi_mod
     module procedure mmpi_allReduce_integer8
     module procedure mmpi_allReduce_real4
     module procedure mmpi_allReduce_real8
+    module procedure mmpi_allReduce_scalar_integer
   end interface mmpi_allReduce
 
 contains
@@ -1530,6 +1531,28 @@ contains
     call handleMpiError(ierr, 'mmpi_allReduce_real8')
 
   end subroutine mmpi_allReduce_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_scalar_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allReduce_scalar_integer(localGlobalValue)
+    !
+    !:Purpose: Perform 'mmpi_allReduce' to sum integer values over all
+    !          mpi tasks and copy result back to same variable.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(inout) :: localGlobalValue
+
+    ! Locals:
+    integer :: localValue, globalValue
+
+    localValue = localGlobalValue
+    call mmpi_allReduce(localValue, globalValue, 'mpi_sum')
+    localGlobalValue = globalValue
+
+  end subroutine mmpi_allReduce_scalar_integer
 
   !--------------------------------------------------------------------------
   ! handleCommunicator

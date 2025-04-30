@@ -1020,9 +1020,9 @@ contains
 
     end do HEADER1
 
-    call utl_allReduce(numRemovedDrifter)
-    call utl_allReduce(numRemovedTime)
-    call utl_allReduce(numRemovedCodtyp)
+    call mmpi_allReduce(numRemovedDrifter)
+    call mmpi_allReduce(numRemovedTime)
+    call mmpi_allReduce(numRemovedCodtyp)
 
     ! Read blacklist file
     if (useBlackList) then
@@ -1248,7 +1248,7 @@ contains
 
     write(*,'(a)') ' Number of reports in input file'
     do listIndex = 1, numListCodtyp
-      call utl_allReduce(countObsInPerCodtyp(listIndex))
+      call mmpi_allReduce(countObsInPerCodtyp(listIndex))
       write(*,'(i4,3a,i7)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', countObsInPerCodtyp(listIndex)
     end do
@@ -1256,9 +1256,9 @@ contains
     write(*,*)
     write(*,'(a)') ' Number of elements in input file'
     do listIndex = 1, numListCodtyp
-      call utl_allReduce(numEleInPerCodtyp(listIndex))
-      call utl_allReduce(numBit8InPerCodtyp(listIndex))
-      call utl_allReduce(numBit11InPerCodtyp(listIndex))
+      call mmpi_allReduce(numEleInPerCodtyp(listIndex))
+      call mmpi_allReduce(numBit8InPerCodtyp(listIndex))
+      call mmpi_allReduce(numBit11InPerCodtyp(listIndex))
       write(*,'(i4,3a,i7,a,i7,a,i7,a)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', numEleInPerCodtyp(listIndex), ' (', &
            numBit8InPerCodtyp(listIndex), ' bit 8, ', &
@@ -1268,7 +1268,7 @@ contains
     write(*,*)
     write(*,'(a)') ' Number of reports in output file'
     do listIndex = 1, numListCodtyp
-      call utl_allReduce(countObsOutPerCodtyp(listIndex))
+      call mmpi_allReduce(countObsOutPerCodtyp(listIndex))
       write(*,'(i4,3a,i7)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', countObsOutPerCodtyp(listIndex)
     end do
@@ -1276,9 +1276,9 @@ contains
     write(*,*)
     write(*,'(a)') ' Number of elements in output file'
     do listIndex = 1, numListCodtyp
-      call utl_allReduce(numEleOutPerCodtyp(listIndex))
-      call utl_allReduce(numBit8OutPerCodtyp(listIndex))
-      call utl_allReduce(numBit11OutPerCodtyp(listIndex))
+      call mmpi_allReduce(numEleOutPerCodtyp(listIndex))
+      call mmpi_allReduce(numBit8OutPerCodtyp(listIndex))
+      call mmpi_allReduce(numBit11OutPerCodtyp(listIndex))
       write(*,'(i4,3a,i7,a,i7,a,i7,a)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', numEleOutPerCodtyp(listIndex), ' (', &
            numBit8OutPerCodtyp(listIndex), ' bit 8, ', &
@@ -1286,16 +1286,16 @@ contains
     end do
 
     write(*,*)
-    call utl_allReduce(countObsIn)
-    call utl_allReduce(countObsOut)
+    call mmpi_allReduce(countObsIn)
+    call mmpi_allReduce(countObsOut)
     write(*,'(a,i12)') 'Total number of reports in input file:   ', countObsIn
     write(*,'(a,i12)') 'Total number of reports in output file:  ', countObsOut
-    call utl_allReduce(numEleIn)
-    call utl_allReduce(numBit8In)
-    call utl_allReduce(numBit11In)
-    call utl_allReduce(numEleOut)
-    call utl_allReduce(numBit8Out)
-    call utl_allReduce(numBit11Out)
+    call mmpi_allReduce(numEleIn)
+    call mmpi_allReduce(numBit8In)
+    call mmpi_allReduce(numBit11In)
+    call mmpi_allReduce(numEleOut)
+    call mmpi_allReduce(numBit8Out)
+    call mmpi_allReduce(numBit11Out)
     write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in input file:  ', numEleIn, &
           ' (', numBit8In, ' bit 8, ', numBit11In, ' bit 11)'
     write(*,'(a,i7,a,i7,a,i7,a)') 'Total number of elements in output file: ', numEleOut, &

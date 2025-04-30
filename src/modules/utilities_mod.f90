@@ -30,7 +30,7 @@ module utilities_mod
   public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
+  public :: utl_copyFile, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus
@@ -2861,28 +2861,6 @@ contains
     call utl_tmg_stop(175)
 
   end function utl_copyFile
-
-  !--------------------------------------------------------------------------
-  ! utl_allReduce
-  !--------------------------------------------------------------------------
-  subroutine utl_allReduce(localGlobalValue)
-    !
-    !:Purpose: Perform mpi_allReduce to sum integer values over all
-    !          mpi tasks and copy result back to same variable.
-    !
-    implicit none
-
-    ! Arguments:
-    integer, intent(inout) :: localGlobalValue
-
-    ! Locals:
-    integer :: localValue, globalValue, ierr
-
-    localValue = localGlobalValue
-    call mmpi_allReduce(localValue, globalValue, 'mpi_sum')
-    localGlobalValue = globalValue
-    
-  end subroutine utl_allReduce
 
   !--------------------------------------------------------------------------
   ! utl_findloc_char
