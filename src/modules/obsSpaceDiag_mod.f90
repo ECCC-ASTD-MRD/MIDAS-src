@@ -478,10 +478,10 @@ contains
         call mmpi_allReduce(ivco, ivco_recv, "MPI_MAX")
         ivco = ivco_recv
 
-        call rpn_comm_allreduce(my_counts,counts,maxLat*maxLon*maxVertical,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-        call rpn_comm_allreduce(my_innovStd,innovStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-        if (lpert_static) call rpn_comm_allreduce(my_bmatHiStd,bmatHiStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-        if (lpert_ens) call rpn_comm_allreduce(my_bmatEnStd,bmatEnStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+        call mmpi_allReduce(my_counts, counts, "MPI_SUM", maxLat*maxLon*maxVertical)
+        call mmpi_allReduce(my_innovStd, innovStd, "MPI_SUM", maxLat*maxLon*maxVertical)
+        if (lpert_static) call mmpi_allReduce(my_bmatHiStd, bmatHiStd, "MPI_SUM", maxLat*maxLon*maxVertical)
+        if (lpert_ens) call mmpi_allReduce(my_bmatEnStd, bmatEnStd, "MPI_SUM", maxLat*maxLon*maxVertical)
 
         where (counts > 0) innovStd = sqrt(innovStd/counts)
         if (lpert_static) then
@@ -1491,15 +1491,15 @@ contains
     allocate(nstatus_global(nlat,nlon,nlev,0:2))
     
     ! Reduce from all mpi processes
-    call rpn_comm_allreduce(obs_diagn%OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%OmP_stats, OmP_global, "MPI_SUM", nbin*nstat)
+    call mmpi_allReduce(obs_diagn%OmA_stats, OmA_global, "MPI_SUM", nbin*nstat)
+    call mmpi_allReduce(obs_diagn%obs_stats, obs_global, "MPI_SUM", nbin*nstat)
     call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*(nstat*2+1),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call mmpi_allReduce(obs_diagn%Jpa_stats, Jpa_global, "MPI_SUM", nbin)
-    call rpn_comm_allreduce(obs_diagn%diagR_stats,diagR_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%diagHPHT_stats,diagHPHT_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%diagR_stats, diagR_global, "MPI_SUM", nbin*3)
+    call mmpi_allReduce(obs_diagn%diagHPHT_stats, diagHPHT_global, "MPI_SUM", nbin*3)
     call mmpi_allReduce(obs_diagn%counts, counts_global, "MPI_SUM", nbin)
-    call rpn_comm_allreduce(obs_diagn%nstatus,nstatus_global,nbin*3,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%nstatus, nstatus_global, "MPI_SUM", nbin*3)
     call mmpi_allReduce(obs_diagn%assim_mode, assim_global, "MPI_LOR")
 
     ! save in struct_osd_diagn

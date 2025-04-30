@@ -2482,9 +2482,9 @@ module obsSpaceErrorStdDev_mod
                   
       ! Combine from all processors
 
-      call rpn_comm_allreduce(nSeries,nSeriest,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_INTEGER","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(sumOmP2d,sumOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(sumSqrOmP2d,sumSqrOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call mmpi_allReduce(nSeries, nSeriest, "MPI_SUM", OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex))
+      call mmpi_allReduce(sumOmP2d, sumOmP2dt, "MPI_SUM", OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex))
+      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, "MPI_SUM", OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex))
       
       if (any(nSeriest > 5*minCount)) then
       

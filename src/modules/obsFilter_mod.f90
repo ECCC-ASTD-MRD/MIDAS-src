@@ -382,7 +382,7 @@ contains
 
     end do body
 
-    call rpn_comm_allreduce( iknt, iknt_mpiglobal, 1, "MPI_INTEGER", "MPI_SUM", "GRID", ierr )
+    call mmpi_allReduce(iknt, iknt_mpiglobal, "MPI_SUM")
     if(mmpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
 
     if(mmpi_myid == 0) write(*,*) 'end of filt_suprep'
