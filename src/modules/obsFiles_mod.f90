@@ -1065,7 +1065,7 @@ contains
     integer :: nrep_modified    ! Number of modified reports
 
     ! Locals:
-    integer :: ierr,nrep_modified_global
+    integer :: nrep_modified_global
     character(len=maxLengthFilename) :: filename
     logical                          :: fileFound
     character(len=fileTypeLen)       :: obsFileType

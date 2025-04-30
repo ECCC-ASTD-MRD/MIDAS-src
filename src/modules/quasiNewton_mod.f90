@@ -348,7 +348,7 @@ module quasiNewton_mod
 !     variables locales
 !     
       logical inmemo,sscale
-      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal,ierr
+      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal
       integer m_max
       real(8) d1,d2,ps
 !     
@@ -529,7 +529,7 @@ module quasiNewton_mod
 !         variables locales
 !
       logical sscale,cold,warm
-      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax,ntotal
+      integer i,itmax,moderl,isim,jcour,indic,impresmax,ntotal
       real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
@@ -984,7 +984,7 @@ module quasiNewton_mod
 ! --- variables locales
 !
       logical lfound,lfound2
-      integer i,indic,indica,indicd,ierr,ntotal
+      integer i,indic,indica,indicd,ntotal
       real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !

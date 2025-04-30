@@ -10,6 +10,7 @@ module sqliteFiles_mod
   use obsSpaceData_mod
   use fSQLite
   use utilities_mod
+  use midasMpi_mod
   use codePrecision_mod
   use obsUtil_mod
   use obsVariableTransforms_mod

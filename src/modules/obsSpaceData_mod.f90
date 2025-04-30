@@ -4063,7 +4063,7 @@ contains
       type(struct_obs), intent(in)  :: obsdat
 
       ! Locals:
-      integer :: numBody_mpiGlobal, sizedata, ierr
+      integer :: numBody_mpiGlobal, sizedata
 
       if(obsdat%mpi_local)then
          sizedata=1
@@ -4119,7 +4119,7 @@ contains
       type(struct_obs) , intent(in)  :: obsdat
 
       ! Locals:
-      integer :: numHeader_mpiGlobal, sizedata, ierr
+      integer :: numHeader_mpiGlobal, sizedata
 
       if(obsdat%mpi_local)then
          sizedata=1
@@ -5878,7 +5878,7 @@ contains
      logical                                :: obs_famExist  ! Logical indicating if 'family' is part of the list
 
      ! Locals:
-     integer :: index_header,ierr
+     integer :: index_header
      logical :: famExist,local
 
      if (present(localMPI_opt)) then

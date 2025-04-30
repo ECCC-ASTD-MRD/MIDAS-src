@@ -83,7 +83,7 @@ CONTAINS
 
     ! Locals:
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, maxMyNla
-    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount, ierr
+    integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
 
     if (verbose) write(*,*) 'Entering lsp_Setup'
 
@@ -321,7 +321,7 @@ CONTAINS
     real(8) :: sp_mpiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: sp_mympiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: zgd_gst(lsp%myLonBeg:lsp%myLonEnd,lsp%myLatBeg:lsp%myLatEnd,lsp%nLev)
-    integer :: nIndex,latIndex,lonIndex,levIndex,nsize,ierr
+    integer :: nIndex,latIndex,lonIndex,levIndex,nsize
     integer :: ila_mpiglobal,jla_mpilocal,gstID2
 
     if (local_length(1).gt.0.0d0) then
@@ -1401,7 +1401,7 @@ CONTAINS
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
-    integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
+    integer :: mIndex, nIndex, jproc, memberIndex, levIndex, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal'
     call lsp_check(lsp)
@@ -1628,7 +1628,7 @@ CONTAINS
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
-    integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
+    integer :: mIndex, nIndex, jproc, memberIndex, levIndex, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal_r4'
     call lsp_check(lsp)

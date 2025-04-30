@@ -44,7 +44,7 @@ contains
 
     ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
     character(len=256)   :: formatspec, formatspec2

@@ -322,7 +322,7 @@ module sstBias_mod
         do lonIndex = 1, hco%ni 
           ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
           call mmpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
-          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), 1, ndataFoundGridGlob(lonIndex)
+          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), ndataFoundGridGlob(lonIndex, latIndex), 'mpi_sum')
           if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
             obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
                                           real(ndataFoundGridGlob(lonIndex, latIndex))

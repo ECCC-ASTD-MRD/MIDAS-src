@@ -693,7 +693,7 @@ module var1DIdealize_mod
     integer                         :: bodyIndexBeg, bodyIndexEnd, idatyp, obsIndex
     real(8)                         :: meanErrHx, stddevErrHx
     logical                         :: bgckMode, beSilent, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
-    integer                         :: ierr, randomSeed, sampleIndex
+    integer                         :: randomSeed, sampleIndex
     real                            :: columnValue
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
