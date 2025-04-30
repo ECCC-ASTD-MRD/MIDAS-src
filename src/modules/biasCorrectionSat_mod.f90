@@ -1087,7 +1087,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
       if (ierr /=0) then
         write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
@@ -1217,7 +1217,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
       if (ierr /=0) then
         write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
@@ -2948,7 +2948,7 @@ contains
       if (mimicSatbcor) then
         call mmpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       end if
-      call rpn_comm_reduce(OmFCount, omfCountMpiGlobal, size(omfCountMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(OmFCount, omfCountMpiGlobal, "MPI_SUM")
 
       if (ierr /= 0) then
         write(errorMessage,*) "bcs_do_regression: MPI communication error 2", ierr 
@@ -3193,7 +3193,7 @@ contains
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
 
-      call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(count, countMpiGlobal, "MPI_SUM")
       if (ierr /= 0) then
         write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
         call utl_abort(errorMessage)

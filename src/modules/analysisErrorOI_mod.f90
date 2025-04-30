@@ -912,7 +912,6 @@ contains
     logical :: found
     real(8) :: interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr
     integer :: numBodyMax, allNumBody(mmpi_nprocs)
     real(8), allocatable :: allObsOer(:,:), obsOer(:), iceScaling(:), allIceScaling(:,:), anlErrorStdDevMpiGlobal(:,:,:,:)
 
@@ -1299,8 +1298,7 @@ contains
     if (mmpi_nprocs > 1) then
       write(*,*) 'aer_computeAnlErrorStd: do mpi communication of anlErrorStdDev'
       allocate(anlErrorStdDevMpiGlobal(ni,nj,numStep,numLev))
-      call rpn_comm_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal,  &
-                           size(anlErrorStdDev_ptr), "mpi_real8", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal, "MPI_SUM")
       anlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDevMpiGlobal(:,:,:,:)
       deallocate(anlErrorStdDevMpiGlobal)
     end if

@@ -721,7 +721,7 @@ contains
     real(8)           :: weight
     integer           :: k1, k2, ens, e, ila, p, k, totwvnb
     integer           :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    integer           :: nSize, ier
+    integer           :: nSize
     character(len=24) :: kind
 
     write(*,*)
@@ -800,12 +800,12 @@ contains
     ! Gather the all the info in processor 0
     SpVertCorrel(:,:,:) = 0.d0
     nSize = bhi%nVarLev * bhi%nVarLev * (nTrunc + 1)
-    call rpn_comm_reduce(SpVertCorrel_local,SpVertCorrel,nsize,"mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, "mpi_sum", nsize)
 
     allocate(SumWeight(0:nTrunc))
     SumWeight(:) = 0.d0
     nSize = nTrunc + 1
-    call rpn_comm_reduce(SumWeight_local,   SumWeight,   nsize,"mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call mmpi_reduce(SumWeight_local, SumWeight, "mpi_sum", nsize)
 
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
@@ -1305,7 +1305,7 @@ contains
 
     !- Communication
     nSize = bhi%nVarLev * bhi%nVarLev
-    call rpn_comm_reduce(vertCorrel_local,vertCorrel,nsize,"mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call mmpi_reduce(vertCorrel_local, vertCorrel, "mpi_sum", nsize)
 
     deallocate(vertCorrel_local)
 

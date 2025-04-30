@@ -40,7 +40,7 @@ module midasMpi_mod
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
-  public :: mmpi_allReduce, mmpi_gatherv
+  public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -102,6 +102,12 @@ module midasMpi_mod
     module procedure mmpi_gatherv_real4
     module procedure mmpi_gatherv_real8
   end interface mmpi_gatherv
+
+  ! general interface for rpn_comm_reduce
+  interface mmpi_reduce
+    module procedure mmpi_reduce_integer
+    module procedure mmpi_reduce_real8
+  end interface mmpi_reduce
 
 contains
 
@@ -1674,6 +1680,62 @@ contains
     call handleMpiError(ierr, 'mmpi_gatherv_real8')
 
   end subroutine mmpi_gatherv_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_reduce_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_reduce_integer(sending, receiving, oper, length_opt, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_reduce' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+    integer, optional,   intent(in)  :: procID_opt
+
+    ! Locals:
+    integer :: ierr, length, procID
+
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
+
+    call rpn_comm_reduce(sending, receiving, length, 'mpi_integer', oper, &
+                         procID, mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_reduce_integer')
+
+  end subroutine mmpi_reduce_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_reduce_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_reduce_real8(sending, receiving, oper, length_opt, procID_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_reduce' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    character(len=*),    intent(in)  :: oper
+    integer, optional,   intent(in)  :: length_opt
+    integer, optional,   intent(in)  :: procID_opt
+
+    ! Locals:
+    integer :: ierr, length, procID
+
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(sending), size(sending))
+
+    call rpn_comm_reduce(sending, receiving, length, 'mpi_real8', oper, &
+                         procID, mmpi_communicator_grid, ierr)
+
+    call handleMpiError(ierr, 'mmpi_reduce_real8')
+
+  end subroutine mmpi_reduce_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator
