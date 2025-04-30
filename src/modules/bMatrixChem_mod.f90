@@ -680,7 +680,7 @@ module bMatrixChem_mod
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
@@ -794,9 +794,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_double_precision", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
 
     !- End
     deallocate(displs)
@@ -826,7 +824,7 @@ module bMatrixChem_mod
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
@@ -940,9 +938,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_real4", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
 
     !- End
     deallocate(displs)

@@ -1266,7 +1266,7 @@ contains
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
-    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+    integer :: nlaMax, cvDim_maxmpilocal, jproc
 
     call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
@@ -1355,14 +1355,11 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                           cv_mpiLocal      , cvDim , "mpi_double_precision", &
-                           0, "GRID", ier)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim)
 
-   deallocate(displs) 
-   deallocate(cv_allMaxMpiLocal)
-   deallocate(cvDim_allMpiLocal)
-
+    deallocate(displs)
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
 
   END SUBROUTINE lbhi_reduceToMPILocal
 
@@ -1382,7 +1379,7 @@ contains
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
-    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+    integer :: nlaMax, cvDim_maxmpilocal, jproc
 
     call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
@@ -1471,14 +1468,11 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                           cv_mpiLocal      , cvDim , "mpi_real4", &
-                           0, "GRID", ier)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim)
 
-   deallocate(displs) 
-   deallocate(cv_allMaxMpiLocal)
-   deallocate(cvDim_allMpiLocal)
-
+    deallocate(displs)
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
 
   END SUBROUTINE lbhi_reduceToMPILocal_r4
 

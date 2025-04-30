@@ -963,7 +963,7 @@ CONTAINS
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jproc, cvDim_maxmpilocal
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpilocal, ila_mpiglobal
-    integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
+    integer :: mIndex, nIndex, memberIndex, levIndex, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal'
     call lsp_check(lsp)
@@ -1152,9 +1152,7 @@ CONTAINS
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                           cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_double_precision", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, lsp%cvDim_mpiLocal)
 
     deallocate(displs) 
     deallocate(cv_allMaxMpiLocal)
@@ -1182,7 +1180,7 @@ CONTAINS
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jproc, cvDim_maxmpilocal
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpilocal, ila_mpiglobal
-    integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
+    integer :: mIndex, nIndex, memberIndex, levIndex, p, nlaMax
 
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
     call lsp_check(lsp)
@@ -1371,9 +1369,7 @@ CONTAINS
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                           cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_real4", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, lsp%cvDim_mpiLocal)
 
     deallocate(displs) 
     deallocate(cv_allMaxMpiLocal)

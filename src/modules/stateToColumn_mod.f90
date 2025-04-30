@@ -2045,9 +2045,7 @@ contains
             displs(procIndex) = (procIndex - 1) * numHeaderMax
             nsizes(procIndex) = allNumHeader(procIndex)
           end do
-          call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
-                                 cols_recv, nsize, 'MPI_REAL8', &
-                                 0, 'GRID', ierr)
+          call mmpi_scatterv(cols_send, cols_recv, nsizes, displs, nsize)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if

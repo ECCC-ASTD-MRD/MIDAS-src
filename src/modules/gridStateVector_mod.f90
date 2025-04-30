@@ -3293,7 +3293,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
-    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
+    integer :: youridx, youridy, yourid, nsize, maxkcount
     integer :: sendrecvKind, inKind, outKind, stepIndex
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -3490,9 +3490,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_height, nsize, 'mpi_double_precision', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -4187,9 +4185,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_height, nsize, 'mpi_double_precision', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -4839,9 +4835,7 @@ module gridStateVector_mod
         displs(procIndex) = (procIndex-1)*nsize
         nsizes(procIndex) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_real8', &
-                             gd_recv_height, nsize, 'mpi_real8', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
 
       stateVector_tiles%HeightSfc(&
                 stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &

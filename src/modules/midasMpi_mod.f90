@@ -40,7 +40,7 @@ module midasMpi_mod
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
-  public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce
+  public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -108,6 +108,12 @@ module midasMpi_mod
     module procedure mmpi_reduce_integer
     module procedure mmpi_reduce_real8
   end interface mmpi_reduce
+
+  ! general interface for rpn_comm_scatterv
+  interface mmpi_scatterv
+    module procedure mmpi_scatterv_real4
+    module procedure mmpi_scatterv_real8
+  end interface mmpi_scatterv
 
 contains
 
@@ -1736,6 +1742,62 @@ contains
     call handleMpiError(ierr, 'mmpi_reduce_real8')
 
   end subroutine mmpi_reduce_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_scatterv_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_scatterv_real4(sending, receiving, allLengths, displacements, length)
+    !
+    !:Purpose: Calling 'rpn_comm_scatterv' for a real4 scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_scatterv(sending,   allLengths, displacements, 'mpi_real4', &
+                           receiving, length,                    'mpi_real4', &
+                           procID, mmpi_communicator_grid, ierr )
+
+    call handleMpiError(ierr, 'mmpi_scatterv_real4')
+
+  end subroutine mmpi_scatterv_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_scatterv_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_scatterv_real8(sending, receiving, allLengths, displacements, length)
+    !
+    !:Purpose: Calling 'rpn_comm_scatterv' for a real8 scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+    integer,             intent(in)  :: allLengths(:)
+    integer,             intent(in)  :: displacements(:)
+
+    ! Locals:
+    integer :: ierr
+    integer, parameter :: procID = 0
+
+    call rpn_comm_scatterv(sending,   allLengths, displacements, 'mpi_real8', &
+                           receiving, length,                    'mpi_real8', &
+                           procID, mmpi_communicator_grid, ierr )
+
+    call handleMpiError(ierr, 'mmpi_scatterv_real8')
+
+  end subroutine mmpi_scatterv_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator
