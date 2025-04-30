@@ -953,8 +953,7 @@ contains
     integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
     integer :: globalDumpedIndex, countDumpedOut
     integer :: columnIndex, headerIndex
-    integer :: taskIndex, dumpedIndex
-    integer :: tag, status
+    integer :: tag, taskIndex, dumpedIndex
     integer :: numstep, numVarLev, landSea
     integer, external ::  fnom, fclos, newdate
     integer              :: obsOffset(0:mmpi_nprocs-1)
@@ -1053,10 +1052,10 @@ contains
         end if
         do taskIndex = 1,  mmpi_nprocs - 1
           tag = 3 * taskIndex
-          call rpn_comm_recv(latitude, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
-          call rpn_comm_recv(longitude, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr)
+          call mmpi_recv(latitude,  tag  , taskIndex)
+          call mmpi_recv(longitude, tag+1, taskIndex)
           if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
-            call rpn_comm_recv(tempoBmatrix(:,:), numVarLev*numVarLev, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr)
+            call mmpi_recv(tempoBmatrix(:,:), tag+2, taskIndex, numVarLev*numVarLev)
             globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
             outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
             outLats(globalDumpedIndex) = latitude

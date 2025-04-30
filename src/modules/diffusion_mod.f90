@@ -661,7 +661,7 @@ contains
         recvTag = (mmpi_myidx + 1)*10000 + (mmpi_myidx)
         if (mmpi_myidx == 0) then
           ! western-most tile only recv
-          call rpn_comm_recv( recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, "EW", status, ierr )
+          call mmpi_recv(recvBufLat, recvTag, recvFromPE, latPerPE, "EW")
           xlast(myLonEnd+1,myLatBeg:myLatEnd) = recvBufLat(:)
         else if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only send
@@ -685,7 +685,7 @@ contains
         recvTag = (mmpi_myidx - 1)*10000 + (mmpi_myidx)
         if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only recv
-          call rpn_comm_recv( recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, "EW", status, ierr )
+          call mmpi_recv(recvBufLat, recvTag, recvFromPE, latPerPE, "EW")
           xlast(myLonBeg-1,myLatBeg:myLatEnd) = recvBufLat(:)
         else if (mmpi_myidx == 0) then
           ! western-most tile only send
@@ -709,7 +709,7 @@ contains
         recvTag = (mmpi_myidy + 1)*10000 + (mmpi_myidy)
         if (mmpi_myidy == 0) then
           ! southern-most tile only recv
-          call rpn_comm_recv( recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, "NS", status, ierr )
+          call mmpi_recv(recvBufLon, recvTag, recvFromPE, lonPerPE, "NS")
           xlast(myLonBeg:myLonEnd,myLatEnd+1) = recvBufLon(:)
         else if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only send
@@ -733,7 +733,7 @@ contains
         recvTag = (mmpi_myidy - 1)*10000 + (mmpi_myidy)
         if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only recv
-          call rpn_comm_recv( recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, "NS", status, ierr )
+          call mmpi_recv(recvBufLon, recvTag, recvFromPE, lonPerPE, "NS")
           xlast(myLonBeg:myLonEnd,myLatBeg-1) = recvBufLon(:)
         else if (mmpi_myidy == 0) then
           ! southern-most tile only send

@@ -504,8 +504,7 @@ contains
     integer              :: headerIndex, bodyIndex, sensorIndex, taskIndex, chanIndex
     integer              :: channelNumber, channelIndex
     integer              :: idata, idatend, idatyp
-    integer              :: ierr, assimChan
-    integer              :: tag, status
+    integer              :: assimChan, tag
     integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:)
     real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:)
     real(8), allocatable :: obsErrSqrdSum(:,:)
@@ -681,8 +680,7 @@ contains
         do taskIndex = 1, mmpi_nprocs - 1
           allocate(localRmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
           tag = taskIndex
-          call rpn_comm_recv(localRmat,  tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                             'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
+          call mmpi_recv(localRmat, tag, taskIndex, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
           ObsErrSqrdMat(sensorIndex)%Rmat(:,:) = ObsErrSqrdMat(sensorIndex)%Rmat(:,:) + localRmat
           deallocate(localRmat)
         end do

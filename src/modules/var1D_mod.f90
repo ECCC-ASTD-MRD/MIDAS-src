@@ -110,7 +110,7 @@ contains
     real(8), pointer :: myColumn(:), myField(:,:,:)
     real(8), allocatable :: localColumn(:)
     real(8), allocatable, target :: dummy(:)
-    integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr, status
+    integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr
     real(8) :: lat, lon
     integer :: varDim, tag
 
@@ -168,8 +168,8 @@ contains
       if (mmpi_myId == 0) then
         do taskIndex = 1,  mmpi_nprocs - 1
           tag = 2 * taskIndex
-          call rpn_comm_recv( lat, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
-          call rpn_comm_recv( lon, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr )
+          call mmpi_recv(lat, tag  , taskIndex)
+          call mmpi_recv(lon, tag+1, taskIndex)
           if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then 
             globalObsIndex = obsIndex + obsOffset(taskIndex)
             hco_yGrid%lat2d_4(1, globalObsIndex) = lat
@@ -213,7 +213,7 @@ contains
         if (mmpi_myId == 0) then
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
-            call rpn_comm_recv(localColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
+            call mmpi_recv(localColumn, tag, taskIndex, varDim)
             if (all( localColumn /=  MPC_missingValue_R8)) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
               myField(1, globalObsIndex, :) = localColumn(:)
