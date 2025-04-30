@@ -1065,10 +1065,10 @@ contains
         end do
       else
         tag = 3 * mmpi_myID
-        call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
-        call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
+        call mmpi_send(latitude,  tag  )
+        call mmpi_send(longitude, tag+1)
         if (columnIndex > 0) then
-          call rpn_comm_send(bEns(columnIndex, :, :), numVarLev*numVarLev, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
+          call mmpi_send(bEns(columnIndex,:,:), tag+2, numVarLev*numVarLev)
         end if
       end if
     end do

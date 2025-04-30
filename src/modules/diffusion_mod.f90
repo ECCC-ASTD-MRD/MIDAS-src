@@ -23,6 +23,7 @@ module diffusion_mod
   use earthConstants_mod
   use randomNumber_mod
   use utilities_mod
+  use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
 
@@ -665,7 +666,7 @@ contains
         else if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only send
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
-          call rpn_comm_send( sendBufLat, latPerPE, "mpi_real8", sendToPE, sendTag, "EW", ierr )
+          call mmpi_send(sendBufLat, sendTag, latPerPE, sendToPE, "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
@@ -689,7 +690,7 @@ contains
         else if (mmpi_myidx == 0) then
           ! western-most tile only send
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
-          call rpn_comm_send( sendBufLat, latPerPE, "mpi_real8", sendToPE, sendTag, "EW", ierr )
+          call mmpi_send(sendBufLat, sendTag, latPerPE, sendToPE, "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
@@ -713,7 +714,7 @@ contains
         else if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
-          call rpn_comm_send( sendBufLon, lonPerPE, "mpi_real8", sendToPE, sendTag, "NS", ierr )
+          call mmpi_send(sendBufLon, sendTag, lonPerPE, sendToPE, "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
@@ -737,7 +738,7 @@ contains
         else if (mmpi_myidy == 0) then
           ! southern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
-          call rpn_comm_send( sendBufLon, lonPerPE, "mpi_real8", sendToPE, sendTag, "NS", ierr )
+          call mmpi_send(sendBufLon, sendTag, lonPerPE, sendToPE, "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)

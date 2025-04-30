@@ -672,8 +672,7 @@ contains
       ! Send ObsErrSqrdMat from all MPI tasks to MPI task 0.
       if (mmpi_myid > 0) then 
         tag = mmpi_myId
-        call rpn_comm_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                          'mpi_real8', 0, tag, 'GRID', ierr )
+        call mmpi_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tag, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
       end if
 
       if (mmpi_myid == 0) then 

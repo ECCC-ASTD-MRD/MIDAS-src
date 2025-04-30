@@ -161,8 +161,8 @@ contains
         end if
       else
         tag = 2 * mmpi_myID
-        call rpn_comm_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
-        call rpn_comm_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
+        call mmpi_send(lat, tag  )
+        call mmpi_send(lon, tag+1)
       end if
 
       if (mmpi_myId == 0) then
@@ -207,7 +207,7 @@ contains
           end if
         else
           tag = mmpi_myId
-          call rpn_comm_send(myColumn , varDim, 'mpi_real8', 0, tag, 'GRID', ierr )
+          call mmpi_send(myColumn, tag, varDim)
         end if
 
         if (mmpi_myId == 0) then

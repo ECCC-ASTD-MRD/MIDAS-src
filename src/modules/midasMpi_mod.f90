@@ -41,6 +41,7 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
+  public :: mmpi_send
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -114,6 +115,11 @@ module midasMpi_mod
     module procedure mmpi_scatterv_real4
     module procedure mmpi_scatterv_real8
   end interface mmpi_scatterv
+
+  ! general interface for rpn_comm_send
+  interface mmpi_send
+    module procedure mmpi_send_real8
+  end interface mmpi_send
 
 contains
 
@@ -1798,6 +1804,35 @@ contains
     call handleMpiError(ierr, 'mmpi_scatterv_real8')
 
   end subroutine mmpi_scatterv_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_send_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_send_real8(data, tag, length_opt, procID_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_send' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in) :: data(..)
+    integer,             intent(in) :: tag
+    integer, optional,   intent(in) :: length_opt
+    integer, optional,   intent(in) :: procID_opt
+    character(len=*), optional, intent(in) :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length, procID
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLengthProcID(length_opt, procID_opt, length, procID, rank(data), size(data))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_send(data, length, 'mpi_real8', procID, tag, communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_send_real8')
+
+  end subroutine mmpi_send_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator
