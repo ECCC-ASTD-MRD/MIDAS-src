@@ -41,7 +41,7 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
-  public :: mmpi_send, mmpi_recv
+  public :: mmpi_send, mmpi_recv, mmpi_sendrecv
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -125,6 +125,11 @@ module midasMpi_mod
   interface mmpi_recv
     module procedure mmpi_recv_real8
   end interface mmpi_recv
+
+  ! general interface for rpn_comm_sendrecv
+  interface mmpi_sendrecv
+    module procedure mmpi_sendrecv_real8
+  end interface mmpi_sendrecv
 
 contains
 
@@ -1868,6 +1873,42 @@ contains
     call handleMpiError(ierr, 'mmpi_recv_real8')
 
   end subroutine mmpi_recv_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_sendrecv_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_sendrecv_real8(sending,   sendProcID, sendTag, &
+                                 receiving, recvProcID, recvTag, &
+                                 length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_sendrecv' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: sendProcID
+    integer,             intent(in)  :: recvProcID
+    integer,             intent(in)  :: sendTag
+    integer,             intent(in)  :: recvTag
+    integer, optional,   intent(in)  :: length_opt
+    character(len=*), optional, intent(in) :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, length
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
+    call handleCommunicator(communicator_opt, communicator)
+
+    call rpn_comm_sendrecv(sending,   length, 'mpi_real8', sendProcID, sendTag, &
+                           receiving, length, 'mpi_real8', recvProcID, recvTag, &
+                           communicator, MPI_STATUS_IGNORE, ierr)
+
+    call handleMpiError(ierr, 'mmpi_sendrecv_real8')
+
+  end subroutine mmpi_sendrecv_real8
 
   !--------------------------------------------------------------------------
   ! handleCommunicator

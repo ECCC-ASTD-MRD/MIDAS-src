@@ -619,7 +619,7 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: myLonBegNoB, myLonEndNoB, myLatBegNoB, myLatEndNoB
     integer :: lonPerPE, latPerPE
-    integer :: sendToPE, recvFromPE, sendTag, recvTag, status, ierr
+    integer :: sendToPE, recvFromPE, sendTag, recvTag
     real(8) :: xhalo( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8), allocatable :: sendBufLon(:), recvBufLon(:), sendBufLat(:), recvBufLat(:)
@@ -670,9 +670,9 @@ contains
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
-          call rpn_comm_sendrecv( sendBufLat, latPerPE, "mpi_real8", sendToPE,   sendTag, &
-                                  recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, &
-                                  "EW", status, ierr )
+          call mmpi_sendrecv(sendBufLat, sendToPE,   sendTag, &
+                             recvBufLat, recvFromPE, recvTag, &
+                             latPerPE, "EW")
           xlast(myLonEnd+1,myLatBeg:myLatEnd) = recvBufLat(:)
         end if
       end if
@@ -694,9 +694,9 @@ contains
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
-          call rpn_comm_sendrecv( sendBufLat, latPerPE, "mpi_real8", sendToPE,   sendTag, &
-                                  recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, &
-                                  "EW", status, ierr )
+          call mmpi_sendrecv(sendBufLat, sendToPE,   sendTag, &
+                             recvBufLat, recvFromPE, recvTag, &
+                             latPerPE, "EW")
           xlast(myLonBeg-1,myLatBeg:myLatEnd) = recvBufLat(:)
         end if
       end if
@@ -718,9 +718,9 @@ contains
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
-          call rpn_comm_sendrecv( sendBufLon, lonPerPE, "mpi_real8", sendToPE,   sendTag, &
-                                  recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, &
-                                  "NS", status, ierr )
+          call mmpi_sendrecv(sendBufLon, sendToPE,   sendTag, &
+                             recvBufLon, recvFromPE, recvTag, &
+                             lonPerPE, "NS")
           xlast(myLonBeg:myLonEnd,myLatEnd+1) = recvBufLon(:)
         end if
       end if
@@ -742,9 +742,9 @@ contains
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
-          call rpn_comm_sendrecv( sendBufLon, lonPerPE, "mpi_real8", sendToPE,   sendTag, &
-                                  recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, &
-                                  "NS", status, ierr )
+          call mmpi_sendrecv(sendBufLon, sendToPE,   sendTag, &
+                             recvBufLon, recvFromPE, recvTag, &
+                             lonPerPE, "NS")
           xlast(myLonBeg:myLonEnd,myLatBeg-1) = recvBufLon(:)
         end if
       end if
