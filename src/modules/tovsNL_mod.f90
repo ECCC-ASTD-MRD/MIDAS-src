@@ -1143,6 +1143,10 @@ contains
         tempocsatid = 'himawari' // trim(tvs_satelliteName(sensorIndex) (7:15))
       else if ( tvs_satelliteName(sensorIndex) == 'FY-3C'  ) then
         TEMPOCSATID = 'FY3-3'
+      else if ( tvs_satelliteName(sensorIndex) == 'FY-3D'  ) then
+        TEMPOCSATID = 'FY3-4'
+      else if ( tvs_satelliteName(sensorIndex) == 'FY-3E'  ) then
+        TEMPOCSATID = 'FY3-5'
       else
         call up2low(tvs_satelliteName(sensorIndex),tempocsatid)
       end if

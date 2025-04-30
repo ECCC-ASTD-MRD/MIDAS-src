@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Small modifications are included to enable handling observations from the mwhs2 FY3-D and FY3-E within the assimilation system (#1029 and !974) 
  * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
 
 ### Changed

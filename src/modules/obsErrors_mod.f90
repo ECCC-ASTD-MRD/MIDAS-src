@@ -427,6 +427,12 @@ contains
       if (CPLATF == 'FY-3C') THEN 
          CPLATF = 'FY3-3'
          CINSTR = 'MWHS2'
+      else if (CPLATF == 'FY-3D') THEN
+         CPLATF = 'FY3-4'
+         CINSTR = 'MWHS2'
+      else if (CPLATF == 'FY-3E') THEN
+         CPLATF = 'FY3-5'
+         CINSTR = 'MWHS2'
       end if
 
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)

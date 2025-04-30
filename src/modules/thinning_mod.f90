@@ -5189,7 +5189,7 @@ contains
                countObs, countObsMpi
 
     ! Remove RARS obs that are also present from a global originating centre
-    call thn_removeRarsDuplicates(obsdat, valid, rarsDetectionCriterium)
+    call thn_removeRarsDuplicates(trim(instrumName),obsdat, valid, rarsDetectionCriterium)
 
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
@@ -5591,13 +5591,14 @@ contains
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
-  subroutine thn_removeRarsDuplicates(obsdat, valid, rarsDetectionCriterium)
+  subroutine thn_removeRarsDuplicates(instrumName, obsdat, valid, rarsDetectionCriterium)
     !
     ! :Purpose: Remove duplicate TOVS observations due to RARS.
     !
     implicit none
 
     ! Arguments:
+    character(len=*), intent(in)    :: instrumName
     type(struct_obs), intent(inout) :: obsdat
     logical,          intent(inout) :: valid(:)
     character(len=*), intent(in)    :: rarsDetectionCriterium
@@ -5623,12 +5624,18 @@ contains
     real(kdkind)                      :: refPosition(3)
     real(kdkind), allocatable         :: obsPosition3d(:,:)
     real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
-    integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
+    integer, parameter :: centreOrigGlobal_amsu(3)=(/53, 74, 160/)
+    integer, parameter :: centreOrigGlobal_mwhs2(3)=(/39, 74, 160/)
+    integer            :: centreOrigGlobal(3)
     integer, external  :: newdate
 
-
     write(*,*) 'thn_removeRarsDuplicates: start'
-
+ 
+    centreOrigGlobal = centreOrigGlobal_amsu
+    if (trim(instrumName) == "mwhs2") then
+      centreOrigGlobal = centreOrigGlobal_mwhs2
+    end if
+    !
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
