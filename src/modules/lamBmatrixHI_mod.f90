@@ -219,7 +219,7 @@ contains
     cvDim_out = cvDim
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ier)
+    call mmpi_allReduce(cvDim, cvDim_mpiglobal, "mpi_sum")
 
     !- 2.3 Initialized the Wind spectral transform
     if ( trim(WindTransform) == 'VortDiv' ) then
@@ -1268,14 +1268,13 @@ contains
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
-    call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
-         1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1385,14 +1384,13 @@ contains
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
-    call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
-         1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1501,7 +1499,7 @@ contains
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
-    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+    integer :: nlaMax, cvDim_maxmpilocal, jproc
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -1509,7 +1507,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1531,7 +1529,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1618,7 +1616,7 @@ contains
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
-    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+    integer :: nlaMax, cvDim_maxmpilocal, jproc
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -1626,7 +1624,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1648,7 +1646,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))

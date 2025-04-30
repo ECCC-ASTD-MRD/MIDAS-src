@@ -112,7 +112,7 @@ contains
     integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kref, mref, nref
     integer                         :: m, n, k, kMax, ila, nfact_lon, nfact_lat
-    integer                         :: ier, ilaglb, i, j, p
+    integer                         :: ilaglb, i, j, p
     real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq, r
     real(8)                         :: NormFactor1, NormFactor2, NormFactor3
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
@@ -341,8 +341,7 @@ contains
       if (mmpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
 
       ! Gathering with respect to levels
-      call rpn_comm_allreduce(lst%myLevCount,lst%maxLevCount, &
-                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      call mmpi_allReduce(lst%myLevCount, lst%maxLevCount, "MPI_MAX")
       if (mmpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
 
       allocate(lst%allLevBeg(mmpi_npex))
@@ -482,9 +481,8 @@ contains
 
     lst%nla = ila     ! Number of spectral element per phase in the VAR array
     if (trim(lst%MpiMode) /= 'NoMpi') then
-       call rpn_comm_allreduce(lst%nla,lst%maxnla, &
-            1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-       if (mmpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
+      call mmpi_allReduce(lst%nla, lst%maxnla, "MPI_MAX")
+      if (mmpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
     end if
 
     allocate(lst%KfromMNglb(0:lst%mmax,0:lst%nmax))
@@ -492,8 +490,7 @@ contains
     my_KfromMNglb = 0
     my_KFromMNglb(:,:) = KFromMN(:,:)
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call rpn_comm_allreduce(my_KFromMNglb,lst%KFromMNglb, &
-                                (lst%mmax+1)*(lst%nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
+      call mmpi_allReduce(my_KFromMNglb, lst%KFromMNglb, "MPI_MAX")
     end if
     deallocate(my_KfromMNglb) 
 
@@ -502,9 +499,8 @@ contains
       if (KfromMN(m,0) /= -1) lst%mymActiveCount = lst%mymActiveCount + 1
     end do
     if (trim(lst%MpiMode) /= 'NoMpi') then
-       call rpn_comm_allreduce(lst%mymActiveCount,lst%maxmActiveCount, &
-                               1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-       if (mmpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
+      call mmpi_allReduce(lst%mymActiveCount, lst%maxmActiveCount, "MPI_MAX")
+      if (mmpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
     end if
 
     !- 1.5 VAR spectral element ordering &
@@ -567,8 +563,7 @@ contains
     lst%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
 
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call rpn_comm_allreduce(lst%nePerK, lst%nePerKglobal, lst%ktrunc+1, &
-                              "mpi_integer", "mpi_sum", "GRID", ierr)
+      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, "MPI_SUM", lst%ktrunc+1)
     end if
 
     deallocate(Kr8fromMN)
