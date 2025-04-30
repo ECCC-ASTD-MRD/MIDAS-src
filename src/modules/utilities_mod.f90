@@ -2879,8 +2879,7 @@ contains
     integer :: localValue, globalValue, ierr
 
     localValue = localGlobalValue
-    call rpn_comm_allReduce(localValue, globalValue, 1, 'mpi_integer', &
-                            'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(localValue, globalValue, 'mpi_sum')
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce

@@ -573,7 +573,7 @@ module obsDiagFiles_mod
 
     allocate(allObsFamilyListSizeMpiLocal(mmpi_nprocs))
     call mmpi_allGather(obsFamilyListSizeMpiLocal, allObsFamilyListSizeMpiLocal)
-    call rpn_comm_allreduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal,1,'mpi_integer','mpi_max','GRID',ierr)
+    call mmpi_allReduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, 'mpi_max')
 
     ! convert local family list from characters to integers
     allocate(intObsFamilyListMpiLocal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal))

@@ -530,7 +530,7 @@ contains
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
     
     numHeader = obs_numHeader(obsSpaceData)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     allocate(headerIndexList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
@@ -603,11 +603,11 @@ contains
       end if
     end do HEADER1
     
-    call rpn_comm_allReduce(countObs, sumCountObsMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(countObs, sumCountObsMpi, 'mpi_sum')
 
-    call rpn_comm_allReduce(countObs, maxCountObsMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(countObs, maxCountObsMpi, 'mpi_max')
 
-    call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(countChannel, maxCountChannelMpi, 'mpi_max')
 
     if (.not. computeInParallel) then
       allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))

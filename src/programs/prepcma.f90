@@ -576,12 +576,9 @@ contains
     ! do mpi communication of the accumulators
     nsize = nblocksum * npres
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call rpn_comm_allreduce(nstation, nstationMpiGlobal, nsize,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nrep_count, nrep_count_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nobs_count, nobs_count_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(nstation, nstationMpiGlobal, 'mpi_sum', nsize)
+    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, 'mpi_sum')
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
                 nrep_count, nrep_count_mpiGlobal
@@ -667,10 +664,8 @@ contains
     end do
 
     ! mpi communication of accumulators
-    call rpn_comm_allreduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 'mpi_sum')
     
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
           nrep_count_thin, nrep_count_thin_mpiGlobal

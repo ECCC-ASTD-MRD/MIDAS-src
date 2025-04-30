@@ -835,7 +835,7 @@ contains
       if (codtyp /= codtyp_get_codtyp('satob')) countObsIn = countObsIn + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObsIn, countObsInMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(countObsIn, countObsInMpi, 'mpi_sum')
     write(*,*)
     if (countObsInMpi == 0) then
       write(*,*) 'thn_surfaceInTime: no surface observations present'
@@ -1357,8 +1357,7 @@ contains
       countObs = countObs + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     if (countObsMpi == 0) then
       write(*,*) 'thn_gpsroVertical: no gpsro observations present'
       return
@@ -1434,10 +1433,8 @@ contains
 
     end do HEADER1
 
-    call rpn_comm_allReduce(countObsTotal, countObsTotalMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countObsReject, countObsRejectMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObsTotal, countObsTotalMpi, 'mpi_sum')
+    call mmpi_allReduce(countObsReject, countObsRejectMpi, 'mpi_sum')
     write(*,*)' Number of GPS-RO elements, total     --->', countObsTotalMpi
     write(*,*)' Number of GPS-RO elements, rejected  --->', countObsRejectMpi
     write(*,*)' Number of GPS-RO elements, kept      --->', countObsTotalMpi - &
@@ -1545,15 +1542,13 @@ contains
 
     end do HEADER0
 
-    call rpn_comm_allReduce(numLevStn, numLevStnMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(numLevStn, numLevStnMpi, 'mpi_sum')
     if (numLevStnMpi == 0) then
       write(*,*) 'thn_radiosonde: no UA obs observations present'
       return
     end if
 
-    call rpn_comm_allReduce(numStation, numStationMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(numStation, numStationMpi, 'mpi_sum')
 
     write(*,*) 'thn_radiosonde: number of obs initial = ', &
                numLevStn, numLevStnMpi
@@ -1877,22 +1872,14 @@ contains
       end do
     end do
 
-    call rpn_comm_allReduce(countRej_dd, countRejMpi_dd, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countRej_ff, countRejMpi_ff, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countRej_tt, countRejMpi_tt, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countRej_es, countRejMpi_es, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countAcc_dd, countAccMpi_dd, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countAcc_ff, countAccMpi_ff, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countAcc_tt, countAccMpi_tt, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countAcc_es, countAccMpi_es, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countRej_dd, countRejMpi_dd, 'mpi_sum')
+    call mmpi_allReduce(countRej_ff, countRejMpi_ff, 'mpi_sum')
+    call mmpi_allReduce(countRej_tt, countRejMpi_tt, 'mpi_sum')
+    call mmpi_allReduce(countRej_es, countRejMpi_es, 'mpi_sum')
+    call mmpi_allReduce(countAcc_dd, countAccMpi_dd, 'mpi_sum')
+    call mmpi_allReduce(countAcc_ff, countAccMpi_ff, 'mpi_sum')
+    call mmpi_allReduce(countAcc_tt, countAccMpi_tt, 'mpi_sum')
+    call mmpi_allReduce(countAcc_es, countAccMpi_es, 'mpi_sum')
 
     write(*,*)
     write(*,*) 'DD Rej/Acc = ',countRejMpi_dd, countAccMpi_dd
@@ -3261,16 +3248,11 @@ contains
     end do !stationIndex
 
 
-    call rpn_comm_allReduce(countTotalES, countTotalESMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countReject0p, countReject0pMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countReject0t, countReject0tMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countReject1p, countReject1pMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countReject1t, countReject1tMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countTotalES, countTotalESMpi, 'mpi_sum')
+    call mmpi_allReduce(countReject0p, countReject0pMpi, 'mpi_sum')
+    call mmpi_allReduce(countReject0t, countReject0tMpi, 'mpi_sum')
+    call mmpi_allReduce(countReject1p, countReject1pMpi, 'mpi_sum')
+    call mmpi_allReduce(countReject1t, countReject1tMpi, 'mpi_sum')
     write(*,*)
     write(*,*) ' Rejet des donnees ES inspire de ECMWF'
     write(*,*)
@@ -3337,8 +3319,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
 
     ! Check if any observations to be treated
@@ -3350,8 +3331,7 @@ contains
       countObs = countObs + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsInMpi, 'mpi_sum')
     if (countObsInMpi == 0) then
       write(*,*) 'thn_gbGpsByDistance: no gb-gps observations present'
       return
@@ -3588,8 +3568,7 @@ contains
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid)
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, 'mpi_sum')
     write(*,*) 'thn_gbGpsByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
@@ -3613,16 +3592,11 @@ contains
 
     end do HEADER3
 
-    call rpn_comm_allReduce(badTimeCount, badTimeCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(unCorrectCount, unCorrectCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(blackListCount, blackListCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(bgckCount, bgckCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(ztdScoreCount, ztdScoreCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(badTimeCount, badTimeCountMpi, 'mpi_sum')
+    call mmpi_allReduce(unCorrectCount, unCorrectCountMpi, 'mpi_sum')
+    call mmpi_allReduce(blackListCount, blackListCountMpi, 'mpi_sum')
+    call mmpi_allReduce(bgckCount, bgckCountMpi, 'mpi_sum')
+    call mmpi_allReduce(ztdScoreCount, ztdScoreCountMpi, 'mpi_sum')
 
     write(*,*)
     write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
@@ -3698,8 +3672,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     ! Check if any observations to be treated
     countObs = 0
@@ -3710,8 +3683,7 @@ contains
       countObs = countObs + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsInMpi, 'mpi_sum')
     if (countObsInMpi == 0) then
       write(*,*) 'thn_satWindsByDistance: no satwind observations present'
       return
@@ -4011,8 +3983,7 @@ contains
 
     ! communicate values of validMpi computed on each mpi task
     nsize = numHeaderMaxMpi * mmpi_nprocs
-    call rpn_comm_allReduce(validMpi, validMpi2, nsize, 'mpi_logical', &
-                            'mpi_lor','grid',ierr)
+    call mmpi_allReduce(validMpi, validMpi2, 'mpi_lor', nsize)
 
     ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
@@ -4020,8 +3991,7 @@ contains
     valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid)
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, 'mpi_sum')
     write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
@@ -4052,12 +4022,9 @@ contains
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER3
 
-    call rpn_comm_allReduce(numObsStnIdOut, numObsStnIdOutMpi, &
-                            numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(bgckCount, bgckCountMpi, 1, &
-                            'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(missingCount, missingCountMpi, 1, &
-                            'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum', numStnIdMax)
+    call mmpi_allReduce(bgckCount, bgckCountMpi, 'mpi_sum')
+    call mmpi_allReduce(missingCount, missingCountMpi, 'mpi_sum')
 
     ! Print counts
     write(*,*)
@@ -4438,8 +4405,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     allocate(valid(numHeaderMaxMpi))
     allocate(isAircraft(numHeaderMaxMpi))
@@ -4482,8 +4448,7 @@ contains
          numHeader, numHeaderMaxMpi
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_aircraftByBoxes: number of obs initial = ', countObs, countObsMpi
 
     ! Setup horizontal thinning grid
@@ -4751,10 +4716,8 @@ contains
 
     end do HEADER1
 
-    call rpn_comm_allReduce(aiTypeCount, aiTypeCountMpi, 4, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(rejectCount, rejectCountMpi, tim_nstepObs, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(aiTypeCount, aiTypeCountMpi, 'mpi_sum', 4)
+    call mmpi_allReduce(rejectCount, rejectCountMpi, 'mpi_sum', tim_nstepObs)
 
     write(*,*)
     write(*,'(a50,i10)') ' Total number of obs = ', sum(aiTypeCountMpi(:))
@@ -5141,8 +5104,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     write(*,*)
 
@@ -5160,8 +5122,7 @@ contains
     end do
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-         'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
 
     write(*,*)
 
@@ -5178,8 +5139,7 @@ contains
     call thn_removeRarsDuplicates(obsdat, valid)
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_tovsFilt: countObs after thn_removeRarsDuplicates = ', &
                countObs, countObsMpi
 
@@ -5345,8 +5305,7 @@ contains
     end do
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_tovsFilt: countObs after QC                       = ', &
                countObs, countObsMpi
 
@@ -5481,8 +5440,7 @@ contains
     end do ! stepIndex
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_tovsFilt: countObs after thinning                 = ', &
                countObs, countObsMpi
 
@@ -5517,12 +5475,9 @@ contains
 
     ! print a summary to the listing
     countKept = count(valid)
-    call rpn_comm_allReduce(countKept, countKeptMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countQc,   countQcMpi,   1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countKept, countKeptMpi, 'mpi_sum')
+    call mmpi_allReduce(countQc, countQcMpi, 'mpi_sum')
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
 
     countOther = countObsMpi - countKeptMpi - countQcMpi
 
@@ -5648,8 +5603,7 @@ contains
     end if
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
 
@@ -5686,8 +5640,7 @@ contains
     end do
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-         'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
 
     if (countObsMpi == 0) then
       write(*,*) 'thn_tovsfilt_dd: no observations for this instrument'
@@ -5711,8 +5664,7 @@ contains
     call thn_removeRarsDuplicates(obsdat, valid)
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_tovsfilt_dd: countObs after thn_removeRarsDuplicates = ', &
                countObs, countObsMpi
 
@@ -5788,8 +5740,7 @@ contains
     write(*,*) 'countQc = ',countQc
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_tovsfilt_dd: countObs after QC                       = ', &
                countObs, countObsMpi,instrumName
     write(*,*)
@@ -5900,8 +5851,7 @@ contains
 
     ! communicate values of validMpi computed on each mpi task
     allocate(validMpi_lor(numHeaderMpi))
-    call rpn_comm_allReduce(validMpi2, validMpi_lor, numHeaderMPI, 'mpi_logical', &
-                            'mpi_lor','grid',ierr)
+    call mmpi_allReduce(validMpi2, validMpi_lor, 'mpi_lor', numHeaderMPI)
 
     write(*,*) ''
     write(*,*) 'Total observatoins selected over all time bins = ',count(validMpi2)
@@ -5914,8 +5864,7 @@ contains
 
     write(*,*) ''
     countObs = count(valid)
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, 'mpi_sum')
     write(*,*) 'thn_tovsFilt_dd : number of obs after thinning = ', &
          countObs, countObsOutMpi
 
@@ -6145,8 +6094,7 @@ contains
     integer, external  :: newdate
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
@@ -6347,8 +6295,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
     write(*,*) 'thn_scatByLatLonBoxes: numHeader, numHeaderMaxMpi = ', &
                numHeader, numHeaderMaxMpi
 
@@ -6362,8 +6309,7 @@ contains
       valid(headerIndex) = .true.
     end do HEADER0
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsInMpi, 'mpi_sum')
     if (countObsInMpi == 0) then
       write(*,*) 'thn_scatByLatLonBoxes: no observations for this instrument'
       deallocate(valid)
@@ -6572,8 +6518,7 @@ contains
     end do HEADER3
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, 'mpi_sum')
     write(*,*) 'thn_scatByLatLonBoxes: countObs after QC and time tests   = ', &
                countObs, countObsOutMpi
 
@@ -6687,8 +6632,7 @@ contains
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, 'mpi_sum')
     write(*,*) 'thn_scatByLatLonBoxes: countObs after choosing 1 per box  = ', &
                countObs, countObsOutMpi
 
@@ -6722,12 +6666,9 @@ contains
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER5
 
-    call rpn_comm_allReduce(numObsStnIdOut, numObsStnIdOutMpi, &
-                            numStnIdMax, 'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(timeRejectCount, timeRejectCountMpi, 1, &
-                            'mpi_integer', 'mpi_sum', 'grid', ierr)
-    call rpn_comm_allReduce(flagRejectCount, flagRejectCountMpi, 1, &
-                            'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum', numStnIdMax)
+    call mmpi_allReduce(timeRejectCount, timeRejectCountMpi, 'mpi_sum')
+    call mmpi_allReduce(flagRejectCount, flagRejectCountMpi, 'mpi_sum')
 
     write(*,*)
     write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs in input  = ', countObsInMpi
@@ -6835,8 +6776,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
     write(*,*) 'thn_csrByLatLonBoxes: numHeader, numHeaderMaxMpi = ', &
                numHeader, numHeaderMaxMpi
 
@@ -6850,8 +6790,7 @@ contains
       end if
     end do
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     if (countObsMpi == 0) then
       write(*,*) 'thn_csrByLatLonBoxes: no observations for this instrument'
       deallocate(valid)
@@ -6969,8 +6908,7 @@ contains
     end do HEADER1
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_csrByLatLonBoxes: countObs after deltrad test        = ', &
                countObs, countObsMpi
 
@@ -7030,8 +6968,7 @@ contains
     end do HEADER2
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_csrByLatLonBoxes: countObs after rejection flag test = ', &
                countObs, countObsMpi
 
@@ -7179,8 +7116,7 @@ contains
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
     write(*,*) 'thn_csrByLatLonBoxes: countObs after choosing 1 per box  = ', &
                countObs, countObsMpi
 
@@ -7296,8 +7232,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
@@ -7324,8 +7259,7 @@ contains
     end do HEADER
 
     ! return if no observations for this instrument
-    call rpn_comm_allReduce(countHeader, countHeaderMpi, 1, 'mpi_integer', &
-                            'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(countHeader, countHeaderMpi, 'mpi_sum')
     if (countHeaderMpi == 0) then
       write(*,*) 'thn_hyperByLatLonBoxes: no observations for this instrument'
       return
@@ -7422,8 +7356,7 @@ contains
     write(*,*)
 
     do stnIdIndex = 1, numStnId
-      call rpn_comm_allReduce(numObsStnId(stnIdIndex), countMpi, 1, 'mpi_integer', &
-                              'mpi_sum', 'grid', ierr)
+      call mmpi_allReduce(numObsStnId(stnIdIndex), countMpi, 'mpi_sum')
       write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
     end do
 
@@ -7674,8 +7607,7 @@ contains
 
     end do HEADER2
 
-    call rpn_comm_allReduce(countHeader, countHeaderMpi, 1, 'mpi_integer', &
-                            'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(countHeader, countHeaderMpi, 'mpi_sum')
 
     write(*,*)
     write(*,'(a)')        ' == Output file == '
@@ -7685,8 +7617,7 @@ contains
     write(*,*)
 
     do stnIdIndex = 1, numStnId
-      call rpn_comm_allReduce(numObsStnId(stnIdIndex), countMpi, 1, 'mpi_integer', &
-                              'mpi_sum', 'grid', ierr)
+      call mmpi_allReduce(numObsStnId(stnIdIndex), countMpi, 'mpi_sum')
       write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
     end do
 
@@ -7873,7 +7804,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsData)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max','grid',ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
@@ -7907,7 +7838,7 @@ contains
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet), ': numHeader, numHeaderMaxMpi: ', &
                numHeader, numHeaderMaxMpi
 
-    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 1, 'mpi_integer', 'mpi_sum','grid', ierr)
+    call mmpi_allReduce(satSSTCount, satSSTCountMpi, 'mpi_sum')
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: total number of initial data: ', satSSTCountMpi
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: number of thinning timesteps: ', numTimesteps
 

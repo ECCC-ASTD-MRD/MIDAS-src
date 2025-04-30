@@ -303,8 +303,7 @@ contains
     numHeader = size(oti%timeInterpWeight,1)
     numStep = size(oti%timeInterpWeight,2)
     write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader, numStep
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
                numHeaderMax, numStep, mmpi_nprocs 
