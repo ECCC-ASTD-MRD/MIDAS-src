@@ -368,8 +368,7 @@ program midas_diagBmatrix
               centralValueLocal = field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex)
             end if
           end if
-          call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
-                                  "MPI_DOUBLE_PRECISION", "MPI_SUM", "GRID", ierr)
+          call mmpi_allReduce(centralValueLocal, centralValue, "MPI_SUM")
           
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
           
@@ -686,8 +685,7 @@ program midas_diagBmatrix
     !$OMP END PARALLEL DO
 
     nsize = statevector%nj*numVarLev
-    call rpn_comm_allreduce(stddev_zm,stddev_zm2,nsize,  &
-         "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(stddev_zm, stddev_zm2, "MPI_SUM", nsize)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
@@ -762,8 +760,7 @@ program midas_diagBmatrix
     !$OMP END PARALLEL DO 
 
     nsize = statevector%ni*numVarLev
-    call rpn_comm_allreduce(stddev_dm,stddev_dm2,nsize,  &
-         "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(stddev_dm, stddev_dm2, "MPI_SUM", nsize)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)

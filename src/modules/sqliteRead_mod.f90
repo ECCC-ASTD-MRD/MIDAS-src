@@ -1048,8 +1048,7 @@ module sqliteRead_mod
           end do BODYCHCK
         end do HEADERCHCK
 
-        call rpn_comm_allreduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, 1, &
-                              "MPI_LOGICAL","MPI_LOR", "grid", ierr)
+        call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, "MPI_LOR")
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
         if (nonEmptyBodyColumn_mpiglobal) then
@@ -1104,8 +1103,7 @@ module sqliteRead_mod
           end if
         end do HEADERCHCK2
 
-        call rpn_comm_allreduce(nonEmptyHeaderColumn,nonEmptyHeaderColumn_mpiglobal,1, &
-                              "MPI_LOGICAL","MPI_LOR","grid",ierr)
+        call mmpi_allReduce(nonEmptyHeaderColumn, nonEmptyHeaderColumn_mpiglobal, "MPI_LOR")
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
         if (nonEmptyHeaderColumn_mpiglobal) then

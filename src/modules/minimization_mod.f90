@@ -882,7 +882,7 @@ CONTAINS
       call utl_abort('min_hessianIO: status not valid ')
     endif
 
-    call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(nvadim_mpilocal, nvadim_mpiglobal, "mpi_sum")
     call rpn_comm_allreduce(nmtra          ,nmtra_mpiglobal, 1,"mpi_integer","mpi_sum","GRID",ierr)
 
     ireslun=0

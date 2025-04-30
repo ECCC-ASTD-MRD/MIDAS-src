@@ -475,7 +475,7 @@ contains
           endif
         enddo BODY
 
-        call rpn_comm_allreduce(ivco,ivco_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+        call mmpi_allReduce(ivco, ivco_recv, "MPI_MAX")
         ivco = ivco_recv
 
         call rpn_comm_allreduce(my_counts,counts,maxLat*maxLon*maxVertical,"MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1495,12 +1495,12 @@ contains
     call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*(nstat*2+1),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%Jpa_stats,Jpa_global,nbin,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%Jpa_stats, Jpa_global, "MPI_SUM", nbin)
     call rpn_comm_allreduce(obs_diagn%diagR_stats,diagR_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%diagHPHT_stats,diagHPHT_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%counts, counts_global, "MPI_SUM", nbin)
     call rpn_comm_allreduce(obs_diagn%nstatus,nstatus_global,nbin*3,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%assim_mode,assim_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+    call mmpi_allReduce(obs_diagn%assim_mode, assim_global, "MPI_LOR")
 
     ! save in struct_osd_diagn
     obs_diagn%OmP_stats = OmP_global

@@ -309,7 +309,7 @@ program midas_extractBmatrixFor1Dvar
           bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
                                                 field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if
-        call rpn_comm_allreduce(columnProcIdLocal, columnProcIdGlobal, 1, "mpi_integer", "mpi_max", "GRID", ierr)
+        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, "mpi_max")
       end do variableLoop2
 
     end do variableLoop1

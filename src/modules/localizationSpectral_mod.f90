@@ -135,8 +135,7 @@ CONTAINS
     lsp%dlon = hco_loc%dlon
 
     call mmpi_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
-    call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-                              1,"MPI_INTEGER","mpi_max","GRID",ierr)
+    call mmpi_allReduce(myMemberCount, maxMyMemberCount, "mpi_max")
     nEnsOverDimension_out     = mmpi_npex * maxMyMemberCount
     lsp%nEnsOverDimension = nEnsOverDimension_out
 
@@ -355,7 +354,7 @@ CONTAINS
       end do
       nsize = lsp%nla_mpiglobal*lsp%nphase*lsp%nLev
       sp_mpiglobal(:,:,:) = 0.0d0
-      call rpn_comm_allreduce(sp_mympiglobal,sp_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+      call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, "mpi_sum", nsize)
       
       do levIndex = 1, lsp%nLev
         do nIndex = 0, lsp%ntrunc
@@ -969,8 +968,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal'
     call lsp_check(lsp)
 
-    call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
-         1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
@@ -1075,7 +1073,7 @@ CONTAINS
     else
        
       ! LAM
-      call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
       if (mmpi_myid == 0) then
         allocate(allnlaLocal(mmpi_nprocs))
@@ -1189,8 +1187,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
     call lsp_check(lsp)
 
-    call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
-         1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
@@ -1295,7 +1292,7 @@ CONTAINS
     else
        
       ! LAM
-      call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
       if (mmpi_myid == 0) then
         allocate(allnlaLocal(mmpi_nprocs))
@@ -1415,7 +1412,7 @@ CONTAINS
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1536,7 +1533,7 @@ CONTAINS
     else
 
       ! LAM
-       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+       call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
        if (mmpi_myid == 0) then
           allocate(allnlaLocal(mmpi_nprocs))
@@ -1642,7 +1639,7 @@ CONTAINS
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
-    call rpn_comm_allreduce(lsp%cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1763,7 +1760,7 @@ CONTAINS
     else
 
       ! LAM
-       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+       call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
        if (mmpi_myid == 0) then
           allocate(allnlaLocal(mmpi_nprocs))

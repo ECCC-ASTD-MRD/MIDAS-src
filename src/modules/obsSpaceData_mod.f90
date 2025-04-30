@@ -3090,7 +3090,7 @@ contains
       enddo
 
       ! gather the lists of mpiglobal header indices on proc 0 to know where everything goes
-      call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpilocalmax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call mmpi_allReduce(obsdat%numHeader, numHeader_mpilocalmax, "mpi_max")
       allocate(headerIndex_mpiglobal(numHeader_mpilocalmax))
       headerIndex_mpiglobal(:)=0
       do headerIndex_mpilocal=1,obsdat%numHeader
@@ -3212,7 +3212,7 @@ contains
       call msg_memUsage('obs_expandToMpiGlobal')
 
       ! gather the lists of mpiglobal body indices on proc 0 to know where everything goes
-      call rpn_comm_allreduce(obsdat%numBody,numBody_mpilocalmax,1,"mpi_integer","mpi_max","GRID",ierr)
+      call mmpi_allReduce(obsdat%numBody, numBody_mpilocalmax, "mpi_max")
       allocate(bodyIndex_mpiglobal(numBody_mpilocalmax))
       bodyIndex_mpiglobal(:)=0
       do bodyIndex_mpilocal=1,obsdat%numBody
@@ -4067,8 +4067,7 @@ contains
 
       if(obsdat%mpi_local)then
          sizedata=1
-         call rpn_comm_allreduce(obsdat%numBody,numBody_mpiGlobal,sizedata, &
-                                 "mpi_integer","mpi_sum","GRID",ierr)
+         call mmpi_allReduce(obsdat%numBody, numBody_mpiGlobal, "mpi_sum", sizedata)
          obs_numBody_mpiglobal = numBody_mpiGlobal
       else
          obs_numBody_mpiglobal = obsdat%numBody
@@ -4124,8 +4123,7 @@ contains
 
       if(obsdat%mpi_local)then
          sizedata=1
-         call rpn_comm_allreduce(obsdat%numHeader,numHeader_mpiGlobal,sizedata, &
-                                 "mpi_integer","mpi_sum","GRID",ierr)
+         call mmpi_allReduce(obsdat%numHeader, numHeader_mpiGlobal, "mpi_sum", sizedata)
          obs_numHeader_mpiglobal = numHeader_mpiGlobal
       else
          obs_numHeader_mpiglobal = obsdat%numHeader
@@ -4765,8 +4763,7 @@ contains
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
          if (target_ip /= myid_mpi) needToRedistribute = .true.
       enddo
-      call rpn_comm_allreduce(needToRedistribute,needToRedistribute_mpiglobal,1,  &
-                              "MPI_LOGICAL","MPI_LOR","world",ierr)
+      call mmpi_allReduce(needToRedistribute, needToRedistribute_mpiglobal, "MPI_LOR")
       if(.not.needToRedistribute_mpiglobal) then
          write(*,*) 'obs_MpiRedistribute: do not need to redistribute, returning'
          return
@@ -4786,20 +4783,16 @@ contains
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
          numBodyPE_mpilocal(1+target_ip)   = numBodyPE_mpilocal(1+target_ip)   + obs_headElem_i(obsdat_inout,OBS_NLV,headerIndex)
       enddo
-      call rpn_comm_allreduce(numHeaderPE_mpilocal,numHeaderPE_mpiglobal,nprocs_mpi,  &
-                              "MPI_INTEGER","MPI_SUM","world",ierr)
-      call rpn_comm_allreduce(numBodyPE_mpilocal,numBodyPE_mpiglobal,nprocs_mpi,  &
-                              "MPI_INTEGER","MPI_SUM","world",ierr)
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM", nprocs_mpi)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM", nprocs_mpi)
       numHeader_out = numHeaderPE_mpiglobal(myid_mpi+1)
       numBody_out   = numBodyPE_mpiglobal(myid_mpi+1)
       write(*,*) 'obs_MpiRedistribute: num mpi header and body before redistribution =', numHeader_in, numBody_in
       write(*,*) 'obs_MpiRedistribute: num mpi header and body after redistribution  =', numHeader_out, numBody_out
 
       ! Compute the max number of headers and bodies in each mpi message sent/received in the transpose
-      call rpn_comm_allreduce(numHeaderPE_mpilocal,numHeaderPE_mpiglobal,nprocs_mpi,  &
-                              "MPI_INTEGER","MPI_MAX","GRID",ierr)
-      call rpn_comm_allreduce(numBodyPE_mpilocal,numBodyPE_mpiglobal,nprocs_mpi,  &
-                              "MPI_INTEGER","MPI_MAX","GRID",ierr)
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX", nprocs_mpi)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX", nprocs_mpi)
       if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
       if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
       if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
@@ -5909,7 +5902,7 @@ contains
         obs_famExist = famExist
      else
         ! return MPI global value
-        call rpn_comm_allreduce(famExist,obs_famExist,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+        call mmpi_allReduce(famExist, obs_famExist, "MPI_LOR")
      end if
 
    end function obs_famExist

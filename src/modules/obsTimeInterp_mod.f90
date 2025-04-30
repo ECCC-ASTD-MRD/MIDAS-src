@@ -124,12 +124,10 @@ contains
     write(*,*) '----------------------------------------------------------------'
 
     nsize = size(inumheader)
-    call rpn_comm_allreduce(my_inumheader, inumheader, nsize, &
-         "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(my_inumheader, inumheader, "mpi_sum", nsize)
     deallocate(my_inumheader) 
     nsize = size(idataass)
-    call rpn_comm_allreduce(my_idataass, idataass, nsize, &
-         "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(my_idataass, idataass, "mpi_sum", nsize)
     deallocate(my_idataass) 
     if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'

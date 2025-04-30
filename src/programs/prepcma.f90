@@ -591,8 +591,7 @@ contains
 
     if (cfam == 'TO') then
       nsize = nblocksum * tvs_nsensors
-      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
+      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, "mpi_sum", nsize)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -680,8 +679,7 @@ contains
 
     if (cfam == 'TO') then
       nsize = nblocksum * tvs_nsensors
-      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
+      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, "mpi_sum", nsize)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &

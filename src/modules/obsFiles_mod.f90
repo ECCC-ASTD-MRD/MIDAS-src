@@ -1088,7 +1088,7 @@ contains
     end if
 
     if (obsf_filesSplit()) then
-       call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call mmpi_allReduce(nrep_modified, nrep_modified_global, "MPI_SUM")
        nrep_modified = nrep_modified_global
     end if
 

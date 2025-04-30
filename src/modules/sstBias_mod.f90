@@ -227,7 +227,7 @@ module sstBias_mod
     write(*,*) ''
     write(*,"(a, i10, a)") 'sstb_getGriddedObs: found ', countObsLoc, ' '//trim(instrumentString)//' data'
 
-    call rpn_comm_allreduce(countObsLoc, countObsGlob, 1, "mpi_integer", "mpi_sum", "grid", ierr)
+    call mmpi_allReduce(countObsLoc, countObsGlob, "mpi_sum")
 
     obsGrid(:, :) = 0.0d0
     ndataFoundGridLoc(:,:) = 0
@@ -322,9 +322,7 @@ module sstBias_mod
         do lonIndex = 1, hco%ni 
           ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
           call mmpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
-          call rpn_comm_allreduce(ndataFoundGridLoc(lonIndex, latIndex), &
-                                  ndataFoundGridGlob(lonIndex, latIndex), 1, &
-                                  'mpi_integer', 'mpi_sum', 'grid', ierr)
+          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), 1, ndataFoundGridGlob(lonIndex)
           if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
             obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
                                           real(ndataFoundGridGlob(lonIndex, latIndex))
