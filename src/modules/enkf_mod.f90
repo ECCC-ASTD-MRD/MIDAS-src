@@ -447,7 +447,7 @@ contains
     end if
 
     call utl_tmg_start(141,'----Barr')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(141)
 
     ! Get mpi global list of tags used for mpi send/recv
@@ -767,7 +767,7 @@ contains
     end if
 
     call utl_tmg_start(141,'----Barr')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(141)
 
     call gsv_deallocate(stateVectorMeanInc)

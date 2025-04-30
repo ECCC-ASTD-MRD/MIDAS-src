@@ -41,7 +41,7 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
-  public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize
+  public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -249,6 +249,32 @@ contains
     call handleMpiError(ierr, 'mmpi_finalize')
 
   end subroutine mmpi_finalize
+
+  !--------------------------------------------------------------------------
+  ! mmpi_barrier
+  !--------------------------------------------------------------------------
+  subroutine mmpi_barrier(communicator_opt)
+    !
+    !:Purpose: Execute 'rpn_comm_barrier' while catching any error that may be raised.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr
+    character(len=mmpi_communicator_max_length) :: communicator
+
+    if (mmpi_doBarrier) then
+      call handleCommunicator(communicator_opt, communicator)
+
+      call rpn_comm_barrier(communicator,ierr)
+
+      call handleMpiError(ierr, 'mmpi_barrier for communicator ''' // communicator // '''')
+    end if
+
+  end subroutine mmpi_barrier
 
   !--------------------------------------------------------------------------
   ! mmpi_getptopo

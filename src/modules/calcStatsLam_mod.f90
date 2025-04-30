@@ -111,7 +111,6 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     ! Locals:
-    integer                   :: ier
     integer                   :: varIndex, levIndex, k
     integer                   :: numStep
     integer, allocatable      :: dateStampList(:)
@@ -208,7 +207,7 @@ contains
       call lgt_createLamTemplateGrids('./analysisgrid', hco_ens, vco_bhi, & ! IN
                                       grd_ext_x, grd_ext_y)                 ! IN
     end if
-    call rpn_comm_barrier("GRID",ier)
+    call mmpi_barrier
 
     !- 3.2 Setup the Extended B_HI grid
     call hco_setupFromFile( hco_bhi,'./analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
@@ -471,7 +470,6 @@ contains
     type(struct_gbi) :: gbi_horizontalMean
     type(struct_gsv) :: statevector_stdDev
     type(struct_gsv) :: statevector_mean, statevector_stdDevGridPoint
-    integer :: ier
 
     write(*,*)
     write(*,*) 'csl_computeBhi: Starting...'
@@ -515,29 +513,29 @@ contains
                            SpVertCorrel, PowerSpectrum,   & ! OUT
                            NormB)                           ! OUT
 
-     if (mmpi_myid == 0) then
-       !- 3.2 Calculate the horiontal correlation lenght scales
-       call calcHorizScale(HorizScale, & ! OUT
-                           NormB)        ! IN
+    if (mmpi_myid == 0) then
+      !- 3.2 Calculate the horiontal correlation lenght scales
+      call calcHorizScale(HorizScale, & ! OUT
+                          NormB)        ! IN
 
-       !- 3.3 Calculate the total vertical correlation matrix
-       call calcTotVertCorrel(TotVertCorrel,             & ! OUT
-                              SpVertCorrel, PowerSpectrum) ! IN
+      !- 3.3 Calculate the total vertical correlation matrix
+      call calcTotVertCorrel(TotVertCorrel,             & ! OUT
+                             SpVertCorrel, PowerSpectrum) ! IN
        
-       !- 3.4 Set cross-correlations
-       call setSpVertCorrel(NormB) ! INOUT
+      !- 3.4 Set cross-correlations
+      call setSpVertCorrel(NormB) ! INOUT
 
-       !- 3.5 Calculate the square-root of the correlation-based B matrix
-       call calcBsqrt(NormBsqrt, & ! OUT
-                      NormB   )    ! IN
-     end if
+      !- 3.5 Calculate the square-root of the correlation-based B matrix
+      call calcBsqrt(NormBsqrt, & ! OUT
+                     NormB   )    ! IN
+    end if
 
-     !- 3.6 Apply scaling
-     if (stdDevScaling) then
-       call scaleStdDev(statevector_stdDev) ! INOUT
-     end if
-     
-     call rpn_comm_barrier("GRID",ier)
+    !- 3.6 Apply scaling
+    if (stdDevScaling) then
+      call scaleStdDev(statevector_stdDev) ! INOUT
+    end if
+
+    call mmpi_barrier
 
     !
     !- 4.  Writing statistics to files

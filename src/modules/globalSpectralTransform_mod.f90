@@ -684,10 +684,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
+    integer :: yourid,ila,icount,nsize,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -742,10 +742,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
+    integer :: yourid,ila,icount,nsize,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -802,10 +802,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
-    integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,nsize,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call mmpi_barrier('NS')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -871,13 +871,13 @@ contains
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
     real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
-    integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,nsize,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call mmpi_barrier('NS')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -943,10 +943,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
-    integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,nsize,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call mmpi_barrier('NS')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -1012,13 +1012,13 @@ contains
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
     real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
-    integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,nsize,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call mmpi_barrier('NS')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -1084,10 +1084,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: youridP1,nsize,ierr,jlev,jlev2
+    integer :: youridP1,nsize,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1137,7 +1137,7 @@ contains
     integer :: nsize,ierr
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1172,7 +1172,7 @@ contains
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1206,10 +1206,10 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                                        gst(gstID)%latPerPEmax, mmpi_npex)
-    integer :: youridP1, nsize, ierr, yourNumLev
+    integer :: youridP1, nsize, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1256,10 +1256,10 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: youridP1,nsize,ierr,jlev,jlev2
+    integer :: youridP1,nsize,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1310,7 +1310,7 @@ contains
     integer :: nsize, ierr
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1345,7 +1345,7 @@ contains
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1379,10 +1379,10 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                                        gst(gstID)%latPerPEmax, mmpi_npex)
-    integer :: youridP1,nsize,ierr,jlev,jlev2,yourNumLev
+    integer :: youridP1,nsize,jlev,jlev2,yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
+    call mmpi_barrier('EW')
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -2290,10 +2290,10 @@ contains
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
-    integer :: jlat, jk, jlon, ierr
+    integer :: jlat, jk, jlon
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
@@ -2344,7 +2344,7 @@ contains
     deallocate(pgd3)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(152)
 
   end subroutine gst_speree_kij
@@ -2414,10 +2414,9 @@ contains
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
-    integer :: ierr
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
@@ -2455,7 +2454,7 @@ contains
     deallocate(psp2)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(152)
 
   end subroutine gst_reespe_kij

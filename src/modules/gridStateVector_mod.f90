@@ -4378,7 +4378,7 @@ module gridStateVector_mod
     end if
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeStepToVarsLevs', 'START', verb_opt=2)
     call msg_memUsage('gsv_transposeStepToVarsLevs')
 
@@ -4599,7 +4599,7 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(163,'low-level--gsv_stepToTiles')
 
@@ -4895,7 +4895,7 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeTilesToStep: input statevector must have Tiles mpi distribution')
     end if
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeTilesToStep', 'START', verb_opt=2)
 
     ! determine which tasks have something to receive and let everyone know
@@ -5169,7 +5169,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)     :: stateVector_tiles
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize
+    integer :: yourid, youridx, youridy, nsize
     integer :: varLevIndex, stepIndex, numStep
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
@@ -5189,7 +5189,7 @@ module gridStateVector_mod
 
     numStep = stateVector_tiles%numStep
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeTilesToMpiGlobal', 'START', verb_opt=2)
 
     ! size of each message

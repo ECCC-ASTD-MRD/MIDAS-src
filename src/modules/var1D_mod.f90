@@ -110,11 +110,11 @@ contains
     real(8), pointer :: myColumn(:), myField(:,:,:)
     real(8), allocatable :: localColumn(:)
     real(8), allocatable, target :: dummy(:)
-    integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr
+    integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax
     real(8) :: lat, lon
     integer :: varDim, tag
 
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
     allocate( obsOffset(0:mmpi_nprocs-1) )
     if (mmpi_myid ==0) then
       allocate( var1D_validHeaderCountAllTasks(mmpi_nprocs) )
@@ -177,10 +177,10 @@ contains
           end if
         end do
       end if
-      call rpn_comm_barrier("GRID",ierr)
+      call mmpi_barrier
     end do
 
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
     write(*,*) 'var1D_transferColumnToYGrid: end of lat-lon dissemination'
     
     do varIndex = 1, size(varList)
@@ -228,7 +228,7 @@ contains
 
     end do
 
-    call rpn_comm_barrier("GRID", ierr)
+    call mmpi_barrier
     deallocate( obsOffset )
     deallocate( var1D_validHeaderCountAllTasks )
 

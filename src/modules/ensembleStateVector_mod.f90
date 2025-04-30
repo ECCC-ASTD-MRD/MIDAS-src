@@ -3242,7 +3242,7 @@ CONTAINS
       ! We have to make sure that all the intermediate files '*_group_*'
       ! are written to disk before regrouping it.
       call utl_tmg_start(192,'ens_writeEnsemble-barrier')
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
       call utl_tmg_stop(192)
 
       call utl_tmg_start(193,'ens_writeEnsemble-combine_files')

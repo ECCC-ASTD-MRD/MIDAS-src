@@ -1427,10 +1427,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2
+    integer :: yourid, nsize, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1481,7 +1481,7 @@ contains
     integer :: nsize, ierr
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1512,10 +1512,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     real(8) :: gd_recv(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    integer :: yourid, nsize, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1576,10 +1576,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2
+    integer :: yourid, nsize, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1630,7 +1630,7 @@ contains
     integer :: nsize, ierr
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1661,10 +1661,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    integer :: yourid, nsize, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
     
@@ -1724,10 +1724,10 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1797,10 +1797,10 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1870,10 +1870,10 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1943,10 +1943,10 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -2017,10 +2017,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -2080,10 +2080,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -2143,10 +2143,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -2211,10 +2211,10 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
-    call rpn_comm_barrier("GRID",ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 

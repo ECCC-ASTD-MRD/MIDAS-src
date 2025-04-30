@@ -985,7 +985,7 @@ contains
         countDumped = countDumped + 1
       end if
     end do COLUMN1
-    call rpn_comm_barrier('GRID', ierr)
+    call mmpi_barrier
 
     call mmpi_allGather(countDumped, countDumpedAllTasks)
     countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )

@@ -4596,7 +4596,7 @@ contains
 
     ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
-    integer :: ierr, allChannelIndex, channelIndex
+    integer :: allChannelIndex, channelIndex
     integer, allocatable :: listGlobal(:)
     logical :: found
      
@@ -4616,7 +4616,7 @@ contains
     channelsb(:) = 0
     channelsb(1:size(channels)) = channels(:)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     call mmpi_gather(channelsb, listGlobal, tvs_maxChannelNumber)
     countUniqueChannel = 0

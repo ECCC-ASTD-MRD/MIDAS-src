@@ -1335,7 +1335,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal_tiles(:,:,:)
     real(8), allocatable :: field2D_mpiglobal(:,:)
     integer :: levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     logical :: gatheringDone
@@ -1376,7 +1376,7 @@ CONTAINS
         if (.not. gatheringDone ) then
 
           ! gather the global field to be interpolated on all tasks
-          call rpn_comm_barrier('GRID',ierr)
+          call mmpi_barrier
           call utl_tmg_start(101,'----ADV_GSV_Comm')
           nsize = adv%lonPerPE*adv%latPerPE
           call mmpi_allGather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), &

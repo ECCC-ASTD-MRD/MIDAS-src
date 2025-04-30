@@ -1747,12 +1747,12 @@ CONTAINS
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-    integer   :: ierr, horizWaveBandIndex, vertWaveBandIndex
+    integer   :: horizWaveBandIndex, vertWaveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
     logical   :: useFSOFcst
 
-    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     !
     !- 1.  Tests
@@ -1887,14 +1887,14 @@ CONTAINS
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-    integer           :: ierr, horizWaveBandIndex, vertWaveBandIndex
+    integer           :: horizWaveBandIndex, vertWaveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
     logical           :: useFSOFcst
 
     !
     !- 1.  Tests
     !
-    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if (.not. bEns(instanceIndex)%initialized) then
       if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'

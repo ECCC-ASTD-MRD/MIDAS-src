@@ -648,7 +648,7 @@ program midas_letkf
   if (useModulatedEns) call eob_setObsErrInv(ensObsGain)
 
   call utl_tmg_start(141,'----Barr')
-  call rpn_comm_barrier('GRID',ierr)
+  call mmpi_barrier
   call utl_tmg_stop(141)
 
   ! Clean and globally communicate obs-related data to all mpi tasks

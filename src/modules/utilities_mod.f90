@@ -1248,7 +1248,7 @@ contains
 9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
     flush(6)
 
-    call rpn_comm_barrier('WORLD', ierr)
+    call mmpi_barrier('WORLD')
     comm = rpn_comm_comm("WORLD")
     call mpi_abort( comm, 1, ierr )
   end subroutine utl_stopAndWait4Debug

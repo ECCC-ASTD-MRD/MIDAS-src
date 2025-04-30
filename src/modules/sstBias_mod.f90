@@ -188,7 +188,7 @@ module sstBias_mod
     real(kdkind)              :: lon_grd, lat_grd
     real(pre_obsReal)         :: lon_obs, lat_obs
     integer                   :: lonIndex, latIndex
-    integer                   :: bodyIndex, headerIndex, ierr, headerCounter, codtyp
+    integer                   :: bodyIndex, headerIndex, headerCounter, codtyp
     integer                   :: localObsIndex
     integer                   :: ndataFoundGridLoc(hco%ni, hco%nj)  ! kd-tree output: number of data found within the search radius for every grid point
     integer                   :: ndataFoundGridGlob(hco%ni, hco%nj) ! to compute mpi_allreduce of ndataFoundGridLoc 
@@ -332,7 +332,7 @@ module sstBias_mod
           if (.not.openWater(lonIndex, latIndex)) obsGrid(lonIndex, latIndex) = MPC_missingValue_R8
         end do
       end do
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
       write(*,*) 'sstb_getGriddedObs: gridding for '//trim(instrumentString)//' data completed'
     end if POSITIVECOUNTOBSGLOB
 
@@ -370,7 +370,6 @@ module sstBias_mod
     real(kdkind)                :: refPosition(3)
     real(kdkind)                :: lon_grd, lat_grd
     integer                     :: lonIndex, latIndex
-    integer                     :: ierr
     integer                     :: localIndex, indexCounter, localLonIndex, localLatIndex
     integer                     :: numPointsFound
     real(kdkind)                :: searchRadiusSquared
@@ -534,7 +533,7 @@ module sstBias_mod
       end do
     end do
     
-    call rpn_comm_barrier('GRID', ierr)
+    call mmpi_barrier
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
 
     if (nobsLoc > 0) then

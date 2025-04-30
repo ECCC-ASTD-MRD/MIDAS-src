@@ -936,8 +936,8 @@ contains
           stnid_unique_all(:,:) = ''
           if (iset >= 2) varno_unique_all(:,:) = 0
           if (iset >= 3) unilev_unique_all(:,:) = .false.
-          
-          if(mmpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+
+          call mmpi_barrier
 
           call mmpi_allGather(num_unique, num_unique_all)
           call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)

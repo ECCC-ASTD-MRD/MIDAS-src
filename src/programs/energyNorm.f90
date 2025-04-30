@@ -188,7 +188,7 @@ program midas_energyNorm
 
   call initializeReferenceState(referenceFileName, stateVectorReference, hco, vco)
 
-  call rpn_comm_barrier('GRID',ierr)
+  call mmpi_barrier
 
   if ( mmpi_myid == 0 ) then
     ! write the reference file in the output
@@ -222,7 +222,7 @@ program midas_energyNorm
   do fileIndex = 1, numberOfFiles
     call computeEnergyNorm(stateVector, stateVectorReference, fileNames(fileIndex),       &
                            fullStates, multiplicativeFactor, nulFileOutput, fileNameFormat)
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
   end do ! fileIndex
 
   ! closing 'outputFileName'

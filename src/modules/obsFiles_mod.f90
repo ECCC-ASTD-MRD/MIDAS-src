@@ -224,8 +224,7 @@ contains
     type(struct_eob), optional, intent(in)    :: ensObs_opt          
   
     ! Locals:
-    integer           :: fileIndex, ierr
-    integer           :: status, baseNameIndexBeg
+    integer           :: fileIndex, ierr, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
     character(len=fileTypeLen) :: obsFileType
@@ -310,7 +309,7 @@ contains
                      'instead of ramdisk'
         end if
 
-        if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+        if (obsf_filesSplit()) call mmpi_barrier
 
         ! update obsDB files
         do fileIndex = 1, obsf_nfiles
@@ -1212,7 +1211,7 @@ contains
 
       ! Create destination directory
       if (mmpi_myid == 0) status = clib_mkdir_r(trim(directoryInOut))
-      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+      if (obsf_filesSplit()) call mmpi_barrier
 
       ! If obs files not split and I am not task 0, then return
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
@@ -1241,7 +1240,7 @@ contains
       end do
 
       ! Remove the directory
-      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+      if (obsf_filesSplit()) call mmpi_barrier
       if (mmpi_myid == 0) status = clib_remove(trim(directoryInOut))
       
     else

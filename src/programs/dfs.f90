@@ -625,7 +625,7 @@ contains
       call mmpi_allGather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), bodyIndexListMpi, maxCountObsMpi*maxCountChannelMpi)
       call mmpi_allGather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), stdDevListMpi,  maxCountObsMpi*maxCountChannelMpi)
 
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
     
       deallocate(bodyIndexList)
       deallocate(levelList)

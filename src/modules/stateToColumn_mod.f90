@@ -1194,7 +1194,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: procIndex, nsize, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
     real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
@@ -1212,7 +1212,7 @@ contains
     if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(38,'----s2c_TL')
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
@@ -1364,7 +1364,7 @@ contains
 
       end if ! if varLevIndex <= myVarLevEnd
 
-      call rpn_comm_barrier('GRID',ierr)
+      call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
@@ -1439,7 +1439,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: procIndex, nsize, headerUsedIndex
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
@@ -1455,7 +1455,7 @@ contains
     if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(40,'----s2c_AD')
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if ( .not. gsv_isAllocated(stateVector_out) ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
@@ -1546,7 +1546,7 @@ contains
       end do proc_loop
       !$OMP END PARALLEL DO
 
-      call rpn_comm_barrier('GRID',ierr)
+      call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
@@ -1618,7 +1618,7 @@ contains
     deallocate(cols_send)
     deallocate(cols_recv)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
@@ -1694,7 +1694,7 @@ contains
     call utl_tmg_start(34,'----s2c_NL')
 
     call utl_tmg_start(37,'------s2c_NL_barrier')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(37)
 
     if ( present(beSilent_opt) ) then
@@ -1916,7 +1916,7 @@ contains
         end if ! if varLevIndex <= myVarLevEnd
 
         call utl_tmg_start(37,'------s2c_NL_barrier')
-        call rpn_comm_barrier('GRID',ierr)
+        call mmpi_barrier
         call utl_tmg_stop(37)
 
         ! mpi communication: alltoallv for one level/variable
