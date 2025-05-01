@@ -42,7 +42,7 @@ module midasMpi_mod
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
-  public :: mmpi_stopAndWait4Debug
+  public :: mmpi_stopAndWait4Debug, mmpi_compute_displacements
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -97,7 +97,7 @@ module midasMpi_mod
     module procedure mmpi_allReduce_scalar_integer
   end interface mmpi_allReduce
 
-  ! general interface for rpn_comm_alltoall
+  ! general interface for rpn_comm_gatherv
   interface mmpi_gatherv
     module procedure mmpi_gatherv_logical
     module procedure mmpi_gatherv_integer
@@ -1668,6 +1668,37 @@ contains
     localGlobalValue = globalValue
 
   end subroutine mmpi_allReduce_scalar_integer
+
+
+  !--------------------------------------------------------------------------
+  ! mmpi_compute_displacements
+  !--------------------------------------------------------------------------
+  subroutine mmpi_compute_displacements(length, allLengths, displacements)
+    !
+    !:Purpose: Compute the displacements offsets for a future 'gatherv' call
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: length
+    integer, intent(out) :: allLengths(:)
+    integer, intent(out) :: displacements(:)
+
+    ! Locals:
+    integer :: procIndex
+
+    call mmpi_allGather(length, allLengths)
+
+    if ( mmpi_myid == 0 ) then
+      displacements(1) = 0
+      do procIndex = 2, mmpi_nprocs
+        displacements(procIndex) = displacements(procIndex-1) + allLengths(procIndex-1)
+      end do
+    else
+      displacements(:) = 0
+    end if
+
+  end subroutine mmpi_compute_displacements
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical

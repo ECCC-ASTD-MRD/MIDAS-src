@@ -572,7 +572,7 @@ CONTAINS
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
 
-    call mmpi_allGather(ensObsClean%numObs, allNumObs)
+    call mmpi_compute_displacements(ensObsClean%numObs, allNumObs, displs)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
@@ -634,15 +634,6 @@ CONTAINS
     end if
 
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
-
-    if (mmpi_myid == 0) then
-      displs(1) = 0
-      do procIndex = 2, mmpi_nprocs
-        displs(procIndex) = displs(procIndex-1) + allNumObs(procIndex-1)
-      end do
-    else
-      displs(:) = 0
-    end if
 
     call mmpi_gatherv(ensObsClean%lat, ensObs_mpiglobal%lat, ensObsClean%numObs, allNumObs, displs)
     call mmpi_gatherv(ensObsClean%lon, ensObs_mpiglobal%lon, ensObsClean%numObs, allNumObs, displs)

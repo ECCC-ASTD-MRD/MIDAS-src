@@ -2025,7 +2025,7 @@ contains
     logical, optional, intent(in)  :: is_obsLevOffset_opt
 
     ! Locals:
-    integer :: procIndex, arrayIndex
+    integer :: arrayIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
     logical :: is_obsLevOffset
     integer, allocatable :: numLevels(:), numLevelsMpi(:)
@@ -2037,21 +2037,10 @@ contains
     end if
 
     if (is_obsLevOffset) then
-
       ! special treatment is requirement for the variable "obsLevOffset"
-
-      nsize = size(array) - 1
-      call mmpi_allGather(nsize, allnsize)
+      nsize = size(array)-1
+      call mmpi_compute_displacements(nsize, allnsize, displs)
       nsizeMpi = sum(allnsize(:))
-
-      if ( mmpi_myid == 0 ) then
-        displs(1) = 0
-        do procIndex = 2, mmpi_nprocs
-          displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
-        end do
-      else
-        displs(:) = 0
-      end if
 
       allocate(numLevels(nsize))
       allocate(numLevelsMpi(nsizeMpi))
@@ -2067,21 +2056,10 @@ contains
       end do
       deallocate(numLevels)
       deallocate(numLevelsMpi)
-
     else
-
       nsize = size(array)
-      call mmpi_allGather(nsize, allnsize)
+      call mmpi_compute_displacements(nsize, allnsize, displs)
       nsizeMpi = sum(allnsize(:))
-
-      if ( mmpi_myid == 0 ) then
-        displs(1) = 0
-        do procIndex = 2, mmpi_nprocs
-          displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
-        end do
-      else
-        displs(:) = 0
-      end if
 
       call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
@@ -2104,21 +2082,11 @@ contains
     real(4), intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: procIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
-    call mmpi_allGather(nsize, allnsize)
+    call mmpi_compute_displacements(nsize, allnsize, displs)
     nsizeMpi = sum(allnsize(:))
-
-    if ( mmpi_myid == 0 ) then
-      displs(1) = 0
-      do procIndex = 2, mmpi_nprocs
-        displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
-      end do
-    else
-      displs(:) = 0
-    end if
 
     call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
@@ -2140,21 +2108,11 @@ contains
     logical, intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: procIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
-    call mmpi_allGather(nsize, allnsize)
+    call mmpi_compute_displacements(nsize, allnsize, displs)
     nsizeMpi = sum(allnsize(:))
-
-    if ( mmpi_myid == 0 ) then
-      displs(1) = 0
-      do procIndex = 2, mmpi_nprocs
-        displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
-      end do
-    else
-      displs(:) = 0
-    end if
 
     call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
 
