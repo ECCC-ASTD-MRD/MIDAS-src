@@ -3438,14 +3438,14 @@ contains
     oldPolarisationId = -1
 
     polarisedScattering = any(coef_scatt%mpol /= -1)
-    write(*,*) "lpolarised_scattering ", polarisedScattering
+    write(*,*) "polarisedScattering ", polarisedScattering
     do profileIndex = 1, nprofiles
       frequencyIndex = 0
       do channelIndex1 = 1, n_chan
         polarisationId = coef_rttov % coef % fastem_polar (channelIndex1) + 1 ! polarisation ID of this channel
         waveNumber = coef_rttov % coef % ff_cwn(channelIndex1)
 
-        if (lpolarised_scattering) then
+        if (polarisedScattering) then
 
           ! Scattering coefficients are tabulated per-frequency and per-polarisation
       
