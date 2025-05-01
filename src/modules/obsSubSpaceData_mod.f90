@@ -629,16 +629,13 @@ contains
     integer, allocatable :: nrep(:)
     character(len=oss_code_len), allocatable :: code_local(:),code_global(:,:)
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
-    integer :: i,ierr,nproc,nrep_total,nrep_max,irep,array_size
+    integer :: i,ierr,nrep_total,nrep_max,irep,array_size
 
     write(*,*) 'Begin oss_obsdata_MPIallgather'
       
-    ! Identify number of processors.
-    call rpn_comm_size("GRID",nproc,ierr)
-      
     ! Get number of reports on each processor
 
-    allocate(nrep(nproc))
+    allocate(nrep(mmpi_nprocs))
     nrep(:)=0
 
     call mmpi_allGather(obsdata%nrep, nrep)
@@ -656,16 +653,16 @@ contains
     ! Get values from all processors into global arrays
 
     allocate(code_local(nrep_max))
-    allocate(code_global(nrep_max,nproc))
+    allocate(code_global(nrep_max,mmpi_nprocs))
 
     code_local(:)=''
     if (obsdata%nrep > 0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
 
-    call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,nproc,"GRID",ierr)
+    call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,mmpi_nprocs,"GRID",ierr)
 
     if (obsdata%ndim == 1) then
        allocate(data1d_local(obsdata%dim1,nrep_max))
-       allocate(data1d_global(obsdata%dim1,nrep_max,nproc))
+       allocate(data1d_global(obsdata%dim1,nrep_max,mmpi_nprocs))
 
        data1d_local(:,:)=0.0D0
        if (obsdata%nrep > 0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
@@ -674,7 +671,7 @@ contains
        call mmpi_allGather(data1d_local, data1d_global, array_size)
     else 
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
-       allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,nproc))
+       allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,mmpi_nprocs))
        
        data2d_local(:,:,:)=0.0D0
        if (obsdata%nrep > 0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
@@ -699,7 +696,7 @@ contains
        
        call oss_obsdata_alloc(obsdata,nrep_total,obsdata%dim1)
 
-       do i=1,nproc
+       do i=1,mmpi_nprocs
           if (nrep(i) > 0) then
              obsdata%code(irep+1:irep+nrep(i)) = code_global(1:nrep(i),i)
              obsdata%data1d(1:obsdata%dim1,irep+1:irep+nrep(i)) = data1d_global(1:obsdata%dim1,1:nrep(i),i)
@@ -711,7 +708,7 @@ contains
 
        call oss_obsdata_alloc(obsdata,nrep_total,obsdata%dim1,obsdata%dim2)
 
-       do i=1,nproc
+       do i=1,mmpi_nprocs
           if (nrep(i) > 0) then
              obsdata%code(irep+1:irep+nrep(i)) = code_global(1:nrep(i),i)
              obsdata%data2d(1:obsdata%dim1,1:obsdata%dim2,irep+1:irep+nrep(i)) = &
@@ -880,7 +877,7 @@ contains
     integer, save :: iset=2
     logical, save :: lall_combos=.true.
     logical :: same,init
-    integer :: i,j,nproc,iproc,ierr
+    integer :: i,j,iproc,ierr
 
     init=.false.
     if (present(initialize_opt)) init = initialize_opt
@@ -925,12 +922,10 @@ contains
     if (present(gather_mpi_opt)) then
        if (gather_mpi_opt) then
 
-          call rpn_comm_size("GRID",nproc,ierr)
-
-          allocate(num_unique_all(nproc))
-          allocate(stnid_unique_all(nmax,nproc))
-          if (iset >= 2) allocate(varno_unique_all(nmax,nproc))
-          if (iset >= 3) allocate(unilev_unique_all(nmax,nproc))
+          allocate(num_unique_all(mmpi_nprocs))
+          allocate(stnid_unique_all(nmax,mmpi_nprocs))
+          if (iset >= 2) allocate(varno_unique_all(nmax,mmpi_nprocs))
+          if (iset >= 3) allocate(unilev_unique_all(nmax,mmpi_nprocs))
           
           num_unique_all(:) = 0
           stnid_unique_all(:,:) = ''
@@ -940,7 +935,7 @@ contains
           call mmpi_barrier
 
           call mmpi_allGather(num_unique, num_unique_all)
-          call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
+          call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,mmpi_nprocs,"GRID",ierr)
           if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all,  nmax)
           if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all, nmax)
           
@@ -950,7 +945,7 @@ contains
           num_unique = 0
           
           ! Amalgamate unique lists
-          do iproc=1,nproc
+          do iproc=1,mmpi_nprocs
              do j=1,num_unique_all(iproc)
 
                 same = .false.

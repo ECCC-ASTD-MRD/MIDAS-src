@@ -3006,14 +3006,13 @@ contains
       integer, allocatable :: intBodies_mpilocal(:,:),all_intBodies_mpilocal(:,:,:)
       integer, allocatable :: all_numHeader_mpilocal(:), all_numBody_mpilocal(:)
       real(pre_obsReal), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
-      integer :: ierr
       integer :: numHeader_mpilocalmax,numBody_mpilocalmax
       integer :: numHeader_mpiGlobal,numBody_mpiGlobal
       integer :: numHeader_mpilocal, numBody_mpilocal
       integer :: bodyIndex_mpilocal,bodyIndex
       integer :: headerIndex_mpilocal,headerIndex
       integer :: headerIndexOffset,bodyIndexOffset
-      integer :: nsize,sourcePE,nprocs_mpi,myid_mpi,procIndex
+      integer :: nsize,sourcePE,procIndex
       integer :: charIndex,activeIndex,columnIndex
 
       write(*,*) 'Entering obs_expandToMpiGlobal'
@@ -3024,10 +3023,6 @@ contains
                         // 'obsSpaceData object is already in mpi-global state')
          return
       endif
-
-      ! determine rank and number of mpi tasks
-      call rpn_comm_size("GRID",nprocs_mpi,ierr)
-      call rpn_comm_rank("GRID",myid_mpi,ierr)
 
       ! determine number of rows in mpiglobal arrays
       numHeader_mpiGlobal = obs_numHeader_mpiglobal(obsdat)
@@ -3060,14 +3055,14 @@ contains
             write(*,*) 'obs_expandToMpiGlobal: This mpi processor has zero bodies.'
          endif
 
-         allocate( all_numHeader_mpilocal(nprocs_mpi) )
-         allocate( all_numBody_mpilocal  (nprocs_mpi) )
+         allocate( all_numHeader_mpilocal(mmpi_nprocs) )
+         allocate( all_numBody_mpilocal  (mmpi_nprocs) )
          call mmpi_allGather(numHeader_mpilocal, all_numHeader_mpilocal)
          call mmpi_allGather(numBody_mpilocal,   all_numBody_mpilocal)
 
          headerIndexOffset = 0
          bodyIndexOffset = 0
-         do procIndex = 1, myid_mpi
+         do procIndex = 1, mmpi_myid
             headerIndexOffset = headerIndexOffset + all_numHeader_mpilocal(procIndex)
             bodyIndexOffset   = bodyIndexOffset   + all_numBody_mpilocal(procIndex)
          end do
@@ -3097,8 +3092,8 @@ contains
          headerIndex_mpiglobal(headerIndex_mpilocal)=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_headerIndex_mpiglobal(numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_headerIndex_mpiglobal(numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_headerIndex_mpiglobal(1,1))
       end if
@@ -3114,8 +3109,8 @@ contains
          headerPrimaryKey_mpilocal(headerIndex_mpilocal)=  &
             obsdat%headerPrimaryKey(headerIndex_mpilocal)
       enddo
-      if(myid_mpi == 0) then
-         allocate(all_headerPrimaryKey_mpilocal(numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_headerPrimaryKey_mpilocal(numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_headerPrimaryKey_mpilocal(1,1))
       end if
@@ -3135,8 +3130,8 @@ contains
          enddo
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_intHeaders_mpilocal(odc_numActiveColumn(obsdat%intHeaders),numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_intHeaders_mpilocal(odc_numActiveColumn(obsdat%intHeaders),numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_intHeaders_mpilocal(1,1,1))
       end if
@@ -3158,8 +3153,8 @@ contains
          enddo
       enddo
       
-      if(myid_mpi == 0) then
-         allocate(all_realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_realHeaders_mpilocal(1,1,1))
       end if
@@ -3179,8 +3174,8 @@ contains
          enddo
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_intStnid_mpilocal(len(obsdat%cstnid(1)),numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_intStnid_mpilocal(len(obsdat%cstnid(1)),numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_intStnid_mpilocal(1,1,1))
       end if
@@ -3200,8 +3195,8 @@ contains
          enddo
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_intFamily_mpilocal(len(obsdat%cfamily(1)),numHeader_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_intFamily_mpilocal(len(obsdat%cfamily(1)),numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_intFamily_mpilocal(1,1,1))
       end if
@@ -3219,8 +3214,8 @@ contains
          bodyIndex_mpiglobal(bodyIndex_mpilocal)=obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal)
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_bodyIndex_mpiglobal(numBody_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_bodyIndex_mpiglobal(numBody_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_bodyIndex_mpiglobal(1,1))
       end if
@@ -3236,8 +3231,8 @@ contains
          bodyPrimaryKey_mpilocal(bodyIndex_mpilocal)=  &
             obsdat%bodyPrimaryKey(bodyIndex_mpilocal)
       enddo
-      if(myid_mpi == 0) then
-         allocate(all_bodyPrimaryKey_mpilocal(numBody_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_bodyPrimaryKey_mpilocal(numBody_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_bodyPrimaryKey_mpilocal(1,1))
       end if
@@ -3257,8 +3252,8 @@ contains
          enddo
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_intBodies_mpilocal(odc_numActiveColumn(obsdat%intBodies),numBody_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_intBodies_mpilocal(odc_numActiveColumn(obsdat%intBodies),numBody_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_intBodies_mpilocal(1,1,1))
       end if
@@ -3280,8 +3275,8 @@ contains
          enddo
       enddo
 
-      if(myid_mpi == 0) then
-         allocate(all_realBodies_mpilocal(odc_numActiveColumn(obsdat%realBodies),numBody_mpilocalmax,0:nprocs_mpi-1))
+      if(mmpi_myid == 0) then
+         allocate(all_realBodies_mpilocal(odc_numActiveColumn(obsdat%realBodies),numBody_mpilocalmax,0:mmpi_nprocs-1))
       else
          allocate(all_realBodies_mpilocal(1,1,1))
       end if
@@ -3295,7 +3290,7 @@ contains
       call obs_deallocate(obsdat)
 
       ! Only processor 0 does any work hereafter
-      if(myid_mpi == 0) then
+      if(mmpi_myid == 0) then
           call obs_allocate(obsdat,numHeader_mpiGlobal,numBody_mpiGlobal)
       else
           call obs_allocate(obsdat,0,0)
@@ -3303,9 +3298,9 @@ contains
 
       call msg_memUsage('obs_expandToMpiGlobal')
 
-      if(myid_mpi == 0) then
+      if(mmpi_myid == 0) then
 
-         do sourcePE=0,nprocs_mpi-1
+         do sourcePE=0,mmpi_nprocs-1
             do headerIndex_mpilocal=1,numHeader_mpilocalmax
                ! grab the mpiglobal header index
                headerIndex=all_headerIndex_mpiglobal(headerIndex_mpilocal,sourcePE)
@@ -3340,7 +3335,7 @@ contains
             enddo
          enddo
 
-         do sourcePE=0,nprocs_mpi-1
+         do sourcePE=0,mmpi_nprocs-1
             do bodyIndex_mpilocal=1,numBody_mpilocalmax
                bodyIndex=all_bodyIndex_mpiglobal(bodyIndex_mpilocal,sourcePE)
                if(bodyIndex > 0) then
@@ -3384,7 +3379,7 @@ contains
          obsdat%numBody     = 0
          obsdat%numHeader   = 0
 
-      endif ! myid_mpi == 0
+      endif ! mmpi_myid == 0
 
       ! deallocate the complete temporary arrays
       deallocate(all_headerIndex_mpiglobal)
@@ -3938,13 +3933,13 @@ contains
          return
       end if
 
-      call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
+      call rpn_comm_mype(mmpi_myid, my_mpi_idx_dummy, my_mpi_idy_dummy)
 
       ! Count number of headers and bodies for each processor
       numHeader_mpiLocal=0
       numBody_mpiLocal=0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if ( my_mpi_id == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
+         if ( mmpi_myid == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
             numHeader_mpiLocal = numHeader_mpiLocal + 1
             numBody_mpilocal = numBody_mpilocal &
                             +obs_headElem_i( obsdat, OBS_NLV, headerIndex_mpiglobal )
@@ -3976,7 +3971,7 @@ contains
       ! determine the list of header indices
       headerIndex_mpilocal = 0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if ( my_mpi_id == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
+         if ( mmpi_myid == obs_headElem_i( obsdat, OBS_IP, headerIndex_mpiglobal )) then
             headerIndex_mpilocal=headerIndex_mpilocal+1
             obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) &
                                                            =headerIndex_mpiglobal
@@ -4740,18 +4735,13 @@ contains
       integer :: numHeader_mpimessage, numBody_mpimessage
       integer :: bodyIndex, headerIndex, headerIndex_out, bodyIndex_out, columnIndex, activeIndex, procIndex, charIndex
       integer :: bodyIndexBeg, bodyIndexEnd
-      integer :: nprocs_mpi, myid_mpi, ierr, nsize, target_ip
+      integer :: nsize, target_ip
       logical :: needToRedistribute, needToRedistribute_mpiglobal
 
       call msg_memUsage('obs_MpiRedistribute')
       write(*,*) '============= Enter obs_MpiRedistribute =============='
       write(*,*) 'redistribute data according to mpi task ID stored in column :', &
                  ocn_ColumnNameList_IH(target_ip_index)
-
-      ! determine rank and number of mpi tasks
-      call rpn_comm_size("GRID",nprocs_mpi,ierr)
-      call rpn_comm_rank("GRID",myid_mpi,ierr)
-
 
       ! Number of headers and bodies per task before redistribution
       numHeader_in = obs_numHeader(obsdat_inout)
@@ -4761,7 +4751,7 @@ contains
       needToRedistribute = .false.
       do headerIndex = 1, numHeader_in
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
-         if (target_ip /= myid_mpi) needToRedistribute = .true.
+         if (target_ip /= mmpi_myid) needToRedistribute = .true.
       enddo
       call mmpi_allReduce(needToRedistribute, needToRedistribute_mpiglobal, "MPI_LOR")
       if(.not.needToRedistribute_mpiglobal) then
@@ -4770,10 +4760,10 @@ contains
       endif
 
       ! allocate arrays used for counting on each mpi task
-      allocate(numHeaderPE_mpilocal(nprocs_mpi))
-      allocate(numHeaderPE_mpiglobal(nprocs_mpi))
-      allocate(numBodyPE_mpilocal(nprocs_mpi))
-      allocate(numBodyPE_mpiglobal(nprocs_mpi))
+      allocate(numHeaderPE_mpilocal(mmpi_nprocs))
+      allocate(numHeaderPE_mpiglobal(mmpi_nprocs))
+      allocate(numBodyPE_mpilocal(mmpi_nprocs))
+      allocate(numBodyPE_mpiglobal(mmpi_nprocs))
 
       ! Compute number of headers and bodies per task after redistribution
       numHeaderPE_mpilocal(:) = 0
@@ -4783,20 +4773,20 @@ contains
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
          numBodyPE_mpilocal(1+target_ip)   = numBodyPE_mpilocal(1+target_ip)   + obs_headElem_i(obsdat_inout,OBS_NLV,headerIndex)
       enddo
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM", nprocs_mpi)
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM", nprocs_mpi)
-      numHeader_out = numHeaderPE_mpiglobal(myid_mpi+1)
-      numBody_out   = numBodyPE_mpiglobal(myid_mpi+1)
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM", mmpi_nprocs)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM", mmpi_nprocs)
+      numHeader_out = numHeaderPE_mpiglobal(mmpi_myid+1)
+      numBody_out   = numBodyPE_mpiglobal(mmpi_myid+1)
       write(*,*) 'obs_MpiRedistribute: num mpi header and body before redistribution =', numHeader_in, numBody_in
       write(*,*) 'obs_MpiRedistribute: num mpi header and body after redistribution  =', numHeader_out, numBody_out
 
       ! Compute the max number of headers and bodies in each mpi message sent/received in the transpose
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX", nprocs_mpi)
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX", nprocs_mpi)
-      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
-      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
-      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
-      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages (max) =', numBodyPE_mpiglobal
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX", mmpi_nprocs)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX", mmpi_nprocs)
+      if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
+      if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
+      if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
+      if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages (max) =', numBodyPE_mpiglobal
       numHeader_mpimessage = maxval(numHeaderPE_mpiglobal(:))
       numBody_mpimessage   = maxval(numBodyPE_mpiglobal(:))
 
@@ -4806,23 +4796,23 @@ contains
       obsdat_tmp%numBody   = numBody_out
 
       ! allocate temporary arrays to hold header-level data for mpi communication
-      allocate(intcfamily_send(len(obsdat_inout%cfamily(1)),numHeader_mpimessage,nprocs_mpi)) 
-      allocate(intcfamily_recv(len(obsdat_inout%cfamily(1)),numHeader_mpimessage,nprocs_mpi)) 
+      allocate(intcfamily_send(len(obsdat_inout%cfamily(1)),numHeader_mpimessage,mmpi_nprocs))
+      allocate(intcfamily_recv(len(obsdat_inout%cfamily(1)),numHeader_mpimessage,mmpi_nprocs))
 
-      allocate(intcstnid_send(len(obsdat_inout%cstnid(1)),numHeader_mpimessage,nprocs_mpi)) 
-      allocate(intcstnid_recv(len(obsdat_inout%cstnid(1)),numHeader_mpimessage,nprocs_mpi)) 
+      allocate(intcstnid_send(len(obsdat_inout%cstnid(1)),numHeader_mpimessage,mmpi_nprocs))
+      allocate(intcstnid_recv(len(obsdat_inout%cstnid(1)),numHeader_mpimessage,mmpi_nprocs))
 
       allocate(real_send(odc_numActiveColumn(obsdat_inout%realHeaders), &
-                         numHeader_mpimessage,nprocs_mpi))
+                         numHeader_mpimessage,mmpi_nprocs))
       allocate(real_recv(odc_numActiveColumn(obsdat_inout%realHeaders), &
-                         numHeader_mpimessage,nprocs_mpi))
+                         numHeader_mpimessage,mmpi_nprocs))
       allocate(int_send(odc_numActiveColumn(obsdat_inout%intHeaders), &
-                        numHeader_mpimessage,nprocs_mpi))
+                        numHeader_mpimessage,mmpi_nprocs))
       allocate(int_recv(odc_numActiveColumn(obsdat_inout%intHeaders), &
-                        numHeader_mpimessage,nprocs_mpi))
+                        numHeader_mpimessage,mmpi_nprocs))
 
-      allocate(primaryKey_send(numHeader_mpimessage,nprocs_mpi))
-      allocate(primaryKey_recv(numHeader_mpimessage,nprocs_mpi))
+      allocate(primaryKey_send(numHeader_mpimessage,mmpi_nprocs))
+      allocate(primaryKey_recv(numHeader_mpimessage,mmpi_nprocs))
 
       ! copy the data to temporary arrays: header-level data
       numHeaderPE_mpilocal(:) = 0
@@ -4861,7 +4851,7 @@ contains
       enddo
 
       ! do mpi communication: header-level data
-      if(nprocs_mpi > 1) then
+      if(mmpi_nprocs > 1) then
         nsize = numHeader_mpimessage
         call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
 
@@ -4884,13 +4874,13 @@ contains
         intcfamily_recv(:,:,1) = intcfamily_send(:,:,1)
       endif
 
-      allocate(message_onm(numHeader_mpimessage,nprocs_mpi))
+      allocate(message_onm(numHeader_mpimessage,mmpi_nprocs))
       activeIndex = odc_activeIndexFromColumnIndex(obsdat_inout%intHeaders%odc_flavour,OBS_ONM)
       message_onm(:,:) = int_recv(activeIndex,:,:)
 
       ! copy the data from temporary arrays: header-level data
       headerIndex_out = 0
-      do procIndex = 1, nprocs_mpi
+      do procIndex = 1, mmpi_nprocs
          do headerIndex=1,numHeader_mpimessage
             if(int_recv(1,headerIndex,procIndex) /= -99999) then
                if(target_ip_index == OBS_IPF) then
@@ -4957,8 +4947,8 @@ contains
 
       ! Do communication for bodyPrimaryKey
 
-      allocate(primaryKey_send(numBody_mpimessage,nprocs_mpi))
-      allocate(primaryKey_recv(numBody_mpimessage,nprocs_mpi))
+      allocate(primaryKey_send(numBody_mpimessage,mmpi_nprocs))
+      allocate(primaryKey_recv(numBody_mpimessage,mmpi_nprocs))
 
       numBodyPE_mpilocal(:) = 0
       primaryKey_send(:,:) = -99999
@@ -4969,7 +4959,7 @@ contains
          primaryKey_send(numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
               obsdat_inout%bodyPrimaryKey(bodyIndex)
       enddo
-      if(nprocs_mpi > 1) then
+      if(mmpi_nprocs > 1) then
          nsize = numBody_mpimessage
          call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
       else
@@ -4977,7 +4967,7 @@ contains
       endif
       if(target_ip_index == OBS_IPF) then
          ! copy the data in the same order as in the original files
-         do procIndex = 1, nprocs_mpi
+         do procIndex = 1, mmpi_nprocs
             bodyIndex = 0
             do headerIndex=1,numHeader_mpimessage
                headerIndex_out = message_onm(headerIndex,procIndex)
@@ -4994,7 +4984,7 @@ contains
          enddo
          ! copy the data in sequential order
          bodyIndex_out = 0
-         do procIndex = 1, nprocs_mpi
+         do procIndex = 1, mmpi_nprocs
             do bodyIndex=1,numBody_mpimessage
                if(primaryKey_recv(bodyIndex,procIndex) /= -99999) then
                   bodyIndex_out = bodyIndex_out + 1
@@ -5010,8 +5000,8 @@ contains
 
       ! First do REAL body columns
 
-      allocate(real_send_2d(numBody_mpimessage,nprocs_mpi))
-      allocate(real_recv_2d(numBody_mpimessage,nprocs_mpi))
+      allocate(real_send_2d(numBody_mpimessage,mmpi_nprocs))
+      allocate(real_recv_2d(numBody_mpimessage,mmpi_nprocs))
 
       do activeIndex=1,odc_numActiveColumn(obsdat_inout%realBodies)
          columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realBodies%odc_flavour, &
@@ -5029,7 +5019,7 @@ contains
          enddo
 
          ! do mpi communication: body-level data
-         if(nprocs_mpi > 1) then
+         if(mmpi_nprocs > 1) then
            nsize = numBody_mpimessage
            call mmpi_alltoall(real_send_2d, real_recv_2d, nsize)
          else
@@ -5040,7 +5030,7 @@ contains
          if(target_ip_index == OBS_IPF) then
 
             ! copy the data in the same order as in the original files
-            do procIndex = 1, nprocs_mpi
+            do procIndex = 1, mmpi_nprocs
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
@@ -5060,7 +5050,7 @@ contains
 
             ! copy the data in sequential order
             bodyIndex_out = 0
-            do procIndex = 1, nprocs_mpi
+            do procIndex = 1, mmpi_nprocs
                do bodyIndex=1,numBody_mpimessage
                   if(real_recv_2d(bodyIndex,procIndex) /= -99999.0d0) then
                      bodyIndex_out = bodyIndex_out + 1
@@ -5079,8 +5069,8 @@ contains
 
       ! Now do INTEGER body columns
 
-      allocate(int_send_2d(numBody_mpimessage,nprocs_mpi))
-      allocate(int_recv_2d(numBody_mpimessage,nprocs_mpi))
+      allocate(int_send_2d(numBody_mpimessage,mmpi_nprocs))
+      allocate(int_recv_2d(numBody_mpimessage,mmpi_nprocs))
 
       do activeIndex=1,odc_numActiveColumn(obsdat_inout%intBodies)
          columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%intBodies%odc_flavour, &
@@ -5098,7 +5088,7 @@ contains
          enddo
 
          ! do mpi communication: body-level data
-         if(nprocs_mpi > 1) then
+         if(mmpi_nprocs > 1) then
            nsize = numBody_mpimessage
            call mmpi_alltoall(int_send_2d, int_recv_2d, nsize)
          else
@@ -5109,7 +5099,7 @@ contains
          if(target_ip_index == OBS_IPF) then
 
             ! copy the data in the same order as in the original files
-            do procIndex = 1, nprocs_mpi
+            do procIndex = 1, mmpi_nprocs
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
@@ -5129,7 +5119,7 @@ contains
 
             ! copy the data in sequential order
             bodyIndex_out = 0
-            do procIndex = 1, nprocs_mpi
+            do procIndex = 1, mmpi_nprocs
                do bodyIndex=1,numBody_mpimessage
                   if(int_recv_2d(bodyIndex,procIndex) /= -99999) then
                      bodyIndex_out = bodyIndex_out + 1
@@ -5777,14 +5767,9 @@ contains
       integer         , intent(out) :: nrealBodies
 
       ! Locals:
-      integer :: i,j,nprocs_mpi,ierr
+      integer :: i,j
 
-      ! (note that as a part of the writing, the body is being sorted
-      !  so that the order of the observations in the body array 
-      !  corresponds with the order of the headers in the header array).
-      call rpn_comm_size("GRID",nprocs_mpi,ierr)
-
-      if(obsdat%mpi_local .and. nprocs_mpi>1) then
+      if(obsdat%mpi_local .and. mmpi_nprocs>1) then
          call obs_abort('obs_write_hdr() is not equipped to handle the ' // &
                         'case, mpi_local=.true.')
          return
