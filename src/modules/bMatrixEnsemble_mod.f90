@@ -1337,13 +1337,20 @@ CONTAINS
     real(8) :: multFactor
     integer :: stepIndex,levIndex,lev,memberIndex,varIndex
     integer :: horizWaveBandIndex, vertWaveBandIndex
-    logical :: makeBiPeriodic
+    logical :: makeBiPeriodic, allocHeightSfc
     character(len=4)  :: varName
     character(len=30) :: transform
 
     write(*,*) 'setupEnsemble: Start'
     call msg_memUsage('setupEnsemble')
 
+    if (bEns(instanceIndex)%vco_ens%vCode == 21001 .and. &
+        (any(bEns(instanceIndex)%includeAnlVar(:) == 'P_M') .or. any(bEns(instanceIndex)%includeAnlVar(:) == 'P_T'))) then
+      allocHeightSfc=.true.
+    else
+      allocHeightSfc=.false.
+    end if
+    
     !- 1. Memory allocation
     allocate(bEns(instanceIndex)%ensPerts(bEns(instanceIndex)%nHorizWaveBand,bEns(instanceIndex)%nVertWaveBand))
     do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand
@@ -1354,7 +1361,8 @@ CONTAINS
                           bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList,                           & 
                           hco_core_opt = bEns(instanceIndex)%hco_core,                                              &
                           varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
-                          hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree)
+                          hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree,                        &
+                          allocHeightSfc_opt=allocHeightSfc)
       end do
     end do
 
@@ -1596,6 +1604,10 @@ CONTAINS
       !$OMP END PARALLEL DO
 
     end do ! levIndex
+
+    if (gsv_isAssocHeightSfc(statevector) .and. horizWaveBandIndex == 1 .and. vertWaveBandIndex == 1) then
+      call ens_copyHeightSfcToGsv(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),statevector)
+    end if
 
   end subroutine ben_getPerturbation
 
@@ -2479,10 +2491,19 @@ CONTAINS
     character(len=2) :: vertWaveBandNumber
     character(len=2) :: instanceNumber
     logical :: computeOverallStats
+    logical :: allocHeightSfc, writeHeightSfc
     
     if ( trim(mode) == 'FullPerturbations') then
       nHorizWaveBandToDiagnose = 1
       nVertWaveBandToDiagnose = 1
+      if (bEns(instanceIndex)%vco_ens%vCode == 21001 .and. &
+        (any(bEns(instanceIndex)%includeAnlVar(:) == 'P_M') .or. any(bEns(instanceIndex)%includeAnlVar(:) == 'P_T'))) then
+        allocHeightSfc=.true.
+        writeHeightSfc=.true.
+      else
+        allocHeightSfc=.false.
+        writeHeightSfc=.false.
+      end if
       computeOverallStats = .false.
     else if ( trim(mode) == 'WaveBandPerturbations' ) then
       if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
@@ -2496,6 +2517,8 @@ CONTAINS
         nVertWaveBandToDiagnose = 1
       end if
       computeOverallStats=.true.
+      allocHeightSfc=.false.
+      writeHeightSfc=.false.
     else
       write(*,*)
       write(*,*) 'mode = ', trim(mode)
@@ -2506,7 +2529,7 @@ CONTAINS
     if ( mmpi_myid == 0 ) write(*,*) 'EnsembleDiagnostic in mode: ', mode
 
     call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., allocHeightSfc_opt=allocHeightSfc, &
                       varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar))
 
     write(instanceNumber,'(I2.2)') instanceIndex
@@ -2538,9 +2561,9 @@ CONTAINS
         end if
         fileNameOut = './ens_pert001_i' // trim(instanceNumber) // '.fst'
 
-        call gio_writeToFile(statevector,fileNameOut,etiket, &                               ! IN
-                             scaleFactor_opt=dnens2, &                                    ! IN
-                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )       ! IN
+        call gio_writeToFile(statevector,fileNameOut,etiket,                             & ! IN
+                             scaleFactor_opt=dnens2, writeHeightSfc_opt= writeHeightSfc, & ! IN
+                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )        ! IN
       end do
     end do
 

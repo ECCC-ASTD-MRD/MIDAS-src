@@ -311,9 +311,15 @@ contains
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       call msg('int_hInterp_gsv','interpolating surface height')
-      ierr = int_hInterpScalar( statevector_out, statevector_in, 'ZSFC', 1, 1, &
-                                interpDegree=trim(interpolationDegree), &
-                                extrapDegree_opt=trim(extrapolationDegree) )
+      ierr = int_hInterpScalar(statevector_out, statevector_in, 'ZSFC', 1, 1, &
+                               interpDegree=trim(interpolationDegree), &
+                               extrapDegree_opt=trim(extrapolationDegree))
+      if ( gsv_isAssocHeightSfcLS(statevector_in) .and. gsv_isAssocHeightSfcLS(statevector_out) ) then
+        call msg('int_hInterp_gsv','interpolating surface height LS')
+        ierr = int_hInterpScalar(statevector_out, statevector_in, 'ZSFCLS', 1, 1, &
+                                 interpDegree=trim(interpolationDegree), &
+                                 extrapDegree_opt=trim(extrapolationDegree))
+      end if
     end if
 
     call msg('int_hInterp_gsv', 'END', verb_opt=2)
@@ -431,6 +437,11 @@ contains
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       heightSfcOut(:,:) = heightSfcIn(:,:)
+      if (gsv_isAssocHeightSfcLs(statevector_in) .and. gsv_isAssocHeightSfcLs(statevector_out) ) then
+        heightSfcIn => gsv_getHeightSfcLs(statevector_in)
+        heightSfcOut => gsv_getHeightSfcLs(statevector_out)
+        heightSfcOut(:,:) = heightSfcIn(:,:)
+      end if
     end if
 
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
@@ -736,6 +747,11 @@ contains
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       heightSfcOut(:,:) = heightSfcIn(:,:)
+      if (gsv_isAssocHeightSfcLs(statevector_in) .and. gsv_isAssocHeightSfcLs(statevector_out) ) then
+        heightSfcIn => gsv_getHeightSfcLs(statevector_in)
+        heightSfcOut => gsv_getHeightSfcLs(statevector_out)
+        heightSfcOut(:,:) = heightSfcIn(:,:)
+      end if
     end if
 
     ! DBGmad move to int_vInterp_gsv?
@@ -1465,6 +1481,19 @@ contains
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
 
+    else if (trim(varName) == 'ZSFCLS') then
+
+      heightSfcIn  => gsv_getHeightSfcLs(stateVectorIn)
+      heightSfcOut => gsv_getHeightSfcLs(stateVectorOut)
+
+      ! allocate real(4) buffers and copy to/from for interpolation
+      allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      fieldIn_r4(:,:,1,1) = heightSfcIn(:,:)
+      ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
+      heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
+      deallocate(fieldIn_r4,fieldOut_r4)
+      
     else if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'ALL') then

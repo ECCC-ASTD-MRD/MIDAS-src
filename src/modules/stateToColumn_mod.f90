@@ -5812,8 +5812,9 @@ contains
       HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
         if (mmpi_myid == 0) then
-          varName = 'GZ'
-          varLevIndexHeightSfc = 0
+          !varName = 'GZ'
+          varLevIndexHeightSfc = 0    
+
           step_loop_height: do stepIndex = 1, numStep
 
             if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_height
@@ -5869,6 +5870,68 @@ contains
         end do
 
       end if HeightSfcPresent
+
+      ! Interpolate surface height LS separately, only exists on mpi task 0
+      HeightSfcLsPresent: if ( stateVector_VarsLevs%HeightSfcLsPresent ) then
+
+        if (mmpi_myid == 0) then
+          !varName = 'MELS'
+          varLevIndexHeightSfc = 0    
+          step_loop_heightLs: do stepIndex = 1, numStep
+
+            if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_heightLs
+
+            ! interpolate to the columns destined for all procs for all steps and one lev/var
+            !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
+            do procIndex = 1, mmpi_nprocs
+              yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+              if ( yourNumHeader > 0 ) then
+                ptr2d_r8 => gsv_getHeightSfcLS(stateVector_VarsLevs)
+                call myezsint_r8_nl( cols_hint(1:yourNumHeader, stepIndex, procIndex), &
+                                     ptr2d_r8(:,:), interpInfo_nl, varLevIndexHeightSfc, stepIndex, procIndex )
+              end if
+            end do
+            !$OMP END PARALLEL DO
+
+          end do step_loop_heightLs
+
+          ! interpolate in time to the columns destined for all procs and one level/variable
+          do procIndex = 1, mmpi_nprocs
+            cols_send(:,procIndex) = 0.0d0
+            do stepIndex = 1, numStep
+              !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex)
+              do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+                headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
+                ! just copy, since surface height same for all time steps
+                headerIndex2 = headerIndex - allHeaderIndexBeg(procIndex) + 1
+                cols_send(headerIndex2,procIndex) = cols_hint(headerUsedIndex, stepIndex, procIndex)
+              end do
+              !$OMP END PARALLEL DO
+            end do
+          end do
+
+        end if
+
+        ! mpi communication: scatter data from task 0
+        nsize = numHeader
+        if(mmpi_nprocs > 1) then
+          do procIndex = 1, mmpi_nprocs
+            displs(procIndex) = (procIndex - 1) * numHeaderMax
+            nsizes(procIndex) = allNumHeader(procIndex)
+          end do
+          call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
+                                 cols_recv, nsize, 'MPI_REAL8', &
+                                 0, 'GRID', ierr)
+        else
+          cols_recv(:,1) = cols_send(:,1)
+        end if
+
+        do headerIndex = headerIndexBeg, headerIndexEnd
+          headerIndex2 = headerIndex - headerIndexBeg + 1
+          call col_setHeightSfcLs(column, headerIndex, cols_recv(headerIndex2,1))
+        end do
+
+      end if HeightSfcLsPresent
 
       deallocate(cols_hint)
       deallocate(cols_send)
