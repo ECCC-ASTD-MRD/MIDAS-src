@@ -42,6 +42,7 @@ module midasMpi_mod
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
+  public :: mmpi_stopAndWait4Debug
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -275,6 +276,36 @@ contains
     end if
 
   end subroutine mmpi_barrier
+
+  !--------------------------------------------------------------------------
+  ! mmpi_stopAndWait4Debug
+  !--------------------------------------------------------------------------
+  subroutine mmpi_stopAndWait4Debug(message)
+    !
+    !:Purpose: Stop the execution for the process reaching a call to the
+    !          subroutine, then wait until all MPI processes reached such a
+    !          call to mmpi_stopAndWait4Debug.
+    !          Intended **for debugging puposes only** since it can cause
+    !          unwanted MPI deadlocks - processes waiting infinitely because
+    !          not all MPI processes will ever reach a call to
+    !          mmpi_stopAndWait4Debug.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: message
+
+    ! Locals:
+    integer :: comm, ierr, rpn_comm_comm
+
+    write(6,9000) message
+9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
+    flush(6)
+
+    call mmpi_barrier('WORLD')
+    comm = rpn_comm_comm("WORLD")
+    call mpi_abort( comm, 1, ierr )
+  end subroutine mmpi_stopAndWait4Debug
 
   !--------------------------------------------------------------------------
   ! mmpi_getptopo
