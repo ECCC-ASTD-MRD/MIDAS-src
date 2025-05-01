@@ -3390,7 +3390,7 @@ contains
     logical :: areTheyEqual
 
     ! Locals:
-    integer :: index
+    integer :: arrayIndex
 
     ! If the arrays does not have the same sizes, they can't be equal
     if ( size(firstArray) /= size(secondArray) ) then
@@ -3398,9 +3398,9 @@ contains
       return
     end if
 
-    do index = 1, size(firstArray)
+    do arrayIndex = 1, size(firstArray)
       ! If one value is different, then they are different so return
-      if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
+      if ( .not. utl_isEqual(firstArray(arrayIndex), secondArray(arrayIndex)) ) then
         areTheyEqual = .false.
         return
       end if
@@ -3430,7 +3430,7 @@ contains
     logical :: areTheyEqual
 
     ! Locals:
-    integer :: index
+    integer :: arrayIndex
 
     ! If the arrays does not have the same sizes, they can't be equal
     if ( size(firstArray) /= size(secondArray) ) then
@@ -3438,9 +3438,9 @@ contains
       return
     end if
 
-    do index = 1, size(firstArray)
+    do arrayIndex = 1, size(firstArray)
       ! If one value is different, then they are different so return
-      if ( .not. utl_isEqual(firstArray(index), secondArray(index)) ) then
+      if ( .not. utl_isEqual(firstArray(arrayIndex), secondArray(arrayIndex)) ) then
         areTheyEqual = .false.
         return
       end if
