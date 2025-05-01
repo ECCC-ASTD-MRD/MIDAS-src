@@ -3804,8 +3804,10 @@ contains
           obsAlreadySameStep = .false.
           OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
-            if ( obsStepIndexMpi(headerIndex1) == obsStepIndexMpi(headerIndex2) ) then
-              if ( (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
+            if ( abs( obsStepIndexMpi(headerIndex1) - &
+                      obsStepIndexMpi(headerIndex2) ) < delTemps ) then
+              if ( (obsStepIndexMpi(headerIndex1)   == obsStepIndexMpi(headerIndex2))   .and. &
+                   (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
                    (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
                 ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
                 cycle OBSLOOP1
