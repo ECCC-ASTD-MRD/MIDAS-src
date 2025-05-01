@@ -119,6 +119,14 @@ contains
     write(*,*)
     write(*,*) 'utl_readNML: reading namelist files into strings for later use'
 
+    ! We cannot use 'midasMPI_mod' modules variables 'mmpi_myid',
+    ! 'mmpi_myidx' and 'mmpi_myidy' because depending on that module
+    ! would introduce a circular dependency.
+    ierr = rpn_comm_mype(myid,myidx,myidy)
+    if ( ierr /= 0 ) then
+      call utl_abort('MPI error raised in rpn_comm_mype called from utl_readNml')
+    end if
+
     ! Get some MPI information
     ierr = rpn_comm_mype(myid,myidx,myidy)
 

@@ -3923,7 +3923,6 @@ contains
       integer :: headerIndex_mpiglobal,headerIndex_mpilocal
       integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
-      integer :: my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
 
@@ -3932,8 +3931,6 @@ contains
                       'obs_mpiDistributeIndices: data already mpi-local, Abort!')
          return
       end if
-
-      call rpn_comm_mype(mmpi_myid, my_mpi_idx_dummy, my_mpi_idy_dummy)
 
       ! Count number of headers and bodies for each processor
       numHeader_mpiLocal=0
