@@ -297,14 +297,17 @@ contains
 
     ! Locals:
     integer :: comm, ierr, rpn_comm_comm
+    character(len=*), parameter :: communicator = 'ALLGRIDS'
 
     write(6,9000) message
 9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
     flush(6)
 
-    call mmpi_barrier('WORLD')
-    comm = rpn_comm_comm("WORLD")
+    call mmpi_barrier(communicator)
+    comm = rpn_comm_comm(communicator)
+
     call mpi_abort( comm, 1, ierr )
+
   end subroutine mmpi_stopAndWait4Debug
 
   !--------------------------------------------------------------------------

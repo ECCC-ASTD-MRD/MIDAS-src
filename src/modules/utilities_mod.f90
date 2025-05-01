@@ -1225,7 +1225,7 @@ contains
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
     flush(6)
 
-    comm = rpn_comm_comm("WORLD")
+    comm = rpn_comm_comm('ALLGRIDS')
     call mpi_abort( comm, 1, ierr )
 
   end subroutine utl_abort
