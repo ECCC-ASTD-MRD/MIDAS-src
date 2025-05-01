@@ -336,7 +336,7 @@ contains
                    xlat1_4, xlon1_4, xlat2_4, xlon2_4,           & ! OUT
                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac) ! IN
 
-      if (xlat1_4 == 0.0 .and. xlat2_4 == 0.0) then
+      if ( utl_isEqual(xlat1_4, 0.0) .and. utl_isEqual(xlat2_4, 0.0) ) then
         rotated = .false.
       else
         rotated = .true.
@@ -523,8 +523,14 @@ contains
     hco%xlon2_yan            = real(xlon2_yan_4,8)
     hco%initialized          = .true.
 
-    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
-    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
+    ! TODO: We should simplify the floating point precision conversions by using
+    !    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
+    !    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
+    ! but to avoid affecting the results, we will use instead explicit
+    ! prevision conversion
+    hco%lat2d_4(:,:) = real( real(hco%lat2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
+    hco%lon2d_4(:,:) = real( real(hco%lon2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
+
 
     deallocate(lat_8)
     deallocate(lon_8)
@@ -575,7 +581,7 @@ contains
 
     maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon, maxDeltaLat)
 
-    if (mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious) then
+    if (mmpi_myid == 0 .and. .not. utl_isEqual(maxGridSpacing, maxGridSpacingPrevious) ) then
       maxGridSpacingPrevious = maxGridSpacing
       call msg('hco_setupFromFile', 'maxGridSpacing='//str(maxGridSpacing)//' m')
       call msg('hco_setupFromFile', 'maxDeltaLat= '//str(maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
@@ -631,7 +637,7 @@ contains
 
     minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
 
-    if (mmpi_myid == 0 .and. minGridSpacing /= minGridSpacingPrevious) then
+    if (mmpi_myid == 0 .and. .not. utl_isEqual(minGridSpacing, minGridSpacingPrevious) ) then
       minGridSpacingPrevious = minGridSpacing
       call msg('hco_setupFromFile', 'minGridSpacing='//str(minGridSpacing)//' m')
       call msg('hco_setupFromFile', 'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
@@ -678,7 +684,7 @@ contains
          next_lon - lon(1) < 3.0*dx) then
       
       global = .true.
-      if (lon(1) == lon(ni)) then
+      if ( utl_isEqual(lon(1),lon(ni)) ) then
         write(*,*)
         write(*,*) ' *** Global Grid where i = ni (repetition) '
       else  
@@ -804,8 +810,8 @@ contains
       return
     end if
 
-    equal = equal .and. (hco1%dlat == hco2%dlat)
-    equal = equal .and. (hco1%dlon == hco2%dlon)
+    equal = equal .and. utl_isEqual(hco1%dlat, hco2%dlat)
+    equal = equal .and. utl_isEqual(hco1%dlon,  hco2%dlon)
     if (.not. equal) then
       write(*,*) 'hco_equal: grid spacing not equal'
       return
@@ -820,14 +826,17 @@ contains
     end if
     
     equal = equal .and. (hco1%rotated .eqv. hco2%rotated)
-    equal = equal .and. (hco1%xlat1   ==    hco2%xlat1)
-    equal = equal .and. (hco1%xlon1   ==    hco2%xlon1)
-    equal = equal .and. (hco1%xlat2   ==    hco2%xlat2)
-    equal = equal .and. (hco1%xlon2   ==    hco2%xlon2)
-    equal = equal .and. (hco1%xlat1_yan ==  hco2%xlat1_yan)
-    equal = equal .and. (hco1%xlon1_yan ==  hco2%xlon1_yan)
-    equal = equal .and. (hco1%xlat2_yan ==  hco2%xlat2_yan)
-    equal = equal .and. (hco1%xlon2_yan ==  hco2%xlon2_yan)
+
+    equal = equal .and. utl_isEqual(hco1%xlat1, hco2%xlat1)
+    equal = equal .and. utl_isEqual(hco1%xlon1, hco2%xlon1)
+    equal = equal .and. utl_isEqual(hco1%xlat2, hco2%xlat2)
+    equal = equal .and. utl_isEqual(hco1%xlon2, hco2%xlon2)
+
+    equal = equal .and. utl_isEqual(hco1%xlat1_yan, hco2%xlat1_yan)
+    equal = equal .and. utl_isEqual(hco1%xlon1_yan, hco2%xlon1_yan)
+    equal = equal .and. utl_isEqual(hco1%xlat2_yan, hco2%xlat2_yan)
+    equal = equal .and. utl_isEqual(hco1%xlon2_yan, hco2%xlon2_yan)
+
     if (.not. equal) then
       write(*,*) 'hco_equal: rotation not equal: ', hco1%rotated, hco2%rotated
       write(*,*) 'hco_equal: xlat1: ', hco1%xlat1, hco2%xlat1
@@ -841,8 +850,8 @@ contains
       return
     end if
     
-    equal = equal .and. all(hco1%lat(:) == hco2%lat(:))
-    equal = equal .and. all(hco1%lon(:) == hco2%lon(:))
+    equal = equal .and. utl_isEqual(hco1%lat(:), hco2%lat(:))
+    equal = equal .and. utl_isEqual(hco1%lon(:), hco2%lon(:))
     if (.not. equal) then
       write(*,*) 'hco_equal: lat/lon not equal'
       return
@@ -893,22 +902,27 @@ contains
 
     ! Locals: 
     integer :: lonIndex,latIndex,np_subd
-    real(8) :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
+    real(8) :: poids(ni,nj),x_a_8,y_a_8,sp,sf,sp1,sf1
     real(4) :: area_4(ni,nj)
 
     np_subd = 4*ni
 
-    sp    = 0.d0
-    sf    = 0.d0
+    sp = 0.d0
+    sf = 0.d0
 
     do latIndex = 1, nj
-      y_a_4 = yg(latIndex)
+      y_a_8 = real(yg(latIndex), 8)
       do lonIndex = 1, ni
+        ! TODO: simplify to use directly 'MPC_PI_R4'
+        ! Why use 'acos(-1)'?  Could use 'MPC_PI_R4'?
+        x_a_8 = xg(lonIndex)-acos(-1.d0)
 
-        x_a_4 = xg(lonIndex)-acos(-1.d0)
-
-        area_4(lonIndex,latIndex) = dx*dy*cos(yg(latIndex))
-        poids (lonIndex,latIndex) = yyg_weight (x_a_4,y_a_4,dx,dy,np_subd)
+        ! TODO: simplify the floating point precision conversions
+        ! This should be
+        !    area_4(lonIndex,latIndex) = real(dx*dy*cos(y_a_8),4)
+        ! but we use this formulation to avoid affecting the results
+        area_4(lonIndex,latIndex) = real(dx*dy*real(cos(yg(latIndex)),8), 4)
+        poids (lonIndex,latIndex) = yyg_weight(x_a_8,y_a_8,dx,dy,np_subd)
 
         !Check if poids <0
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
@@ -916,7 +930,6 @@ contains
         else if (abs(poids(lonIndex,latIndex)-1.d0) < 1.d-14) then
           sf = sf + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
         end if
-
       end do
     end do
 
@@ -928,10 +941,10 @@ contains
     do latIndex = 1, nj
       do lonIndex = 1, ni
 
-        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
+        x_a_8 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min(1.0d0, x_a_4)
+          poids(lonIndex,latIndex) = min(1.0d0, x_a_8)
         end if
         if (poids(lonIndex,latIndex)*(1.0-poids(lonIndex,latIndex)) > 0.d0) then
           sp1 = sp1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
@@ -946,10 +959,10 @@ contains
     !-------
     do latIndex = 1, nj
       do lonIndex = 1, ni
-        x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
+        x_a_8 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min(1.d0, x_a_4)
+          poids(lonIndex,latIndex) = min(1.d0, x_a_8)
         end if
  
       end do
@@ -1069,19 +1082,17 @@ contains
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
     ! Locals:
-    integer :: sindx, ierr, fnom, fclos
+    integer :: ierr, fnom, fclos
     integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
-    real(8)  :: deg2rad,dx,dy,sum_weight
+    real(8)  :: dx,dy,sum_weight,tictacRad_r8
     real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
     real(4), allocatable :: xg(:),yg(:)
     logical :: fileExist
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
-
-    deg2rad= MPC_RADIANS_PER_DEGREE_R8 
-    sindx  = 6
+    integer, parameter :: sindx = 6
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))
@@ -1150,21 +1161,29 @@ contains
       allocate (yg(nj))
          
       dx = hco%tictacU(sindx+10+1) -hco%tictacU(sindx+10)
-      dy=  hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
-      dx=  deg2rad* dx
-      dy=  deg2rad* dy
+      dy = hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
+      dx = MPC_RADIANS_PER_DEGREE_R8 * dx
+      dy = MPC_RADIANS_PER_DEGREE_R8 * dy
       do lonIndex=1,ni
-        xg(lonIndex)=deg2rad* hco%tictacU(sindx+10+lonIndex-1)
+        ! TODO: simplify the floating point precision conversions
+        ! We use this logic just to keep results unchanged but it is arbitrary
+        ! 'hco%tictacU' is 'real(4)'
+        tictacRad_r8 = MPC_RADIANS_PER_DEGREE_R8 * real(hco%tictacU(sindx+10+lonIndex-1),8)
+        xg(lonIndex)=real(tictacRad_r8, 4)
       end do
       do latIndex=1,nj
-        yg(latIndex)=  deg2rad*hco%tictacU(sindx+10+ni+latIndex-1)
-        weight (:,latIndex) = cos(deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
-        weight (:,nj+latIndex)= weight (:,latIndex)
+        ! TODO: simplify the floating point precision conversions
+        ! We use this logic just to keep results unchanged but it is arbitrary
+        ! 'hco%tictacU' is 'real(4)'
+        tictacRad_r8 = MPC_RADIANS_PER_DEGREE_R8 * real(hco%tictacU(sindx+10+ni+latIndex-1),8)
+        yg(latIndex) = real(tictacRad_r8, 4)
+        weight(:,latIndex) = cos(tictacRad_r8)
+        weight(:,nj+latIndex) = weight(:,latIndex)
       end do
       call  grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
       do latIndex=1,nj
         F_mask (:,latIndex) = F_mask_8(:,latIndex)
-        F_mask (:,nj+latIndex)= F_mask (:,latIndex)
+        F_mask (:,nj+latIndex) = F_mask (:,latIndex)
       end do
       do latIndex=1,njWeight
         weight(:,latIndex) = weight(:, latIndex) * F_mask(:, latIndex)

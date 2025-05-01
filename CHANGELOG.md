@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix numerous compiler errors and warnings when compiling with `gfortran` (#1058 and !967)
+   * There are still warnings issued.  They will be fixed in the near future.
  * Fix ozone related double deallocation bug (#1037 and !966)
    * `useO3FromTrials` namelist variable replaces `useO3Climatology` in `NAMTOV` (opposite meaning).
    * `useO3FromTrials_tl` namelist variable is added to `NAMTOV` to control contribution of radiances to increments (defaut to .false.)

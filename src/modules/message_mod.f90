@@ -31,6 +31,7 @@ module message_mod
     module procedure msg_str2str
     module procedure msg_log2str
     module procedure msg_int2str
+    module procedure msg_int82str
     module procedure msg_real42str
     module procedure msg_real82str
     module procedure msg_charArray2str
@@ -129,7 +130,8 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer            :: pgmUsageMb, fasttmpUsageMb
+    integer            :: pgmUsageMb
+    integer(8)         :: fasttmpUsageMb
     integer, external  :: get_max_rss
 
     pgmUsageMb = get_max_rss()/1024
@@ -157,10 +159,11 @@ module message_mod
       ! Arguments:
       character(len=*), intent(in) :: path
       ! Result:
-      integer                      :: usageMb
+      integer(8)                   :: usageMb
 
       ! Locals
-      integer            :: returnCode, fileIndex, numFiles, fileSize
+      integer            :: returnCode, fileIndex, numFiles
+      integer(8)         :: fileSize
       integer, parameter :: maxNumFiles = 100
       character(len=256) :: fileList(maxNumFiles)
       logical, parameter :: verbose = .false.
@@ -487,6 +490,28 @@ module message_mod
   end function msg_int2str
 
   !--------------------------------------------------------------------------
+  ! msg_int2str (private)
+  !--------------------------------------------------------------------------
+  function msg_int82str(num) result(string)
+    !
+    ! :Purpose: Returns string representation of `integer`
+    !
+    implicit none
+
+    ! Arguments:
+    integer(8),                   intent(in)  :: num    ! input integer(8) variable to be interpreted
+    ! Result:
+    character(len=:), allocatable             :: string ! resulting string with integer value
+
+    ! Locals:
+    character(len=msg_num2strBufferLen) :: buffer
+
+    write(buffer,*) num
+    string = trim(adjustl(buffer))
+
+  end function msg_int82str
+
+  !--------------------------------------------------------------------------
   ! msg_real42str (private)
   !--------------------------------------------------------------------------
   function msg_real42str(num, digits_opt) result(string)
@@ -572,6 +597,9 @@ module message_mod
       vertical = msg_arrayVertical
     end if
 
+    ! 'sep' and 'string' being allocatable, the code is allocating the
+    ! memory automatically according to
+    !     https://fortranwiki.org/fortran/files/character_handling_in_Fortran.html
     if (vertical) then
       sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep

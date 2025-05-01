@@ -226,6 +226,8 @@ bigloop:  do
   real(kdkind) function pq_maxpri(a)
     type(pq), pointer :: a
 
+    ! Put an hard-coded value instead of using 'MPC_missingValue_R4' which would need 'use mathPhysConstants_mod'
+    pq_maxpri = -999.
     if (a%heap_size .gt. 0) then
        pq_maxpri = a%elems(1)%dis
     else

@@ -27,6 +27,7 @@ module utilities_mod
   public :: utl_reAllocate
   public :: utl_heapsort2d
   public :: utl_heapsort1d
+  public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
@@ -88,6 +89,13 @@ module utilities_mod
     module procedure utl_cosDegrees_real4
     module procedure utl_cosDegrees_real8
   end interface utl_cosDegrees
+
+  interface utl_isEqual
+    module procedure utl_isEqual_real4
+    module procedure utl_isEqual_real8
+    module procedure utl_isEqual_real4Arrays
+    module procedure utl_isEqual_real8Arrays
+  end interface utl_isEqual
 
   ! For namelist reading
   character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
@@ -350,7 +358,7 @@ contains
     do jk3 = 1,nk
       do jk2 = 1,nj
         do jk1 = 1,ni
-          buffer4(jk1,jk2,jk3) = fld8(jk1,jk2,jk3)
+          buffer4(jk1,jk2,jk3) = real(fld8(jk1,jk2,jk3),4)
         end do
       end do
     end do
@@ -600,7 +608,7 @@ contains
     
     ! Locals:
     integer :: index1, index2, info, sizework
-    real(8) :: sizework_r8, eigenValueMin
+    real(8) :: sizework_r8(1), eigenValueMin
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
 
@@ -633,9 +641,9 @@ contains
     call dsyev('V','U',rank, eigenVectors, rank, eigenValues, sizework_r8, sizework, info)
 
     ! compute the eigenvalues
-    sizework=int(sizework_r8)
+    sizework=int(sizework_r8(1))
     allocate(work(sizework))
-    call dsyev('V','U',rank, eigenVectors,rank, eigenValues,work, sizework, info)
+    call dsyev('V','U',rank, eigenVectors,rank, eigenValues, work, sizework, info)
     deallocate(work)
 
     if (printInformation) then
@@ -731,7 +739,7 @@ contains
 
     ! Locals:
     integer :: rank, index1, index2, info, sizework
-    real(8) :: sizework_r8
+    real(8) :: sizework_r8(1)
     real(8), allocatable :: work(:), eigenVectorsOrig(:,:), eigenValuesOrig(:)
     logical :: printInformation
 
@@ -764,7 +772,7 @@ contains
                sizework_r8, sizework, info)
 
     ! Compute the eigenvalues/vectors
-    sizework = int(sizework_r8)
+    sizework = int(sizework_r8(1))
     allocate(work(sizework))
     call dsyev('V', 'U', rank, eigenVectorsOrig, rank, eigenValuesOrig,  &
                work, sizework, info)
@@ -864,7 +872,7 @@ contains
     allocate(work(1))
     !first call to query work array work size
     call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
-    lwork = work(1)
+    lwork = int(work(1))
     call utl_reallocate(work, lwork)
     call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
     if (info < 0) then
@@ -1792,21 +1800,21 @@ contains
              xlat1_4, xlon1_4, xlat2_4, xlon2_4,          & ! OUT
              ig1, ig2, ig3, ig4 ) ! IN
 
-        if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
+        if ( .not. utl_isEqual(xlat1_4, xlat2_4) .or. .not. utl_isEqual(xlon1_4,xlon2_4) ) &
              call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
 
       else if (trim(clgrtyp) == 'B') then
 
         ! Set B type lat-long grid
 
-        dincr=360.0d0/(ni-1)
+        dincr=360.0e0/(ni-1)
         do i=1,ni
           xlong_opt(i) = (i-1)*dincr
         end do
 
         if (ig1 == 0) then
           ! Global
-          dincr=180.0d0/(nj-1)
+          dincr=180.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = -90.0 + (i-1)*dincr
@@ -1818,7 +1826,7 @@ contains
           end if
         else if (ig1 == 1) then
           ! Northern hemispheric
-          dincr=90.0d0/(nj-1)
+          dincr=90.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = 0.0 + (i-1)*dincr
@@ -1830,7 +1838,7 @@ contains
           end if
         else
           ! Southern hemispheric
-          dincr=90.0d0/(nj-1)
+          dincr=90.0e0/(nj-1)
           if (ig2 == 0) then
             do i=1,nj
               xlat_opt(i) = -90.0 + (i-1)*dincr
@@ -2897,6 +2905,7 @@ contains
     ! Locals:
     integer :: numFound, arrayIndex
 
+    location = 0
     numFound = 0
     LOOP: do arrayIndex = 1, size(charArray)
       if (trim(charArray(arrayIndex)) == trim(value)) then
@@ -3185,8 +3194,9 @@ contains
       median = sortedArray((vectorDim + 1) / 2)
     end if
 
+    medianIndex =  MPC_missingValue_INT
     do vectorIndex = 1, vectorDim
-      if (inputVector(vectorIndex) == median) then
+      if ( utl_isEqual(inputVector(vectorIndex),median) ) then
         medianIndex = vectorIndex
         exit
       end if
@@ -3319,5 +3329,127 @@ contains
 
     cosinus = cos(radians)
   end function utl_cosDegrees_real8
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real4
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real4(firstValue, secondValue) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two real(4) values are equal according to the machine precision
+    !           All arguments are in single precision floating point numbers, real(4).
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: firstValue  ! First  real(4) value to compare with the second value
+    real(4), intent(in) :: secondValue ! Second real(4) value to compare with the first value
+    ! Result:
+    logical :: areTheyEqual
+
+    ! tiny(X) returns the smallest positive (non zero) number in the model of the type of X.
+    areTheyEqual = abs(firstValue-secondValue) < tiny(firstValue)
+
+  end function utl_isEqual_real4
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real8
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real8(firstValue, secondValue) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two real(8) values are equal according to the machine precision
+    !           All arguments are double precision floating point numbers, real(8).
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: firstValue  ! First  real(8) value to compare with the second value
+    real(8), intent(in) :: secondValue ! Second real(8) value to compare with the first value
+    ! Result:
+    logical :: areTheyEqual
+
+    ! tiny(X) returns the smallest positive (non zero) number in the model of the type of X.
+    areTheyEqual = abs(firstValue-secondValue) < tiny(firstValue)
+
+  end function utl_isEqual_real8
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real4Arrays
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real4Arrays(firstArray, secondArray) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two arrays of real(4) values are pair-wise
+    !           equal according to the machine precision
+    !           All arguments are single precision floating point numbers, real(4).
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: firstArray(:)  ! First  array of real(4) values to compare with the second value
+    real(4), intent(in) :: secondArray(:) ! Second array of real(4) values to compare with the first value
+    ! Result:
+    logical :: areTheyEqual
+
+    ! Locals:
+    integer :: arrayIndex
+
+    ! If the arrays does not have the same sizes, they can't be equal
+    if ( size(firstArray) /= size(secondArray) ) then
+      areTheyEqual = .false.
+      return
+    end if
+
+    do arrayIndex = 1, size(firstArray)
+      ! If one value is different, then they are different so return
+      if ( .not. utl_isEqual(firstArray(arrayIndex), secondArray(arrayIndex)) ) then
+        areTheyEqual = .false.
+        return
+      end if
+    end do
+
+    ! If we didn't catch any different value in the array, then the
+    ! arrays are equal.
+    areTheyEqual = .true.
+
+  end function utl_isEqual_real4Arrays
+
+  !--------------------------------------------------------------------------
+  ! utl_isEqual_real8Arrays
+  !--------------------------------------------------------------------------
+  function utl_isEqual_real8Arrays(firstArray, secondArray) result(areTheyEqual)
+    !
+    ! :Purpose: Checks if two arrays of real(8) values are pair-wise
+    !           equal according to the machine precision
+    !           All arguments are double precision floating point numbers, real(8).
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: firstArray(:)  ! First  array of real(8) values to compare with the second value
+    real(8), intent(in) :: secondArray(:) ! Second array of real(8) values to compare with the first value
+    ! Result:
+    logical :: areTheyEqual
+
+    ! Locals:
+    integer :: arrayIndex
+
+    ! If the arrays does not have the same sizes, they can't be equal
+    if ( size(firstArray) /= size(secondArray) ) then
+      areTheyEqual = .false.
+      return
+    end if
+
+    do arrayIndex = 1, size(firstArray)
+      ! If one value is different, then they are different so return
+      if ( .not. utl_isEqual(firstArray(arrayIndex), secondArray(arrayIndex)) ) then
+        areTheyEqual = .false.
+        return
+      end if
+    end do
+
+    ! If we didn't catch any different value in the array, then the
+    ! arrays are equal.
+    areTheyEqual = .true.
+
+  end function utl_isEqual_real8Arrays
 
 end module utilities_mod

@@ -402,8 +402,7 @@ module bMatrixChem_mod
     allocate(zsp(bgStats%numVarLev,2,mymCount))
     allocate(zsp2(bgStats%numVarLev,2,mymCount))
 
-    !$OMP PARALLEL DO PRIVATE(jn,jm,levelIndex,ila_mpiglobal,ila_mpilocal, &
-      zsp2,zsp,icount)
+    !$OMP PARALLEL DO PRIVATE(jn,jm,levelIndex,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -544,8 +543,7 @@ module bMatrixChem_mod
     allocate(zsp(bgStats%numVarLev,2,mymCount))
     allocate(zsp2(bgStats%numVarLev,2,mymCount))
 
-    !$OMP PARALLEL DO PRIVATE(JN,JM,levelIndex,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp, &
-      zsp2,icount)
+    !$OMP PARALLEL DO PRIVATE(JN,JM,levelIndex,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0

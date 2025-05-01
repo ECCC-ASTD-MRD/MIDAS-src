@@ -56,6 +56,7 @@ module midasMpi_mod
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: ierr, numNodeMasters
     integer :: rpn_comm_comm, rpn_comm_datyp
+    integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 
@@ -121,12 +122,14 @@ module midasMpi_mod
     mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
 
     ! get some other useful values
-    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, mmpi_maxTagValue, flag, ierr)
+    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, maxTagValue, flag, ierr)
     if (flag) then
-      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', mmpi_maxTagValue
+      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', maxTagValue
     else
       call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
     end if
+
+    mmpi_maxTagValue = int(maxTagValue)
 
     write(*,*) ' '
     if(mmpi_doBarrier) then

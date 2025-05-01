@@ -519,7 +519,7 @@ module oceanMask_mod
 
     minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
 
-    if (minGridSpacing /= hco%minGridSpacing) then
+    if ( .not. utl_isEqual(minGridSpacing, hco%minGridSpacing) ) then
       call msg('ocm_computeMinGridSpacing', &
                'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
       call msg('ocm_computeMinGridSpacing', &

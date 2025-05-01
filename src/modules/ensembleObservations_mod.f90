@@ -14,6 +14,7 @@ MODULE ensembleObservations_mod
   use parkind1, only: jpim, jprb
   use midasMpi_mod
   use oceanMask_mod
+  use verticalCoord_mod
   use obsSpaceData_mod
   use randomNumber_mod
   use mathPhysConstants_mod
@@ -1628,6 +1629,7 @@ CONTAINS
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
     type(rttov_profile), pointer :: profiles(:)
+    type(struct_vco),    pointer :: vco_ptr
     logical          :: verbose = .false.
 
     call eob_setAssFlag(ensObs)
@@ -1753,7 +1755,8 @@ CONTAINS
         end if
 
         ! SST observations
-        ensObs%vertLocation(obsIndex) = minval(col_getVco(columnMeanTrl)%depths(:))
+        vco_ptr => col_getVco(columnMeanTrl)
+        ensObs%vertLocation(obsIndex) = minval(vco_ptr%depths(:))
 
       else if(ensObs%assFlag(obsIndex)==1) then
 

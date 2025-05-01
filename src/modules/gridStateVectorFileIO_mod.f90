@@ -966,8 +966,8 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFileFst: Problem with reading surface height from file')
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
-        heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                          1:gsv_getHco(statevector)%nj), 8) * 10.0d0
+        heightSfc_ptr = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                          1:statevector%hco%nj), 8) * 10.0d0
         deallocate(gd2d_file_r4)
       end if
     end if
@@ -1015,7 +1015,7 @@ module gridStateVectorFileIO_mod
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
-        hco_file => statevector%hco
+        hco_file => gsv_getHco(statevector)
 
         ! Also attempt to set up the physics grid
         if (interpToPhysicsGrid) then
@@ -1260,16 +1260,16 @@ module gridStateVectorFileIO_mod
 
             if (statevector%dataKind == 4) then
               call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, varLevIndex)
-              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                1:gsv_getHco(statevector)%nj)
+              gd2d_r4_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                 = gd2d_file_r4(1:statevector%hco%ni, &
+                                1:statevector%hco%nj)
             else
               call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, varLevIndex)
-              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                     1:gsv_getHco(statevector)%nj), 8)
+              gd2d_r8_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                 = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                     1:statevector%hco%nj), 8)
             end if
 
           else if (varName == 'VV') then
@@ -1279,16 +1279,16 @@ module gridStateVectorFileIO_mod
 
             if (statevector%dataKind == 4) then
               call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, varLevIndex)
-              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                   = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                  1:gsv_getHco(statevector)%nj)
+              gd2d_r4_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                   = gd2d_file_r4(1:statevector%hco%ni, &
+                                  1:statevector%hco%nj)
             else
               call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, varLevIndex)
-              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
-                             1:gsv_getHco(statevector)%nj, stepIndex) &
-                   = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-                                       1:gsv_getHco(statevector)%nj), 8)
+              gd2d_r8_UV_ptr(1:statevector%hco%ni, &
+                             1:statevector%hco%nj, stepIndex) &
+                   = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                       1:statevector%hco%nj), 8)
             end if
 
           end if
@@ -1621,7 +1621,7 @@ module gridStateVectorFileIO_mod
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
     integer :: varLevIndexBeg, varLevIndexEnd
-    real(4), allocatable :: work2d_r4(:,:,:) ! last dimension is along the thread id
+    real(4), allocatable, target :: work2d_r4(:,:,:) ! last dimension is along the thread id
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
@@ -2115,12 +2115,12 @@ module gridStateVectorFileIO_mod
     integer,                     intent(in) :: levIndex    ! index of the level in the structure 'statevector'
     type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be writtent
     logical,                     intent(in) :: interpolationToPhysicsGrid ! indicate if we should interpolate to the physics grid before writing
-    real(4),                     intent(in) :: data(:,:)   ! 2D array which will be written to the file
+    real(4), target,             intent(in) :: data(:,:)   ! 2D array which will be written to the file
 
     ! Locals:
     type(fst_record) :: fstRecordTmp
-    real(4), allocatable :: work2dFile_r4(:,:)
-    integer, allocatable :: mask(:,:)
+    real(4), allocatable, target :: work2dFile_r4(:,:)
+    integer, allocatable, target :: mask(:,:)
     logical :: success
     integer :: ierr, ezdefset, maskLevIndex
 

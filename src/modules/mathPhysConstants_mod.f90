@@ -115,30 +115,30 @@ MODULE mathPhysConstants_mod
    real(8), parameter :: MPC_MINIMUM_PM_R8                 =  0.000000000000000D+00 ! 0 micrograms/m^3 (for particulate matter)
 
 ! <<<<<< F U N D A M E N T A L   C O N S T A N T S >>>>>>
-   real(4), parameter :: MPC_PI_R4                         =  3.141592653589793D+00 ! (unitless)
-   real(4), parameter :: MPC_SPEED_OF_LIGHT_R4             =  2.997924580000000D+08 ! m/s - speed of light
-   real(4), parameter :: MPC_PLANCK_R4                     =  6.626075500000000D-34 ! J/s - Planck's constant
-   real(4), parameter :: MPC_BOLTZMANN_R4                  =  1.380658000000000D-23 ! J/K - Boltzmann constant
-   real(4), parameter :: MPC_AVOGADRO_R4                   =  6.022136700000000D+23 ! mol-1 - Avogadro's number
+   real(4), parameter :: MPC_PI_R4                         =  3.141592653589793E+00 ! (unitless)
+   real(4), parameter :: MPC_SPEED_OF_LIGHT_R4             =  2.997924580000000E+08 ! m/s - speed of light
+   real(4), parameter :: MPC_PLANCK_R4                     =  6.626075500000000E-34 ! J/s - Planck's constant
+   real(4), parameter :: MPC_BOLTZMANN_R4                  =  1.380658000000000E-23 ! J/K - Boltzmann constant
+   real(4), parameter :: MPC_AVOGADRO_R4                   =  6.022136700000000E+23 ! mol-1 - Avogadro's number
 !
 ! *** UNIT-CONVERSION RATIOS ***
-   real(4), parameter :: MPC_KNOTS_PER_M_PER_S_R4          =  1.942535902919826D+00 ! knots/(m/s) - conversion: m/s to knots
+   real(4), parameter :: MPC_KNOTS_PER_M_PER_S_R4          =  1.942535902919826E+00 ! knots/(m/s) - conversion: m/s to knots
 ! N.B.:  The correct value for MPC_M_PER_S_PER_KNOT is 0.5144444....
 !        because 1 knot == 1.852 km/hr; 1 m/s = 3.6 km/hr
 ! However, this value must match that used by others
-   real(4), parameter :: MPC_M_PER_S_PER_KNOT_R4           =  5.147910000000000D-01 ! (m/s)/knot - conversion: knots to m/s
-   real(4), parameter :: MPC_PA_PER_MBAR_R4                =  1.000000000000000D+02 ! Pa/mbar - conversion: mbars to Pascals
-   real(4), parameter :: MPC_MBAR_PER_PA_R4                =  1.000000000000000D-02 ! mbar/Pa - conversion: Pascals to mbars
-   real(4), parameter :: MPC_RADIANS_PER_DEGREE_R4         =  1.745329251994330D-02 ! rad/deg - conversion: degrees to radians
-   real(4), parameter :: MPC_DEGREES_PER_RADIAN_R4         =  5.729577951308232D+01 ! deg/rad - conversion: radians to degrees
-   real(4), parameter :: MPC_K_C_DEGREE_OFFSET_R4          =  2.731500000000000D+02 ! K - offset between degrees K and C
+   real(4), parameter :: MPC_M_PER_S_PER_KNOT_R4           =  5.147910000000000E-01 ! (m/s)/knot - conversion: knots to m/s
+   real(4), parameter :: MPC_PA_PER_MBAR_R4                =  1.000000000000000E+02 ! Pa/mbar - conversion: mbars to Pascals
+   real(4), parameter :: MPC_MBAR_PER_PA_R4                =  1.000000000000000E-02 ! mbar/Pa - conversion: Pascals to mbars
+   real(4), parameter :: MPC_RADIANS_PER_DEGREE_R4         =  1.745329251994330E-02 ! rad/deg - conversion: degrees to radians
+   real(4), parameter :: MPC_DEGREES_PER_RADIAN_R4         =  5.729577951308232E+01 ! deg/rad - conversion: radians to degrees
+   real(4), parameter :: MPC_K_C_DEGREE_OFFSET_R4          =  2.731500000000000E+02 ! K - offset between degrees K and C
 !
 ! <<<<<< V A L U E S   T H A T   A R E   C O N S T A N T  ...  F O R   N O W >>>>>>
 !
 ! *** ASTRONOMICAL CONSTANTS ***
-   real(4), parameter :: MPC_ASTRONOMICAL_UNIT_R4          =  1.495978700000000D+11 ! m - half g. axis
-   real(4), parameter :: MPC_MEAN_ANOMALY_R4               =  4.090930000000000D-01 ! (unitless) - mean anomaly
-   real(4), parameter :: MPC_SIDEREAL_YEAR_R4              =  3.155815000000000D+07 ! s - sidereal year
+   real(4), parameter :: MPC_ASTRONOMICAL_UNIT_R4          =  1.495978700000000E+11 ! m - half g. axis
+   real(4), parameter :: MPC_MEAN_ANOMALY_R4               =  4.090930000000000E-01 ! (unitless) - mean anomaly
+   real(4), parameter :: MPC_SIDEREAL_YEAR_R4              =  3.155815000000000E+07 ! s - sidereal year
 !
 ! *** EARTH, THE HEAVENLY BODY ***
 !     These are best obtained directly from:
@@ -146,72 +146,72 @@ MODULE mathPhysConstants_mod
 !          module modgps06gravity (functions)
 !
 ! *** RADIATION CONSTANTS ***
-   real(4), parameter :: MPC_STEFAN_BOLTZMANN_R4           =  5.669800000000000D-08 ! W m-2 K-4 - Stefan-Boltzmann constant
-   real(4), parameter :: MPC_SOLAR_CONSTANT_R4             =  1.367000000000000D+03 ! W/m2 - solar constant
+   real(4), parameter :: MPC_STEFAN_BOLTZMANN_R4           =  5.669800000000000E-08 ! W m-2 K-4 - Stefan-Boltzmann constant
+   real(4), parameter :: MPC_SOLAR_CONSTANT_R4             =  1.367000000000000E+03 ! W/m2 - solar constant
 !
 ! *** THERMODYNAMIC CONSTANTS (GAS PHASE) ***
-   real(4), parameter :: MPC_RGAS_IDEAL_R4                 =  8.314511211948600D+00 ! J mol-1 K-1 - ideal-gas constant
-   real(4), parameter :: MPC_RGAS_DRY_AIR_R4               =  2.870500000000000D+02 ! J kg-1 K-1 - gas constant, dry air
-   real(4), parameter :: MPC_RGAS_VAPOUR_R4                =  4.615100000000000D+02 ! J kg-1 K-1 - gas constant, water vapour
-   real(4), parameter :: MPC_EPS1_R4                       =  6.219800221014000D-01 ! (unitless) - R(air) / R(vapour)
-   real(4), parameter :: MPC_EPS2_R4                       =  3.780199778986000D-01 ! (unitless) - 1 - eps1
-   real(4), parameter :: MPC_DELTA_R4                      =  6.077686814144000D-01 ! (unitless) - 1/eps1 - 1 (unitless) \u2013 [R(vapour) / R(air)] - 1
+   real(4), parameter :: MPC_RGAS_IDEAL_R4                 =  8.314511211948600E+00 ! J mol-1 K-1 - ideal-gas constant
+   real(4), parameter :: MPC_RGAS_DRY_AIR_R4               =  2.870500000000000E+02 ! J kg-1 K-1 - gas constant, dry air
+   real(4), parameter :: MPC_RGAS_VAPOUR_R4                =  4.615100000000000E+02 ! J kg-1 K-1 - gas constant, water vapour
+   real(4), parameter :: MPC_EPS1_R4                       =  6.219800221014000E-01 ! (unitless) - R(air) / R(vapour)
+   real(4), parameter :: MPC_EPS2_R4                       =  3.780199778986000E-01 ! (unitless) - 1 - eps1
+   real(4), parameter :: MPC_DELTA_R4                      =  6.077686814144000E-01 ! (unitless) - 1/eps1 - 1 (unitless) \u2013 [R(vapour) / R(air)] - 1
 !
 ! *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***
-   real(4), parameter :: MPC_MOLAR_MASS_DRY_AIR_R4         =  2.896440000000000D+01 ! g/mol - dry-air molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_VAPOUR_R4          =  1.801530000000000D+01 ! g/mol - water-vapour molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_O3_R4              =  4.799820000000000D+01 ! g/mol - ozone molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_CH4_R4             =  1.604246000000000D+01 ! g/mol - methane molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_CO2_R4             =  4.400950000000000D+01 ! g/mol - CO2 molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_CO_R4              =  2.801010000000000D+01 ! g/mol - CO molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_NO2_R4             =  4.600550000000000D+01 ! g/mol - NO2 molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_NO_R4              =  3.000610000000000D+01 ! g/mol - NO molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_N2O_R4             =  4.401280000000000D+01 ! g/mol - N2O molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_HCHO_R4            =  3.002598000000000D+01 ! g/mol - Formaldehyde molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_SO2_R4             =  6.406380000000000D+01 ! g/mol - SO2 molar mass
-   real(4), parameter :: MPC_MOLAR_MASS_NH3_R4             =  1.703052000000000D+01 ! g/mol - NH3 molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_DRY_AIR_R4         =  2.896440000000000E+01 ! g/mol - dry-air molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_VAPOUR_R4          =  1.801530000000000E+01 ! g/mol - water-vapour molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_O3_R4              =  4.799820000000000E+01 ! g/mol - ozone molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_CH4_R4             =  1.604246000000000E+01 ! g/mol - methane molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_CO2_R4             =  4.400950000000000E+01 ! g/mol - CO2 molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_CO_R4              =  2.801010000000000E+01 ! g/mol - CO molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_NO2_R4             =  4.600550000000000E+01 ! g/mol - NO2 molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_NO_R4              =  3.000610000000000E+01 ! g/mol - NO molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_N2O_R4             =  4.401280000000000E+01 ! g/mol - N2O molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_HCHO_R4            =  3.002598000000000E+01 ! g/mol - Formaldehyde molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_SO2_R4             =  6.406380000000000E+01 ! g/mol - SO2 molar mass
+   real(4), parameter :: MPC_MOLAR_MASS_NH3_R4             =  1.703052000000000E+01 ! g/mol - NH3 molar mass
 !
 ! *** THERMODYNAMIC CONSTANTS (SPECIFIC HEATS) ***
-   real(4), parameter :: MPC_CV_DRY_AIR_R4                 =  7.184100000000001D+02 ! J kg-1 K-1 - sp. heat(V) of dry air
-   real(4), parameter :: MPC_CV_VAPOUR_R4                  =  1.407950000000000D+03 ! J kg-1 K-1 - sp. heat(V) of water vapour
-   real(4), parameter :: MPC_CP_DRY_AIR_R4                 =  1.005460000000000D+03 ! J kg-1 K-1 - sp. heat(P) of dry air
-   real(4), parameter :: MPC_CP_VAPOUR_R4                  =  1.869460000000000D+03 ! J kg-1 K-1 - sp. heat(P) of water vapour
-   real(4), parameter :: MPC_CP_ICE_R4                     =  2.115300000000000D+03 ! J kg-1 K-1 - sp. heat(P?) of ice
-   real(4), parameter :: MPC_KAPPA_R4                      =  2.854912179500000D-01 ! (unitless) - for dry air: Rgas / Cp
+   real(4), parameter :: MPC_CV_DRY_AIR_R4                 =  7.184100000000001E+02 ! J kg-1 K-1 - sp. heat(V) of dry air
+   real(4), parameter :: MPC_CV_VAPOUR_R4                  =  1.407950000000000E+03 ! J kg-1 K-1 - sp. heat(V) of water vapour
+   real(4), parameter :: MPC_CP_DRY_AIR_R4                 =  1.005460000000000E+03 ! J kg-1 K-1 - sp. heat(P) of dry air
+   real(4), parameter :: MPC_CP_VAPOUR_R4                  =  1.869460000000000E+03 ! J kg-1 K-1 - sp. heat(P) of water vapour
+   real(4), parameter :: MPC_CP_ICE_R4                     =  2.115300000000000E+03 ! J kg-1 K-1 - sp. heat(P?) of ice
+   real(4), parameter :: MPC_KAPPA_R4                      =  2.854912179500000E-01 ! (unitless) - for dry air: Rgas / Cp
 !
 ! *** THERMODYNAMIC CONSTANTS (ENTHALPIES) ***
-   real(4), parameter :: MPC_HEAT_CONDENS_WATER_R4         =  2.501000000000000D+06 ! J/kg - heat of condensation at 0C (water)
-   real(4), parameter :: MPC_HEAT_FUSION_WATER_R4          =  3.340000000000000D+05 ! J/kg - heat of fusion (water)
-   real(4), parameter :: MPC_HEAT_SUBL_WATER_R4            =  2.834000000000000D+06 ! J/kg - heat of sublimation (water)
+   real(4), parameter :: MPC_HEAT_CONDENS_WATER_R4         =  2.501000000000000E+06 ! J/kg - heat of condensation at 0C (water)
+   real(4), parameter :: MPC_HEAT_FUSION_WATER_R4          =  3.340000000000000E+05 ! J/kg - heat of fusion (water)
+   real(4), parameter :: MPC_HEAT_SUBL_WATER_R4            =  2.834000000000000E+06 ! J/kg - heat of sublimation (water)
 !
 ! *** THERMODYNAMIC CONSTANTS (FLUID DYNAMICS) ***
-   real(4), parameter :: MPC_KARMAN_R4                     =  4.000000000000000D-01 ! (unitless) - von Karman constant
-   real(4), parameter :: MPC_CRITICAL_RICHARDSON_R4        =  2.000000000000000D-01 ! (unitless) -critical Richardson number
-   real(4), parameter :: MPC_DENSITY_WATER_R4              =  1.000000000000000D+03 ! kg m-3 - density of (liquid) water
-   real(4), parameter :: MPC_SCHUMANN_NEWELL_LAPSE_RATE_R4 =  6.628486583943000D-04 ! K s2 m-2 - Schuman-Newell lapse rate
+   real(4), parameter :: MPC_KARMAN_R4                     =  4.000000000000000E-01 ! (unitless) - von Karman constant
+   real(4), parameter :: MPC_CRITICAL_RICHARDSON_R4        =  2.000000000000000E-01 ! (unitless) -critical Richardson number
+   real(4), parameter :: MPC_DENSITY_WATER_R4              =  1.000000000000000E+03 ! kg m-3 - density of (liquid) water
+   real(4), parameter :: MPC_SCHUMANN_NEWELL_LAPSE_RATE_R4 =  6.628486583943000E-04 ! K s2 m-2 - Schuman-Newell lapse rate
 !
 ! *** THERMODYNAMIC CONSTANTS (OTHER CHARACTERISTICS OF WATER) ***
-   real(4), parameter :: MPC_T_ICE_R4                      =  2.731600000000000D+02 ! K - ice temperature in the atmosphere
-   real(4), parameter :: MPC_TRIPLE_POINT_R4               =  2.731600000000000D+02 ! K - triple point of water
+   real(4), parameter :: MPC_T_ICE_R4                      =  2.731600000000000E+02 ! K - ice temperature in the atmosphere
+   real(4), parameter :: MPC_TRIPLE_POINT_R4               =  2.731600000000000E+02 ! K - triple point of water
 !
 ! *** USED TO CALCULATE L/CP IN FUNC HTVOCP ***
 ! Consider removing these 7 variables that are 'USED TO CALCULATE L/CP IN FUNC HTVOCP'
-   real(4), parameter :: MPC_AI_R4                         =  2.864887713087000D+03 !
-   real(4), parameter :: MPC_AW_R4                         =  3.135012829948000D+03 !
-   real(4), parameter :: MPC_BI_R4                         =  1.660931315020000D-01 !
-   real(4), parameter :: MPC_BW_R4                         =  2.367075766316000D+00 !
-   real(4), parameter :: MPC_SLP_R4                        =  6.666666666667000D-02 !
-   real(4), parameter :: MPC_T1S_R4                        =  2.731600000000000D+02 ! K
-   real(4), parameter :: MPC_T2S_R4                        =  2.581600000000000D+02 ! K
+   real(4), parameter :: MPC_AI_R4                         =  2.864887713087000E+03 !
+   real(4), parameter :: MPC_AW_R4                         =  3.135012829948000E+03 !
+   real(4), parameter :: MPC_BI_R4                         =  1.660931315020000E-01 !
+   real(4), parameter :: MPC_BW_R4                         =  2.367075766316000E+00 !
+   real(4), parameter :: MPC_SLP_R4                        =  6.666666666667000E-02 !
+   real(4), parameter :: MPC_T1S_R4                        =  2.731600000000000E+02 ! K
+   real(4), parameter :: MPC_T2S_R4                        =  2.581600000000000E+02 ! K
 !
 ! <<<<<< C O N S T A N T S   C O N C E R N I N G   T H E   L I M I T A T I O N S   O F   D I G I T A L   C A L C U L A T I O N >>>>>>
-   real(4), parameter :: MPC_MINIMUM_HU_R4                 =  2.500000000000000D-06 !
-   real(4), parameter :: MPC_MAXIMUM_ES_R4                 =  3.000000000000000D+01 !
-   real(4), parameter :: MPC_MINIMUM_VIS_R4                =  1.000000000000000D+00 !
-   real(4), parameter :: MPC_MAXIMUM_VIS_R4                =  1.500000000000000D+04 ! 15km
-   real(4), parameter :: MPC_MINIMUM_PR_R4                 =  1.000000000000000D-04 ! 0.1 mm/h = 0.0001 m/h
-   real(4), parameter :: MPC_MINIMUM_CH_R4                 =  1.000000000000000D-01 ! 0.1 micrograms/kg (for constituents)
-   real(4), parameter :: MPC_MINIMUM_PM_R4                 =  0.000000000000000D+00 ! 0 micrograms/m^3 (for particulate matter)
+   real(4), parameter :: MPC_MINIMUM_HU_R4                 =  2.500000000000000E-06 !
+   real(4), parameter :: MPC_MAXIMUM_ES_R4                 =  3.000000000000000E+01 !
+   real(4), parameter :: MPC_MINIMUM_VIS_R4                =  1.000000000000000E+00 !
+   real(4), parameter :: MPC_MAXIMUM_VIS_R4                =  1.500000000000000E+04 ! 15km
+   real(4), parameter :: MPC_MINIMUM_PR_R4                 =  1.000000000000000E-04 ! 0.1 mm/h = 0.0001 m/h
+   real(4), parameter :: MPC_MINIMUM_CH_R4                 =  1.000000000000000E-01 ! 0.1 micrograms/kg (for constituents)
+   real(4), parameter :: MPC_MINIMUM_PM_R4                 =  0.000000000000000E+00 ! 0 micrograms/m^3 (for particulate matter)
 
 ! <<<<<< OBS FILE CONSTANTS
    real(4), parameter :: MPC_missingValue_R4 = -999.

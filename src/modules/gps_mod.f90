@@ -2125,6 +2125,7 @@ contains
     !
     ! Search where it is located
     !
+    jloc = MPC_missingValue_INT
     do j = 1, ngpslev-1
       if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
         jloc = j   ! the model level above the observation
@@ -2950,8 +2951,8 @@ contains
       if (kat%Var > 1.d0/3000.d0) then
         kat = 1.d0/3000.d0
       end if
+      Ntp = nu(imax)
       if (.not.lTooHigh) then
-        Ntp = nu(imax)
         zk = kat*zma
         alpha_top = 1.d-6*sqrt(2*MPC_PI_R8*a*kat)*Ntp*exp(zk)*(1.d0-erf(sqrt(zk)))
       else
@@ -3141,7 +3142,7 @@ contains
            gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gps_roEotvos, &
            gps_roNsigma, gps_roCurvAnisot, gps_roNCurv, gps_roNFlavour
       do SatID = 0, 1023
-        if (WGPS(SatID,2) /= 0.) then
+        if ( .not. utl_isEqual(WGPS(SatID,2), 0.) ) then
           write(*,*)'WGPS', SatID, gps_WGPS(SatID, 1:4)
         end if
       end do
