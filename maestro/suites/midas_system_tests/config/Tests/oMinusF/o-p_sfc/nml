@@ -9,13 +9,6 @@
  &NAMTIME
   DSTEPOBS = 0.25D0
 /
- &NAMS2C
-  !mpiMode = '2DFIELDS'
-  mpiMode = 'TILES'
-/
- &NAMINN
-  numObsBatches = 1
-/
  &NAMFILT
   NLIST(1)=10004,
   NLIST(2)=10051,

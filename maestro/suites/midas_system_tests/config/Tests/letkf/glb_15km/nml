@@ -23,6 +23,9 @@
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
 /
+ &NAMS2C
+   mpiMode = 'TILES'
+/
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
 /
