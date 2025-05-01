@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Small modifications are included to enable handling observations from the mwhs2 FY3-D and FY3-E within the assimilation system (#1029 and !974) 
- * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
+ * (Nothing yet)
 
 ### Changed
 
@@ -17,11 +16,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Up to 20 data sources can be specified in the namelist NAMICEBGCHECK (#1055 and !954)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.6]
+
+ * Small modifications are included to enable handling observations from the mwhs2 FY3-D and FY3-E within the assimilation system (#1029 and !974)
+ * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
+
+### Fixed
+
+ * Up to 20 data sources can be specified in the namelist NAMICEBGCHECK (#1055 and !954)
 
 ## [3.9.5]
 
@@ -1185,7 +1193,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...HEAD
+[3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
 [3.9.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_3.9.4
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
