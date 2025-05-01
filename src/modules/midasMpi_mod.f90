@@ -100,9 +100,13 @@ module midasMpi_mod
   ! general interface for rpn_comm_gatherv
   interface mmpi_gatherv
     module procedure mmpi_gatherv_logical
+    module procedure mmpi_gatherv_logical_displs
     module procedure mmpi_gatherv_integer
+    module procedure mmpi_gatherv_integer_displs
     module procedure mmpi_gatherv_real4
+    module procedure mmpi_gatherv_real4_displs
     module procedure mmpi_gatherv_real8
+    module procedure mmpi_gatherv_real8_displs
   end interface mmpi_gatherv
 
   ! general interface for rpn_comm_reduce
@@ -1703,9 +1707,37 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_logical(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_logical(sending, receiving, length)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or array
+    !          It computes 'allLengths' and 'displacements' locally.
+    !
+    implicit none
+
+    ! Arguments:
+    logical, contiguous, intent(in)  :: sending(..)
+    logical, contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+
+    ! Locals:
+    integer, parameter :: procID = 0
+    integer :: allLengths(mmpi_nprocs)
+    integer :: displacements(mmpi_nprocs)
+
+    call mmpi_compute_displacements(length, allLengths, displacements)
+
+    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+
+  end subroutine mmpi_gatherv_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_logical_displs
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_logical_displs(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
+    !          array when 'allLengths' and 'displacements' are both
+    !          provided.
     !
     implicit none
 
@@ -1724,16 +1756,44 @@ contains
                           receiving, allLengths, displacements, 'mpi_logical', &
                           procID, mmpi_communicator_grid , ierr )
 
-    call handleMpiError(ierr, 'mmpi_gatherv_logical')
+    call handleMpiError(ierr, 'mmpi_gatherv_logical_displs')
 
-  end subroutine mmpi_gatherv_logical
+  end subroutine mmpi_gatherv_logical_displs
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_integer
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_integer(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_integer(sending, receiving, length)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a integer scalar or array
+    !          It computes 'allLengths' and 'displacements' locally.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)
+    integer, contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+
+    ! Locals:
+    integer, parameter :: procID = 0
+    integer :: allLengths(mmpi_nprocs)
+    integer :: displacements(mmpi_nprocs)
+
+    call mmpi_compute_displacements(length, allLengths, displacements)
+
+    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+
+  end subroutine mmpi_gatherv_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_integer_displs
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_integer_displs(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
+    !          array when 'allLengths' and 'displacements' are both
+    !          provided.
     !
     implicit none
 
@@ -1752,16 +1812,44 @@ contains
                           receiving, allLengths, displacements, 'mpi_integer', &
                           procID, mmpi_communicator_grid , ierr )
 
-    call handleMpiError(ierr, 'mmpi_gatherv_integer')
+    call handleMpiError(ierr, 'mmpi_gatherv_integer_displs')
 
-  end subroutine mmpi_gatherv_integer
+  end subroutine mmpi_gatherv_integer_displs
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real4
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real4(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_real4(sending, receiving, length)
     !
-    !:Purpose: Calling 'rpn_comm_gatherv' for a real4 scalar or array
+    !:Purpose: Calling 'rpn_comm_gatherv' for a real(4) scalar or array
+    !          It computes 'allLengths' and 'displacements' locally.
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+
+    ! Locals:
+    integer, parameter :: procID = 0
+    integer :: allLengths(mmpi_nprocs)
+    integer :: displacements(mmpi_nprocs)
+
+    call mmpi_compute_displacements(length, allLengths, displacements)
+
+    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+
+  end subroutine mmpi_gatherv_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_real4_displs
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_real4_displs(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a real(4) scalar or array
+    !          when 'allLengths' and 'displacements' are both
+    !          provided.
     !
     implicit none
 
@@ -1780,16 +1868,44 @@ contains
                           receiving, allLengths, displacements, 'mpi_real4', &
                           procID, mmpi_communicator_grid , ierr )
 
-    call handleMpiError(ierr, 'mmpi_gatherv_real4')
+    call handleMpiError(ierr, 'mmpi_gatherv_real4_displs')
 
-  end subroutine mmpi_gatherv_real4
+  end subroutine mmpi_gatherv_real4_displs
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real8(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_real8(sending, receiving, length)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
+    !          It computes 'allLengths' and 'displacements' locally.
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: length
+
+    ! Locals:
+    integer, parameter :: procID = 0
+    integer :: allLengths(mmpi_nprocs)
+    integer :: displacements(mmpi_nprocs)
+
+    call mmpi_compute_displacements(length, allLengths, displacements)
+
+    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+
+  end subroutine mmpi_gatherv_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_real8_displs
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_real8_displs(sending, receiving, length, allLengths, displacements)
+    !
+    !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
+    !          when 'allLengths' and 'displacements' are both
+    !          provided.
     !
     implicit none
 
@@ -1808,9 +1924,9 @@ contains
                           receiving, allLengths, displacements, 'mpi_real8', &
                           procID, mmpi_communicator_grid , ierr )
 
-    call handleMpiError(ierr, 'mmpi_gatherv_real8')
+    call handleMpiError(ierr, 'mmpi_gatherv_real8_displs')
 
-  end subroutine mmpi_gatherv_real8
+  end subroutine mmpi_gatherv_real8_displs
 
   !--------------------------------------------------------------------------
   ! mmpi_reduce_integer

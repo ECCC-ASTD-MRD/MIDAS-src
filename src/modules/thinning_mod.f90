@@ -2058,11 +2058,7 @@ contains
       deallocate(numLevelsMpi)
     else
       nsize = size(array)
-      call mmpi_compute_displacements(nsize, allnsize, displs)
-      nsizeMpi = sum(allnsize(:))
-
-      call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
-
+      call mmpi_gatherv(array, arrayMpi, nsize)
       call mmpi_bcast(arrayMpi, nsizeMpi)
     end if
 
@@ -2082,13 +2078,9 @@ contains
     real(4), intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
+    integer :: nsizeMpi
 
-    nsize = size(array)
-    call mmpi_compute_displacements(nsize, allnsize, displs)
-    nsizeMpi = sum(allnsize(:))
-
-    call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
+    call mmpi_gatherv(array, arrayMpi, size(array))
 
     call mmpi_bcast(arrayMpi, nsizeMpi)
 
@@ -2108,15 +2100,11 @@ contains
     logical, intent(out) :: arrayMpi(:)
 
     ! Locals:
-    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
+    integer :: nsizeMpi
 
-    nsize = size(array)
-    call mmpi_compute_displacements(nsize, allnsize, displs)
-    nsizeMpi = sum(allnsize(:))
+    call mmpi_gatherv(array, arrayMpi, size(array))
 
-    call mmpi_gatherv(array, arrayMpi, nsize, allnsize, displs)
-
-    call mmpi_bcast(arrayMpi, length_opt = nsizeMpi)
+    call mmpi_bcast(arrayMpi, nsizeMpi)
 
   end subroutine logicalArrayToMpi
 
