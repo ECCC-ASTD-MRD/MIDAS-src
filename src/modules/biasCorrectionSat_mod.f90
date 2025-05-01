@@ -559,7 +559,7 @@ contains
     real(8) :: predictor(NumPredictors)
     integer :: nsize, i, j, npred
     integer :: headerIndex, idatyp
-    integer :: iSensor, iFov, iPredictor, ierr
+    integer :: iSensor, iFov, iPredictor
     integer :: bodyIndex, jpred, chanIndx
     real(8), allocatable ::  temp_offset(:,:)
     integer, allocatable ::  temp_nobs(:)
@@ -629,9 +629,6 @@ contains
         temp_nobs(:) = 0
         nsize = size(temp_nobs)
         call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum", nsize)
-        if (ierr /= 0) then
-          call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 2")
-        end if
        
         do i = 1, bias(iSensor)%numChannels
           bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
@@ -1023,7 +1020,6 @@ contains
     real(8) :: OmF, bcor
     integer :: ierr, nulfile1, nulfile2
     character(len=10) :: instrName, satNamecoeff
-    character(len=72) :: errorMessage
 
     if (.not. biasActive) return
 
@@ -1088,10 +1084,6 @@ contains
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
       call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
@@ -1154,8 +1146,6 @@ contains
     real(8) :: OmF
     real(8), parameter :: alpha = 5.d0
     real(8) :: stepObsIndex
-    integer :: ierr
-    character(len=72) :: errorMessage
 
     if (.not. biasActive) return
 
@@ -1218,10 +1208,6 @@ contains
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
       call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
@@ -1231,15 +1217,7 @@ contains
       end if
 
       call mmpi_bcast(countMpiGlobal, nchans*nfiles)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
       call mmpi_bcast(stdMpiGlobal, nchans*nfiles)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 5", ierr 
-        call utl_abort(errorMessage)
-      end if
 
       if (sum(countMpiGlobal) /= 0) then
 
@@ -2850,7 +2828,7 @@ contains
     ! Locals:
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex, iPred1, jPred1
-    integer    :: headerIndex, idatyp, nPredMax, ierr, iFov, iScan, idim
+    integer    :: headerIndex, idatyp, nPredMax, iFov, iScan, idim
     integer    :: bodyIndex, chanIndx, predstart, ntot
     real(8)    :: OmF, sigmaObs, lambda, norm
     real(8)    :: predictor(NumPredictors)
@@ -2859,7 +2837,6 @@ contains
     real(8), allocatable :: pIMatrix(:,:), OmFBias(:,:), omfBiasMpiGlobal(:,:)
     real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:,:)
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
-    character(len=80)    :: errorMessage
 
     write(*,*) "bcs_do_regression: start"
     if (.not. allocated(trialHeight300m1000)) then
@@ -2950,20 +2927,12 @@ contains
       end if
       call mmpi_reduce(OmFCount, omfCountMpiGlobal, "MPI_SUM")
 
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_do_regression: MPI communication error 2", ierr 
-        call utl_abort(errorMessage)
-      end if
       if (mimicSatbcor)  then
         if (mmpi_myId == 0) then
           where(omfCountMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
           where(omfCountMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
         call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
-        if (ierr /= 0) then
-          write(errorMessage,*) "bcs_do_regression: MPI communication error 3", ierr 
-          call utl_abort(errorMessage)
-        end if
         do iChannel = 1, nchans
           bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = omfBiasMpiGlobal(iChannel, :)
         end do
@@ -3079,10 +3048,6 @@ contains
         call mmpi_bcast(npred)
 
         call mmpi_bcast(LineVec(1,1:ndim), ndim)
-        if (ierr /= 0) then
-          write(errorMessage,*) "bcs_do_regression: MPI communication error 6", ierr 
-          call utl_abort(errorMessage)
-        end if
 
         if (outCoeffCov) then
           allocate (bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim)) 
@@ -3133,7 +3098,6 @@ contains
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
     integer, allocatable :: Count(:), CountMpiGlobal(:)
     real(8), allocatable :: OmFBiasMpiGlobal(:), predBiasMpiGlobal(:,:), MatrixMpiGLobal(:,:,:)
-    character(len=128)   :: errorMessage
     real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
     integer :: iuncov, iuncorr
@@ -3192,12 +3156,7 @@ contains
 
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
-
       call mmpi_reduce(count, countMpiGlobal, "MPI_SUM")
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
-        call utl_abort(errorMessage)
-      end if
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
