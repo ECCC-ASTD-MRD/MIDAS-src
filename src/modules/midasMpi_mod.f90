@@ -1707,7 +1707,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_logical(sending, receiving, length)
+  subroutine mmpi_gatherv_logical(sending, receiving, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or array
     !          It computes 'allLengths' and 'displacements' locally.
@@ -1717,12 +1717,15 @@ contains
     ! Arguments:
     logical, contiguous, intent(in)  :: sending(..)
     logical, contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
 
     ! Locals:
     integer, parameter :: procID = 0
+    integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call mmpi_compute_displacements(length, allLengths, displacements)
 
@@ -1733,7 +1736,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_logical_displs(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_logical_displs(sending, receiving, length_opt, allLengths, displacements)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
     !          array when 'allLengths' and 'displacements' are both
@@ -1744,13 +1747,15 @@ contains
     ! Arguments:
     logical, contiguous, intent(in)  :: sending(..)
     logical, contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
     integer,             intent(in)  :: allLengths(:)
     integer,             intent(in)  :: displacements(:)
 
     ! Locals:
-    integer :: ierr
     integer, parameter :: procID = 0
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call rpn_comm_gatherv(sending,   length,                    'mpi_logical', &
                           receiving, allLengths, displacements, 'mpi_logical', &
@@ -1763,7 +1768,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_integer
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_integer(sending, receiving, length)
+  subroutine mmpi_gatherv_integer(sending, receiving, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a integer scalar or array
     !          It computes 'allLengths' and 'displacements' locally.
@@ -1773,12 +1778,15 @@ contains
     ! Arguments:
     integer, contiguous, intent(in)  :: sending(..)
     integer, contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
 
     ! Locals:
     integer, parameter :: procID = 0
+    integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call mmpi_compute_displacements(length, allLengths, displacements)
 
@@ -1789,7 +1797,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_integer_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_integer_displs(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_integer_displs(sending, receiving, length_opt, allLengths, displacements)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
     !          array when 'allLengths' and 'displacements' are both
@@ -1800,13 +1808,15 @@ contains
     ! Arguments:
     integer, contiguous, intent(in)  :: sending(..)
     integer, contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
     integer,             intent(in)  :: allLengths(:)
     integer,             intent(in)  :: displacements(:)
 
     ! Locals:
-    integer :: ierr
     integer, parameter :: procID = 0
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call rpn_comm_gatherv(sending,   length,                    'mpi_integer', &
                           receiving, allLengths, displacements, 'mpi_integer', &
@@ -1819,7 +1829,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real4
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real4(sending, receiving, length)
+  subroutine mmpi_gatherv_real4(sending, receiving, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real(4) scalar or array
     !          It computes 'allLengths' and 'displacements' locally.
@@ -1829,12 +1839,15 @@ contains
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)
     real(4), contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
 
     ! Locals:
     integer, parameter :: procID = 0
+    integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call mmpi_compute_displacements(length, allLengths, displacements)
 
@@ -1845,7 +1858,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real4_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real4_displs(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_real4_displs(sending, receiving, length_opt, allLengths, displacements)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real(4) scalar or array
     !          when 'allLengths' and 'displacements' are both
@@ -1856,13 +1869,15 @@ contains
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)
     real(4), contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
     integer,             intent(in)  :: allLengths(:)
     integer,             intent(in)  :: displacements(:)
 
     ! Locals:
-    integer :: ierr
     integer, parameter :: procID = 0
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call rpn_comm_gatherv(sending,   length,                    'mpi_real4', &
                           receiving, allLengths, displacements, 'mpi_real4', &
@@ -1875,7 +1890,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real8(sending, receiving, length)
+  subroutine mmpi_gatherv_real8(sending, receiving, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
     !          It computes 'allLengths' and 'displacements' locally.
@@ -1885,12 +1900,15 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)
     real(8), contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
 
     ! Locals:
     integer, parameter :: procID = 0
+    integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call mmpi_compute_displacements(length, allLengths, displacements)
 
@@ -1901,7 +1919,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real8_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real8_displs(sending, receiving, length, allLengths, displacements)
+  subroutine mmpi_gatherv_real8_displs(sending, receiving, length_opt, allLengths, displacements)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
     !          when 'allLengths' and 'displacements' are both
@@ -1912,13 +1930,15 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)
     real(8), contiguous, intent(out) :: receiving(..)
-    integer,             intent(in)  :: length
+    integer, optional,   intent(in)  :: length_opt
     integer,             intent(in)  :: allLengths(:)
     integer,             intent(in)  :: displacements(:)
 
     ! Locals:
-    integer :: ierr
     integer, parameter :: procID = 0
+    integer :: ierr, length
+
+    call handleLength(length_opt, length, rank(sending), size(sending))
 
     call rpn_comm_gatherv(sending,   length,                    'mpi_real8', &
                           receiving, allLengths, displacements, 'mpi_real8', &

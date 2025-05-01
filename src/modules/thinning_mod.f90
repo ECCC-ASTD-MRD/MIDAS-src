@@ -2057,9 +2057,8 @@ contains
       deallocate(numLevels)
       deallocate(numLevelsMpi)
     else
-      nsize = size(array)
-      call mmpi_gatherv(array, arrayMpi, nsize)
-      call mmpi_bcast(arrayMpi, nsizeMpi)
+      call mmpi_gatherv(array, arrayMpi)
+      call mmpi_bcast(arrayMpi)
     end if
 
   end subroutine intArrayToMpi
@@ -2077,12 +2076,8 @@ contains
     real(4), intent(in)  :: array(:)
     real(4), intent(out) :: arrayMpi(:)
 
-    ! Locals:
-    integer :: nsizeMpi
-
-    call mmpi_gatherv(array, arrayMpi, size(array))
-
-    call mmpi_bcast(arrayMpi, nsizeMpi)
+    call mmpi_gatherv(array, arrayMpi)
+    call mmpi_bcast(arrayMpi)
 
   end subroutine realArrayToMpi
 
@@ -2099,12 +2094,8 @@ contains
     logical, intent(in)  :: array(:)
     logical, intent(out) :: arrayMpi(:)
 
-    ! Locals:
-    integer :: nsizeMpi
-
-    call mmpi_gatherv(array, arrayMpi, size(array))
-
-    call mmpi_bcast(arrayMpi, nsizeMpi)
+    call mmpi_gatherv(array, arrayMpi)
+    call mmpi_bcast(arrayMpi)
 
   end subroutine logicalArrayToMpi
 
