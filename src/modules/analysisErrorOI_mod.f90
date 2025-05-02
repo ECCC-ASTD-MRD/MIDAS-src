@@ -367,7 +367,7 @@ contains
         obsAss(bodyIndex) = obs_assimilated
       end if
     end do
-    call mmpi_gather(obsAss, allObsAss, numBodyMax)
+    call mmpi_gather(obsAss, allObsAss)
     
     allocate(obsRln(numHeaderMax))
     obsRln(:) = 0
@@ -387,17 +387,17 @@ contains
     allocate(allObsNlv(numHeaderMax,mmpi_nprocs))
     allocate(allObsLon(numHeaderMax,mmpi_nprocs))
     allocate(allObsLat(numHeaderMax,mmpi_nprocs))
-    call mmpi_gather(obsRln, allObsRln, numHeaderMax)
-    call mmpi_gather(obsNlv, allObsNlv, numHeaderMax)
-    call mmpi_gather(obsLon, allObsLon, numHeaderMax)
-    call mmpi_gather(obsLat, allObsLat, numHeaderMax)
+    call mmpi_gather(obsRln, allObsRln)
+    call mmpi_gather(obsNlv, allObsNlv)
+    call mmpi_gather(obsLon, allObsLon)
+    call mmpi_gather(obsLat, allObsLat)
 
     allocate(footprintRadiusVec_r8(numHeaderMax))
     do headerIndex = 1, obs_numHeader(obsSpaceData)
       footprintRadiusVec_r8(headerIndex) = real(s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex), 8)
     end do
     allocate(allFootprintRadius_r8(numHeaderMax,mmpi_nprocs))
-    call mmpi_gather(footprintRadiusVec_r8, allFootprintRadius_r8, numHeaderMax)
+    call mmpi_gather(footprintRadiusVec_r8, allFootprintRadius_r8)
 
     ! create kdtree
     write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'
@@ -673,7 +673,7 @@ contains
         end if
       end do
     end do
-    call mmpi_gather(obsAss, obsAssMpiGlobal, numHeaderMax)
+    call mmpi_gather(obsAss, obsAssMpiGlobal)
 
     if (mmpi_myid == 0) then
       do procIndex = 1, mmpi_nprocs
@@ -958,7 +958,7 @@ contains
       obsOer(bodyIndex) = obs_bodyElem_r(obsSpaceData, OBS_OER, &
                                          bodyIndex)
     end do
-    call mmpi_allGather(obsOer, allObsOer, numBodyMax)
+    call mmpi_allGather(obsOer, allObsOer)
 
     numStep = stateVectorTrlErrorStd%numStep
     numLev = gsv_getNumLev(stateVectorTrlErrorStd, vnl_varLevelFromVarname(analysisVariable))

@@ -629,7 +629,7 @@ contains
     integer, allocatable :: nrep(:)
     character(len=oss_code_len), allocatable :: code_local(:),code_global(:,:)
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
-    integer :: i,ierr,nrep_total,nrep_max,irep,array_size
+    integer :: i,ierr,nrep_total,nrep_max,irep
 
     write(*,*) 'Begin oss_obsdata_MPIallgather'
       
@@ -667,8 +667,7 @@ contains
        data1d_local(:,:)=0.0D0
        if (obsdata%nrep > 0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
        
-       array_size = nrep_max*obsdata%dim1
-       call mmpi_allGather(data1d_local, data1d_global, array_size)
+       call mmpi_allGather(data1d_local, data1d_global)
     else 
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
        allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,mmpi_nprocs))
@@ -676,8 +675,7 @@ contains
        data2d_local(:,:,:)=0.0D0
        if (obsdata%nrep > 0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
 
-       array_size = nrep_max*obsdata%dim1*obsdata%dim2
-       call mmpi_allGather(data2d_local, data2d_global, array_size)
+       call mmpi_allGather(data2d_local, data2d_global)
     end if
   
     deallocate(code_local)
@@ -936,8 +934,8 @@ contains
 
           call mmpi_allGather(num_unique, num_unique_all)
           call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,mmpi_nprocs,"GRID",ierr)
-          if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all,  nmax)
-          if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all, nmax)
+          if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all)
+          if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all)
           
           stnid_unique(:) = ''
           if (iset >= 2) varno_unique(:) = 0

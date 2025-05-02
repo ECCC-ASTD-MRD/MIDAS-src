@@ -867,8 +867,8 @@ contains
           call mmpi_bcast(dfs)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
-            call mmpi_bcast(dfsIncremental, sizeSelect)
-            call mmpi_bcast(order, sizeSelect)
+            call mmpi_bcast(dfsIncremental)
+            call mmpi_bcast(order)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)

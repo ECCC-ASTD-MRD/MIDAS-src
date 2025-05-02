@@ -563,7 +563,7 @@ contains
     lst%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
 
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, "MPI_SUM", lst%ktrunc+1)
+      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, "MPI_SUM")
     end if
 
     deallocate(Kr8fromMN)

@@ -928,7 +928,7 @@ CONTAINS
 
       ! ibrpstamp and iztrl_io must be broadcasted
       call mmpi_bcast(ibrpstamp)
-      call mmpi_bcast(iztrl_io, 10)
+      call mmpi_bcast(iztrl_io)
 
       !- Read the Hessian
       if(mmpi_myid == 0) then 

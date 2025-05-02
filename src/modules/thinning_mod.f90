@@ -3177,7 +3177,7 @@ contains
     end do !stationIndex
 
 
-    call mmpi_allReduce(countTotalES, countTotalESMpi, 'mpi_sum')
+    call mmpi_allReduce(countTotalES,  countTotalESMpi,  'mpi_sum')
     call mmpi_allReduce(countReject0p, countReject0pMpi, 'mpi_sum')
     call mmpi_allReduce(countReject0t, countReject0tMpi, 'mpi_sum')
     call mmpi_allReduce(countReject1p, countReject1pMpi, 'mpi_sum')
@@ -3433,10 +3433,10 @@ contains
     end do HEADER1
 
     ! Gather needed information from all MPI tasks
-    call mmpi_allGather(quality, qualityMpi)
+    call mmpi_allGather(quality,        qualityMpi)
     call mmpi_allGather(obsLatBurpFile, obsLatBurpFileMpi)
     call mmpi_allGather(obsLonBurpFile, obsLonBurpFileMpi)
-    call mmpi_allGather(obsStepIndex, obsStepIndexMpi)
+    call mmpi_allGather(obsStepIndex,   obsStepIndexMpi)
 
     do obsIndex1 = 1, numHeaderMpi
       headerIndexSorted(obsIndex1)  = obsIndex1
@@ -3520,11 +3520,11 @@ contains
 
     end do HEADER3
 
-    call mmpi_allReduce(badTimeCount, badTimeCountMpi, 'mpi_sum')
+    call mmpi_allReduce(badTimeCount,   badTimeCountMpi,   'mpi_sum')
     call mmpi_allReduce(unCorrectCount, unCorrectCountMpi, 'mpi_sum')
     call mmpi_allReduce(blackListCount, blackListCountMpi, 'mpi_sum')
-    call mmpi_allReduce(bgckCount, bgckCountMpi, 'mpi_sum')
-    call mmpi_allReduce(ztdScoreCount, ztdScoreCountMpi, 'mpi_sum')
+    call mmpi_allReduce(bgckCount,      bgckCountMpi,      'mpi_sum')
+    call mmpi_allReduce(ztdScoreCount,  ztdScoreCountMpi,  'mpi_sum')
 
     write(*,*)
     write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
@@ -3948,8 +3948,8 @@ contains
     end do HEADER3
 
     call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum')
-    call mmpi_allReduce(bgckCount, bgckCountMpi, 'mpi_sum')
-    call mmpi_allReduce(missingCount, missingCountMpi, 'mpi_sum')
+    call mmpi_allReduce(bgckCount,      bgckCountMpi,      'mpi_sum')
+    call mmpi_allReduce(missingCount,   missingCountMpi,   'mpi_sum')
 
     ! Print counts
     write(*,*)
@@ -5399,8 +5399,8 @@ contains
     ! print a summary to the listing
     countKept = count(valid)
     call mmpi_allReduce(countKept, countKeptMpi, 'mpi_sum')
-    call mmpi_allReduce(countQc, countQcMpi, 'mpi_sum')
-    call mmpi_allReduce(countObs, countObsMpi, 'mpi_sum')
+    call mmpi_allReduce(countQc,   countQcMpi,   'mpi_sum')
+    call mmpi_allReduce(countObs,  countObsMpi,  'mpi_sum')
 
     countOther = countObsMpi - countKeptMpi - countQcMpi
 
@@ -5691,10 +5691,10 @@ contains
 
     ! Gather lat/long/time bin information from all MPI tasks into obsLatMpi and obsLonMpi
 
-    call mmpi_allGather(obsLatinRad, obsLatMpi, numHeaderMaxMpi)
-    call mmpi_allGather(obsLoninRad, obsLonMpi, numHeaderMaxMpi)
-    call mmpi_allGather(stepObsIndexint, stepObsIndexMpi, numHeaderMaxMpi)
-    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
+    call mmpi_allGather(obsLatinRad,     obsLatMpi)
+    call mmpi_allGather(obsLoninRad,     obsLonMpi)
+    call mmpi_allGather(stepObsIndexint, stepObsIndexMpi)
+    call mmpi_allGather(valid,           validMpi)
 
     !allocate(headerIndexSorted(numHeaderMpi))
     !do headerIndex = 1, numHeaderMpi
@@ -5773,7 +5773,7 @@ contains
 
     ! communicate values of validMpi computed on each mpi task
     allocate(validMpi_lor(numHeaderMpi))
-    call mmpi_allReduce(validMpi2, validMpi_lor, 'mpi_lor', numHeaderMPI)
+    call mmpi_allReduce(validMpi2, validMpi_lor, 'mpi_lor')
 
     write(*,*) ''
     write(*,*) 'Total observatoins selected over all time bins = ',count(validMpi2)
@@ -7738,7 +7738,7 @@ contains
     ! Return if no satellite SST obs to thin
     allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
     validMpi(:) = .false.
-    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
+    call mmpi_allGather(valid, validMpi)
     if (count(validMpi(:)) == 0) then
       write(*,*) 'thn_satelliteSSTByGridCell: no ', trim(dataSet), ' SST data present'
       return

@@ -321,7 +321,7 @@ CONTAINS
     real(8) :: sp_mpiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: sp_mympiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: zgd_gst(lsp%myLonBeg:lsp%myLonEnd,lsp%myLatBeg:lsp%myLatEnd,lsp%nLev)
-    integer :: nIndex,latIndex,lonIndex,levIndex,nsize
+    integer :: nIndex,latIndex,lonIndex,levIndex
     integer :: ila_mpiglobal,jla_mpilocal,gstID2
 
     if (local_length(1).gt.0.0d0) then
@@ -352,9 +352,8 @@ CONTAINS
         ila_mpiglobal = lsp%ilaList_mpiglobal(jla_mpilocal)
         sp_mympiglobal(ila_mpiglobal,:,:) = sp_mpilocal(jla_mpilocal,:,:)
       end do
-      nsize = lsp%nla_mpiglobal*lsp%nphase*lsp%nLev
       sp_mpiglobal(:,:,:) = 0.0d0
-      call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, "mpi_sum", nsize)
+      call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, "mpi_sum")
       
       do levIndex = 1, lsp%nLev
         do nIndex = 0, lsp%ntrunc
@@ -1088,7 +1087,7 @@ CONTAINS
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
       
       call mmpi_gather(lsp%lst%nla, allnlaLocal)
-      call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+      call mmpi_gather(ilaGlobal, allilaGlobal)
 
       deallocate(ilaGlobal)
 
@@ -1152,7 +1151,7 @@ CONTAINS
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, lsp%cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     deallocate(displs) 
     deallocate(cv_allMaxMpiLocal)
@@ -1305,7 +1304,7 @@ CONTAINS
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
       call mmpi_gather(lsp%lst%nla, allnlaLocal)
-      call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+      call mmpi_gather(ilaGlobal, allilaGlobal)
 
       deallocate(ilaGlobal)
 
@@ -1369,7 +1368,7 @@ CONTAINS
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, lsp%cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     deallocate(displs) 
     deallocate(cv_allMaxMpiLocal)
@@ -1544,7 +1543,7 @@ CONTAINS
        ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
        call mmpi_gather(lsp%lst%nla, allnlaLocal)
-       call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+       call mmpi_gather(ilaGlobal, allilaGlobal)
 
        deallocate(ilaGlobal)
 
@@ -1771,7 +1770,7 @@ CONTAINS
        ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
 
        call mmpi_gather(lsp%lst%nla, allnlaLocal)
-       call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+       call mmpi_gather(ilaGlobal, allilaGlobal)
 
        deallocate(ilaGlobal)
 

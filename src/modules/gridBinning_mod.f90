@@ -404,8 +404,8 @@ contains
         end do
 
         !- Compute the stdDev per bin
-        call mmpi_allReduce(myBinCount, binCount,  "MPI_SUM", gbi%numBins2d)
-        call mmpi_allReduce(myBinSum,   binStdDev, "MPI_SUM", gbi%numBins2d)
+        call mmpi_allReduce(myBinCount, binCount,  "MPI_SUM")
+        call mmpi_allReduce(myBinSum,   binStdDev, "MPI_SUM")
 
         do binIndex = 1, gbi%numBins2d
           if (binCount(binIndex) /= 0 ) then

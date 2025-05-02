@@ -1289,7 +1289,7 @@ contains
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
 
     call mmpi_gather(lst_bhi%nla, allnlaLocal)
-    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+    call mmpi_gather(ilaGlobal, allilaGlobal)
 
     deallocate(ilaGlobal)
 
@@ -1399,7 +1399,7 @@ contains
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
     
     call mmpi_gather(lst_bhi%nla, allnlaLocal)
-    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+    call mmpi_gather(ilaGlobal, allilaGlobal)
 
     deallocate(ilaGlobal)
 
@@ -1533,7 +1533,7 @@ contains
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
 
     call mmpi_gather(lst_bhi%nla, allnlaLocal)
-    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+    call mmpi_gather(ilaGlobal, allilaGlobal)
 
     deallocate(ilaGlobal)
 
@@ -1650,7 +1650,7 @@ contains
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
 
     call mmpi_gather(lst_bhi%nla, allnlaLocal)
-    call mmpi_gather(ilaGlobal, allilaGlobal, nlaMax)
+    call mmpi_gather(ilaGlobal, allilaGlobal)
 
     deallocate(ilaGlobal)
 

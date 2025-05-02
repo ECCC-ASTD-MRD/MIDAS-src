@@ -903,8 +903,8 @@ contains
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
       end if
-      if (vgd_nlev_M > 0) call mmpi_bcast(vco%ip1_M, vgd_nlev_M)
-      if (vgd_nlev_T > 0) call mmpi_bcast(vco%ip1_T, vgd_nlev_T)
+      if (vgd_nlev_M > 0) call mmpi_bcast(vco%ip1_M)
+      if (vgd_nlev_T > 0) call mmpi_bcast(vco%ip1_T)
     end if
 
     ! now do bcast for vgrid object

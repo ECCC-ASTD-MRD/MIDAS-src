@@ -123,7 +123,6 @@ contains
     integer  :: diffID
 
     integer :: ni, nj
-    integer :: nsize
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: seed                                   ! Seed for random number generator
 
@@ -509,8 +508,7 @@ contains
       end do
 
       lambdaLocal(myLonBeg : myLonEnd, myLatBeg : myLatEnd) = diff(diffID)%Lambda(myLonBeg : myLonEnd, myLatBeg : myLatEnd)    
-      nsize = ni * nj
-      call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, "mpi_sum", nsize)
+      call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, "mpi_sum")
 
       if (mmpi_myid == 0) then
  

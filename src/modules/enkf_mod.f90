@@ -2317,7 +2317,7 @@ contains
     type(struct_gsv),     intent(inout) :: stateVectorMeanTrl     ! Ensemble mean state vector
 
     ! Locals:
-    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize
+    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex
     real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step
@@ -2360,8 +2360,8 @@ contains
         vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
         write(*,*) 'enkf_computeVertLocation: vertLocation min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
       end if
-      nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-      call mmpi_bcast(vertLocation_r4, nsize)
+
+      call mmpi_bcast(vertLocation_r4)
 
     else if ( nLev_depth > 0 ) then ! depth for ocean fields
 
@@ -2507,8 +2507,8 @@ contains
       end do LON_LOOP4
     end do
 
-    call mmpi_allGather(localLatIndexesSend, allLatIndexesSend, numLatLonMax)
-    call mmpi_allGather(localLonIndexesSend, allLonIndexesSend, numLatLonMax)
+    call mmpi_allGather(localLatIndexesSend, allLatIndexesSend)
+    call mmpi_allGather(localLonIndexesSend, allLonIndexesSend)
 
     ! Reorganize into single dimension list
     latLonIndexMpiGlobal = 0

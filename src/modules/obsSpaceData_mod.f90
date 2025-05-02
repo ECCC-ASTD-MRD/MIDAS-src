@@ -3098,7 +3098,7 @@ contains
          allocate(all_headerIndex_mpiglobal(1,1))
       end if
 
-      call mmpi_gather(headerIndex_mpiglobal, all_headerIndex_mpiglobal, numHeader_mpilocalmax)
+      call mmpi_gather(headerIndex_mpiglobal, all_headerIndex_mpiglobal)
       deallocate(headerIndex_mpiglobal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3215,7 +3215,7 @@ contains
          allocate(all_bodyIndex_mpiglobal(1,1))
       end if
 
-      call mmpi_gather(bodyIndex_mpiglobal, all_BodyIndex_mpiglobal, numBody_mpilocalmax)
+      call mmpi_gather(bodyIndex_mpiglobal, all_BodyIndex_mpiglobal)
       deallocate(bodyIndex_mpiglobal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -4047,11 +4047,10 @@ contains
       type(struct_obs), intent(in)  :: obsdat
 
       ! Locals:
-      integer :: numBody_mpiGlobal, sizedata
+      integer :: numBody_mpiGlobal
 
       if(obsdat%mpi_local)then
-         sizedata=1
-         call mmpi_allReduce(obsdat%numBody, numBody_mpiGlobal, "mpi_sum", sizedata)
+         call mmpi_allReduce(obsdat%numBody, numBody_mpiGlobal, "mpi_sum")
          obs_numBody_mpiglobal = numBody_mpiGlobal
       else
          obs_numBody_mpiglobal = obsdat%numBody
@@ -4762,16 +4761,16 @@ contains
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
          numBodyPE_mpilocal(1+target_ip)   = numBodyPE_mpilocal(1+target_ip)   + obs_headElem_i(obsdat_inout,OBS_NLV,headerIndex)
       enddo
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM", mmpi_nprocs)
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM", mmpi_nprocs)
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM")
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM")
       numHeader_out = numHeaderPE_mpiglobal(mmpi_myid+1)
       numBody_out   = numBodyPE_mpiglobal(mmpi_myid+1)
       write(*,*) 'obs_MpiRedistribute: num mpi header and body before redistribution =', numHeader_in, numBody_in
       write(*,*) 'obs_MpiRedistribute: num mpi header and body after redistribution  =', numHeader_out, numBody_out
 
       ! Compute the max number of headers and bodies in each mpi message sent/received in the transpose
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX", mmpi_nprocs)
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX", mmpi_nprocs)
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX")
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX")
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal

@@ -3396,12 +3396,11 @@ module gridStateVector_mod
         !$OMP END PARALLEL DO
       end if
 
-      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
@@ -3812,8 +3811,7 @@ module gridStateVector_mod
       gd_send_height(:,:) = 0.0D0
       gd_send_height(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_height_in_ptr(:,:)
 
-      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
-      call mmpi_gather(gd_send_height, gd_recv_height, nsize)
+      call mmpi_gather(gd_send_height, gd_recv_height)
 
       if (mmpi_myid == 0) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)

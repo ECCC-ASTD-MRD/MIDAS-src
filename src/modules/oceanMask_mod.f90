@@ -348,7 +348,8 @@ module oceanMask_mod
     if (.not.associated(oceanMask%mask)) then
       call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
     end if
-    call mmpi_bcast(oceanMask%mask, oceanMask%hco%ni*oceanMask%hco%nj*1)
+    ! We only need to broadcast the first level 'oceanMask%mask(:,:,1)'
+    call mmpi_bcast(oceanMask%mask(:,:,1))
 
     write(*,*) 'ocm_communicateMask: finished'
 

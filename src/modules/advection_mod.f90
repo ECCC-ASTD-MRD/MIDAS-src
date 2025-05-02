@@ -1200,7 +1200,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles2(:,:,:,:)
     integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     character(len=4) :: varName
@@ -1289,9 +1289,8 @@ CONTAINS
       end do ! procIDy
       !$OMP END PARALLEL DO
 
-      nsize = nEns*adv%lonPerPE*adv%latPerPE
       if (mmpi_nprocs > 1) then
-        call mmpi_alltoall(ens1_mpiglobal_tiles, ens1_mpiglobal_tiles2, nsize)
+        call mmpi_alltoall(ens1_mpiglobal_tiles, ens1_mpiglobal_tiles2)
       else
         ens1_mpiglobal_tiles2(:,:,:,1) = ens1_mpiglobal_tiles(:,:,:,1)
       end if
@@ -1457,7 +1456,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal_tiles (:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles2(:,:,:)
     integer :: levIndex, lonIndex, latIndex, varLevIndex
-    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize
+    integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
     character(len=4) :: varName
@@ -1542,9 +1541,8 @@ CONTAINS
         end do ! procIDy
         !$OMP END PARALLEL DO
 
-        nsize = adv%lonPerPE*adv%latPerPE
         if (mmpi_nprocs > 1) then
-          call mmpi_alltoall(field2D_mpiglobal_tiles, field2D_mpiglobal_tiles2, nsize)
+          call mmpi_alltoall(field2D_mpiglobal_tiles, field2D_mpiglobal_tiles2)
         else
           field2D_mpiglobal_tiles2(:,:,1) = field2D_mpiglobal_tiles(:,:,1)
         end if

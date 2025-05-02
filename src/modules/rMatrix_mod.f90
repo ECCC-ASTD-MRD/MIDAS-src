@@ -671,7 +671,7 @@ contains
       ! Send ObsErrSqrdMat from all MPI tasks to MPI task 0.
       if (mmpi_myid > 0) then 
         tag = mmpi_myId
-        call mmpi_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tag, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
+        call mmpi_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tag)
       end if
 
       if (mmpi_myid == 0) then 
@@ -693,7 +693,7 @@ contains
         deallocate(vector)
       end if
 
-      call mmpi_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
+      call mmpi_bcast(estR(sensorIndex)%Rmat)
     end do
     deallocate(ObsErrSqrdMat)
     deallocate(meanObsErrMpiGlobal)

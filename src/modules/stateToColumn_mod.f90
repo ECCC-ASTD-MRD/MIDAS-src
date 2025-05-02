@@ -656,7 +656,7 @@ contains
 
       end do header_loop2
 
-      call mmpi_allGather(footprintRadiusVec_r4, allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax)
+      call mmpi_allGather(footprintRadiusVec_r4, allFootprintRadius_r4(:,stepIndex,:))
 
       allocate(latColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
       allocate(lonColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
@@ -901,8 +901,8 @@ contains
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call mmpi_allGather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:), numHeaderUsedMax)
-        call mmpi_allGather(lonColumn(:,allVarLevBeg(1)), allLonOneLev(:,:), numHeaderUsedMax)
+        call mmpi_allGather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:))
+        call mmpi_allGather(lonColumn(:,allVarLevBeg(1)), allLonOneLev(:,:))
 
         k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do procIndex = 1, mmpi_nprocs

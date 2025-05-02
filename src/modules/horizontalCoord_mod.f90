@@ -743,10 +743,10 @@ contains
       allocate(hco%lat2d_4(hco%ni,hco%nj))
       allocate(hco%lon2d_4(hco%ni,hco%nj))
     end if
-    call mmpi_bcast(hco%lat, size(hco%lat))
-    call mmpi_bcast(hco%lon, size(hco%lon))
-    call mmpi_bcast(hco%lat2d_4, size(hco%lat2d_4))
-    call mmpi_bcast(hco%lon2d_4, size(hco%lon2d_4))
+    call mmpi_bcast(hco%lat)
+    call mmpi_bcast(hco%lon)
+    call mmpi_bcast(hco%lat2d_4)
+    call mmpi_bcast(hco%lon2d_4)
     call mmpi_bcast(hco%dlat)
     call mmpi_bcast(hco%dlon)
     call mmpi_bcast(hco%global)
@@ -763,7 +763,7 @@ contains
       if (mmpi_myid > 0) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
-      call mmpi_bcast(hco%tictacU, size(hco%tictacU))
+      call mmpi_bcast(hco%tictacU)
     end if
     
     if (mmpi_myid > 0) then

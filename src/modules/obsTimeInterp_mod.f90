@@ -291,7 +291,7 @@ contains
     type(struct_oti), pointer, intent(inout) :: oti
 
     ! Locals:
-    integer              :: numHeader, numHeaderMax, numStep, nsize
+    integer              :: numHeader, numHeaderMax, numStep
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
     if ( .not.associated(oti%timeInterpWeight) ) then
@@ -312,8 +312,7 @@ contains
     timeInterpWeightMax(:,:) = 0.0d0
     timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
-    nsize = numHeaderMax * numStep 
-    call mmpi_allGather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal, nsize)
+    call mmpi_allGather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal)
 
     deallocate(timeInterpWeightMax)
 

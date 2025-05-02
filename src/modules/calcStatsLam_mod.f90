@@ -719,7 +719,6 @@ contains
     real(8)           :: weight
     integer           :: k1, k2, ens, e, ila, p, k, totwvnb
     integer           :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    integer           :: nSize
     character(len=24) :: kind
 
     write(*,*)
@@ -797,13 +796,11 @@ contains
 
     ! Gather the all the info in processor 0
     SpVertCorrel(:,:,:) = 0.d0
-    nSize = bhi%nVarLev * bhi%nVarLev * (nTrunc + 1)
-    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, "mpi_sum", nsize)
+    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, "mpi_sum")
 
     allocate(SumWeight(0:nTrunc))
     SumWeight(:) = 0.d0
-    nSize = nTrunc + 1
-    call mmpi_reduce(SumWeight_local, SumWeight, "mpi_sum", nsize)
+    call mmpi_reduce(SumWeight_local, SumWeight, "mpi_sum")
 
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
@@ -1255,7 +1252,7 @@ contains
     real(4), pointer  :: ptr4d_k2_r4(:,:,:,:)
     real(8), allocatable :: vertCorrel_local(:,:)
     integer :: lonIndex, latIndex, k1, k2, memberIndex
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, ier
     integer :: fstouv, fnom, fstfrm, fclos, iunstats
 
     write(*,*)
@@ -1302,8 +1299,7 @@ contains
     end do ! Loop in Ensemble
 
     !- Communication
-    nSize = bhi%nVarLev * bhi%nVarLev
-    call mmpi_reduce(vertCorrel_local, vertCorrel, "mpi_sum", nsize)
+    call mmpi_reduce(vertCorrel_local, vertCorrel, "mpi_sum")
 
     deallocate(vertCorrel_local)
 
