@@ -326,8 +326,6 @@ program midas_letkf
   localSelectionOutput     = .false.
   hLocalize(:)             = -1.0d0
   hLocalizePressure(:)     = -1.0d0
-  !hLocalizePressure(1:4)   = (/6.0d0, 144.0d0, 237.0d0, 700.0d0/) ! midpoints
-  !hLocalizePressure(1:3)   = (/14.0d0, 140.0d0, 400.0d0/) ! transition values
   hLinearLoc               = .false.
   vLocalize                = -1.0D0
   minDistanceToLand        = -1.0D0
@@ -350,6 +348,7 @@ program midas_letkf
 
   !- 1.3 Some minor modifications of namelist values
 
+  ! default hLocalizePressure values assume four radii, or just one
   if (hLocalizePressure(1) < 0.0d0) then
     write(*,*) 'midas-letkf: hLocalizePressure not set in namelist. Setting default values.'
     if (hLinearLoc) then
