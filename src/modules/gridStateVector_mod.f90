@@ -3638,12 +3638,11 @@ module gridStateVector_mod
         call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
-      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
@@ -4100,12 +4099,11 @@ module gridStateVector_mod
         call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
-      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8, nsize)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
