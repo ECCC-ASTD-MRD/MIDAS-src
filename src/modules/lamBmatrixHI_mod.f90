@@ -1300,45 +1300,42 @@ contains
 
        !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mmpi_nprocs-1)
-          cv_allmaxmpilocal(:,jproc+1) = 0.d0
-          
-          do k = 1, numVarLevSpec
-             do ila = 1, allnlaLocal(jproc+1)
-                do p = 1, lst_bhi%nphase
+         cv_allmaxmpilocal(:,jproc+1) = 0.d0
+         do k = 1, numVarLevSpec
+           do ila = 1, allnlaLocal(jproc+1)
+             do p = 1, lst_bhi%nphase
 
-                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
-                                                        ( (ila-1) * lst_bhi%nphase ) + p
+               jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                    ( (ila-1) * lst_bhi%nphase ) + p
 
-                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
-                   if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
+               ila_mpiglobal = allilaGlobal(ila,jproc+1)
+               if ( ila_mpiglobal <= 0 ) then
+                 write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                 call utl_abort('lbhi_reduceToMPILocal')
+               end if
 
-                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
-                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
-  
-                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                      write(*,*)
-                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
-                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
-                   if (jdim_mpiglobal > cvDim_mpiglobal) then
-                      write(*,*)
-                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
-                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
-                   
-                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
-                   
-                end do
+               jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                    ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
+
+               if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                 write(*,*)
+                 write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                 write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                 call utl_abort('lbhi_reduceToMPILocal')
+               end if
+               if (jdim_mpiglobal > cvDim_mpiglobal) then
+                 write(*,*)
+                 write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                 write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                 call utl_abort('lbhi_reduceToMPILocal')
+               end if
+
+               cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
              end do
-          end do
+           end do
+         end do
        end do
        !$OMP END PARALLEL DO
-
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -1409,49 +1406,47 @@ contains
     ! assign part of mpiglobal vector from current mpi process
     if (mmpi_myid == 0) then
 
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
+      allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
-       do jproc = 0, (mmpi_nprocs-1)
-          cv_allmaxmpilocal(:,jproc+1) = 0.d0
-          
-          do k = 1, numVarLevSpec
-             do ila = 1, allnlaLocal(jproc+1)
-                do p = 1, lst_bhi%nphase
+      !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+      do jproc = 0, (mmpi_nprocs-1)
+        cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
-                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
-                                                        ( (ila-1) * lst_bhi%nphase ) + p
+        do k = 1, numVarLevSpec
+          do ila = 1, allnlaLocal(jproc+1)
+            do p = 1, lst_bhi%nphase
 
-                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
-                   if ( ila_mpiglobal <= 0 ) then 
-                      write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
+              jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                   ( (ila-1) * lst_bhi%nphase ) + p
 
-                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
-                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
-  
-                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                      write(*,*)
-                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
-                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
-                   if (jdim_mpiglobal > cvDim_mpiglobal) then
-                      write(*,*)
-                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
-                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call utl_abort('lbhi_reduceToMPILocal')
-                   end if
-                   
-                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
-                   
-                end do
-             end do
+              ila_mpiglobal = allilaGlobal(ila,jproc+1)
+              if ( ila_mpiglobal <= 0 ) then
+                write(*,*) 'lbhi_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                call utl_abort('lbhi_reduceToMPILocal')
+              end if
+
+              jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                   ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
+
+              if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                write(*,*)
+                write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                call utl_abort('lbhi_reduceToMPILocal')
+              end if
+              if (jdim_mpiglobal > cvDim_mpiglobal) then
+                write(*,*)
+                write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                call utl_abort('lbhi_reduceToMPILocal')
+              end if
+
+              cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+            end do
           end do
-       end do
-       !$OMP END PARALLEL DO
-
+        end do
+      end do
+      !$OMP END PARALLEL DO
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
