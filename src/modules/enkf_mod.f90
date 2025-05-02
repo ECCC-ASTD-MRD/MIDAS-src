@@ -2933,7 +2933,7 @@ contains
 
     ! radius varies vertically, but is not interpolated
     else
-      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
+      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:)) - count(hLocalizePressure <= 0.0d0)
       hLoc = hLocalize(hLocIndex)
 
     end if
