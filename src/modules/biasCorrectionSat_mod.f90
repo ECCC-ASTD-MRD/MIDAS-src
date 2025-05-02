@@ -3094,11 +3094,11 @@ contains
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
     integer :: idatyp, iSensor, chanIndx, ierr
-    Real(8):: OmF
+    real(8):: OmF
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
-    integer, allocatable :: Count(:), CountMpiGlobal(:)
+    integer, allocatable :: tcount(:), countMpiGlobal(:)
     real(8), allocatable :: OmFBiasMpiGlobal(:), predBiasMpiGlobal(:,:), MatrixMpiGLobal(:,:,:)
-    real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
+    real(8) :: vector(1,numPredictors), predictor(numPredictors), correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
     integer :: iuncov, iuncorr
 
@@ -3117,8 +3117,8 @@ contains
       allocate(predBias(nchans,numPredictors))
       predBias(:,:) = 0.d0
 
-      allocate(Count(nchans))
-      Count(:) = 0
+      allocate(tcount(nchans))
+      tcount(:) = 0
 
       ! First pass throught ObsSpaceData to estimate biases and count data
       call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -3143,7 +3143,7 @@ contains
           if (chanindx > 0) then
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
-            count(chanIndx) = count(chanIndx) + 1
+            tcount(chanIndx) = tcount(chanIndx) + 1
             call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             predBias(chanIndx,:) = predBias(chanIndx,:) + predictor(:)
           end if
@@ -3156,7 +3156,7 @@ contains
 
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
-      call mmpi_reduce(count, countMpiGlobal, "MPI_SUM")
+      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
@@ -3172,7 +3172,7 @@ contains
 
       deallocate(OmFBias)
       deallocate(predBias)
-      deallocate(Count)
+      deallocate(tcount)
       allocate(matrix(nchans,numPredictors,numPredictors))
       matrix(:,:,:) = 0.d0
 
