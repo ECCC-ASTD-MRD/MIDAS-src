@@ -1019,18 +1019,19 @@ contains
     ! lat-lon of the grid point for which we are doing the analysis
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    ! if there is vertical localization or hLocalize is not constant
-    if (vLocalize > 0.0d0 .or. all(hLocalize(:) /= hLocalize(1))) then
+    ! if there is vertical localization
+    if (vLocalize > 0.0d0) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
     end if
-
-    ! Find which horizontal localization value to use for this vertical level
-    call enkf_getLocalizationRadius(hLocalize, hLocalizePressure, anlVertLocation, hLinearLoc, hLoc)
 
     ! Get list of nearby observations and localization functions to gridpoint.
     ! With modulated-ensembles, we get observations in entire column.
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
+
+    ! Find horizontal localization value for this vertical level
+    call enkf_getLocalizationRadius(hLocalize, hLocalizePressure, anlVertLocation, hLinearLoc, hLoc)
+
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                           locFun, anlLat, anlLon, anlVertLocation,  &
                                           hLoc, vLocalize, numLocalObsFound, &
@@ -2895,7 +2896,7 @@ contains
     ! Arguments:
     real(8), intent(in)  :: hLocalize(:)         ! the list of localization radii (m)
     real(8), intent(in)  :: hLocalizePressure(:) ! the pressures where the radius changes (log(P))
-    real(8), intent(in)  :: anlVertLocation      ! the gridpoint  vertical coordinate in log(P)
+    real(8), intent(in)  :: anlVertLocation      ! the gridpoint vertical coordinate in log(P)
     logical, intent(in)  :: hLinearLoc           ! apply linear vertical interpolation for the localization radius
     real(8), intent(out) :: hLoc                 ! the gridpoint localization radius
 
