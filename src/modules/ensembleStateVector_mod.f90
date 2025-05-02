@@ -2780,9 +2780,8 @@ CONTAINS
             gd_recv_r4(:,:,:,:) = 0.0
 
             if (mmpi_nprocs.gt.1) then
-              call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                                 mmpi_comm_grid, ierr)
+              call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                                  gd_recv_r4, recvsizes, recvdispls)
             else
               gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
             end if
@@ -2883,7 +2882,7 @@ CONTAINS
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
-    integer :: batchIndex, nsize, ierr
+    integer :: batchIndex, nsize
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numLevelsToSend, numVarLevGroups, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
@@ -3122,9 +3121,8 @@ CONTAINS
           end if
 
           call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-          call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                             gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(gd_send_r4, sendsizes, displacements, &
+                              gd_recv_r4, recvsizes, displacements)
           call utl_tmg_stop(191)
         else
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)

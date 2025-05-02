@@ -837,12 +837,10 @@ contains
             recvsizes(:) = 0
           end if
 
-          call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             lat_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
-          call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             lon_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(lat_send_r8, sendsizes, senddispls, &
+                              lat_recv_r8, recvsizes, recvdispls)
+          call mmpi_alltoallv(lon_send_r8, sendsizes, senddispls, &
+                              lon_recv_r8, recvsizes, recvdispls)
 
           do procIndex = 1, mmpi_nprocs
             ! all tasks copy the received step data into correct slot
@@ -1673,7 +1671,7 @@ contains
     integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
-    integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
+    integer :: procIndex, nsize, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
     integer :: varLevIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
     real(8) :: weight
     character(len=4)     :: varName
@@ -1948,9 +1946,8 @@ contains
         end do
 
         if(mmpi_nprocs > 1) then
-          call mpi_alltoallv(cols_send, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             cols_recv, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(cols_send, sendsizes, senddispls, &
+                              cols_recv, recvsizes, recvdispls)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if

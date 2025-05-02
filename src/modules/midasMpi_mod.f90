@@ -39,7 +39,7 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall
+  public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall, mmpi_alltoallv
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_compute_displacements
@@ -86,6 +86,12 @@ module midasMpi_mod
     module procedure mmpi_alltoall_real4
     module procedure mmpi_alltoall_real8
   end interface mmpi_alltoall
+
+  ! general interface for mpi_alltoallv
+  interface mmpi_alltoallv
+    module procedure mmpi_alltoallv_real4
+    module procedure mmpi_alltoallv_real8
+  end interface mmpi_alltoallv
 
   ! general interface for rpn_comm_allReduce
   interface mmpi_allReduce
@@ -189,8 +195,8 @@ contains
 
     ! Determine list of node masters (i.e. first task on each node)
     allocate(allMyidHost(mmpi_nprocs))
-    call rpn_comm_allgather(mmpi_myidHost,    1, 'mpi_integer',  &
-                            allMyidHost, 1, 'mpi_integer', &
+    call rpn_comm_allgather(mmpi_myidHost, 1, 'mpi_integer', &
+                            allMyidHost,   1, 'mpi_integer', &
                             mmpi_communicator_grid, ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
     allocate(mmpi_nodeMasters(numNodeMasters))
@@ -1515,6 +1521,78 @@ contains
     call handleMpiError(ierr, 'mmpi_alltoall_real8')
 
   end subroutine mmpi_alltoall_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoallv_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoallv_real4(sending,   sendsizes, senddispls, &
+                                  receiving, recvsizes, recvdispls, &
+                                  communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoallv' for a real(4) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)
+    real(4), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: sendsizes(:)
+    integer,             intent(in)  :: senddispls(:)
+    integer,             intent(in)  :: recvsizes(:)
+    integer,             intent(in)  :: recvdispls(:)
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, communicator_mpi
+    character(len=mmpi_communicator_max_length) :: rpncomm_communicator
+    integer :: rpn_comm_comm
+
+    call handleCommunicator(communicator_opt, rpncomm_communicator)
+    communicator_mpi = rpn_comm_comm(rpncomm_communicator)
+
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_datyp_real4, &
+                       receiving, recvsizes, recvdispls, mmpi_datyp_real4, &
+                       communicator_mpi, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoallv_real4')
+
+  end subroutine mmpi_alltoallv_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoallv_real8
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoallv_real8(sending,   sendsizes, senddispls, &
+                                  receiving, recvsizes, recvdispls, &
+                                  communicator_opt)
+    !
+    !:Purpose: Calling 'rpn_comm_alltoallv' for a real(8) scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), contiguous, intent(in)  :: sending(..)
+    real(8), contiguous, intent(out) :: receiving(..)
+    integer,             intent(in)  :: sendsizes(:)
+    integer,             intent(in)  :: senddispls(:)
+    integer,             intent(in)  :: recvsizes(:)
+    integer,             intent(in)  :: recvdispls(:)
+    character(len=*), optional, intent(in)  :: communicator_opt
+
+    ! Locals:
+    integer :: ierr, communicator_mpi
+    character(len=mmpi_communicator_max_length) :: rpncomm_communicator
+    integer :: rpn_comm_comm
+
+    call handleCommunicator(communicator_opt, rpncomm_communicator)
+    communicator_mpi = rpn_comm_comm(rpncomm_communicator)
+
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_datyp_real8, &
+                       receiving, recvsizes, recvdispls, mmpi_datyp_real8, &
+                       communicator_mpi, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoallv_real8')
+
+  end subroutine mmpi_alltoallv_real8
 
   !--------------------------------------------------------------------------
   ! mmpi_allReduce_logical

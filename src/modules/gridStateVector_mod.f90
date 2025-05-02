@@ -4363,7 +4363,7 @@ module gridStateVector_mod
     integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, maxkCount, numStepInput, numVarLevToSend, stepIndexInput
+    integer :: maxkCount, numStepInput, numVarLevToSend, stepIndexInput
     integer :: nsize
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: varLevIndex, varLevIndex2, levUV, procIndex, stepIndex
@@ -4471,8 +4471,8 @@ module gridStateVector_mod
 
       end if
 
-      call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4,  &
-                         gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, mmpi_comm_grid, ierr)
+      call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                          gd_recv_r4, recvsizes, recvdispls)
 
       stepIndex = stepIndexBeg - 1
       stepIndexInput = 0
@@ -4519,8 +4519,8 @@ module gridStateVector_mod
 
         end if
 
-        call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4,  &
-                           gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                            gd_recv_r4, recvsizes, recvdispls)
 
         stepIndex = stepIndexBeg - 1
         stepIndexInput = 0
@@ -4586,7 +4586,7 @@ module gridStateVector_mod
     integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount
+    integer :: yourid, youridx, youridy, nsize, numStepInput, stepCount
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     integer :: senddispls(mmpi_nprocs), sendsizes(mmpi_nprocs)
     integer :: recvdispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
@@ -4748,13 +4748,11 @@ module gridStateVector_mod
       end if
 
       if (sendrecvKind == 4) then
-        call mpi_alltoallv(gd_send_1d_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                           gd_recv_3d_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_1d_r4, sendsizes, senddispls, &
+                            gd_recv_3d_r4, recvsizes, recvdispls)
       else if (sendrecvKind == 8) then
-        call mpi_alltoallv(gd_send_1d_r8, sendsizes, senddispls, mmpi_datyp_real8, &
-                           gd_recv_3d_r8, recvsizes, recvdispls, mmpi_datyp_real8, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_1d_r8, sendsizes, senddispls, &
+                            gd_recv_3d_r8, recvsizes, recvdispls)
       end if
 
       stepIndex = stepIndexBeg - 1
@@ -4880,7 +4878,7 @@ module gridStateVector_mod
     integer,          intent(in)     :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize
+    integer :: yourid, youridx, youridy, nsize
     integer :: varLevIndex, procIndex, stepIndex, numStepOutput, stepCount
     integer :: inKind, outKind, sendrecvKind, outKindLocal
     logical :: thisProcIsAreceiver(mmpi_nprocs)
@@ -5019,13 +5017,11 @@ module gridStateVector_mod
       end do ! procIndex
 
       if (sendrecvKind == 4) then
-        call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                           gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                            gd_recv_r4, recvsizes, recvdispls)
       else if (sendrecvKind == 8) then
-        call mpi_alltoallv(gd_send_r8, sendsizes, senddispls, mmpi_datyp_real8, &
-                           gd_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r8, sendsizes, senddispls, &
+                            gd_recv_r8, recvsizes, recvdispls)
       end if
 
       ! copy over the complete 1 timestep received
