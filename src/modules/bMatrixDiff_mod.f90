@@ -670,7 +670,7 @@ CONTAINS
         end do
       end do
     end if 
-    call mmpi_bcast(gd_mpiGlobal, size(gd_mpiGlobal))
+    call mmpi_bcast(gd_mpiGlobal)
     
     jn = 0
     do jlev = 1, numvar2d

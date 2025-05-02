@@ -1055,7 +1055,7 @@ contains
           call mmpi_recv(latitude,  tag  , taskIndex)
           call mmpi_recv(longitude, tag+1, taskIndex)
           if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
-            call mmpi_recv(tempoBmatrix(:,:), tag+2, taskIndex, numVarLev*numVarLev)
+            call mmpi_recv(tempoBmatrix(:,:), tag+2, taskIndex)
             globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
             outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
             outLats(globalDumpedIndex) = latitude
@@ -1067,7 +1067,7 @@ contains
         call mmpi_send(latitude,  tag  )
         call mmpi_send(longitude, tag+1)
         if (columnIndex > 0) then
-          call mmpi_send(bEns(columnIndex,:,:), tag+2, numVarLev*numVarLev)
+          call mmpi_send(bEns(columnIndex,:,:), tag+2)
         end if
       end if
     end do

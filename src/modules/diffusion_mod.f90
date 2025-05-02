@@ -659,18 +659,18 @@ contains
         recvTag = (mmpi_myidx + 1)*10000 + (mmpi_myidx)
         if (mmpi_myidx == 0) then
           ! western-most tile only recv
-          call mmpi_recv(recvBufLat, recvTag, recvFromPE, latPerPE, "EW")
+          call mmpi_recv(recvBufLat, recvTag, recvFromPE, communicator_opt = "EW")
           xlast(myLonEnd+1,myLatBeg:myLatEnd) = recvBufLat(:)
         else if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only send
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
-          call mmpi_send(sendBufLat, sendTag, latPerPE, sendToPE, "EW")
+          call mmpi_send(sendBufLat, sendTag, procID_opt = sendToPE, communicator_opt = "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
           call mmpi_sendrecv(sendBufLat, sendToPE,   sendTag, &
                              recvBufLat, recvFromPE, recvTag, &
-                             latPerPE, "EW")
+                             communicator_opt = "EW")
           xlast(myLonEnd+1,myLatBeg:myLatEnd) = recvBufLat(:)
         end if
       end if
@@ -683,18 +683,18 @@ contains
         recvTag = (mmpi_myidx - 1)*10000 + (mmpi_myidx)
         if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only recv
-          call mmpi_recv(recvBufLat, recvTag, recvFromPE, latPerPE, "EW")
+          call mmpi_recv(recvBufLat, recvTag, recvFromPE, communicator_opt = "EW")
           xlast(myLonBeg-1,myLatBeg:myLatEnd) = recvBufLat(:)
         else if (mmpi_myidx == 0) then
           ! western-most tile only send
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
-          call mmpi_send(sendBufLat, sendTag, latPerPE, sendToPE, "EW")
+          call mmpi_send(sendBufLat, sendTag, procID_opt = sendToPE, communicator_opt = "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
           call mmpi_sendrecv(sendBufLat, sendToPE,   sendTag, &
                              recvBufLat, recvFromPE, recvTag, &
-                             latPerPE, "EW")
+                             communicator_opt = "EW")
           xlast(myLonBeg-1,myLatBeg:myLatEnd) = recvBufLat(:)
         end if
       end if
@@ -707,18 +707,18 @@ contains
         recvTag = (mmpi_myidy + 1)*10000 + (mmpi_myidy)
         if (mmpi_myidy == 0) then
           ! southern-most tile only recv
-          call mmpi_recv(recvBufLon, recvTag, recvFromPE, lonPerPE, "NS")
+          call mmpi_recv(recvBufLon, recvTag, recvFromPE, communicator_opt = "NS")
           xlast(myLonBeg:myLonEnd,myLatEnd+1) = recvBufLon(:)
         else if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
-          call mmpi_send(sendBufLon, sendTag, lonPerPE, sendToPE, "NS")
+          call mmpi_send(sendBufLon, sendTag, procID_opt = sendToPE, communicator_opt = "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
           call mmpi_sendrecv(sendBufLon, sendToPE,   sendTag, &
                              recvBufLon, recvFromPE, recvTag, &
-                             lonPerPE, "NS")
+                             communicator_opt = "NS")
           xlast(myLonBeg:myLonEnd,myLatEnd+1) = recvBufLon(:)
         end if
       end if
@@ -731,18 +731,18 @@ contains
         recvTag = (mmpi_myidy - 1)*10000 + (mmpi_myidy)
         if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only recv
-          call mmpi_recv(recvBufLon, recvTag, recvFromPE, lonPerPE, "NS")
+          call mmpi_recv(recvBufLon, recvTag, recvFromPE, communicator_opt = "NS")
           xlast(myLonBeg:myLonEnd,myLatBeg-1) = recvBufLon(:)
         else if (mmpi_myidy == 0) then
           ! southern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
-          call mmpi_send(sendBufLon, sendTag, lonPerPE, sendToPE, "NS")
+          call mmpi_send(sendBufLon, sendTag, lonPerPE, procID_opt = sendToPE, communicator_opt = "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
           call mmpi_sendrecv(sendBufLon, sendToPE,   sendTag, &
                              recvBufLon, recvFromPE, recvTag, &
-                             lonPerPE, "NS")
+                             communicator_opt = "NS")
           xlast(myLonBeg:myLonEnd,myLatBeg-1) = recvBufLon(:)
         end if
       end if

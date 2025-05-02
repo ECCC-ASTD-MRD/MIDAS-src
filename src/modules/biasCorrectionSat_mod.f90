@@ -557,7 +557,7 @@ contains
 
     ! Locals:
     real(8) :: predictor(NumPredictors)
-    integer :: nsize, i, j, npred
+    integer :: i, j, npred
     integer :: headerIndex, idatyp
     integer :: iSensor, iFov, iPredictor
     integer :: bodyIndex, jpred, chanIndx
@@ -627,8 +627,7 @@ contains
         end do
 
         temp_nobs(:) = 0
-        nsize = size(temp_nobs)
-        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum", nsize)
+        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum")
        
         do i = 1, bias(iSensor)%numChannels
           bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
@@ -1083,7 +1082,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
+      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
@@ -1216,8 +1215,8 @@ contains
         end where
       end if
 
-      call mmpi_bcast(countMpiGlobal, nchans*nfiles)
-      call mmpi_bcast(stdMpiGlobal, nchans*nfiles)
+      call mmpi_bcast(countMpiGlobal)
+      call mmpi_bcast(stdMpiGlobal)
 
       if (sum(countMpiGlobal) /= 0) then
 
@@ -2835,7 +2834,7 @@ contains
     real(8), allocatable :: Matrix(:,:,:), Vector(:,:)
     real(8), allocatable :: matrixMpiGlobal(:,:,:), vectorMpiGlobal(:,:)
     real(8), allocatable :: pIMatrix(:,:), OmFBias(:,:), omfBiasMpiGlobal(:,:)
-    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:,:)
+    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:)
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
 
     write(*,*) "bcs_do_regression: start"
@@ -2873,7 +2872,7 @@ contains
       allocate(Vector(nchans,ndimmax))
       Vector(:,:) = 0.d0
 
-      allocate(LineVec(1,ndimmax))
+      allocate(LineVec(ndimmax))
 
       allocate(pIMatrix(ndimmax,ndimmax))
 
@@ -2932,7 +2931,7 @@ contains
           where(omfCountMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
           where(omfCountMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
-        call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
+        call mmpi_bcast(omfBiasMpiGlobal)
         do iChannel = 1, nchans
           bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = omfBiasMpiGlobal(iChannel, :)
         end do
@@ -2973,14 +2972,14 @@ contains
 
             if (mimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
             
-            LineVec(:,:) = 0.d0
+            LineVec(:) = 0.d0
 
             if (mimicSatbcor) then
               idim = 0
               predstart = 1
               lambda = 1.d0
             else
-              LineVec(1,iScan) = 1.d0
+              LineVec(iScan) = 1.d0
               idim = nscan
               predstart = 2
               sigmaObs = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
@@ -2992,10 +2991,10 @@ contains
             do iPred1 = predstart, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred1 = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPred1)
               idim = idim + 1
-              LineVec(1,idim) = predictor(jPred1)
+              LineVec(idim) = predictor(jPred1)
             end do
-            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(LineVec),LineVec) * lambda
-            Vector(chanIndx,:) =  Vector(chanIndx,:) + LineVec(1,:) * OmF  * lambda
+            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + dot_product(LineVec,LineVec) * lambda
+            Vector(chanIndx,:) =  Vector(chanIndx,:) + LineVec(:) * OmF  * lambda
           end if
         end do BODY2
       end do HEADER2
@@ -3040,27 +3039,27 @@ contains
 
           pIMatrix(:,:) = 0.d0
           call utl_pseudo_inverse(matrixMpiGlobal(iChannel, 1:ndim, 1:ndim), pIMatrix(1:ndim, 1:ndim))
-          LineVec(1,1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
-          !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim), 1)
+          LineVec(1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
+          !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1:ndim), 1)
         end if
 
         call mmpi_bcast(ndim)
         call mmpi_bcast(npred)
 
-        call mmpi_bcast(LineVec(1,1:ndim), ndim)
+        call mmpi_bcast(LineVec(1:ndim))
 
         if (outCoeffCov) then
           allocate (bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim)) 
-          call mmpi_bcast(pIMatrix(1:ndim, 1:ndim), ndim * ndim)
+          call mmpi_bcast(pIMatrix(1:ndim, 1:ndim))
           bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
         if (mimicSatbcor) then
-          bias(sensorIndex)%chans(iChannel)%coeff(:) = LineVec(1,1:npred)
+          bias(sensorIndex)%chans(iChannel)%coeff(:) = LineVec(1:npred)
         else
-          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1,1:nscan)
+          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1:nscan)
           bias(sensorIndex)%chans(iChannel)%coeff(1) = 0.d0
-          bias(sensorIndex)%chans(iChannel)%coeff(2:) = LineVec(1,nscan+1:ndim)
+          bias(sensorIndex)%chans(iChannel)%coeff(2:) = LineVec(nscan+1:ndim)
         end if
 
       end do

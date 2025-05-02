@@ -2465,8 +2465,8 @@ contains
     ! Communicate to all mpi tasks this list of grid point lat-lon indexes
     allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
     allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
-    call mmpi_allGather(myLatIndexesRecv, allLatIndexesRecv, numLatLonRecvMax)
-    call mmpi_allGather(myLonIndexesRecv, allLonIndexesRecv, numLatLonRecvMax)
+    call mmpi_allGather(myLatIndexesRecv, allLatIndexesRecv)
+    call mmpi_allGather(myLonIndexesRecv, allLonIndexesRecv)
 
     ! Now count number of local grid points without the halo
     myNumLatLon = 0

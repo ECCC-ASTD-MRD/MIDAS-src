@@ -6582,7 +6582,7 @@ contains
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER5
 
-    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum')
+    call mmpi_allReduce(numObsStnIdOut,  numObsStnIdOutMpi,  'mpi_sum')
     call mmpi_allReduce(timeRejectCount, timeRejectCountMpi, 'mpi_sum')
     call mmpi_allReduce(flagRejectCount, flagRejectCountMpi, 'mpi_sum')
 

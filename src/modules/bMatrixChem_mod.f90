@@ -794,7 +794,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -938,7 +938,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -989,7 +989,7 @@ module bMatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 
@@ -1119,7 +1119,7 @@ module bMatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 

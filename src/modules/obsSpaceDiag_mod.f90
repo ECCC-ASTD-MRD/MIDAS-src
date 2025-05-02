@@ -1491,15 +1491,15 @@ contains
     allocate(nstatus_global(nlat,nlon,nlev,0:2))
     
     ! Reduce from all mpi processes
-    call mmpi_allReduce(obs_diagn%OmP_stats, OmP_global, "MPI_SUM", nbin*nstat)
-    call mmpi_allReduce(obs_diagn%OmA_stats, OmA_global, "MPI_SUM", nbin*nstat)
-    call mmpi_allReduce(obs_diagn%obs_stats, obs_global, "MPI_SUM", nbin*nstat)
-    call mmpi_allReduce(obs_diagn%Jo_stats, Jo_global, "MPI_SUM", nbin*(nstat*2+1))
-    call mmpi_allReduce(obs_diagn%Jpa_stats, Jpa_global, "MPI_SUM", nbin)
-    call mmpi_allReduce(obs_diagn%diagR_stats, diagR_global, "MPI_SUM", nbin*3)
-    call mmpi_allReduce(obs_diagn%diagHPHT_stats, diagHPHT_global, "MPI_SUM", nbin*3)
-    call mmpi_allReduce(obs_diagn%counts, counts_global, "MPI_SUM", nbin)
-    call mmpi_allReduce(obs_diagn%nstatus, nstatus_global, "MPI_SUM", nbin*3)
+    call mmpi_allReduce(obs_diagn%OmP_stats, OmP_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%OmA_stats, OmA_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%obs_stats, obs_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%Jo_stats, Jo_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%Jpa_stats, Jpa_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%diagR_stats, diagR_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%diagHPHT_stats, diagHPHT_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%counts, counts_global, "MPI_SUM")
+    call mmpi_allReduce(obs_diagn%nstatus, nstatus_global, "MPI_SUM")
     call mmpi_allReduce(obs_diagn%assim_mode, assim_global, "MPI_LOR")
 
     ! save in struct_osd_diagn

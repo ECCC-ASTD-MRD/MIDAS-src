@@ -849,7 +849,7 @@ contains
           call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
-            call mmpi_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs)
+            call mmpi_bcast(HBHtMatrix)
             if (mmpi_myId == 0) then
               write(nulHBHt,'(A)') trim(headerObs)
               do channelIndex2 = 1, nLevelsDfs

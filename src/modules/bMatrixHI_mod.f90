@@ -439,7 +439,7 @@ CONTAINS
     real(8) :: eigenvalsqrt(numVarLev2), eigenvec2(numVarLev2,numVarLev2), eigenvalsqrt2(numVarLev2)
     integer :: jlat,jn,jk1,jk2,jk3
     integer :: ilwork,info,klatPtoT
-    integer :: iulcorvert, ikey, nsize
+    integer :: iulcorvert, ikey
     real(8) :: zwork(2*4*numVarLev2)
     real(8) :: ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2
@@ -843,8 +843,7 @@ CONTAINS
 
     enddo ! jn
 
-    nsize = numVarLev2*numVarLev2*(ntrunc+1)
-    call mmpi_allReduce(corns_temp, corns, "mpi_sum", nsize)
+    call mmpi_allReduce(corns_temp, corns, "mpi_sum")
     deallocate(corns_temp)
 
     if(mmpi_myid==0) then
@@ -1051,7 +1050,7 @@ CONTAINS
     ! Locals:
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
-    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
+    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset
     integer :: ezdefset
     integer :: ip1style,ip1kind
     integer :: koutmpg
@@ -1061,8 +1060,8 @@ CONTAINS
     real(8) :: zabs, zpole, dlfac
     real(8) :: zsp_mpilocal(nla_mpilocal,2,nlev_T_even)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-    real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
-    real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
+    real(8) :: zsp_mpiglobal(nla_mpiglobal,2)
+    real(8), allocatable :: my_zsp_mpiglobal(:,:)
     real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
     ! standard file variables
@@ -1369,8 +1368,8 @@ CONTAINS
     !
     zgd(:,:,:) = 0.0d0
     zsp_mpilocal(:,:,:) = 0.0d0
-    allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1)) 
-    my_zsp_mpiglobal(:,:,:) = 0.0d0
+    allocate(my_zsp_mpiglobal(nla_mpiglobal,2))
+    my_zsp_mpiglobal(:,:) = 0.0d0
 
     do jla = 1, nla_mpiglobal
        cortgg(jla,1) = 0.0d0
@@ -1391,37 +1390,38 @@ CONTAINS
         if(jm.le.jn) then
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-          my_zsp_mpiglobal(ila_mpiglobal,:,1) = zsp_mpilocal(ila_mpilocal,:,1)
+          my_zsp_mpiglobal(ila_mpiglobal,:) = zsp_mpilocal(ila_mpilocal,:,1)
         endif
       enddo
     enddo
-    nsize = 2*nla_mpiglobal
-    call mmpi_allReduce(my_zsp_mpiglobal(:,:,1), zsp_mpiglobal(:,:,1), "mpi_sum", nsize)
+
+    call mmpi_allReduce(my_zsp_mpiglobal, zsp_mpiglobal, "mpi_sum")
     deallocate(my_zsp_mpiglobal) 
+
     ! 2.4.4  Check positiveness
     llpb = .false.
     do jla = 1, ntrunc+1
-      zabs = abs(zsp_mpiglobal(jla,1,1))
-      llpb = llpb.or.((zsp_mpiglobal(jla,1,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
+      zabs = abs(zsp_mpiglobal(jla,1))
+      llpb = llpb.or.((zsp_mpiglobal(jla,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
       call utl_abort(' AUTOCORRELATION  NEGATIVES')
     endif
     do jla = 1, ntrunc+1
-      zsp_mpiglobal(jla,1,1) = abs(zsp_mpiglobal(jla,1,1))
+      zsp_mpiglobal(jla,1) = abs(zsp_mpiglobal(jla,1))
     enddo
 
     zpole = 0.d0
     do  jla = 1, ntrunc+1
       jn = jla-1
-      zpole = zpole + zsp_mpiglobal(jla,1,1)*sqrt((2.d0*jn+1.d0)/2.d0)
+      zpole = zpole + zsp_mpiglobal(jla,1)*sqrt((2.d0*jn+1.d0)/2.d0)
     enddo
     if(zpole.le.0.d0) then
       call utl_abort('POLE VALUE NEGATIVE IN SUTG')
     endif
     do jla = 1, ntrunc+1
-      zsp_mpiglobal(jla,1,1) = zsp_mpiglobal(jla,1,1)/zpole
-      zsp_mpiglobal(jla,2,1) = zsp_mpiglobal(jla,2,1)/zpole
+      zsp_mpiglobal(jla,1) = zsp_mpiglobal(jla,1)/zpole
+      zsp_mpiglobal(jla,2) = zsp_mpiglobal(jla,2)/zpole
     enddo
 
     !  2.4.5  Correlation
@@ -1429,8 +1429,8 @@ CONTAINS
       do jn = jm, ntrunc
         jla = gst_getNIND(jm,gstID) + jn - jm
         dlfac = 0.5d0/sqrt((2*jn+1.d0)/2.d0)
-        cortgg(jla,1) = dlfac * zsp_mpiglobal(jn+1,1,1)
-        cortgg(jla,2) = dlfac * zsp_mpiglobal(jn+1,1,1)
+        cortgg(jla,1) = dlfac * zsp_mpiglobal(jn+1,1)
+        cortgg(jla,2) = dlfac * zsp_mpiglobal(jn+1,1)
       enddo
     enddo
 
@@ -2599,7 +2599,7 @@ CONTAINS
                                                  ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -2738,7 +2738,7 @@ CONTAINS
                                                  ! to take the outgoing data to process jproc
     end do
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim_mpiLocal)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -2785,7 +2785,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 

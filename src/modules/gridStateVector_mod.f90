@@ -5110,8 +5110,7 @@ module gridStateVector_mod
         ! skip if this task has nothing to receive
         if (.not. thisProcIsAreceiver(procIndex)) cycle
 
-        nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-      call mmpi_gather(gd_send_height, gd_recv_height, nsize, procID_opt=procIndex-1)
+        call mmpi_gather(gd_send_height, gd_recv_height, procID_opt=procIndex-1)
 
         ! copy over the complete 1 timestep received
         if (mmpi_myid == procIndex-1) then

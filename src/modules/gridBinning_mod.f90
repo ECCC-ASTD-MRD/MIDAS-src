@@ -298,7 +298,7 @@ contains
         end do
 
         !- Compute the mean per bin
-        call mmpi_allReduce(myBinCount, binCount, "MPI_SUM", gbi%numBins2d)
+        call mmpi_allReduce(myBinCount, binCount, "MPI_SUM")
         do binIndex = 1, gbi%numBins2d
           binMean(binIndex) = myBinSum(binIndex)
           call mmpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")

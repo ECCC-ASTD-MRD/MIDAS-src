@@ -948,13 +948,11 @@ module bCovarSetupChem_mod
       end do
     end do
     
-    nsize=bgStats%nJ*(bgStats%ntrunc+1)
     call mmpi_allReduce(wtemp(0:bgStats%ntrunc, 1:bgStats%nJ,1), &
-                        zleg (0:bgStats%ntrunc, 1:bgStats%nJ),    &
-                        "mpi_sum", nsize)
+                        zleg (0:bgStats%ntrunc, 1:bgStats%nJ),   &
+                        "mpi_sum")
     deallocate(wtemp)
-    allocate(wtemp(bgStats%nj, bgStats%nlev, &
-      bgStats%numvar3d+bgStats%numvar2d))
+    allocate(wtemp(bgStats%nj, bgStats%nlev, bgStats%numvar3d+bgStats%numvar2d))
     wtemp(:,:,:)=0.0
     
     varIndex = 1
@@ -1452,7 +1450,7 @@ module bCovarSetupChem_mod
     real(8) :: eigenvalsqrt(bgStats%numVarLev)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
     integer :: jn,jk1,jk2,varIndex
-    integer :: ilwork,info,jnum,jstart,nsize
+    integer :: ilwork,info,jnum,jstart
     real(8) :: zwork(2*4*bgStats%numVarLev)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
@@ -1565,10 +1563,9 @@ module bCovarSetupChem_mod
 
          end do ! jn
   
-         nsize = jnum*jnum*(bgStats%ntrunc+1)
          call mmpi_allReduce(corns_temp,                                  &
               bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
-              "mpi_sum", nsize)
+              "mpi_sum")
          deallocate(corns_temp,eigenvec,result)
 
       end if

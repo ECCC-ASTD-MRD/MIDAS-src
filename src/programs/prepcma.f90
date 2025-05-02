@@ -575,7 +575,7 @@ contains
 
     ! do mpi communication of the accumulators
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call mmpi_allReduce(nstation, nstationMpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nstation,   nstationMpiGlobal,    'mpi_sum')
     call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, 'mpi_sum')
     call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, 'mpi_sum')
 
