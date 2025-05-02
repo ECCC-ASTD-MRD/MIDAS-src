@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * Added piecewise linear interpolation of the horizontal localization radius (#1024 and !978)
+
 ### Added
 
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
