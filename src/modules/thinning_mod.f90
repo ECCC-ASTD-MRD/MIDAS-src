@@ -3224,7 +3224,7 @@ contains
     character(len=3), parameter :: winpos='mid' ! Preference to obs close to middle of window
     integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsOutMpi, countObsInMpi
-    integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag, nsize
+    integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag
     integer :: bgckCount, bgckCountMpi, blackListCount, blackListCountMpi
     integer :: unCorrectCount, unCorrectCountMpi, badTimeCount, badTimeCountMpi
     integer :: ztdScoreCount, ztdScoreCountMpi
@@ -3433,11 +3433,10 @@ contains
     end do HEADER1
 
     ! Gather needed information from all MPI tasks
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(quality, qualityMpi, nsize)
-    call mmpi_allGather(obsLatBurpFile, obsLatBurpFileMpi, nsize)
-    call mmpi_allGather(obsLonBurpFile, obsLonBurpFileMpi, nsize)
-    call mmpi_allGather(obsStepIndex, obsStepIndexMpi, nsize)
+    call mmpi_allGather(quality, qualityMpi)
+    call mmpi_allGather(obsLatBurpFile, obsLatBurpFileMpi)
+    call mmpi_allGather(obsLonBurpFile, obsLonBurpFileMpi)
+    call mmpi_allGather(obsStepIndex, obsStepIndexMpi)
 
     do obsIndex1 = 1, numHeaderMpi
       headerIndexSorted(obsIndex1)  = obsIndex1
@@ -3573,7 +3572,7 @@ contains
     integer :: numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
     integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
-    integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi, nsize
+    integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
@@ -3770,15 +3769,13 @@ contains
     allocate(obsMethodMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(quality,        qualityMpi,        nsize)
-    call mmpi_allGather(obsLatBurpFile, obsLatBurpFileMpi, nsize)
-    call mmpi_allGather(obsLonBurpFile, obsLonBurpFileMpi, nsize)
-    call mmpi_allGather(obsStepIndex,   obsStepIndexMpi,   nsize)
-    call mmpi_allGather(obsLayerIndex,  obsLayerIndexMpi,  nsize)
-    call mmpi_allGather(obsMethod,      obsMethodMpi,      nsize)
-    nsize = lenStnId * numHeaderMaxMpi
-    call mmpi_allGather(stnIdInt,       stnIdIntMpi,       nsize)
+    call mmpi_allGather(quality,        qualityMpi)
+    call mmpi_allGather(obsLatBurpFile, obsLatBurpFileMpi)
+    call mmpi_allGather(obsLonBurpFile, obsLonBurpFileMpi)
+    call mmpi_allGather(obsStepIndex,   obsStepIndexMpi)
+    call mmpi_allGather(obsLayerIndex,  obsLayerIndexMpi)
+    call mmpi_allGather(obsMethod,      obsMethodMpi)
+    call mmpi_allGather(stnIdInt,       stnIdIntMpi)
 
     ! build a global list of stnId over all mpi tasks
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
@@ -3911,8 +3908,7 @@ contains
     end do STNIDLOOP
 
     ! communicate values of validMpi computed on each mpi task
-    nsize = numHeaderMaxMpi * mmpi_nprocs
-    call mmpi_allReduce(validMpi, validMpi2, 'mpi_lor', nsize)
+    call mmpi_allReduce(validMpi, validMpi2, 'mpi_lor')
 
     ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
@@ -3951,7 +3947,7 @@ contains
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER3
 
-    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum', numStnIdMax)
+    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum')
     call mmpi_allReduce(bgckCount, bgckCountMpi, 'mpi_sum')
     call mmpi_allReduce(missingCount, missingCountMpi, 'mpi_sum')
 
@@ -4293,7 +4289,7 @@ contains
     type(struct_hco), pointer :: hco_thinning
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
-    integer :: numLon, numLat, nsize, headerIndexBeg, headerIndexEnd
+    integer :: numLon, numLat, headerIndexBeg, headerIndexEnd
     integer :: ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
     integer :: obsLonIndex, obsLatIndex, obsLevIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
@@ -4366,8 +4362,7 @@ contains
 
     ! Return if no aircraft obs to thin
     allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid, validMpi, nsize)
+    call mmpi_allGather(valid, validMpi)
     if (count(validMpi(:)) == 0) then
       write(*,*) 'thn_aircraftByBoxes: no aircraft observations present'
       return
@@ -4645,8 +4640,8 @@ contains
 
     end do HEADER1
 
-    call mmpi_allReduce(aiTypeCount, aiTypeCountMpi, 'mpi_sum', 4)
-    call mmpi_allReduce(rejectCount, rejectCountMpi, 'mpi_sum', tim_nstepObs)
+    call mmpi_allReduce(aiTypeCount, aiTypeCountMpi, 'mpi_sum')
+    call mmpi_allReduce(rejectCount, rejectCountMpi, 'mpi_sum')
 
     write(*,*)
     write(*,'(a50,i10)') ' Total number of obs = ', sum(aiTypeCountMpi(:))
@@ -4672,18 +4667,17 @@ contains
     allocate(ttSumGrid(numLat,numLon,numLev))
 
     ! Make all inputs to the following tests mpiglobal
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid,           validMpi,        nsize)
-    call mmpi_allGather(obsLatIndexVec,  obsLatIndexMpi,  nsize)
-    call mmpi_allGather(obsLonIndexVec,  obsLonIndexMpi,  nsize)
-    call mmpi_allGather(obsLevIndexVec,  obsLevIndexMpi,  nsize)
-    call mmpi_allGather(obsTimeIndexVec, obsTimeIndexMpi, nsize)
-    call mmpi_allGather(obsDistance,     obsDistanceMpi,  nsize)
-    call mmpi_allGather(obsUU,           obsUUMpi,        nsize)
-    call mmpi_allGather(obsVV,           obsVVMpi,        nsize)
-    call mmpi_allGather(obsTT,           obsTTMpi,        nsize)
-    call mmpi_allGather(obsUVPresent,    obsUVPresentMpi, nsize)
-    call mmpi_allGather(obsTTPresent,    obsTTPresentMpi, nsize)
+    call mmpi_allGather(valid,           validMpi)
+    call mmpi_allGather(obsLatIndexVec,  obsLatIndexMpi)
+    call mmpi_allGather(obsLonIndexVec,  obsLonIndexMpi)
+    call mmpi_allGather(obsLevIndexVec,  obsLevIndexMpi)
+    call mmpi_allGather(obsTimeIndexVec, obsTimeIndexMpi)
+    call mmpi_allGather(obsDistance,     obsDistanceMpi)
+    call mmpi_allGather(obsUU,           obsUUMpi)
+    call mmpi_allGather(obsVV,           obsVVMpi)
+    call mmpi_allGather(obsTT,           obsTTMpi)
+    call mmpi_allGather(obsUVPresent,    obsUVPresentMpi)
+    call mmpi_allGather(obsTTPresent,    obsTTPresentMpi)
 
     STEP: do stepIndex = 1, tim_nstepobs
       handlesGrid(:,:,:) = -1
@@ -5332,7 +5326,7 @@ contains
         end if
 
         ! Communicate the distance of chosen observation among all mpi tasks
-        call mmpi_allGather(minDistance, minDistanceMpi, 1)
+        call mmpi_allGather(minDistance, minDistanceMpi)
 
         ! Choose the closest to the center of the box among all mpi tasks
         minDistance = 1000000.
@@ -5998,7 +5992,7 @@ contains
     logical,          intent(inout) :: valid(:)
 
     ! Locals:
-    integer :: nsize, ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
+    integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
     integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
     integer :: obsDate, obsTime
     real(4) :: obsLatInRad, obsLonInRad
@@ -6073,15 +6067,12 @@ contains
       obsPosition3d(3,headerIndex) = ec_ra *                    sin(obsLatInRad)
     end do
 
-    nsize = 3 * numHeaderMaxMpi
-    call mmpi_allGather(obsPosition3d, obsPosition3dMpi, nsize)
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid,         validMpi,        nsize)
-    call mmpi_allGather(centreOrig,    centreOrigMpi,   nsize)
-    call mmpi_allGather(obsFov,        obsFovMpi,       nsize)
-    call mmpi_allGather(obsDateStamp,  obsDateStampMpi, nsize)
-    nsize = lenStnId * numHeaderMaxMpi
-    call mmpi_allGather(stnIdInt,      stnIdIntMpi,     nsize)
+    call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
+    call mmpi_allGather(valid,         validMpi)
+    call mmpi_allGather(centreOrig,    centreOrigMpi)
+    call mmpi_allGather(obsFov,        obsFovMpi)
+    call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
+    call mmpi_allGather(stnIdInt,      stnIdIntMpi)
     nullify(tree)
 
     tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
@@ -6191,7 +6182,7 @@ contains
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
     integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: numStnIdMax = 100
-    integer :: bodyIndex, charIndex, nsize, lenStnId
+    integer :: bodyIndex, charIndex, lenStnId
     integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
     integer :: uObsFlag, vObsFlag, obsVarno, stnIdIndex, numStnId, stnIdIndexFound
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
@@ -6324,10 +6315,8 @@ contains
       end do
     end do HEADER1
 
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid, validMpi, nsize)
-    nsize = lenStnId * numHeaderMaxMpi
-    call mmpi_allGather(stnIdInt, stnIdIntMpi, nsize)
+    call mmpi_allGather(valid,    validMpi)
+    call mmpi_allGather(stnIdInt, stnIdIntMpi)
 
     ! build a global list of stnId over all mpi tasks
     numStnId = 0
@@ -6451,13 +6440,12 @@ contains
                countObs, countObsOutMpi
 
     ! Gather data from all MPI tasks
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid,         validMpi,         nsize)
-    call mmpi_allGather(obsLatIndex,   obsLatIndexMpi,   nsize)
-    call mmpi_allGather(obsLonIndex,   obsLonIndexMpi,   nsize)
-    call mmpi_allGather(obsStepIndex,  obsStepIndexMpi,  nsize)
-    call mmpi_allGather(obsDelMinutes, obsDelMinutesMpi, nsize)
-    call mmpi_allGather(obsDistance,   obsDistanceMpi,   nsize)
+    call mmpi_allGather(valid,         validMpi)
+    call mmpi_allGather(obsLatIndex,   obsLatIndexMpi)
+    call mmpi_allGather(obsLonIndex,   obsLonIndexMpi)
+    call mmpi_allGather(obsStepIndex,  obsStepIndexMpi)
+    call mmpi_allGather(obsDelMinutes, obsDelMinutesMpi)
+    call mmpi_allGather(obsDistance,   obsDistanceMpi)
 
     ! Apply thinning algorithm
     HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
@@ -6594,7 +6582,7 @@ contains
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER5
 
-    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum', numStnIdMax)
+    call mmpi_allReduce(numObsStnIdOut, numObsStnIdOutMpi, 'mpi_sum')
     call mmpi_allReduce(timeRejectCount, timeRejectCountMpi, 'mpi_sum')
     call mmpi_allReduce(flagRejectCount, flagRejectCountMpi, 'mpi_sum')
 
@@ -6679,7 +6667,7 @@ contains
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
     integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: maxNumChan = 15    ! nb max de canaux
-    integer :: bodyIndex, channelIndex, charIndex, nsize, lenStnId
+    integer :: bodyIndex, channelIndex, charIndex, lenStnId
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
     integer :: headerIndex, numHeader, numHeaderMaxMpi, channelList(maxNumChan)
     integer :: headerIndexBeg, headerIndexEnd, countObs, countObsMpi
@@ -6937,21 +6925,16 @@ contains
     end do HEADER3
 
     ! Gather data from all MPI tasks
-    nsize = numHeaderMaxMpi
-    call mmpi_allGather(valid,        validMpi,        nsize)
-    call mmpi_allGather(obsLatIndex,  obsLatIndexMpi,  nsize)
-    call mmpi_allGather(obsLonIndex,  obsLonIndexMpi,  nsize)
-    call mmpi_allGather(obsStepIndex, obsStepIndexMpi, nsize)
-    call mmpi_allGather(numChannel,   numChannelMpi,   nsize)
-    call mmpi_allGather(obsAngle,     obsAngleMpi,     nsize)
-    call mmpi_allGather(obsDistance,  obsDistanceMpi,  nsize)
-
-    nsize = maxNumChan * numHeaderMaxMpi
-    call mmpi_allGather(channelAssim, channelAssimMpi, nsize)
-    call mmpi_allGather(obsCloud, obsCloudMpi, nsize)
-
-    nsize = lenStnId * numHeaderMaxMpi
-    call mmpi_allGather(stnIdInt, stnIdIntMpi, nsize)
+    call mmpi_allGather(valid,        validMpi)
+    call mmpi_allGather(obsLatIndex,  obsLatIndexMpi)
+    call mmpi_allGather(obsLonIndex,  obsLonIndexMpi)
+    call mmpi_allGather(obsStepIndex, obsStepIndexMpi)
+    call mmpi_allGather(numChannel,   numChannelMpi)
+    call mmpi_allGather(obsAngle,     obsAngleMpi)
+    call mmpi_allGather(obsDistance,  obsDistanceMpi)
+    call mmpi_allGather(channelAssim, channelAssimMpi)
+    call mmpi_allGather(obsCloud,     obsCloudMpi)
+    call mmpi_allGather(stnIdInt,     stnIdIntMpi)
 
     ! Apply thinning algorithm
     HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
@@ -7131,7 +7114,7 @@ contains
     integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, lenStnId
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex, charIndex
-    integer :: nsize, procIndex, countHeader, countHeaderMpi
+    integer :: procIndex, countHeader, countHeaderMpi
     real(4) :: latInRadians, length, distance
     real(8) :: lonBoxCenterInDegrees, latBoxCenterInDegrees
     real(8) :: obsLatInRad, obsLonInRad, obsLat, obsLon
@@ -7194,8 +7177,7 @@ contains
     end if
 
     ! Gather stnIdInt from all MPI tasks
-    nsize = lenStnId * numHeaderMaxMpi
-    call mmpi_allGather(stnIdInt, stnIdIntMpi, nsize)
+    call mmpi_allGather(stnIdInt, stnIdIntMpi)
 
     ! build a global stnIdList
     numStnId = 0
@@ -7418,11 +7400,10 @@ contains
     end do HEADER1
 
     ! communicate results to all other mpi tasks
-    nsize = numLat * numLon * tim_nstepobs
-    call mmpi_allGather(distanceKeep,    distanceKeepMpi,    nsize)
-    call mmpi_allGather(delMinutesKeep,  delMinutesKeepMpi,  nsize)
-    call mmpi_allGather(numChannelsKeep, numChannelsKeepMpi, nsize)
-    call mmpi_allGather(headerIndexKeep, headerIndexKeepMpi, nsize)
+    call mmpi_allGather(distanceKeep,    distanceKeepMpi)
+    call mmpi_allGather(delMinutesKeep,  delMinutesKeepMpi)
+    call mmpi_allGather(numChannelsKeep, numChannelsKeepMpi)
+    call mmpi_allGather(headerIndexKeep, headerIndexKeepMpi)
 
     ! reset arrays that store info about kept obs
     headerIndexKeep(:,:,:) = -1
@@ -7878,11 +7859,11 @@ contains
     end do HEADER
 
     ! Make all inputs to the following tests mpiglobal
-    call mmpi_allGather(valid, validMpi, numHeaderMaxMpi)
-    call mmpi_allGather(obsLatIndexVec,  obsLatIndexMpi,  numHeaderMaxMpi)
-    call mmpi_allGather(obsLonIndexVec,  obsLonIndexMpi,  numHeaderMaxMpi)
-    call mmpi_allGather(obsTimeIndexVec, obsTimeIndexMpi, numHeaderMaxMpi)
-    call mmpi_allGather(obsSST, obsSSTMpi, numHeaderMaxMpi)
+    call mmpi_allGather(valid,           validMpi)
+    call mmpi_allGather(obsLatIndexVec,  obsLatIndexMpi)
+    call mmpi_allGather(obsLonIndexVec,  obsLonIndexMpi)
+    call mmpi_allGather(obsTimeIndexVec, obsTimeIndexMpi)
+    call mmpi_allGather(obsSST,          obsSSTMpi)
 
     TIMESTEP: do stepIndex = 1, numTimesteps
 

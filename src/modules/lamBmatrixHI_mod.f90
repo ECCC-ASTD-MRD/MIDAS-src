@@ -1352,7 +1352,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     deallocate(displs)
     deallocate(cv_allMaxMpiLocal)
@@ -1463,7 +1463,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs, cvDim)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     deallocate(displs)
     deallocate(cv_allMaxMpiLocal)
@@ -1510,7 +1510,7 @@ contains
        allocate(cv_allmaxmpilocal(1,1))
     end if
 
-    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 

@@ -2628,7 +2628,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor', ni*nj)
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor')
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0

@@ -935,7 +935,7 @@ contains
 
     allocate(allHeaderIndex(numHeaderUsedMax,numStep,mmpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
-    call mmpi_allGather(headerIndexVec, allHeaderIndex, numHeaderUsedMax*numStep)
+    call mmpi_allGather(headerIndexVec, allHeaderIndex)
 
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
@@ -1192,7 +1192,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, headerUsedIndex
+    integer :: procIndex, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
     real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
@@ -1365,9 +1365,8 @@ contains
       call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
-      nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call mmpi_alltoall(cols_send, cols_recv, nsize)
+        call mmpi_alltoall(cols_send, cols_recv)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
@@ -1437,7 +1436,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, headerUsedIndex
+    integer :: procIndex, headerUsedIndex
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
@@ -1547,9 +1546,8 @@ contains
       call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
-      nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call mmpi_alltoall(cols_send, cols_recv, nsize)
+        call mmpi_alltoall(cols_send, cols_recv)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
@@ -1671,7 +1669,7 @@ contains
     integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
-    integer :: procIndex, nsize, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
+    integer :: procIndex, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
     integer :: varLevIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
     real(8) :: weight
     character(len=4)     :: varName
@@ -2036,13 +2034,12 @@ contains
         end if
 
         ! mpi communication: scatter data from task 0
-        nsize = numHeader
         if(mmpi_nprocs > 1) then
           do procIndex = 1, mmpi_nprocs
             displs(procIndex) = (procIndex - 1) * numHeaderMax
             nsizes(procIndex) = allNumHeader(procIndex)
           end do
-          call mmpi_scatterv(cols_send, cols_recv, nsizes, displs, nsize)
+          call mmpi_scatterv(cols_send, cols_recv, nsizes, displs, numHeader)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
@@ -2847,7 +2844,7 @@ contains
     ! Locals:
     integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, varLevIndex
     integer :: numHeader, numHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    integer :: subGridIndex, gridptIndex, nsize
+    integer :: subGridIndex, gridptIndex
     integer, save :: numWrites = 0
     logical, allocatable :: allRejectObs(:,:), allRejectObsMpiGlobal(:,:)
 
@@ -2883,8 +2880,7 @@ contains
     end do ! procIndex
 
     ! do global communication of reject flags
-    nsize = numHeaderMax*mmpi_nprocs
-    call mmpi_allReduce(allRejectObs, allRejectObsMpiGlobal, 'MPI_LOR', nsize)
+    call mmpi_allReduce(allRejectObs, allRejectObsMpiGlobal, 'MPI_LOR')
 
     ! modify obsSpaceData based on reject flags
     do headerIndex = 1, obs_numHeader(obsSpaceData)

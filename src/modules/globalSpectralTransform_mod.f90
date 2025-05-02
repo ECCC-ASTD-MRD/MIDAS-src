@@ -684,7 +684,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: yourid,ila,icount,nsize,jlev,jlev2
+    integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -704,9 +704,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(sp_send, sp_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = 'EW')
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -742,7 +741,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: sp_recv(gst(gstID)%maxMyNla, 2, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: yourid,ila,icount,nsize,jlev,jlev2
+    integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -764,9 +763,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(sp_send, sp_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = 'EW')
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -802,7 +800,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
-    integer :: yourid,jm,jm2,icount,nsize,jlev,jlev2,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('NS')
@@ -829,9 +827,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -871,7 +868,7 @@ contains
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
     real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
-    integer :: yourid,jm,jm2,icount,nsize,jlev,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
@@ -900,9 +897,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -943,7 +939,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
-    integer :: yourid,jm,jm2,icount,nsize,jlev,jlev2,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('NS')
@@ -970,9 +966,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1012,7 +1007,7 @@ contains
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
     real(pre_specTransReal), allocatable, save :: gd_recv(:,:,:,:,:)
-    integer :: yourid,jm,jm2,icount,nsize,jlev,jlat,jlat2
+    integer :: yourid,jm,jm2,icount,jlev,jlat,jlat2
 
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
@@ -1041,9 +1036,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1084,7 +1078,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: youridP1,nsize,jlev,jlev2
+    integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -1103,9 +1097,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1206,7 +1199,7 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                                        gst(gstID)%latPerPEmax, mmpi_npex)
-    integer :: youridP1, nsize, yourNumLev
+    integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -1222,9 +1215,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1256,7 +1248,7 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
-    integer :: youridP1,nsize,jlev,jlev2
+    integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -1275,9 +1267,8 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1379,7 +1370,7 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     real(pre_specTransReal) :: gd_recv(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
                                        gst(gstID)%latPerPEmax, mmpi_npex)
-    integer :: youridP1,nsize,jlev,jlev2,yourNumLev
+    integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier('EW')
@@ -1396,14 +1387,13 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
 
-    !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
+    !$OMP PARALLEL DO PRIVATE(youridP1)
     do youridP1 = 1, mmpi_npex
       pgd_out(:, gst(gstID)%allLonBeg(youridP1):gst(gstID)%allLonEnd(youridP1), :) =  &
         gd_recv(:, 1:gst(gstID)%allLonPerPE(youridP1), 1:gst(gstID)%latPerPE, youridP1)

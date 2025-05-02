@@ -637,9 +637,9 @@ contains
     end do HEADER1
 
     ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
-    call mmpi_allGather(headerCount, headerCountAllTasks, tvs_nsensors)
-    call mmpi_allGather(obsErrSum, obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal))
-    call mmpi_allGather(chanList, chanListAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal))
+    call mmpi_allGather(headerCount, headerCountAllTasks)
+    call mmpi_allGather(obsErrSum, obsErrSumAllTasks)
+    call mmpi_allGather(chanList, chanListAllTasks)
     deallocate(headerCount)
     
     Sensor: do sensorIndex = 1, tvs_nsensors
@@ -680,7 +680,7 @@ contains
         do taskIndex = 1, mmpi_nprocs - 1
           allocate(localRmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
           tag = taskIndex
-          call mmpi_recv(localRmat, tag, taskIndex, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex))
+          call mmpi_recv(localRmat, tag, taskIndex)
           ObsErrSqrdMat(sensorIndex)%Rmat(:,:) = ObsErrSqrdMat(sensorIndex)%Rmat(:,:) + localRmat
           deallocate(localRmat)
         end do

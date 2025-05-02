@@ -134,7 +134,7 @@ program midas_diagBmatrix
   real(8) :: centralValue, centralValueLocal
 
   integer :: fnom, fstopc, newdate
-  integer :: ierr, nsize, iseed, nultxt
+  integer :: ierr, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
@@ -684,8 +684,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO
 
-    nsize = statevector%nj*numVarLev
-    call mmpi_allReduce(stddev_zm, stddev_zm2, "MPI_SUM", nsize)
+    call mmpi_allReduce(stddev_zm, stddev_zm2, "MPI_SUM", statevector%nj*numVarLev)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
@@ -723,8 +722,7 @@ program midas_diagBmatrix
         if ( mmpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
 
         do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(varIndex))
-          nsize = statevector%latPerPE
-          call mmpi_gather(field3d(1,:,levIndex), zonalMeanStddev, nsize)
+          call mmpi_gather(field3d(1,:,levIndex), zonalMeanStddev, statevector%latPerPE)
           if ( mmpi_myid == 0 ) then
             do latIndex = 1, statevector%nj
               write(nultxt,*) field3d(1,latIndex,levIndex)
@@ -759,8 +757,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO 
 
-    nsize = statevector%ni*numVarLev
-    call mmpi_allReduce(stddev_dm, stddev_dm2, "MPI_SUM", nsize)
+    call mmpi_allReduce(stddev_dm, stddev_dm2, "MPI_SUM", statevector%ni*numVarLev)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)

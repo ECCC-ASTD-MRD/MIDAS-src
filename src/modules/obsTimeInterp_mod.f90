@@ -44,7 +44,7 @@ contains
 
     ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
     character(len=256)   :: formatspec, formatspec2
@@ -123,11 +123,9 @@ contains
     write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,stepIndex)),stepIndex=1,nStepObs+1)
     write(*,*) '----------------------------------------------------------------'
 
-    nsize = size(inumheader)
-    call mmpi_allReduce(my_inumheader, inumheader, "mpi_sum", nsize)
+    call mmpi_allReduce(my_inumheader, inumheader, "mpi_sum")
     deallocate(my_inumheader) 
-    nsize = size(idataass)
-    call mmpi_allReduce(my_idataass, idataass, "mpi_sum", nsize)
+    call mmpi_allReduce(my_idataass, idataass, "mpi_sum")
     deallocate(my_idataass) 
     if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'

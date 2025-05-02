@@ -574,9 +574,8 @@ contains
     end do header_loop
 
     ! do mpi communication of the accumulators
-    nsize = nblocksum * npres
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call mmpi_allReduce(nstation, nstationMpiGlobal, 'mpi_sum', nsize)
+    call mmpi_allReduce(nstation, nstationMpiGlobal, 'mpi_sum')
     call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, 'mpi_sum')
     call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, 'mpi_sum')
 
@@ -587,8 +586,7 @@ contains
                 nobs_count, nobs_count_mpiGlobal
 
     if (cfam == 'TO') then
-      nsize = nblocksum * tvs_nsensors
-      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, "mpi_sum", nsize)
+      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, "mpi_sum")
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -673,8 +671,7 @@ contains
           nobs_count_thin, nobs_count_thin_mpiGlobal
 
     if (cfam == 'TO') then
-      nsize = nblocksum * tvs_nsensors
-      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, "mpi_sum", nsize)
+      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, "mpi_sum")
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &

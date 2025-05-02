@@ -478,10 +478,10 @@ contains
         call mmpi_allReduce(ivco, ivco_recv, "MPI_MAX")
         ivco = ivco_recv
 
-        call mmpi_allReduce(my_counts, counts, "MPI_SUM", maxLat*maxLon*maxVertical)
-        call mmpi_allReduce(my_innovStd, innovStd, "MPI_SUM", maxLat*maxLon*maxVertical)
-        if (lpert_static) call mmpi_allReduce(my_bmatHiStd, bmatHiStd, "MPI_SUM", maxLat*maxLon*maxVertical)
-        if (lpert_ens) call mmpi_allReduce(my_bmatEnStd, bmatEnStd, "MPI_SUM", maxLat*maxLon*maxVertical)
+        call mmpi_allReduce(my_counts, counts, "MPI_SUM")
+        call mmpi_allReduce(my_innovStd, innovStd, "MPI_SUM")
+        if (lpert_static) call mmpi_allReduce(my_bmatHiStd, bmatHiStd, "MPI_SUM")
+        if (lpert_ens) call mmpi_allReduce(my_bmatEnStd, bmatEnStd, "MPI_SUM")
 
         where (counts > 0) innovStd = sqrt(innovStd/counts)
         if (lpert_static) then

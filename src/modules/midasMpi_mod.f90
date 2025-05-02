@@ -1424,6 +1424,11 @@ contains
     call handleLength(length_opt, length, sending)
     call handleCommunicator(communicator_opt, communicator)
 
+    ! The input array is of the form sending(..,mmpi_nprocs) and the
+    ! size expected by 'rpn_comm_alltoall' does not include the last
+    ! dimension.
+    length = length/mmpi_nprocs
+
     call rpn_comm_alltoall(sending,   length, 'mpi_integer',  &
                            receiving, length, 'mpi_integer', communicator, ierr)
 
@@ -1453,6 +1458,11 @@ contains
     call handleLength(length_opt, length, sending)
     call handleCommunicator(communicator_opt, communicator)
 
+    ! The input array is of the form sending(..,mmpi_nprocs) and the
+    ! size expected by 'rpn_comm_alltoall' does not include the last
+    ! dimension.
+    length = length/mmpi_nprocs
+
     call rpn_comm_alltoall(sending,   length, 'mpi_integer8',  &
                            receiving, length, 'mpi_integer8', communicator, ierr)
 
@@ -1479,8 +1489,26 @@ contains
     integer :: ierr, length
     character(len=mmpi_communicator_max_length) :: communicator
 
-    call handleLength(length_opt, length, sending)
     call handleCommunicator(communicator_opt, communicator)
+
+    if ( present(length_opt) ) then
+      length = length_opt
+    else
+      call handleLength(length_opt, length, sending)
+
+      ! The input array is of the form 'sending(..,mmpi_{nprocs,npex,npey})'
+      ! and the size expected by 'rpn_comm_alltoall' does not include
+      ! the last dimension.
+      if ( communicator == mmpi_communicator_grid ) then
+        length = length/mmpi_nprocs
+      else if ( communicator == "NS" ) then
+        length = length/mmpi_npey
+      else if ( communicator == "EW" ) then
+        length = length/mmpi_npex
+      else
+        call utl_abort('mmpi_alltoall_real4: cannot guess the size of the data for communicator='''// communicator // '''')
+      end if
+    end if
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real4',  &
                            receiving, length, 'mpi_real4', communicator, ierr)
@@ -1508,8 +1536,26 @@ contains
     integer :: ierr, length
     character(len=mmpi_communicator_max_length) :: communicator
 
-    call handleLength(length_opt, length, sending)
     call handleCommunicator(communicator_opt, communicator)
+
+    if ( present(length_opt) ) then
+      length = length_opt
+    else
+      call handleLength(length_opt, length, sending)
+
+      ! The input array is of the form 'sending(..,mmpi_{nprocs,npex,npey})'
+      ! and the size expected by 'rpn_comm_alltoall' does not include
+      ! the last dimension.
+      if ( communicator == mmpi_communicator_grid ) then
+        length = length/mmpi_nprocs
+      else if ( communicator == "NS" ) then
+        length = length/mmpi_npey
+      else if ( communicator == "EW" ) then
+        length = length/mmpi_npex
+      else
+        call utl_abort('mmpi_alltoall_real8: cannot guess the size of the data for communicator='''// communicator // '''')
+      end if
+    end if
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real8',  &
                            receiving, length, 'mpi_real8', communicator, ierr)
@@ -2079,7 +2125,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_scatterv_real4
   !--------------------------------------------------------------------------
-  subroutine mmpi_scatterv_real4(sending, receiving, allLengths, displacements, length)
+  subroutine mmpi_scatterv_real4(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_scatterv' for a real4 scalar or array
     !
@@ -2088,13 +2134,15 @@ contains
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)      ! real(4) data sent to all MPI ranks
     real(4), contiguous, intent(out) :: receiving(..)    ! real(4) array which stores the data received
-    integer,             intent(in)  :: length           ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
-    integer :: ierr
+    integer :: ierr, length
     integer, parameter :: procID = 0
+
+    call handleLength(length_opt, length, receiving)
 
     call rpn_comm_scatterv(sending,   allLengths, displacements, 'mpi_real4', &
                            receiving, length,                    'mpi_real4', &
@@ -2107,7 +2155,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_scatterv_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_scatterv_real8(sending, receiving, allLengths, displacements, length)
+  subroutine mmpi_scatterv_real8(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_scatterv' for a real8 scalar or array
     !
@@ -2116,13 +2164,15 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
     real(8), contiguous, intent(out) :: receiving(..)    ! real(8) array which stores the data received
-    integer,             intent(in)  :: length           ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
-    integer :: ierr
+    integer :: ierr, length
     integer, parameter :: procID = 0
+
+    call handleLength(length_opt, length, receiving)
 
     call rpn_comm_scatterv(sending,   allLengths, displacements, 'mpi_real8', &
                            receiving, length,                    'mpi_real8', &

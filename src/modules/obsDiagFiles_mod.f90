@@ -545,7 +545,7 @@ module obsDiagFiles_mod
     character(len=*), intent(out)   :: obsFamilyListCommon(:)
 
     ! Locals:
-    integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize
+    integer                       :: headerIndex, familyIndex, charIndex, procIndex
     integer                       :: obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, obsFamilyListSizeMax
     character(len=2), allocatable :: obsFamilyListMpiLocal(:)
     character(len=2), allocatable :: obsFamilyListMpiGlobal(:,:)
@@ -587,8 +587,7 @@ module obsDiagFiles_mod
 
     ! communicate obs family list to all mpi tasks as integers
     allocate(intObsFamilyListMpiGlobal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal,mmpi_nprocs))
-    nsize = size(intObsFamilyListMpiLocal)
-    call mmpi_allGather(intObsFamilyListMpiLocal, intObsFamilyListMpiGlobal, nsize)
+    call mmpi_allGather(intObsFamilyListMpiLocal, intObsFamilyListMpiGlobal)
 
     ! convert global family lists from integers to characters
     allocate(obsFamilyListMpiGlobal(obsFamilyListSizeMaxMpiLocal,mmpi_nprocs))

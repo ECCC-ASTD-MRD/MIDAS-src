@@ -1427,7 +1427,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2
+    integer :: yourid, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
     call mmpi_barrier
@@ -1444,9 +1444,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1510,9 +1509,9 @@ contains
     real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
     ! Locals:
-    real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
-    real(8) :: gd_recv(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
+    real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
+    integer :: yourid, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
     call mmpi_barrier
@@ -1535,9 +1534,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1576,7 +1574,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2
+    integer :: yourid, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
     call mmpi_barrier
@@ -1594,9 +1592,8 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1661,7 +1658,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    integer :: yourid, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
     call mmpi_barrier
@@ -1684,9 +1681,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1724,7 +1720,7 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
     call mmpi_barrier
@@ -1750,9 +1746,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1797,7 +1792,7 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
     call mmpi_barrier
@@ -1823,9 +1818,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1870,7 +1864,7 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
     call mmpi_barrier
@@ -1897,9 +1891,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1943,7 +1936,7 @@ contains
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
-    integer :: yourid, mIndex, icount, nsize, levIndex, levIndex2, latIndex, latIndex2
+    integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
     call mmpi_barrier
@@ -1970,9 +1963,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -2017,7 +2009,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
     call mmpi_barrier
@@ -2045,9 +2037,8 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2080,7 +2071,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
     call mmpi_barrier
@@ -2108,9 +2099,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2143,7 +2133,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
     call mmpi_barrier
@@ -2160,9 +2150,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = lst%maxnla * 4* lst%maxLevCount
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2211,7 +2200,7 @@ contains
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
-    integer :: yourid, nsize, levIndex, levIndex2, nIndex, mIndex, icount
+    integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
     call mmpi_barrier
@@ -2228,9 +2217,8 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, nsize, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if

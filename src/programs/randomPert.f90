@@ -488,9 +488,9 @@ program midas_randomPert
       end do
     end do
   
-    n_grid_point=(lonPerPEa)*(latPerPEa)
+    n_grid_point = lonPerPEa*latPerPEa
     call mmpi_allReduce(n_grid_point, n_grid_point_glb, "mpi_sum")
-    call mmpi_allReduce(avg_pturb_var, avg_pturb_var_glb, "mpi_sum", numVarLev)
+    call mmpi_allReduce(avg_pturb_var, avg_pturb_var_glb, "mpi_sum")
   
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
     do levIndex = 1, numVarLev

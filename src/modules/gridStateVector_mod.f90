@@ -3490,7 +3490,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -4185,7 +4185,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -4833,7 +4833,7 @@ module gridStateVector_mod
         displs(procIndex) = (procIndex-1)*nsize
         nsizes(procIndex) = nsize
       end do
-      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs, nsize)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       stateVector_tiles%HeightSfc(&
                 stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
@@ -5165,7 +5165,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)     :: stateVector_tiles
 
     ! Locals:
-    integer :: yourid, youridx, youridy, nsize
+    integer :: yourid, youridx, youridy
     integer :: varLevIndex, stepIndex, numStep
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
@@ -5187,9 +5187,6 @@ module gridStateVector_mod
 
     call mmpi_barrier
     call msg('gsv_transposeTilesToMpiGlobal', 'START', verb_opt=2)
-
-    ! size of each message
-    nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
 
     ! allocate arrays used for mpi communication of 1 level/variable at a time
     allocate(gd_send_r4(stateVector_tiles%lonPerPEmax,  &
@@ -5227,7 +5224,7 @@ module gridStateVector_mod
                                 varLevIndex, stepIndex), 4)
         end if
 
-        call mmpi_allGather(gd_send_r4, gd_recv_r4, nsize)
+        call mmpi_allGather(gd_send_r4, gd_recv_r4)
 
         ! copy over the complete 2D field for 1 stepIndex received
         if (stateVector_mpiGlobal%allocated) then
@@ -5274,7 +5271,7 @@ module gridStateVector_mod
           stateVector_tiles%HeightSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                                       stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
 
-      call mmpi_allGather(gd_send_r8, gd_recv_r8, nsize)
+      call mmpi_allGather(gd_send_r8, gd_recv_r8)
 
       if (stateVector_mpiGlobal%allocated) then
 

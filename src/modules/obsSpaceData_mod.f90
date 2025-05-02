@@ -3012,7 +3012,7 @@ contains
       integer :: bodyIndex_mpilocal,bodyIndex
       integer :: headerIndex_mpilocal,headerIndex
       integer :: headerIndexOffset,bodyIndexOffset
-      integer :: nsize,sourcePE,procIndex
+      integer :: sourcePE,procIndex
       integer :: charIndex,activeIndex,columnIndex
 
       write(*,*) 'Entering obs_expandToMpiGlobal'
@@ -3114,8 +3114,7 @@ contains
       else
          allocate(all_headerPrimaryKey_mpilocal(1,1))
       end if
-      nsize=size(headerPrimaryKey_mpilocal)
-      call mmpi_gather(headerPrimaryKey_mpilocal, all_headerPrimaryKey_mpilocal, nsize)
+      call mmpi_gather(headerPrimaryKey_mpilocal, all_headerPrimaryKey_mpilocal)
       deallocate(headerPrimaryKey_mpilocal)
       
       ! make header-level integer data mpiglobal
@@ -3136,8 +3135,7 @@ contains
          allocate(all_intHeaders_mpilocal(1,1,1))
       end if
 
-      nsize=size(intHeaders_mpilocal)
-      call mmpi_gather(intHeaders_mpilocal, all_intHeaders_mpilocal, nsize)
+      call mmpi_gather(intHeaders_mpilocal, all_intHeaders_mpilocal)
       deallocate(intHeaders_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3159,8 +3157,7 @@ contains
          allocate(all_realHeaders_mpilocal(1,1,1))
       end if
 
-      nsize=size(realHeaders_mpilocal)
-      call mmpi_gather(realHeaders_mpilocal, all_realHeaders_mpilocal, nsize)
+      call mmpi_gather(realHeaders_mpilocal, all_realHeaders_mpilocal)
       deallocate(realHeaders_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3180,8 +3177,7 @@ contains
          allocate(all_intStnid_mpilocal(1,1,1))
       end if
 
-      nsize=size(intStnid_mpilocal)
-      call mmpi_gather(intStnid_mpilocal, all_intStnid_mpilocal, nsize)
+      call mmpi_gather(intStnid_mpilocal, all_intStnid_mpilocal)
       deallocate(intStnid_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3201,8 +3197,7 @@ contains
          allocate(all_intFamily_mpilocal(1,1,1))
       end if
 
-      nsize=size(intFamily_mpilocal)
-      call mmpi_gather(intFamily_mpilocal, all_intFamily_mpilocal, nsize)
+      call mmpi_gather(intFamily_mpilocal, all_intFamily_mpilocal)
       deallocate(intFamily_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3236,8 +3231,7 @@ contains
       else
          allocate(all_bodyPrimaryKey_mpilocal(1,1))
       end if
-      nsize=size(bodyPrimaryKey_mpilocal)
-      call mmpi_gather(bodyPrimaryKey_mpilocal, all_bodyPrimaryKey_mpilocal, nsize)
+      call mmpi_gather(bodyPrimaryKey_mpilocal, all_bodyPrimaryKey_mpilocal)
       deallocate(bodyPrimaryKey_mpilocal)
 
       ! make body-level integer data mpiglobal
@@ -3258,8 +3252,7 @@ contains
          allocate(all_intBodies_mpilocal(1,1,1))
       end if
 
-      nsize=size(intBodies_mpilocal)
-      call mmpi_gather(intBodies_mpilocal, all_intBodies_mpilocal, nsize)
+      call mmpi_gather(intBodies_mpilocal, all_intBodies_mpilocal)
       deallocate(intBodies_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -3281,8 +3274,7 @@ contains
          allocate(all_realBodies_mpilocal(1,1,1))
       end if
 
-      nsize=size(realBodies_mpilocal)
-      call mmpi_gather(realBodies_mpilocal, all_realBodies_mpilocal, nsize)
+      call mmpi_gather(realBodies_mpilocal, all_realBodies_mpilocal)
       deallocate(realBodies_mpilocal)
       call msg_memUsage('obs_expandToMpiGlobal')
 
@@ -4732,7 +4724,7 @@ contains
       integer :: numHeader_mpimessage, numBody_mpimessage
       integer :: bodyIndex, headerIndex, headerIndex_out, bodyIndex_out, columnIndex, activeIndex, procIndex, charIndex
       integer :: bodyIndexBeg, bodyIndexEnd
-      integer :: nsize, target_ip
+      integer :: target_ip
       logical :: needToRedistribute, needToRedistribute_mpiglobal
 
       call msg_memUsage('obs_MpiRedistribute')
@@ -4849,20 +4841,11 @@ contains
 
       ! do mpi communication: header-level data
       if(mmpi_nprocs > 1) then
-        nsize = numHeader_mpimessage
-        call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
-
-        nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%realHeaders)
-        call mmpi_alltoall(real_send, real_recv, nsize)
-
-        nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%intHeaders)
-        call mmpi_alltoall(int_send, int_recv, nsize)
-
-        nsize = numHeader_mpimessage*len(obsdat_inout%cstnid(1))
-        call mmpi_alltoall(intcstnid_send, intcstnid_recv, nsize)
-
-        nsize = numHeader_mpimessage*len(obsdat_inout%cfamily(1))
-        call mmpi_alltoall(intcfamily_send, intcfamily_recv, nsize)
+        call mmpi_alltoall(primaryKey_send, primaryKey_recv)
+        call mmpi_alltoall(real_send, real_recv)
+        call mmpi_alltoall(int_send, int_recv)
+        call mmpi_alltoall(intcstnid_send, intcstnid_recv)
+        call mmpi_alltoall(intcfamily_send, intcfamily_recv)
       else
         primaryKey_recv(:,1)   = primaryKey_send(:,1)
         real_recv(:,:,1)       = real_send(:,:,1)
@@ -4957,8 +4940,7 @@ contains
               obsdat_inout%bodyPrimaryKey(bodyIndex)
       enddo
       if(mmpi_nprocs > 1) then
-         nsize = numBody_mpimessage
-         call mmpi_alltoall(primaryKey_send, primaryKey_recv, nsize)
+         call mmpi_alltoall(primaryKey_send, primaryKey_recv)
       else
          primaryKey_recv(:,1) = primaryKey_send(:,1)
       endif
@@ -5017,8 +4999,7 @@ contains
 
          ! do mpi communication: body-level data
          if(mmpi_nprocs > 1) then
-           nsize = numBody_mpimessage
-           call mmpi_alltoall(real_send_2d, real_recv_2d, nsize)
+           call mmpi_alltoall(real_send_2d, real_recv_2d)
          else
            real_recv_2d(:,1)       = real_send_2d(:,1)
          endif
@@ -5086,8 +5067,7 @@ contains
 
          ! do mpi communication: body-level data
          if(mmpi_nprocs > 1) then
-           nsize = numBody_mpimessage
-           call mmpi_alltoall(int_send_2d, int_recv_2d, nsize)
+           call mmpi_alltoall(int_send_2d, int_recv_2d)
          else
            int_recv_2d(:,1)        = int_send_2d(:,1)
          endif

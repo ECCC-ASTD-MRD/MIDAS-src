@@ -620,10 +620,10 @@ contains
       bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
       stdDevListMpi(:,:,:) = MPC_missingValue_R8
 
-      call mmpi_allGather(headerIndexList(1:maxCountObsMpi), headerIndexListMpi, maxCountObsMpi)
-      call mmpi_allGather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), levelListMpi, maxCountObsMpi*maxCountChannelMpi)
-      call mmpi_allGather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), bodyIndexListMpi, maxCountObsMpi*maxCountChannelMpi)
-      call mmpi_allGather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), stdDevListMpi,  maxCountObsMpi*maxCountChannelMpi)
+      call mmpi_allGather(headerIndexList, headerIndexListMpi)
+      call mmpi_allGather(levelList,       levelListMpi)
+      call mmpi_allGather(bodyIndexList,   bodyIndexListMpi)
+      call mmpi_allGather(stdDevList,      stdDevListMpi)
 
       call mmpi_barrier
     
@@ -723,7 +723,7 @@ contains
           stringInt(stringIndex) = iachar(headerObs(stringIndex:stringIndex))
         end do
         allocate(stringIntForOutput(stringLength,mmpi_nprocs))
-        call mmpi_gather(stringInt, stringIntForOutput, stringLength)
+        call mmpi_gather(stringInt, stringIntForOutput)
         do stringIndex = 1, stringLength
           do outTaskIndex = 1, mmpi_nprocs
             headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
@@ -732,7 +732,7 @@ contains
         
         if (outputHBHt) then
           allocate(HBHtMatrixForOutput(nLevelsDfs,nLevelsDfs,mmpi_nprocs))
-          call mmpi_gather(HBHtMatrix, HBHtMatrixForOutput, nLevelsDfs*nLevelsDfs)
+          call mmpi_gather(HBHtMatrix, HBHtMatrixForOutput)
           
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
@@ -764,9 +764,9 @@ contains
       
         if (doChannelSelection) then
           allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
-          call mmpi_gather(dfsIncremental, dfsIncrementalForOutput, sizeSelect)
+          call mmpi_gather(dfsIncremental, dfsIncrementalForOutput)
           allocate(orderForOutput(sizeSelect,mmpi_nprocs))
-          call mmpi_gather(order, orderForOutput, sizeSelect)
+          call mmpi_gather(order, orderForOutput)
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then

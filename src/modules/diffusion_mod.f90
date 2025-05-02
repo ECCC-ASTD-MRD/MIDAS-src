@@ -890,7 +890,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose, diff(diffID)%nj )
 
     ! Locals:
-    integer :: yourid, nsize, numLonPoints, numLatPoints
+    integer :: yourid, numLonPoints, numLatPoints
     integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
@@ -915,9 +915,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mmpi_nprocs > 1) then
-      call mmpi_alltoall(xsend, xrecv, nsize)
+      call mmpi_alltoall(xsend, xrecv)
     else
       xrecv(:,:,1) = xsend(:,:,1)
     end if
@@ -949,7 +948,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer :: yourid, nsize, numLonPoints, numLatPoints
+    integer :: yourid, numLonPoints, numLatPoints
     integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
     integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
@@ -974,9 +973,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
     if (mmpi_nprocs > 1) then
-      call mmpi_alltoall(xsend, xrecv, nsize)
+      call mmpi_alltoall(xsend, xrecv)
     else
       xrecv(:,:,1) = xsend(:,:,1)
     end if

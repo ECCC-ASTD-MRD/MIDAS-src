@@ -3166,9 +3166,9 @@ contains
           if (countMpiGlobal(channelIndex) > 0) predBiasMpiGlobal(channelIndex,:) = predBiasMpiGlobal(channelIndex,:) / countMpiGlobal(channelIndex)
         end do
       end if
-      call mmpi_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal))
-      call mmpi_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal))
-      call mmpi_bcast(countMpiGlobal, size(countMpiGlobal))
+      call mmpi_bcast(omfBiasMpiGlobal)
+      call mmpi_bcast(predBiasMpiGlobal)
+      call mmpi_bcast(countMpiGlobal)
 
       deallocate(OmFBias)
       deallocate(predBias)
