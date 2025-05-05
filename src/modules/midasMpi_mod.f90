@@ -1063,7 +1063,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, logicalData)
+    call handleLength(length_opt, length, logicalData)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_bcast(logicalData, length, 'MPI_LOGICAL', procID, mmpi_communicator_grid, ierr)
 
@@ -1089,7 +1090,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, integerData)
+    call handleLength(length_opt, length, integerData)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_bcast(integerData, length, 'MPI_INTEGER', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_integer')
@@ -1114,7 +1116,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, real4Data)
+    call handleLength(length_opt, length, real4Data)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_bcast(real4Data, length, 'MPI_REAL4', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real4')
@@ -1139,7 +1142,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, real8Data)
+    call handleLength(length_opt, length, real8Data)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_bcast(real8Data, length, 'MPI_REAL8', procID, mmpi_communicator_grid, ierr)
     call handleMpiError(ierr, 'mmpi_bcast_real8')
@@ -1165,7 +1169,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_gather(sending,   length, 'mpi_logical',  &
                          receiving, length, 'mpi_logical', procID, 'grid', ierr)
@@ -1193,7 +1198,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_gather(sending,   length, 'mpi_integer',  &
                          receiving, length, 'mpi_integer', procID, 'grid', ierr)
@@ -1221,7 +1227,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_gather(sending,   length, 'mpi_integer8',  &
                          receiving, length, 'mpi_integer8', procID, 'grid', ierr)
@@ -1249,7 +1256,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_gather(sending,   length, 'mpi_real4',  &
                          receiving, length, 'mpi_real4', procID, 'grid', ierr)
@@ -1277,7 +1285,8 @@ contains
     integer :: ierr
     integer :: procID, length
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_gather(sending,   length, 'mpi_real8',  &
                          receiving, length, 'mpi_real8', procID, 'grid', ierr)
@@ -2039,7 +2048,8 @@ contains
     ! Locals:
     integer :: ierr, length, procID
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_reduce(sending, receiving, length, 'mpi_integer', operation, &
                          procID, mmpi_communicator_grid, ierr)
@@ -2067,7 +2077,8 @@ contains
     ! Locals:
     integer :: ierr, length, procID
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, sending)
+    call handleLength(length_opt, length, sending)
+    call handleProcID(procID_opt, procID)
 
     call rpn_comm_reduce(sending, receiving, length, 'mpi_real8', operation, &
                          procID, mmpi_communicator_grid, ierr)
@@ -2156,7 +2167,8 @@ contains
     integer :: ierr, length, procID
     character(len=mmpi_communicator_max_length) :: communicator
 
-    call handleLengthProcID(length_opt, procID_opt, length, procID, data)
+    call handleLength(length_opt, length, data)
+    call handleProcID(procID_opt, procID)
     call handleCommunicator(communicator_opt, communicator)
 
     call rpn_comm_send(data, length, 'mpi_real8', procID, tag, communicator, ierr)
@@ -2251,27 +2263,6 @@ contains
     end if
 
   end subroutine handleCommunicator
-
-  !--------------------------------------------------------------------------
-  ! handleLengthProcID (private)
-  !--------------------------------------------------------------------------
-  subroutine handleLengthProcID(length_opt, procID_opt, length, procID, inputData)
-    !
-    !:Purpose: Process 'length_opt' and 'procID_opt' optional arguments
-    !
-    implicit none
-
-    ! Arguments:
-    integer, optional, intent(in)  :: length_opt ! optional length
-    integer, optional, intent(in)  :: procID_opt ! optional MPI rank
-    integer,           intent(out) :: length     ! default length if 'length_opt' is not provided
-    integer,           intent(out) :: procID     ! default procID if 'procID_opt' is not provided
-    type(*),           intent(in)  :: inputData(..) ! input array (rank and size will be used to find the default length)
-
-    call handleLength(length_opt, length, inputData)
-    call handleProcID(procID_opt, procID)
-
-  end subroutine handleLengthProcID
 
   !--------------------------------------------------------------------------
   ! handleProcID (private)
