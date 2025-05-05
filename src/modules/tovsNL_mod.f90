@@ -3356,11 +3356,11 @@ contains
     integer  (kind=jpim), intent (out), dimension (nchannels) :: frequencies        ! array, frequency number for each "channel"
     type(rttov_chanprof), Intent (out), dimension (nchannels) :: chanprof           ! Channel and profile indices
 
-    integer (kind=jpim) :: i_prof, i_chan, j_chan, i_freq, polid
-    integer (kind=jpim) :: old_polid
-    real (kind=jprb)    :: cwn, old_cwn, freq1, freq2
+    integer (kind=jpim) :: profileIndex, channelIndex1, channelIndex2, frequencyIndex, polarisationId
+    integer (kind=jpim) :: oldPolarisationId
+    real (kind=jprb)    :: waveNumber, oldWaveNumber, freq1, freq2
     logical (kind=jplm) :: luse(nprofiles, n_chan)
-    logical (kind=jplm) :: lpolarised_scattering
+    logical (kind=jplm) :: polarisedScattering
 
 
     errorstatus = errorstatus_success
@@ -3369,24 +3369,24 @@ contains
     if (present(lchannel_subset)) luse = lchannel_subset
 
     !* Set index arrays
-    j_chan = 0  ! counter to store calculated channels
-    old_cwn = 0.0_jprb
-    old_polid = -1
+    channelIndex2 = 0  ! counter to store calculated channels
+    oldWaveNumber = 0.0_jprb
+    oldPolarisationId = -1
 
-    lpolarised_scattering = any(coef_scatt%mpol /= -1)
-    write(*,*) "lpolarised_scattering ", lpolarised_scattering
-    do i_prof = 1, nprofiles
-      i_freq = 0
-      do i_chan = 1, n_chan
-        polid = coef_rttov % coef % fastem_polar (i_chan) + 1 ! polarisation ID of this channel
-        cwn = coef_rttov % coef % ff_cwn(i_chan)
+    polarisedScattering = any(coef_scatt%mpol /= -1)
+    write(*,*) "polarisedScattering ", polarisedScattering
+    do profileIndex = 1, nprofiles
+      frequencyIndex = 0
+      do channelIndex1 = 1, n_chan
+        polarisationId = coef_rttov % coef % fastem_polar (channelIndex1) + 1 ! polarisation ID of this channel
+        waveNumber = coef_rttov % coef % ff_cwn(channelIndex1)
 
-        if (lpolarised_scattering) then
+        if (polarisedScattering) then
 
           ! Scattering coefficients are tabulated per-frequency and per-polarisation
       
-          i_freq = i_freq + 1
-          if ( (coef_scatt%mpol(i_freq)+1) /= polid) then
+          frequencyIndex = frequencyIndex + 1
+          if ( (coef_scatt%mpol(frequencyIndex)+1) /= polarisationId) then
             call rttov_errorreport (errorstatus_fatal, 'Incorrect channel polarisations in hydrotable', 'rttov_scatt ')
             return
           end if
@@ -3403,37 +3403,37 @@ contains
           !          slightly different central wavenumbers: 1E-3 cm-1 == 0.03 GHz)
           !   2) Polarization ID eq 4,5,6 or 7 (single V or H polarisation only)
           !   3) Polarization ID different from last channel
-          if ( (abs(cwn - old_cwn) > 1.E-3_jprb) .or. &
-              & ((polid /= 4) .and. (polid /= 5) .and. (polid /= 6) .and. (polid /= 7)) &
-              & .or. (polid == old_polid) ) then
+          if ( (abs(waveNumber - oldWaveNumber) > 1.E-3_jprb) .or. &
+              & ((polarisationId /= 4) .and. (polarisationId /= 5) .and. (polarisationId /= 6) .and. (polarisationId /= 7)) &
+              & .or. (polarisationId == oldPolarisationId) ) then
 
-            i_freq = i_freq + 1
+            frequencyIndex = frequencyIndex + 1
 
           end if
         end if
 
-        if( luse(i_prof,i_chan) ) then
+        if( luse(profileIndex,channelIndex1) ) then
 
           ! Profile and frequency number for each calculated channel
-          j_chan = j_chan + 1
-          chanprof   (j_chan)%chan  = i_chan
-          !frequencies(j_chan)       = i_freq ! the actual bug
-          chanprof   (j_chan)%prof  = i_prof
-          freq1 = speedl * coef_rttov % coef % ff_cwn(i_chan) / 1000000000.d0 ! conversion from cm-1 to GHz
-          freq2 = coef_scatt % freq(i_freq) 
+          channelIndex2 = channelIndex2 + 1
+          chanprof   (channelIndex2)%chan  = channelIndex1
+          !frequencies(channelIndex2)       = frequencyIndex ! the actual bug
+          chanprof   (channelIndex2)%prof  = profileIndex
+          freq1 = speedl * coef_rttov % coef % ff_cwn(channelIndex1) / 1000000000.d0 ! conversion from cm-1 to GHz
+          freq2 = coef_scatt % freq(frequencyIndex) 
           if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, i_chan, i_freq
+            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
           end if
-          frequencies(j_chan) = coef_rttov % coef % ff_ori_chn( i_freq ) ! the bug fix
-          freq2 = coef_scatt % freq( frequencies(j_chan) )
+          frequencies(channelIndex2) = coef_rttov % coef % ff_ori_chn( frequencyIndex ) ! the bug fix
+          freq2 = coef_scatt % freq( frequencies(channelIndex2) )
           if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, i_chan, i_freq
+            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
             call utl_abort('tvs_rttov_scatt_setupindex')
           end if
         end if
 
-        old_polid = polid
-        old_cwn = cwn
+        oldPolarisationId = polarisationId
+        oldWaveNumber = waveNumber
         
       end do
     end do
