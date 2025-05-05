@@ -24,7 +24,7 @@ module physicsFunctions_mod
   public :: phf_convertZtoPressure,phf_convertZtoGZ
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
-  public :: phf_Rad_CCoC, phf_delR
+  public :: phf_gpsRadii, phf_Rad_CCoC, phf_delR
 
   logical           :: phf_initialized = .false.
 
@@ -1320,7 +1320,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! PHF_GRAVITYSRF
   !--------------------------------------------------------------------------
-  function phf_gravitysrf(sLat)
+  pure function phf_gravitysrf(sLat)
     !
     !:Purpose: Normal gravity on ellipsoidal surface
     !
@@ -1343,7 +1343,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! PHF_GRAVITYALT
   !--------------------------------------------------------------------------
-  function phf_gravityalt(sLat, Altitude)
+  pure function phf_gravityalt(sLat, Altitude)
     !
     !:Purpose: Normal gravity above the ellipsoidal surface
     !
@@ -1452,7 +1452,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_Rad_CCoC
   !--------------------------------------------------------------------------
-  subroutine phf_Rad_CCoC(latr, lonr, azmr, PRad, CCoC)
+  pure subroutine phf_Rad_CCoC(latr, lonr, azmr, PRad, CCoC)
     !
     !:Purpose: At any given lat, lon, and for a given azimuth, determine
     !          -the Earth's curvature radius PRad along that azimuth
@@ -1498,7 +1498,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_gpsRadii
   !--------------------------------------------------------------------------
-  subroutine phf_gpsRadii(Latitude, RadN, RadM)
+  pure subroutine phf_gpsRadii(Latitude, RadN, RadM)
     !
     !:Purpose: At any given Latitude, determine
     !          -the Earth's curvature radius RadN along the prime direction (which is EW)
@@ -1548,7 +1548,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_WGS84Position
   !--------------------------------------------------------------------------
-  subroutine phf_WGS84Position(lat, lon, h, p)
+  pure subroutine phf_WGS84Position(lat, lon, h, p)
     !
     !:Purpose: At any given lat, lon, and altitude above WGS84 ellipsoid, determine
     !          -the 3D vector position of that point
@@ -1572,7 +1572,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_delR
   !--------------------------------------------------------------------------
-  subroutine phf_delR(lati, loni, CCoC, PRad, dR)
+  pure subroutine phf_delR(lati, loni, CCoC, PRad, dR)
     !
     !:Purpose: Given lat, lon, and a reference sphere of (center CCoC and radius PRad), determine
     !          -the height difference at that latlon point between WGS84 ellipsoid and the reference sphere

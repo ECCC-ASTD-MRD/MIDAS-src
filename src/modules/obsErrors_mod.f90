@@ -13,6 +13,7 @@ module obsErrors_mod
   use bufr_mod
   use utilities_mod
   use earthConstants_mod
+  use physicsFunctions_mod
   use gps_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -2540,11 +2541,11 @@ contains
     REAL(8), allocatable :: ZVV(:)
     REAL(8) DH,DDH,dR(gps_ro_maxprfsize)
     REAL(8) zMT, Rad, Geo, zP0
-    REAL(8) HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
+    REAL(8) HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4, dstSurf, astSurf
     integer JL, isat, JH, NGPSLEV, NWNDLEV
     LOGICAL  ASSIM, L1, L2, L3
     integer NH, NH1
-    TYPE(GPS_PROFILE)           :: PRF
+    TYPE(GPS_PROFILE)           :: prf
     REAL(8)       , allocatable :: H   (:),AZMV(:)
     REAL(8)       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
     TYPE(GPS_DIFF), allocatable :: RSTV(:)
@@ -2620,7 +2621,7 @@ contains
           Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
-          zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
+          zMT  = zMT * ec_rg / phf_gravitysrf(sLat)
           zP0  = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
@@ -2684,10 +2685,10 @@ contains
              !
              !     *        Apply the observation operator:
              !
-          IF (varNum == bufr_nebd) then
-            call GPS_BNDOPV2(H(1:NH)-dR(1:NH), AZMV, NH, PRF, RSTV)
-          ELSE
-            call GPS_REFOPV (H(1:NH)-dR(1:NH),       NH, PRF, RSTV)
+          if (varNum == bufr_nebd) then
+            call gps_bndopv2(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
+          else
+            call gps_refopv (h(1:nh)-dR(1:nh),       nh, prf, rstv)
           end if
              !
              !     *        Perform the (H(x)-Y)/R operation:
@@ -2777,7 +2778,9 @@ contains
                 end do
                 ZERR(NH1)=(SUM1/SUM0)**0.5D0
                 if (ZERR(NH1) < ZMIN) ZERR(NH1) = ZMIN
-                if (H(NH1) < PRF%ast(ngpslev)%Var) ZERR(NH1)=0.08
+                dstSurf = prf%Rad+prf%geoid+prf%gst(ngpslev)%Var
+                astSurf = dstSurf * (1.d0+1.d-6*prf%rst(ngpslev)%Var)
+                if (h(nh1) < astSurf) ZERR(nh1) = 0.08
               end do
             else if (trim(gps_roError) == 'STATIC_2018') then
               do NH1 = 1, NH
