@@ -358,11 +358,15 @@ program midas_letkf
     endif
   endif
 
-  ! if only 1 value given for hLocalize, use it for entire column
+
+  ! if only 1 value given for hLocalize, use it for the entire column
   if (hLocalize(1) > 0.0d0 .and. hLocalize(2) < 0.0d0) then
     hLocalize(:) = hLocalize(1)
     if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize is modified after reading namelist. ' // &
                                      'hLocalize(:)=', hLocalize(1)
+  ! if no value give for hLocalize, abort
+  else if ( hLocalize(1) < 0.0d0 ) then
+    call utl_abort('midas-letkf: hLocalize(1) < 0.0d0')
   else
     ! Check hLocalizePressure and hLocalize lengths consistency
     ! For a linearly varying localization radius, the radius is set for the hLocalizePressure values
