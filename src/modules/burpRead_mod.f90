@@ -4462,27 +4462,27 @@ contains
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                     end if
 
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ETOP, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ETOP, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14213, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_VTOP, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_VTOP, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14214, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ECF, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ECF, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14215, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_VCF, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_VCF, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14216, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_HE, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_HE, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14217, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ZTSR, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ZTSR, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14218, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   val = obs_headElem_i(obsSpaceData, OBS_NCO2, idata2)
                   call Insert_into_burp_i(val, ind14219, 1, tIndex)
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ZTM, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ZTM, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14220, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ZTGM, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ZTGM, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind14221, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ZLQM, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ZLQM, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13214, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_ZPS, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ZPS, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind59182, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   val = tvs_ChangedStypValue(obsSpaceData, idata2)
                   call Insert_into_burp_i(val, ind008012, 1, tIndex)
@@ -4556,7 +4556,7 @@ contains
                            NVAL_IND = valIndex,         &
                            NT_IND   = tIndex)
                       if (ichn==ichnb) then
-                        val_r4 = sngl(emisfc)
+                        val_r4 = real(emisfc,4)
                         call Insert_into_burp_r4(val_r4, indEmis, valIndex, tIndex, &
                                                  valueIsMissing=(val_r4<0.0))
                         exit bl
@@ -4701,21 +4701,21 @@ contains
                   end if
 
                   ! clwObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
 
                   ! siObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
                   end if               
@@ -4793,12 +4793,12 @@ contains
                   end if
 
                   ! siObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
                   end if               
@@ -4947,34 +4947,34 @@ contains
                   end if
 
                   ! clwObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
 
                   ! siObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
                   end if
                   
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_IWV, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_IWV, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13095, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
                   call Insert_into_burp_i(val, ind008012, 1, tIndex)
                   val = obs_headElem_i(obsSpaceData, OBS_TTYP, idata2)
                   call Insert_into_burp_i(val, ind13039, 1, tIndex)
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SZA, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SZA, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind7024, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_AZA, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_AZA, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind5021, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   idata2 = idata2 + 1
                 else
@@ -5102,21 +5102,21 @@ contains
                   end if
 
                   ! clwObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
 
                   ! siObs
-                  val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIO, idata2))
+                  val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
+                    val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
                   end if

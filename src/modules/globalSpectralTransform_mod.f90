@@ -3587,7 +3587,7 @@ contains
 
     do jn = 0, gst(gstID_in)%ntrunc
        dln = 1.d0*real(jn,8)
-       dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
+       dlnorm(jn) = sqrt((2.d0*dln + 1.d0)/2.d0)
     enddo
 
     do jn = 1, gst(gstID_in)%ntrunc-1
@@ -3808,22 +3808,36 @@ contains
 
     ! Locals:
     integer, parameter :: l = 3
-    integer :: k(l), m
-    data m , k / 8 , 2 , 3 , 5 /
-    integer :: i,j
+    integer, parameter :: m = 8
+    integer, parameter :: k(l) = (/2, 3, 5/)
+    integer :: i, j
 
     if ( n.le.m ) n = m + 1
+
     n = n - 1
-1   n = n + 1
-    i = n
-2   do 3 j=1,l
-       if( mod(i,k(j)) .eq. 0 ) go to 4
-3   continue
-    go to 1
-4   i = i/k(j)
-    if( i .ne. 1 ) go to 2
+    outer: do
+      n = n + 1
+      i = n
 
+      middle: do
+
+        inner: do j = 1, l
+
+          if( mod(i,k(j)) == 0 ) then
+            i = i/k(j)
+
+            if ( i /= 1 ) then
+              cycle middle
+            else
+              exit outer
+            end if
+          end if
+
+        end do inner
+
+        cycle outer
+      end do middle
+
+    end do outer
   end subroutine ngfft
-
-
 end module globalSpectralTransform_mod

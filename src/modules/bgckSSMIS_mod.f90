@@ -553,18 +553,18 @@ contains
       end if
 
       if ( (Ta19v < RT) .and. (Ta22v < RT) ) then
-        ALG1 = -3.20 * ( ALOG(290.0-Ta19v) - 2.80 - 0.42*ALOG(290.0-Ta22v) )          !TA
-        ! ALG1 = -3.20 * ( ALOG(290.0-Tb19v) - 2.84 - 0.40*ALOG(290.0-Tb22v) )      !TB
+        ALG1 = -3.20 * ( LOG(290.0-Ta19v) - 2.80 - 0.42*LOG(290.0-Ta22v) )          !TA
+        ! ALG1 = -3.20 * ( LOG(290.0-Tb19v) - 2.84 - 0.40*LOG(290.0-Tb22v) )      !TB
       end if
 
       if ( (Ta37v < RT) .and. (Ta22v < RT) ) then
-        ALG2 = -1.66 * ( ALOG(290.0-Ta37v) - 2.90 - 0.349*ALOG(290.0-Ta22v) )   !TA
-        ! ALG2 = -1.66 * ( ALOG(290.0-Tb37v) - 2.99 - 0.32*ALOG(290.0-Tb22v) )    !TB
+        ALG2 = -1.66 * ( LOG(290.0-Ta37v) - 2.90 - 0.349*LOG(290.0-Ta22v) )   !TA
+        ! ALG2 = -1.66 * ( LOG(290.0-Tb37v) - 2.99 - 0.32*LOG(290.0-Tb22v) )    !TB
       end if
 
       if ( (Ta85h < RT) .and. (Ta22v < RT) ) then
-        ALG3 = -0.44 * ( ALOG(290.0-Ta85h) + 1.60 - 1.354*ALOG(290.0-Ta22v) )     !TA
-        ! ALG3 = -0.44 * ( ALOG(290.0-Tb85h) + 1.11 - 1.26*ALOG(290.0-Tb22v) )      !TB
+        ALG3 = -0.44 * ( LOG(290.0-Ta85h) + 1.60 - 1.354*LOG(290.0-Ta22v) )     !TA
+        ! ALG3 = -0.44 * ( LOG(290.0-Tb85h) + 1.11 - 1.26*LOG(290.0-Tb22v) )      !TB
       end if
 
       if ( ALG1 > 0.70 ) then
@@ -1295,14 +1295,14 @@ contains
       boxPointIndex = 0
 
       do latIndex = -nLat, nLat
-        rlatIndex = float(latIndex)
+        rlatIndex = real(latIndex,4)
         xLat = obsLatitude(obsIndex) + rLatIndex*dLat
         xLat = max( -90.0, min(90.0,xLat) )
         xLatRad = xLat*pi/180.0
 
         do lonIndex = -nLon, nLon
           dLon = rLonKm / ( rKmPerDeg*cos(xLatRad) )
-          rLonIndex = float(lonIndex)
+          rLonIndex = real(lonIndex,4)
           boxPointIndex = boxPointIndex + 1
           xLon = obsLongitude(obsIndex) + rLonIndex*dLon
           if ( xLon < -180. ) xLon = xLon + 360.
@@ -2925,7 +2925,7 @@ contains
       percentInovQcFlags(:) = 0.0
     else
       do indexFlags = 1,9
-        percentInovQcFlags(indexFlags) = float(statsInovQcFlags(indexFlags))/float(statsInovQcFlags(10)-statsInovQcFlags(2))*100
+        percentInovQcFlags(indexFlags) = real(statsInovQcFlags(indexFlags),4)/real(statsInovQcFlags(10)-statsInovQcFlags(2),4)*100
       end do
     end if
 

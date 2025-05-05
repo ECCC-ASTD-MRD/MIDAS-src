@@ -609,11 +609,11 @@ CONTAINS
     
     if ( ANY(leap_years == yy) ) days(3) = 29
     doy = SUM(days(1:mm)) + dd
-    timeUTC = float(hh) + float(nn)/60.0d0
+    timeUTC = hh + nn/60.0d0
     timeLCL = timeUTC + (lon*MPC_DEGREES_PER_RADIAN_R8)/15.0d0
     if ( timeLCL < 0.0d0  ) timeLCL = 24.0d0 + timeLCL
     if ( timeLCL > 24.0d0 ) timeLCL = timeLCL - 24.0d0
-    solarDec = 0.4093d0 * sin(((2.0d0*MPC_PI_R8)/365.0d0)*(284.0d0 + float(doy)))
+    solarDec = 0.4093d0 * sin(((2.0d0*MPC_PI_R8)/365.0d0)*(284.0d0 + doy))
     hourAngle = 15.0d0*(timeLCL-12.0d0) * MPC_RADIANS_PER_DEGREE_R8
     csz = sin(solarDec)*sin(lat) + cos(solarDec)*cos(lat)*cos(hourAngle)
     sza = MPC_DEGREES_PER_RADIAN_R8 * acos(csz)
@@ -1633,10 +1633,10 @@ CONTAINS
       write (*, '(a40)'      ) "----------------------------------------"
       write (*, '(a60, i10)' ) "bcc_applyUABcor: Total number of TT observations     = ", countTTObs
       if ( countTTObs > 0 ) then
-        p1 = (float(countTTCorrByStation)/float(countTTObs))*100.d0
-        p2 = (float(countTTCorrByStype)/float(countTTObs))*100.d0
+        p1 = real(countTTCorrByStation,4)/real(countTTObs,4)*100.
+        p2 = real(countTTCorrByStype,4)/real(countTTObs,4)*100.
         p3 = 100.d0 - (p1+p2)
-        p4 = (float(countRS41)/float(countTTObs))*100.
+        p4 = real(countRS41,4)/real(countTTObs,4)*100.
         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by STATION     = ", p1
         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by SONDE-TYPE  = ", p2
         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage uncorrected              = ", p3

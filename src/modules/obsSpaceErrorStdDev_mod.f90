@@ -1897,7 +1897,7 @@ module obsSpaceErrorStdDev_mod
       WRITE(*,*) ' '
       WRITE(*,*) 'SETFGEGPS: ----- GPS ZTD OBSOP TEST SUMMARY -----'
       WRITE(*,*) '           NUMBER OF TESTS (sites) = ', icount
-      WRITE(*,*) '           AVG DELTAH_TL/DELTAH_NL = ', ZSUMTEST/FLOAT(icount)
+      WRITE(*,*) '           AVG DELTAH_TL/DELTAH_NL = ', ZSUMTEST/real(icount,4)
       WRITE(*,*) ' '  
 
       deallocate(ZTTB_P)

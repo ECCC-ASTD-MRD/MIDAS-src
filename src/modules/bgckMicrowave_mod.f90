@@ -4535,14 +4535,14 @@ contains
     indx = 0
 
     do ii = -nlat, nlat
-      rii = float(ii)
+      rii = real(ii,4)
       xlat = obsLat + rii*dlat
       xlat = max( -90.0, min(90.0,xlat) )
       xlatrad = xlat * pi / 180.0
 
       do jj = -nlon, nlon
         dlon = rlon_km / ( rkm_per_deg*cos(xlatrad) )
-        rjj = float(jj)
+        rjj = real(jj,4)
         indx = indx + 1
         xlon = obsLon + rjj*dlon
         if ( xlon < -180. ) xlon = xlon + 360.
@@ -5418,11 +5418,11 @@ contains
       if (waterobs) then
         if (tb23 < 284.0d0 .and. tb31 < 284.0d0) then
           aa = 8.24d0 - (2.622d0 - 1.846d0 * utl_cosDegrees(satZenithAngle)) * utl_cosDegrees(satZenithAngle)
-          cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - tb23) - 2.265d0 * dlog(285.0d0 - tb31)
+          cloudLiquidWaterPathObs = aa + 0.754d0 * log(285.0d0 - tb23) - 2.265d0 * log(285.0d0 - tb31)
           cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * utl_cosDegrees(satZenithAngle)
           if (cloudLiquidWaterPathObs < 0.0d0) cloudLiquidWaterPathObs = 0.0d0
 
-          cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - tb23FG) - 2.265d0 * dlog(285.0d0 - tb31FG)
+          cloudLiquidWaterPathFG = aa + 0.754d0 * log(285.0d0 - tb23FG) - 2.265d0 * log(285.0d0 - tb31FG)
           cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * utl_cosDegrees(satZenithAngle)
           if (cloudLiquidWaterPathFG < 0.0d0) cloudLiquidWaterPathFG = 0.0d0
         end if

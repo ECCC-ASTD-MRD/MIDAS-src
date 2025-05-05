@@ -406,9 +406,9 @@ module fsoi_mod
 
     ! print amplitude of initial gradient and cost function value
     call prscal(nvadim,gradJ,gradJ,dlgnorm)
-    dlgnorm = dsqrt(dlgnorm)
+    dlgnorm = sqrt(dlgnorm)
     call prscal(nvadim,zhat,zhat,dlxnorm)
-    dlxnorm = dsqrt(dlxnorm)
+    dlxnorm = sqrt(dlxnorm)
     write(*,*)' |X| = ', dlxnorm
     write(*,'(/4X,"J(X) = ",G23.16,4X,"|Grad J(X)| = ",G23.16)') zjsp, dlgnorm
     write(*,'(//,10X," Minimization QNA_N1QN3 starts ...",10x,"DXMIN =",G23.16,2X,"DF1 =",G23.16,2X,"EPSG =",G23.16,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax

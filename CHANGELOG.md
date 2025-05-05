@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * The code now conforms to Fortran 2018 standard (#1068 and !975)
  * Fix numerous compiler errors and warnings when compiling with `gfortran` (#1058 and !967)
    * There are still warnings issued.  They will be fixed in the near future.
  * Fix ozone related double deallocation bug (#1037 and !966)

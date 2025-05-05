@@ -1270,7 +1270,7 @@ contains
     else if (t2x > 0.d0 .and. t1y > 0.d0) then
       yyg_weight = 1.d0
     else
-      dcell = 0.5d0*dsqrt(dx**2 + dy**2)
+      dcell = 0.5d0*sqrt(dx**2 + dy**2)
 
       call inter_curve_boundary_yy (x, y, xi, yi, np)
 

@@ -1341,7 +1341,7 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
-          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+          rstddev(jk1,jn) = sqrt(abs(corns(jk1,jk1,jn)))
         else
           rstddev(jk1,jn) = 0.0d0
         end if
@@ -1483,7 +1483,7 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
-          rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
+          rstddev(jk1,jn) = sqrt(abs(corns(jk1,jk1,jn)))
         else
           rstddev(jk1,jn) = 0.0d0
         end if
@@ -2203,7 +2203,7 @@ module calcStatsGlb_mod
       end if
       call gst_reespe(spectralState,member)
       call gst_speree(spectralState,member)
-      ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
+      ensPerturbations(:,:,:,ensIndex)=real(member(:,:,:),4)
     end do
 
     write(*,*) 'finished applying spectral filter...'
@@ -2270,7 +2270,7 @@ module calcStatsGlb_mod
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do memberIndex = 1, nEns
-            ptr4d_r4(memberIndex,1,lonIndex,latIndex) = sngl(ensPertGD(memberIndex,lonIndex,latIndex))
+            ptr4d_r4(memberIndex,1,lonIndex,latIndex) = real(ensPertGD(memberIndex,lonIndex,latIndex),4)
           end do
         end do
       end do
@@ -3009,7 +3009,7 @@ module calcStatsGlb_mod
         end do
       end do
       call gst_speree(spectralState,member)
-      ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
+      ensPerturbations(:,:,:,ensIndex)=real(member(:,:,:),4)
     end do
 
     call utl_tmg_stop(121)
@@ -3442,11 +3442,11 @@ module calcStatsGlb_mod
           end if
           do jk = nLevStart,nLevEnd
              if (jk == nLevStart) then
-                write(99,'(I4,2X,F7.1,2X,e10.3)', advance='no')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
+                write(99,'(I4,2X,F7.1,2X,e10.3)', advance='no')  jn, waveLength/1000.d0, real(powerSpec(jk,jn),4)
              else if (jk == nLevEnd) then 
-                write(99,'(2X,e10.3)')  sngl(powerSpec(jk,jn)) ! Saut de ligne
+                write(99,'(2X,e10.3)') real(powerSpec(jk,jn),4) ! Saut de ligne
              else
-                write(99,'(2X,e10.3)', advance='no')  sngl(powerSpec(jk,jn))
+                write(99,'(2X,e10.3)', advance='no')  real(powerSpec(jk,jn),4)
              end if
           end do
        end do
@@ -3463,7 +3463,7 @@ module calcStatsGlb_mod
           else
              waveLength=0.d0
           end if
-          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(varLevOffset(nvar3d+1)+varIndex,jn))
+          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, real(powerSpec(varLevOffset(nvar3d+1)+varIndex,jn),4)
        end do
        close(unit=99)
     end do

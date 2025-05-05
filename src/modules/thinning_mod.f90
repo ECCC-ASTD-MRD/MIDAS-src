@@ -2820,16 +2820,16 @@ contains
 
         if (levIndex == 1) then
           presTop = presInterp(stationIndex,levIndex)
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
         else if (levIndex == numLev) then
-          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
           presBottom = presInterp(stationIndex,levIndex)
         else
-          presTop = exp( 0.5*alog(presInterp(stationIndex,levIndex-1) * &
+          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
         end if
 
@@ -3008,19 +3008,19 @@ contains
         write (*,'(a80,f10.2,i10)') 'lowest model layer-------------> ',presBottom,levIndex
         do while(obsValues(varIndexPres,obsLevOffset(stationIndex)+1) < presBottom)
           levIndex = levIndex - 1
-          presBottom = exp(0.5 * alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp(0.5 * log(presInterp(stationIndex,levIndex+1) * &
                            presInterp(stationIndex,levIndex)))
         end do
         if (levIndex == numLev) levIndex = numLev - 1
 
         do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
 
-          presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                        presInterp(stationIndex,levIndex)) )
           do while(obsValues(varIndexPres,levStnIndex) < presBottom)
             write (*,'(a80,f10.2,i10)') 'model layer---------------> ',presBottom,levIndex
             levIndex = levIndex - 1
-            presBottom = exp( 0.5*alog(presInterp(stationIndex,levIndex+1) * &
+            presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
                          presInterp(stationIndex,levIndex)) )
           end do
           write (*,'(5f8.2,4i8)') obsValues(varIndexPres,levStnIndex), &
@@ -3086,13 +3086,13 @@ contains
 
         if (levIndex == 1) then
           presBottom = levelsES(levIndex)
-          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
         else if (levIndex == numLevES) then
-          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
+          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
           presTop = levelsES(levIndex)
         else
-          presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
-          presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
+          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
+          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
         end if
 
         ! Select the levels between presTop and presBottom
@@ -3497,11 +3497,11 @@ contains
 
       ! Give preference to obs near middle or end of the assimilation window
       if (winpos == 'mid') then
-        finalZtdScore = finalZtdScore + 25.0*float(abs(middleStep-obsStepIndex(headerIndex))) / &
-                        float(middleStep-1)
+        finalZtdScore = finalZtdScore + 25.0*real(abs(middleStep-obsStepIndex(headerIndex)),4) / &
+                        real(middleStep-1,4)
       else if (winpos == 'end') then
-        finalZtdScore = finalZtdScore + 25.0*float(tim_nstepobs-obsStepIndex(headerIndex)) / &
-                        float(tim_nstepobs-1)
+        finalZtdScore = finalZtdScore + 25.0*real(tim_nstepobs-obsStepIndex(headerIndex),4) / &
+                        real(tim_nstepobs-1,4)
       end if
 
       ! Quality (lower is better), typical values 20->100, if no zdscore then > 1600
@@ -5308,7 +5308,7 @@ contains
           do latIndex2 = 1, latIndex-1
             gridIndex = gridIndex + numGridLons(latIndex2)
           end do
-          gridIndex = gridIndex + ifix(obsLon/(360./numGridLons(latIndex)))
+          gridIndex = gridIndex + int(obsLon/(360./numGridLons(latIndex)))
           exit
         end if
       end do
@@ -5399,7 +5399,7 @@ contains
         obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
         obsLon = obsLonBurpFile(headerIndex) / 100.
         obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-             float(latLength) / 90.
+             real(latLength,4) / 90.
       end if
     end do
 
@@ -5566,9 +5566,9 @@ contains
     countOther = countObsMpi - countKeptMpi - countQcMpi
 
     percentTotal = 100.0
-    percentQc    = (float(countQcMpi)   / float(countObsMpi)) * 100.0
-    percentOther = (float(countOther)   / float(countObsMpi)) * 100.0
-    percentKept  = (float(countKeptMpi) / float(countObsMpi)) * 100.0
+    percentQc    = real(countQcMpi,4)   / real(countObsMpi,4) * 100.0
+    percentOther = real(countOther,4)   / real(countObsMpi,4) * 100.0
+    percentKept  = real(countKeptMpi,4) / real(countObsMpi,4) * 100.0
 
     write(*,100)
 100 format(/,' SOMMAIRE DES RESULTATS',/)

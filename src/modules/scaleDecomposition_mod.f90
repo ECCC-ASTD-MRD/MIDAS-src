@@ -337,7 +337,7 @@ contains
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
               do memberIndex = 1, nEns
-                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(ensPertGD(memberIndex,lonIndex,latIndex))
+                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(ensPertGD(memberIndex,lonIndex,latIndex),4)
               end do
             end do
           end do
@@ -367,14 +367,14 @@ contains
               ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(horizWaveBandIndex),levIndex)
               do latIndex = myLatBeg, myLatEnd
                 do lonIndex = myLonBeg, myLonEnd
-                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
+                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
                 end do
               end do
             end do
             ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(1),levIndex)
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
-                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
+                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8) - bandSum(lonIndex,latIndex), 4)
               end do
             end do
           end do
@@ -753,14 +753,14 @@ contains
               ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(vertWaveBandIndex),levIndex)
               do latIndex = myLatBeg, myLatEnd
                 do lonIndex = myLonBeg, myLonEnd
-                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
+                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
                 end do
               end do
             end do
             ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(1),levIndex)
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
-                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
+                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(real(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex),8) - bandSum(lonIndex,latIndex),4)
               end do
             end do
           end do
