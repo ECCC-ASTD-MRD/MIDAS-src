@@ -364,17 +364,6 @@ program midas_letkf
     if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize is modified after reading namelist. ' // &
                                      'hLocalize(:)=', hLocalize(1)
   else
-    ! if no value given for hLocalizePressure, use default values
-    if (hLocalizePressure(1) < 0.0d0) then
-      if (hLinearLoc) then
-        hLocalizePressure(1:4)   = (/6.0d0, 144.0d0, 237.0d0, 700.0d0/) ! midpoints
-      else
-        hLocalizePressure(1:3)   = (/14.0d0, 140.0d0, 400.0d0/) ! transition values
-      endif
-      call utl_abort('midas-letkf: hLocalize(1) < 0.0d0')
-      if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalizePressure is modified after reading namelist. ' // &
-                                     'hLocalizePressure = ', hLocalizePressure(:)
-    endif
     ! Check hLocalizePressure and hLocalize lengths consistency
     ! For a linearly varying localization radius, the radius is set for the hLocalizePressure values
     ! Therefore, hLocalizePressure has the same length as hLocalize
