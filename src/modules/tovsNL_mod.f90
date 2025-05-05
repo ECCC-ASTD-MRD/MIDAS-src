@@ -34,6 +34,7 @@ module tovsNL_mod
        platform_id_himawari        ,&
        platform_id_eos             ,&
        errorstatus_success         ,&
+       errorstatus_fatal           ,&
        mair, mh2o, mo3             ,&
        surftype_land               ,&
        surftype_seaice             ,&
@@ -56,7 +57,7 @@ module tovsNL_mod
        pmin                        ,&
        pmax                        ,&
        speedl
-  use parkind1, only : jpim, jplm
+  use parkind1, only : jpim, jplm, jprb
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
   use midasMpi_mod
@@ -332,7 +333,6 @@ contains
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
     logical, allocatable :: logicalBuffer(:)
-    character(len=32) :: hydroTableFilename
 
     if (tvs_nsensors == 0) return
 
@@ -621,12 +621,10 @@ contains
         end if
        
         if (runObsOperatorWithHydrometeors) then
-          hydrotableFilename = 'hydrotable_' // trim(platform_name(tvs_platforms(sensorIndex))) // '_' // &
-               trim(inst_name(tvs_instruments(sensorIndex))) // '.dat'
           call rttov_read_scattcoeffs(errorStatus, tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
-               tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
+               tvs_coef_scatt(sensorIndex))
           if (errorStatus /= errorStatus_success) then
-            write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
+            write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients ', errorStatus
             call utl_abort('tvs_setupAlloc')
           end if
         end if
