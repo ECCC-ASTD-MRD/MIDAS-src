@@ -184,7 +184,6 @@ module stateToColumn_mod
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
   logical :: NNInterpForCloudVars          ! to perform nearest neighbour horizontal interpolation for cloudy variables
-  logical :: NNInterpForAllVars            ! to perform nearest neighbour horizontal interpolation for selected variablles
 
 contains
 
@@ -204,7 +203,7 @@ contains
     namelist /nams2c/ mpiMode, slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl
     namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
     namelist /nams2c/ calcHeightPressIncrOnColumn
-    namelist /nams2c/ NNInterpForCloudVars, NNInterpForAllVars
+    namelist /nams2c/ NNInterpForCloudVars
 
     if (nmlAlreadyRead) return
 
@@ -224,7 +223,6 @@ contains
     rejectObsNonMonotonicPressure =.true.
     rejectObsOutsideGlobalGrid = .false.
     NNInterpForCloudVars = .false.
-    NNInterpForAllVars = .false.
 
     if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
 
