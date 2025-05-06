@@ -2902,7 +2902,6 @@ contains
 
     ! Locals:
     integer              :: hLocIndex
-    logical              :: hLocNotAssigned
 
     ! radius is constant
     if ( all(hLocalize(:) == hLocalize(1)) ) then
@@ -2910,27 +2909,24 @@ contains
 
     ! radius varies vertically, and is linearly interpolated with log(P)
     else if (hLinearLoc) then
-      hLocNotAssigned = .true.
-      do hLocIndex = 1, count(hLocalize > 0.0d0) - 1
-        ! piece-wise linear interpolation
-        if ( anlVertLocation >= hLocalizePressure(hLocIndex)   .and. &
-             anlVertLocation <= hLocalizePressure(hLocIndex+1) .and. &
-             hLocNotAssigned ) then
-          hLoc = hLocalize(hLocIndex) + &
-                 (anlVertLocation - hLocalizePressure(hLocIndex)) * &
-                 (hLocalize(hLocIndex+1) - hLocalize(hLocIndex))  / &
-                 (hLocalizePressure(hLocIndex+1) - hLocalizePressure(hLocIndex))
-          hLocNotAssigned = .false.
-        ! constant radius value near the top of the atmosphere
-        else if ( anlVertLocation <= hLocalizePressure(hLocIndex)   .and. &
-                  hLocNotAssigned ) then
+      ! constant radius value near the top of the atmosphere
+      if ( anlVertLocation <= hLocalizePressure(1) ) then
           hLoc = hLocalize(1)
-        ! constant radius value near the bottom of the atmosphere
-        else if ( anlVertLocation >= hLocalizePressure(hLocIndex+1) .and. &
-                  hLocNotAssigned ) then
+      ! constant radius value near the bottom of the atmosphere
+      else if ( anlVertLocation >= hLocalizePressure(count(hLocalizePressure> 0.0d0)) ) then
           hLoc = hLocalize(count(hLocalize > 0.0d0))
-        end if
-      end do
+      else
+        ! piece-wise linear interpolation
+        do hLocIndex = 1, count(hLocalize > 0.0d0) - 1
+          if ( anlVertLocation >= hLocalizePressure(hLocIndex)   .and. &
+               anlVertLocation <= hLocalizePressure(hLocIndex+1) ) then
+            hLoc = hLocalize(hLocIndex) + &
+                   (anlVertLocation - hLocalizePressure(hLocIndex)) * &
+                   (hLocalize(hLocIndex+1) - hLocalize(hLocIndex))  / &
+                   (hLocalizePressure(hLocIndex+1) - hLocalizePressure(hLocIndex))
+          endif
+         end do
+      endif
 
     ! radius varies vertically, but is not interpolated
     else

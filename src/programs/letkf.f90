@@ -358,7 +358,6 @@ program midas_letkf
     endif
   endif
 
-
   ! if only 1 value given for hLocalize, use it for the entire column
   if (hLocalize(1) > 0.0d0 .and. hLocalize(2) < 0.0d0) then
     hLocalize(:) = hLocalize(1)
