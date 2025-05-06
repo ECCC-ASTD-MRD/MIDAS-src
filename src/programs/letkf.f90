@@ -404,8 +404,8 @@ program midas_letkf
   enddo
 
   if ( mmpi_myid == 0 ) then
-    write(*,*) 'midas-letkf: hLocalize',hlocalize
-    write(*,*) 'midas-letkf: hLocalizePressure',hlocalizePressure
+    write(*,*) 'midas-letkf: hLocalize (meters):',hlocalize
+    write(*,*) 'midas-letkf: hLocalizePressure (log(Pa)):',hlocalizePressure
   endif
 
   if (minDistanceToLand > 0.0D0) then
