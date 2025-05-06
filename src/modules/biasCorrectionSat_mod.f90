@@ -2834,7 +2834,7 @@ contains
     real(8), allocatable :: Matrix(:,:,:), Vector(:,:)
     real(8), allocatable :: matrixMpiGlobal(:,:,:), vectorMpiGlobal(:,:)
     real(8), allocatable :: pIMatrix(:,:), OmFBias(:,:), omfBiasMpiGlobal(:,:)
-    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:)
+    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:), lineVecTmp(:,:)
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
 
     write(*,*) "bcs_do_regression: start"
@@ -2873,6 +2873,7 @@ contains
       Vector(:,:) = 0.d0
 
       allocate(LineVec(ndimmax))
+      allocate(LineVecTmp(1,ndimmax))
 
       allocate(pIMatrix(ndimmax,ndimmax))
 
@@ -2993,7 +2994,12 @@ contains
               idim = idim + 1
               LineVec(idim) = predictor(jPred1)
             end do
-            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + dot_product(LineVec,LineVec) * lambda
+            ! TODO: simplify the floating point precision conversions
+            ! This should be
+            !       Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + dot_product(LineVec,LineVec) * lambda
+            ! but we use this formulation to avoid affecting the results
+            lineVecTmp(1,:) = LineVec(:)
+            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(LineVecTmp),LineVecTmp) * lambda
             Vector(chanIndx,:) =  Vector(chanIndx,:) + LineVec(:) * OmF  * lambda
           end if
         end do BODY2
@@ -3065,6 +3071,7 @@ contains
       end do
 
       deallocate(LineVec)
+      deallocate(LineVecTmp)
       deallocate(Matrix)
       deallocate(Vector  )
       deallocate(omfCountMpiGlobal)
