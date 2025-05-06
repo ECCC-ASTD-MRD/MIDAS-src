@@ -66,8 +66,8 @@ contains
 
     numPoints = size(xpos_r4)
     numSubGrids = ezget_nsubGrids(gdid)
-    xpos2_r4 = -999.0
-    ypos2_r4 = -999.0
+    xpos2_r4 = mpc_missingValue_R4
+    ypos2_r4 = mpc_missingValue_R4
 
     if (numSubGrids == 1) then
 
@@ -146,8 +146,8 @@ contains
     integer :: subGridIndex_vec(1)
 
     numSubGrids = ezget_nsubGrids(gdid)
-    xpos2_r4 = -999.0
-    ypos2_r4 = -999.0
+    xpos2_r4 = mpc_missingValue_R4
+    ypos2_r4 = mpc_missingValue_R4
 
     if (numSubGrids == 1) then
 
@@ -228,7 +228,7 @@ contains
     real(4), allocatable :: lonrot(:), latrot(:)
     real(4), allocatable :: xposYan_r4(:), yposYan_r4(:)
     ! Save some variables to reduce execution time
-    integer, save :: EZscintIDvec1_old = -999
+    integer, save :: EZscintIDvec1_old = MPC_missingValue_INT
     integer, save :: ni, nj
     real(4), allocatable, save :: ax_yin(:), ay_yin(:)
 
@@ -261,7 +261,7 @@ contains
         lonrot(pointIndex) = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
              (xpos_r4(pointIndex) - lonIndex)
       else
-        lonrot(pointIndex) = -999.0
+        lonrot(pointIndex) = MPC_missingValue_R4
       end if
 
       latIndex = floor(ypos_r4(pointIndex))
@@ -269,7 +269,7 @@ contains
         latrot(pointIndex) = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
              (ypos_r4(pointIndex) - latIndex)
       else
-        latrot(pointIndex) = -999.0
+        latrot(pointIndex) = MPC_missingValue_R4
       end if
       subGridIndex(pointIndex) = 1
 
@@ -337,7 +337,7 @@ contains
     real(8) :: gridSpacing
     real(8) :: gridSpacingSquared, lowerLeftCornerDistSquared
     real(8) :: lowerRightCornerDistSquared, upperLeftCornerDistSquared
-    integer, save :: gdidOld = -999
+    integer, save :: gdidOld = MPC_missingValue_INT
     integer :: nx, ny
     integer, save :: ni, nj
     real(8), allocatable, save :: grid_lon_rad(:,:), grid_lat_rad(:,:)
@@ -451,8 +451,8 @@ contains
       write(*,*) 'gpos_xyfll_unstructGrid: obs lon, lat = ', lon_deg_r4, lat_deg_r4
       write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING: the search did not find 4 close points.'
       write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-      xpos_r4 = -999.0
-      ypos_r4 = -999.0
+      xpos_r4 = MPC_missingValue_R4
+      ypos_r4 = MPC_missingValue_R4
       return
     end if
 
@@ -460,8 +460,8 @@ contains
       write(*,*) 'gpos_xyfll_unstructGrid: No grid point found within ', maxGridSpacing, ' meters'
       write(*,*) 'of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
       write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-      xpos_r4 = -999.0
-      ypos_r4 = -999.0
+      xpos_r4 = MPC_missingValue_R4
+      ypos_r4 = MPC_missingValue_R4
       return
     end if
 
@@ -511,8 +511,8 @@ contains
                      lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (1): the reference point is outside the grid.'
           write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-          xpos_r4 = -999.0
-          ypos_r4 = -999.0
+          xpos_r4 = MPC_missingValue_R4
+          ypos_r4 = MPC_missingValue_R4
           return
         end if
       end if
@@ -547,8 +547,8 @@ contains
         write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (2): of the reference location lat-lon (degrees): ', &
                    lat_deg_r4, lon_deg_r4
         write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-        xpos_r4 = -999.0
-        ypos_r4 = -999.0
+        xpos_r4 = MPC_missingValue_R4
+        ypos_r4 = MPC_missingValue_R4
         return
       end if
 
@@ -590,8 +590,8 @@ contains
           write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (3): the reference point is outside the grid.'
           write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-          xpos_r4 = -999.0
-          ypos_r4 = -999.0
+          xpos_r4 = MPC_missingValue_R4
+          ypos_r4 = MPC_missingValue_R4
           return
         end if
       end if
@@ -625,8 +625,8 @@ contains
         write(*,*) 'Perturbed distance = ', gridSpacingSquared
         write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
         write(*,*) 'ORCA025 WARNING 4: the reference point is outside the grid. We will set the positions to -999.!!!'
-        xpos_r4 = -999.0
-        ypos_r4 = -999.0
+        xpos_r4 = MPC_missingValue_R4
+        ypos_r4 = MPC_missingValue_R4
         return
       end if
 

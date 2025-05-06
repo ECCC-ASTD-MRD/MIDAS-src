@@ -99,7 +99,7 @@ module stateToColumn_mod
     logical                       :: initialized = .false.
     logical                       :: rotatedWinds = .false.
     integer                       :: numVarLevState
-    integer, allocatable          :: varLevColFromVarLevState(:)    
+    integer, allocatable          :: varLevColFromVarLevState(:)
     integer                       :: sfcVarLevIndex
     character(len=2)              :: inputStateVectorType
     type(struct_hco), pointer     :: hco => null() ! horizontal grid object
@@ -6903,7 +6903,7 @@ contains
           dldy = real(nint(dldy), 8)
         end if
       end if
-      
+
       if ( mask(leftIndex ,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
