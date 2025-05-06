@@ -3340,7 +3340,9 @@ contains
     !
     ! :Purpose: modified version of RTTOV's library rttov_scatt_setupindex
     !           the modification (bug fix ?) allows to use RTTOVscatt with only
-    !           a subset of channels intitilized as it is the case in analysis check mode 
+    !           a subset of channels initialized as it is the case in analysis
+    !           mode. There is possibly also an impact in background check mode
+    !           for instruments with missing channels.
     !
     implicit none
 
