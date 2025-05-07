@@ -2150,7 +2150,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_send_real8
   !--------------------------------------------------------------------------
-  subroutine mmpi_send_real8(data, tag, length_opt, procID_opt, communicator_opt)
+  subroutine mmpi_send_real8(data, tag, procID, length_opt, communicator_opt)
     !
     !:Purpose: Calling 'rpn_comm_send' for a real(8) scalar or array
     !
@@ -2159,16 +2159,15 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in) :: data(..)   ! real(8) data sent to all MPI ranks
     integer,             intent(in) :: tag        ! MPI rank which sends the data
+    integer, optional,   intent(in) :: procID     ! MPI rank which sends the data
     integer, optional,   intent(in) :: length_opt ! size of the input array
-    integer, optional,   intent(in) :: procID_opt ! MPI rank which sends the data
     character(len=*), optional, intent(in) :: communicator_opt ! string identifying the RPN_COMM MPI communicator
 
     ! Locals:
-    integer :: ierr, length, procID
+    integer :: ierr, length
     character(len=mmpi_communicator_max_length) :: communicator
 
     length = handleLength(data, length_opt)
-    procID = handleProcID(procID_opt)
     communicator = handleCommunicator(communicator_opt)
 
     call rpn_comm_send(data, length, 'mpi_real8', procID, tag, communicator, ierr)

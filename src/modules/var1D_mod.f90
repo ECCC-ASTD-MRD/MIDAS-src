@@ -7,7 +7,7 @@ module var1D_mod
   use columnData_mod
   use gridStatevector_mod
   use horizontalCoord_mod
-  use midasMpi_mod 
+  use midasMpi_mod
   use message_mod
   use obsSpaceData_mod
   use timeCoord_mod
@@ -147,7 +147,7 @@ contains
     write(*,*) 'var1D_transferColumnToYGrid: start of lat-lon dissemination'
     do obsIndex = 1, var1D_validHeaderCountMax
       if (obsIndex <= var1D_validHeaderCount ) then
-        headerIndex = var1D_validHeaderIndex(obsIndex)      
+        headerIndex = var1D_validHeaderIndex(obsIndex)
         lat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
         lon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
       else
@@ -161,8 +161,8 @@ contains
         end if
       else
         tag = 2 * mmpi_myID
-        call mmpi_send(lat, tag  )
-        call mmpi_send(lon, tag+1)
+        call mmpi_send(lat, tag  , procID = 0)
+        call mmpi_send(lon, tag+1, procID = 0)
       end if
 
       if (mmpi_myId == 0) then
@@ -170,7 +170,7 @@ contains
           tag = 2 * taskIndex
           call mmpi_recv(lat, tag  , taskIndex)
           call mmpi_recv(lon, tag+1, taskIndex)
-          if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then 
+          if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then
             globalObsIndex = obsIndex + obsOffset(taskIndex)
             hco_yGrid%lat2d_4(1, globalObsIndex) = lat
             hco_yGrid%lon2d_4(1, globalObsIndex) = lon
@@ -182,7 +182,7 @@ contains
 
     call mmpi_barrier
     write(*,*) 'var1D_transferColumnToYGrid: end of lat-lon dissemination'
-    
+
     do varIndex = 1, size(varList)
       write(*,*) 'var1D_transferColumnToYGrid: start of dissemination for ', varList(varIndex)
       if (mmpi_myId == 0 ) then
@@ -196,7 +196,7 @@ contains
       localColumn(:) = MPC_missingValue_R8
       do obsIndex = 1, var1D_validHeaderCountMax
         if (obsIndex <= var1D_validHeaderCount ) then
-          headerIndex = var1D_validHeaderIndex(obsIndex) 
+          headerIndex = var1D_validHeaderIndex(obsIndex)
           myColumn => col_getColumn(column, headerIndex, varName_opt=varList(varIndex))
         else
           myColumn => dummy
@@ -207,7 +207,7 @@ contains
           end if
         else
           tag = mmpi_myId
-          call mmpi_send(myColumn, tag, varDim)
+          call mmpi_send(myColumn, tag, procID = 0, length_opt = varDim)
         end if
 
         if (mmpi_myId == 0) then
@@ -264,10 +264,10 @@ contains
 
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      
+
       elevation = 0.001d0 * col_getHeight(column, ilowlvl_T, headerIndex, 'TH') ! unit km
       call obs_headSet_r(obsSpaceData, OBS_ELEV, headerIndex, elevation)
-      
+
     end do
 
   end subroutine var1D_UpdateObsElevation

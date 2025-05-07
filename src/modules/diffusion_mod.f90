@@ -78,7 +78,7 @@ contains
 
     ! Arguments:
     integer,                   intent(in) :: variableIndex        ! Variable index in bdiff_varNameList(:)
-    character(len=4),          intent(in) :: bdiff_varNameList(:) ! list of 2D analysis variables  
+    character(len=4),          intent(in) :: bdiff_varNameList(:) ! list of 2D analysis variables
     type(struct_hco), pointer, intent(in) :: hco                  ! Horizontal grid structure
     type(struct_vco), pointer, intent(in) :: vco                  ! Vertical grid structure
     real,                      intent(in) :: corr_len             ! Horizontal corr. length scale (km); if -1, read 2D field from file
@@ -87,7 +87,7 @@ contains
     logical,                   intent(in) :: useImplicit          ! Indicate to use the implicit formulation
     integer,                   intent(in) :: latIndexIgnore       ! Number of grid points to ignore near poles
 
-    ! Locals:    
+    ! Locals:
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
     real(4), allocatable :: buf2d(:,:)
     integer :: lonIndex, latIndex, sampleIndex, timeStep
@@ -162,22 +162,22 @@ contains
     myLonEnd = diff(diffID)%myLonEnd
     myLatBeg = diff(diffID)%myLatBeg
     myLatEnd = diff(diffID)%myLatEnd
-    
+
     write(*,*) 'diff_setup: ***** Starting using the following parameters: *****'
-    write(*,*) 'diff_setup: Variable : ', bdiff_varNameList( variableIndex ) 
-    write(*,*) 'diff_setup: Horizontal correlation length scale (km): ', corr_len 
+    write(*,*) 'diff_setup: Variable : ', bdiff_varNameList( variableIndex )
+    write(*,*) 'diff_setup: Horizontal correlation length scale (km): ', corr_len
     write(*,*) 'diff_setup: Stability criteria: ', stab
     write(*,*) 'diff_setup: Indicate implicit diffusion operator (.true.) or explicit version (.false.).: ', useImplicit
-    write(*,*) 'diff_setup: ni/nj: ', ni, nj   
+    write(*,*) 'diff_setup: ni/nj: ', ni, nj
     write(*,*) 'diff_setup: ### MPI domain partitionning ###:'
-    write(*,*) 'diff_setup: [ myLonBeg, myLonEnd ]: [ ', myLonBeg, ' ', myLonEnd, ' ]'  
+    write(*,*) 'diff_setup: [ myLonBeg, myLonEnd ]: [ ', myLonBeg, ' ', myLonEnd, ' ]'
     write(*,*) 'diff_setup: [ myLatBeg, myLatEnd ]: [ ', myLatBeg, ' ', myLatEnd, ' ]'
 
     ! For implicit diffusion we only allow decomposition by latitude bands
     if (useImplicit .and.  mmpi_npex > 1) then
       call utl_abort('diff_setup: Error: for implicit diffusion NPEX must be 1 (i.e. 1xNPEYxNUMTHREADS)' )
     end if
-    
+
     allocate(diff(diffID)%cosyhalf(nj        ), diff(diffID)%cosyinv(nj)       , diff(diffID)%cosyinvsq(nj))
     allocate(diff(diffID)%Winv    (ni    , nj), diff(diffID)%Wsqrt  (ni, nj)   , diff(diffID)%Winvsqrt(ni, nj))
     allocate(diff(diffID)%khalfx  (ni - 1, nj), diff(diffID)%khalfy (ni, nj - 1))
@@ -215,20 +215,20 @@ contains
     if (oceanMask%maskPresent) then
       do latIndex = 1, nj
         do lonIndex = 1, ni
-          
+
           if (oceanMask%mask (lonIndex, latIndex, 1)) then
             m (lonIndex, latIndex) = 1.0d0
           else
             m (lonIndex, latIndex) = 0.0d0
           end if
-       
+
         end do
       end do
       call ocm_deallocate(oceanMask)
     else
       m(:,:) = 1.0d0
     end if
-   
+
     m( :, 1 ) = 0.0d0
     m( 1, : ) = 0.0d0
     m( :, nj) = 0.0d0
@@ -269,7 +269,7 @@ contains
 
           currentLonSpacing = cos(latr( latIndex)) * diff(diffID)%dlon
           currentLatSpacing =                        diff(diffID)%dlat
-          currentMin = min (currentLatSpacing, currentLonSpacing)  
+          currentMin = min (currentLatSpacing, currentLonSpacing)
 
           if (currentMin < mindxy) then
             mindxy = currentMin
@@ -291,13 +291,13 @@ contains
       call gsv_zero(statevector)
       call gio_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', unitConversion_opt = .false.)
       call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
-      Lcorr(:,:) = dble( field3D_r4_ptr( :, :, 1 ) )       
+      Lcorr(:,:) = dble( field3D_r4_ptr( :, :, 1 ) )
       write(*,*) 'diff_setup: correlation length scale 2D field for variable ', bdiff_varNameList(variableIndex),' min/max: ', &
                  minval(Lcorr(:,:)), maxval(Lcorr(:,:))
       call gsv_deallocate(statevector)
 
     else
-      
+
       Lcorr(:,:) = corr_len
 
     end if
@@ -335,7 +335,7 @@ contains
 
     ! print this stuff in listing file for user information:
     write(*,*)
-    write(*,*) 'diff_setup: number of timesteps: ', diff(diffID)%numt 
+    write(*,*) 'diff_setup: number of timesteps: ', diff(diffID)%numt
     if (.not. useImplicit) write(*,*) 'diff_setup: stability: ', maxval(kappa) * diff(diffID)%dt / (mindxy**2)
     write(*,*)
 
@@ -351,10 +351,10 @@ contains
 
     ! compute the LU decomposition for the implicit 1D diffusion
     diff(diffID)%diff1x_ap(:,:) = 0.0d0
-    diff(diffID)%diff1x_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1x_bp_inv(:,:) = 0.0d0
     diff(diffID)%diff1x_c(:,:) = 0.0d0
     diff(diffID)%diff1y_ap(:,:) = 0.0d0
-    diff(diffID)%diff1y_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1y_bp_inv(:,:) = 0.0d0
     diff(diffID)%diff1y_c(:,:) = 0.0d0
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,a,b)
@@ -406,11 +406,11 @@ contains
 
     std_unit = 0
     inquire (file=diff_norm_fact, exist=file_exist)
-        
+
     if ( file_exist ) then
 
       write(*,*) 'diff_setup: file containing normalization factors exists: ', trim(diff_norm_fact)
-       
+
       ierr = fnom(std_unit, diff_norm_fact, 'RND+R/O', 0)
       nmax = fstouv(std_unit, 'RND')
 
@@ -442,8 +442,8 @@ contains
         write(*,*) 'diff_setup: file does not exist: ', trim(diff_norm_fact)
         write(*,*) 'diff_setup: normalization factors will be computed...'
       end if
-      
-      seed = 1 
+
+      seed = 1
       call rng_setup(abs(seed + mmpi_myid))
 
       write(*,*) 'diff_setup: Number of samples, ni * nj: ', numberSamples, ni * nj
@@ -496,7 +496,7 @@ contains
 
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
-          
+
           ! normalization: inverse of rms of ens
           diff(diffID)%Lambda(lonIndex, latIndex) = sqrt(diff(diffID)%Lambda(lonIndex, latIndex) / dble(numberSamples - 1))
 
@@ -507,11 +507,11 @@ contains
         end do
       end do
 
-      lambdaLocal(myLonBeg : myLonEnd, myLatBeg : myLatEnd) = diff(diffID)%Lambda(myLonBeg : myLonEnd, myLatBeg : myLatEnd)    
+      lambdaLocal(myLonBeg : myLonEnd, myLatBeg : myLatEnd) = diff(diffID)%Lambda(myLonBeg : myLonEnd, myLatBeg : myLatEnd)
       call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, "mpi_sum")
 
       if (mmpi_myid == 0) then
- 
+
         ! preparing real(4) array to save into fst file avoiding huge values
         do latIndex = 1, nj
           do lonIndex = 1, ni
@@ -552,7 +552,7 @@ contains
         ierr = fstfrm( std_unit )
         ierr = fclos( std_unit )
 
-      end if 
+      end if
 
     end if
 
@@ -611,7 +611,7 @@ contains
     integer, intent(in)  :: diffID
     real(8), intent(in)  :: xin ( :, : )
     real(8), intent(out) :: xout( :, : )
-    
+
     ! Locals:
     integer :: timeIndex, latIndex, lonIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
@@ -645,7 +645,7 @@ contains
     xhalo(:,:) = 0.0d0
     xlast(:,:) = 0.0d0
     xlast( myLonBeg:myLonEnd, myLatBeg:myLatEnd ) = xin(:,:)
-    
+
     ! iterate difference equations
     TIME: do timeIndex = 1, diff(diffID)%numt / 2
 
@@ -664,7 +664,7 @@ contains
         else if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only send
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
-          call mmpi_send(sendBufLat, sendTag, procID_opt = sendToPE, communicator_opt = "EW")
+          call mmpi_send(sendBufLat, sendTag, procID = sendToPE, communicator_opt = "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
@@ -688,7 +688,7 @@ contains
         else if (mmpi_myidx == 0) then
           ! western-most tile only send
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
-          call mmpi_send(sendBufLat, sendTag, procID_opt = sendToPE, communicator_opt = "EW")
+          call mmpi_send(sendBufLat, sendTag, procID = sendToPE, communicator_opt = "EW")
         else
           ! interior tiles both send and recv
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
@@ -712,7 +712,7 @@ contains
         else if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
-          call mmpi_send(sendBufLon, sendTag, procID_opt = sendToPE, communicator_opt = "NS")
+          call mmpi_send(sendBufLon, sendTag, procID = sendToPE, communicator_opt = "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
@@ -736,7 +736,7 @@ contains
         else if (mmpi_myidy == 0) then
           ! southern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
-          call mmpi_send(sendBufLon, sendTag, lonPerPE, procID_opt = sendToPE, communicator_opt = "NS")
+          call mmpi_send(sendBufLon, sendTag, procID = sendToPE, communicator_opt = "NS")
         else
           ! interior tiles both send and recv
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
@@ -851,9 +851,9 @@ contains
 
     ! this is the (C^1/2)^T required for the adjoint: Csqrt^T = W^1/2 * Diffuse * W^-1 * Lambda
     xout(:,:) = xin (:,:) * diff(diffID)%Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                                diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
+                                                diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     xout(:,:) = xout(:,:) * diff(diffID)%Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                              diff(diffID)%myLatBeg:diff(diffID)%myLatEnd) 
+                                              diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     if ( diff(diffID)%useImplicit ) then
       allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
       do timeStep = 1, diff(diffID)%numt
@@ -909,7 +909,7 @@ contains
     do yourid = 1, mmpi_nprocs
       numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
       numLatPoints = size(xin,2)
-      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:) 
+      xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:)
     end do
     !$OMP END PARALLEL DO
 
@@ -932,7 +932,7 @@ contains
 
   end subroutine transposeLatToLonBands
 
-  
+
   subroutine transposeLonToLatBands(diffID, xin, xout)
     !
     !:Purpose: Perform an MPI transposition for a 2D array between longitude
@@ -981,7 +981,7 @@ contains
     do yourid = 1, mmpi_nprocs
       numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
       numLatPoints = size(xout,2)
-      xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(1:numLonPoints,1:numLatPoints,yourid) 
+      xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(1:numLonPoints,1:numLatPoints,yourid)
     end do
     !$OMP END PARALLEL DO
 
@@ -990,7 +990,7 @@ contains
 
   end subroutine transposeLonToLatBands
 
-  
+
   subroutine diffusion1x_implicit(diffID, xin, xout)
     !
     !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
@@ -1017,7 +1017,7 @@ contains
     !$OMP END PARALLEL DO
 
     do iterIndex = 1, diff(diffID)%numIterImp
-      
+
       !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
       do latIndex =  max(2, diff(diffID)%myLatBeg), min(diff(diffID)%nj-1, diff(diffID)%myLatEnd)
         lonIndex = 2
@@ -1054,7 +1054,7 @@ contains
 
   subroutine diffusion1y_implicit(diffID, xin, xout)
     !
-    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over 
+    !:Purpose: To compute Lsqrt*xin (diffusion over 1 timestep, loop over
     !          timesteps is external to the subroutine).
     !
     implicit none
