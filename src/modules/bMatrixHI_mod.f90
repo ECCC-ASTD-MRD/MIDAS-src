@@ -91,7 +91,6 @@ MODULE bMatrixHI_mod
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
-  integer             :: maxMyNla
   integer             :: myLatBeg,myLatEnd
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -111,7 +110,7 @@ CONTAINS
     ! Locals:
     character(len=15)        :: bhi_mode
     integer                  :: jlev, ierr, fnom, fclos, fstouv, fstfrm
-    integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
+    integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl, maxMyNla
     logical                  :: llfound, lExists
     real(8)                  :: pSurfRef, hSurfRef
     real(8), pointer         :: vertCoordProfile_M(:),vertCoordProfile_T(:)
@@ -287,7 +286,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "mpi_sum")
 
     allocate(PtoT(nlev_T+1,nlev_M,nj_l))
     allocate(tantheta(nlev_M,nj_l))
@@ -440,7 +439,7 @@ CONTAINS
     real(8) :: eigenvalsqrt(numVarLev2), eigenvec2(numVarLev2,numVarLev2), eigenvalsqrt2(numVarLev2)
     integer :: jlat,jn,jk1,jk2,jk3
     integer :: ilwork,info,klatPtoT
-    integer :: iulcorvert, ikey, nsize
+    integer :: iulcorvert, ikey
     real(8) :: zwork(2*4*numVarLev2)
     real(8) :: ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2
@@ -844,8 +843,7 @@ CONTAINS
 
     enddo ! jn
 
-    nsize = numVarLev2*numVarLev2*(ntrunc+1)
-    call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(corns_temp, corns, "mpi_sum")
     deallocate(corns_temp)
 
     if(mmpi_myid==0) then
@@ -1052,7 +1050,7 @@ CONTAINS
     ! Locals:
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
-    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
+    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset
     integer :: ezdefset
     integer :: ip1style,ip1kind
     integer :: koutmpg
@@ -1062,8 +1060,8 @@ CONTAINS
     real(8) :: zabs, zpole, dlfac
     real(8) :: zsp_mpilocal(nla_mpilocal,2,nlev_T_even)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-    real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
-    real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
+    real(8) :: zsp_mpiglobal(nla_mpiglobal,2)
+    real(8), allocatable :: my_zsp_mpiglobal(:,:)
     real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
     ! standard file variables
@@ -1370,8 +1368,8 @@ CONTAINS
     !
     zgd(:,:,:) = 0.0d0
     zsp_mpilocal(:,:,:) = 0.0d0
-    allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1)) 
-    my_zsp_mpiglobal(:,:,:) = 0.0d0
+    allocate(my_zsp_mpiglobal(nla_mpiglobal,2))
+    my_zsp_mpiglobal(:,:) = 0.0d0
 
     do jla = 1, nla_mpiglobal
        cortgg(jla,1) = 0.0d0
@@ -1392,37 +1390,38 @@ CONTAINS
         if(jm.le.jn) then
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-          my_zsp_mpiglobal(ila_mpiglobal,:,1) = zsp_mpilocal(ila_mpilocal,:,1)
+          my_zsp_mpiglobal(ila_mpiglobal,:) = zsp_mpilocal(ila_mpilocal,:,1)
         endif
       enddo
     enddo
-    nsize = 2*nla_mpiglobal
-    call rpn_comm_allreduce(my_zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+
+    call mmpi_allReduce(my_zsp_mpiglobal, zsp_mpiglobal, "mpi_sum")
     deallocate(my_zsp_mpiglobal) 
+
     ! 2.4.4  Check positiveness
     llpb = .false.
     do jla = 1, ntrunc+1
-      zabs = abs(zsp_mpiglobal(jla,1,1))
-      llpb = llpb.or.((zsp_mpiglobal(jla,1,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
+      zabs = abs(zsp_mpiglobal(jla,1))
+      llpb = llpb.or.((zsp_mpiglobal(jla,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
       call utl_abort(' AUTOCORRELATION  NEGATIVES')
     endif
     do jla = 1, ntrunc+1
-      zsp_mpiglobal(jla,1,1) = abs(zsp_mpiglobal(jla,1,1))
+      zsp_mpiglobal(jla,1) = abs(zsp_mpiglobal(jla,1))
     enddo
 
     zpole = 0.d0
     do  jla = 1, ntrunc+1
       jn = jla-1
-      zpole = zpole + zsp_mpiglobal(jla,1,1)*sqrt((2.d0*jn+1.d0)/2.d0)
+      zpole = zpole + zsp_mpiglobal(jla,1)*sqrt((2.d0*jn+1.d0)/2.d0)
     enddo
     if(zpole.le.0.d0) then
       call utl_abort('POLE VALUE NEGATIVE IN SUTG')
     endif
     do jla = 1, ntrunc+1
-      zsp_mpiglobal(jla,1,1) = zsp_mpiglobal(jla,1,1)/zpole
-      zsp_mpiglobal(jla,2,1) = zsp_mpiglobal(jla,2,1)/zpole
+      zsp_mpiglobal(jla,1) = zsp_mpiglobal(jla,1)/zpole
+      zsp_mpiglobal(jla,2) = zsp_mpiglobal(jla,2)/zpole
     enddo
 
     !  2.4.5  Correlation
@@ -1430,8 +1429,8 @@ CONTAINS
       do jn = jm, ntrunc
         jla = gst_getNIND(jm,gstID) + jn - jm
         dlfac = 0.5d0/sqrt((2*jn+1.d0)/2.d0)
-        cortgg(jla,1) = dlfac * zsp_mpiglobal(jn+1,1,1)
-        cortgg(jla,2) = dlfac * zsp_mpiglobal(jn+1,1,1)
+        cortgg(jla,1) = dlfac * zsp_mpiglobal(jn+1,1)
+        cortgg(jla,2) = dlfac * zsp_mpiglobal(jn+1,1)
       enddo
     enddo
 
@@ -2489,11 +2488,10 @@ CONTAINS
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2501,8 +2499,7 @@ CONTAINS
        allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if(mmpi_myid == 0) then
        allocate(allnBeg(mmpi_nprocs))
@@ -2520,19 +2517,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -2608,9 +2599,7 @@ CONTAINS
                                                  ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_double_precision", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -2638,11 +2627,10 @@ CONTAINS
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2650,8 +2638,7 @@ CONTAINS
        allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if(mmpi_myid == 0) then
        allocate(allnBeg(mmpi_nprocs))
@@ -2669,19 +2656,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -2757,9 +2738,7 @@ CONTAINS
                                                  ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_real4", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -2787,12 +2766,12 @@ CONTAINS
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -2806,8 +2785,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 
@@ -2830,19 +2808,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
@@ -2917,12 +2889,12 @@ CONTAINS
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -2936,8 +2908,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal, cvDim_maxmpilocal)
 
     deallocate(cv_maxmpilocal)
 
@@ -2960,19 +2931,13 @@ CONTAINS
        allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0

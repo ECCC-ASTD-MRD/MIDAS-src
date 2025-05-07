@@ -134,7 +134,7 @@ program midas_diagBmatrix
   real(8) :: centralValue, centralValueLocal
 
   integer :: fnom, fstopc, newdate
-  integer :: ierr, nsize, iseed, nultxt
+  integer :: ierr, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
@@ -368,8 +368,7 @@ program midas_diagBmatrix
               centralValueLocal = field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex)
             end if
           end if
-          call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
-                                  "MPI_DOUBLE_PRECISION", "MPI_SUM", "GRID", ierr)
+          call mmpi_allReduce(centralValueLocal, centralValue, "MPI_SUM")
           
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
           
@@ -685,9 +684,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO
 
-    nsize = statevector%nj*numVarLev
-    call rpn_comm_allreduce(stddev_zm,stddev_zm2,nsize,  &
-         "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(stddev_zm, stddev_zm2, "MPI_SUM")
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
@@ -725,9 +722,7 @@ program midas_diagBmatrix
         if ( mmpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
 
         do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(varIndex))
-          nsize = statevector%latPerPE
-          call rpn_comm_gather(field3d(1,:,levIndex), nsize, 'mpi_double_precision',  &
-                               zonalMeanStddev,     nsize, 'mpi_double_precision', 0, 'NS', ierr )
+          call mmpi_gather(field3d(1,:,levIndex), zonalMeanStddev)
           if ( mmpi_myid == 0 ) then
             do latIndex = 1, statevector%nj
               write(nultxt,*) field3d(1,latIndex,levIndex)
@@ -762,9 +757,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO 
 
-    nsize = statevector%ni*numVarLev
-    call rpn_comm_allreduce(stddev_dm,stddev_dm2,nsize,  &
-         "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call mmpi_allReduce(stddev_dm, stddev_dm2, "MPI_SUM")
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
@@ -798,7 +791,7 @@ program midas_diagBmatrix
   call utl_tmg_stop(0)
   call utl_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
   write(*,*) ' --------------------------------'
   write(*,*) ' midas-diagBmatrix ENDS'

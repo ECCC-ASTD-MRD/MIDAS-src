@@ -188,7 +188,7 @@ module sstBias_mod
     real(kdkind)              :: lon_grd, lat_grd
     real(pre_obsReal)         :: lon_obs, lat_obs
     integer                   :: lonIndex, latIndex
-    integer                   :: bodyIndex, headerIndex, ierr, headerCounter, codtyp
+    integer                   :: bodyIndex, headerIndex, headerCounter, codtyp
     integer                   :: localObsIndex
     integer                   :: ndataFoundGridLoc(hco%ni, hco%nj)  ! kd-tree output: number of data found within the search radius for every grid point
     integer                   :: ndataFoundGridGlob(hco%ni, hco%nj) ! to compute mpi_allreduce of ndataFoundGridLoc 
@@ -227,7 +227,7 @@ module sstBias_mod
     write(*,*) ''
     write(*,"(a, i10, a)") 'sstb_getGriddedObs: found ', countObsLoc, ' '//trim(instrumentString)//' data'
 
-    call rpn_comm_allreduce(countObsLoc, countObsGlob, 1, "mpi_integer", "mpi_sum", "grid", ierr)
+    call mmpi_allReduce(countObsLoc, countObsGlob, "mpi_sum")
 
     obsGrid(:, :) = 0.0d0
     ndataFoundGridLoc(:,:) = 0
@@ -322,9 +322,7 @@ module sstBias_mod
         do lonIndex = 1, hco%ni 
           ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
           call mmpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
-          call rpn_comm_allreduce(ndataFoundGridLoc(lonIndex, latIndex), &
-                                  ndataFoundGridGlob(lonIndex, latIndex), 1, &
-                                  'mpi_integer', 'mpi_sum', 'grid', ierr)
+          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), ndataFoundGridGlob(lonIndex, latIndex), 'mpi_sum')
           if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
             obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
                                           real(ndataFoundGridGlob(lonIndex, latIndex))
@@ -334,7 +332,7 @@ module sstBias_mod
           if (.not.openWater(lonIndex, latIndex)) obsGrid(lonIndex, latIndex) = MPC_missingValue_R8
         end do
       end do
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
       write(*,*) 'sstb_getGriddedObs: gridding for '//trim(instrumentString)//' data completed'
     end if POSITIVECOUNTOBSGLOB
 
@@ -372,7 +370,6 @@ module sstBias_mod
     real(kdkind)                :: refPosition(3)
     real(kdkind)                :: lon_grd, lat_grd
     integer                     :: lonIndex, latIndex
-    integer                     :: ierr
     integer                     :: localIndex, indexCounter, localLonIndex, localLatIndex
     integer                     :: numPointsFound
     real(kdkind)                :: searchRadiusSquared
@@ -536,7 +533,7 @@ module sstBias_mod
       end do
     end do
     
-    call rpn_comm_barrier('GRID', ierr)
+    call mmpi_barrier
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
 
     if (nobsLoc > 0) then

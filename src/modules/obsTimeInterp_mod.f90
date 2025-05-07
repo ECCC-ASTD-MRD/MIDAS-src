@@ -44,7 +44,7 @@ contains
 
     ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer, allocatable :: idataass(:,:), inumheader(:,:)
     integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
     character(len=256)   :: formatspec, formatspec2
@@ -123,13 +123,9 @@ contains
     write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,stepIndex)),stepIndex=1,nStepObs+1)
     write(*,*) '----------------------------------------------------------------'
 
-    nsize = size(inumheader)
-    call rpn_comm_allreduce(my_inumheader, inumheader, nsize, &
-         "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(my_inumheader, inumheader, "mpi_sum")
     deallocate(my_inumheader) 
-    nsize = size(idataass)
-    call rpn_comm_allreduce(my_idataass, idataass, nsize, &
-         "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(my_idataass, idataass, "mpi_sum")
     deallocate(my_idataass) 
     if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'
@@ -295,7 +291,7 @@ contains
     type(struct_oti), pointer, intent(inout) :: oti
 
     ! Locals:
-    integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
+    integer              :: numHeader, numHeaderMax, numStep
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
     if ( .not.associated(oti%timeInterpWeight) ) then
@@ -305,8 +301,7 @@ contains
     numHeader = size(oti%timeInterpWeight,1)
     numStep = size(oti%timeInterpWeight,2)
     write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader, numStep
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
                numHeaderMax, numStep, mmpi_nprocs 
@@ -317,10 +312,7 @@ contains
     timeInterpWeightMax(:,:) = 0.0d0
     timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
-    nsize = numHeaderMax * numStep 
-    call rpn_comm_allgather(timeInterpWeightMax,           nsize, 'MPI_REAL8',  &
-                            oti%timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
-                            'GRID', ierr)
+    call mmpi_allGather(timeInterpWeightMax,oti%timeInterpWeightMpiGlobal)
 
     deallocate(timeInterpWeightMax)
 

@@ -1,8 +1,7 @@
 
-program main_randomPert
+program main_midasprogramtemplate
   !
-  !:Purpose: Main program for generating an ensemble of random perturbations
-  !          based on the B matrix (can be homogeneous/isotropic or ensemble-based).
+  !:Purpose: Include here a short description of the purpose of the program
 
   use topLevelControl_mod
   use mpi_mod
@@ -54,7 +53,7 @@ program main_randomPert
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
-            '14x,"-- START OF MAIN MAIN_RANDOMPERT --",/,' //   &
+            '14x,"-- START OF MAIN MAIN_MIDASPROGRAMTEMPLATE --",/,' //   &
             '14x,"-- Generation of random perturbations --",/, ' //  &
             '14x,"-- VAR Revision number ",a," --",/,' //  &
             '3(" *****************"))') top_crevision
@@ -63,7 +62,7 @@ program main_randomPert
   !- 0. MPI, tmg initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_RANDOMPERT')
+  call tmg_init(mpi_myid, 'TMG_MIDASPROGRAMTEMPLATE')
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -80,7 +79,7 @@ program main_randomPert
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namenkf, iostat=ierr)
-  if(ierr /= 0) call utl_abort('main_randomPert: Error reading namelist')
+  if(ierr /= 0) call utl_abort('main_midasprogramtemplate: Error reading namelist')
   write(*,nml=namenkf)
   ierr = fclos(nulnam)
 
@@ -155,7 +154,7 @@ program main_randomPert
   !- 3.2 Allocate auxillary variables
   allocate(gdmean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim), STAT=status)
   if (status /= 0) then
-    call utl_abort('main_randomPert: PROBLEM WITH ALLOCATING OF GDMEAN')
+    call utl_abort('main_midasprogramtemplate: PROBLEM WITH ALLOCATING OF GDMEAN')
   end if
 
   allocate(controlVector(cvm_nvadim))
@@ -182,7 +181,7 @@ program main_randomPert
   !
   deallocate(gdmean,STAT=status)
   if (status /= 0) then
-    call utl_abort('main_randomPert: PROBLEM WITH DEALLOCATE OF GDMEAN')
+    call utl_abort('main_midasprogramtemplate: PROBLEM WITH DEALLOCATE OF GDMEAN')
   end if
 
   deallocate(ensemble_r4)
@@ -193,8 +192,8 @@ program main_randomPert
   !
   !- 6.  MPI, tmg finalize
   !  
-  call tmg_terminate(mpi_myid, 'TMG_RANDOMPERT' )
-  call rpn_comm_finalize(ierr) 
+  call tmg_terminate(mpi_myid, 'TMG_MIDASPROGRAMTEMPLATE' )
+  call mmpi_finalize
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -202,7 +201,7 @@ program main_randomPert
   !- 7.  Ending
   !
   write(*,*) ' --------------------------------'
-  write(*,*) ' MAIN_RANDOMPERT ENDS'
+  write(*,*) ' MAIN_MIDASPROGRAMTEMPLATE ENDS'
   write(*,*) ' --------------------------------'
 
-end program main_randomPert
+end program main_midasprogramtemplate

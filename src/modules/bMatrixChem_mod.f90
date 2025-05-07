@@ -59,7 +59,6 @@ module bMatrixChem_mod
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
-  integer             :: maxMyNla
   integer             :: myLatBeg,myLatEnd
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -99,8 +98,8 @@ module bMatrixChem_mod
     integer,                   intent(out) :: cvDim_out
 
     ! Locals:
-    integer :: jn,jm
-    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, nlev_T_even, ierr
+    integer :: jn, jm, maxMyNla
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, nlev_T_even
     logical :: covarNeeded
 
     ! Read and prepare covariances and related elements
@@ -163,8 +162,7 @@ module bMatrixChem_mod
     cvDim_out = cvDim_mpilocal
 
     ! Also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_mpiglobal, 1, &
-                            "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal,  "mpi_sum")
 
     initialized = .true.
    
@@ -682,13 +680,12 @@ module bMatrixChem_mod
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -696,8 +693,7 @@ module bMatrixChem_mod
       allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if (mmpi_myid == 0) then
       allocate(allnBeg(mmpi_nprocs))
@@ -715,19 +711,13 @@ module bMatrixChem_mod
       allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -804,9 +794,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_double_precision", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -836,13 +824,12 @@ module bMatrixChem_mod
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jproc,cvDim_maxmpilocal
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
 
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -850,8 +837,7 @@ module bMatrixChem_mod
       allocate(cvDim_allMpiLocal(1))
     end if
 
-    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
-                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(cvDim_mpiLocal, cvDim_allMpiLocal)
 
     if (mmpi_myid == 0) then
       allocate(allnBeg(mmpi_nprocs))
@@ -869,19 +855,13 @@ module bMatrixChem_mod
       allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     ! Prepare to data to be distributed
     if (mmpi_myid == 0) then
@@ -958,9 +938,7 @@ module bMatrixChem_mod
                                                 ! to take the outgoing data to process jproc
     end do
 
-    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                           cv_mpiLocal, cvDim_mpiLocal, "mpi_real4", &
-                           0, "GRID", ierr)
+    call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
     !- End
     deallocate(displs)
@@ -990,14 +968,14 @@ module bMatrixChem_mod
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     if (.not.initialized) return
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1011,8 +989,7 @@ module bMatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 
@@ -1035,19 +1012,13 @@ module bMatrixChem_mod
       allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if (mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
@@ -1127,14 +1098,14 @@ module bMatrixChem_mod
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+    integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
 
     if (.not.initialized) return
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1148,8 +1119,7 @@ module bMatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
-                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
+    call mmpi_gather(cv_maxmpilocal, cv_allmaxmpilocal)
 
     deallocate(cv_maxmpilocal)
 
@@ -1172,19 +1142,13 @@ module bMatrixChem_mod
       allocate(allmSkip(1))
     end if
 
-    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
-                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
-                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
-                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mynBeg,  allnBeg)
+    call mmpi_gather(mynEnd,  allnEnd)
+    call mmpi_gather(mynSkip, allnSkip)
 
-    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
-                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
-                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
-    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
-                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+    call mmpi_gather(mymBeg,  allmBeg)
+    call mmpi_gather(mymEnd,  allmEnd)
+    call mmpi_gather(mymSkip, allmSkip)
 
     if (mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0

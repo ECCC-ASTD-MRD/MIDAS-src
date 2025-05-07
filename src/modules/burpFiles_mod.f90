@@ -8,6 +8,7 @@ module burpFiles_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use midasMpi_mod
   use obsSpaceData_mod
   use burpread_mod
   use bufr_mod
@@ -106,8 +107,8 @@ contains
     !- Set reference datestamp
     !
     ! Make sure all mpi tasks have a valid date (important for split burp files)
-    call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-    call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    call mmpi_allReduce(kdate, kdate_recv, "MPI_MAX")
+    call mmpi_allReduce(ktime, ktime_recv, "MPI_MAX")
     kdate = kdate_recv
     ktime = ktime_recv
     if (nresume >= 1 ) then  

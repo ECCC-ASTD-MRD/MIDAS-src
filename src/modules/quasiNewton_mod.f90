@@ -348,7 +348,7 @@ module quasiNewton_mod
 !     variables locales
 !     
       logical inmemo,sscale
-      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal,ierr
+      integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal
       integer m_max
       real(8) d1,d2,ps
 !     
@@ -358,8 +358,7 @@ module quasiNewton_mod
       write(io,*) 'N1QN3: calling modified MPI version of modulopt!!!'
       write(io,*) '--------------------------------------------------'
 
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
-                              "mpi_max","GRID",ierr)
+      call mmpi_allReduce(n, ntotal, "mpi_max")
 
       if (impres.ge.1) &
            write (io,900) n,dxmin,df1,epsg,niter,nsim,impres
@@ -403,8 +402,7 @@ module quasiNewton_mod
 !---- Compute m
 !     
       call mupdts (sscale,inmemo,n,m,ndz)
-      call rpn_comm_allreduce(m,m_max,1,"mpi_integer", &
-                              "mpi_max","GRID",ierr)
+      call mmpi_allReduce(m, m_max, "mpi_max")
       if (m.ne.m_max) then
          write(io,*) 'replacing value of m, ',m,' with ',m_max
          m=m_max
@@ -531,7 +529,7 @@ module quasiNewton_mod
 !         variables locales
 !
       logical sscale,cold,warm
-      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax,ntotal
+      integer i,itmax,moderl,isim,jcour,indic,impresmax,ntotal
       real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
@@ -560,10 +558,8 @@ module quasiNewton_mod
       isim=1
       eps1=1.d+0
 !
-      call rpn_comm_allreduce(impres,impresmax,1,"mpi_integer", &
-                              "mpi_max","GRID",ierr)
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
-                              "mpi_max","GRID",ierr)
+      call mmpi_allReduce(impres, impresmax, "mpi_max")
+      call mmpi_allReduce(n, ntotal, "mpi_max")
 !
       call prosca (n,g,g,ps,izs,rzs,dzs)
       gnorm=sqrt(ps)
@@ -692,9 +688,7 @@ module quasiNewton_mod
       do i = 1, n
         tmin=max(tmin,abs(d(i)))
       end do
-      call rpn_comm_allreduce(tmin,tmin_mpiglobal,1, &
-                              "mpi_double_precision", &
-                              "mpi_max","GRID",ierr)
+      call mmpi_allReduce(tmin, tmin_mpiglobal, "mpi_max")
       tmin = tmin_mpiglobal
 
       tmin=dxmin/tmin
@@ -990,7 +984,7 @@ module quasiNewton_mod
 ! --- variables locales
 !
       logical lfound,lfound2
-      integer i,indic,indica,indicd,ierr,ntotal
+      integer i,indic,indica,indicd,ntotal
       real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !
@@ -1005,8 +999,7 @@ module quasiNewton_mod
  1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
  1007 format (/4x," mlis0",10x,"tmin forced to tmax")
  1008 format (/4x," mlis0",10x,"inconsistent call")
-      call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
-                              "mpi_max","GRID",ierr)
+      call mmpi_allReduce(n, ntotal, "mpi_max")
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
        .and. tmax.gt.0.d0 .and. amf.gt.0.d0 &
        .and. amd.gt.amf .and. amd.lt.1.d0) go to 5
@@ -1188,8 +1181,7 @@ module quasiNewton_mod
             exit
           endif
       enddo
-      call rpn_comm_allreduce(lfound,lfound2,1,"mpi_logical", &
-           "mpi_lor","GRID",ierr)
+      call mmpi_allReduce(lfound, lfound2, "mpi_lor")
       if(lfound2) go to 950
 !
 ! --- arret sur dxmin ou de secours

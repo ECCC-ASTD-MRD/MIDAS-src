@@ -1022,35 +1022,23 @@ module gridStateVector_mod
     allocate(statevector%allUVvarLevEnd(mmpi_nprocs))
 
     if (statevector%mpi_local) then
-      CALL rpn_comm_allgather(statevector%myLonBeg,1,'mpi_integer',       &
-                              statevector%allLonBeg,1,'mpi_integer','EW',ierr)
-      CALL rpn_comm_allgather(statevector%myLonEnd,1,'mpi_integer',       &
-                              statevector%allLonEnd,1,'mpi_integer','EW',ierr)
-      CALL rpn_comm_allgather(statevector%lonPerPE,1,'mpi_integer',       &
-                              statevector%allLonPerPE,1,'mpi_integer','EW',ierr)
-  
-      CALL rpn_comm_allgather(statevector%myLatBeg,1,'mpi_integer',       &
-                              statevector%allLatBeg,1,'mpi_integer','NS',ierr)
-      CALL rpn_comm_allgather(statevector%myLatEnd,1,'mpi_integer',       &
-                              statevector%allLatEnd,1,'mpi_integer','NS',ierr)
-      CALL rpn_comm_allgather(statevector%LatPerPE,1,'mpi_integer',       &
-                              statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
+      call mmpi_allGather(statevector%myLonBeg, statevector%allLonBeg,   communicator_opt = 'EW')
+      call mmpi_allGather(statevector%myLonEnd, statevector%allLonEnd,   communicator_opt = 'EW')
+      call mmpi_allGather(statevector%lonPerPE, statevector%allLonPerPE, communicator_opt = 'EW')
+
+      call mmpi_allGather(statevector%myLatBeg, statevector%allLatBeg,   communicator_opt = 'NS')
+      call mmpi_allGather(statevector%myLatEnd, statevector%allLatEnd,   communicator_opt = 'NS')
+      call mmpi_allGather(statevector%latPerPE, statevector%allLatPerPE, communicator_opt = 'NS')
 
       call gsv_checkMpiDistribution(stateVector)
 
-      CALL rpn_comm_allgather(statevector%myVarLevCount,1,'mpi_integer',       &
-                              statevector%allVarLevCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myVarLevBeg,1,'mpi_integer',       &
-                              statevector%allVarLevBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myVarLevEnd,1,'mpi_integer',       &
-                              statevector%allVarLevEnd,1,'mpi_integer','grid',ierr)
+      call mmpi_allGather(statevector%myVarLevCount, statevector%allVarLevCount)
+      call mmpi_allGather(statevector%myVarLevBeg,   statevector%allVarLevBeg)
+      call mmpi_allGather(statevector%myVarLevEnd,   statevector%allVarLevEnd)
 
-      CALL rpn_comm_allgather(statevector%myUVvarLevCount,1,'mpi_integer',       &
-                              statevector%allUVvarLevCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVvarLevBeg,1,'mpi_integer',       &
-                              statevector%allUVvarLevBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVvarLevEnd,1,'mpi_integer',       &
-                              statevector%allUVvarLevEnd,1,'mpi_integer','grid',ierr)
+      call mmpi_allGather(statevector%myUVvarLevCount, statevector%allUVvarLevCount)
+      call mmpi_allGather(statevector%myUVvarLevBeg,   statevector%allUVvarLevBeg)
+      call mmpi_allGather(statevector%myUVvarLevEnd,   statevector%allUVvarLevEnd)
     else
 
       statevector%allLonBeg(:) = statevector%myLonBeg
@@ -1206,26 +1194,21 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
-    integer :: deet, ierr
+    integer :: deet
     integer :: ip2List(statevector%numStep), npasList(statevector%numStep)
     integer :: dateOriginList(statevector%numStep)
     logical :: onPhysicsGrid(vnl_numVarMax)
 
-    call rpn_comm_allreduce(statevector%deet, deet, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%deet, deet, 'MPI_MAX')
     statevector%deet = deet
-    call rpn_comm_allreduce(statevector%ip2List, ip2List, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%ip2List, ip2List, 'MPI_MAX', statevector%numStep)
     statevector%ip2List(:) = ip2List(:)
-    call rpn_comm_allreduce(statevector%npasList, npasList, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%npasList, npasList, 'MPI_MAX', statevector%numStep)
     statevector%npasList(:) = npasList(:)
-    call rpn_comm_allreduce(statevector%dateOriginList, dateOriginList, statevector%numStep,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(statevector%dateOriginList, dateOriginList, 'MPI_MAX', statevector%numStep)
     statevector%dateOriginList(:) = dateOriginList(:)
 
-    call rpn_comm_allreduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), size(onPhysicsGrid),  &
-                            'MPI_LOGICAL', 'MPI_LOR', 'GRID', ierr)
+    call mmpi_allReduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), 'MPI_LOR')
     statevector%onPhysicsGrid(:) = onPhysicsGrid(:)
 
     call msg('gsv_communicateTimeParams', 'deet = '//str(deet) &
@@ -3310,7 +3293,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
-    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
+    integer :: youridx, youridy, yourid, nsize, maxkcount
     integer :: sendrecvKind, inKind, outKind, stepIndex
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -3413,14 +3396,11 @@ module gridStateVector_mod
         !$OMP END PARALLEL DO
       end if
 
-      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
@@ -3509,9 +3489,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_height, nsize, 'mpi_double_precision', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -3659,14 +3637,11 @@ module gridStateVector_mod
         call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
-      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
@@ -3836,9 +3811,7 @@ module gridStateVector_mod
       gd_send_height(:,:) = 0.0D0
       gd_send_height(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_height_in_ptr(:,:)
 
-      nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
-      call rpn_comm_gather(gd_send_height, nsize, 'mpi_double_precision',  &
-                           gd_recv_height, nsize, 'mpi_double_precision', 0, 'grid', ierr)
+      call mmpi_gather(gd_send_height, gd_recv_height)
 
       if (mmpi_myid == 0) then
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
@@ -4124,14 +4097,11 @@ module gridStateVector_mod
         call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
-      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * maxkCount
       if (mmpi_nprocs > 1) then
         if (sendrecvKind == 4) then
-          call rpn_comm_alltoall(gd_send_varsLevs_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_varsLevs_r4, nsize, 'mpi_real4', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r4, gd_recv_varsLevs_r4)
         else
-          call rpn_comm_alltoall(gd_send_varsLevs_r8, nsize, 'mpi_real8',  &
-                                 gd_recv_varsLevs_r8, nsize, 'mpi_real8', 'grid', ierr)
+          call mmpi_alltoall(gd_send_varsLevs_r8, gd_recv_varsLevs_r8)
         end if
       else
         if (sendrecvKind == 4) then
@@ -4211,9 +4181,7 @@ module gridStateVector_mod
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_double_precision', &
-                             gd_recv_height, nsize, 'mpi_double_precision', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
@@ -4391,7 +4359,7 @@ module gridStateVector_mod
     integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, maxkCount, numStepInput, numVarLevToSend, stepIndexInput
+    integer :: maxkCount, numStepInput, numVarLevToSend, stepIndexInput
     integer :: nsize
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: varLevIndex, varLevIndex2, levUV, procIndex, stepIndex
@@ -4406,7 +4374,7 @@ module gridStateVector_mod
     end if
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeStepToVarsLevs', 'START', verb_opt=2)
     call msg_memUsage('gsv_transposeStepToVarsLevs')
 
@@ -4424,8 +4392,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step_r4%allocated) then
         thisProcIsAsender(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
     end do
 
     numStepInput = 0
@@ -4500,8 +4467,8 @@ module gridStateVector_mod
 
       end if
 
-      call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4,  &
-                         gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, mmpi_comm_grid, ierr)
+      call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                          gd_recv_r4, recvsizes, recvdispls)
 
       stepIndex = stepIndexBeg - 1
       stepIndexInput = 0
@@ -4548,8 +4515,8 @@ module gridStateVector_mod
 
         end if
 
-        call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4,  &
-                           gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                            gd_recv_r4, recvsizes, recvdispls)
 
         stepIndex = stepIndexBeg - 1
         stepIndexInput = 0
@@ -4615,7 +4582,7 @@ module gridStateVector_mod
     integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount
+    integer :: yourid, youridx, youridy, nsize, numStepInput, stepCount
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     integer :: senddispls(mmpi_nprocs), sendsizes(mmpi_nprocs)
     integer :: recvdispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
@@ -4628,7 +4595,7 @@ module gridStateVector_mod
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     call utl_tmg_start(163,'low-level--gsv_stepToTiles')
 
@@ -4644,8 +4611,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step%allocated) then
         thisProcIsAsender(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
     end do
 
     ! only send the data from tasks with data, same amount to all
@@ -4687,8 +4653,7 @@ module gridStateVector_mod
     else
       inKindLocal = -1
     end if
-    call rpn_comm_allreduce(inKindLocal, inKind, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(inKindLocal, inKind, 'MPI_MAX')
     outKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -4739,7 +4704,7 @@ module gridStateVector_mod
       else
         allZero = .true.
       end if
-      call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+      call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
       if (allZero_mpiglobal) then
         ! Field equal to zero, skipping this varLevIndex to save time
         cycle varLevIndex_Loop
@@ -4779,13 +4744,11 @@ module gridStateVector_mod
       end if
 
       if (sendrecvKind == 4) then
-        call mpi_alltoallv(gd_send_1d_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                           gd_recv_3d_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_1d_r4, sendsizes, senddispls, &
+                            gd_recv_3d_r4, recvsizes, recvdispls)
       else if (sendrecvKind == 8) then
-        call mpi_alltoallv(gd_send_1d_r8, sendsizes, senddispls, mmpi_datyp_real8, &
-                           gd_recv_3d_r8, recvsizes, recvdispls, mmpi_datyp_real8, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_1d_r8, sendsizes, senddispls, &
+                            gd_recv_3d_r8, recvsizes, recvdispls)
       end if
 
       stepIndex = stepIndexBeg - 1
@@ -4866,9 +4829,7 @@ module gridStateVector_mod
         displs(procIndex) = (procIndex-1)*nsize
         nsizes(procIndex) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes, displs, 'mpi_real8', &
-                             gd_recv_height, nsize, 'mpi_real8', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
 
       stateVector_tiles%HeightSfc(&
                 stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
@@ -4913,7 +4874,7 @@ module gridStateVector_mod
     integer,          intent(in)     :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize
+    integer :: yourid, youridx, youridy, nsize
     integer :: varLevIndex, procIndex, stepIndex, numStepOutput, stepCount
     integer :: inKind, outKind, sendrecvKind, outKindLocal
     logical :: thisProcIsAreceiver(mmpi_nprocs)
@@ -4928,7 +4889,7 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeTilesToStep: input statevector must have Tiles mpi distribution')
     end if
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeTilesToStep', 'START', verb_opt=2)
 
     ! determine which tasks have something to receive and let everyone know
@@ -4937,8 +4898,7 @@ module gridStateVector_mod
       if (mmpi_myid == (procIndex-1) .and. stateVector_1step%allocated) then
         thisProcIsAreceiver(procIndex) = .true.
       end if
-      call rpn_comm_bcast(thisProcIsAreceiver(procIndex), 1,  &
-                          'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+      call mmpi_bcast(thisProcIsAreceiver(procIndex), procID_opt=procIndex-1)
     end do
 
     numStepOutput = 0
@@ -4979,8 +4939,7 @@ module gridStateVector_mod
     else
       outKindLocal = -1
     end if
-    call rpn_comm_allreduce(outKindLocal, outKind, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(outKindLocal, outKind, 'MPI_MAX')
     inKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -5054,13 +5013,11 @@ module gridStateVector_mod
       end do ! procIndex
 
       if (sendrecvKind == 4) then
-        call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                           gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                            gd_recv_r4, recvsizes, recvdispls)
       else if (sendrecvKind == 8) then
-        call mpi_alltoallv(gd_send_r8, sendsizes, senddispls, mmpi_datyp_real8, &
-                           gd_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8, &
-                           mmpi_comm_grid, ierr)
+        call mmpi_alltoallv(gd_send_r8, sendsizes, senddispls, &
+                            gd_recv_r8, recvsizes, recvdispls)
       end if
 
       ! copy over the complete 1 timestep received
@@ -5153,10 +5110,7 @@ module gridStateVector_mod
         ! skip if this task has nothing to receive
         if (.not. thisProcIsAreceiver(procIndex)) cycle
 
-        nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-        call rpn_comm_gather(gd_send_height, nsize, 'mpi_real8', &
-                             gd_recv_height, nsize, 'mpi_real8', &
-                             procIndex-1, 'grid', ierr)
+        call mmpi_gather(gd_send_height, gd_recv_height, procID_opt=procIndex-1)
 
         ! copy over the complete 1 timestep received
         if (mmpi_myid == procIndex-1) then
@@ -5206,7 +5160,7 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)     :: stateVector_tiles
 
     ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize
+    integer :: yourid, youridx, youridy
     integer :: varLevIndex, stepIndex, numStep
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
@@ -5226,11 +5180,8 @@ module gridStateVector_mod
 
     numStep = stateVector_tiles%numStep
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call msg('gsv_transposeTilesToMpiGlobal', 'START', verb_opt=2)
-
-    ! size of each message
-    nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
 
     ! allocate arrays used for mpi communication of 1 level/variable at a time
     allocate(gd_send_r4(stateVector_tiles%lonPerPEmax,  &
@@ -5268,8 +5219,7 @@ module gridStateVector_mod
                                 varLevIndex, stepIndex), 4)
         end if
 
-        call rpn_comm_allgather(gd_send_r4, nsize, 'mpi_real4',  &
-                                gd_recv_r4, nsize, 'mpi_real4', 'grid', ierr)
+        call mmpi_allGather(gd_send_r4, gd_recv_r4)
 
         ! copy over the complete 2D field for 1 stepIndex received
         if (stateVector_mpiGlobal%allocated) then
@@ -5316,8 +5266,7 @@ module gridStateVector_mod
           stateVector_tiles%HeightSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                                       stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
 
-      call rpn_comm_allGather(gd_send_r8, nsize, 'mpi_real8',  &
-                              gd_recv_r8, nsize, 'mpi_real8', 'grid', ierr)
+      call mmpi_allGather(gd_send_r8, gd_recv_r8)
 
       if (stateVector_mpiGlobal%allocated) then
 
@@ -6017,7 +5966,6 @@ module gridStateVector_mod
     real(4), pointer             :: field_r4_ptr(:,:,:,:)
     real(8), pointer             :: field_r8_ptr(:,:,:,:)
     logical                      :: allZero, allZero_mpiglobal
-    integer                      :: ierr
 
     if (.not. stateVector%allocated) then
       stateVectorHasNonZeroValue = .false.
@@ -6032,7 +5980,7 @@ module gridStateVector_mod
       allZero = utl_isEqual(maxval(abs(field_r8_ptr(:,:,:,:))), 0.0D0)
     end if
 
-    call rpn_comm_allReduce(allZero,allZero_mpiglobal,1,'mpi_logical','mpi_land','GRID',ierr)
+    call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
     stateVectorHasNonZeroValue = .not. allZero_mpiglobal
 
   end function gsv_containsNonZeroValues

@@ -452,8 +452,8 @@ contains
     call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validTime)
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-    call rpn_comm_allreduce(validTime, validTimeRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    call mmpi_allReduce(validDate, validDateRecv, "MPI_MAX")
+    call mmpi_allReduce(validTime, validTimeRecv, "MPI_MAX")
     
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
       call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
@@ -1739,9 +1739,7 @@ contains
         maxNumHeader = maxNumHeader + 1
       end do HEADER1
 
-      call rpn_comm_allGather(maxNumHeader,       1, 'mpi_integer',  &
-                              maxNumHeaderAllMpi, 1, 'mpi_integer', &
-                              'GRID', ierr)
+      call mmpi_allGather(maxNumHeader, maxNumHeaderAllMpi)
 
       ! Set the midasKey to start counting based on the latest value from the previous 
       ! mpi task
@@ -1986,10 +1984,8 @@ contains
           maxNumBody = maxNumBody + 1
         end do BODY1
       end do HEADER1
-      
-      call rpn_comm_allGather(maxNumBody,       1, 'mpi_integer',  &
-                              maxNumBodyAllMpi, 1, 'mpi_integer', &
-                            'GRID', ierr )
+
+      call mmpi_allGather(maxNumBody, maxNumBodyAllMpi)
 
       ! Set the midasKey to start counting based on the latest value from the previous 
       ! mpi task

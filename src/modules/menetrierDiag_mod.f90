@@ -198,8 +198,8 @@ contains
     logical, allocatable :: gridPointAlreadyUsed(:,:)
     real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
     real(8) :: t1, t2, t3, rmse
-    integer :: i, j, k, f, ens, bin, numbins, numFunctions, nSize
-    integer :: iref, jref, ier
+    integer :: i, j, k, f, ens, bin, numbins, numFunctions
+    integer :: iref, jref
     integer :: nLevEns, jvar, myVarLevBeg, myVarLevEnd
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
@@ -394,19 +394,12 @@ contains
     end do
 
     !- 2.2 Gather the all the info in processor 0
-    nSize = numVarLevEns * numbins
-    call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCorrelSquare_local    ,meanCorrelSquare    ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanVarianceProduct_local ,meanVarianceProduct ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanFourthMoment_local    ,meanFourthMoment    ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCovarianceSquare_local,meanCovarianceSquare,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call mmpi_reduce(sumWeight_local,            sumWeight,            "mpi_sum")
+    call mmpi_reduce(meanCorrel_local,           meanCorrel ,          "mpi_sum")
+    call mmpi_reduce(meanCorrelSquare_local,     meanCorrelSquare,     "mpi_sum")
+    call mmpi_reduce(meanVarianceProduct_local,  meanVarianceProduct,  "mpi_sum")
+    call mmpi_reduce(meanFourthMoment_local,     meanFourthMoment,     "mpi_sum")
+    call mmpi_reduce(meanCovarianceSquare_local, meanCovarianceSquare, "mpi_sum")
 
     deallocate(sumWeight_local)
     deallocate(meanCorrel_local)
@@ -717,7 +710,7 @@ contains
     integer :: k, k2, kens, f, ens, bin, numbins, numFunctions
     integer :: iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
 
@@ -858,19 +851,12 @@ contains
     deallocate(ensPert_local)
 
     !- 2.2 Gather the all the info in processor 0
-    nSize = numVarLevEns * numbins
-    call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCorrelSquare_local    ,meanCorrelSquare    ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanVarianceProduct_local ,meanVarianceProduct ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanFourthMoment_local    ,meanFourthMoment    ,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
-    call rpn_comm_reduce(meanCovarianceSquare_local,meanCovarianceSquare,nSize, &
-         "mpi_double_precision","mpi_sum",0,"GRID",ier)
+    call mmpi_reduce(sumWeight_local,            sumWeight,            "mpi_sum")
+    call mmpi_reduce(meanCorrel_local,           meanCorrel ,          "mpi_sum")
+    call mmpi_reduce(meanCorrelSquare_local,     meanCorrelSquare,     "mpi_sum")
+    call mmpi_reduce(meanVarianceProduct_local,  meanVarianceProduct,  "mpi_sum")
+    call mmpi_reduce(meanFourthMoment_local,     meanFourthMoment,     "mpi_sum")
+    call mmpi_reduce(meanCovarianceSquare_local, meanCovarianceSquare, "mpi_sum")
 
     deallocate(sumWeight_local)
     deallocate(meanCorrel_local)

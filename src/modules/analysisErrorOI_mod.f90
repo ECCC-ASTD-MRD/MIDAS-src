@@ -75,7 +75,7 @@ contains
     character(len=20), parameter :: trlErrStddevFileName_out = 'trlerrorstdev_out' ! output filename for trl (background) error std deviation
     type(struct_neighborhood), pointer :: influentObs(:,:)
     real(8), allocatable :: Lcorr(:,:)
-    
+
     ! namelist variables:
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     logical           :: propagateAnalysisError ! choose to propagate analysis error
@@ -86,8 +86,8 @@ contains
     character(len=12) :: trlErrorStdEtiket      ! background error standard deviation field etiket in the input/output standard files
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
     logical           :: saveTrlStdField        ! choose to save trial standard deviation field
-    character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
-    character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
+    character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file
+    character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file
     real(8)           :: multFactorLcorr        ! multiplication scaling factor to increase the correlation length scale field
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, anlErrorStdEtiket, trlErrorStdEtiket, &
@@ -111,7 +111,7 @@ contains
     inputTypeVar = 'P@'
     outputTypeVar = 'A@'
     multFactorLcorr = 1.0d0
-    
+
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
       if (mmpi_myid == 0) then
@@ -152,13 +152,13 @@ contains
                       varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
     call gsv_getField(stateVectorTrlErrorStd, trlErrorStdDev_ptr)
 
-    if (propagateAnalysisError) then     
+    if (propagateAnalysisError) then
       call msg('aer_analysisError:', &
-               ' analysis error std field is read from: '//trim(errStddevFileName_in))    
+               ' analysis error std field is read from: '//trim(errStddevFileName_in))
       call gio_readFromFile(stateVectorAnlErrorStd, errStddevFileName_in, &
                             etiket_in = anlErrorStdEtiket, typvar_in = inputTypeVar, &
                             containsFullField_opt = .false.)
-      
+
       ! initialize trl error std deviation field:
       trlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDev_ptr(:,:,:,:)
 
@@ -175,10 +175,10 @@ contains
       if (saveTrlStdField) then
         ! zap analysis error etiket with background error etiket
         stateVectorTrlErrorStd%etiket = trlErrorStdEtiket
-        
+
         ! copy mask from analysis error std deviation field to trl error std field
         call gsv_copyMask(stateVectorAnlErrorStd, stateVectorTrlErrorStd)
-        
+
         ! update dateStamp from env variable
         call gsv_modifyDate(stateVectorTrlErrorStd, tim_getDateStamp(), &
                             modifyDateOrigin_opt = .true.)
@@ -304,7 +304,7 @@ contains
                                 analysisVariable(1), propagateDSLO, &
                                 hoursSinceLastAnalysis)
     end if
-    
+
     call msg('aer_analysisError:', ' finished.')
 
   end subroutine aer_analysisError
@@ -344,7 +344,7 @@ contains
     integer, allocatable :: obsAss(:), allObsAss(:,:)
     integer, allocatable :: obsRln(:), allObsRln(:,:)
     integer, allocatable :: obsNlv(:), allObsNlv(:,:)
-    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
+    integer :: numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
     real(8), allocatable :: footprintRadiusVec_r8(:), allFootprintRadius_r8(:,:)
     real(8), allocatable :: obsLon(:), allObsLon(:,:), obsLat(:), allObsLat(:,:)
 
@@ -353,11 +353,9 @@ contains
 
     ! Communicate some quantities to all MPI tasks
 
-    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numHeader(obsSpaceData), allNumHeader)
     numHeaderMax = maxval(allNumHeader)
-    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numBody(obsSpaceData), allNumBody)
     numBodyMax = maxval(allNumBody)
 
     allocate(obsAss(numBodyMax))
@@ -369,9 +367,8 @@ contains
         obsAss(bodyIndex) = obs_assimilated
       end if
     end do
-    call rpn_comm_gather(obsAss,    numBodyMax, 'mpi_integer',  &
-                         allObsAss, numBodyMax, 'mpi_integer', 0, 'grid', ierr)
-    
+    call mmpi_gather(obsAss, allObsAss)
+
     allocate(obsRln(numHeaderMax))
     obsRln(:) = 0
     allocate(obsNlv(numHeaderMax))
@@ -390,23 +387,17 @@ contains
     allocate(allObsNlv(numHeaderMax,mmpi_nprocs))
     allocate(allObsLon(numHeaderMax,mmpi_nprocs))
     allocate(allObsLat(numHeaderMax,mmpi_nprocs))
-    call rpn_comm_gather(obsRln,    numHeaderMax, 'mpi_integer',  &
-                         allObsRln, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
-    call rpn_comm_gather(obsNlv,    numHeaderMax, 'mpi_integer',  &
-                         allObsNlv, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
-    call rpn_comm_gather(obsLon,    numHeaderMax, 'mpi_real8',  &
-                         allObsLon, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
-    call rpn_comm_gather(obsLat,    numHeaderMax, 'mpi_real8',  &
-                         allObsLat, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
+    call mmpi_gather(obsRln, allObsRln)
+    call mmpi_gather(obsNlv, allObsNlv)
+    call mmpi_gather(obsLon, allObsLon)
+    call mmpi_gather(obsLat, allObsLat)
 
     allocate(footprintRadiusVec_r8(numHeaderMax))
     do headerIndex = 1, obs_numHeader(obsSpaceData)
       footprintRadiusVec_r8(headerIndex) = real(s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex), 8)
     end do
     allocate(allFootprintRadius_r8(numHeaderMax,mmpi_nprocs))
-    call rpn_comm_gather(footprintRadiusVec_r8,      numHeaderMax, 'MPI_REAL8', &
-                         allFootprintRadius_r8(:,:), numHeaderMax, 'MPI_REAL8', &
-                         0, 'GRID', ierr)
+    call mmpi_gather(footprintRadiusVec_r8, allFootprintRadius_r8)
 
     ! create kdtree
     write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'
@@ -431,7 +422,7 @@ contains
     write(*,*) 'findObs: lonInRad min/max: ', minval(lonInRad(:,:)), maxval(lonInRad(:,:))
 
     nullify(tree)
-    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
+    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.)
 
     deallocate(positionArray)
     deallocate(lonInRad)
@@ -456,7 +447,7 @@ contains
             if (trim(variableName) == 'GL') then
               footprintRadius_r8 = allFootPrintRadius_r8(headerIndex, procIndex)
               influenceRadius_r8 = max(0.0d0, footprintRadius_r8) + maxLcorr
-            else if (trim(variableName) == 'TM') then 
+            else if (trim(variableName) == 'TM') then
               influenceRadius_r8 = maxLcorr
             else
               call utl_abort('findObs: The current code does not work with '&
@@ -554,17 +545,14 @@ contains
 
     ! Communicate values from proc 0 to others
     if (mmpi_nprocs > 1) then
-      call rpn_comm_bcast(numObs, size(numObs), 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(numObs, size(numObs))
       if (associated(influentObs(1,1)%bodyIndex)) then
         write(*,*) 'findObs: communicate bodyIndex, headerIndex'
         do latIndex = 1, stateVectorTrlErrorStd%hco%nj
           do lonIndex = 1, stateVectorTrlErrorStd%hco%ni
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%headerIndex,  &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%bodyIndex,    &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
-            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%procIndex,    &
-                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%headerIndex, influentObs(lonIndex,latIndex)%numObs)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%bodyIndex,   influentObs(lonIndex,latIndex)%numObs)
+            call mmpi_bcast(influentObs(lonIndex,latIndex)%procIndex,   influentObs(lonIndex,latIndex)%numObs)
           end do
         end do
       end if
@@ -616,7 +604,7 @@ contains
     type(struct_columnData) :: column, columng
     real(8) :: leadTimeInHours, interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs)
+    integer :: numHeaderMax, allNumHeader(mmpi_nprocs)
     integer, allocatable :: obsAss(:), obsAssMpiGlobal(:,:)
 
     write(*,*) '**********************************************************'
@@ -632,8 +620,7 @@ contains
                       mpi_local_opt = .false., mpi_distribution_opt = 'None', &
                       varNames_opt = (/'DSLO'/), dataKind_opt = 8)
 
-    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numHeader(obsSpaceData), allNumHeader)
 
     if (propagateDSLO) then
       call aer_propagateDSLO(stateVectorTrlDSLO, inputFileName, outputFileName, &
@@ -686,8 +673,7 @@ contains
         end if
       end do
     end do
-    call rpn_comm_gather(obsAss,          numHeaderMax, 'mpi_integer',  &
-                         obsAssMpiGlobal, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+    call mmpi_gather(obsAss, obsAssMpiGlobal)
 
     if (mmpi_myid == 0) then
       do procIndex = 1, mmpi_nprocs
@@ -720,7 +706,7 @@ contains
 
         end do HEADER_LOOP
       end do
-      
+
       call gio_writeToFile(stateVectorAnlDSLO, outputFileName, '', typvar_opt = 'A@', &
                            containsFullField_opt = .false. )
     end if
@@ -745,24 +731,24 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
+    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error.
     type(struct_ocm),          intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
     character(len=*),          intent(in)    :: variableName        ! variable name
-    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
+    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file
     real(8)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
     type(struct_hco), pointer, intent(in)    :: hco_ptr             ! horizontal coordinates structure, pointer
     type(struct_vco), pointer, intent(in)    :: vco_ptr             ! vertical coordinates structure, pointer
 
     ! Locals:
     type(struct_gsv) :: stateVectorAnalysis
-    integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount 
+    integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount
     real(8), pointer :: stateVectorStdError_ptr(:,:,:), stateVectorAnalysis_ptr(:,:,:)
     real(8) :: totalLocalVariance
 
     write(*,*) ''
     write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
                trim(variableName)
-    
+
     ! read analysis itself (seaice concentration or SST analysis)
     call msg('aer_propagateAnalysisError:', ' reading analysis field...')
     call gsv_allocate(stateVectorAnalysis, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
@@ -772,11 +758,11 @@ contains
                           'A@', containsFullField_opt = .true.)
     call gsv_getField(stateVectorAnalysis, stateVectorAnalysis_ptr)
 
-    ! initialize pointer for the error standard deviation field    
+    ! initialize pointer for the error standard deviation field
     call gsv_getField(stateVectorErrorStd, stateVectorStdError_ptr)
-    
+
     ! calculation in variance unit
-    stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2 
+    stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2
 
     pointCount = 0
     totalLocalVariance = 0.0d0
@@ -901,7 +887,7 @@ contains
     type(struct_obs)         ,          intent(in)    :: obsSpaceData           ! obsSpaceData structure
     type(struct_gsv)         ,          intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
     type(struct_gsv)         ,          intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
-    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM') 
+    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM')
     real(8)                  ,          intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     type(struct_neighborhood), pointer, intent(in)    :: influentObs(:,:)       ! details about observations to use in update
     real(8)                  ,          intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
@@ -926,7 +912,6 @@ contains
     logical :: found
     real(8) :: interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr
     integer :: numBodyMax, allNumBody(mmpi_nprocs)
     real(8), allocatable :: allObsOer(:,:), obsOer(:), iceScaling(:), allIceScaling(:,:), anlErrorStdDevMpiGlobal(:,:,:,:)
 
@@ -947,15 +932,14 @@ contains
         lonInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lon2d_4(lonIndex, latIndex), 8)
       end do
     end do
-    
+
     ! Initialisation of pointers
     call gsv_getField(stateVectorAnlErrorStd, anlErrorStdDev_ptr)
     call gsv_getField(stateVectorTrlErrorStd, trlErrorStdDev_ptr)
     anlErrorStdDev_ptr(:,:,:,:) = 0.0d0
 
     ! Communicate some values from proc 0 to all others
-    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(obs_numBody(obsSpaceData), allNumBody)
     numBodyMax = maxval(allNumBody)
     write(*,*) 'aer_computeAnlErrorStd: numBodyMax = ', numBodyMax
 
@@ -965,8 +949,7 @@ contains
       do bodyIndex = 1, obs_numBody(obsSpaceData)
         iceScaling(bodyIndex) = oop_iceScaling(obsSpaceData, bodyIndex)
       end do
-      call rpn_comm_allGather(iceScaling,    numBodyMax, 'MPI_REAL8', &
-                              allIceScaling, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
+      call mmpi_allGather(iceScaling, allIceScaling)
     end if
 
     allocate(obsOer(numBodyMax))
@@ -975,8 +958,7 @@ contains
       obsOer(bodyIndex) = obs_bodyElem_r(obsSpaceData, OBS_OER, &
                                          bodyIndex)
     end do
-    call rpn_comm_allGather(obsOer,    numBodyMax, 'MPI_REAL8', &
-                            allObsOer, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
+    call mmpi_allGather(obsOer, allObsOer)
 
     numStep = stateVectorTrlErrorStd%numStep
     numLev = gsv_getNumLev(stateVectorTrlErrorStd, vnl_varLevelFromVarname(analysisVariable))
@@ -1316,8 +1298,7 @@ contains
     if (mmpi_nprocs > 1) then
       write(*,*) 'aer_computeAnlErrorStd: do mpi communication of anlErrorStdDev'
       allocate(anlErrorStdDevMpiGlobal(ni,nj,numStep,numLev))
-      call rpn_comm_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal,  &
-                           size(anlErrorStdDev_ptr), "mpi_real8", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal, "MPI_SUM")
       anlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDevMpiGlobal(:,:,:,:)
       deallocate(anlErrorStdDevMpiGlobal)
     end if

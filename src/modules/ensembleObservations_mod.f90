@@ -572,9 +572,7 @@ CONTAINS
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
 
-    call rpn_comm_allgather(ensObsClean%numObs, 1, 'mpi_integer',  &
-                            allNumObs, 1, 'mpi_integer', &
-                            'GRID', ierr)
+    call mmpi_gathervDisplacements(ensObsClean%numObs, allNumObs, displs)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
@@ -637,52 +635,21 @@ CONTAINS
 
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
-    if (mmpi_myid == 0) then
-      displs(1) = 0
-      do procIndex = 2, mmpi_nprocs
-        displs(procIndex) = displs(procIndex-1) + allNumObs(procIndex-1)
-      end do
-    else
-      displs(:) = 0
-    end if
-
-    call rpn_comm_gatherv(ensObsClean%lat, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%lat, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%lon, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%vertLocation, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%obsValue, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%obsErrInv, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%meanYb, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%deterYb, ensObsClean%numObs, 'mpi_real8', &
-                          ensObs_mpiglobal%deterYb, allNumObs, displs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
-                          ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
-                          0, 'GRID', ierr)
-    call rpn_comm_gatherv(ensObsClean%codTyp, ensObsClean%numObs, 'mpi_integer', &
-                          ensObs_mpiglobal%codTyp, allNumObs, displs, 'mpi_integer',  &
-                          0, 'GRID', ierr)
+    call mmpi_gatherv(ensObsClean%lat,          ensObs_mpiglobal%lat,          allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%lon,          ensObs_mpiglobal%lon,          allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%vertLocation, ensObs_mpiglobal%vertLocation, allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%obsValue,     ensObs_mpiglobal%obsValue,     allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%obsErrInv,    ensObs_mpiglobal%obsErrInv,    allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%meanYb,       ensObs_mpiglobal%meanYb,       allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%deterYb,      ensObs_mpiglobal%deterYb,      allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%assFlag,      ensObs_mpiglobal%assFlag,      allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%codTyp,       ensObs_mpiglobal%codTyp,       allNumObs, displs, ensObsClean%numObs)
     if (allocated(ensObsClean%obsErrInv_sim)) then
-      call rpn_comm_gatherv(ensObsClean%obsErrInv_sim, ensObsClean%numObs, 'mpi_real8', &
-                            ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
-                            0, 'GRID', ierr)
+      call mmpi_gatherv(ensObsClean%obsErrInv_sim, ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, ensObsClean%numObs)
     end if
 
     do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                            tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                            0, 'GRID', ierr)
+      call mmpi_gatherv(ensObsClean%Yb_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
     end do
     if (mmpi_myid == 0) then
       ensObs_mpiglobal%Yb_r4(:,:) = tempBuffer(:,:)
@@ -691,9 +658,7 @@ CONTAINS
 
     if (associated(ensObsClean%Ya_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
+        call mmpi_gatherv(ensObsClean%Ya_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%Ya_r4(:,:) = tempBuffer(:,:)
@@ -703,9 +668,7 @@ CONTAINS
 
     if (associated(ensObsClean%randPert_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
+        call mmpi_gatherv(ensObsClean%randPert_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%randPert_r4(:,:) = tempBuffer(:,:)
@@ -717,28 +680,18 @@ CONTAINS
 
     deallocate(tempBuffer)
 
-    call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs)
     if (allocated(ensObs_mpiglobal%obsErrInv_sim)) then
-      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                          0, 'GRID', ierr)
+      call mmpi_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs)
     end if
-    call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
-                        0, 'GRID', ierr)
-    call rpn_comm_bcast(ensObs_mpiglobal%codTyp, ensObs_mpiglobal%numObs, 'mpi_integer',  &
-                        0, 'GRID', ierr)
+    call mmpi_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs)
+    call mmpi_bcast(ensObs_mpiglobal%codTyp,  ensObs_mpiglobal%numObs)
 
     ! For shared memory we only need to send data to the other node masters
     nsize = ensObs_mpiglobal%numMembers*ensObs_mpiglobal%numObs
@@ -2034,7 +1987,7 @@ CONTAINS
 
     ! Locals:
     integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
-    integer :: numRejected, numRejectedMpiGlobal, ierr, windCount
+    integer :: numRejected, numRejectedMpiGlobal, windCount
     real    :: sigo, sigb, omp, sig, reject_limit
     logical :: reject_wind
 
@@ -2098,7 +2051,7 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_backgroundCheck: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2124,7 +2077,7 @@ CONTAINS
 
     ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
-    integer :: numRejected, numRejectedMpiGlobal, ierr
+    integer :: numRejected, numRejectedMpiGlobal
     real(8) :: obsLon, obsLat
 
     write(*,*) 'eob_removeObsNearLand: starting'
@@ -2155,7 +2108,7 @@ CONTAINS
       end do BODY_LOOP
     end do HEADER_LOOP
 
-    call rpn_comm_allreduce(numRejected,numRejectedMpiGlobal,1,'mpi_integer','mpi_sum','GRID',ierr)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2209,7 +2162,7 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
-    integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
+    integer           :: huberCount, huberCountMpiGlobal, ivar, windCount
     integer           :: bodyIndex, bodyIndexBeg, bodyIndexEnd, headerIndex
     real(pre_obsReal) :: c_limit, sig, sigo, sigb, omp, sigo_hub, sigo_hub_wind
     logical           :: reject_wind
@@ -2274,7 +2227,7 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(huberCount, huberCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(huberCount, huberCountMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (local) = ', huberCount
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (global)= ', huberCountMpiGlobal
@@ -2296,7 +2249,7 @@ CONTAINS
 
     ! Locals:
     integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
-    integer :: varNumber, bodyIndex, ierr
+    integer :: varNumber, bodyIndex
     ! reject lower than 975 hPa
     real, parameter    :: logPresRadianceLimit = 11.4876E0
 
@@ -2318,8 +2271,8 @@ CONTAINS
       end if
     end do
 
-    call rpn_comm_allreduce(acceptCount, acceptCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(rejectCount, rejectCountMpiGlobal, 1, 'mpi_integer', 'mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, "mpi_sum")
     write(*,*)
     write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (local) : ',  &
                acceptCount, rejectCount

@@ -309,12 +309,12 @@ program midas_extractBmatrixFor1Dvar
           bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
                                                 field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if
-        call rpn_comm_allreduce(columnProcIdLocal, columnProcIdGlobal, 1, "mpi_integer", "mpi_max", "GRID", ierr)
+        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, "mpi_max")
       end do variableLoop2
 
     end do variableLoop1
 
-    call RPN_COMM_bcast(Bmatrix, numVarLev * numVarLev, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
+    call mmpi_bcast(Bmatrix, procID_opt = columnProcIdGlobal)
     if (mmpi_myId ==0) then
       write(nulmat) latitude, longitude,  Bmatrix(:,:)
     end if
@@ -336,7 +336,7 @@ program midas_extractBmatrixFor1Dvar
   call utl_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
   write(*,*) ' --------------------------------'
   write(*,*) ' midas-extractBmatrix ENDS'

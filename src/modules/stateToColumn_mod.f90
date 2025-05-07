@@ -463,8 +463,7 @@ contains
       myVarLevBeg = stateVector%myVarLevBeg
     end if   
 
-    call rpn_comm_allgather(myVarLevBeg, 1,'mpi_integer',       &
-                            allVarLevBeg,1,'mpi_integer','grid',ierr)
+    call mmpi_allGather(myVarLevBeg, allVarLevBeg)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if (stateVector%hco%grtyp == 'G' .or. &
@@ -490,11 +489,9 @@ contains
         numHeaderUsed = numHeaderUsed + 1
 
       end do header_loop1
-      ! gather the number of obs over all processors for each timestep
-      call rpn_comm_allgather(numHeaderUsed,                 1, 'MPI_INTEGER', &
-                              allNumHeaderUsed(stepIndex,:), 1, 'MPI_INTEGER', &
-                              'GRID',ierr)
 
+      ! gather the number of obs over all processors for each timestep
+      call mmpi_allGather(numHeaderUsed, allNumHeaderUsed(stepIndex,:))
     end do
 
     numHeaderUsedMax = maxval(allNumHeaderUsed(:,:))
@@ -659,9 +656,7 @@ contains
 
       end do header_loop2
 
-      call rpn_comm_allgather(footprintRadiusVec_r4,                numHeaderUsedMax, 'MPI_REAL4', &
-                              allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
-                              'GRID', ierr)
+      call mmpi_allGather(footprintRadiusVec_r4, allFootprintRadius_r4(:,stepIndex,:))
 
       allocate(latColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
       allocate(lonColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
@@ -842,12 +837,10 @@ contains
             recvsizes(:) = 0
           end if
 
-          call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             lat_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
-          call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             lon_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(lat_send_r8, sendsizes, senddispls, &
+                              lat_recv_r8, recvsizes, recvdispls)
+          call mmpi_alltoallv(lon_send_r8, sendsizes, senddispls, &
+                              lon_recv_r8, recvsizes, recvdispls)
 
           do procIndex = 1, mmpi_nprocs
             ! all tasks copy the received step data into correct slot
@@ -908,10 +901,8 @@ contains
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call rpn_comm_allgather(latColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
-                                allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-        call rpn_comm_allgather(lonColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
-                                allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_allGather(latColumn(:,allVarLevBeg(1)), allLatOneLev(:,:))
+        call mmpi_allGather(lonColumn(:,allVarLevBeg(1)), allLonOneLev(:,:))
 
         k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do procIndex = 1, mmpi_nprocs
@@ -944,9 +935,7 @@ contains
 
     allocate(allHeaderIndex(numHeaderUsedMax,numStep,mmpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
-    call rpn_comm_allgather(headerIndexVec, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
-                            'GRID',ierr)
+    call mmpi_allGather(headerIndexVec, allHeaderIndex)
 
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
@@ -1203,7 +1192,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: procIndex, headerUsedIndex
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
     real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
@@ -1221,7 +1210,7 @@ contains
     if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(38,'----s2c_TL')
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
@@ -1274,8 +1263,7 @@ contains
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
@@ -1374,13 +1362,11 @@ contains
 
       end if ! if varLevIndex <= myVarLevEnd
 
-      call rpn_comm_barrier('GRID',ierr)
+      call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
-      nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                               cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_alltoall(cols_send, cols_recv)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
@@ -1450,7 +1436,7 @@ contains
     type(struct_gsv), pointer  :: stateVector
     integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, nsize, ierr, headerUsedIndex
+    integer :: procIndex, headerUsedIndex
     character(len=4)     :: varName
     real(8) :: weight
     real(8), pointer     :: allCols_ptr(:,:)
@@ -1466,7 +1452,7 @@ contains
     if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(40,'----s2c_AD')
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if ( .not. gsv_isAllocated(stateVector_out) ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
@@ -1507,8 +1493,7 @@ contains
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
@@ -1558,13 +1543,11 @@ contains
       end do proc_loop
       !$OMP END PARALLEL DO
 
-      call rpn_comm_barrier('GRID',ierr)
+      call mmpi_barrier
 
       ! mpi communication: alltoall for one level/variable
-      nsize = numHeaderMax
       if(mmpi_nprocs > 1) then
-        call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                               cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+        call mmpi_alltoall(cols_send, cols_recv)
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
@@ -1631,7 +1614,7 @@ contains
     deallocate(cols_send)
     deallocate(cols_recv)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
@@ -1686,7 +1669,7 @@ contains
     integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
-    integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
+    integer :: procIndex, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
     integer :: varLevIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
     real(8) :: weight
     character(len=4)     :: varName
@@ -1707,7 +1690,7 @@ contains
     call utl_tmg_start(34,'----s2c_NL')
 
     call utl_tmg_start(37,'------s2c_NL_barrier')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(37)
 
     if ( present(beSilent_opt) ) then
@@ -1814,13 +1797,10 @@ contains
         headerIndexEnd = headerIndexBeg + (obs_numheader(obsSpaceData) / numObsBatches) - 1
       end if
       numHeader = headerIndexEnd - headerIndexBeg + 1
-      call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                              'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
-     
-      call rpn_comm_allgather(numHeader,   1,'mpi_integer', &
-                              allNumHeader,1,'mpi_integer','grid',ierr)
-      call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
-                              allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
+      call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
+
+      call mmpi_allGather(numHeader,      allNumHeader)
+      call mmpi_allGather(headerIndexBeg, allHeaderIndexBeg)
       if ( .not. beSilent ) then
         write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
              headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
@@ -1932,7 +1912,7 @@ contains
         end if ! if varLevIndex <= myVarLevEnd
 
         call utl_tmg_start(37,'------s2c_NL_barrier')
-        call rpn_comm_barrier('GRID',ierr)
+        call mmpi_barrier
         call utl_tmg_stop(37)
 
         ! mpi communication: alltoallv for one level/variable
@@ -1964,9 +1944,8 @@ contains
         end do
 
         if(mmpi_nprocs > 1) then
-          call mpi_alltoallv(cols_send, sendsizes, senddispls, mmpi_datyp_real8,  &
-                             cols_recv, recvsizes, recvdispls, mmpi_datyp_real8,  &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(cols_send, sendsizes, senddispls, &
+                              cols_recv, recvsizes, recvdispls)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
@@ -2055,15 +2034,12 @@ contains
         end if
 
         ! mpi communication: scatter data from task 0
-        nsize = numHeader
         if(mmpi_nprocs > 1) then
           do procIndex = 1, mmpi_nprocs
             displs(procIndex) = (procIndex - 1) * numHeaderMax
             nsizes(procIndex) = allNumHeader(procIndex)
           end do
-          call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
-                                 cols_recv, nsize, 'MPI_REAL8', &
-                                 0, 'GRID', ierr)
+          call mmpi_scatterv(cols_send, cols_recv, nsizes, displs, numHeader)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
@@ -2868,15 +2844,14 @@ contains
     ! Locals:
     integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, varLevIndex
     integer :: numHeader, numHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    integer :: subGridIndex, gridptIndex, ierr, nsize
+    integer :: subGridIndex, gridptIndex
     integer, save :: numWrites = 0
     logical, allocatable :: allRejectObs(:,:), allRejectObsMpiGlobal(:,:)
 
     write(*,*) 's2c_rejectZeroWeightObs: Starting'
 
     numHeader = obs_numheader(obsSpaceData)
-    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
-                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
 
     allocate(allRejectObs(numHeaderMax,mmpi_nprocs))
     allocate(allRejectObsMpiGlobal(numHeaderMax,mmpi_nprocs))
@@ -2905,8 +2880,7 @@ contains
     end do ! procIndex
 
     ! do global communication of reject flags
-    nsize = numHeaderMax*mmpi_nprocs
-    call rpn_comm_allreduce(allRejectObs,allRejectObsMpiGlobal,nsize,'MPI_LOGICAL','MPI_LOR','GRID',ierr)
+    call mmpi_allReduce(allRejectObs, allRejectObsMpiGlobal, 'MPI_LOR')
 
     ! modify obsSpaceData based on reject flags
     do headerIndex = 1, obs_numHeader(obsSpaceData)

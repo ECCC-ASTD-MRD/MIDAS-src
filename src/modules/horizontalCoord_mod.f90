@@ -715,7 +715,6 @@ contains
     type(struct_hco), pointer, intent(inout) :: hco
 
     ! Locals:
-    integer :: ierr
     integer, external :: ezqkdef
     
     write(*,*) 'hco_mpiBcast: starting'
@@ -728,43 +727,43 @@ contains
       end if
     end if
     
-    call rpn_comm_bcastc(hco%gridname, len(hco%gridname), 'MPI_CHARACTER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%ni, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%nj, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(hco%grtyp, len(hco%grtyp), 'MPI_CHARACTER', 0, 'GRID', ierr)
-    call rpn_comm_bcastc(hco%grtypTicTac, len(hco%grtypTicTac), 'MPI_CHARACTER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%ig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%gridname)
+    call mmpi_bcast(hco%initialized)
+    call mmpi_bcast(hco%ni)
+    call mmpi_bcast(hco%nj)
+    call mmpi_bcast(hco%grtyp)
+    call mmpi_bcast(hco%grtypTicTac)
+    call mmpi_bcast(hco%ig1)
+    call mmpi_bcast(hco%ig2)
+    call mmpi_bcast(hco%ig3)
+    call mmpi_bcast(hco%ig4)
     if (mmpi_myid > 0) then
       allocate(hco%lat(hco%nj))
       allocate(hco%lon(hco%ni))
       allocate(hco%lat2d_4(hco%ni,hco%nj))
       allocate(hco%lon2d_4(hco%ni,hco%nj))
     end if
-    call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lat2d_4, size(hco%lat2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%lon2d_4, size(hco%lon2d_4), 'MPI_REAL4', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%global, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%rotated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(hco%lat)
+    call mmpi_bcast(hco%lon)
+    call mmpi_bcast(hco%lat2d_4)
+    call mmpi_bcast(hco%lon2d_4)
+    call mmpi_bcast(hco%dlat)
+    call mmpi_bcast(hco%dlon)
+    call mmpi_bcast(hco%global)
+    call mmpi_bcast(hco%rotated)
+    call mmpi_bcast(hco%xlat1)
+    call mmpi_bcast(hco%xlon1)
+    call mmpi_bcast(hco%xlat2)
+    call mmpi_bcast(hco%xlon2)
+    call mmpi_bcast(hco%xlat1_yan)
+    call mmpi_bcast(hco%xlon1_yan)
+    call mmpi_bcast(hco%xlat2_yan)
+    call mmpi_bcast(hco%xlon2_yan)
     if (hco%grtyp == 'U') then
       if (mmpi_myid > 0) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
-      call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
+      call mmpi_bcast(hco%tictacU)
     end if
     
     if (mmpi_myid > 0) then
@@ -1147,9 +1146,9 @@ contains
       end if ! End of 'if ( fileExist ) then'
     end if ! End of 'if ( mmpi_myid == 0 ) then'
 
-    call rpn_comm_bcast(fileExist, 1, "MPI_LOGICAL", 0, "GRID", ierr)
+    call mmpi_bcast(fileExist)
     if ( fileExist ) then
-      call rpn_comm_bcast(weight, ni*njWeight, "MPI_REAL8", 0, "GRID", ierr)
+      call mmpi_bcast(weight, ni*njWeight)
       return
     end if
 

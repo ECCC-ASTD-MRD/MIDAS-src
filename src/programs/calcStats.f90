@@ -213,6 +213,6 @@ program midas_calcStats
   call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 end program midas_calcStats

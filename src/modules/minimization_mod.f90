@@ -882,8 +882,8 @@ CONTAINS
       call utl_abort('min_hessianIO: status not valid ')
     endif
 
-    call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
-    call rpn_comm_allreduce(nmtra          ,nmtra_mpiglobal, 1,"mpi_integer","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(nvadim_mpilocal, nvadim_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(nmtra, nmtra_mpiglobal, "mpi_sum")
 
     ireslun=0
 
@@ -927,8 +927,8 @@ CONTAINS
       end if
 
       ! ibrpstamp and iztrl_io must be broadcasted
-      call rpn_comm_bcast(ibrpstamp,  1, "MPI_INTEGER", 0, "GRID", ierr)
-      call rpn_comm_bcast(iztrl_io , 10, "MPI_INTEGER", 0, "GRID", ierr)
+      call mmpi_bcast(ibrpstamp)
+      call mmpi_bcast(iztrl_io)
 
       !- Read the Hessian
       if(mmpi_myid == 0) then 

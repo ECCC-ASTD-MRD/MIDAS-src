@@ -43,7 +43,7 @@ module rMatrix_mod
 contains
 
   subroutine rmat_init(nsensors, headerEnd)
-   
+
     implicit none
 
     ! Arguments:
@@ -57,9 +57,9 @@ contains
 
     ! Default value for parameter rmat_lnondiagr, don't use interchannel correlation by default
     rmat_lnonDiagR = .false.
-    rmat_estLatMax = mpc_missingvalue_r8 
-    rmat_estLatMin = mpc_missingvalue_r8 
-    rmat_estLandSeaExcl = mpc_missingvalue_int  
+    rmat_estLatMax = mpc_missingvalue_r8
+    rmat_estLatMin = mpc_missingvalue_r8
+    rmat_estLandSeaExcl = mpc_missingvalue_int
     rmat_estElevMax = mpc_missingvalue_r8
 
     ! Read the parameters from NAMRMAT
@@ -89,7 +89,7 @@ contains
 
   subroutine rmat_readCMatrix(instrument, sensor_id, ichan )
     implicit none
-    
+
     ! Arguments:
     integer, intent(in) :: instrument(3)
     integer, intent(in) :: sensor_id
@@ -100,7 +100,7 @@ contains
     integer :: err
 
     call rttov_coeffname (err, instrument, coeffname=filename, filetype="Cmat")
-    
+
     if (err == errorstatus_success) then
        filename = trim(filename) // ".dat"
        call rmat_readCMatrixByFileName(filename,Rcorr_inst(sensor_id), ichan )
@@ -108,7 +108,7 @@ contains
       write(*,*) "Unknown instrument ",instrument(:)
       call utl_abort("rmat_read_C_matrix")
     end if
-    
+
   end subroutine rmat_readCMatrix
 
 
@@ -139,7 +139,7 @@ contains
     end if
 
     write(*,*) "rmat_readCMatrixByFileName: Reading " // trim(infile)
-    
+
     read(iu,*) nch
     if (nchn == -1) then
       nchn = nch
@@ -151,7 +151,7 @@ contains
       end if
     end if
     allocate(foundChanIndex(nch))
-    
+
     C%nchans = nchn
     allocate(C%Rmat(nchn,nchn))
     allocate(C%listChans(nchn))
@@ -181,7 +181,7 @@ contains
     if (count /= nchn) then
       write(*,*) "Warning: Missing information in " // trim(infile)
       do j = 1, nchn
-        write(*,*) j, chanList_opt(j) 
+        write(*,*) j, chanList_opt(j)
       end do
       write(*,*) "Not important if there is no observation of this family"
     end if
@@ -219,7 +219,7 @@ contains
     integer, intent(in)  :: headerIndex
 
     ! Locals:
-    real (8) :: Rsub(nsubset,nsubset), alpha, beta, variance 
+    real (8) :: Rsub(nsubset,nsubset), alpha, beta, variance
     integer :: foundChanIndex(nsubset)
     integer :: i,j
 
@@ -235,7 +235,7 @@ contains
         bj: do j = 1, Rcorr_inst(sensor_id)%nchans
           if (list_sub(i) == Rcorr_inst(sensor_id)%listChans(j)) then
             foundChanIndex(i) = j
-            exit bj 
+            exit bj
           end if
         end do bj
       end do
@@ -320,7 +320,7 @@ contains
             list_OER( count ) = obs_bodyElem_r( obsspacedata, OBS_OER, bodyIndex )
             obsIn( count ) = obs_bodyElem_r( obsspacedata, elem_src_i, bodyIndex )
           end if
-        
+
         end do
 
         if (count > 0) then
@@ -341,10 +341,10 @@ contains
             call obs_bodySet_r(obsspacedata, elem_dest_i, bodyIndex, 0.d0)
           end do
 
-        end if 
+        end if
 
       else
-       
+
         do bodyIndex = idata, idatend
           if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
             call obs_bodySet_r( obsspacedata, elem_dest_i, bodyIndex, &
@@ -355,7 +355,7 @@ contains
       end if ! is it a radiance in non diagonal R mode ?
 
     end do !loop on header
- 
+
   end subroutine rmat_RsqrtInverseAllObs
 
   !--------------------------------------------------------------------------
@@ -375,14 +375,14 @@ contains
     real(8), intent(in)  :: obsIn(nsubset)     ! Sampling Perturbation
     real(8), intent(out) :: obsOut(nsubset)    ! Error Perturbation
     integer, intent(in)  :: list_sub(nsubset)  ! List of subset channels in R-matrix
-    real(8), intent(in)  :: list_oer(nsubset)  ! List of Obs Error  
-    
+    real(8), intent(in)  :: list_oer(nsubset)  ! List of Obs Error
+
     ! Locals:
     real(8)              :: alpha, beta, variance
     real(8), allocatable :: Rsub(:,:)
     integer              :: foundChanIndex(nsubset)
     integer              :: chanIndex1, chanIndex2
-   
+
     allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
       write(*,*) 'invalid sensor_id', sensor_id,size(Rcorr_inst)
@@ -395,7 +395,7 @@ contains
       chanLoop: do chanIndex2 = 1, Rcorr_inst(sensor_id)%nchans
         if (list_sub(chanIndex1) == Rcorr_inst(sensor_id)%listChans(chanIndex2)) then
           foundChanIndex(chanIndex1) = chanIndex2
-          exit chanLoop 
+          exit chanLoop
         end if
       end do chanLoop
     end do
@@ -443,8 +443,8 @@ contains
     integer, intent(in)  :: sensor_id            ! Sensor ID
     integer, intent(in)  :: list_sub(:)          ! List of subset channels in R-matrix
     real(8), intent(in)  :: list_oer(:)          ! List of Obs Error
-    real(8), intent(out) :: Rsub(:,:)            ! output R matrix  
-    
+    real(8), intent(out) :: Rsub(:,:)            ! output R matrix
+
     ! Locals:
     real(8)   :: variance
     integer   :: foundChanIndex(size(list_sub))
@@ -462,7 +462,7 @@ contains
       chanLoop: do chanIndex2 = 1, Rcorr_inst(sensor_id)%nchans
         if (list_sub(chanIndex1) == Rcorr_inst(sensor_id)%listChans(chanIndex2)) then
           foundChanIndex(chanIndex1) = chanIndex2
-          exit chanLoop 
+          exit chanLoop
         end if
       end do chanLoop
     end do
@@ -480,16 +480,16 @@ contains
         Rsub(chanIndex1, chanIndex2) = variance * Rcorr_inst(sensor_id)%Rmat(foundChanIndex(chanIndex1), foundChanIndex(chanIndex2))
       end do
     end do
-    
+
   end subroutine rmat_getRmatrix
 
-  
+
   !--------------------------------------------------------------------------
   ! rmat_updateRmat
   !--------------------------------------------------------------------------
   subroutine rmat_updateRmat(obsSpaceData, obsSpaceIndexObs, obsSpaceIndexTrue)
     !
-    !:Purpose: Estimate observation error std and their correlations 
+    !:Purpose: Estimate observation error std and their correlations
     !          based on truth and simulated obs
     !
     implicit none
@@ -498,14 +498,13 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData      ! ObsSpaceData object
     integer,          intent(in)    :: obsSpaceIndexObs  ! ObsSpace Index corresponding to observation
     integer,          intent(in)    :: obsSpaceIndexTrue ! ObsSpace Index corresponding to truth
-     
 
-    ! Locals: 
+
+    ! Locals:
     integer              :: headerIndex, bodyIndex, sensorIndex, taskIndex, chanIndex
     integer              :: channelNumber, channelIndex
     integer              :: idata, idatend, idatyp
-    integer              :: ierr, assimChan
-    integer              :: tag, status
+    integer              :: assimChan, tag
     integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:)
     real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:)
     real(8), allocatable :: obsErrSqrdSum(:,:)
@@ -518,7 +517,7 @@ contains
     type(rmat_matrix), target, allocatable  :: estR(:)
     type(rmat_matrix), target, allocatable  :: ObsErrSqrdMat(:)
     type(rmat_matrix), target, allocatable :: RCorr(:)
-  
+
     allocate(headerCountMpiGlobal(tvs_nsensors))
     allocate(obsErrSum(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
     allocate(obsErrSumAllTasks(tvs_nsensors, maxval(tvs_nchanMpiGlobal), mmpi_nprocs))
@@ -528,7 +527,7 @@ contains
     allocate(meanObsErrMpiGlobal(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
     allocate(chanList(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
     allocate(chanListAllTasks(tvs_nsensors, maxval(tvs_nchanMpiGlobal), mmpi_nprocs))
-    
+
     allocate(estR(tvs_nsensors))
     allocate(ObsErrSqrdMat(tvs_nsensors))
 
@@ -568,26 +567,26 @@ contains
       sensorIndex = tvs_lsensor(headerIndex)
 
       ! Exclude observations with land sea mask
-      if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. & 
+      if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. &
           obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) == rmat_estLandSeaExcl) then
         cycle HEADER1
       end if
 
       ! Exclude observations with elevation greater than rmat_estElevMax
       if (rmat_estElevMax /= mpc_missingvalue_r8 .and. &
-          obs_headElem_r(obsspacedata, OBS_ELEV, headerIndex) > rmat_estElevMax) then 
+          obs_headElem_r(obsspacedata, OBS_ELEV, headerIndex) > rmat_estElevMax) then
         cycle HEADER1
       end if
 
       ! Max latitude criteria
       if (rmat_estLatMax /= mpc_missingvalue_r8 .and. &
-          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 > rmat_estLatMax) then 
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 > rmat_estLatMax) then
         cycle HEADER1
       end if
 
       ! Min latitude criteria
-      if (rmat_estLatMin /= mpc_missingvalue_r8 .and. & 
-          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 < rmat_estLatMin) then 
+      if (rmat_estLatMin /= mpc_missingvalue_r8 .and. &
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 < rmat_estLatMin) then
         cycle HEADER1
       end if
 
@@ -598,7 +597,7 @@ contains
         ! Check if all required channels are flag as assimilated in order to be used to estimate R-Matrix.
         assimChan = 0
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) assimChan = assimChan + 1  
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) assimChan = assimChan + 1
         end do
         if (assimChan /= tvs_nchanMpiGlobal(sensorIndex)) cycle HEADER1
 
@@ -638,13 +637,11 @@ contains
     end do HEADER1
 
     ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
-    call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors, 'MPI_INTEGER', 'GRID', ierr)
-    call rpn_comm_allgather(obsErrSum, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', &
-                            obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', 'GRID', ierr)
-    call rpn_comm_allgather(chanList, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', &
-                            chanListAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', 'GRID', ierr)
+    call mmpi_allGather(headerCount, headerCountAllTasks)
+    call mmpi_allGather(obsErrSum, obsErrSumAllTasks)
+    call mmpi_allGather(chanList, chanListAllTasks)
     deallocate(headerCount)
-    
+
     Sensor: do sensorIndex = 1, tvs_nsensors
       do taskIndex = 1, mmpi_nprocs
         if (headerCountAllTasks(sensorIndex, taskIndex) > 0) then
@@ -672,25 +669,23 @@ contains
     do sensorIndex = 1, tvs_nsensors
 
       ! Send ObsErrSqrdMat from all MPI tasks to MPI task 0.
-      if (mmpi_myid > 0) then 
+      if (mmpi_myid > 0) then
         tag = mmpi_myId
-        call rpn_comm_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                          'mpi_real8', 0, tag, 'GRID', ierr )
+        call mmpi_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tag, procID = 0)
       end if
 
-      if (mmpi_myid == 0) then 
-        
+      if (mmpi_myid == 0) then
+
         ! Collect ObsErrSqrdMat from all MPI tasks
         do taskIndex = 1, mmpi_nprocs - 1
           allocate(localRmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
           tag = taskIndex
-          call rpn_comm_recv(localRmat,  tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                             'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
+          call mmpi_recv(localRmat, tag, taskIndex)
           ObsErrSqrdMat(sensorIndex)%Rmat(:,:) = ObsErrSqrdMat(sensorIndex)%Rmat(:,:) + localRmat
           deallocate(localRmat)
         end do
-        
-        !Compute Rmatix = mean(x^2) + (mean(x))^2  
+
+        !Compute Rmatix = mean(x^2) + (mean(x))^2
         allocate(vector(1,tvs_nchanMpiGlobal(sensorIndex)))
         vector(1,:) = meanObsErrMpiGlobal(sensorIndex, 1:tvs_nchanMpiGlobal(sensorIndex))
         estR(sensorIndex)%Rmat(:,:) = ObsErrSqrdMat(sensorIndex)%Rmat(:,:) / (headerCountMpiGlobal(sensorIndex) -1) + &
@@ -698,8 +693,7 @@ contains
         deallocate(vector)
       end if
 
-      call rpn_comm_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                          'mpi_real8', 0, 'GRID', ierr)
+      call mmpi_bcast(estR(sensorIndex)%Rmat)
     end do
     deallocate(ObsErrSqrdMat)
     deallocate(meanObsErrMpiGlobal)
@@ -719,7 +713,7 @@ contains
     ! Extract Sigma(o) and observation error correlation matrix from estimated Rmatrix
     do sensorIndex = 1, tvs_nsensors
       numchan = estR(sensorIndex)%nchans
-     
+
       do ichan = 1, numchan
         if (estR(sensorIndex)%Rmat(ichan, ichan) < 0.0d0) then
           call utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
@@ -744,7 +738,7 @@ contains
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
-    
+
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'rmat_updateRmat: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
@@ -770,7 +764,7 @@ contains
         call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsErrStdev(sensorIndex, channelIndex))
 
       end do
-    end do HEADER2 
+    end do HEADER2
 
     ! Copy R-Matrix related content into Rcorr_inst object
     do sensorIndex = 1, tvs_nsensors
@@ -794,13 +788,13 @@ contains
     !
     implicit none
 
-    ! Locals: 
+    ! Locals:
     integer :: sensorIndex
     character (len=64) :: filename
     integer :: err, iunit, numChan, chanIndex1, chanIndex2
     integer, external :: fnom, fclos
 
-    SENSOR: do sensorIndex = 1, tvs_nsensors  
+    SENSOR: do sensorIndex = 1, tvs_nsensors
       if (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSOR
 
       ! Construct correlation file name

@@ -557,9 +557,9 @@ contains
 
     ! Locals:
     real(8) :: predictor(NumPredictors)
-    integer :: nsize, i, j, npred
+    integer :: i, j, npred
     integer :: headerIndex, idatyp
-    integer :: iSensor, iFov, iPredictor, ierr
+    integer :: iSensor, iFov, iPredictor
     integer :: bodyIndex, jpred, chanIndx
     real(8), allocatable ::  temp_offset(:,:)
     integer, allocatable ::  temp_nobs(:)
@@ -627,12 +627,7 @@ contains
         end do
 
         temp_nobs(:) = 0
-        nsize = size(temp_nobs)
-        call rpn_comm_allreduce(temp_nobs2(iSensor,:), temp_nobs, nsize, "mpi_integer", &
-             "mpi_sum", "GRID", ierr)
-        if (ierr /= 0) then
-          call utl_abort("bcs_computePredictorBiases: Erreur de communication MPI 2")
-        end if
+        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum")
        
         do i = 1, bias(iSensor)%numChannels
           bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
@@ -1024,7 +1019,6 @@ contains
     real(8) :: OmF, bcor
     integer :: ierr, nulfile1, nulfile2
     character(len=10) :: instrName, satNamecoeff
-    character(len=72) :: errorMessage
 
     if (.not. biasActive) return
 
@@ -1088,11 +1082,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
@@ -1155,8 +1145,6 @@ contains
     real(8) :: OmF
     real(8), parameter :: alpha = 5.d0
     real(8) :: stepObsIndex
-    integer :: ierr
-    character(len=72) :: errorMessage
 
     if (.not. biasActive) return
 
@@ -1218,11 +1206,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
@@ -1231,16 +1215,8 @@ contains
         end where
       end if
 
-      call rpn_comm_bcast(countMpiGlobal, nchans*nfiles, "mpi_integer", 0, "GRID", ierr)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
-      call rpn_comm_bcast(stdMpiGlobal, nchans*nfiles, "mpi_double_precision", 0, "GRID", ierr)
-      if (ierr /=0) then
-        write(errorMessage,*) "bcs_removeOutliers: MPI communication error 5", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mmpi_bcast(countMpiGlobal)
+      call mmpi_bcast(stdMpiGlobal)
 
       if (sum(countMpiGlobal) /= 0) then
 
@@ -1654,7 +1630,7 @@ contains
 
     ! Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
-    integer  :: nsize, ierr
+    integer  :: nsize
  
     if (mmpi_myid == 0) then
       write(*,*) 'bcs_cvToCoeff: start'
@@ -1699,7 +1675,7 @@ contains
         nsize = bias(iSensor)%numScan 
         do iChannel = 1, bias(iSensor)%numChannels
           if (bias(iSensor)%chans(iChannel)%isDynamic) &
-               call rpn_comm_bcast(bias(iSensor)%chans(iChannel)%coeffIncr_fov, nsize, "mpi_double_precision", 0, "GRID", ierr)
+               call mmpi_bcast(bias(iSensor)%chans(iChannel)%coeffIncr_fov, nsize)
         end do
       end if
     end do
@@ -1710,7 +1686,7 @@ contains
         do iChannel = 1, bias(iSensor)%numChannels
           if (bias(iSensor)%chans(iChannel)%isDynamic) then
             nsize = bias(iSensor)%chans(iChannel)%numActivePredictors 
-            call rpn_comm_bcast(bias(iSensor)%chans(iChannel)%coeffIncr, nsize, "mpi_double_precision", 0, "GRID", ierr)
+            call mmpi_bcast(bias(iSensor)%chans(iChannel)%coeffIncr, nsize)
           end if
         end do
       end if
@@ -2851,16 +2827,15 @@ contains
     ! Locals:
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex, iPred1, jPred1
-    integer    :: headerIndex, idatyp, nPredMax, ierr, iFov, iScan, idim
+    integer    :: headerIndex, idatyp, nPredMax, iFov, iScan, idim
     integer    :: bodyIndex, chanIndx, predstart, ntot
     real(8)    :: OmF, sigmaObs, lambda, norm
     real(8)    :: predictor(NumPredictors)
     real(8), allocatable :: Matrix(:,:,:), Vector(:,:)
     real(8), allocatable :: matrixMpiGlobal(:,:,:), vectorMpiGlobal(:,:)
     real(8), allocatable :: pIMatrix(:,:), OmFBias(:,:), omfBiasMpiGlobal(:,:)
-    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:,:)
+    real(8), allocatable :: BMatrixMinusOne(:,:), LineVec(:), lineVecTmp(:,:)
     integer, allocatable :: OmFCount(:,:), omfCountMpiGlobal(:,:)
-    character(len=80)    :: errorMessage
 
     write(*,*) "bcs_do_regression: start"
     if (.not. allocated(trialHeight300m1000)) then
@@ -2897,7 +2872,8 @@ contains
       allocate(Vector(nchans,ndimmax))
       Vector(:,:) = 0.d0
 
-      allocate(LineVec(1,ndimmax))
+      allocate(LineVec(ndimmax))
+      allocate(LineVecTmp(1,ndimmax))
 
       allocate(pIMatrix(ndimmax,ndimmax))
 
@@ -2949,22 +2925,14 @@ contains
       if (mimicSatbcor) then
         call mmpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       end if
-      call rpn_comm_reduce(OmFCount, omfCountMpiGlobal, size(omfCountMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      call mmpi_reduce(OmFCount, omfCountMpiGlobal, "MPI_SUM")
 
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_do_regression: MPI communication error 2", ierr 
-        call utl_abort(errorMessage)
-      end if
       if (mimicSatbcor)  then
         if (mmpi_myId == 0) then
           where(omfCountMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
           where(omfCountMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
-        call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
-        if (ierr /= 0) then
-          write(errorMessage,*) "bcs_do_regression: MPI communication error 3", ierr 
-          call utl_abort(errorMessage)
-        end if
+        call mmpi_bcast(omfBiasMpiGlobal)
         do iChannel = 1, nchans
           bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = omfBiasMpiGlobal(iChannel, :)
         end do
@@ -3005,14 +2973,14 @@ contains
 
             if (mimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
             
-            LineVec(:,:) = 0.d0
+            LineVec(:) = 0.d0
 
             if (mimicSatbcor) then
               idim = 0
               predstart = 1
               lambda = 1.d0
             else
-              LineVec(1,iScan) = 1.d0
+              LineVec(iScan) = 1.d0
               idim = nscan
               predstart = 2
               sigmaObs = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
@@ -3024,10 +2992,15 @@ contains
             do iPred1 = predstart, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred1 = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPred1)
               idim = idim + 1
-              LineVec(1,idim) = predictor(jPred1)
+              LineVec(idim) = predictor(jPred1)
             end do
-            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(LineVec),LineVec) * lambda
-            Vector(chanIndx,:) =  Vector(chanIndx,:) + LineVec(1,:) * OmF  * lambda
+            ! TODO: simplify the floating point precision conversions
+            ! This should be
+            !       Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + dot_product(LineVec,LineVec) * lambda
+            ! but we use this formulation to avoid affecting the results
+            lineVecTmp(1,:) = LineVec(:)
+            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(LineVecTmp),LineVecTmp) * lambda
+            Vector(chanIndx,:) =  Vector(chanIndx,:) + LineVec(:) * OmF  * lambda
           end if
         end do BODY2
       end do HEADER2
@@ -3072,36 +3045,33 @@ contains
 
           pIMatrix(:,:) = 0.d0
           call utl_pseudo_inverse(matrixMpiGlobal(iChannel, 1:ndim, 1:ndim), pIMatrix(1:ndim, 1:ndim))
-          LineVec(1,1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
-          !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1,1:ndim), 1)
+          LineVec(1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
+          !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1:ndim), 1)
         end if
 
-        call rpn_comm_bcast(ndim, 1, "mpi_integer", 0, "GRID", ierr)
-        call rpn_comm_bcast(npred, 1, "mpi_integer", 0, "GRID", ierr)
+        call mmpi_bcast(ndim)
+        call mmpi_bcast(npred)
 
-        call rpn_comm_bcast(LineVec(1,1:ndim), ndim, "mpi_double_precision", 0, "GRID", ierr)
-        if (ierr /= 0) then
-          write(errorMessage,*) "bcs_do_regression: MPI communication error 6", ierr 
-          call utl_abort(errorMessage)
-        end if
+        call mmpi_bcast(LineVec(1:ndim))
 
         if (outCoeffCov) then
           allocate (bias(sensorIndex)%chans(iChannel)%coeffCov(ndim,ndim)) 
-          call rpn_comm_bcast(pIMatrix(1:ndim, 1:ndim), ndim * ndim, "mpi_double_precision", 0, "GRID", ierr)
+          call mmpi_bcast(pIMatrix(1:ndim, 1:ndim))
           bias(sensorIndex)%chans(iChannel)%coeffCov(:,:) = pIMatrix(1:ndim,1:ndim)
         end if
 
         if (mimicSatbcor) then
-          bias(sensorIndex)%chans(iChannel)%coeff(:) = LineVec(1,1:npred)
+          bias(sensorIndex)%chans(iChannel)%coeff(:) = LineVec(1:npred)
         else
-          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1,1:nscan)
+          bias(sensorIndex)%chans(iChannel)%coeff_fov(:) = LineVec(1:nscan)
           bias(sensorIndex)%chans(iChannel)%coeff(1) = 0.d0
-          bias(sensorIndex)%chans(iChannel)%coeff(2:) = LineVec(1,nscan+1:ndim)
+          bias(sensorIndex)%chans(iChannel)%coeff(2:) = LineVec(nscan+1:ndim)
         end if
 
       end do
 
       deallocate(LineVec)
+      deallocate(LineVecTmp)
       deallocate(Matrix)
       deallocate(Vector  )
       deallocate(omfCountMpiGlobal)
@@ -3130,12 +3100,11 @@ contains
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
     integer :: idatyp, iSensor, chanIndx, ierr
-    Real(8):: OmF
+    real(8):: OmF
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
-    integer, allocatable :: Count(:), CountMpiGlobal(:)
+    integer, allocatable :: tcount(:), countMpiGlobal(:)
     real(8), allocatable :: OmFBiasMpiGlobal(:), predBiasMpiGlobal(:,:), MatrixMpiGLobal(:,:,:)
-    character(len=128)   :: errorMessage
-    real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
+    real(8) :: vector(1,numPredictors), predictor(numPredictors), correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
     integer :: iuncov, iuncorr
 
@@ -3154,8 +3123,8 @@ contains
       allocate(predBias(nchans,numPredictors))
       predBias(:,:) = 0.d0
 
-      allocate(Count(nchans))
-      Count(:) = 0
+      allocate(tcount(nchans))
+      tcount(:) = 0
 
       ! First pass throught ObsSpaceData to estimate biases and count data
       call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -3180,7 +3149,7 @@ contains
           if (chanindx > 0) then
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
-            count(chanIndx) = count(chanIndx) + 1
+            tcount(chanIndx) = tcount(chanIndx) + 1
             call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             predBias(chanIndx,:) = predBias(chanIndx,:) + predictor(:)
           end if
@@ -3193,12 +3162,7 @@ contains
 
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
-
-      call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
@@ -3208,25 +3172,13 @@ contains
           if (countMpiGlobal(channelIndex) > 0) predBiasMpiGlobal(channelIndex,:) = predBiasMpiGlobal(channelIndex,:) / countMpiGlobal(channelIndex)
         end do
       end if
-      call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
-      call rpn_comm_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
-        call utl_abort(errorMessage)
-      end if
-      call rpn_comm_bcast(countMpiGlobal, size(countMpiGlobal), "mpi_integer", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mmpi_bcast(omfBiasMpiGlobal)
+      call mmpi_bcast(predBiasMpiGlobal)
+      call mmpi_bcast(countMpiGlobal)
 
       deallocate(OmFBias)
       deallocate(predBias)
-      deallocate(Count)
+      deallocate(tcount)
       allocate(matrix(nchans,numPredictors,numPredictors))
       matrix(:,:,:) = 0.d0
 
@@ -4018,7 +3970,7 @@ contains
     integer, optional, intent(in)    :: codeTypeList_opt(:)
 
     ! Locals:
-    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer                :: headerIndex, numHeader, numBody, codeType
     integer, allocatable   :: allNumHeader(:), allNumBody(:)
 
     numHeader = 0
@@ -4036,10 +3988,8 @@ contains
     end do HEADERCOUNT
     allocate(allNumHeader(mmpi_nprocs))
     allocate(allNumBody(mmpi_nprocs))
-    call rpn_comm_allgather(numHeader, 1, 'mpi_integer',       &
-                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
-    call rpn_comm_allgather(numBody, 1, 'mpi_integer',       &
-                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    call mmpi_allGather(numHeader, allNumHeader)
+    call mmpi_allGather(numBody,   allNumBody)
     if (mmpi_myid > 0) then
       idObs = sum(allNumHeader(1:mmpi_myid))
       idData = sum(allNumBody(1:mmpi_myid))

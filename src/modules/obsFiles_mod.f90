@@ -224,8 +224,7 @@ contains
     type(struct_eob), optional, intent(in)    :: ensObs_opt          
   
     ! Locals:
-    integer           :: fileIndex, ierr
-    integer           :: status, baseNameIndexBeg
+    integer           :: fileIndex, ierr, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
     character(len=fileTypeLen) :: obsFileType
@@ -310,7 +309,7 @@ contains
                      'instead of ramdisk'
         end if
 
-        if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+        if (obsf_filesSplit()) call mmpi_barrier
 
         ! update obsDB files
         do fileIndex = 1, obsf_nfiles
@@ -853,11 +852,10 @@ contains
     character(len=*), intent(out) :: obsFileType
 
     ! Locals:
-    integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
+    integer :: procID, all_nfiles(0:(mmpi_nprocs-1))
     logical :: fileExists
 
-    call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
-                             all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
+    call mmpi_allGather(obsf_nfiles, all_nfiles)
     fileExists = .false.
     procid_loop: do procID = 0, (mmpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
@@ -874,7 +872,7 @@ contains
 
     if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_fileName(1) )
 
-    call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
+    call mmpi_bcast(obsFileType, procID)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
@@ -1066,7 +1064,7 @@ contains
     integer :: nrep_modified    ! Number of modified reports
 
     ! Locals:
-    integer :: ierr,nrep_modified_global
+    integer :: nrep_modified_global
     character(len=maxLengthFilename) :: filename
     logical                          :: fileFound
     character(len=fileTypeLen)       :: obsFileType
@@ -1089,7 +1087,7 @@ contains
     end if
 
     if (obsf_filesSplit()) then
-       call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call mmpi_allReduce(nrep_modified, nrep_modified_global, "MPI_SUM")
        nrep_modified = nrep_modified_global
     end if
 
@@ -1213,7 +1211,7 @@ contains
 
       ! Create destination directory
       if (mmpi_myid == 0) status = clib_mkdir_r(trim(directoryInOut))
-      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+      if (obsf_filesSplit()) call mmpi_barrier
 
       ! If obs files not split and I am not task 0, then return
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
@@ -1242,7 +1240,7 @@ contains
       end do
 
       ! Remove the directory
-      if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+      if (obsf_filesSplit()) call mmpi_barrier
       if (mmpi_myid == 0) status = clib_remove(trim(directoryInOut))
       
     else
@@ -1273,7 +1271,6 @@ contains
     integer    :: numHeaders, numBodies
     integer    :: headerIndex, bodyIndex
     integer    :: headerIndexBegin, headerIndexEnd, bodyIndexBegin, bodyIndexEnd
-    integer    :: ierr
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
     integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 
@@ -1287,10 +1284,8 @@ contains
 
     allocate(allNumHeaderRead(mmpi_nprocs))
     allocate(allNumBodyRead(mmpi_nprocs))
-    call rpn_comm_allgather(numHeaderRead,1,'mpi_integer',       &
-                            allNumHeaderRead,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(numBodyRead,1,'mpi_integer',       &
-                            allNumBodyRead,1,'mpi_integer','GRID',ierr)
+    call mmpi_allGather(numHeaderRead, allNumHeaderRead)
+    call mmpi_allGather(numBodyRead, allNumBodyRead)
     if (mmpi_myid > 0) then
       initialHeaderindex = sum(allNumHeaderRead(1:mmpi_myid))
       initialBodyindex = sum(allNumBodyRead(1:mmpi_myid))

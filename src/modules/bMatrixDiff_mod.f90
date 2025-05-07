@@ -255,7 +255,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_mpiglobal, 1, "mpi_integer", "mpi_sum", "GRID", ierr)
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "MPI_SUM")
 
     allocate(stddev(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d))
 
@@ -385,7 +385,7 @@ CONTAINS
     type(struct_vco), pointer, intent(in) :: vco
 
     ! Locals:
-    integer          :: variableIndex, ierr
+    integer          :: variableIndex
     type(struct_gsv) :: stateVector
     real(8), pointer :: field3D_r8_ptr(:,:,:)
     real(8)          :: minStddev, maxStddev
@@ -407,8 +407,8 @@ CONTAINS
       call gsv_getField(statevector, field3D_r8_ptr, bdiff_varNameList(variableIndex))
       stddev(:,:,variableIndex) = dble(field3D_r8_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)), minStddev,1, 'mpi_real8', 'mpi_min', 'GRID', ierr)
-        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev,1, 'mpi_real8', 'mpi_max', 'GRID', ierr)
+        call mmpi_allreduce(minval(stddev(:,:,variableIndex)), minStddev, 'mpi_min')
+        call mmpi_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev, 'mpi_max')
       else
         minStddev = minval(stddev(:,:,variableIndex))
         maxStddev = maxval(stddev(:,:,variableIndex))
@@ -653,7 +653,7 @@ CONTAINS
     real(8), intent(in)  :: cv_mpiglobal(:)
 
     ! Locals:
-    integer :: jn, jlat, jlon, jlev, ierr
+    integer :: jn, jlat, jlon, jlev
     real(8), allocatable :: gd_mpiGlobal(:,:,:)
 
     allocate(gd_mpiGlobal(ni_l,nj_l,numvar2d))
@@ -670,7 +670,7 @@ CONTAINS
         end do
       end do
     end if 
-    call rpn_comm_bcast(gd_mpiGlobal, size(gd_mpiGlobal), 'MPI_REAL8', 0, 'GRID', ierr)
+    call mmpi_bcast(gd_mpiGlobal)
     
     jn = 0
     do jlev = 1, numvar2d
@@ -782,7 +782,7 @@ CONTAINS
                                                                  ! of SST BG std
 
     ! Locals:
-    integer          :: ierr, indexLeft, indexRight
+    integer          :: indexLeft, indexRight
     type(struct_gsv) :: stateVectorLeft, stateVectorRight
     real(8), pointer :: field3DLeft_r8_ptr(:,:,:), field3DRight_r8_ptr(:,:,:)
     real(8), pointer :: ptr_r8(:,:,:) 
@@ -905,8 +905,8 @@ CONTAINS
       stddev(:,:,1) = (1. - weight) * field3DLeft_r8_ptr(:,:,1) + &
                             weight  * field3DRight_r8_ptr(:,:,1)
       if (mmpi_nprocs > 1) then
-        call rpn_comm_allreduce(minval(stddev(:,:,1)), minStddev, 1, 'mpi_real8', 'mpi_min', 'GRID', ierr)
-        call rpn_comm_allreduce(maxval(stddev(:,:,1)), maxStddev, 1, 'mpi_real8', 'mpi_max', 'GRID', ierr)
+        call mmpi_allreduce(minval(stddev(:,:,1)), minStddev, 'mpi_min')
+        call mmpi_allreduce(maxval(stddev(:,:,1)), maxStddev, 'mpi_max')
       else
         minStddev = minval(stddev(:,:,1))
         maxStddev = maxval(stddev(:,:,1))

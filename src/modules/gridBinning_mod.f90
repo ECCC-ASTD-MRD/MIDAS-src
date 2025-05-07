@@ -262,7 +262,7 @@ contains
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex
-    integer :: nVarLev, nStep, ier
+    integer :: nVarLev, nStep
 
     if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
@@ -298,7 +298,7 @@ contains
         end do
 
         !- Compute the mean per bin
-        call rpn_comm_allreduce(myBinCount,binCount,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
+        call mmpi_allReduce(myBinCount, binCount, "MPI_SUM")
         do binIndex = 1, gbi%numBins2d
           binMean(binIndex) = myBinSum(binIndex)
           call mmpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
@@ -356,7 +356,7 @@ contains
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex, memberIndex
-    integer :: nVarLev, nStep, nEns, ier
+    integer :: nVarLev, nStep, nEns
     character(len=4), pointer :: varNamesList(:)
 
     if (mmpi_myid == 0 .and. verbose) then
@@ -404,8 +404,8 @@ contains
         end do
 
         !- Compute the stdDev per bin
-        call rpn_comm_allreduce(myBinCount,binCount ,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
-        call rpn_comm_allreduce(myBinSum  ,binStdDev,gbi%numBins2d,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ier)
+        call mmpi_allReduce(myBinCount, binCount,  "MPI_SUM")
+        call mmpi_allReduce(myBinSum,   binStdDev, "MPI_SUM")
 
         do binIndex = 1, gbi%numBins2d
           if (binCount(binIndex) /= 0 ) then

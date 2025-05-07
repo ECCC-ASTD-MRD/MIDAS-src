@@ -320,20 +320,17 @@ module oceanMask_mod
     type(struct_ocm), intent(inout) :: oceanMask
 
     ! Locals:
-    integer                   :: ierr
     type(struct_hco), pointer :: hco_temp
 
     write(*,*) 'ocm_communicateMask: starting'
 
-    call rpn_comm_bcast(oceanMask%maskPresent, 1,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(oceanMask%maskPresent)
     if (.not.oceanMask%maskPresent) then
       write(*,*) 'ocm_communicateMask: mask not present, return'
       return
     end if
     
-    call rpn_comm_bcast(oceanMask%nLev, 1,  &
-                        'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(oceanMask%nLev)
 
     ! special treatment of hco object since EZscintID not properly communicated
     nullify(hco_temp)
@@ -351,8 +348,8 @@ module oceanMask_mod
     if (.not.associated(oceanMask%mask)) then
       call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
     end if
-    call rpn_comm_bcast(oceanMask%mask, oceanMask%hco%ni*oceanMask%hco%nj*1,  &
-                        'MPI_LOGICAL', 0, 'GRID', ierr)
+    ! We only need to broadcast the first level 'oceanMask%mask(:,:,1)'
+    call mmpi_bcast(oceanMask%mask(:,:,1))
 
     write(*,*) 'ocm_communicateMask: finished'
 

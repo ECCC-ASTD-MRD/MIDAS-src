@@ -107,8 +107,8 @@ program midas_genCoeff
 
   implicit none
 
-  integer, external :: exdb,exfin,fnom, fclos
-  integer :: ierr,istamp
+  integer, external :: exdb,exfin,fnom,fclos
+  integer :: istamp
 
   type(struct_obs),         target :: obsSpaceData
   type(struct_columnData),  target :: columnTrlOnAnlIncLev
@@ -224,7 +224,7 @@ program midas_genCoeff
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 contains
 

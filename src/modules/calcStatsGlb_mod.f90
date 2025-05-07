@@ -45,7 +45,7 @@ module calcStatsGlb_mod
   integer :: mymBeg, mymEnd, mymSkip, mymCount, mynBeg, mynEnd, mynSkip, mynCount
   integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
   integer :: nEnsOverDimension
-  integer :: nla_mpilocal, maxMyNla
+  integer :: nla_mpilocal
   integer, pointer    :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
   
   character(len=256), allocatable :: cflensin(:)
@@ -91,7 +91,7 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer          :: ierr, memberIndex
+    integer          :: ierr, memberIndex, maxMyNla
     real(8)          :: pSurfRef, hSurfRef
     real(8), pointer :: vertCoordProfile_M(:), vertCoordProfile_T(:)
 
@@ -166,8 +166,7 @@ module calcStatsGlb_mod
 
     ! setup ensemble members mpi partinionning (when working with struct_ens)
     call mmpi_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
-    call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+    call mmpi_allReduce(myMemberCount, maxMyMemberCount, "MPI_MAX")
     nEnsOverDimension = mmpi_npex * maxMyMemberCount
     
     !- Setup ip1s
@@ -1292,7 +1291,7 @@ module calcStatsGlb_mod
     real(8) :: corns_mpiglobal(numVarLevEns,numVarLevEns,0:ntrunc)
     real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns)
     real(8) :: dfact,dfact2,dsummed
-    integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex,nsize,ierr
+    integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex
 
     call utl_tmg_start(120,'--CalcStats_Corr')
 
@@ -1333,8 +1332,7 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    nsize = numVarLevEns*numVarLevEns*(1+ntrunc)
-    call rpn_comm_allreduce(corns,corns_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(corns, corns_mpiglobal, "mpi_sum")
     corns(:,:,:) = corns_mpiglobal(:,:,:)
     
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
@@ -1430,7 +1428,7 @@ module calcStatsGlb_mod
     real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns)
     real(8) :: dfact, dfact2, dsummed
     integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
-    integer :: levIndex, latIndex, nsize, ierr
+    integer :: levIndex, latIndex
 
     call utl_tmg_start(120,'--CalcStats_Corr')
 
@@ -1475,8 +1473,7 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    nsize = numVarLevEns*numVarLevEns*(1+ntrunc)
-    call rpn_comm_allreduce(corns,corns_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(corns, corns_mpiglobal, "mpi_sum")
     corns(:,:,:) = corns_mpiglobal(:,:,:)
     
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
@@ -2302,7 +2299,7 @@ module calcStatsGlb_mod
     real(8) :: zchipsi(nLevEns_M,nj), zpsipsi(nLevEns_M,nj)
     real(8) :: zchipsi_mpiglobal(nLevEns_M,nj), zpsipsi_mpiglobal(nLevEns_M,nj)
     real(4), pointer :: psi_ptr(:,:,:), chi_ptr(:,:,:)
-    integer :: latIndex,lonIndex,levIndex,ensIndex, ierr, nsize
+    integer :: latIndex,lonIndex,levIndex,ensIndex
 
     theta(:,:) = 0.0d0
     zchipsi(:,:) = 0.0d0
@@ -2327,9 +2324,8 @@ module calcStatsGlb_mod
       end do
     end do
 
-    nsize = nLevEns_M*nj
-    call rpn_comm_allreduce(zchipsi,zchipsi_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-    call rpn_comm_allreduce(zpsipsi,zpsipsi_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(zchipsi, zchipsi_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(zpsipsi, zpsipsi_mpiglobal, "mpi_sum")
 
     !  calculate THETA
     do latIndex = 1, nj
@@ -2362,8 +2358,8 @@ module calcStatsGlb_mod
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
     real(8) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
     real(4), pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
-    INTEGER :: ensIndex, JK1, JK2, nsize
-    INTEGER :: IERR, JK, latIndex, lonIndex, JB, JPNLATBND
+    INTEGER :: ensIndex, JK1, JK2
+    INTEGER :: JK, latIndex, lonIndex, JB, JPNLATBND
     PARAMETER (JPNLATBND = 3)
     REAL(8) :: ZFACT,zlat(nj)
     REAL(8) :: ZFACTTOT
@@ -2450,10 +2446,8 @@ module calcStatsGlb_mod
     END DO
 
     ! communicate matrices to have global result on all tasks
-    nsize = (NLEVENS_T+1)*NLEVENS_M*JPNLATBND
-    call rpn_comm_allreduce(zm1,zm1_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-    nsize = NLEVPTOT*NLEVPTOT*JPNLATBND
-    call rpn_comm_allreduce(zm2,zm2_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(zm1, zm1_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(zm2, zm2_mpiglobal, "mpi_sum")
     
     ! SET ZM1_MPIGLOBAL, ZM2_MPIGLOBAL EQUAL FOR ALL THREE REGIONS
     DO JK1 = 1, NLEVPTOT
@@ -2535,8 +2529,8 @@ module calcStatsGlb_mod
     real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
-    integer :: lonIndex,latIndex,levIndex,ensIndex,ierr
-    real(8)  :: dmean, dmean_mpiglobal
+    integer :: lonIndex,latIndex,levIndex,ensIndex
+    real(8) :: dmean, dmean_mpiglobal
 
     do ensIndex = 1, nens
       do levIndex = 1, numVarLevEns
@@ -2546,7 +2540,7 @@ module calcStatsGlb_mod
             dmean = dmean + ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)
           end do
         end do
-        call rpn_comm_allreduce(dmean, dmean_mpiglobal,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+        call mmpi_allReduce(dmean, dmean_mpiglobal, "mpi_sum")
         dmean_mpiglobal = dmean_mpiglobal/(dble(ni)*dble(nj))
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -2576,7 +2570,7 @@ module calcStatsGlb_mod
     integer,          intent(in)    :: nlev
 
     ! Locals:
-    integer :: lonIndex, latIndex, levIndex, ierr, nsize
+    integer :: lonIndex, latIndex, levIndex
     real(8) :: dfact
     real(8), allocatable :: fieldsZonAvg(:,:) 
 
@@ -2596,8 +2590,7 @@ module calcStatsGlb_mod
     !$OMP END PARALLEL DO
 
     ! combine info from all mpi tasks
-    nsize = nlev*nj
-    call rpn_comm_allreduce(fieldsZonAvg,fieldsZonAvg_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(fieldsZonAvg, fieldsZonAvg_mpiglobal, "mpi_sum")
 
     deallocate(fieldsZonAvg)
 
@@ -2736,7 +2729,6 @@ module calcStatsGlb_mod
     real(8) :: spvor_mpiglobal2(nla,2,nlevEns_M)
     real(8) :: spgz_mpiglobal(nla,2,nlevEns_M)
     integer :: ia, ib, ji, jm, levIndex, jla_mpilocal, ila_mpiglobal
-    integer :: ierr, nsize
     real(8) :: zn, zm, zenm, zenmp1, zcon, dl1sa2
     
     ! convert PSI to vorticity 
@@ -2754,8 +2746,7 @@ module calcStatsGlb_mod
       spvor_mpiglobal(1,2,levIndex) = 0.0D0
     end do
 
-    nsize = nla*2*nlevEns_M
-    call rpn_comm_allreduce(spvor_mpiglobal,spvor_mpiglobal2,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    call mmpi_allReduce(spvor_mpiglobal, spvor_mpiglobal2, "mpi_sum")
     
     ! initialize output field to zero
     spgz_mpiglobal(:,:,:)=0.0d0

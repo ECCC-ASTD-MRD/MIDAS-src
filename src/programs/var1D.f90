@@ -440,6 +440,6 @@ program midas_var1D
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 end program midas_var1D

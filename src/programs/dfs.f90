@@ -351,7 +351,7 @@ program midas_dfs
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
 contains
 
@@ -530,7 +530,7 @@ contains
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
     
     numHeader = obs_numHeader(obsSpaceData)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
 
     allocate(headerIndexList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
@@ -603,11 +603,11 @@ contains
       end if
     end do HEADER1
     
-    call rpn_comm_allReduce(countObs, sumCountObsMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    call mmpi_allReduce(countObs, sumCountObsMpi, 'mpi_sum')
 
-    call rpn_comm_allReduce(countObs, maxCountObsMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(countObs, maxCountObsMpi, 'mpi_max')
 
-    call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(countChannel, maxCountChannelMpi, 'mpi_max')
 
     if (.not. computeInParallel) then
       allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
@@ -619,23 +619,13 @@ contains
       levelListMpi(:,:,:) = MPC_missingValue_INT
       bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
       stdDevListMpi(:,:,:) = MPC_missingValue_R8
-    
-      call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
-                              headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
 
-      call rpn_comm_allgather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-                              levelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
+      call mmpi_allGather(headerIndexList, headerIndexListMpi)
+      call mmpi_allGather(levelList,       levelListMpi)
+      call mmpi_allGather(bodyIndexList,   bodyIndexListMpi)
+      call mmpi_allGather(stdDevList,      stdDevListMpi)
 
-      call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-                              bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
-
-      call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-                              maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
-                              stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
-
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
     
       deallocate(bodyIndexList)
       deallocate(levelList)
@@ -733,8 +723,7 @@ contains
           stringInt(stringIndex) = iachar(headerObs(stringIndex:stringIndex))
         end do
         allocate(stringIntForOutput(stringLength,mmpi_nprocs))
-        call rpn_comm_gather(stringInt, stringLength, 'mpi_integer', &
-            stringIntForOutput, stringLength, 'mpi_integer', 0, 'grid', ierr)
+        call mmpi_gather(stringInt, stringIntForOutput)
         do stringIndex = 1, stringLength
           do outTaskIndex = 1, mmpi_nprocs
             headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
@@ -743,8 +732,7 @@ contains
         
         if (outputHBHt) then
           allocate(HBHtMatrixForOutput(nLevelsDfs,nLevelsDfs,mmpi_nprocs))
-          call rpn_comm_gather(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'mpi_real8', &
-              HBHtMatrixForOutput, nLevelsDfs*nLevelsDfs, 'mpi_real8', 0, 'grid', ierr)
+          call mmpi_gather(HBHtMatrix, HBHtMatrixForOutput)
           
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
@@ -765,7 +753,7 @@ contains
         end if ! if (outputHBHt)
         
         allocate(dfsForOutput(mmpi_nprocs))
-        call rpn_comm_gather(dfs, 1, 'mpi_real8', dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
+        call mmpi_gather(dfs, dfsForOutput)
         if (mmpi_myId == 0) then
           do outTaskIndex = 1, mmpi_nprocs
             if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
@@ -776,11 +764,9 @@ contains
       
         if (doChannelSelection) then
           allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
-          call rpn_comm_gather(dfsIncremental, sizeSelect, 'mpi_real8', &
-              dfsIncrementalForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
+          call mmpi_gather(dfsIncremental, dfsIncrementalForOutput)
           allocate(orderForOutput(sizeSelect,mmpi_nprocs))
-          call rpn_comm_gather(order, sizeSelect, 'mpi_integer', &
-              orderForOutput, sizeSelect, 'mpi_integer', 0, 'grid', ierr)
+          call mmpi_gather(order, orderForOutput)
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
@@ -860,10 +846,10 @@ contains
             deallocate(Rsub)
           end if
         
-          call rpn_comm_bcastc(headerObs, stringLength, 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
+          call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
-            call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call mmpi_bcast(HBHtMatrix)
             if (mmpi_myId == 0) then
               write(nulHBHt,'(A)') trim(headerObs)
               do channelIndex2 = 1, nLevelsDfs
@@ -878,11 +864,11 @@ contains
             end if
           end if
 
-          call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+          call mmpi_bcast(dfs)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
-            call rpn_comm_bcast(dfsIncremental, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-            call rpn_comm_bcast(order, sizeSelect, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
+            call mmpi_bcast(dfsIncremental)
+            call mmpi_bcast(order)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)

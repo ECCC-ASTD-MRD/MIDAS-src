@@ -454,7 +454,7 @@ module fsoi_mod
     real(8)            :: tfso(numFamily), tfsotov_sensors(tvs_nsensors),totFSO
     integer            :: numAss_local(numFamily), numAss_global(numFamily)
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
-    integer            :: ierr, familyIndex
+    integer            :: familyIndex
 
     if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
 
@@ -501,12 +501,12 @@ module fsoi_mod
     do familyIndex = 1, numFamily
       call mmpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
       totFSO = totFSO + tfso(familyIndex)
-      call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
+      call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), 'MPI_SUM')
     end do
 
     do sensorIndex = 1, tvs_nsensors
       call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex),'GRID')
-      call rpn_comm_allreduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
+      call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), 'MPI_SUM')
     end do
 
     if (mmpi_myid == 0) then

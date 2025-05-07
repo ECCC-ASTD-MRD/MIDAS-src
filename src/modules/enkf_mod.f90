@@ -447,7 +447,7 @@ contains
     end if
 
     call utl_tmg_start(141,'----Barr')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(141)
 
     ! Get mpi global list of tags used for mpi send/recv
@@ -767,7 +767,7 @@ contains
     end if
 
     call utl_tmg_start(141,'----Barr')
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
     call utl_tmg_stop(141)
 
     call gsv_deallocate(stateVectorMeanInc)
@@ -2317,7 +2317,7 @@ contains
     type(struct_gsv),     intent(inout) :: stateVectorMeanTrl     ! Ensemble mean state vector
 
     ! Locals:
-    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize, ierr
+    integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex
     real(4), pointer :: vertLocation_ptr_r4(:,:,:)
     type(struct_gsv) :: stateVectorMeanTrlPressure
     type(struct_gsv) :: stateVectorMeanTrlPressure_1step
@@ -2360,8 +2360,8 @@ contains
         vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
         write(*,*) 'enkf_computeVertLocation: vertLocation min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
       end if
-      nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
-      call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
+
+      call mmpi_bcast(vertLocation_r4)
 
     else if ( nLev_depth > 0 ) then ! depth for ocean fields
 
@@ -2408,7 +2408,7 @@ contains
     integer :: latIndex, lonIndex, procIndex, latLonIndex, myLatLonIndex, latLonIndexMpiGlobal
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: numLatLonRecvMax, myNumLatLon, numLatLonMax, ierr
+    integer :: numLatLonRecvMax, myNumLatLon, numLatLonMax
     integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
     integer, allocatable :: allLatIndexesSend(:,:), allLonIndexesSend(:,:)
     integer, allocatable :: localLatIndexesSend(:), localLonIndexesSend(:)
@@ -2439,8 +2439,7 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
-                            allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
+    call mmpi_allGather(myNumLatLonRecv, allNumLatLonRecv)
     numLatLonRecvMax = maxval(allNumLatLonRecv)
     write(*,*) 'enkf_LETKFsetupMpiDistribution: allNumLatLonRecv =', allNumLatLonRecv(:)
     write(*,*) 'enkf_LETKFsetupMpiDistribution: numLatLonRecvSum =', sum(allNumLatLonRecv)
@@ -2466,12 +2465,8 @@ contains
     ! Communicate to all mpi tasks this list of grid point lat-lon indexes
     allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
     allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
-    call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            "GRID", ierr)
-    call rpn_comm_allgather(myLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            "GRID", ierr)
+    call mmpi_allGather(myLatIndexesRecv, allLatIndexesRecv)
+    call mmpi_allGather(myLonIndexesRecv, allLonIndexesRecv)
 
     ! Now count number of local grid points without the halo
     myNumLatLon = 0
@@ -2484,11 +2479,8 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call rpn_comm_allreduce(myNumLatLon, numLatLonMpiGlobal, &
-                            1,"mpi_integer","mpi_sum","GRID",ierr)
-    call rpn_comm_allgather(myNumLatLon,  1, "mpi_integer",  &
-                            allNumLatLon, 1, "mpi_integer",  &
-                            "GRID", ierr)
+    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, "mpi_sum")
+    call mmpi_allGather(myNumLatLon, allNumLatLon)
     numLatLonMax = maxval(allNumLatLon)
 
     ! Build global lists of lat-lon indexes and list of mpi tasks where each needs to be sent
@@ -2515,12 +2507,8 @@ contains
       end do LON_LOOP4
     end do
 
-    call rpn_comm_allgather(localLatIndexesSend, numLatLonMax, "mpi_integer",  &
-                            allLatIndexesSend,   numLatLonMax, "mpi_integer",  &
-                            "GRID", ierr)
-    call rpn_comm_allgather(localLonIndexesSend, numLatLonMax, "mpi_integer",  &
-                            allLonIndexesSend,   numLatLonMax, "mpi_integer",  &
-                            "GRID", ierr)
+    call mmpi_allGather(localLatIndexesSend, allLatIndexesSend)
+    call mmpi_allGather(localLonIndexesSend, allLonIndexesSend)
 
     ! Reorganize into single dimension list
     latLonIndexMpiGlobal = 0
@@ -2596,7 +2584,7 @@ contains
     integer, intent(in)  :: myLonIndexesRecv(:)     ! Input lonIndex list for locally needed weights
 
     ! Locals:
-    integer :: ierr, ni, nj, lonIndex, latIndex
+    integer :: ni, nj, lonIndex, latIndex
     integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: countTags, myNumLatLonRecv, numLatLonRecvMax
@@ -2615,19 +2603,14 @@ contains
 
     myNumLatLonRecv = size(myLatIndexesRecv)
     allocate(allNumLatLonRecv(mmpi_nprocs))
-    call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
-                            allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
+    call mmpi_allGather(myNumLatLonRecv, allNumLatLonRecv)
     numLatLonRecvMax = maxval(allNumLatLonRecv)
 
     ! Communicate to all mpi tasks this list of grid point lat-lon indexes
     allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
     allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
-    call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            "GRID", ierr)
-    call rpn_comm_allgather(myLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
-                            "GRID", ierr)
+    call mmpi_allGather(myLatIndexesRecv, allLatIndexesRecv, numLatLonRecvMax)
+    call mmpi_allGather(myLonIndexesRecv, allLonIndexesRecv, numLatLonRecvMax)
 
     ! Determine grid points where weights are calculated - split work over MPI tasks
 
@@ -2645,8 +2628,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call rpn_comm_allreduce(tagNeededMpiLocal, tagNeededMpiGlobal, ni*nj, &
-                            'mpi_logical','mpi_lor','GRID',ierr)
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor')
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0

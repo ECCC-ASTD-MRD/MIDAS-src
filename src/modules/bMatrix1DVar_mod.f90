@@ -12,7 +12,7 @@ module bMatrix1DVar_mod
   use gridStatevector_mod
   use gridstatevectorFileIO_mod
   use horizontalCoord_mod
-  use midasMpi_mod 
+  use midasMpi_mod
   use obsSpaceData_mod
   use timeCoord_mod
   use utilities_mod
@@ -47,7 +47,7 @@ module bMatrix1DVar_mod
   logical             :: initialized = .false.
   integer             :: numVarLev
   integer             :: cvDim_mpilocal
- 
+
   character(len=18) :: oneDBmatHiLand = './Bmatrix_land.bin'
   character(len=17) :: oneDBmatHiSea = './Bmatrix_sea.bin'
 
@@ -61,7 +61,7 @@ module bMatrix1DVar_mod
   integer,          parameter :: numMasterBmat = 2
   character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI ', 'ENS' /)
   character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI ', 'B_ENS' /)
-  logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true. /) 
+  logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true. /)
   integer            :: numBmat
   integer, parameter :: numBmatMax = 10
   character(len=4) :: bmatTypeList  (numBmatMax)
@@ -77,7 +77,7 @@ module bMatrix1DVar_mod
   integer          :: nEns                             ! ensemble size
   real(8)          :: vlocalize                        ! vertical localization length scale
   character(len=4) :: includeAnlVar(vnl_numvarmax)     ! list of variable names to include in B matrix
-  character(len=4) :: excludeVarScaling(vnl_numvarmax) ! list of variable to exclude in the scaling of error variance 
+  character(len=4) :: excludeVarScaling(vnl_numvarmax) ! list of variable to exclude in the scaling of error variance
   integer :: numIncludeAnlVar                          ! MUST NOT BE INCLUDED IN NAMELIST!
   integer :: numExcludeVarScaling                      ! MUST NOT BE INCLUDED IN NAMELIST!
   real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
@@ -86,7 +86,7 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
   real(8) :: scaleFactorEnsTG                    ! scaling factors for Ens skin temperature variances
-  real(8) :: scaleFactorEnsTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
+  real(8) :: scaleFactorEnsTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
   real(8) :: latMin                                    ! minimum latitude of the Bmatrix latitude-longitude output box
@@ -134,7 +134,7 @@ contains
     scaleFactorEnsHumidity(:) = 1.d0
     scaleFactorEnsTG = 1.d0
     scaleFactorEnsTGCorrelation = 1.d0
-    
+
     nEns = -1
     vLocalize = -1.d0
     includeAnlVar(:) = ''
@@ -150,7 +150,7 @@ contains
     landSeaMask = MPC_missingValue_INT
 
     copyEmissBEnsFromBHi = .false.
-    
+
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambmat1D, iostat=ierr)
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
@@ -184,7 +184,7 @@ contains
     !- 1.  Setup the B matrices
     !
     do masterBmatIndex = 1, numMasterBmat
-      
+
       select case( trim(masterBmatTypeList(masterBmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
@@ -288,22 +288,22 @@ contains
     call msg_memUsage('bmat1D_setupBHi', mpiAll_opt=.false.)
 
     do levelIndex = 1, vco_maxNumLevels
-      if( scaleFactorHI(levelIndex) > 0.0d0 ) then 
+      if( scaleFactorHI(levelIndex) > 0.0d0 ) then
         scaleFactorHI(levelIndex) = sqrt( scaleFactorHI(levelIndex))
       else
         scaleFactorHI(levelIndex) = 0.0d0
       end if
     end do
-   
+
     do levelIndex = 1, vco_maxNumLevels
-      if(scaleFactorHIHumidity(levelIndex) > 0.0d0) then 
+      if(scaleFactorHIHumidity(levelIndex) > 0.0d0) then
         scaleFactorHIHumidity(levelIndex) = sqrt(scaleFactorHIHumidity(levelIndex))
       else
         scaleFactorHIHumidity(levelIndex) = 0.0d0
       end if
     end do
 
-    if(scaleFactorHITG > 0.0d0) then 
+    if(scaleFactorHITG > 0.0d0) then
       scaleFactorHITG = sqrt(scaleFactorHITG)
     else
       scaleFactorHITG = 0.0d0
@@ -412,7 +412,7 @@ contains
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
     end if
-    
+
     cvDim_out = numVarLev * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
     initialized = .true.
@@ -438,7 +438,7 @@ contains
     real(4), allocatable,     intent(out)    :: latBMat(:)      ! latitude bands in the B-Matrix
     type(struct_vco), target, intent(out)    :: vco_bMat        ! Vertical coordinate object of B-Matrix
     real(8), allocatable,     intent(out)    :: bMatrix(:,:,:)  ! B-Matrix
-    
+
     ! Locals:
     integer                       :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
     character(len=4), allocatable :: includeAnlVarHi(:)
@@ -465,7 +465,7 @@ contains
       write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
       call utl_abort('bmat1D_readBMatHi: incompatible number of 1DVar analyzed variables in ' // trim(bMatFile))
     end if
-    
+
     allocate(includeAnlVarHi(bmat1D_numIncludeAnlVar))
     allocate(latBMat(nLonLatPos), lonBMat(nLonLatPos))
     allocate(bMatrix(nLonLatPos, numVarLevBMat, numVarLevBMat))
@@ -544,7 +544,7 @@ contains
       cvdim_out = 0
       return
     end if
-    
+
     !- 1.1 Number of time step bins
     numStep = tim_nstepobsinc
     if (numStep /= 1 .and. numStep /= 3.and. numStep /= 5 .and. numStep /= 7) then
@@ -552,7 +552,7 @@ contains
     end if
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-    
+
     hco_ens => hco_in
 
     !- 1.2 Horizontal grid
@@ -675,7 +675,7 @@ contains
       allocate(scaleFactor_M(nLevEns_M))
       allocate(scaleFactor_T(nLevEns_T))
       do levIndex = 1, nLevEns_T
-        if (scaleFactorEns(levIndex) > 0.0d0) then 
+        if (scaleFactorEns(levIndex) > 0.0d0) then
           scaleFactorEns(levIndex) = sqrt(scaleFactorEns(levIndex))
         else
           scaleFactorEns(levIndex) = 0.0d0
@@ -689,28 +689,28 @@ contains
       end if
 
       do levIndex = 1, nLevEns_T
-        if (scaleFactorEnsHumidity(levIndex) > 0.0d0) then 
+        if (scaleFactorEnsHumidity(levIndex) > 0.0d0) then
           scaleFactorEnsHumidity(levIndex) = sqrt(scaleFactorEnsHumidity(levIndex))
         else
           scaleFactorEnsHumidity(levIndex) = 0.0d0
         end if
       end do
-      
+
       scaleFactor_SF = scaleFactor_T(nLevEns_T)
 
     else ! vco_in%Vcode == 0
-      if (scaleFactorEns(1) > 0.0d0) then 
+      if (scaleFactorEns(1) > 0.0d0) then
         scaleFactor_SF = sqrt(scaleFactorEns(1))
       else
         call utl_abort('bmat1D_setubBEns: with vCode == 0, the scale factor should never be equal to 0')
       end if
     end if
 
-    if (scaleFactorEnsTG > 0.0d0) then 
+    if (scaleFactorEnsTG > 0.0d0) then
       scaleFactorEnsTG = sqrt(scaleFactorEnsTG)
-    else 
+    else
       scaleFactorEnsTG = 0.0d0
-    end if 
+    end if
 
     !- 1.5 Domain Partionning
     call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
@@ -719,8 +719,8 @@ contains
     !- 1.6 Localization
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
-    end if     
-  
+    end if
+
     call ens_allocate(ensembles,  &
          nEns, numStep, &
          hco_ens,  &
@@ -737,7 +737,7 @@ contains
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true.)
-    
+
     call gsv_allocate(stateVectorMean, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -813,7 +813,7 @@ contains
         end if
       end do
     end do
-    
+
     call ens_deallocate(ensembles)
     allocate(bMatSqrtEns(var1D_validHeaderCount,numVarLev,numVarLev))
     allocate(bMatEns(var1D_validHeaderCount,numVarLev,numVarLev))
@@ -848,7 +848,7 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bMatEns(columnIndex,:,:) = bMatEns(columnIndex,:,:) / (nEns - 1)
-      
+
       do varLevIndexBmat = 1, numVarLev
         varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
         varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
@@ -862,7 +862,7 @@ contains
 
       ! Apply vertical localization
       if (vLocalize > 0.0d0) then
-        do varLevIndex1 = 1, numVarLev 
+        do varLevIndex1 = 1, numVarLev
           logP1 = log(meanPressureProfile(varLevIndex1))
           do varLevIndex2 = 1, numVarLev
             !-  do Schurr product with 5'th order function
@@ -876,10 +876,10 @@ contains
 
       ! Apply background error correlation scale factor between TG and other variables
       if (scaleFactorEnsTGCorrelation /= 1.0d0) then
-        do varLevIndex1 = 1, numVarLev 
+        do varLevIndex1 = 1, numVarLev
           do varLevIndex2 = 1, numVarLev
             if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
-                (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then 
+                (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then
                 bMatEns(columnIndex, varLevIndex2, varLevIndex1) = &
                     bMatEns(columnIndex, varLevIndex2, varLevIndex1) * scaleFactorEnsTGCorrelation
             end if
@@ -893,7 +893,7 @@ contains
       write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
           sum(bMatEns(:, varLevIndexBmat, varLevIndexBmat)) / real(var1D_validHeaderCount)
     end do
-    
+
     if (copyEmissBEnsFromBHi) then
       call bmat1D_readBMatHi(oneDBmatHiLand, numVarLevHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
       call bmat1D_readBMatHi(oneDBmatHiSea, numVarLevHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
@@ -904,7 +904,7 @@ contains
     if (dumpBmatrixTofile) then
       call dumpBmatrices(vco_in, obsSpaceData, dateStampList, bMatEns)
     end if
-    
+
     bMatSqrtEns(:,:,:) = bMatEns(:,:,:)
 
     if (allocated(bMatEns)) deallocate(bMatEns)
@@ -917,8 +917,8 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       call utl_matsqrt(bMatSqrtEns(columnIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false. )
     end do
-    
-    deallocate(varLevColFromVarLevBmat) 
+
+    deallocate(varLevColFromVarLevBmat)
     deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
@@ -927,12 +927,12 @@ contains
     end do
     cvDim_mpilocal = cvDim_out
     initialized = .true.
-    
+
     call msg_memUsage('bmat1D_setupBEns', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
-    
+
   end subroutine bmat1D_setupBEns
-  
+
   !--------------------------------------------------------------------------
   ! dumpBmatrices
   !--------------------------------------------------------------------------
@@ -941,7 +941,7 @@ contains
     ! :Purpose: output B matrices or their average to binary file Bmatrix.bin
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_vco), pointer, intent(in)    :: vco_in           ! Analysis vertical grid descriptor
     type (struct_obs)        , intent(inout) :: obsSpaceData     ! ObsSpaceData structure
@@ -953,8 +953,7 @@ contains
     integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
     integer :: globalDumpedIndex, countDumpedOut
     integer :: columnIndex, headerIndex
-    integer :: taskIndex, dumpedIndex
-    integer :: tag, status
+    integer :: tag, taskIndex, dumpedIndex
     integer :: numstep, numVarLev, landSea
     integer, external ::  fnom, fclos, newdate
     integer              :: obsOffset(0:mmpi_nprocs-1)
@@ -968,17 +967,17 @@ contains
     call msg_memUsage('dumpBmatrices', mpiAll_opt=.false.)
 
     countDumped = 0
-    COLUMN1: do columnIndex = 1, var1D_validHeaderCount 
+    COLUMN1: do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       landSea = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex)
-      
+
       ! Only include B-Matrix with specfied land sea mask
       if (landSeaMask /= MPC_missingValue_INT) then
         if (landSea /= landSeaMask) cycle COLUMN1
       end if
-      
+
       if (latitude  >= latMin .and. &
           latitude  <= latMax .and. &
           longitude >= lonMin .and. &
@@ -986,9 +985,9 @@ contains
         countDumped = countDumped + 1
       end if
     end do COLUMN1
-    call rpn_comm_barrier('GRID', ierr)
-    
-    call rpn_comm_allgather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 'GRID', ierr)
+    call mmpi_barrier
+
+    call mmpi_allGather(countDumped, countDumpedAllTasks)
     countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
     countDumpedMax = maxval( countDumpedAllTasks(:) )
     obsOffset(0) = 0
@@ -996,12 +995,12 @@ contains
       obsOffset(taskIndex) = obsOffset(taskIndex - 1) + countDumpedAllTasks(taskIndex)
     end do
     write(*,*) 'dumpBmatrices: obsOffset: ', obsOffset(:)
-    
+
     if (countDumpedMax > 0) then
       allocate(listColumnDumped(countDumpedMax))
       listColumnDumped(:) = -1
       countDumped = 0
-      COLUMN2: do columnIndex = 1, var1D_validHeaderCount 
+      COLUMN2: do columnIndex = 1, var1D_validHeaderCount
         headerIndex = var1D_validHeaderIndex(columnIndex)
         latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
@@ -1046,17 +1045,17 @@ contains
         longitude = MPC_missingValue_R8
       end if
       if (mmpi_myId == 0) then
-        if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then 
+        if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
           outBmatrix(dumpedIndex, :, :) = bEns(columnIndex, :, :)
           outLats(dumpedIndex) = latitude
           outLons(dumpedIndex) = longitude
         end if
         do taskIndex = 1,  mmpi_nprocs - 1
           tag = 3 * taskIndex
-          call rpn_comm_recv(latitude, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
-          call rpn_comm_recv(longitude, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr)
+          call mmpi_recv(latitude,  tag  , taskIndex)
+          call mmpi_recv(longitude, tag+1, taskIndex)
           if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
-            call rpn_comm_recv(tempoBmatrix(:,:), numVarLev*numVarLev, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr)
+            call mmpi_recv(tempoBmatrix(:,:), tag+2, taskIndex)
             globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
             outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
             outLats(globalDumpedIndex) = latitude
@@ -1065,10 +1064,10 @@ contains
         end do
       else
         tag = 3 * mmpi_myID
-        call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
-        call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
+        call mmpi_send(latitude,  tag  , procID = 0)
+        call mmpi_send(longitude, tag+1, procID = 0)
         if (columnIndex > 0) then
-          call rpn_comm_send(bEns(columnIndex, :, :), numVarLev*numVarLev, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
+          call mmpi_send(bEns(columnIndex,:,:), tag+2, procID = 0)
         end if
       end if
     end do
@@ -1078,7 +1077,7 @@ contains
         write(nulmat) real(sum(outLats(:))/countDumpedMpiGlobal, kind=4), real(sum(outLons(:))/countDumpedMpiGlobal, kind=4), &
             sum(outBmatrix(:, :, :),dim=1)/countDumpedMpiGlobal
       else
-        do dumpedIndex = 1, countDumpedMpiGlobal          
+        do dumpedIndex = 1, countDumpedMpiGlobal
           write(nulmat) real(outLats(dumpedIndex), kind=4), real(outLons(dumpedIndex), kind=4), outBmatrix(dumpedIndex, :, :)
         end do
       end if
@@ -1136,7 +1135,7 @@ contains
 
 
       ! Determine the start varIndex for surface emissivity in the B-Matrix.
-      emissVarIndex = 0 
+      emissVarIndex = 0
       do varIndex = 1, size(bmat1D_includeAnlVar)
         emissVarIndex = emissVarIndex + &
           col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
@@ -1152,9 +1151,9 @@ contains
     allocate(oneDProfile(numVarLev))
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude, &
     !$OMP                      surfaceType,latitudeBandIndex)
-    do columnIndex = 1, var1D_validHeaderCount 
+    do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian
       surfaceType = tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
@@ -1277,7 +1276,7 @@ contains
     allocate(bMatSqrtEnsTmp(var1D_validHeaderCount, numVarLev, numVarLev))
 
     bMatSqrtEnsTmp(:,:,:) = bMatSqrtEns(:,:,:)
- 
+
     ! Inflate emissivity error if specified
     if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
 
@@ -1299,7 +1298,7 @@ contains
     allocate(oneDProfile(numVarLev))
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
-    do columnIndex = 1, var1D_validHeaderCount 
+    do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       oneDProfile(:) = matmul(bMatSqrtEnsTmp(columnIndex, :, :), &
                               controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev))
@@ -1377,11 +1376,11 @@ contains
 
   !--------------------------------------------------------------------------
   ! bmat1D_sqrtB
-  !-------------------------------------------------------------------------- 
+  !--------------------------------------------------------------------------
   subroutine bmat1D_sqrtB(controlVector, cvdim, column, obsSpaceData, inflateEmissErr_opt)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
-    !          space.    
+    !          space.
     !
     implicit none
 
@@ -1400,7 +1399,7 @@ contains
     if (present(inflateEmissErr_opt)) then
       inflateEmissErr = inflateEmissErr_opt
       write(*,*) 'inflateEmissErr_opt', inflateEmissErr_opt
-    else 
+    else
       inflateEmissErr = MPC_missingValue_R8
     end if
 
@@ -1524,7 +1523,7 @@ contains
          deallocate(bMatSqrtSea)
          deallocate(latLand, lonLand, latSea, lonSea)
        end if
-       if (allocated(bMatSqrtEns)) then 
+       if (allocated(bMatSqrtEns)) then
         deallocate(bMatSqrtEns)
       end if
        call var1D_finalize()

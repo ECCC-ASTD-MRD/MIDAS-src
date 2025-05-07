@@ -265,7 +265,7 @@ program midas_oMinusF
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr)
+  call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_END')

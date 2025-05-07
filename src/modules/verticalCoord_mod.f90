@@ -873,38 +873,38 @@ contains
       end if
     end if
 
-    call rpn_comm_bcast(vco%initialized , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%vgridPresent, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_T      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_M      , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_sfc     , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_T_2m    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%sleveCoord  , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(vco%initialized)
+    call mmpi_bcast(vco%vgridPresent)
+    call mmpi_bcast(vco%nlev_T)
+    call mmpi_bcast(vco%nlev_M)
+    call mmpi_bcast(vco%ip1_sfc)
+    call mmpi_bcast(vco%ip1_T_2m)
+    call mmpi_bcast(vco%ip1_M_10m)
+    call mmpi_bcast(vco%nlev_depth)
+    call mmpi_bcast(vco%Vcode)
+    call mmpi_bcast(vco%sleveCoord)
+    call mmpi_bcast(vco%nlev_other, vnl_numvarmaxOther)
     if (vco%nLev_depth > 0) then
       if (mmpi_myid > 0) then
         allocate(vco%ip1_depth(vco%nlev_depth))
         allocate(vco%depths(vco%nlev_depth))
       end if
-      call rpn_comm_bcast(vco%ip1_depth , vco%nlev_depth, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
+      call mmpi_bcast(vco%ip1_depth, vco%nlev_depth)
+      call mmpi_bcast(vco%depths, vco%nlev_depth)
     end if
     if (vco%vgridPresent) then
       if (mmpi_myid == 0) then
         vgd_nlev_M = size(vco%ip1_M)
         vgd_nlev_T = size(vco%ip1_T)
       end if
-      call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(vgd_nlev_M)
+      call mmpi_bcast(vgd_nlev_T)
       if (mmpi_myid > 0) then
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
       end if
-      if (vgd_nlev_M > 0) call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if (vgd_nlev_T > 0) call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if (vgd_nlev_M > 0) call mmpi_bcast(vco%ip1_M)
+      if (vgd_nlev_T > 0) call mmpi_bcast(vco%ip1_T)
     end if
 
     ! now do bcast for vgrid object
@@ -927,21 +927,21 @@ contains
       end if
 
       ! 3D table of real*8
-      call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdtable_dim2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdtable_dim3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(vgdtable_dim1)
+      call mmpi_bcast(vgdtable_dim2)
+      call mmpi_bcast(vgdtable_dim3)
       if (mmpi_myid > 0) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
-      call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
+      call mmpi_bcast(vgdtable, size(vgdtable))
       ! others
-      call rpn_comm_bcast(vgddate, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcastc(vgdetik, len(vgdetik), 'MPI_CHARACTER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdip1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdip2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vgdip3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call mmpi_bcast(vgddate)
+      call mmpi_bcast(vgdetik)
+      call mmpi_bcast(vgdig1)
+      call mmpi_bcast(vgdig2)
+      call mmpi_bcast(vgdig3)
+      call mmpi_bcast(vgdig4)
+      call mmpi_bcast(vgdip1)
+      call mmpi_bcast(vgdip2)
+      call mmpi_bcast(vgdip3)
       
       if (mmpi_myid > 0) then
         ierr = vgd_new(vco%vgrid,vgdtable)

@@ -693,7 +693,7 @@ module var1DIdealize_mod
     integer                         :: bodyIndexBeg, bodyIndexEnd, idatyp, obsIndex
     real(8)                         :: meanErrHx, stddevErrHx
     logical                         :: bgckMode, beSilent, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
-    integer                         :: ierr, randomSeed, sampleIndex
+    integer                         :: randomSeed, sampleIndex
     real                            :: columnValue
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
@@ -719,8 +719,7 @@ module var1DIdealize_mod
       end do BODYCHCK
     end do HEADERCHCK
 
-    call rpn_comm_allreduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, 1, &
-                          "MPI_LOGICAL","MPI_LOR", "grid", ierr)
+    call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, "MPI_LOR")
 
     if (nonEmptyBodyColumn_mpiglobal) then
       call utl_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')

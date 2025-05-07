@@ -180,7 +180,7 @@ program midas_pseudoSSTobs
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr) 
+  call mmpi_finalize
 
   contains
 

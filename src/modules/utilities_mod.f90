@@ -20,7 +20,6 @@ module utilities_mod
   public :: utl_pseudo_inverse, utl_fastMatMul
   public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_printTime
-  public :: utl_stopAndWait4Debug
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
@@ -30,7 +29,7 @@ module utilities_mod
   public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
+  public :: utl_copyFile, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus
@@ -119,6 +118,14 @@ contains
 
     write(*,*)
     write(*,*) 'utl_readNML: reading namelist files into strings for later use'
+
+    ! We cannot use 'midasMPI_mod' modules variables 'mmpi_myid',
+    ! 'mmpi_myidx' and 'mmpi_myidy' because depending on that module
+    ! would introduce a circular dependency.
+    ierr = rpn_comm_mype(myid,myidx,myidy)
+    if ( ierr /= 0 ) then
+      call utl_abort('MPI error raised in rpn_comm_mype called from utl_readNml')
+    end if
 
     ! Get some MPI information
     ierr = rpn_comm_mype(myid,myidx,myidy)
@@ -1218,40 +1225,10 @@ contains
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
     flush(6)
 
-    comm = rpn_comm_comm("WORLD")
+    comm = rpn_comm_comm('ALLGRIDS')
     call mpi_abort( comm, 1, ierr )
 
   end subroutine utl_abort
-
-  !--------------------------------------------------------------------------
-  ! utl_stopAndWait4Debug
-  !--------------------------------------------------------------------------
-  subroutine utl_stopAndWait4Debug(message)
-    !
-    !:Purpose: Stop the execution for the process reaching a call to the
-    !          subroutine, then wait until all MPI processes reached such a
-    !          call to utl_stopAndWait4Debug.
-    !          Intended **for debugging puposes only** since it can cause
-    !          unwanted MPI deadlocks - processes waiting infinitely because
-    !          not all MPI processes will ever reach a call to
-    !          utl_stopAndWait4Debug.
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: message
-
-    ! Locals:
-    integer :: comm, ierr, rpn_comm_comm
-
-    write(6,9000) message
-9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
-    flush(6)
-
-    call rpn_comm_barrier('WORLD', ierr)
-    comm = rpn_comm_comm("WORLD")
-    call mpi_abort( comm, 1, ierr )
-  end subroutine utl_stopAndWait4Debug
 
   subroutine utl_open_asciifile(filename,unit)
     ! 
@@ -2861,29 +2838,6 @@ contains
     call utl_tmg_stop(175)
 
   end function utl_copyFile
-
-  !--------------------------------------------------------------------------
-  ! utl_allReduce
-  !--------------------------------------------------------------------------
-  subroutine utl_allReduce(localGlobalValue)
-    !
-    !:Purpose: Perform mpi_allReduce to sum integer values over all
-    !          mpi tasks and copy result back to same variable.
-    !
-    implicit none
-
-    ! Arguments:
-    integer, intent(inout) :: localGlobalValue
-
-    ! Locals:
-    integer :: localValue, globalValue, ierr
-
-    localValue = localGlobalValue
-    call rpn_comm_allReduce(localValue, globalValue, 1, 'mpi_integer', &
-                            'mpi_sum', 'grid', ierr)
-    localGlobalValue = globalValue
-    
-  end subroutine utl_allReduce
 
   !--------------------------------------------------------------------------
   ! utl_findloc_char

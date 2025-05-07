@@ -663,8 +663,7 @@ CONTAINS
     if ( trim(ben_mode) == 'Analysis' ) then
 
       call mmpi_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
-      call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-           1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+      call mmpi_allReduce(myMemberCount, maxMyMemberCount, "MPI_MAX")
       bEns(instanceIndex)%nEnsOverDimension = mmpi_npex * maxMyMemberCount
 
       !- Horizontal Localization
@@ -1748,12 +1747,12 @@ CONTAINS
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-    integer   :: ierr, horizWaveBandIndex, vertWaveBandIndex
+    integer   :: horizWaveBandIndex, vertWaveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
     logical   :: useFSOFcst
 
-    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     !
     !- 1.  Tests
@@ -1776,7 +1775,7 @@ CONTAINS
         immediateReturn = .true.
       end if
     end if
-    call rpn_comm_bcast(immediateReturn, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call mmpi_bcast(immediateReturn)
     if (immediateReturn) return
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
@@ -1888,14 +1887,14 @@ CONTAINS
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-    integer           :: ierr, horizWaveBandIndex, vertWaveBandIndex
+    integer           :: horizWaveBandIndex, vertWaveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
     logical           :: useFSOFcst
 
     !
     !- 1.  Tests
     !
-    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
     if (.not. bEns(instanceIndex)%initialized) then
       if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'

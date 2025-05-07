@@ -2293,7 +2293,7 @@ module obsSpaceErrorStdDev_mod
     
     ! Locals:
     logical :: availableOmP
-    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp, ierr
+    integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
     real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP,medianOmP
     character(len=12) :: stnid
@@ -2482,9 +2482,9 @@ module obsSpaceErrorStdDev_mod
                   
       ! Combine from all processors
 
-      call rpn_comm_allreduce(nSeries,nSeriest,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_INTEGER","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(sumOmP2d,sumOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-      call rpn_comm_allreduce(sumSqrOmP2d,sumSqrOmP2dt,OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+      call mmpi_allReduce(nSeries, nSeriest, "MPI_SUM")
+      call mmpi_allReduce(sumOmP2d, sumOmP2dt, "MPI_SUM")
+      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, "MPI_SUM")
       
       if (any(nSeriest > 5*minCount)) then
       

@@ -350,7 +350,7 @@ contains
 
     end if
 
-    call rpn_comm_bcast(dateStamp_out, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(dateStamp_out)
 
     if (tim_referenceTime == 'middle') then
       ! Modify date to ensure that it corresponds to the middle of the window

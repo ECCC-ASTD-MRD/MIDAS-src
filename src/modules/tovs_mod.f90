@@ -530,14 +530,14 @@ contains
     end if
     
     do sensorIndex = 1, tvs_nsensors
-      call rpn_comm_gather(tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      call mmpi_gather( tvs_isReallyPresent( sensorIndex ) , logicalBuffer )
       if (mmpi_myid == 0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
         do taskIndex = 1, mmpi_nprocs
           tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
-      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      call mmpi_bcast( tvs_isReallyPresentMpiGlobal ( sensorIndex ) )
     end do
     
     deallocate(logicalBuffer)
@@ -4596,7 +4596,7 @@ contains
 
     ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
-    integer :: ierr, allChannelIndex, channelIndex
+    integer :: allChannelIndex, channelIndex
     integer, allocatable :: listGlobal(:)
     logical :: found
      
@@ -4616,10 +4616,9 @@ contains
     channelsb(:) = 0
     channelsb(1:size(channels)) = channels(:)
 
-    call rpn_comm_barrier('GRID',ierr)
+    call mmpi_barrier
 
-    call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
-         tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
+    call mmpi_gather(channelsb, listGlobal, tvs_maxChannelNumber)
     countUniqueChannel = 0
     if (mmpi_myid == 0) then
       call isort(listGlobal, mmpi_nprocs*tvs_maxChannelNumber)
@@ -4640,8 +4639,8 @@ contains
       end do
     end if
     
-    call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call mmpi_bcast(countUniqueChannel)
+    call mmpi_bcast(listAll(1:countUniqueChannel), countUniqueChannel)
 
     deallocate(listGlobal)
 

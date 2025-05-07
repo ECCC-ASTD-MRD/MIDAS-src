@@ -2121,7 +2121,7 @@ CONTAINS
     type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
     real(8)  :: globalMean, globalMean_mpiglobal
 
@@ -2149,9 +2149,8 @@ CONTAINS
                    real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
             end do
           end do
-          
-          call rpn_comm_allreduce(globalMean, globalMean_mpiglobal,1,&
-                                  "mpi_double_precision","mpi_sum","GRID",ierr)
+
+          call mmpi_allReduce(globalMean, globalMean_mpiglobal, "mpi_sum")
           globalMean_mpiglobal = globalMean_mpiglobal / &
                (real(ens%statevector_work%ni,8)*real(ens%statevector_work%nj,8))
 
@@ -2723,8 +2722,7 @@ CONTAINS
             if ( mmpi_myid == (procIndex-1) .and. gsv_isAllocated(stateVector_member_r4) ) then
               thisProcIsAsender(procIndex) = .true.
             end if
-            call rpn_comm_bcast(thisProcIsAsender(procIndex), 1,  &
-                                'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
+            call mmpi_bcast(thisProcIsAsender(procIndex), procID_opt=procIndex-1)
           end do
 
           do varLevIndexBeg = 1, numVarLev, numLevelsToSend
@@ -2782,9 +2780,8 @@ CONTAINS
             gd_recv_r4(:,:,:,:) = 0.0
 
             if (mmpi_nprocs.gt.1) then
-              call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
-                                 mmpi_comm_grid, ierr)
+              call mmpi_alltoallv(gd_send_r4, sendsizes, senddispls, &
+                                  gd_recv_r4, recvsizes, recvdispls)
             else
               gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
             end if
@@ -2885,7 +2882,7 @@ CONTAINS
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
-    integer :: batchIndex, nsize, ierr
+    integer :: batchIndex, nsize
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numLevelsToSend, numVarLevGroups, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
@@ -3124,9 +3121,8 @@ CONTAINS
           end if
 
           call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-          call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                             gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                             mmpi_comm_grid, ierr)
+          call mmpi_alltoallv(gd_send_r4, sendsizes, displacements, &
+                              gd_recv_r4, recvsizes, displacements)
           call utl_tmg_stop(191)
         else
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
@@ -3244,7 +3240,7 @@ CONTAINS
       ! We have to make sure that all the intermediate files '*_group_*'
       ! are written to disk before regrouping it.
       call utl_tmg_start(192,'ens_writeEnsemble-barrier')
-      call rpn_comm_barrier('GRID', ierr)
+      call mmpi_barrier
       call utl_tmg_stop(192)
 
       call utl_tmg_start(193,'ens_writeEnsemble-combine_files')

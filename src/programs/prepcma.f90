@@ -385,7 +385,7 @@ program midas_prepcma
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
-  call rpn_comm_finalize(ierr)
+  call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
     call utl_writeStatus('PREPCMA_END')
@@ -574,14 +574,10 @@ contains
     end do header_loop
 
     ! do mpi communication of the accumulators
-    nsize = nblocksum * npres
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call rpn_comm_allreduce(nstation, nstationMpiGlobal, nsize,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nrep_count, nrep_count_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nobs_count, nobs_count_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(nstation,   nstationMpiGlobal,    'mpi_sum')
+    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, 'mpi_sum')
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
                 nrep_count, nrep_count_mpiGlobal
@@ -590,9 +586,7 @@ contains
                 nobs_count, nobs_count_mpiGlobal
 
     if (cfam == 'TO') then
-      nsize = nblocksum * tvs_nsensors
-      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
+      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, "mpi_sum")
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -668,10 +662,8 @@ contains
     end do
 
     ! mpi communication of accumulators
-    call rpn_comm_allreduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
-    call rpn_comm_allreduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 1,  &
-                            'mpi_integer','mpi_sum', 'GRID', ierr)
+    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 'mpi_sum')
     
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
           nrep_count_thin, nrep_count_thin_mpiGlobal
@@ -679,9 +671,7 @@ contains
           nobs_count_thin, nobs_count_thin_mpiGlobal
 
     if (cfam == 'TO') then
-      nsize = nblocksum * tvs_nsensors
-      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
+      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, "mpi_sum")
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
