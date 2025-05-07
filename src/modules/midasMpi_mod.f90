@@ -1431,7 +1431,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLength(sending, length_opt, communicator_opt = communicator)
+    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_integer',  &
                            receiving, length, 'mpi_integer', communicator, ierr)
@@ -1460,7 +1460,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLength(sending, length_opt, communicator_opt = communicator)
+    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_integer8',  &
                            receiving, length, 'mpi_integer8', communicator, ierr)
@@ -1489,7 +1489,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLength(sending, length_opt, communicator_opt = communicator)
+    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real4',  &
                            receiving, length, 'mpi_real4', communicator, ierr)
@@ -1518,7 +1518,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLength(sending, length_opt, communicator_opt = communicator)
+    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real8',  &
                            receiving, length, 'mpi_real8', communicator, ierr)
@@ -2289,7 +2289,7 @@ contains
   !--------------------------------------------------------------------------
   ! handleLength (private)
   !--------------------------------------------------------------------------
-  function handleLength(inputData, length_opt, communicator_opt) result(length)
+  function handleLength(inputData, length_opt) result(length)
     !
     !:Purpose: Process 'length_opt' optional argument
     !
@@ -2298,7 +2298,6 @@ contains
     ! Arguments:
     type(*),           intent(in)  :: inputData(..) ! input array (rank and size will be used to find the length)
     integer, optional, intent(in)  :: length_opt    ! optional length
-    character(len=*),  optional, intent(in) :: communicator_opt ! string identifying the RPN_COMM MPI communicator
     ! Result:
     integer :: length ! length if 'length_opt' is not provided
 
@@ -2309,30 +2308,51 @@ contains
         length = 1
       else
         length = size(inputData)
-
-        if ( present(communicator_opt) ) then
-          ! If 'communicator_opt' is provided, then we will find the
-          ! size to the data to exchange by taking into account that
-          ! the input data is allocated with an added dimension to
-          ! store the data for each MPI rank.
-
-          ! The input array is of the form 'inputData(..,mmpi_{nprocs,npex,npey})'
-          ! and the size expected by 'rpn_comm_alltoall' does not include
-          ! the last dimension.
-          if ( communicator_opt == mmpi_communicator_grid ) then
-            length = length/mmpi_nprocs
-          else if ( communicator_opt == "NS" ) then
-            length = length/mmpi_npey
-          else if ( communicator_opt == "EW" ) then
-            length = length/mmpi_npex
-          else
-            call utl_abort('handleLength: cannot guess the size of the data for communicator='''// communicator_opt // '''')
-          end if
-        end if
-      end if
-    end if
+      end if ! 'else' of 'if ( rank(inputData) == 0 ) then'
+    end if ! 'else' of 'if ( present(length_opt) ) then'
 
   end function handleLength
+
+  !--------------------------------------------------------------------------
+  ! handleLengthWithRespectToCommunicator (private)
+  !--------------------------------------------------------------------------
+  function handleLengthWithRespectToCommunicator(inputData, communicator, length_opt) result(length)
+    !
+    !:Purpose: Process 'length_opt' optional argument when a
+    !          communicator has to be taken into account.
+    !
+    implicit none
+
+    ! Arguments:
+    type(*),           intent(in) :: inputData(..) ! input array (rank and size will be used to find the length)
+    character(len=*),  intent(in) :: communicator  ! string identifying the RPN_COMM MPI communicator
+    integer, optional, intent(in) :: length_opt    ! optional length
+    ! Result:
+    integer :: length ! length if 'length_opt' is not provided
+
+    length = handleLength(inputData, length_opt)
+
+    if ( .not. present(length_opt) ) then
+      ! If 'communicator_opt' is provided, then we will find the
+      ! size to the data to exchange by taking into account that
+      ! the input data is allocated with an added dimension to
+      ! store the data for each MPI rank.
+
+      ! The input array is of the form 'inputData(..,mmpi_{nprocs,npex,npey})'
+      ! and the size expected by 'rpn_comm_alltoall' does not include
+      ! the last dimension.
+      if ( communicator == mmpi_communicator_grid ) then
+        length = length/mmpi_nprocs
+      else if ( communicator == "NS" ) then
+        length = length/mmpi_npey
+      else if ( communicator == "EW" ) then
+        length = length/mmpi_npex
+      else
+        call utl_abort('handleLengthWithRespectToCommunicator: cannot guess the size of the data for communicator='''// communicator // '''')
+      end if
+    end if ! 'if ( .not. present(length_opt) ) then'
+
+  end function handleLengthWithRespectToCommunicator
 
   !--------------------------------------------------------------------------
   ! handleMpiError (private)
