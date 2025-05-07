@@ -572,7 +572,7 @@ CONTAINS
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
 
-    call mmpi_computeDisplacements(ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gathervDisplacements(ensObsClean%numObs, allNumObs, displs)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then

@@ -42,7 +42,7 @@ module midasMpi_mod
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall, mmpi_alltoallv
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
-  public :: mmpi_stopAndWait4Debug, mmpi_computeDisplacements
+  public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
 
   ! Private module variables
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
@@ -1758,9 +1758,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  ! mmpi_computeDisplacements
+  ! mmpi_gathervDisplacements
   !--------------------------------------------------------------------------
-  subroutine mmpi_computeDisplacements(length, allLengths, displacements)
+  subroutine mmpi_gathervDisplacements(length, allLengths, displacements)
     !
     !:Purpose: Compute the displacements offsets for a future 'gatherv' call
     !
@@ -1785,7 +1785,7 @@ contains
       displacements(:) = 0
     end if
 
-  end subroutine mmpi_computeDisplacements
+  end subroutine mmpi_gathervDisplacements
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical
@@ -1809,7 +1809,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mmpi_computeDisplacements(length, allLengths, displacements)
+    call mmpi_gathervDisplacements(length, allLengths, displacements)
 
     call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
@@ -1869,7 +1869,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mmpi_computeDisplacements(length, allLengths, displacements)
+    call mmpi_gathervDisplacements(length, allLengths, displacements)
 
     call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
@@ -1930,7 +1930,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mmpi_computeDisplacements(length, allLengths, displacements)
+    call mmpi_gathervDisplacements(length, allLengths, displacements)
 
     call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
@@ -1991,7 +1991,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mmpi_computeDisplacements(length, allLengths, displacements)
+    call mmpi_gathervDisplacements(length, allLengths, displacements)
 
     call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 

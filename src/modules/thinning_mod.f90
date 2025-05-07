@@ -2039,7 +2039,7 @@ contains
     if (is_obsLevOffset) then
       ! special treatment is requirement for the variable "obsLevOffset"
       nsize = size(array)-1
-      call mmpi_computeDisplacements(nsize, allnsize, displs)
+      call mmpi_gathervDisplacements(nsize, allnsize, displs)
       nsizeMpi = sum(allnsize(:))
 
       allocate(numLevels(nsize))
