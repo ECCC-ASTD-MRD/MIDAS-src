@@ -75,7 +75,7 @@ contains
     character(len=20), parameter :: trlErrStddevFileName_out = 'trlerrorstdev_out' ! output filename for trl (background) error std deviation
     type(struct_neighborhood), pointer :: influentObs(:,:)
     real(8), allocatable :: Lcorr(:,:)
-    
+
     ! namelist variables:
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     logical           :: propagateAnalysisError ! choose to propagate analysis error
@@ -86,8 +86,8 @@ contains
     character(len=12) :: trlErrorStdEtiket      ! background error standard deviation field etiket in the input/output standard files
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
     logical           :: saveTrlStdField        ! choose to save trial standard deviation field
-    character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
-    character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
+    character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file
+    character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file
     real(8)           :: multFactorLcorr        ! multiplication scaling factor to increase the correlation length scale field
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, anlErrorStdEtiket, trlErrorStdEtiket, &
@@ -111,7 +111,7 @@ contains
     inputTypeVar = 'P@'
     outputTypeVar = 'A@'
     multFactorLcorr = 1.0d0
-    
+
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
       if (mmpi_myid == 0) then
@@ -152,13 +152,13 @@ contains
                       varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
     call gsv_getField(stateVectorTrlErrorStd, trlErrorStdDev_ptr)
 
-    if (propagateAnalysisError) then     
+    if (propagateAnalysisError) then
       call msg('aer_analysisError:', &
-               ' analysis error std field is read from: '//trim(errStddevFileName_in))    
+               ' analysis error std field is read from: '//trim(errStddevFileName_in))
       call gio_readFromFile(stateVectorAnlErrorStd, errStddevFileName_in, &
                             etiket_in = anlErrorStdEtiket, typvar_in = inputTypeVar, &
                             containsFullField_opt = .false.)
-      
+
       ! initialize trl error std deviation field:
       trlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDev_ptr(:,:,:,:)
 
@@ -175,10 +175,10 @@ contains
       if (saveTrlStdField) then
         ! zap analysis error etiket with background error etiket
         stateVectorTrlErrorStd%etiket = trlErrorStdEtiket
-        
+
         ! copy mask from analysis error std deviation field to trl error std field
         call gsv_copyMask(stateVectorAnlErrorStd, stateVectorTrlErrorStd)
-        
+
         ! update dateStamp from env variable
         call gsv_modifyDate(stateVectorTrlErrorStd, tim_getDateStamp(), &
                             modifyDateOrigin_opt = .true.)
@@ -304,7 +304,7 @@ contains
                                 analysisVariable(1), propagateDSLO, &
                                 hoursSinceLastAnalysis)
     end if
-    
+
     call msg('aer_analysisError:', ' finished.')
 
   end subroutine aer_analysisError
@@ -368,7 +368,7 @@ contains
       end if
     end do
     call mmpi_gather(obsAss, allObsAss)
-    
+
     allocate(obsRln(numHeaderMax))
     obsRln(:) = 0
     allocate(obsNlv(numHeaderMax))
@@ -422,7 +422,7 @@ contains
     write(*,*) 'findObs: lonInRad min/max: ', minval(lonInRad(:,:)), maxval(lonInRad(:,:))
 
     nullify(tree)
-    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
+    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.)
 
     deallocate(positionArray)
     deallocate(lonInRad)
@@ -447,7 +447,7 @@ contains
             if (trim(variableName) == 'GL') then
               footprintRadius_r8 = allFootPrintRadius_r8(headerIndex, procIndex)
               influenceRadius_r8 = max(0.0d0, footprintRadius_r8) + maxLcorr
-            else if (trim(variableName) == 'TM') then 
+            else if (trim(variableName) == 'TM') then
               influenceRadius_r8 = maxLcorr
             else
               call utl_abort('findObs: The current code does not work with '&
@@ -706,7 +706,7 @@ contains
 
         end do HEADER_LOOP
       end do
-      
+
       call gio_writeToFile(stateVectorAnlDSLO, outputFileName, '', typvar_opt = 'A@', &
                            containsFullField_opt = .false. )
     end if
@@ -731,24 +731,24 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
+    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error.
     type(struct_ocm),          intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
     character(len=*),          intent(in)    :: variableName        ! variable name
-    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
+    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file
     real(8)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
     type(struct_hco), pointer, intent(in)    :: hco_ptr             ! horizontal coordinates structure, pointer
     type(struct_vco), pointer, intent(in)    :: vco_ptr             ! vertical coordinates structure, pointer
 
     ! Locals:
     type(struct_gsv) :: stateVectorAnalysis
-    integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount 
+    integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount
     real(8), pointer :: stateVectorStdError_ptr(:,:,:), stateVectorAnalysis_ptr(:,:,:)
     real(8) :: totalLocalVariance
 
     write(*,*) ''
     write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
                trim(variableName)
-    
+
     ! read analysis itself (seaice concentration or SST analysis)
     call msg('aer_propagateAnalysisError:', ' reading analysis field...')
     call gsv_allocate(stateVectorAnalysis, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
@@ -758,11 +758,11 @@ contains
                           'A@', containsFullField_opt = .true.)
     call gsv_getField(stateVectorAnalysis, stateVectorAnalysis_ptr)
 
-    ! initialize pointer for the error standard deviation field    
+    ! initialize pointer for the error standard deviation field
     call gsv_getField(stateVectorErrorStd, stateVectorStdError_ptr)
-    
+
     ! calculation in variance unit
-    stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2 
+    stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2
 
     pointCount = 0
     totalLocalVariance = 0.0d0
@@ -887,7 +887,7 @@ contains
     type(struct_obs)         ,          intent(in)    :: obsSpaceData           ! obsSpaceData structure
     type(struct_gsv)         ,          intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
     type(struct_gsv)         ,          intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
-    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM') 
+    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM')
     real(8)                  ,          intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     type(struct_neighborhood), pointer, intent(in)    :: influentObs(:,:)       ! details about observations to use in update
     real(8)                  ,          intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
@@ -932,7 +932,7 @@ contains
         lonInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lon2d_4(lonIndex, latIndex), 8)
       end do
     end do
-    
+
     ! Initialisation of pointers
     call gsv_getField(stateVectorAnlErrorStd, anlErrorStdDev_ptr)
     call gsv_getField(stateVectorTrlErrorStd, trlErrorStdDev_ptr)
@@ -949,7 +949,7 @@ contains
       do bodyIndex = 1, obs_numBody(obsSpaceData)
         iceScaling(bodyIndex) = oop_iceScaling(obsSpaceData, bodyIndex)
       end do
-      call mmpi_allGather(iceScaling, allIceScaling, numBodyMax)
+      call mmpi_allGather(iceScaling, allIceScaling)
     end if
 
     allocate(obsOer(numBodyMax))
