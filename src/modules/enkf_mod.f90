@@ -2901,7 +2901,7 @@ contains
     real(8), intent(out) :: hLoc                 ! the gridpoint localization radius
 
     ! Locals:
-    integer              :: hLocIndex
+    integer              :: hLocIndex, numPresValues
 
     ! radius is constant
     if ( all(hLocalize(:) == hLocalize(1)) ) then
@@ -2909,24 +2909,21 @@ contains
 
     ! radius varies vertically, and is linearly interpolated with log(P)
     else if (hLinearLoc) then
+      numPresValues = count(hLocalizePressure > 0.0d0)
+      hLocIndex = 1 + count(anlVertLocation >= hLocalizePressure(1:numPresValues))
       ! constant radius value near the top of the atmosphere
-      if ( anlVertLocation <= hLocalizePressure(1) ) then
-          hLoc = hLocalize(1)
+      if (hLocIndex == 1) then
+        hLoc = hLocalize(hLocIndex)
       ! constant radius value near the bottom of the atmosphere
-      else if ( anlVertLocation >= hLocalizePressure(count(hLocalizePressure> 0.0d0)) ) then
-          hLoc = hLocalize(count(hLocalize > 0.0d0))
+      else if (hLocIndex == numPresValues+1) then
+        hLoc = hLocalize(hLocIndex-1)
+      ! piece-wise linear interpolation
       else
-        ! piece-wise linear interpolation
-        do hLocIndex = 1, count(hLocalize > 0.0d0) - 1
-          if ( anlVertLocation >= hLocalizePressure(hLocIndex)   .and. &
-               anlVertLocation <= hLocalizePressure(hLocIndex+1) ) then
-            hLoc = hLocalize(hLocIndex) + &
-                   (anlVertLocation - hLocalizePressure(hLocIndex)) * &
-                   (hLocalize(hLocIndex+1) - hLocalize(hLocIndex))  / &
-                   (hLocalizePressure(hLocIndex+1) - hLocalizePressure(hLocIndex))
-          endif
-         end do
-      endif
+        hLoc = hLocalize(hLocIndex-1) + &
+               (anlVertLocation - hLocalizePressure(hLocIndex-1)) * &
+               (hLocalize(hLocIndex) - hLocalize(hLocIndex-1))  / &
+               (hLocalizePressure(hLocIndex) - hLocalizePressure(hLocIndex-1))
+      end if
 
     ! radius varies vertically, but is not interpolated
     else
