@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Replace direct calls to `rpn_comm` routines to local wrappers (#1065 and !976)
+ * Replace direct calls to `rpn_comm` routines with local wrappers (#1065 and !976)
  * Generalizations for averaging kernel and observation operator applications for constituents (#791 and !962)
  * Replace `obs_omp` column with `destObsColumn` in CH obs operator (#1053 and !952)
 
@@ -186,14 +186,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Modified computation of time for LETKF ocean increments (#964 and !875)
  * Modified functionality of `dateStamp_opt` in `gsv_allocate` (#960 and !872)
- * Optimize writing of ensemble members by distributing all `varLev`s across MPI processes (#943 and !858) 
+ * Optimize writing of ensemble members by distributing all `varLev`s across MPI processes (#943 and !858)
    * New namelist variable `maxVarLevGroups` in `NAMENSSTATE` to control the maximum number of `varLev`s groups.
  * Merge of `tovsNL_mod` and `tovsLin_mod` into `tovs_mod` (#956 and !871)
  * Updated `var/EnVar/gdps` system test configuration and reference data to IC-4 level (#930 and !860)
 
 ### Fixed
 
- * NEMO netCDF file input/output bug fixes (#960 and !872)  
+ * NEMO netCDF file input/output bug fixes (#960 and !872)
  * Dynamically compute dimensions of `procIndexesSendMpiGlobal` (#950 and !866)
  * Added missing file open/close in `bCovarSetupChem_mod.f90` (#949 and !864)
    * Also fixed incorrect intent for `ni/nj/nk` in `utl_fstlir`
@@ -237,11 +237,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix memory deallocation problem in rttovScatt tl and ad leading to crash when assimilating water vapour sensitive channels in allsky mode (#931 and !857) 
+ * Fix memory deallocation problem in rttovScatt tl and ad leading to crash when assimilating water vapour sensitive channels in allsky mode (#931 and !857)
  * Correct the method for computing R matrix when using simulated observations in `var1D` (#937 and !847)
  * Optional system tests cleanup (#936 and !849)
    * adjointTest was updated and is now mandatory
-   * letk/glb_benchmark was removed 
+   * letk/glb_benchmark was removed
  * Fix the documentation generation to use the correct build directory name (#920 and !828)
  * Bug fix for proper use of CLW when both rttov and rttovScatt simulate subset of channels (#919 and !827)
 
@@ -264,7 +264,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)
  * Added latband formulation options in `calcStatsGlb_mod.f90` and also generalized variable specification except with the legacy formulation (#861 and !790)
    * New namelist `NAMCOMPUTEBHILATBANDS` and new possible output files `hCorrelFit.txt` and `vCorrelFit.txt`
- * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
+ * Added the ability to output the Jacobian for radiance observations (#877 and !786)
  * Option to estimate background error stddev in observation space in Idealized var1D (#874 and !784)
  * All-sky assimilation for ATMS humidity channels (#875 and !787)
  * Added the ability to update header-level SQLite columns (#871 and !779)
@@ -276,7 +276,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Introduce ability to impose RTTOV limits on humidity for column data objects (#859 and !765)
  * Introduce ability to copy and add column data objects (#858 and !764)
  * Add option to supply external surface pressure for interpolating column data objects (#857 and !763)
- * Option to inflate the background skin temperature error and error correlation (#855 and !762) 
+ * Option to inflate the background skin temperature error and error correlation (#855 and !762)
  * Added namelist variable `useTovsUtil` to control radiance channel filtering in `var` based on `stats_tovs` UTIL column (#852 and !760)
  * Implemented vertical-scale-dependent vertical localization capability in `bMatrixEnsemble_mod` for 3D variables and TG (#838 and !757)
    * WARNING: `NAMBEN` namelist variables `waveBandPeaks` and `localizationType` are now named `horizWaveBandPeaks` and `horizLocalizationType`, respectively.
@@ -351,12 +351,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [3.9.0]
 
 ### Added
- 
+
  * Added an extra norm, named stratoNorm, from 100hPa to 1hPa for FSOI(#836 and !785)
  * Added RCM data for sea ice concentration analysis (#848 and !761)
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
- * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744) 
+ * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744)
  * Added ability to specify variable names for obs families being passively assimilated or simulated (#825 and !741)
  * Added namelist variable to scale Lcorr and apply max limit to trial error stddev for analysisErrorOI (#832 and !740)
  * Introduction of variable `passiveChannelList` in namelist section `NAMBIASSAT` (#824 and !737)
@@ -1175,7 +1175,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * dPdPsfc is no longer used in any observation operators since the increment of pressure is calculated on the grid and is interpolated to the observation location.
     * Change namelist variable `addGZsfcOffset` to `addHeightSfcOffset`.
     * Variable/function/subroutine names that include `gz` are changed to `height` to reflect the fact that geometric altitude/height is now the primary variable instead of geopotential.
-    * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations). 
+    * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations).
     * The execution time is also increased for some (e.g. gdps takes ~100 seconds longer, but this can be reduced by increasing number of nodes to 30 or 36).
  * Minor change in `tt2phi_mod` (slightly affects results): now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
  * The namelist variable `scaleFactor` in `NAMBHI` must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
