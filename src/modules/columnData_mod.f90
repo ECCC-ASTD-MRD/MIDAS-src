@@ -27,7 +27,7 @@ module columnData_mod
 
   ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
-  public :: col_varExist, col_getOffsetFromVarno
+  public :: col_varExist, col_getOffsetFromVarno, col_getOffsetFromVarName
   public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromVarLev
   public :: col_addHeightSfcOffset
   public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
@@ -35,7 +35,7 @@ module columnData_mod
   public :: col_getLat, col_setLat, col_getOltv, col_setOltv
   public :: col_getVco, col_setVco
   public :: col_getLevFromVarLev, col_add, col_copy, col_copyLat
-            
+
   type struct_columnData
     private
     integer                   :: numVarLev
@@ -463,6 +463,26 @@ contains
   end function col_getOffsetFromVarno
 
   !--------------------------------------------------------------------------
+  ! col_getOffsetFromVarName
+  !--------------------------------------------------------------------------
+  function col_getOffsetFromVarName(column,varName) result(offset)
+    !
+    !:Purpose: Return the "offset" for a given variable name within the
+    !          "varsLevs" list of variables and levels.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column   ! The `columnData` object
+    character(len=*),        intent(in) :: varName  ! Variable name
+    ! Result:
+    integer                             :: offset   ! The returned offset value within "varsLevs"
+
+    offset=column%varOffset(vnl_varListIndex(trim(varName)))
+
+  end function col_getOffsetFromVarName
+
+  !--------------------------------------------------------------------------
   ! col_getLevFromVarLev
   !--------------------------------------------------------------------------
   function col_getLevFromVarLev(column, varLevIndex) result(levIndex)
@@ -694,7 +714,7 @@ contains
   !--------------------------------------------------------------------------
   ! col_getAllColumns
   !--------------------------------------------------------------------------
-  function col_getAllColumns(column,varName) result(allColumns)
+  function col_getAllColumns(column,varName_opt) result(allColumns)
     !
     !:Purpose: Return a pointer to either a portion of the main `column`
     !          object data array for a given variable or to the entire array.
@@ -702,21 +722,28 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column  ! The `columnData` object
-    character(len=*),        intent(in) :: varName ! The variable name
+    type(struct_columnData),    intent(in) :: column      ! The `columnData` object
+    character(len=*), optional, intent(in) :: varName_opt ! The variable name
     ! Result:
-    real(8), pointer                    :: allColumns(:,:) ! Resulting pointer to complete array
+    real(8), pointer                       :: allColumns(:,:) ! Resulting pointer to complete array
 
     ! Locals:
-    integer                             :: ilev1, ilev2
+    integer :: ilev1, ilev2
 
     if ( column%numCol > 0 ) then
-      if ( col_varExist(column,varName) ) then
-        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-        allColumns => column%all(ilev1:ilev2,:)
+      if (present(varName_opt)) then
+        if ( col_varExist(column,varName_opt) ) then
+          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
+          allColumns => column%all(ilev1:ilev2,:)
+        else
+          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
+        end if
       else
-        call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
+        ! No variable name specified, return full columns
+        ilev1 = 1
+        ilev2 = column%numVarLev
+        allColumns => column%all(ilev1:ilev2,:)
       end if
     else
       allColumns => null()

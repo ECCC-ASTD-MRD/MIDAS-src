@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added more efficient method for interpolating to observation locations/times (#568 and !979)
+   * Small impact on results when interpolating to obs locations/times with new method activated
  * Complete vertical-scale-dependent vertical localization in bMatrixEnsemble_mod, i.e., including surface pressure, is now possible with GEM-H ensembles (#1033 and !969)
 
 ### Changed
