@@ -142,6 +142,11 @@ module midasMpi_mod
     module procedure mmpi_sendrecv_real8
   end interface mmpi_sendrecv
 
+  ! general interface for private function 'handleLength'
+  interface handleLength
+    module procedure handleLengthOnly
+    module procedure handleLengthWithRespectToCommunicator
+  end interface handleLength
 contains
 
   !--------------------------------------------------------------------------
@@ -1431,7 +1436,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
+    length = handleLength(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_integer',  &
                            receiving, length, 'mpi_integer', communicator, ierr)
@@ -1460,7 +1465,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
+    length = handleLength(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_integer8',  &
                            receiving, length, 'mpi_integer8', communicator, ierr)
@@ -1489,7 +1494,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
+    length = handleLength(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real4',  &
                            receiving, length, 'mpi_real4', communicator, ierr)
@@ -1518,7 +1523,7 @@ contains
     character(len=mmpi_communicator_max_length) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
-    length = handleLengthWithRespectToCommunicator(sending, communicator, length_opt)
+    length = handleLength(sending, communicator, length_opt)
 
     call rpn_comm_alltoall(sending,   length, 'mpi_real8',  &
                            receiving, length, 'mpi_real8', communicator, ierr)
@@ -2287,9 +2292,9 @@ contains
   end function handleProcID
 
   !--------------------------------------------------------------------------
-  ! handleLength (private)
+  ! handleLengthOnly (private)
   !--------------------------------------------------------------------------
-  function handleLength(inputData, length_opt) result(length)
+  function handleLengthOnly(inputData, length_opt) result(length)
     !
     !:Purpose: Process 'length_opt' optional argument
     !
@@ -2311,7 +2316,7 @@ contains
       end if ! 'else' of 'if ( rank(inputData) == 0 ) then'
     end if ! 'else' of 'if ( present(length_opt) ) then'
 
-  end function handleLength
+  end function handleLengthOnly
 
   !--------------------------------------------------------------------------
   ! handleLengthWithRespectToCommunicator (private)
