@@ -2047,7 +2047,7 @@ contains
       do arrayIndex = 1, nsize
         numLevels(arrayIndex) = array(arrayIndex+1) - array(arrayIndex)
       end do
-      call mmpi_gatherv(numLevels, numLevelsMpi, nsize, allnsize, displs)
+      call mmpi_gatherv(numLevels, numLevelsMpi, allnsize, displs, nsize)
 
       call mmpi_bcast(numLevelsMpi, nsizeMpi)
       arrayMpi(1) = 0

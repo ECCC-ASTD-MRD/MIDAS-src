@@ -1811,14 +1811,14 @@ contains
 
     call mmpi_computeDisplacements(length, allLengths, displacements)
 
-    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
   end subroutine mmpi_gatherv_logical
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_logical_displs(sending, receiving, length_opt, allLengths, displacements)
+  subroutine mmpi_gatherv_logical_displs(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
     !          array when 'allLengths' and 'displacements' are both
@@ -1829,9 +1829,9 @@ contains
     ! Arguments:
     logical, contiguous, intent(in)  :: sending(..)      ! logical data sent to all MPI ranks
     logical, contiguous, intent(out) :: receiving(..)    ! logical array which stores the data received
-    integer, optional,   intent(in)  :: length_opt       ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
     integer, parameter :: procID = 0
@@ -1871,14 +1871,14 @@ contains
 
     call mmpi_computeDisplacements(length, allLengths, displacements)
 
-    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
   end subroutine mmpi_gatherv_integer
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_integer_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_integer_displs(sending, receiving, length_opt, allLengths, displacements)
+  subroutine mmpi_gatherv_integer_displs(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a logical scalar or
     !          array when 'allLengths' and 'displacements' are both
@@ -1889,9 +1889,9 @@ contains
     ! Arguments:
     integer, contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
     integer, contiguous, intent(out) :: receiving(..)    ! integer array which stores the data received
-    integer, optional,   intent(in)  :: length_opt       ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
     integer, parameter :: procID = 0
@@ -1932,14 +1932,14 @@ contains
 
     call mmpi_computeDisplacements(length, allLengths, displacements)
 
-    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
   end subroutine mmpi_gatherv_real4
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real4_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real4_displs(sending, receiving, length_opt, allLengths, displacements)
+  subroutine mmpi_gatherv_real4_displs(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real(4) scalar or array
     !          when 'allLengths' and 'displacements' are both
@@ -1950,9 +1950,9 @@ contains
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)      ! real(4) data sent to all MPI ranks
     real(4), contiguous, intent(out) :: receiving(..)    ! real(4) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt       ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
     integer, parameter :: procID = 0
@@ -1993,14 +1993,14 @@ contains
 
     call mmpi_computeDisplacements(length, allLengths, displacements)
 
-    call mmpi_gatherv(sending, receiving, length, allLengths, displacements)
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
   end subroutine mmpi_gatherv_real8
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_real8_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_real8_displs(sending, receiving, length_opt, allLengths, displacements)
+  subroutine mmpi_gatherv_real8_displs(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'rpn_comm_gatherv' for a real8 scalar or array
     !          when 'allLengths' and 'displacements' are both
@@ -2011,9 +2011,9 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
     real(8), contiguous, intent(out) :: receiving(..)    ! real(8) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt       ! size of the input array
     integer,             intent(in)  :: allLengths(:)    ! array containing the size of the data for each MPI rank
     integer,             intent(in)  :: displacements(:) ! offsets in the array to look for the data for each MPI rank
+    integer, optional,   intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
     integer, parameter :: procID = 0

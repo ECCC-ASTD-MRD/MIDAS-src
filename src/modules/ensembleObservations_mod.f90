@@ -635,21 +635,21 @@ CONTAINS
 
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
-    call mmpi_gatherv(ensObsClean%lat, ensObs_mpiglobal%lat, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%lon, ensObs_mpiglobal%lon, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%vertLocation, ensObs_mpiglobal%vertLocation, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%obsValue, ensObs_mpiglobal%obsValue, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%obsErrInv, ensObs_mpiglobal%obsErrInv, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%meanYb, ensObs_mpiglobal%meanYb, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%deterYb, ensObs_mpiglobal%deterYb, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%assFlag, ensObs_mpiglobal%assFlag, ensObsClean%numObs, allNumObs, displs)
-    call mmpi_gatherv(ensObsClean%codTyp, ensObs_mpiglobal%codTyp, ensObsClean%numObs, allNumObs, displs)
+    call mmpi_gatherv(ensObsClean%lat,          ensObs_mpiglobal%lat,          allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%lon,          ensObs_mpiglobal%lon,          allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%vertLocation, ensObs_mpiglobal%vertLocation, allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%obsValue,     ensObs_mpiglobal%obsValue,     allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%obsErrInv,    ensObs_mpiglobal%obsErrInv,    allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%meanYb,       ensObs_mpiglobal%meanYb,       allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%deterYb,      ensObs_mpiglobal%deterYb,      allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%assFlag,      ensObs_mpiglobal%assFlag,      allNumObs, displs, ensObsClean%numObs)
+    call mmpi_gatherv(ensObsClean%codTyp,       ensObs_mpiglobal%codTyp,       allNumObs, displs, ensObsClean%numObs)
     if (allocated(ensObsClean%obsErrInv_sim)) then
-      call mmpi_gatherv(ensObsClean%obsErrInv_sim, ensObs_mpiglobal%obsErrInv_sim, ensObsClean%numObs, allNumObs, displs)
+      call mmpi_gatherv(ensObsClean%obsErrInv_sim, ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, ensObsClean%numObs)
     end if
 
     do memberIndex = 1, ensObsClean%numMembers
-      call mmpi_gatherv(ensObsClean%Yb_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
+      call mmpi_gatherv(ensObsClean%Yb_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
     end do
     if (mmpi_myid == 0) then
       ensObs_mpiglobal%Yb_r4(:,:) = tempBuffer(:,:)
@@ -658,7 +658,7 @@ CONTAINS
 
     if (associated(ensObsClean%Ya_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call mmpi_gatherv(ensObsClean%Ya_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
+        call mmpi_gatherv(ensObsClean%Ya_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%Ya_r4(:,:) = tempBuffer(:,:)
@@ -668,7 +668,7 @@ CONTAINS
 
     if (associated(ensObsClean%randPert_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
-        call mmpi_gatherv(ensObsClean%randPert_r4(memberIndex,:), tempBuffer(memberIndex,:), ensObsClean%numObs, allNumObs, displs)
+        call mmpi_gatherv(ensObsClean%randPert_r4(memberIndex,:), tempBuffer(memberIndex,:), allNumObs, displs, ensObsClean%numObs)
       end do
       if (mmpi_myid == 0) then
         ensObs_mpiglobal%randPert_r4(:,:) = tempBuffer(:,:)
