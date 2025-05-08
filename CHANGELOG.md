@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed bug in RttovScatt that was present from the beginning. Major impact when allSky assimilation of microwave humidity channels is involved (#1049 and !973)
 
 ### Removed
 
