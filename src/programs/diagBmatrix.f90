@@ -90,8 +90,9 @@ program midas_diagBmatrix
   !======================== ============ ==============================================================
   !
  
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use message_mod
   use controlVector_mod
   use gridVariableTransforms_mod

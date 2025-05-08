@@ -6,6 +6,7 @@ module menetrierDiag_mod
   !           developed by Benjamin Menetrier (Meteo-France) and reported
   !           in Menetrier, Michel, Montmerle and Berre, 2015, Parts 1 and 2.
   !
+  use rpn_comm
   use earthConstants_mod
   use utilities_mod
   use localizationFunction_mod

@@ -6,6 +6,7 @@ MODULE ensembleObservations_mod
   !           This module uses the kdtree2 module for efficiently finding the
   !           nearest observations within the local volume.
   !
+  use rpn_comm
   use kdTree2_mod
   use message_mod
   use columnData_mod

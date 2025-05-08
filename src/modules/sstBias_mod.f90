@@ -4,6 +4,8 @@ module sstBias_mod
   !
   !:Purpose: Compute SST satellite data bias estimation and correction.
   !
+  use rpn_comm
+  use midasMpi_mod
   use obsSpaceData_mod  
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -12,7 +14,6 @@ module sstBias_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
-  use midasMpi_mod
   use codtyp_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

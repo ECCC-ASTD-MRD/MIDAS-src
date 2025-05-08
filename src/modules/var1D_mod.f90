@@ -4,10 +4,11 @@ module var1D_mod
   !
   !:Purpose: contains all 1Dvar-related methods.
   !
+  use rpn_comm
+  use midasMpi_mod
   use columnData_mod
   use gridStatevector_mod
   use horizontalCoord_mod
-  use midasMpi_mod 
   use message_mod
   use obsSpaceData_mod
   use timeCoord_mod

@@ -28,6 +28,7 @@ module obsSubSpaceData_mod
   !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
   !          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
   !
+  use rpn_comm
   use codePrecision_mod
   use utilities_mod    
   use MathPhysConstants_mod

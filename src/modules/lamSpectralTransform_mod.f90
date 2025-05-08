@@ -5,7 +5,8 @@ module lamSpectralTransform_mod
   !:Purpose:  Bi-Fourier spectral transform for limited-area applications.
   !           Depends on ffft8 and setfft8 routines in ARMNLIB.
   !
-  use mpi
+  use mpi ! this is the mpi library module
+  use rpn_comm
   use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod

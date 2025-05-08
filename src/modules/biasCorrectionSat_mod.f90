@@ -8,13 +8,14 @@ module biasCorrectionSat_mod
   !          for estimating the bias. Existing bias correction estimates
   !          can also be applied to observations.
   !
+  use rpn_comm
+  use midasMpi_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use midasMpi_mod
   use rttov_const, only : ninst
   use tovs_mod
   use timeCoord_mod

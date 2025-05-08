@@ -5,6 +5,7 @@ module sqliteRead_mod
   !:Purpose:  To read and update SQLITE observation files. Data is stored in 
   !           obsSpaceData object.
   !
+  use rpn_comm
   use codePrecision_mod
   use obsSpaceData_mod
   use midasMpi_mod

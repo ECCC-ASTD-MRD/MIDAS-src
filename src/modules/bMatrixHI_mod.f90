@@ -7,6 +7,7 @@ MODULE bMatrixHI_mod
   !           matrix based on homogeneous and isotropic correlations. This is
   !           the Global version. A separate module exists for limited-area applications.
   !
+  use rpn_comm
   use midasMpi_mod
   use message_mod
   use earthConstants_mod

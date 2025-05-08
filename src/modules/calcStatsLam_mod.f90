@@ -6,6 +6,7 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use rpn_comm
   use mathPhysConstants_mod
   use earthConstants_mod
   use message_mod

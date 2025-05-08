@@ -5,6 +5,7 @@ module burpFiles_mod
   !:Purpose:  To store the filenames of the burp observation files and call
   !           subroutines in readBurp_mod to read and update burp files.
   !
+  use rpn_comm
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod

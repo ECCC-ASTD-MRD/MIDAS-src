@@ -104,8 +104,9 @@ program midas_randomPert
   !           and isotropic chemical constituents covariances.
   !
 
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use ramDisk_mod
   use message_mod
   use controlVector_mod

@@ -8,6 +8,7 @@ module thinning_mod
   !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
+  use rpn_comm
   use midasMpi_mod
   use message_mod
   use bufr_mod
@@ -2254,7 +2255,7 @@ contains
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
-    call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
+    call rpn_comm_allgather( nsize,    1, 'mpi_integer', &
                              allnsize, 1, 'mpi_integer', &
                              'GRID', ierr )
     nsizeMpi = sum(allnsize(:))

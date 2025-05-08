@@ -6,6 +6,7 @@ module calcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
+  use rpn_comm
   use codePrecision_mod
   use midasMpi_mod
   use message_mod

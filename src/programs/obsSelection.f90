@@ -180,6 +180,7 @@ program midas_obsSelection
   !                                                       state.
   !=========================== ========================= =========================================
   !
+  use rpn_comm
   use version_mod
   use codePrecision_mod
   use ramDisk_mod

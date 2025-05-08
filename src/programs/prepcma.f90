@@ -88,6 +88,8 @@ program midas_prepcma
   !=================== ====================== ===========================================
   !
   !
+  use rpn_comm
+  use midasMpi_mod
   use version_mod
   use obsSpaceData_mod
   use obsFiles_mod
@@ -98,7 +100,6 @@ program midas_prepcma
   use timeCoord_mod
   use enkf_mod
   use utilities_mod
-  use midasMpi_mod
   use ramDisk_mod
   use regions_mod
   use burpRead_mod

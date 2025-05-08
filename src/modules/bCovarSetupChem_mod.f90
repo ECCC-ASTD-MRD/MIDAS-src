@@ -35,6 +35,7 @@ module bCovarSetupChem_mod
   !    bcsc_addBgStddev: Add background stddev profiles (and inverse) to 
   !                      bgStddev which can be retrieved later using a header index.
 
+  use rpn_comm
   use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod

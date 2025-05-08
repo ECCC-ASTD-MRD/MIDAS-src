@@ -3,6 +3,7 @@ module var1DIdealize_mod
     !
     ! :Purpose: contains all 1Dvar-related methods.
     !
+    use rpn_comm
     use columnData_mod
     use columnVariableTransforms_mod
     use controlVector_mod

@@ -5,8 +5,9 @@ module obsDiagFiles_mod
   !:Purpose:  To write the "diag" format SQLITE observation files. Data is stored in 
   !           obsSpaceData object.
   !
-  use obsSpaceData_mod
+  use rpn_comm
   use midasMpi_mod
+  use obsSpaceData_mod
   use fSQLite
   use mathPhysConstants_mod
   use utilities_mod

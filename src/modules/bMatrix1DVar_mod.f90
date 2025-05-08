@@ -4,6 +4,7 @@ module bMatrix1DVar_mod
   !
   !:Purpose: contains all 1Dvar B matrices.
   !
+  use rpn_comm
   use mathPhysConstants_mod
   use message_mod
   use columnData_mod

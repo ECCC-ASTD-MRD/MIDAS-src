@@ -5,6 +5,7 @@ module obsSpaceDiag_mod
   !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
+  use rpn_comm
   use codePrecision_mod
   use midasMpi_mod
   use bufr_mod

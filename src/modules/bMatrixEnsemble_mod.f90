@@ -7,6 +7,7 @@ module bMatrixEnsemble_mod
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
   !
+  use rpn_comm
   use midasMpi_mod
   use message_mod
   use fileNames_mod

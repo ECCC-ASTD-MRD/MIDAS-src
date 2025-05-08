@@ -4,6 +4,7 @@ module sqliteUtilities_mod
   !
   !:Purpose: A place to collect utilities for SQLite files.
   !
+  use rpn_comm
   use fSQLite
   use clibInterfaces_mod
   use obsSpaceData_mod

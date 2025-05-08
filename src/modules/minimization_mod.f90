@@ -5,6 +5,7 @@ module minimization_mod
   !:Purpose:  Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
+  use rpn_comm
   use codePrecision_mod
   use message_mod
   use timeCoord_mod

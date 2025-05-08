@@ -7,7 +7,8 @@ module midasMpi_mod
   !           Also, subroutine and public variables related to the mpi decomposition
   !           specific to the MIDAS code.
   !
-  use mpi
+  use mpi ! this is the mpi library module
+  use rpn_comm
   use utilities_mod
 
   implicit none

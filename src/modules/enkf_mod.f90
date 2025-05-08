@@ -6,6 +6,7 @@ module enkf_mod
   !           an EnKF in MIDAS, including the LETKF.
   !
   use mpi                 ! this is the mpi library module
+  use rpn_comm
   use midasMpi_mod
   use utilities_mod
   use message_mod
