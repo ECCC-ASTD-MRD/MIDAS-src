@@ -32,7 +32,7 @@ set -e
 program_filelist=`ls -dR -1 $codedir/programs/*.f*90`
 #program_filelist=""
 numPrograms=0
-for file in $program_filelist ; do  
+for file in $program_filelist ; do
   numPrograms=$((numPrograms + 1))
   program_name=`grep -i '^program ' $file | awk '{print $2}'`
   program_name_lc=`echo $program_name |tr '[:upper:]' '[:lower:]'`
@@ -76,13 +76,13 @@ end module ${modulenames_lc[$index]}
 EOF
 done
 
-for filenum in `seq 1 $numPrograms` ; do  
+for filenum in `seq 1 $numPrograms` ; do
   echo ADDING THIS FILE TO src_files: ${program_files[$filenum]}
   cd _src_files
   ln -s ../${program_files[$filenum]} ./
   cd ../
 done
-for file in $module_filelist ; do  
+for file in $module_filelist ; do
   echo ADDING THIS FILE TO src_files: $file
   cd _src_files
   bname=`basename $file`
@@ -90,6 +90,8 @@ for file in $module_filelist ; do
   cp ../$file ./
   # Removing the single space between '!' and ':something:' fixes many bad formatting cases.
   sed -i -E 's/! :(.*):/!:\1:/g' ./$bname
+  # Replace "type(*)" with "type(anyType)" to avoid limitation of the documentation tool.
+  sed -i -e 's/type(\*)/type(anyType)/g' ./$bname
   cd ../
 done
 
@@ -222,7 +224,7 @@ This is the documentation for version ${revision}
 
 This is the automatically generated MIDAS documentation. Below you
 will find a list of all fortran programs and modules that make up
-the MIDAS software. Documentation in the fortran code that appears 
+the MIDAS software. Documentation in the fortran code that appears
 in comments immediately following the program or module or subroutine
 statement will be included. It can be formatted using *reStructuredText*.
 A primer on this markup language can be found here:
@@ -376,7 +378,7 @@ MOD_DIR=$PWD
 cd ${OBJBLD_PATH}
 echo "programList = ${programList}"
 for programName in ${programList}; do
-    echo 
+    echo
     echo "Generating list of namelists for the program: ${programName}"
     programNameBase=$(basename ${programName} .f90)
     echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
