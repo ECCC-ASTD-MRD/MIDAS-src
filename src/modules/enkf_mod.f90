@@ -572,7 +572,7 @@ contains
             ! Assign this MPI task the next gridpoint to be calculated
             ! NOTE: this assignment will be ignored when readySignal is 'N'
             call MPI_RSEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
-                           mmpi_comm_grid, mpiStatus, ierr)
+                           mmpi_comm_grid, ierr)
 
             if (readySignal == 'Y') then
               exit ReadyLoop
@@ -640,7 +640,7 @@ contains
               ! Signal that I am ready for assignment
               readySignal = 'Y'
               call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
-                            mmpi_comm_grid, mpiStatus, ierr)
+                            mmpi_comm_grid, ierr)
 
               call mpi_wait(requestIdSignal, MPI_STATUS_IGNORE, ierr)
 
@@ -654,7 +654,7 @@ contains
               write(*,*) 'Reached maximum number of assignments, wait until others are finished'
               readySignal = 'N'
               call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
-                            mmpi_comm_grid, mpiStatus, ierr)
+                            mmpi_comm_grid, ierr)
 
               call mpi_wait(requestIdSignal, MPI_STATUS_IGNORE, ierr)
 
