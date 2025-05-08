@@ -3222,7 +3222,7 @@ contains
     if (col_getVco(column)%sleveCoord) then
       allocate(hSfcLS(1, numCol))
       do colIndex = 1, numCol
-        hSfcLS(1,colIndex) = col_getHeightLS(column,1,colIndex, 'SF')
+        hSfcLS(1,colIndex) = col_getHeightLS(column,colIndex, 'SF')
       end do
       call fetch3DLevels_r8(col_getVco(column), sfcFld=hSfc, sfcFldLS_opt=hSfcLS, &
                             fldM_opt=hPtrM, fldT_opt=hPtrT)

@@ -412,7 +412,10 @@ contains
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
-        call utl_abort('vInterp_gsv_r8: reference must have input vertical structure')
+        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same vertical grid')
+      end if
+      if ( .not. hco_equal(statevectorRef_opt%hco, statevector_in%hco) ) then
+        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same horizontal grid')
       end if
       statevectorRef => statevectorRef_opt
     else
@@ -426,7 +429,7 @@ contains
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
@@ -617,7 +620,7 @@ contains
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in
         real(8) :: zwb, zwt
-
+        
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd

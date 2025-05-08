@@ -977,7 +977,7 @@ module gridStateVectorFileIO_mod
 
           allocate(gd2d_file_r4(ni_file, nj_file))
           gd2d_file_r4(:,:) = 0.0d0
-          ierr = fstlir(gd2d_file_r4(:,:), nulfileToRead, ni_file, nj_file, nk_file, &
+          ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file, &
                         -1, etiket_in, ip1, -1, -1, typvar_var,varName)
           if (ierr < 0) then
             write(*,*) 'ip1 = ', ip1

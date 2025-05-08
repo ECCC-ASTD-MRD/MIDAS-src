@@ -801,11 +801,9 @@ module gridStateVector_mod
     end if
 
     if (present(allocHeightSfc_opt)) then
-      if (allocHeightSfc_opt) then
-        allocHeightSfc=allocHeightSfc_opt
-      else
-        allocHeightSfc=.false.
-      end if
+      allocHeightSfc=allocHeightSfc_opt
+    else
+      allocHeightSfc=.false.
     end if
 
     ! Error trap for vcode=5100 (SLEVE is active with GEM-P)

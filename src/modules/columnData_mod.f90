@@ -641,7 +641,7 @@ contains
   !--------------------------------------------------------------------------
   ! col_getHeightLS
   !--------------------------------------------------------------------------
-  function col_getHeightLS(column,ilev,headerIndex,varLevel) result(heightLS)
+  function col_getHeightLS(column,headerIndex,varLevel) result(heightLS)
     !
     !:Purpose: Return the height LS (large scale) for a given level index, header/column
     !          index and type of levels.
@@ -650,14 +650,10 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in) :: column      ! The `columnData` object
-    integer,                 intent(in) :: ilev        ! The level index
     integer,                 intent(in) :: headerIndex ! The column/header index
     character(len=*),        intent(in) :: varLevel    ! The type of vertical level
     ! Result:
     real(8)                             :: heightLS    ! The returned height value
-
-    ! Locals:
-    integer                             :: ilev1
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
