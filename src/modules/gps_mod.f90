@@ -844,7 +844,7 @@ module gps_mod
     type(gps_profile)  , intent(out)    :: prf
 
     ! Locals:
-    integer(i4)                         :: i
+    integer(i4)                         :: levIndex
     real(dp)                            :: delta
     real(dp)                            :: h0, dh, Rgh, Eot, Eot2, sLat, cLat, q1, q2, q3, q4, md, mw, ym2k, wa, wb
     type(gps_diff)                      :: p, t, q, x
@@ -890,44 +890,44 @@ module gps_mod
     prf%P0%Var               = 0.01_dp*rP0
     prf%P0%DVar              = 0._dp
     prf%P0%DVar(2*ngpslev+1) = 0.01_dp
-    do i=1,ngpslev
-      prf%pst(i)%Var               = 0.01_dp*rPP(i)
-      prf%pst(i)%DVar              = 0._dp
-      prf%pst(i)%DVar(2*ngpslev+1) = 0.01_dp*rDP(i)
+    do levIndex = 1, ngpslev
+      prf%pst(levIndex)%Var                    = 0.01_dp*rPP(levIndex)
+      prf%pst(levIndex)%DVar                   = 0._dp
+      prf%pst(levIndex)%DVar(2*ngpslev+1)      = 0.01_dp*rDP(levIndex)
     end do
 
     !
     ! Fill temperature placeholders:
     !
-    do i = 1, ngpslev
-      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-      prf%tst(i)%DVar              = 0._dp
-      prf%tst(i)%DVar(i)           = 1._dp
+    do levIndex = 1, ngpslev
+      prf%tst(levIndex)%Var                    = rTT(levIndex)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(levIndex)%DVar                   = 0._dp
+      prf%tst(levIndex)%DVar(levIndex)         = 1._dp
     end do
 
     !
     ! Fill moisture placeholders:
     !
-    do i = 1, ngpslev
-      prf%qst(i)%Var               = rHU(i)
-      prf%qst(i)%DVar              = 0._dp
-      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    do levIndex = 1, ngpslev
+      prf%qst(levIndex)%Var                    = rHU(levIndex)
+      prf%qst(levIndex)%DVar                   = 0._dp
+      prf%qst(levIndex)%DVar(ngpslev+levIndex) = 1._dp
     end do
 
     ! Compressibility:
-    do i = 1, ngpslev
-      cmp(i)= gps_compressibility(prf%pst(i), prf%tst(i), prf%qst(i))
+    do levIndex = 1, ngpslev
+      cmp(levIndex)= gps_compressibility(prf%pst(levIndex), prf%tst(levIndex), prf%qst(levIndex))
     end do
 
     ! Refractivity:
-    do i = 1, ngpslev
-      p  = prf%pst(i)
-      t  = prf%tst(i)
-      q  = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p  = prf%pst(levIndex)
+      t  = prf%tst(levIndex)
+      q  = prf%qst(levIndex)
       x  = wa*q/(1._dp+wb*q)
 
       ! Densities (molar, total, dry, water vapor):
-      mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+      mold  = p/t * (100._dp/(p_R*cmp(levIndex)))                           ! p in hPa
       dd = mold * (1._dp-x) * (md/1000._dp)
       dw = mold * x         * (mw/1000._dp)
       ! Aparicio (2011) expression
@@ -935,18 +935,18 @@ module gps_mod
       nd1= (q1+q2*tr) * dd
       nw1= (q3+q4*tr) * dw
       n0 = (nd1+nw1)
-      prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+      prf%rst(levIndex) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
 
     ! Midpoint refractivity between layers (2 to ngpslev)
-    do i = 2, ngpslev
-      p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
-      t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
-      q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+    do levIndex = 2, ngpslev
+      p  = exp( 0.5_dp*( log(prf%pst(levIndex-1))+log(prf%pst(levIndex)) ) )
+      t  =      0.5_dp*(     prf%tst(levIndex-1) +    prf%tst(levIndex))
+      q  = exp( 0.5_dp*( log(prf%qst(levIndex-1))+log(prf%qst(levIndex)) ) )
       x  = wa*q/(1._dp+wb*q)
 
       ! Densities (molar, total, dry, water vapor):
-      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(levIndex-1)+cmp(levIndex))))  ! p in hPa
       dd = mold * (1._dp-x) * (md/1000._dp)
       dw = mold * x         * (mw/1000._dp)
       ! Aparicio (2011) expression
@@ -954,26 +954,26 @@ module gps_mod
       nd1= (q1+q2*tr) * dd
       nw1= (q3+q4*tr) * dw
       n0 = (nd1+nw1)
-      prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+      prf%lrmd(levIndex) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
     prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
 
     !
     ! Hydrostatic equation
     !
-    do i = 1, ngpslev
-      p = prf%pst(i)
-      t = prf%tst(i)
-      q = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p = prf%pst(levIndex)
+      t = prf%tst(levIndex)
+      q = prf%qst(levIndex)
       !
       ! Log(P)
       !
-      xi(i) = log(p)
+      xi(levIndex) = log(p)
       !
       ! Virtual temperature (K) (corrected of compressibility)
       !
-      tv(i) = (1._dp+delta*q) * t * cmp(i)
-      prf%vst(i) = tv(i)
+      tv(levIndex) = (1._dp+delta*q) * t * cmp(levIndex)
+      prf%vst(levIndex) = tv(levIndex)
     end do
 
     sLat=sin(rLat)
@@ -982,15 +982,15 @@ module gps_mod
     Rgh = phf_gravitysrf(sLat)
     z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
     prf%gst(ngpslev) = rMT + z
-    do i=ngpslev-1,1,-1
-      dx = xi(i)-xi(i+1)
-      tvm = 0.5_dp*(tv(i)+tv(i+1))
+    do levIndex = ngpslev-1, 1, -1
+      dx = xi(levIndex)-xi(levIndex+1)
+      tvm = 0.5_dp*(tv(levIndex)+tv(levIndex+1))
       !
       ! Gravity acceleration (includes 2nd-order Eotvos effect)
       !
-      h0  = prf%gst(i+1)%Var
-      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
-      Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
+      h0  = prf%gst(levIndex+1)%Var
+      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(levIndex)
+      Eot2= (rUU(levIndex)**2+rVV(levIndex)**2)/ec_wgs_a
       Rgh = phf_gravityalt(sLat, h0)-Eot-Eot2
       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
       Rgh = phf_gravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
@@ -998,7 +998,7 @@ module gps_mod
       ! Height increment
       !
       z   = (-p_Rd/Rgh) * tvm * dx
-      prf%gst(i) = prf%gst(i+1) + z
+      prf%gst(levIndex) = prf%gst(levIndex+1) + z
     end do
 
   end subroutine gps_struct1sw
@@ -1030,7 +1030,7 @@ module gps_mod
     type(gps_profile)  , intent(out)    :: prf
 
     ! Locals:
-    integer(i4)                         :: i
+    integer(i4)                         :: levIndex
     real(dp)                            :: rALT_E(ngpssize), q1, q2, q3, q4, md, mw, wa, wb, ym2k
     real(dp)                            :: delta
     type(gps_diff)                      :: cmp(ngpssize)
@@ -1073,31 +1073,31 @@ module gps_mod
     !
     ! Fill pressure placeholders:
     !
-    prf%P0%Var               = 0.01_dp*rP0
-    prf%P0%DVar              = 0._dp
-    prf%P0%DVar(4*ngpslev)   = 0.01_dp
-    do i=1,ngpslev
-      prf%pst(i)%Var               = 0.01_dp*rPP(i)
-      prf%pst(i)%DVar              = 0._dp
-      prf%pst(i)%DVar(3*ngpslev+i) = 0.01_dp
+    prf%P0%Var                                   = 0.01_dp*rP0
+    prf%P0%DVar                                  = 0._dp
+    prf%P0%DVar(4*ngpslev)                       = 0.01_dp
+    do levIndex = 1, ngpslev
+      prf%pst(levIndex)%Var                      = 0.01_dp*rPP(levIndex)
+      prf%pst(levIndex)%DVar                     = 0._dp
+      prf%pst(levIndex)%DVar(3*ngpslev+levIndex) = 0.01_dp
     end do
 
     !
     ! Fill temperature placeholders:
     !
-    do i = 1, ngpslev
-      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-      prf%tst(i)%DVar              = 0._dp
-      prf%tst(i)%DVar(i)           = 1._dp
+    do levIndex = 1, ngpslev
+      prf%tst(levIndex)%Var                      = rTT(levIndex)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(levIndex)%DVar                     = 0._dp
+      prf%tst(levIndex)%DVar(levIndex)           = 1._dp
     end do
 
     !
     ! Fill moisture placeholders:
     !
-    do i = 1, ngpslev
-      prf%qst(i)%Var               = rHU(i)
-      prf%qst(i)%DVar              = 0._dp
-      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    do levIndex = 1, ngpslev
+      prf%qst(levIndex)%Var                      = rHU(levIndex)
+      prf%qst(levIndex)%DVar                     = 0._dp
+      prf%qst(levIndex)%DVar(ngpslev+levIndex)   = 1._dp
     end do
 
     !
@@ -1108,25 +1108,25 @@ module gps_mod
     else
       rALT_E(1:ngpslev) = rALT(1:ngpslev)
     end if
-    do i = 1, ngpslev
-      prf%gst(i)%Var                 = rALT_E(i)
-      prf%gst(i)%DVar                = 0._dp
-      prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
+    do levIndex = 1, ngpslev
+      prf%gst(levIndex)%Var                      = rALT_E(levIndex)
+      prf%gst(levIndex)%DVar                     = 0._dp
+      prf%gst(levIndex)%DVar(2*ngpslev+levIndex) = 1._dp
     end do
 
     ! Compressibility:
-    do i = 1, ngpslev
-      cmp(i)= gps_compressibility(prf%pst(i), prf%tst(i), prf%qst(i))
+    do levIndex = 1, ngpslev
+      cmp(levIndex)= gps_compressibility(prf%pst(levIndex), prf%tst(levIndex), prf%qst(levIndex))
     end do
 
     ! Refractivity:
-    do i = 1, ngpslev
-      p  = prf%pst(i)
-      t  = prf%tst(i)
-      q  = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p  = prf%pst(levIndex)
+      t  = prf%tst(levIndex)
+      q  = prf%qst(levIndex)
       x  = wa*q/(1._dp+wb*q)
       ! Densities (molar, total, dry, water vapor):
-      mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
+      mold  = p/t * (100._dp/(p_R*cmp(levIndex)))                            ! p in hPa
       dd = mold * (1._dp-x) * (md/1000._dp)
       dw = mold * x         * (mw/1000._dp)
       ! Aparicio (2011) expression
@@ -1134,18 +1134,18 @@ module gps_mod
       nd1= (q1+q2*tr) * dd
       nw1= (q3+q4*tr) * dw
       n0 = (nd1+nw1)
-      prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+      prf%rst(levIndex) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
 
     ! Midpoint refractivity between layers (2 to ngpslev)
-    do i = 2, ngpslev
-      p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
-      t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
-      q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+    do levIndex = 2, ngpslev
+      p  = exp( 0.5_dp*( log(prf%pst(levIndex-1))+log(prf%pst(levIndex)) ) )
+      t  =      0.5_dp*(     prf%tst(levIndex-1) +    prf%tst(levIndex))
+      q  = exp( 0.5_dp*( log(prf%qst(levIndex-1))+log(prf%qst(levIndex)) ) )
       x  = wa*q/(1._dp+wb*q)
 
       ! Densities (molar, total, dry, water vapor):
-      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+      mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(levIndex-1)+cmp(levIndex))))   ! p in hPa
       dd = mold * (1._dp-x) * (md/1000._dp)
       dw = mold * x         * (mw/1000._dp)
       ! Aparicio (2011) expression
@@ -1153,21 +1153,21 @@ module gps_mod
       nd1= (q1+q2*tr) * dd
       nw1= (q3+q4*tr) * dw
       n0 = (nd1+nw1)
-      prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+      prf%lrmd(levIndex) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
     end do
     prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
 
     !
     ! Virtual temperature
     !
-    do i = 1, ngpslev
-      t = prf%tst(i)
-      q = prf%qst(i)
+    do levIndex = 1, ngpslev
+      t = prf%tst(levIndex)
+      q = prf%qst(levIndex)
       !
       ! Virtual temperature (K) corrected for compressibility
       !
-      tv = (1._dp+delta*q) * t * cmp(i)
-      prf%vst(i) = tv
+      tv = (1._dp+delta*q) * t * cmp(levIndex)
+      prf%vst(levIndex) = tv
     end do
   end subroutine gps_struct1sw_v2
 
@@ -1222,20 +1222,20 @@ module gps_mod
     real(dp)           , intent(out)    :: rALT_E(ngpslev)
 
     ! Locals:
-    integer(i4)                         :: i
+    integer(i4)                         :: levIndex
     real(dp)                            :: cLat, dALT, Eot, Eot2, dALTE, ddAL, acc
 
     cLat=cos(rLat)
     rALT_E(ngpslev) = rALT(ngpslev)
     acc = 0._dp
-    do i = ngpslev-1, 1, -1
-      dALT = rALT(i) - rALT(i+1)
-      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
-      Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
+    do levIndex = ngpslev-1, 1, -1
+      dALT = rALT(levIndex) - rALT(levIndex+1)
+      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(levIndex)
+      Eot2= (rUU(levIndex)**2+rVV(levIndex)**2)/ec_wgs_a
       dALTE = dALT*(1._dp+(Eot+Eot2)/ec_rg)
       ddAL = dALTE - dALT
       acc = acc + ddAL
-      rALT_E(i) = rALT(i) + acc
+      rALT_E(levIndex) = rALT(levIndex) + acc
     end do
   end subroutine gpsro_Eotvos_dH
 
@@ -1284,7 +1284,7 @@ module gps_mod
     ! ******** VARIABLES *************
     type(gps_diff)                      :: tr
     type(gps_diff)                      :: mold, dd, dw, dx, n0, nd1, nw1
-    integer(i4)                         :: i
+    integer(i4)                         :: levIndex
     real(dp)                            :: k1, k2, k3, k2p
     real(dp)                            :: h0, dh, Rgh, sLat, ptop
     type(gps_diff)                      :: p, t, q, x, na, tvm, z
@@ -1300,44 +1300,44 @@ module gps_mod
     prf%P0%Var               = rP0
     prf%P0%DVar              = 0._dp
     prf%P0%DVar(2*ngpslev+1) = 1._dp
-    do i = 1, ngpslev
-      prf%pst(i)%Var               = rPP(i)
-      prf%pst(i)%DVar              = 0._dp
-      prf%pst(i)%DVar(2*ngpslev+1) = rDP(i)
+    do levIndex = 1, ngpslev
+      prf%pst(levIndex)%Var                    = rPP(levIndex)
+      prf%pst(levIndex)%DVar                   = 0._dp
+      prf%pst(levIndex)%DVar(2*ngpslev+1)      = rDP(levIndex)
     end do
     ! Pressure at model top (Pa)
     ptop = rPP(1)
     prf%bpst = .true.
 
     ! Fill temperature (T) placeholders (C--> K):
-    do i = 1, ngpslev
-      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-      prf%tst(i)%DVar              = 0._dp
-      prf%tst(i)%DVar(i)           = 1._dp
+    do levIndex = 1, ngpslev
+      prf%tst(levIndex)%Var                    = rTT(levIndex)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(levIndex)%DVar                   = 0._dp
+      prf%tst(levIndex)%DVar(levIndex)         = 1._dp
     end do
 
     ! Fill moisture (Q) placeholders (kg/kg):
-    do i = 1, ngpslev
-      prf%qst(i)%Var               = rHU(i)
-      prf%qst(i)%DVar              = 0._dp
-      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    do levIndex = 1, ngpslev
+      prf%qst(levIndex)%Var                    = rHU(levIndex)
+      prf%qst(levIndex)%DVar                   = 0._dp
+      prf%qst(levIndex)%DVar(ngpslev+levIndex) = 1._dp
     end do
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
       ! Compressibility:
-      do i = 1, ngpslev
-        cmp(i)= gps_compressibility(prf%pst(i), prf%tst(i), prf%qst(i))
+      do levIndex = 1, ngpslev
+        cmp(levIndex)= gps_compressibility(prf%pst(levIndex), prf%tst(levIndex), prf%qst(levIndex))
       end do
 
       ! Refractivity:
-      do i = 1, ngpslev
-        p  = prf%pst(i)
-        t  = prf%tst(i)
-        q  = prf%qst(i)
+      do levIndex = 1, ngpslev
+        p  = prf%pst(levIndex)
+        t  = prf%tst(levIndex)
+        q  = prf%qst(levIndex)
         x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
         ! Densities (molar, total, dry, water vapor):
-        mold  = p/(p_R*t*cmp(i))
+        mold  = p/(p_R*t*cmp(levIndex))
         dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
         dw = mold * x         * (gps_p_mw/1000._dp)
 
@@ -1347,7 +1347,7 @@ module gps_mod
         nw1= (6701.605_dp+6385.886_dp*tr) * dw
         n0 = (nd1+nw1)
         na = n0*(1._dp+1.e-6_dp*n0/6._dp)
-        N(i) = na
+        N(levIndex) = na
       end do
     end if
 
@@ -1364,12 +1364,12 @@ module gps_mod
     k2p = k2-(eps*k1)
 
     ! Virtual temperature Tv and log(P) profiles
-    do i = 1, ngpslev
-      p = prf%pst(i)
-      t = prf%tst(i)
-      q = prf%qst(i)
-      xi(i) = log(p)
-      tv(i) = (1._dp+delta*q) * t
+    do levIndex = 1, ngpslev
+      p = prf%pst(levIndex)
+      t = prf%tst(levIndex)
+      q = prf%qst(levIndex)
+      xi(levIndex) = log(p)
+      tv(levIndex) = (1._dp+delta*q) * t
     end do
 
     ! Geometric height (m) profile from lowest model level to top  --> prf%gst
@@ -1378,40 +1378,40 @@ module gps_mod
     Rgh = phf_gravitysrf(sLat)
     z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
     prf%gst(ngpslev) = rMT + z
-    do i = ngpslev-1, 1, -1
-      dx = xi(i)-xi(i+1)
-      tvm = 0.5_dp*(tv(i)+tv(i+1))
+    do levIndex = ngpslev-1, 1, -1
+      dx = xi(levIndex)-xi(levIndex+1)
+      tvm = 0.5_dp*(tv(levIndex)+tv(levIndex+1))
 
       ! Gravity acceleration
-      h0  = prf%gst(i+1)%Var
+      h0  = prf%gst(levIndex+1)%Var
       Rgh = phf_gravityalt(sLat, h0)
       dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
       Rgh = phf_gravityalt(sLat, h0+0.5_dp*dh)
 
       ! Height increment (m)
       z   = (-p_Rd/Rgh) * tvm * dx
-      prf%gst(i) = prf%gst(i+1) + z
+      prf%gst(levIndex) = prf%gst(levIndex+1) + z
     end do
 
     ! Profile of dZTD/dp --> prf%rst
-    do i = 1, ngpslev
-      p  = prf%pst(i)
-      t  = prf%tst(i)
-      q  = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p  = prf%pst(levIndex)
+      t  = prf%tst(levIndex)
+      q  = prf%qst(levIndex)
       if ( refopt == 1 ) then
-        na = (k1/tv(i)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
+        na = (k1/tv(levIndex)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
       else
-        na = N(i) / p
+        na = N(levIndex) / p
       end if
-      prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/phf_gravityalt(sLat, prf%gst(i)%Var)
+      prf%rst(levIndex) = 1.e-6_dp * na * (p_Rd*tv(levIndex))/phf_gravityalt(sLat, prf%gst(levIndex)%Var)
     end do
 
     ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
     prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(phf_gravityalt(sLat, prf%gst(1)%Var)))
-    do i = 2, ngpslev
+    do levIndex = 2, ngpslev
       ! ZTD increment = Avg(dZTD/dP) * delta_P
-      z = ((prf%rst(i-1) + prf%rst(i))/2._dp) * (prf%pst(i)-prf%pst(i-1))
-      prf%ztd(i) = prf%ztd(i-1) + z
+      z = ((prf%rst(levIndex-1) + prf%rst(levIndex))/2._dp) * (prf%pst(levIndex)-prf%pst(levIndex-1))
+      prf%ztd(levIndex) = prf%ztd(levIndex-1) + z
     end do
   end subroutine gps_structztd
 
@@ -1459,7 +1459,7 @@ module gps_mod
     ! ******** VARIABLES *************
     type(gps_diff)                      :: tr
     type(gps_diff)                      :: mold, dd, dw, n0, nd1, nw1
-    integer(i4)                         :: i
+    integer(i4)                         :: levIndex
     real(dp)                            :: k1, k2, k3, k2p
     real(dp)                            :: sLat, ptop
     type(gps_diff)                      :: p, t, q, x, na, z
@@ -1476,10 +1476,10 @@ module gps_mod
     prf%P0%Var               = rP0
     prf%P0%DVar              = 0._dp
     prf%P0%DVar(4*ngpslev)   = 1._dp
-    do i = 1, ngpslev
-      prf%pst(i)%Var               = rPP(i)
-      prf%pst(i)%DVar              = 0._dp
-      prf%pst(i)%DVar(3*ngpslev+i) = 1._dp
+    do levIndex = 1, ngpslev
+      prf%pst(levIndex)%Var                      = rPP(levIndex)
+      prf%pst(levIndex)%DVar                     = 0._dp
+      prf%pst(levIndex)%DVar(3*ngpslev+levIndex) = 1._dp
     end do
     ! Pressure at model top (Pa)
     ptop = rPP(1)
@@ -1487,45 +1487,45 @@ module gps_mod
     !
     ! Fill temperature (T) placeholders (C--> K):
     !
-    do i = 1, ngpslev
-      prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
-      prf%tst(i)%DVar              = 0._dp
-      prf%tst(i)%DVar(i)           = 1._dp
+    do levIndex = 1, ngpslev
+      prf%tst(levIndex)%Var                      = rTT(levIndex)+MPC_K_C_DEGREE_OFFSET_R8
+      prf%tst(levIndex)%DVar                     = 0._dp
+      prf%tst(levIndex)%DVar(levIndex)           = 1._dp
     end do
 
     !
     ! Fill moisture (Q) placeholders (kg/kg):
     !
-    do i = 1, ngpslev
-      prf%qst(i)%Var               = rHU(i)
-      prf%qst(i)%DVar              = 0._dp
-      prf%qst(i)%DVar(ngpslev+i)   = 1._dp
+    do levIndex = 1, ngpslev
+      prf%qst(levIndex)%Var                      = rHU(levIndex)
+      prf%qst(levIndex)%DVar                     = 0._dp
+      prf%qst(levIndex)%DVar(ngpslev+levIndex)   = 1._dp
     end do
 
     !
     ! Fill altitude (AL) placeholders (m):
     !
-    do i = 1, ngpslev
-      prf%gst(i)%Var               = rALT(i)
-      prf%gst(i)%DVar              = 0._dp
-      prf%gst(i)%DVar(2*ngpslev+i) = 1._dp
+    do levIndex = 1, ngpslev
+      prf%gst(levIndex)%Var                      = rALT(levIndex)
+      prf%gst(levIndex)%DVar                     = 0._dp
+      prf%gst(levIndex)%DVar(2*ngpslev+levIndex) = 1._dp
     end do
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
       ! Compressibility:
-      do i = 1, ngpslev
-        cmp(i)= gps_compressibility(prf%pst(i), prf%tst(i), prf%qst(i))
+      do levIndex = 1, ngpslev
+        cmp(levIndex)= gps_compressibility(prf%pst(levIndex), prf%tst(levIndex), prf%qst(levIndex))
       end do
 
       ! Refractivity:
-      do i = 1, ngpslev
-        p  = prf%pst(i)
-        t  = prf%tst(i)
-        q  = prf%qst(i)
+      do levIndex = 1, ngpslev
+        p  = prf%pst(levIndex)
+        t  = prf%tst(levIndex)
+        q  = prf%qst(levIndex)
         x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
         ! Densities (molar, total, dry, water vapor):
-        mold  = p/(p_R*t*cmp(i))
+        mold  = p/(p_R*t*cmp(levIndex))
         dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
         dw = mold * x         * (gps_p_mw/1000._dp)
         ! Aparicio (2011) expression
@@ -1534,7 +1534,7 @@ module gps_mod
         nw1= (6701.605_dp+6385.886_dp*tr) * dw
         n0 = (nd1+nw1)
         na = n0*(1._dp+1.e-6_dp*n0/6._dp)
-        N(i) = na
+        N(levIndex) = na
       end do
     end if
 
@@ -1552,36 +1552,36 @@ module gps_mod
 
     ! Virtual temperature Tv and log(P) profiles
     !
-    do i = 1, ngpslev
-      p = prf%pst(i)
-      t = prf%tst(i)
-      q = prf%qst(i)
-      tv(i) = (1._dp+delta*q) * t
+    do levIndex = 1, ngpslev
+      p = prf%pst(levIndex)
+      t = prf%tst(levIndex)
+      q = prf%qst(levIndex)
+      tv(levIndex) = (1._dp+delta*q) * t
     end do
 
     sLat = sin(rLat)
 
     ! Profile of dZTD/dp --> prf%rst
-    do i = 1, ngpslev
-      p  = prf%pst(i)
-      t  = prf%tst(i)
-      q  = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p  = prf%pst(levIndex)
+      t  = prf%tst(levIndex)
+      q  = prf%qst(levIndex)
       if ( refopt == 1 ) then
-        na = (k1/tv(i)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
+        na = (k1/tv(levIndex)) + (k2p*(q/(eps*t))) + (k3*(q/(eps*t**2)))
       else
-        na = N(i) / p
+        na = N(levIndex) / p
       end if
-      prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/phf_gravityalt(sLat, prf%gst(i)%Var)
+      prf%rst(levIndex) = 1.e-6_dp * na * (p_Rd*tv(levIndex))/phf_gravityalt(sLat, prf%gst(levIndex)%Var)
     end do
 
     ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
     prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(phf_gravityalt(sLat, prf%gst(1)%Var)))
-    do i = 2, ngpslev
+    do levIndex = 2, ngpslev
       !
       ! ZTD increment = Avg(dZTD/dP) * delta_P
       !
-      z = ((prf%rst(i-1) + prf%rst(i))/2._dp) * (prf%pst(i)-prf%pst(i-1))
-      prf%ztd(i) = prf%ztd(i-1) + z
+      z = ((prf%rst(levIndex-1) + prf%rst(levIndex))/2._dp) * (prf%pst(levIndex)-prf%pst(levIndex-1))
+      prf%ztd(levIndex) = prf%ztd(levIndex-1) + z
     end do
   end subroutine gps_structztd_v2
 
@@ -1601,8 +1601,8 @@ module gps_mod
     type(gps_diff)     , intent(out)    :: refopv(:) ! an array of refractivity values (with derivatives)
 
     ! Locals:
-    integer(i4)                         :: iSize, i, ngpslev
-    integer(i4)                         :: j, jloc
+    integer(i4)                         :: iSize, iObsIndex, ngpslev
+    integer(i4)                         :: levIndex, jloc
     real(dp)                            :: h
     type(gps_diff)                      :: dz
     type(gps_diff)                      :: dzm
@@ -1616,8 +1616,8 @@ module gps_mod
     ! Given a height
     !
     jloc = 1
-    do i = 1, iSize
-      h = hv(i)
+    do iObsIndex = 1, iSize
+      h = hv(iObsIndex)
       !
       ! Search where it is located
       !
@@ -1625,9 +1625,9 @@ module gps_mod
         jloc = 1
       end if
 
-      do j=1, ngpslev-1
-        if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
-          jloc = j
+      do levIndex = 1, ngpslev-1
+        if ((h <= prf%gst(levIndex)%Var) .and. (h > prf%gst(levIndex+1)%Var)) then
+          jloc = levIndex
           exit
         end if
       end do
@@ -1649,13 +1649,13 @@ module gps_mod
 
         if (.not. gps_roNCurv) then
           ! Perfect linear-log (zero curvature)
-          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
+          refopv(iObsIndex) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz )
         else
           ! Quasi-linear-log, with fixed curvature m (depends on dT/dz)
           dt = prf%tst(jloc) - prf%tst(jloc+1)
           tav2 = prf%tst(jloc) * prf%tst(jloc+1)
           m = ec_wgs_GammaM * dt/dz /(2*MPC_RGAS_DRY_AIR_R8*tav2)
-          refopv(i) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz + m*dzp*dzm)
+          refopv(iObsIndex) = exp( (dzm * log(prf%rst(jloc)) + dzp * log(prf%rst(jloc+1))) / dz + m*dzp*dzm)
         end if
       else
         !
@@ -1663,7 +1663,7 @@ module gps_mod
         ! (better standard exp profile than linear-log, which may be unstable)
         !
         dzm = h - prf%gst(jloc+1)
-        refopv(i) = prf%rst(jloc+1) * exp((-1._dp/6500._dp)*dzm)
+        refopv(iObsIndex) = prf%rst(jloc+1) * exp((-1._dp/6500._dp)*dzm)
       end if
     end do
   end subroutine gps_refopv
@@ -1682,7 +1682,7 @@ module gps_mod
     type(gps_diff)     , intent(out)    :: pwst      ! the PWV (with derivatives)
 
     ! Locals:
-    integer(i4)                         :: i, ngpslev
+    integer(i4)                         :: levIndex, ngpslev
     real(dp)                            :: mw, wa, wb
     type(gps_diff)                      :: p, t, q, cmp, x, mold, dw(ngpssize)
     type(gps_diff)                      :: tcwv1, tcwv2, gp, gm, dwp, dwm, k
@@ -1694,30 +1694,30 @@ module gps_mod
 
     ! Vertical integral
     ! PW density
-    do i=1, ngpslev
-      p  = prf%pst(i)
-      t  = prf%tst(i)
-      q  = prf%qst(i)
+    do levIndex = 1, ngpslev
+      p  = prf%pst(levIndex)
+      t  = prf%tst(levIndex)
+      q  = prf%qst(levIndex)
       ! Densities (molar, water vapor):
       cmp= gps_compressibility(p, t, q)
       x  = wa*q/(1._dp+wb*q)
-      mold  = p/t * (100._dp/(p_R*cmp))               ! note that p is in hPa
-      dw(i) = mold * x         * (mw/1000._dp)
+      mold  = p/t * (100._dp/(p_R*cmp))               ! p in hPa
+      dw(levIndex) = mold * x         * (mw/1000._dp)
     end do
 
     ! Vertical integral
     tcwv1 = 0._dp
     tcwv2 = 0._dp
-    do i=1, ngpslev-1
-      gp  = prf%gst(i)
-      gm  = prf%gst(i+1)
-      dwp = dw(i)
-      dwm = dw(i+1)
+    do levIndex = 1, ngpslev-1
+      gp  = prf%gst(levIndex)
+      gm  = prf%gst(levIndex+1)
+      dwp = dw(levIndex)
+      dwm = dw(levIndex+1)
       k = (log(dwp)-log(dwm))/(gp-gm)
       tcwv1 = tcwv1 + 0.5_dp*(dwm+dwp)*(gp-gm)
       tcwv2 = tcwv2 + (dwp-dwm)/k
    end do
-   write(*,*)'gps_pwopv', 'TCWV', i, tcwv1%Var, tcwv2%Var
+   write(*,*)'gps_pwopv', 'TCWV', levIndex, tcwv1%Var, tcwv2%Var
    pwst = tcwv1
   end subroutine gps_pwopv
 
@@ -1749,7 +1749,7 @@ module gps_mod
 
     ! Locals:
     integer(i4)                         :: ngpslev
-    integer(i4)                         :: j, jloc
+    integer(i4)                         :: levIndex, jloc
     real(dp)                            :: h, x, lat, sLat, dh
     real(dp)                            :: k1, k2, k3, k2p
     real(dp)                            :: zcon, zcon1, zconh, zfph, zconw
@@ -1796,10 +1796,10 @@ module gps_mod
     !
     ! Search where it is located
     !
-    do j = 1, ngpslev-1
+    do levIndex = 1, ngpslev-1
       jloc = MPC_missingValue_INT
-      if ((h <= prf%gst(j)%Var) .and. (h > prf%gst(j+1)%Var)) then
-        jloc = j   ! the model level above the observation
+      if ((h <= prf%gst(levIndex)%Var) .and. (h > prf%gst(levIndex+1)%Var)) then
+        jloc = levIndex   ! the model level above the observation
         exit
       end if
     end do
@@ -1824,14 +1824,14 @@ module gps_mod
       zhd    = (zconh/zfph) * Pobs
 
       ! Integrate column q/T on pressure levels to get model ZWD
-      do j = 1, ngpslev-1
-        tbar = (prf%tst(j) + prf%tst(j+1))*0.5_dp
-        qbar = (prf%qst(j) + prf%qst(j+1))*0.5_dp
-        qtterm = ((qbar + kappa*qbar**2 )/phf_gravityalt(sLat,prf%gst(j)%Var))*(k2p + k3/tbar)
-        if ( j == 1 ) then
-          zsum = qtterm*(prf%pst(j+1)-prf%pst(j))
+      do levIndex = 1, ngpslev-1
+        tbar = (prf%tst(levIndex) + prf%tst(levIndex+1))*0.5_dp
+        qbar = (prf%qst(levIndex) + prf%qst(levIndex+1))*0.5_dp
+        qtterm = ((qbar + kappa*qbar**2 )/phf_gravityalt(sLat,prf%gst(levIndex)%Var))*(k2p + k3/tbar)
+        if ( levIndex == 1 ) then
+          zsum = qtterm*(prf%pst(levIndex+1)-prf%pst(levIndex))
         else
-          zsum = zsum + qtterm*(prf%pst(j+1)-prf%pst(j))
+          zsum = zsum + qtterm*(prf%pst(levIndex+1)-prf%pst(levIndex))
         end if
       end do
 
@@ -1906,7 +1906,7 @@ module gps_mod
     real(dp)           , intent(out)    :: PW
 
     ! Locals:
-    integer(i4)                         :: i, ngpslev
+    integer(i4)                         :: levIndex, ngpslev
     real(dp)                            :: qbar, gt, gb, g, lat, sLat
     real(dp)                            :: pt, pb
 
@@ -1916,12 +1916,12 @@ module gps_mod
 
     PW = 0.0_dp
 
-    do i = 1, ngpslev-1
-      qbar = 0.5_dp * (prf%qst(i+1)%Var + prf%qst(i)%Var)
-      gt  = phf_gravityalt(sLat, prf%gst(i)%Var)
-      gb  = phf_gravityalt(sLat, prf%gst(i+1)%Var)
-      pt  = prf%pst(i)%Var
-      pb  = prf%pst(i+1)%Var
+    do levIndex = 1, ngpslev-1
+      qbar = 0.5_dp * (prf%qst(levIndex+1)%Var + prf%qst(levIndex)%Var)
+      gt  = phf_gravityalt(sLat, prf%gst(levIndex)%Var)
+      gb  = phf_gravityalt(sLat, prf%gst(levIndex+1)%Var)
+      pt  = prf%pst(levIndex)%Var
+      pb  = prf%pst(levIndex+1)%Var
       g   = 0.5_dp * (gt + gb)
       PW  = PW + (qbar/g)*(pb-pt)
     end do
@@ -2033,7 +2033,7 @@ module gps_mod
       end if
       sum4 = 0._dp
       if (.not.lTooHigh) then
-        do levIndexAnl=levelLow, 2, -1
+        do levIndexAnl = levelLow, 2, -1
           zimd = z(levIndexAnl)
           zipd = z(levIndexAnl-1)
           dzip = zipd-zimd
@@ -2364,7 +2364,7 @@ module gps_mod
     integer(i4)                         :: i
 
     gps_iprofile_from_index = -1
-    do i=1, gps_numROProfiles
+    do i = 1, gps_numROProfiles
       if (index == gps_vRO_IndexPrf(i, 1)) then
         gps_iprofile_from_index = i
         return
