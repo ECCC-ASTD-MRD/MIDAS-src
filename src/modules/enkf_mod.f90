@@ -2903,20 +2903,21 @@ contains
     ! Locals:
     integer              :: hLocIndex, numPresValues
 
+    numPresValues = count(hLocalizePressure > 0.0d0)
+
     ! radius is constant
     if ( all(hLocalize(:) == hLocalize(1)) ) then
       hLoc = hLocalize(1)
 
     ! radius varies vertically, and is linearly interpolated with log(P)
     else if (hLinearLoc) then
-      numPresValues = count(hLocalizePressure > 0.0d0)
       hLocIndex = 1 + count(anlVertLocation >= hLocalizePressure(1:numPresValues))
       ! constant radius value near the top of the atmosphere
       if (hLocIndex == 1) then
-        hLoc = hLocalize(hLocIndex)
+        hLoc = hLocalize(1)
       ! constant radius value near the bottom of the atmosphere
       else if (hLocIndex == numPresValues+1) then
-        hLoc = hLocalize(hLocIndex-1)
+        hLoc = hLocalize(numPresValues)
       ! piece-wise linear interpolation
       else
         hLoc = hLocalize(hLocIndex-1) + &
@@ -2927,7 +2928,7 @@ contains
 
     ! radius varies vertically, but is not interpolated
     else
-      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:)) - count(hLocalizePressure <= 0.0d0)
+      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(1:numPresValues))
       hLoc = hLocalize(hLocIndex)
 
     end if
