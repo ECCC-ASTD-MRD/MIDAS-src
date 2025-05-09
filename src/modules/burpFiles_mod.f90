@@ -40,7 +40,7 @@ contains
 
     ! Locals:
     integer :: ier, inblks, nulburp, fnom, fclos, numblks
-    logical :: isExist_L 
+    logical :: isExist_L
     integer :: ktime, kdate, kdate_recv, ktime_recv, ihandl, ilong
     integer :: itime, iflgs, idburp, ilat, ilon, idx, idy
     integer :: ialt, idelay, idate, irs, irunn, inblk, isup, ixaux
@@ -84,7 +84,7 @@ contains
           if ( ihandl < 0 ) then
             write(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
           else
-            if ((kdate < 0.and.ktime < 0).or.nresume == 1) then 
+            if ((kdate < 0.and.ktime < 0).or.nresume == 1) then
               insup=0
               inxaux=0
               ier=mrfget(ihandl,ibuf)
@@ -111,7 +111,7 @@ contains
     call mmpi_allReduce(ktime, ktime_recv, "MPI_MAX")
     kdate = kdate_recv
     ktime = ktime_recv
-    if (nresume >= 1 ) then  
+    if (nresume >= 1 ) then
       ier = newdate(datestamp,kdate,ktime*10000,3)
     else
       ! Assumes 6-hour windows with reference times being synoptic times.
@@ -162,14 +162,14 @@ contains
     write(*,*) 'brpf_readFile: Starting'
     write(*,*) ' '
     missingValue = real(MPC_missingValue_R8,pre_obsReal)
-    
+
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
     call brpr_readBurp(obsdat,                         & ! INOUT
                        familyType, fileName, fileIndex)  ! IN
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
- 
+
     burp_chem = trim(familyType) == 'CH'
 
     if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
@@ -178,7 +178,7 @@ contains
       call ovt_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
       call obsu_computeVertCoordSurfObs(obsdat, headerIndexBegin, headerIndexEnd )
 
-    end if  
+    end if
 
     do headerIndex = headerIndexBegin, headerIndexEnd
 
@@ -217,7 +217,7 @@ contains
 
     end do
 
-    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error)
     ! for all ZTD data (element 15031)
     if ( trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
@@ -252,7 +252,7 @@ contains
     write(*,*) 'brpf_updateFile: Starting'
 
     ! CH family: Scaling of the obs related values to be stored in the BURP files
-    if (familytype == 'CH') then  
+    if (familytype == 'CH') then
       call obs_set_current_header_list(obsSpaceData,'CH')
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -260,7 +260,7 @@ contains
         call brpf_setScaleCH(obsSpaceData,headerIndex,forward=.false.)
       end do HEADER
     end if
-    
+
     call brpr_updateBurp(obsSpaceData,familyType,fileName,fileIndex)
 
     write(*,*) 'brpf_updateFile: Done'
@@ -277,12 +277,12 @@ contains
     !
     ! :Purpose:  Apply or unapply scaling to CH observations  by multiplying
     !            (or dividing) with 10^{exponent} where the exponent is from
-    !            element BUFR_SCALE_EXPONENT if provided.           
+    !            element BUFR_SCALE_EXPONENT if provided.
     !
     !
     implicit none
 
-    ! Arguments:      
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat      ! struct_obs instance
     integer,          intent(in)    :: headerIndex ! header index in obsdat
     logical,          intent(in)    :: forward     ! applies scaling if .true., unapplies scaling if .false.
@@ -314,25 +314,25 @@ contains
     end if
 
     if (nexp*2 /= nlv) then
-      ! Skip over obs assuming mantissa was filtered out in brpr_readBurp 
+      ! Skip over obs assuming mantissa was filtered out in brpr_readBurp
       ! (not inserted in obsSpaceData) due to quality flags.
-      ! Set exponent quality flag to that of a 'Suspicious element' 
-         
+      ! Set exponent quality flag to that of a 'Suspicious element'
+
       do bodyIndex = RLN, NLV + RLN -1
         call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
         call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
         call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
         call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
       end do
-              
-      ! write(*,*) 'NLV =',nlv,' Nexp=',nexp    
+
+      ! write(*,*) 'NLV =',nlv,' Nexp=',nexp
       ! call utl_abort('brpf_setScaleCH: Inconsistent number of exponents')
       deallocate(expnt)
       return
     end if
 
     if (forward) then
-         
+
       ! Apply power of 10 exponents if present
       iobs = 0
       do bodyIndex = RLN, NLV + RLN -1
@@ -342,9 +342,9 @@ contains
           call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*10**(expnt(iobs)) )
         end if
       end do
-      
+
     else
-             
+
       ! Unapply power of 10 exponents if present
       iobs=0
       iexp=0
@@ -400,7 +400,7 @@ contains
     !   :stnid:           station ID of observation
     !   :varno:           BUFR code (if <=0, search through all codes to obtain first
     !                     between 10000 and 16000)
-    !   :nlev:            number of levels in the observation (number of rows) 
+    !   :nlev:            number of levels in the observation (number of rows)
     !   :ndim:            number of dimensions for the retrieved data in each report
     !                     (e.g. ndim=1 for std, ndim=2 for averaging kernels)
     !   :numColumns_opt:  Number of columns (if different from nlev and for ndim=2)
@@ -623,13 +623,13 @@ contains
     !     varno. Otherwise the new data will be appended to the block.
     !
     !:Arguments:
-    !   :varno:        BUFR descriptors. Number of elements must be 
+    !   :varno:        BUFR descriptors. Number of elements must be
     !                  max(1,obsdata%dim2)
     !   :block_type:   block type indicated by the two rightmost bits of bknat.
     !                  Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
     !   :multi_opt:    Indicates if intended report are for 'UNI' or 'MULTI'
     !                  level data (description is not accurate)
-    !     
+    !
     implicit none
 
     ! Arguments:
