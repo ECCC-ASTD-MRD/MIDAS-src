@@ -89,7 +89,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: gstID_in
-  
+
     gstID = gstID_in
 
   end subroutine GST_setID
@@ -100,7 +100,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: gstID_in
-  
+
     gstIDDefault = gstID_in
 
   end subroutine GST_setDefaultID
@@ -152,9 +152,9 @@ contains
     endif
 
     gst_getNtrunc = gst(gstID_l)%nTrunc
-    
+
   end function GST_getNtrunc
-  
+
   real(8) function GST_getRmu(latIndex,gstID_opt)
     implicit none
 
@@ -231,7 +231,7 @@ contains
     ! Locals:
     integer :: gstID_l
     integer :: latIndex2
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -254,7 +254,7 @@ contains
 
     ! Locals:
     integer :: gstID_l
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -300,7 +300,7 @@ contains
     ! Locals:
     integer :: gstID_l
     integer :: latIndex2
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -339,8 +339,8 @@ contains
 
 
   real(8) function GST_getzleg(legendreIndex,latIndex,gstID_in)
-    ! 
-    !:Purpose: To pass on Legendre polynomial element 
+    !
+    !:Purpose: To pass on Legendre polynomial element
     !
     implicit none
 
@@ -506,14 +506,14 @@ contains
     ! range of lons handled by this processor
     gst(gstID)%myLonBeg = myLonBeg
     gst(gstID)%myLonEnd = myLonEnd
-    gst(gstID)%lonPerPE = lonPerPE 
+    gst(gstID)%lonPerPE = lonPerPE
     gst(gstID)%lonPerPEmax = lonPerPEmax
     ! range of lats handled by this processor
     gst(gstID)%myLatBeg = myLatBeg
     gst(gstID)%myLatEnd = myLatEnd
     gst(gstID)%myLatHalfBeg = myLatHalfBeg
     gst(gstID)%myLatHalfEnd = myLatHalfEnd
-    gst(gstID)%latPerPE = latPerPE 
+    gst(gstID)%latPerPE = latPerPE
     gst(gstID)%latPerPEmax = latPerPEmax
     ! range of n handled by this processor
     call mmpi_setup_n(gst(gstID)%ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
@@ -665,7 +665,7 @@ contains
     call mpi_type_commit(gst(gstID)%recvType_LonToLev,ierr)
 
     gst_setup = gstID
-  
+
   end function GST_SETUP
 
 !-------------------------------------------------------------------------------
@@ -1581,7 +1581,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the FFT 
+    ! 2.2 Apply the FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
     call utl_tmg_stop(151)
@@ -1590,7 +1590,7 @@ contains
     call transpose2d_LevtoLon(pgd3,pgd)
     deallocate(pgd3)
 
-    ! 2.4 Now undo reordering of wind components 
+    ! 2.4 Now undo reordering of wind components
     call unInterleaveWinds_gd(pgd,nflev)
 
   end subroutine gst_spgd
@@ -1647,7 +1647,7 @@ contains
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    ! 2.4 Now undo reordering of wind components 
+    ! 2.4 Now undo reordering of wind components
     call unInterleaveWinds_sp(psp,nflev)
 
   end subroutine gst_gdsp
@@ -1694,7 +1694,7 @@ contains
                 dlsp(inm,1,jk) = psp(ila,1,jk)
                 dlsp(inm,2,jk) = psp(ila,2,jk)
              else
-                ! Vector fields                
+                ! Vector fields
                 dlsp(inm,1,jk) = psp(ila,1,jk)*gst(gstID)%r1snp1(ila)
                 dlsp(inm,2,jk) = psp(ila,2,jk)*gst(gstID)%r1snp1(ila)
              endif
@@ -1888,7 +1888,7 @@ contains
        ! 2.3 First one with ALP for all scalar fields and for half the terms
        !     required to define the divergence and vorticity
        call legdir2d(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
-  
+
        ! 2.4  Second transform with DALP to complete the construction of the
        !      vorticity and divergence fields
        do jj = 1, gst(gstID)%njlath
@@ -1990,7 +1990,7 @@ contains
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    ! Now undo reordering of wind components 
+    ! Now undo reordering of wind components
     call unInterleaveWinds_sp(psp,nflev)
 
   end subroutine gst_spgda
@@ -2131,7 +2131,7 @@ contains
           ! 2.3 First one with ALP for all scalar fields and for half the terms
           !     required to define the divergence and vorticity
           call legdir2d(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
-                                
+
           ! 2.4  Second transform with DALP to complete the construction of the
           !      vorticity and divergence fields
           do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
@@ -2259,7 +2259,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the inverse FFT 
+    ! 2.2 Apply the inverse FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
     call utl_tmg_stop(151)
@@ -2317,7 +2317,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the inverse FFT 
+    ! 2.2 Apply the inverse FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,+1)
     call utl_tmg_stop(151)
@@ -3088,7 +3088,7 @@ contains
     !:Purpose: Subroutine for initializing the Legendre transform
     implicit none
 
-    allocate(gst(gstID)%rmu(gst(gstID)%nj))  
+    allocate(gst(gstID)%rmu(gst(gstID)%nj))
     allocate(gst(gstID)%rwt(gst(gstID)%nj))
     allocate(gst(gstID)%rwocs(gst(gstID)%nj))
     allocate(gst(gstID)%r1mu2(gst(gstID)%nj))
@@ -3338,9 +3338,9 @@ contains
     integer :: ilarh,ila,ilatbd
     real(8) :: dlalp(gst(gstID)%nlarh,nlatbd)
     real(8) :: dldalp(gst(gstID)%nlarh,nlatbd)
-    !     
+    !
     !     Memory allocation for Legendre polynomials
-    !     
+    !
     if(mmpi_myid.eq.0) write(*,*) 'allocating dalp:',gst(gstID)%nla,gst(gstID)%njlath,gst(gstID)%nla*gst(gstID)%njlath
     allocate( gst(gstID)%dalp(gst(gstID)%nla,gst(gstID)%njlath) )
     allocate( gst(gstID)%dealp(gst(gstID)%nla,gst(gstID)%njlath))
@@ -3382,7 +3382,7 @@ contains
     integer :: ktrunc
     integer :: km
 
-    ! Locals: 
+    ! Locals:
     integer :: ila,ind
     integer :: jlat,jn, jlen
 
@@ -3405,7 +3405,7 @@ contains
   end subroutine getalp
 
 
-  subroutine allp( p , g , x , lr , r , nlatp) 
+  subroutine allp( p , g , x , lr , r , nlatp)
 
     implicit none
 
@@ -3414,29 +3414,29 @@ contains
     integer :: nlatp
     integer :: lr(0:r)
     real(8) :: p(0:r,0:r,nlatp)
-    real(8) :: g(0:r,0:r,nlatp) 
-    real(8) :: x(nlatp) 
+    real(8) :: g(0:r,0:r,nlatp)
+    real(8) :: x(nlatp)
 
     ! Locals:
-    real(8) :: onehalf   
+    real(8) :: onehalf
     real(8) :: xp , xp2,  p0, enm, fnm
     integer :: ilat , m , l , n
 
     data onehalf /0.5d0/
 
     do ilat = 1,nlatp
-       xp2 = sqrt( 1.0d0 - x(ilat) ** 2 ) 
-       p(0,0,ilat) = sqrt(onehalf) 
-       do m = 1,r 
+       xp2 = sqrt( 1.0d0 - x(ilat) ** 2 )
+       p(0,0,ilat) = sqrt(onehalf)
+       do m = 1,r
           xp = real(m,8)
           p(0,m,ilat) = sqrt( (2.0d0*xp+1.0d0)/(2.0d0*xp) ) * xp2 * p(0,m-1,ilat)
        enddo
     enddo
 
     do ilat = 1,nlatp
-       do m = 0,r 
+       do m = 0,r
           xp = real(m,8)
-          g(0,m,ilat) = - x(ilat)*xp * p(0,m,ilat) 
+          g(0,m,ilat) = - x(ilat)*xp * p(0,m,ilat)
        enddo
     enddo
     do n = 1,r
@@ -3447,29 +3447,29 @@ contains
           enm = sqrt( ((p0*p0-xp*xp)*(2.0d0*p0+1.0d0))/(2.0d0*p0-1.0d0) )
           fnm = sqrt( (2.0d0*p0+1.0d0)/((p0*p0-xp*xp)*(2.0d0*p0-1.0d0)) )
 
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
        enddo
     enddo
@@ -3485,11 +3485,11 @@ contains
     integer :: r
     integer :: nlatp
     real(8) :: p(0:r,0:r,nlatp)
-    real(8) :: g(0:r,0:r,nlatp) 
+    real(8) :: g(0:r,0:r,nlatp)
     real(8) :: x(nlatp)
 
     ! Locals:
-    real(8) :: onehalf   
+    real(8) :: onehalf
     real(8) :: xp , xp2,  p0, enm, fnm
     integer :: ilat , m , l , n, jlat
 
@@ -3594,7 +3594,7 @@ contains
 
     call dgemm('N','N',gst(gstID_in)%ntrunc+1, klev, gst(gstID_in)%nj, 1.0d0, zwork(0,1),  &
                        gst(gstID_in)%ntrunc+1, pf(1,1),  &
-                       gst(gstID_in)%nj, 0.0d0, pn(0,1), gst(gstID_in)%ntrunc+1) 
+                       gst(gstID_in)%nj, 0.0d0, pn(0,1), gst(gstID_in)%ntrunc+1)
 
     deallocate(zwork)
 
@@ -3628,7 +3628,7 @@ contains
 
     call dgemm('T','N',gst(gstID_in)%nj, klev, gst(gstID_in)%ntrunc+1, 1.0d0, zwork(0,1),  &
                        gst(gstID_in)%ntrunc+1, pn(0,1),   &
-                       gst(gstID_in)%ntrunc+1, 0.0d0, pf(1,1), gst(gstID_in)%nj) 
+                       gst(gstID_in)%ntrunc+1, 0.0d0, pf(1,1), gst(gstID_in)%nj)
 
     deallocate(zwork)
 
