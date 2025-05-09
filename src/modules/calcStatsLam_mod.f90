@@ -2,7 +2,7 @@
 module calcStatsLam_mod
   ! MODULE calcStatsLam_mod (prefix='csl' category='1. High-level functionality')
   !
-  !:Purpose:  To compute homogeneous and isotropic background error covariances 
+  !:Purpose:  To compute homogeneous and isotropic background error covariances
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
@@ -41,7 +41,7 @@ module calcStatsLam_mod
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
   integer, parameter :: nMaxControlVar = 10
-  
+
   type  :: struct_cv
     character(len=4)     :: NomVar(2)
     integer              :: varLevIndexStart
@@ -94,7 +94,7 @@ module calcStatsLam_mod
   character(len=4)  :: correlatedVariables(vnl_numvarmax)
 
 contains
-  
+
   !--------------------------------------------------------------------------
   ! csl_setup
   !--------------------------------------------------------------------------
@@ -178,7 +178,7 @@ contains
     hLocalize_humidity  = -1.0d0 ! Default value (no hloc)
     hLocalize_other     = -1.0d0 ! Default value (no hloc)
     scaleFactor(:)      =  1.0d0 ! Default value (no scaling)
-    
+
     read (utl_flnml, nml=namcalcstats_lam)
     write(*, nml=namcalcstats_lam)
 
@@ -242,12 +242,12 @@ contains
     nullify(controlVarNames)
     call ens_varNamesList(controlVarNames,ensPerts)
 
-    bhi%nControlVariable = size(controlVarNames) !count(mask) 
+    bhi%nControlVariable = size(controlVarNames) !count(mask)
     write(*,*)
     write(*,*) 'Number of Control Variables = ', bhi%nControlVariable
 
     !- 5.1 Set ControlVariable structure
-    bhi%momentumControlVar(:) = 'NULL' 
+    bhi%momentumControlVar(:) = 'NULL'
     do varIndex = 1, bhi%nControlVariable
 
       !- Set variable name
@@ -309,7 +309,7 @@ contains
       end if
 
       bhi%controlVariable(varIndex)%varLevIndexStart =  &
-           ens_getOffsetFromVarName(ensPerts,bhi%controlVariable(varIndex)%nomvar(cv_model)) + 1 
+           ens_getOffsetFromVarName(ensPerts,bhi%controlVariable(varIndex)%nomvar(cv_model)) + 1
       bhi%controlVariable(varIndex)%varLevIndexEnd   =  &
            ens_getOffsetFromVarName(ensPerts,bhi%controlVariable(varIndex)%nomvar(cv_model)) + &
            bhi%controlVariable(varIndex)%nlev
@@ -319,7 +319,7 @@ contains
     bhi%nVarLev = ens_getNumVarLev(ensPerts)
 
     !
-    !- 6.  Transform u-wind and v-wind to control variables 
+    !- 6.  Transform u-wind and v-wind to control variables
     !
     if (writeEnsPert) then
       call ens_writeEnsemble(ensPerts, './', 'MODELVAR_', 'MODELVAR', 'E', &
@@ -349,17 +349,17 @@ contains
     call ens_computeStdDev(ensPerts)
 
     !
-    !- 8.  Setup the localization 
+    !- 8.  Setup the localization
     !
 
     !- 8.1 Setup horizontal localization
     if ( hLocalize_wind     < 0.d0 .and. hLocalize_mass  < 0.d0 .and. &
          hLocalize_humidity < 0.d0 .and. hLocalize_other < 0.d0) then
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: NO horizontal correlation localization will be performed'
       horizLoc=.false.
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: horizontal correlation localization WILL BE performed'
       horizLoc=.true.
     end if
@@ -367,11 +367,11 @@ contains
     !- 8.2 Setup vertical localization
     if ( vLocalize_wind     < 0.d0 .and. vLocalize_mass  < 0.d0 .and. &
          vLocalize_humidity < 0.d0 .and. vLocalize_other < 0.d0 ) then
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: NO vertical correlation localization will be performed'
       vertLoc=.false.
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: vertical correlation localization WILL BE performed'
       vertLoc=.true.
     end if
@@ -403,7 +403,7 @@ contains
       do k = 1, vco_bhi%nlev_M
         write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
       end do
-      
+
       write(*,*)
       write(*,*) 'Pressure profile...'
       do k = 1, vco_bhi%nlev_T
@@ -416,19 +416,19 @@ contains
     !- 10.  Setup the scaling
     !
     if ( all(scaleFactor(:) == 1.d0) ) then
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: NO scaling of the StdDev will be performed'
       stdDevScaling=.false.
 
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'csl_setup: scaling of the StdDev WILL BE performed'
       stdDevScaling=.true.
 
       allocate(scaleFactor_M(vco_bhi%nlev_M))
       allocate(scaleFactor_T(vco_bhi%nlev_T))
       do levIndex = 1, vco_bhi%nlev_T
-        if (scaleFactor(levIndex) > 0.0d0) then 
+        if (scaleFactor(levIndex) > 0.0d0) then
           scaleFactor_T(levIndex) = sqrt(scaleFactor(levIndex))
         else
           scaleFactor_T(levIndex) = 0.0d0
@@ -486,7 +486,7 @@ contains
     !- 1.  Calculate the gridded binned Std. Dev. to be used in the analysis step
     !
     nullify(varNamesList)
-    call ens_varNamesList(varNamesList,ensPerts) 
+    call ens_varNamesList(varNamesList,ensPerts)
     call gsv_allocate(statevector_stdDev, ens_getNumStep(ensPerts),                            &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
@@ -521,7 +521,7 @@ contains
       !- 3.3 Calculate the total vertical correlation matrix
       call calcTotVertCorrel(TotVertCorrel,             & ! OUT
                              SpVertCorrel, PowerSpectrum) ! IN
-       
+
       !- 3.4 Set cross-correlations
       call setSpVertCorrel(NormB) ! INOUT
 
@@ -548,7 +548,7 @@ contains
     call ens_copyEnsMean(ensPerts, statevector_mean)
     call ens_copyEnsStdDev(ensPerts, statevector_stdDevGridPoint)
 
-    call writeDiagStats(NormB, SpVertCorrel, TotVertCorrel, statevector_mean, & ! IN 
+    call writeDiagStats(NormB, SpVertCorrel, TotVertCorrel, statevector_mean, & ! IN
                         statevector_stdDevGridPoint, PowerSpectrum, HorizScale) ! IN
 
     !
@@ -637,9 +637,9 @@ contains
     case ('STDDEV')
        write(*,*)
        write(*,*) 'Computing Standard-Deviations'
-       
+
        nullify(varNamesList)
-       call ens_varNamesList(varNamesList,ensPerts) 
+       call ens_varNamesList(varNamesList,ensPerts)
        call gsv_allocate(statevector_stdDev, ens_getNumStep(ensPerts),                            &
                          ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
@@ -805,7 +805,7 @@ contains
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
 
-    if (mmpi_myid == 0) then 
+    if (mmpi_myid == 0) then
 
       !- 2.4 Compute the weighted COVARIANCES for each total wavenumber
       do totwvnb = 0, nTrunc
@@ -817,17 +817,17 @@ contains
           end if
           SumWeight(totwvnb) = SumWeight(totwvnb)*nEns
         end if
-        
-        if ( SumWeight(totwvnb) /= 0.d0 ) then 
+
+        if ( SumWeight(totwvnb) /= 0.d0 ) then
           SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
         else
           SpVertCorrel(:,:,totwvnb) = 0.d0
         end if
-        
+
       end do
 
       deallocate(SumWeight)
-      
+
       !- 2.5 Extract the power spectrum (the variances on the diagonal elements)
       do k = 1, bhi%nVarLev
         PowerSpectrum(k,:) = SpVertCorrel(k,k,:)
@@ -839,7 +839,7 @@ contains
       !$OMP PARALLEL DO PRIVATE (totwvnb,k2,k1)
       do totwvnb = 0, nTrunc
         do k2 = 1, bhi%nVarLev
-          do k1 = 1, bhi%nVarLev 
+          do k1 = 1, bhi%nVarLev
             if ( PowerSpectrum(k1,totwvnb) /= 0.d0 .and. &
                  PowerSpectrum(k2,totwvnb) /= 0.d0 ) then
               SpVertCorrel(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) / &
@@ -851,29 +851,29 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
-      
+
       ! Apply vertical localization (if wanted)
-      if (vertLoc) then                                                                 
-        call applyVertLoc(SpVertCorrel) ! INOUT                                        
+      if (vertLoc) then
+        call applyVertLoc(SpVertCorrel) ! INOUT
       end if
-      
+
       !
       !- 4.  Normalize the power spectrum (i.e. build normalised spectral densities of the variance)
       !
       allocate(NormPowerSpectrum(bhi%nVarLev,0:nTrunc))
-      
+
       call NormalizePowerSpectrum(PowerSpectrum,     & ! IN
            NormPowerSpectrum)   ! OUT
-      
+
       ! Apply horizontal localization (if wanted)
-      if (horizLoc) then                                                                 
-        call applyHorizLoc(NormPowerSpectrum) ! INOUT                                        
+      if (horizLoc) then
+        call applyHorizLoc(NormPowerSpectrum) ! INOUT
       end if
-      
+
       !
       !- 5.  Normalize the spectral vertical correlation matrix to ensure correlations in horizontal
       !
-      
+
       !$OMP PARALLEL DO PRIVATE (totwvnb,k2,k1)
       do totwvnb = 0, nTrunc
         do k2 = 1, bhi%nVarLev
@@ -884,7 +884,7 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
-      
+
       deallocate(NormPowerSpectrum)
 
     end if ! mmpi_myid == 0
@@ -900,7 +900,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine normalizePowerSpectrum(PowerSpectrum, NormPowerSpectrum)
     !
-    ! :Purpose: To convert spectral variances into spectral correlations 
+    ! :Purpose: To convert spectral variances into spectral correlations
     !
     implicit none
 
@@ -1053,7 +1053,7 @@ contains
         a = a + SpCovariance(k,k,totwvnb) * totwvnb
         b = b + SpCovariance(k,k,totwvnb) * totwvnb**3
       end do
-      if (b <= 0.d0) then 
+      if (b <= 0.d0) then
         HorizScale(k) = 0.d0
       else
         HorizScale(k) = sqrt(2.d0*a*beta/b)
@@ -1175,7 +1175,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: KeepOrDiscard(:,:)
-    integer :: totwvnb, var1, var2, k1, k2 
+    integer :: totwvnb, var1, var2, k1, k2
 
     write(*,*)
     write(*,*) 'SetSpVertCorrel: Starting...'
@@ -1196,7 +1196,7 @@ contains
         else
           KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlations
         end if
-        write(*,*) var1, var2, bhi%controlVariable(var1)%nomvar(cv_bhi), bhi%controlVariable(var2)%nomvar(cv_bhi), KeepOrDiscard(var1,var2) 
+        write(*,*) var1, var2, bhi%controlVariable(var1)%nomvar(cv_bhi), bhi%controlVariable(var2)%nomvar(cv_bhi), KeepOrDiscard(var1,var2)
       end do
     end do
 
@@ -1277,7 +1277,7 @@ contains
       !$OMP PARALLEL DO PRIVATE (k1,k2,ptr4d_k1_r4,ptr4d_k2_r4,latIndex,lonIndex)
       do k2 = 1, bhi%nVarLev
         do k1 = 1, bhi%nVarLev
-          
+
           ptr4d_k1_r4 => ens_getOneLev_r4(ensPerts,k1)
           ptr4d_k2_r4 => ens_getOneLev_r4(ensPerts,k2)
 
@@ -1350,7 +1350,7 @@ contains
     character(len=24) :: kind
 
     nullify(varNamesList)
-    call ens_varNamesList(varNamesList,ensPerts) 
+    call ens_varNamesList(varNamesList,ensPerts)
     call gsv_allocate(statevector, ens_getNumStep(ensPerts),                    &
                       hco_bhi, ens_getVco(ensPerts), varNames_opt=varNamesList, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false.,  &
@@ -1526,7 +1526,7 @@ contains
 
     !
     !- 3. Create the localized normalized power spectrum
-    !    
+    !
     allocate(PowerSpectrum(bhi%nVarLev,0:nTrunc))
 
     !- 3.1 Transform to spectral space
@@ -1599,7 +1599,7 @@ contains
     !
     !- 1.  Select the localization function
     !
-    call lfn_setup('FifthOrder') ! IN 
+    call lfn_setup('FifthOrder') ! IN
 
     !
     !- 2.  Apply localization to the spectral vertical correlations
@@ -1707,7 +1707,7 @@ contains
     ! :Purpose: To scale the gridpoint background-error standard deviations
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector_stdDev
 
@@ -1719,9 +1719,9 @@ contains
 
     write(*,*)
     write(*,*) 'scaleStdDev: Starting...'
-    
+
     nVarLev = gsv_getNumVarLev(statevector_stdDev)
- 
+
     call gsv_getField(statevector_stdDev,ptr3d_r8)
 
     do varLevIndex = 1, nVarLev
@@ -1779,13 +1779,13 @@ contains
       iunstats = 0
       ier    = fnom(iunstats,trim(fileName),'RND',0)
       ier    = fstouv(iunstats,'RND')
-      
+
       !- Add Control Variable Info
       call WriteControlVarInfo(iunstats)
-      
+
       !- Bsqrt
       call WriteSpVertCorrel(Bsqrt,iunstats,'ZN','B_SQUAREROOT') ! IN
-      
+
       !- Closing output file
       ier =  fstfrm(iunstats)
       ier =  fclos (iunstats)
@@ -1837,22 +1837,22 @@ contains
       iunstats = 0
       ier    = fnom(iunstats,trim(fileName),'RND',0)
       ier    = fstouv(iunstats,'RND')
-      
+
       !- Spectral Vertical Correlations
       call writeSpVertCorrel(SpVertCorrel,iunstats,'ZZ','SPVERTCORREL') ! IN
-      
+
       !- Total Vertical Correlations
       call writeTotVertCorrel(TotVertCorrel,iunstats,'ZT','TTVERTCORREL') ! IN
-      
+
       !- Normalized Vertical Correlations
       call writeSpVertCorrel(NormB,iunstats,'ZN','NRVERTCORREL') ! IN
-      
+
       !- Power Spectrum
       call writePowerSpectrum(PowerSpectrum,iunstats,'POWERSPECT',cv_bhi) ! IN
-      
+
       !- Horizontal Correlation Length scale
       call writeHorizScale(HorizScale,iunstats,'HORIZSCALE',cv_bhi) ! IN
-      
+
       !- Closing output file
       ier =  fstfrm(iunstats)
       ier =  fclos (iunstats)
@@ -1915,7 +1915,7 @@ contains
       !- Extract from full Matrix
       work2d(:,:) = real(SpVertCorrel(:,:,totwvnb),4)
 
-      !- Writing 
+      !- Writing
       ier = fstecr(work2d, work, npak, iun, dateo, deet, npas, ni, nj, &
            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,        &
            ig1, ig2, ig3, ig4, datyp, .true.)
@@ -1979,7 +1979,7 @@ contains
     !- Covert to real 4
     workecr(:,:) = real(TotVertCorrel(:,:),4)
 
-    !- Writing 
+    !- Writing
     ier = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
          nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,        &
          ig1, ig2, ig3, ig4, datyp, .true.)
@@ -1993,7 +1993,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine writePowerSpectrum(PowerSpectrum,iun,etiket_in,cv_type)
     !
-    ! :Purpose: To write the power spectrum 
+    ! :Purpose: To write the power spectrum
     !
     implicit none
 
@@ -2040,7 +2040,7 @@ contains
         grtyp  = 'X'
         ig1    = 0
         ig2    = 0
-        ig3    = 0 
+        ig3    = 0
         ig4    = 0
         datyp  = 1
 
@@ -2048,7 +2048,7 @@ contains
         kgdim = bhi%controlVariable(var)%varLevIndexStart + k - 1
         workecr(:,1) = real(PowerSpectrum(kgdim,:),4)
 
-        !- Writing 
+        !- Writing
         ier = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
              nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
              ig1, ig2, ig3, ig4, datyp, .true.)
@@ -2116,7 +2116,7 @@ contains
       !- Extract
       workecr(1,1,:) = real(HorizScale(bhi%controlVariable(var)%varLevIndexStart:bhi%controlVariable(var)%varLevIndexEnd),4)
 
-      !- Writing 
+      !- Writing
       ier = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
            ig1, ig2, ig3, ig4, datyp, .true.)
@@ -2211,7 +2211,7 @@ contains
 
     datyp    =  2 ! Integer
     ni       =  bhi%nControlVariable
-    nj       =  1 
+    nj       =  1
     ier = fstecr(ControlVarNlevList, work, npak, &
          iun, dateo, deet, npas, ni, nj, 1, ip1,    &
          ip2, ip3, typvar, nomvar, 'NLEV', grtyp, ig1, &
@@ -2297,7 +2297,7 @@ contains
     ! around each reference point
 
     nullify(varNamesList)
-    call ens_varNamesList(varNamesList,ensPerts) 
+    call ens_varNamesList(varNamesList,ensPerts)
 
     call gsv_allocate(statevector_locHorizCor, ens_getNumStep(ensPerts),                     &
                       ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
