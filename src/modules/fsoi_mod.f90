@@ -62,7 +62,7 @@ module fsoi_mod
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
   character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO' or 'EFSO'
-  logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa 
+  logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa
 
   contains
 
@@ -491,7 +491,7 @@ module fsoi_mod
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle 
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
         tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
         numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
