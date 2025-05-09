@@ -7,7 +7,7 @@ module midasMpi_mod
   !           Also, subroutine and public variables related to the mpi decomposition
   !           specific to the MIDAS code.
   !
-  use mpi
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use utilities_mod
 
   implicit none
@@ -24,8 +24,8 @@ module midasMpi_mod
   integer, public, protected :: mmpi_npex      = 0
   integer, public, protected :: mmpi_npey      = 0
   integer, public, protected :: mmpi_numthread = 0
-  integer, public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
-  integer, public, protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  type(mpi_comm), public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
+  type(mpi_datatype), public, protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
   integer, public, protected :: mmpi_maxTagValue
   integer, public, protected, allocatable :: mmpi_nodeMasters(:)
 
@@ -48,7 +48,7 @@ module midasMpi_mod
   ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
   !   The longest possible value for the communicator is "BLOCMASTER" which is 10 characters
   integer,          parameter :: mmpi_communicator_max_length = 10
-  character(len=*), parameter :: mmpi_communicator_grid = 'GRID'
+  character(len=*), parameter :: mmpi_rpn_comm_grid = 'GRID'
 
   ! module interfaces
   ! -----------------
@@ -220,13 +220,13 @@ contains
 
     ! create standard mpi handles to rpn_comm mpi communicators to facilitate
     ! use of standard mpi routines
-    mmpi_comm_EW = rpn_comm_comm('EW')
-    mmpi_comm_NS = rpn_comm_comm('NS')
+    mmpi_comm_EW   = rpn_comm_comm('EW')
+    mmpi_comm_NS   = rpn_comm_comm('NS')
     mmpi_comm_GRID = rpn_comm_comm(mmpi_communicator_grid)
 
-    mmpi_datyp_real4 = rpn_comm_datyp('MPI_REAL4')
-    mmpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
-    mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
+    mmpi_datyp_real4 = MPI_REAL4   !rpn_comm_datyp('MPI_REAL4')
+    mmpi_datyp_real8 = MPI_REAL8   !rpn_comm_datyp('MPI_REAL8')
+    mmpi_datyp_int   = MPI_INTEGER !rpn_comm_datyp('MPI_INTEGER')
 
     ! get some other useful values
     call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, maxTagValue, flag, ierr)
@@ -276,18 +276,22 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
 
     ! Locals:
-    integer :: ierr
-    character(len=mmpi_communicator_max_length) :: communicator
+    integer :: ierr, ierr2, nameLength
+    type(mpi_comm) :: communicator
+    character(len=MPI_MAX_OBJECT_NAME) :: commName
 
     if (mmpi_doBarrier) then
       communicator = handleCommunicator(communicator_opt)
 
-      call rpn_comm_barrier(communicator,ierr)
+      call mpi_barrier(communicator,ierr)
 
-      call handleMpiError(ierr, 'mmpi_barrier for communicator ''' // communicator // '''')
+      if (ierr /= 0) then
+        call mpi_comm_get_name(communicator, commName, nameLength, ierr2)
+        call handleMpiError(ierr, 'mmpi_barrier for communicator ''' // commName // '''')
+      end if
     end if
 
   end subroutine mmpi_barrier
@@ -312,16 +316,16 @@ contains
 
     ! Locals:
     integer :: comm, ierr, rpn_comm_comm
-    character(len=*), parameter :: communicator = 'ALLGRIDS'
+    type(mpi_comm), parameter :: communicator = MPI_COMM_WORLD
 
     write(6,9000) message
 9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
     flush(6)
 
     call mmpi_barrier(communicator)
-    comm = rpn_comm_comm(communicator)
+    ! comm = rpn_comm_comm(communicator)
 
-    call mpi_abort( comm, 1, ierr )
+    call mpi_abort( communicator, 1, ierr )
 
   end subroutine mmpi_stopAndWait4Debug
 
@@ -1310,20 +1314,20 @@ contains
     implicit none
 
     ! Arguments:
-    logical, contiguous, intent(in)  :: sending(..)             ! logical data sent to all MPI ranks
-    logical, contiguous, intent(out) :: receiving(..,:)         ! logical array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    logical,        contiguous, intent(in)  :: sending(..)      ! logical data sent to all MPI ranks
+    logical,        contiguous, intent(out) :: receiving(..,:)  ! logical array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call rpn_comm_allGather(sending,   length, 'mpi_logical',  &
-                            receiving, length, 'mpi_logical', communicator, ierr)
+    call mpi_allGather(sending,   length, mpi_logical,  &
+                       receiving, length, mpi_logical, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
@@ -1339,20 +1343,20 @@ contains
     implicit none
 
     ! Arguments:
-    integer, contiguous, intent(in)  :: sending(..)             ! integer data sent to all MPI ranks
-    integer, contiguous, intent(out) :: receiving(..,:)         ! integer array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    integer,        contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
+    integer,        contiguous, intent(out) :: receiving(..,:)  ! integer array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call rpn_comm_allGather(sending,   length, 'mpi_integer',  &
-                            receiving, length, 'mpi_integer', communicator, ierr)
+    call rpn_comm_allGather(sending,   length, mpi_integer,  &
+                            receiving, length, mpi_integer, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_integer')
 
@@ -1368,20 +1372,20 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), contiguous, intent(in)  :: sending(..)             ! real(4) data sent to all MPI ranks
-    real(4), contiguous, intent(out) :: receiving(..,:)         ! real(4) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(4),        contiguous, intent(in)  :: sending(..)     ! real(4) data sent to all MPI ranks
+    real(4),        contiguous, intent(out) :: receiving(..,:) ! real(4) array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt      ! size of the input data
+    type(mpi_comm), optional,   intent(in) :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call rpn_comm_allGather(sending,   length, 'mpi_real4',  &
-                            receiving, length, 'mpi_real4', communicator, ierr)
+    call rpn_comm_allGather(sending,   length, mpi_real4,  &
+                            receiving, length, mpi_real4, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real4')
 
@@ -1397,20 +1401,20 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), contiguous, intent(in)  :: sending(..)             ! real(8) data sent to all MPI ranks
-    real(8), contiguous, intent(out) :: receiving(..,:)         ! real(8) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(8),        contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
+    real(8),        contiguous, intent(out) :: receiving(..,:)  ! real(8) array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call rpn_comm_allGather(sending,   length, 'mpi_real8',  &
-                            receiving, length, 'mpi_real8', communicator, ierr)
+    call rpn_comm_allGather(sending,   length, mpi_real8,  &
+                            receiving, length, mpi_real8, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real8')
 
@@ -1426,20 +1430,20 @@ contains
     implicit none
 
     ! Arguments:
-    integer, contiguous, intent(in)  :: sending(..)             ! integer data sent to all MPI ranks
-    integer, contiguous, intent(out) :: receiving(..)           ! integer array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    integer,        contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
+    integer,        contiguous, intent(out) :: receiving(..)    ! integer array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call rpn_comm_alltoall(sending,   length, 'mpi_integer',  &
-                           receiving, length, 'mpi_integer', communicator, ierr)
+    call rpn_comm_alltoall(sending,   length, mpi_integer,  &
+                           receiving, length, mpi_integer, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_integer')
 
@@ -1455,20 +1459,20 @@ contains
     implicit none
 
     ! Arguments:
-    integer(8), contiguous, intent(in)  :: sending(..)          ! integer(8) data sent to all MPI ranks
-    integer(8), contiguous, intent(out) :: receiving(..)        ! integer(8) array which stores the data received
-    integer,    optional,   intent(in)  :: length_opt           ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    integer(8),     contiguous, intent(in)  :: sending(..)      ! integer(8) data sent to all MPI ranks
+    integer(8),     contiguous, intent(out) :: receiving(..)    ! integer(8) array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call rpn_comm_alltoall(sending,   length, 'mpi_integer8',  &
-                           receiving, length, 'mpi_integer8', communicator, ierr)
+    call rpn_comm_alltoall(sending,   length, mpi_integer8,  &
+                           receiving, length, mpi_integer8, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_integer8')
 
@@ -1484,20 +1488,20 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), contiguous, intent(in)  :: sending(..)             ! real(4) data sent to all MPI ranks
-    real(4), contiguous, intent(out) :: receiving(..)           ! real(4) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(4),        contiguous, intent(in)  :: sending(..)      ! real(4) data sent to all MPI ranks
+    real(4),        contiguous, intent(out) :: receiving(..)    ! real(4) array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call rpn_comm_alltoall(sending,   length, 'mpi_real4',  &
-                           receiving, length, 'mpi_real4', communicator, ierr)
+    call rpn_comm_alltoall(sending,   length, mpi_real4,  &
+                           receiving, length, mpi_real4, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_real4')
 
@@ -1513,14 +1517,14 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), contiguous, intent(in)  :: sending(..)             ! real(8) data sent to all MPI ranks
-    real(8), contiguous, intent(out) :: receiving(..)           ! real(8) array which stores the data received
-    integer, optional,   intent(in)  :: length_opt              ! size of the input data
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(8),        contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
+    real(8),        contiguous, intent(out) :: receiving(..)    ! real(8) array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
     integer :: ierr, length
-    character(len=mmpi_communicator_max_length) :: communicator
+    type(mpi_comm) :: communicator
 
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
@@ -1544,25 +1548,23 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), contiguous, intent(in)  :: sending(..)   ! real(4) data sent to all MPI ranks
-    integer,             intent(in)  :: sendsizes(:)  ! array containing the size of each array to be sent
-    integer,             intent(in)  :: senddispls(:) ! displacement offsets in the input array
-    real(4), contiguous, intent(out) :: receiving(..) ! real(4) array which stores the data received
-    integer,             intent(in)  :: recvsizes(:)  ! array containing the size of each array to be received
-    integer,             intent(in)  :: recvdispls(:) ! displacement offsets in the output array
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(4),        contiguous, intent(in)  :: sending(..)      ! real(4) data sent to all MPI ranks
+    integer,                    intent(in)  :: sendsizes(:)     ! array containing the size of each array to be sent
+    integer,                    intent(in)  :: senddispls(:)    ! displacement offsets in the input array
+    real(4),        contiguous, intent(out) :: receiving(..)    ! real(4) array which stores the data received
+    integer,                    intent(in)  :: recvsizes(:)     ! array containing the size of each array to be received
+    integer,                    intent(in)  :: recvdispls(:)    ! displacement offsets in the output array
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
-    integer :: ierr, communicator_mpi
-    character(len=mmpi_communicator_max_length) :: rpncomm_communicator
-    integer :: rpn_comm_comm
+    integer :: ierr
+    type(mpi_comm) :: communicator
 
-    rpncomm_communicator = handleCommunicator(communicator_opt)
-    communicator_mpi = rpn_comm_comm(rpncomm_communicator)
+    communicator = handleCommunicator(communicator_opt)
 
-    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_datyp_real4, &
-                       receiving, recvsizes, recvdispls, mmpi_datyp_real4, &
-                       communicator_mpi, ierr)
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mpi_real4, &
+                       receiving, recvsizes, recvdispls, mpi_real4, &
+                       communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoallv_real4')
 
@@ -1579,26 +1581,23 @@ contains
     !
     implicit none
 
-    ! Arguments:
-    real(8), contiguous, intent(in)  :: sending(..)   ! real(8) data sent to all MPI ranks
-    integer,             intent(in)  :: sendsizes(:)  ! array containing the size of each array to be sent
-    integer,             intent(in)  :: senddispls(:) ! displacement offsets in the input array
-    real(8), contiguous, intent(out) :: receiving(..) ! real(8) array which stores the data received
-    integer,             intent(in)  :: recvsizes(:)  ! array containing the size of each array to be received
-    integer,             intent(in)  :: recvdispls(:) ! displacement offsets in the output array
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    real(8),        contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
+    integer,                    intent(in)  :: sendsizes(:)     ! array containing the size of each array to be sent
+    integer,                    intent(in)  :: senddispls(:)    ! displacement offsets in the input array
+    real(8),        contiguous, intent(out) :: receiving(..)    ! real(8) array which stores the data received
+    integer,                    intent(in)  :: recvsizes(:)     ! array containing the size of each array to be received
+    integer,                    intent(in)  :: recvdispls(:)    ! displacement offsets in the output array
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
-    integer :: ierr, communicator_mpi
-    character(len=mmpi_communicator_max_length) :: rpncomm_communicator
-    integer :: rpn_comm_comm
+    integer :: ierr
+    type(mpi_comm) :: communicator
 
-    rpncomm_communicator = handleCommunicator(communicator_opt)
-    communicator_mpi = rpn_comm_comm(rpncomm_communicator)
+    communicator = handleCommunicator(communicator_opt)
 
-    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_datyp_real8, &
-                       receiving, recvsizes, recvdispls, mmpi_datyp_real8, &
-                       communicator_mpi, ierr)
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mpi_real8, &
+                       receiving, recvsizes, recvdispls, mpi_real8, &
+                       communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoallv_real8')
 
@@ -1616,7 +1615,7 @@ contains
     ! Arguments:
     logical, contiguous, intent(in)  :: sending(..)   ! logical data sent to all MPI ranks
     logical, contiguous, intent(out) :: receiving(..) ! logical array which stores the result of the reduce operation
-    character(len=*),    intent(in)  :: operation     ! operation used to reduce the data
+    type(mpi_op),        intent(in)  :: operation     ! operation used to reduce the data
     integer, optional,   intent(in)  :: length_opt    ! size of the input data
 
     ! Locals:
@@ -1624,8 +1623,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call rpn_comm_allReduce(sending, receiving, length, 'mpi_logical', operation, &
-                            mmpi_communicator_grid, ierr)
+    call mpi_allReduce(sending, receiving, length, mpi_logical, operation, &
+                       mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_logical')
 
@@ -1643,7 +1642,7 @@ contains
     ! Arguments:
     integer, contiguous, intent(in)  :: sending(..)   ! integer data sent to all MPI ranks
     integer, contiguous, intent(out) :: receiving(..) ! integer array which stores the result of the reduce operation
-    character(len=*),    intent(in)  :: operation     ! operation used to reduce the data
+    type(mpi_op),        intent(in)  :: operation     ! operation used to reduce the data
     integer, optional,   intent(in)  :: length_opt    ! size of the input data
 
     ! Locals:
@@ -1651,8 +1650,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call rpn_comm_allReduce(sending, receiving, length, 'mpi_integer', operation, &
-                            mmpi_communicator_grid, ierr)
+    call mpi_allReduce(sending, receiving, length, mpi_integer, operation, &
+                       mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_integer')
 
@@ -1670,7 +1669,7 @@ contains
     ! Arguments:
     integer(8), contiguous, intent(in)  :: sending(..)   ! integer(8) data sent to all MPI ranks
     integer(8), contiguous, intent(out) :: receiving(..) ! integer(8) array which stores the result of the reduce operation
-    character(len=*),       intent(in)  :: operation     ! operation used to reduce the data
+    type(mpi_op),           intent(in)  :: operation     ! operation used to reduce the data
     integer, optional,      intent(in)  :: length_opt    ! size of the input data
 
     ! Locals:
@@ -1678,8 +1677,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call rpn_comm_allReduce(sending, receiving, length, 'mpi_integer8', operation, &
-                            mmpi_communicator_grid, ierr)
+    call mpi_allReduce(sending, receiving, length, mpi_integer8, operation, &
+                       mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_integer8')
 
@@ -1697,7 +1696,7 @@ contains
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)   ! real(4) data sent to all MPI ranks
     real(4), contiguous, intent(out) :: receiving(..) ! real(4) array which stores the result of the reduce operation
-    character(len=*),    intent(in)  :: operation     ! operation used to reduce the data
+    type(mpi_op),        intent(in)  :: operation     ! operation used to reduce the data
     integer, optional,   intent(in)  :: length_opt    ! size of the input data
 
     ! Locals:
@@ -1705,8 +1704,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call rpn_comm_allReduce(sending, receiving, length, 'mpi_real4', operation, &
-                            mmpi_communicator_grid, ierr)
+    call mpi_allReduce(sending, receiving, length, mpi_real4, operation, &
+                       mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_real4')
 
@@ -1724,7 +1723,7 @@ contains
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)   ! real(8) data sent to all MPI ranks
     real(8), contiguous, intent(out) :: receiving(..) ! real(8) array which stores the result of the reduce operation
-    character(len=*),    intent(in)  :: operation     ! operation used to reduce the data
+    type(mpi_op),        intent(in)  :: operation     ! operation used to reduce the data
     integer, optional,   intent(in)  :: length_opt    ! size of the input data
 
     ! Locals:
@@ -1732,8 +1731,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call rpn_comm_allReduce(sending, receiving, length, 'mpi_real8', operation, &
-                            mmpi_communicator_grid, ierr)
+    call mpi_allReduce(sending, receiving, length, mpi_real8, operation, &
+                       mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_real8')
 
@@ -1756,7 +1755,7 @@ contains
     integer :: localValue, globalValue
 
     localValue = localGlobalValue
-    call mmpi_allReduce(localValue, globalValue, 'mpi_sum')
+    call mmpi_allReduce(localValue, globalValue, mpi_sum)
     localGlobalValue = globalValue
 
   end subroutine mmpi_allReduce_scalar_integer
@@ -2257,14 +2256,14 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
     ! Result:
-    character(len=mmpi_communicator_max_length) :: communicator ! string identifying the RPN_COMM MPI communicator
+    type(mpi_comm) :: communicator ! string identifying the RPN_COMM MPI communicator
 
     if ( present(communicator_opt) ) then
       communicator = communicator_opt
     else
-      communicator = mmpi_communicator_grid
+      communicator = mmpi_comm_GRID
     end if
 
   end function handleCommunicator
