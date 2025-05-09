@@ -164,7 +164,7 @@ program midas_randomPert
   ! Namelist variables
   logical :: remove_mean          ! choose to remove mean from perturbations
   logical :: smoothVariances      ! choose to impose horizontally constant perturbation variances
-  logical :: mpiTopoIndependent   ! choose to compute random numbers with mpi-topology-independent method 
+  logical :: mpiTopoIndependent   ! choose to compute random numbers with mpi-topology-independent method
   logical :: readEnsMean          ! choose to read ens mean and add this to the perturbations
   logical :: setPertZeroUnderIce  ! choose to set perturbation to zero under sea ice (for SST)
   integer :: nens                 ! number of perturbations to compute
@@ -201,12 +201,12 @@ program midas_randomPert
   !
   !- 1. Set/Read values for the namelist NAMENKF
   !
-  
+
   !- 1.1 Setting default values
   nens  = 10
   seed  = -999        ! If -999, set random seed using the date
   remove_mean = .true.
-  out_etiket='RANDOM_PERT' 
+  out_etiket='RANDOM_PERT'
   smoothVariances = .false.
   mpiTopoIndependent = .false.
   numBits = 32
@@ -310,7 +310,7 @@ program midas_randomPert
 
   !- 2.4 Initialize the vertical coordinate from the analysisgrid file
   call vco_setupFromFile(vco_anl, './analysisgrid', ' ')
- 
+
   !- 2.5 Initialize the B_hi matrix
   call bmat_setup(hco_anl, hco_anlcore, vco_anl)
 
@@ -400,7 +400,7 @@ program midas_randomPert
                     stateVectorPert           )  ! OUT
 
     !- 4.1.3 Copy perturbations to big array and update ensemble sum
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
@@ -416,11 +416,11 @@ program midas_randomPert
   end do
 
   call gsv_deallocate(stateVectorPert)
-  
+
   !- 4.2 Remove the ensemble mean
   if ( REMOVE_MEAN ) then
 
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
@@ -431,7 +431,7 @@ program midas_randomPert
     end do
     !$OMP END PARALLEL DO
 
-    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)
     do memberIndex = 1, NENS
       do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
@@ -446,18 +446,18 @@ program midas_randomPert
     !$OMP END PARALLEL DO
 
   end if
-  
+
   !- 4.3 Smooth variances to horizontally constant values
   if ( smoothVariances ) then
-  
+
     allocate(pturb_var(myLonBega:myLonEnda, myLatBega:myLatEnda, stateVectorPert%numVarLev))
     allocate(avg_pturb_var(stateVectorPert%numVarLev), avg_pturb_var_glb(stateVectorPert%numVarLev))
     pturb_var(:,:,:) = 0.0D0
     avg_pturb_var(:) = 0.0D0
     avg_pturb_var_glb(:) = 0.0D0
-  
-    do memberIndex = 1, NENS  
-      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
+
+    do memberIndex = 1, NENS
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
       do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
           do lonIndex = myLonBega, myLonEnda
@@ -468,8 +468,8 @@ program midas_randomPert
       end do
       !$OMP END PARALLEL DO
     end do
-  
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
+
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
@@ -479,7 +479,7 @@ program midas_randomPert
       end do
     end do
     !$OMP END PARALLEL DO
-  
+
     do latIndex = myLatBega, myLatEnda
       do lonIndex = myLonBega, myLonEnda
         do levIndex = 1, numVarLev
@@ -487,12 +487,12 @@ program midas_randomPert
         end do
       end do
     end do
-  
+
     n_grid_point = lonPerPEa*latPerPEa
     call mmpi_allReduce(n_grid_point, n_grid_point_glb, "mpi_sum")
     call mmpi_allReduce(avg_pturb_var, avg_pturb_var_glb, "mpi_sum")
-  
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
+
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
@@ -503,14 +503,14 @@ program midas_randomPert
       end do
     end do
     !$OMP END PARALLEL DO
-  
+
     do levIndex = 1, numVarLev
       if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
         avg_pturb_var_glb(levIndex) = sqrt( avg_pturb_var_glb(levIndex) / real(n_grid_point_glb, 8) )
       end if
     end do
 
-    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)
     do memberIndex = 1, NENS
       do levIndex = 1, numVarLev
         if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
@@ -555,7 +555,7 @@ program midas_randomPert
     call gsv_getField(stateVectorIce,seaice_ptr)
 
     ! set perturbations to zero
-    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)
     do memberIndex = 1, NENS
       do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
@@ -620,7 +620,7 @@ program midas_randomPert
                             containsFullField_opt=.true.)
 
       ! Copy to big array and accumulate sum for computing mean
-      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
       do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
@@ -636,7 +636,7 @@ program midas_randomPert
     end do
 
     ! Finish computing mean and remove it
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBegt, myLatEndt
         do lonIndex = myLonBegt, myLonEndt
@@ -647,7 +647,7 @@ program midas_randomPert
     end do
     !$OMP END PARALLEL DO
 
-    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)
     do memberIndex = 1, NENS
       do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
@@ -683,7 +683,7 @@ program midas_randomPert
     ! Copy mask if it exists
     call gsv_copyMask(stateVectorEnsMean, stateVectorPertInterp)
 
-    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+    !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
@@ -700,7 +700,7 @@ program midas_randomPert
 
     ! Average current and previous perturbations
     if (previousDateFraction > 0.0) then
-      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
       do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
@@ -733,7 +733,7 @@ program midas_randomPert
     stateVectorPertInterp%etiket = 'UNDEFINED'
     call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
-                         containsFullField_opt=readEnsMean, typvar_opt=typvarOut) 
+                         containsFullField_opt=readEnsMean, typvar_opt=typvarOut)
 
     call gsv_deallocate(stateVectorPertInterp)
     call gsv_deallocate(stateVectorPert)
@@ -764,8 +764,8 @@ program midas_randomPert
   if (previousDateFraction > 0.0) then
     deallocate(ensemblePreviousDate_r4)
   end if
-  deallocate(controlVector)  
-  deallocate(controlVector_mpiglobal)  
+  deallocate(controlVector)
+  deallocate(controlVector_mpiglobal)
 
   call msg_memUsage('midas-randomPert')
   call utl_tmg_stop(0)
@@ -773,7 +773,7 @@ program midas_randomPert
 
   !
   !- 6.  MPI, tmg finalize
-  !  
+  !
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 
