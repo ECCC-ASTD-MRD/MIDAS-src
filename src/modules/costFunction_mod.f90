@@ -19,8 +19,13 @@ module costFunction_mod
   ! Public procedures
   public :: cfn_calcJo, cfn_sumJo
 
+  character(len=*), parameter :: allReduceOrderForward  = 'forward'
+  character(len=*), parameter :: allReduceOrderBackward = 'backward'
+  integer,          parameter :: allReduceOrderStringLength = max(len(allReduceOrderForward),len(allReduceOrderBackward))
+
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
+  character(len=allReduceOrderStringLength) :: allReduceOrder
 
 contains
 
@@ -84,7 +89,7 @@ contains
     character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
-  
+
     real(8), allocatable :: joSSTInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
     integer :: SSTdatasetIndex, codeType, ierr
@@ -101,7 +106,7 @@ contains
     if (.not. allocated(sensorNameList)) then
       allocate(sensorNameList(tvs_nsensors))
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       allocate(joSSTInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
       allocate(nobsInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
@@ -188,19 +193,19 @@ contains
       if ( printJoTovsPerChannelSensor ) then
         loopSensor1: do sensorIndexInList = 1, tvs_nsensors
           call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
-          
+
           if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
             sensorIndexInListFound = sensorIndexInList
             exit loopSensor1
           end if
-          
+
         end do loopSensor1
       end if
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
         dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-        
+
         if ( printJoTovsPerChannelSensor .and. &
             sensorIndexInListFound > 0 ) then
           call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
@@ -339,12 +344,12 @@ contains
                                                           nobsInstrumentGlob(SSTdatasetIndex),&
                                                           joSSTInstrument(SSTdatasetIndex) / &
                                                           real(nobsInstrumentGlob(SSTdatasetIndex))
-          end if    
+          end if
         end do
       end if
 
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       deallocate(joSSTInstrument)
       deallocate(nobsInstrument)
@@ -365,7 +370,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMCFN/ sensorNameList, channelNumberList
+    NAMELIST /NAMCFN/ sensorNameList, channelNumberList, allReduceOrder
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -373,6 +378,7 @@ contains
       !- Setting default values
       sensorNameList(:) = ''
       channelNumberList(:,:) = 0
+      allReduceOrder = allReduceOrderForward
 
       if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
         if ( mmpi_myid == 0 ) then
@@ -387,11 +393,29 @@ contains
         call utl_tmg_stop(181)
 
         call sortChannelNumbersInNml
+        call validateAllReduceOrder
       end if
       if ( mmpi_myid == 0 ) write(*,nml=namcfn)
     end if
 
   end subroutine readNameList
+
+  !--------------------------------------------------------------------------
+  ! validateAllReduceOrder
+  !--------------------------------------------------------------------------
+  subroutine validateAllReduceOrder
+    !
+    !:Purpose: This routine checks if the value found in the namelist
+    !          for 'allReduceOrder' is one of the choices expected.
+    !
+    implicit none
+
+    if ( allReduceOrder /= allReduceOrderForward .and. &
+         allReduceOrder /= allReduceOrderBackward ) then
+      call utl_abort('costfunction_mod: allReduceOrder is not one of allowed choices allReduceOrder = ' // allReduceOrder)
+    end if
+
+  end subroutine validateAllReduceOrder
 
   !--------------------------------------------------------------------------
   ! sortChannelNumbersInNml
