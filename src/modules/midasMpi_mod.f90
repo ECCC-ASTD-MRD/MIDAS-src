@@ -285,7 +285,7 @@ module midasMpi_mod
     if(rank.eq.root) then
       ! if asked, reverse the order of the values
       if ( .not. allReduceForward ) then
-        all_sendRecvVector(:,:) = all_sendRecvVector(numElements:1:-1,:)
+        all_sendRecvVector(:,:) = all_sendRecvVector(:,nprocs_mpi-1:0:-1)
       end if
 
       sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
