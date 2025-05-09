@@ -75,7 +75,7 @@ contains
     character(len=24) :: mpi_distribution
 
     !
-    !- 1.  Allocate a 2D statevector that will contains the bin category for each 
+    !- 1.  Allocate a 2D statevector that will contains the bin category for each
     !      grid point
     !
     if (.not. gsv_isAllocated(statevector_template)) then
@@ -219,14 +219,14 @@ contains
     else
       writeBinsToFile = .false.
     end if
-    
+
     if (writeBinsToFile .and. (mpi_local .or. mmpi_myid == 0) ) then
       call gio_writeToFile(gbi%statevector_bin2d, './gridBinning.fst', & ! IN
                            'BINNING')                                    ! IN
     end if
 
   end subroutine gbi_setup
-  
+
   !--------------------------------------------------------------------------
   ! gbi_deallocate
   !--------------------------------------------------------------------------
@@ -366,7 +366,7 @@ contains
 
     if (.not. gsv_isAllocated(statevector)) then
       nullify(varNamesList)
-      call ens_varNamesList(varNamesList,ens) 
+      call ens_varNamesList(varNamesList,ens)
       call gsv_allocate(statevector, ens_getNumStep(ens),               &
            ens_getHco(ens), ens_getVco(ens), varNames_opt=varNamesList, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,      &
@@ -434,7 +434,7 @@ contains
       write(*,*)
       write(*,*) 'gbi_stdDev_ens: Done!'
     end if
-    
+
   end subroutine gbi_stdDev_ens
 
 end module gridBinning_mod
