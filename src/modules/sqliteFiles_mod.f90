@@ -23,7 +23,7 @@ module sqliteFiles_mod
   ! Public procedures
   public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile
   public :: sqlf_addCloudParametersandEmissivity
-  
+
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
 
@@ -36,22 +36,22 @@ module sqliteFiles_mod
     !
     ! Purpose: get dateStamp from an SQLite file
     !
-  
+
     implicit none
-    
+
     ! Arguments:
     integer         , intent(out) :: dateStamp
     character(len=*), intent(in)  :: sqliteFileName
-    
+
     ! Locals:
-    logical              :: fileExists 
+    logical              :: fileExists
     integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
     integer              :: newdate
     integer, allocatable :: headDateValues(:), headTimeValues(:)
 
-    validDate = MPC_missingValue_INT 
-    validTime = MPC_missingValue_INT 
-    
+    validDate = MPC_missingValue_INT
+    validTime = MPC_missingValue_INT
+
     inquire(file = trim(sqliteFileName), exist = fileExists)
 
     if (fileExists) then
@@ -62,11 +62,11 @@ module sqliteFiles_mod
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
     call mmpi_allReduce(validDate, validDateRecv, "MPI_MAX")
     call mmpi_allReduce(validTime, validTimeRecv, "MPI_MAX")
-    
+
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
       write(*,*) 'sqlf_getDateStamp: WARNING: Error in getting valid date and time!'
       dateStamp = 0
-    else    
+    else
       ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
       imode = 3
       ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
@@ -122,7 +122,7 @@ module sqliteFiles_mod
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
     end do
 
-    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error)
     ! for all ZTD data (element 15031)
     if (trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
