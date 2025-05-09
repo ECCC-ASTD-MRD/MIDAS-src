@@ -360,7 +360,7 @@ module obsSpaceErrorStdDev_mod
 
     IULSSF=0
     IERR=FNOM(iulssf,'./bgcov','RND+OLD+R/O',0)
-    IF ( IERR .EQ. 0 ) THEN
+    IF ( IERR == 0 ) THEN
       write(*,*) 'IBGST - File : ./bgcov'
       write(*,*) ' opened as unit file ',iulssf
       ierr =  fstouv(iulssf,'RND+OLD')
@@ -932,13 +932,13 @@ module obsSpaceErrorStdDev_mod
         !     .  -----------------------------
         !
         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND.   &
-             obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. obs_vcoPressure ) then
-          IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
+             obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == obs_vcoPressure ) then
+          IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) /= obs_xtrInside) THEN
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
             varLevel = vnl_varLevelFromVarnum(ityp)
             IK   = col_getNumLev(columnTrlOnAnlIncLev,varLevel)
             IPB  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-            if(ITYP .ne. BUFR_NEGZ) then
+            if(ITYP /= BUFR_NEGZ) then
               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
             else
               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(column,IK,INDEX_HEADER,'TH'))
@@ -957,7 +957,7 @@ module obsSpaceErrorStdDev_mod
 
             ! FIRST GUESS ERROR VARIANCE
 
-            if(ITYP .ne. BUFR_NEGZ) then
+            if(ITYP /= BUFR_NEGZ) then
               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
                    (ZWB*col_getElem(column,IPB,INDEX_HEADER) + ZWT*col_getElem(column,IPT,INDEX_HEADER)))
             else
@@ -1039,7 +1039,7 @@ module obsSpaceErrorStdDev_mod
           varLevel = vnl_varLevelFromVarnum(ityp)
 
           ! Interpolate the background-covariance statistics
-          if ( obs_bodyElem_i(obsSpaceData, OBS_XTR, bodyIndex) /= 0 ) then
+          if ( obs_bodyElem_i(obsSpaceData, OBS_XTR, bodyIndex) /= obs_xtrInside ) then
             IK=col_getNumLev(columnTrlOnAnlIncLev, varLevel)-1
             IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev, ityp)
             IPB  = IPT +1
@@ -1149,10 +1149,10 @@ module obsSpaceErrorStdDev_mod
       !    ---------------------
 
       IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.    &
-           (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. BUFR_NETT) ) THEN
+           (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body) == BUFR_NETT) ) THEN
 
-        IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
-             (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. obs_vcoPressure) ) THEN
+        IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) /= obs_xtrInside) .and.    &
+             (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == obs_vcoPressure) ) THEN
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
           varLevel = vnl_varLevelFromVarnum(ityp)
           IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
@@ -1236,7 +1236,7 @@ module obsSpaceErrorStdDev_mod
           else
 
             ok=(obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and. &
-                obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) >= 0)
+                obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) >= obs_xtrInside)
             if ( ok ) write(*,*) 'setfgesurf: WARNING!!! unknown obs seen'
             if ( ok ) write(*,*) 'setfgesurf: ityp=',ityp,', cfam=',cfam
 
@@ -1270,7 +1270,7 @@ module obsSpaceErrorStdDev_mod
               zwb  = idim*(zpt-zhhh)/(zpt-zpb)
               zwt  = 1.d0 - zwb
 
-              if ( obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 0 ) then
+              if ( obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == obs_xtrInside ) then
 
                 call obs_bodySet_r( lobsSpaceData, OBS_HPHT, bodyIndex,   &
                 zwb * col_getElem( column, ipb, headerIndex ) + zwt * col_getElem( column, ipt, headerIndex ))
@@ -1390,7 +1390,7 @@ module obsSpaceErrorStdDev_mod
       ! Process only refractivity data (codtyp 169)
 
       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-      IF ( IDATYP .EQ. 169 ) THEN
+      IF ( IDATYP == 169 ) THEN
         iProfile = gps_iprofile_from_index(index_header)
         varNum = gps_vRO_IndexPrf(iProfile, 2)
         dR(:)  = gps_vRO_dR      (iProfile, :)
@@ -1625,7 +1625,7 @@ module obsSpaceErrorStdDev_mod
     TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
     real(8), dimension(:), pointer :: dPdPs
 
-    IF (gps_gb_numZTD .EQ. 0) RETURN
+    IF (gps_gb_numZTD == 0) RETURN
 
     ! Initializations
 
@@ -1655,7 +1655,7 @@ module obsSpaceErrorStdDev_mod
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     iversion = vco_anl%Vcode
-    if (iversion .eq. 5002) then
+    if (iversion == 5002) then
       LSTAG = .TRUE.
       WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
       WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
@@ -1675,12 +1675,12 @@ module obsSpaceErrorStdDev_mod
       HEADER: do
         index_header = obs_getHeaderIndex(lobsSpaceData)
         if (index_header < 0) exit HEADER
-        if (first_header .eq. -1) first_header = index_header
+        if (first_header == -1) first_header = index_header
 
         ! Process only zenith delay data (codtyp 189 and BUFR_NEZD)
 
         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-        IF ( IDATYP .EQ. 189 ) THEN
+        IF ( IDATYP == 189 ) THEN
 
           ! Loop over data in the observations
 
@@ -1692,7 +1692,7 @@ module obsSpaceErrorStdDev_mod
 
           DO INDEX_BODY= IDATA, IDATEND
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-            OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) )
+            OK = ( (ITYP == BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) )
             IF ( OK ) THEN
               ASSIM = .TRUE.
               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -1732,7 +1732,7 @@ module obsSpaceErrorStdDev_mod
 
             DO INDEX_BODY= IDATA, IDATEND
               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP.EQ.BUFR_NEZD ) THEN
+              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP == BUFR_NEZD ) THEN
 
                 ! Observation error    SDERR
                 !                           ZOER = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -1748,7 +1748,7 @@ module obsSpaceErrorStdDev_mod
                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
 
                 IF (icount .LE. INOBS_JAC) THEN
-                  !                           IF ( obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. STN_JAC ) THEN
+                  !                           IF ( obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) == STN_JAC ) THEN
                   stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
                   WRITE(*,'(A11,A9)') 'SETFGEGPS: ', stnid
                   WRITE(*,*) '  ZTD, ZTD FGE = ', ZTDopv%Var, SQRT(ZLSUM)
@@ -1834,7 +1834,7 @@ module obsSpaceErrorStdDev_mod
         DO INDEX_BODY = IDATA, IDATEND
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP .EQ. BUFR_NEZD ) THEN
+          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP == BUFR_NEZD ) THEN
             varLevel = vnl_varLevelFromVarnum(ITYP)
             ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
             ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -2343,7 +2343,7 @@ module obsSpaceErrorStdDev_mod
         if (headerIndex < 0) exit HEADER
 
         icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-        if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
+        if (icodtyp /= codtyp_get_codtyp('CHEMREMOTE').and.icodtyp /= codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
 
         stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
         if ( .not. utl_stnid_equal(OmPstdCH%stnids(stnidIndex),stnid) ) cycle HEADER
@@ -2575,7 +2575,7 @@ module obsSpaceErrorStdDev_mod
         if (headerIndex < 0) exit HEADER
 
         icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-        if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
+        if (icodtyp /= codtyp_get_codtyp('CHEMREMOTE').and.icodtyp /= codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
 
         stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
         if ( .not. utl_stnid_equal(OmPstdCH%stnids(stnidIndex),stnid) ) cycle HEADER
@@ -2757,7 +2757,7 @@ module obsSpaceErrorStdDev_mod
       if (headerIndex < 0) exit HEADER
 
       icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
+      if (icodtyp /= codtyp_get_codtyp('CHEMREMOTE').and.icodtyp /= codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
 
       bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
@@ -2789,7 +2789,7 @@ module obsSpaceErrorStdDev_mod
     !
     implicit none
 
-    if (OmPstdCH%n_stnid.eq.0) return
+    if (OmPstdCH%n_stnid == 0) return
 
     if (allocated(OmPstdCH%stnids))   deallocate(OmPstdCH%stnids)
     if (allocated(OmPstdCH%n_lvl))    deallocate(OmPstdCH%n_lvl)

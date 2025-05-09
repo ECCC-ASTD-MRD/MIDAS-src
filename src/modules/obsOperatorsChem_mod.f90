@@ -1680,7 +1680,7 @@ module obsOperatorsChem_mod
           ! Local flag indicating if obs is to be assimilated
           iass(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
-          if (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 1 .and. &
+          if (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == obs_xtrAbove .and. &
               .not.flg_flagIsOn(obsSpaceData, bodyIndex, flg_09rejBgck)) then
             ! Update flags for consistency with xtr for levels above model top.
             ! Relevant only if trial and incremental analysis grid top not the same.
@@ -2535,7 +2535,7 @@ module obsOperatorsChem_mod
     ! Locals:
     integer :: obslevIndex,modlevIndex
     integer, parameter :: code_len=90
-    integer, allocatable :: ixtrLocal(:)    ! Local flags similar to OBS_XTR for levels below and above model vertical extent
+    integer, allocatable :: ixtrLocal(:) ! Local flags similar to OBS_XTR for levels below and above model vertical extent
     character(len=code_len) :: code    ! Must be at least as large as oopc_code_len
     character(len=20) :: message
     logical :: successLocal(obsoper%nobslev) ! Success logical

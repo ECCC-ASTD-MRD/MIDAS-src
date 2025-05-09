@@ -115,8 +115,8 @@ module varQC_mod
               ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated)
           else
-             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
-                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == 2) .and. &
+             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == obs_xtrInside) &
+                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == obs_xtrBelow) .and. &
                       (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) == BUFR_NEGZ)))
           end if
 
@@ -514,8 +514,8 @@ module varQC_mod
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and.  &
-                      obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 0) .or.  &
-                     (obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 2 .and.  &
+                      obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == obs_xtrInside) .or.  &
+                     (obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == obs_xtrBelow .and.  &
                       obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) == BUFR_NEGZ)
            end if
            if ( llok ) then

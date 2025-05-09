@@ -102,7 +102,7 @@ contains
           ZPT= col_getPressure(columnTrl,1,IOBS,varLevel)
           ZPB= col_getPressure(columnTrl,COL_GETNUMLEV(columnTrl,varLevel),IOBS,varLevel)
           if ( ZLEV < ZPT ) THEN
-             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
+             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrAbove)
              !
              !- !!! WARNING !!! This obs is above the model lid.
              !  We must turn off its assimilation flag  because the
@@ -112,9 +112,9 @@ contains
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
              end if
           else if ( ZLEV > ZPB ) THEN
-             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
+             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrBelow)
           else
-             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,0)
+             call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrInside)
           end if
        end if
     end do
@@ -146,13 +146,13 @@ contains
           ZPB= col_getHeight(columnTrl,NLEV,IOBS,varLevel)
         end if
         if ( ZLEV > ZPT ) then
-          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
+          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrAbove)
           write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, height =', ZLEV,' > ',ZPT
           call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, obs_notAssimilated)
         else if ( ZLEV < ZPB ) then
-          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
+          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrBelow)
         else
-          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,0)
+          call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,obs_xtrInside)
         end if
       end if
     end do
@@ -276,7 +276,7 @@ contains
        zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
        headerIndex=obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
-       if ( ixtr == 0 ) then
+       if ( ixtr == obs_xtrInside ) then
 
          ! Process all data within the domain of the model
          ilyr  =obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
@@ -307,7 +307,7 @@ contains
          zomp = zvar-(zwb*trlValueBot+zwt*trlValueTop)
          call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
-       else if (ixtr == 2) then
+       else if (ixtr == obs_xtrBelow) then
 
          ! Process only GZ that is data below model's orography
          if (bufrCode == bufr_negz ) then
@@ -411,7 +411,7 @@ contains
 
       ! Process all geometric-height data within the domain of the model
       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated .or.  &
-          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= 0 .or.  &
+          obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) /= obs_xtrInside .or.  &
           obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= obs_vcoHeight) then
         cycle BODY
       end if
@@ -1908,7 +1908,7 @@ contains
             if (bodyIndex < 0) exit BODY
 
             if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
-                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == obs_xtrInside   .and. &
                 obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoPressure) then
                headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
                ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -2015,7 +2015,7 @@ contains
                  .or. bufrCode == bufr_vis  .or. bufrCode == bufr_logVis  &
                  .or. bufrCode == bufr_gust .or. bufrCode == bufr_nefs &
                  .or. bufrCode == bufr_radarPrecip .or. bufrCode == bufr_logRadarPrecip  &
-                 .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
+                 .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == obs_xtrInside) ) then
 
               varLevel    = vnl_varLevelFromVarnum(bufrCode)
               nlev        = col_getNumLev(columnAnlInc,varLevel)
@@ -2649,7 +2649,7 @@ contains
 
              ! Process all data within the domain of the model
             if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and. &
-                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0               .and. &
+                obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == obs_xtrInside   .and. &
                 obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoPressure) then
 
               headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
@@ -2770,7 +2770,7 @@ contains
                  .or. bufrCode == bufr_vis  .or. bufrCode == bufr_logVis  &
                  .or. bufrCode == bufr_gust .or. bufrCode == bufr_nefs &
                  .or. bufrCode == bufr_radarPrecip .or. bufrCode == bufr_logRadarPrecip  &
-                 .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) ) then
+                 .or. obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == obs_xtrInside) ) then
 
                varLevel    = vnl_varLevelFromVarnum(bufrCode)
                nlev        = col_getNumLev(columnAnlInc,varLevel)

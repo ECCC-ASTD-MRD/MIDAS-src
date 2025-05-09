@@ -2278,7 +2278,7 @@ contains
 
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
-    integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
+    integer :: iass,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     integer :: nsats, isat
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
@@ -2323,7 +2323,6 @@ contains
       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
       if(iass /= obs_assimilated .or. ivco /= obs_vcoPressure) cycle BODY
 
-      ixtr = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
       ivnm = obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
       zvar = obs_bodyElem_r (obsSpaceData,OBS_VAR,bodyIndex)
       zlev = obs_bodyElem_r (obsSpaceData,OBS_PPP,bodyIndex)

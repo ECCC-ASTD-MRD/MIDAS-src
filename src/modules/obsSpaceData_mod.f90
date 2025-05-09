@@ -573,8 +573,7 @@ module ObsColumnNames_mod
    integer, parameter :: NBDY_INT_BEG = 401
    integer, parameter, public :: OBS_VNM = NBDY_INT_BEG ! variable number
    integer, parameter, public :: OBS_FLG = OBS_VNM+1  ! flags
-   integer, parameter, public :: OBS_KFA = OBS_FLG+1  ! marker for forward interp problems
-   integer, parameter, public :: OBS_ASS = OBS_KFA+1  ! flag to indicate if assimilated
+   integer, parameter, public :: OBS_ASS = OBS_FLG+1  ! flag to indicate if assimilated
    integer, parameter, public :: OBS_HIND= OBS_ASS+1  ! corresponding header row index
    integer, parameter, public :: OBS_VCO = OBS_HIND+1 ! type of vertical coordinate
    integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of anal level above observ'n
@@ -592,7 +591,7 @@ module ObsColumnNames_mod
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
+      (/ 'VNM ','FLG ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
           'CLA '/)
 
    !
@@ -1624,7 +1623,7 @@ module ObsSpaceData_mod
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
    public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV
    !    integer-body column numbers
-   public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
+   public :: OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA
 
    !    real-body column numbers
@@ -1642,6 +1641,9 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_vcoChannel     = 3 ! OBS_VCO value for channel obs
    integer, public, parameter :: obs_vcoChemColumn  = 4 ! OBS_VCO value for chemistry column integrated obs
    integer, public, parameter :: obs_vcoChemSfc     = 5 ! OBS_VCO value for chemistry point surface obs
+   integer, public, parameter :: obs_xtrInside      = 0 ! OBS_XTR value for obs inside vertical domain
+   integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
+   integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
 
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
