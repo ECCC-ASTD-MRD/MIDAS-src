@@ -757,14 +757,15 @@ module obsOperatorsChem_mod
        iset = utl_stnid_equal(oopc_levels%stnids(stnidIndex),obsoper%stnid)
 
        ! Check if number of levels, code, and vertical coordinate type are equal.
-       ! If number of levels is one and no vertical coordinate provided for total column measurement (i.e. obsoper%vco == 4),
+       ! If number of levels is one and no vertical coordinate provided for total column measurement
+       ! (i.e. obsoper%vco == obs_vcoChemColumn),
        ! then check of vertical coordinate type is disregarded afterwards.
        if (iset) then
           if ( obsoper%varno == oopc_levels%element(stnidIndex) .and. &
              (nlev == oopc_levels%n_lvl(stnidIndex) .or. &
              (nlev == 1 .and. oopc_levels%n_lvl(stnidIndex) > 1) ) .and. &
              (obsoper%vco == oopc_levels%vco(stnidIndex) .or. &
-              obsoper%vco == 4 .or. obsoper%vco == 5) ) then
+              obsoper%vco == obs_vcoChemColumn .or. obsoper%vco == obs_vcoChemSfc) ) then
 
             istnid=stnidIndex
             exit
@@ -798,7 +799,7 @@ module obsOperatorsChem_mod
          ! Alternative level or layer information has been found
          ! Must be pressure or sigma
 
-         if (oopc_levels%vco(stnidIndex) /= 2 &
+         if (oopc_levels%vco(stnidIndex) /= obs_vcoPressure &
              .and. oopc_levels%vco(stnidIndex) /= 6) then
            call utl_abort('oopc_getLevels: Cannot handle this vertical coordinate type')
          end if
@@ -862,7 +863,7 @@ module obsOperatorsChem_mod
          obsoper%zhp(:,:)=0.0d0
          if (nlev /= obsoper%nobslev) then
            obsoper%vco = oopc_levels%vco(stnidIndex)
-           if (obsoper%vco == 6) obsoper%vco = 2
+           if (obsoper%vco == 6) obsoper%vco = obs_vcoPressure
          end if
 
          deallocate(levelsTop,levelsBot)
@@ -2068,7 +2069,7 @@ module obsOperatorsChem_mod
     ! If applicable, get column upper boundaries for use with total column
     ! measurements when the related increment profile is to be restricted to
     ! the lower atmosphere (e.g. troposphere or PBL; when tropo_bound>0 )
-    if (obsoper%vco == 4 .and. nobslev == 1 .and. kmode /= 1) then
+    if (obsoper%vco == obs_vcoChemColumn .and. nobslev == 1 .and. kmode /= 1) then
       if (kmode == 0) then
 
         if (col_varExist(columnTrl,'HU')) then
@@ -2329,7 +2330,7 @@ module obsOperatorsChem_mod
 
       if ((obsoper%constituentId >= 0 .and. obsoper%constituentId < 7000) .and.  &
           trim(obsoper%operatorCategory) == 'Integ' .and. obsoper%nobslev == 1 .and. &
-          obsoper%vco == 4 .and. obsoper%success(1)) then
+          obsoper%vco == obs_vcoChemColumn .and. obsoper%success(1)) then
 
         if (all(obsoper%tt > 0.0) .and. obs_col(1) > 0.0) then
           temp_eff(1)=dot_product(obsoper%zh(1, &
@@ -2616,7 +2617,7 @@ module obsOperatorsChem_mod
     else if (obsoper%layerIdentified) then
       ! Layer averaging operator
       obsoper%operatorCategory='LayerAvg'
-    else if (obsoper%vco == 5 .and. obsoper%nobslev == 1) then
+    else if (obsoper%vco == obs_vcoChemSfc .and. obsoper%nobslev == 1) then
       ! Surface point (in-situ) measurement
       obsoper%operatorCategory='Surface'
     else
@@ -2726,7 +2727,7 @@ module obsOperatorsChem_mod
     ! Convert observation vertical coordinate value(s) to pressure if needed
 
     select case(obsoper%vco)
-    case(1)
+    case(obs_vcoHeight)
       ! Convert altitude to pressure
       if (trim(obsoper%operatorCategory) == 'Interp') then
 
@@ -2795,7 +2796,7 @@ module obsOperatorsChem_mod
                                obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
                                obsoper%lat,successLocal)
       end if
-    case(2)
+    case(obs_vcoPressure)
       ! Pressure, no conversion needed
       if (trim(obsoper%operatorCategory) == 'Interp') then
         press_obs = obsoper%obslev
@@ -2813,7 +2814,7 @@ module obsOperatorsChem_mod
           ixtrLocal(obslevIndex+1:obsoper%nobslev) = 2
         end if
       end if
-    case(4,5)
+    case(obs_vcoChemColumn,obs_vcoChemSfc)
       ! No actions taken
     case default
       call utl_abort("oopc_obsoperators: vertical coordinate type vco = " &
@@ -3597,7 +3598,7 @@ module obsOperatorsChem_mod
 
     if (obsoper%nobslev == 1 .and. kmode >= 2 .and. trim(operator) == 'integ' &
         .and. obsoper%vlayerbottom(1) > obsoper%pp(obsoper%nmodlev)*0.99 .and.  &
-        obsoper%constituentId >= 0 .and. obsoper%vco == 4) then
+        obsoper%constituentId >= 0 .and. obsoper%vco == obs_vcoChemColumn) then
 
       ! Check if constituent id is recognized (function will abort if not recognized)
       if ( obsoper%constituentId >= 0 ) then
@@ -3607,7 +3608,7 @@ module obsOperatorsChem_mod
       vlayerbottom_ref=obsoper%vlayerbottom(1)
 
       ! Check for special treatment if tropo_mode>=1, kmode=2,3, and nobslev=1 for
-      ! column observations (obsoper%vco=4)  that extend to the surface.
+      ! column observations (obsoper%vco=obs_vcoChemColumn)  that extend to the surface.
 
       tropo_mode = oopc_tropo_mode(obsoper%constituentId)
 
@@ -3675,7 +3676,7 @@ module obsOperatorsChem_mod
       ! If tropo_mode=1, reset original vertical range
       ! for the tangent linear operator
       if (obsoper%nobslev == 1 .and. kmode == 2 .and. &
-        obsoper%constituentId >= 0 .and. obsoper%vco == 4) then
+        obsoper%constituentId >= 0 .and. obsoper%vco == obs_vcoChemColumn) then
 
         if (tropo_mode == 1 .and.   &
           obsoper%columnBound > obsoper%vlayertop(1) .and.  &

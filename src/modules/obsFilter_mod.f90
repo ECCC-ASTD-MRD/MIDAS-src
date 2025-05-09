@@ -313,7 +313,7 @@ contains
       !
       ivco  = obs_bodyElem_i( obsSpaceData, OBS_VCO, bodyIndex )
       ipres = nint( obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex))
-      if ( ( ivco == 2) .and. ( ivnm == BUFR_NEES ) .and.  &
+      if ( ( ivco == obs_vcoPressure) .and. ( ivnm == BUFR_NEES ) .and.  &
            ( ipres < nint( filt_rlimlvhu *100.0d0 )) ) then
         llok=.false.
       end if
@@ -341,7 +341,7 @@ contains
       ! SAR winds: assimilates wind speed only for SAR winds
       !
       if ( ivnm == BUFR_NEFS ) then
-        if ( idburp .ne. 204 ) then
+        if ( idburp /= 204 ) then
           llok = .false.
         end if
       end if
@@ -475,7 +475,7 @@ contains
              if (bodyIndex < 0) exit BODY
 
              ! skip this obs if it is not on height levels
-             if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.1) cycle BODY
+             if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= obs_vcoHeight) cycle BODY
 
              ! skip this obs if already flagged to not be assimilated
              if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
@@ -591,7 +591,7 @@ contains
         if (bodyIndex < 0) exit BODY
 
         ! skip this obs if it is not on pressure level
-        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= obs_vcoPressure ) cycle BODY
 
         ! skip this obs if already flagged to not be assimilated
         if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY
@@ -599,7 +599,7 @@ contains
         ! skip this obs if it is not GZ
         ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
-        llok = (ivnm == BUFR_NEGZ .and. listIndex.ne.-1)
+        llok = (ivnm == BUFR_NEGZ .and. listIndex /= -1)
         if (.not. llok ) cycle BODY
 
         ! convert altitude read from column to geopotential
@@ -651,14 +651,14 @@ contains
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY2
 
-        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).ne.2 ) cycle BODY2
+        if( obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= obs_vcoPressure ) cycle BODY2
 
         ! skip this obs if already flagged to not be assimilated
         if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated ) cycle BODY2
 
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         listIndex = findElemIndex(ivnm)
-        llok = (ivnm.ne.BUFR_NEGZ .and. listIndex.ne.-1)
+        llok = (ivnm /= BUFR_NEGZ .and. listIndex /= -1)
         if (.not. llok ) cycle BODY2 ! Proceed with the next bodyIndex
 
         obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
@@ -888,7 +888,7 @@ end subroutine filt_topoAISW
 
           ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           listIndex = findElemIndex(ivnm)
-          llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1  &
+          llok = (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoHeight  &
                .and. ivnm /= BUFR_NEGZ .and. listIndex /= -1)
           if (.not. llok ) cycle BODY ! Proceed to the next bodyIndex
 
@@ -1009,7 +1009,7 @@ end subroutine filt_topoAISW
           if (bodyIndex < 0) exit BODY
 
           ! Skip this obs if it is not on height levels
-          if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= 1) cycle BODY
+          if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) /= obs_vcoHeight) cycle BODY
 
           ! Skip this obs if already flagged not to be assimilated
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) cycle BODY
@@ -1106,7 +1106,7 @@ end subroutine filt_topoAISW
        if (headerIndex < 0) exit HEADER
 
        idatyp   = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-       if (idatyp .ne. 185) cycle HEADER ! Proceed to the next headerIndex
+       if (idatyp /= 185) cycle HEADER ! Proceed to the next headerIndex
 
        ! loop over all body indices (still in the 'TO' family)
        call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -1114,7 +1114,7 @@ end subroutine filt_topoAISW
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_NBT3) cycle BODY
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= BUFR_NBT3) cycle BODY
 
           ! reject obs if the model surface pressure is below the minimum specified value
           if (col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0') < minSfcPressure) then
@@ -1905,12 +1905,12 @@ end subroutine filt_topoAISW
           countRejflg(listIndex)=countRejflg(listIndex)+1
           countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
 
-        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) then
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoHeight) then
 
           ! Check as a function of altitude.
           call filt_topoChemAltitudeCheck
 
-        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2) then
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoPressure) then
 
           ! Check as a function of pressure.
           call filt_topoChemPressureCheck
@@ -1966,7 +1966,7 @@ end subroutine filt_topoAISW
       ! :Purpose: Set pressure and geopotential height vertical boundaries.
       !
 
-      if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) then
+      if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoHeight) then
 
         ! Set  surface and lid height vertical boundaries from the trial field
         colSfcAltitude = col_getHeight(columnTrlOnTrlLev,nlev_TH,headerIndex,'TH')
@@ -2002,7 +2002,7 @@ end subroutine filt_topoAISW
           end if
         end if
 
-      else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2) then
+      else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == obs_vcoPressure) then
 
         ! Set  surface and lid pressure vertical boundaries from the trial field
         colSfcPressure = col_getPressure(columnTrlOnTrlLev,nlev_TH,headerIndex,'TH')

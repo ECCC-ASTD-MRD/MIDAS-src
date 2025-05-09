@@ -236,14 +236,14 @@ module sqliteRead_mod
     numberElem         = MPC_missingValue_INT
 
     ! Set the type of vertical coordinate
-    vertCoordType  = 1
+    vertCoordType  = obs_vcoHeight
     select case(trim(familyType))
       case('RA','PR','AL','RO','SF','TM','SC','GL','HY','GP')
-        vertCoordType = 1
+        vertCoordType = obs_vcoHeight
       case('UA','AI','SW')
-        vertCoordType = 2
+        vertCoordType = obs_vcoPressure
       case('TO')
-        vertCoordType = 3
+        vertCoordType = obs_vcoChannel
       case default
         call utl_abort('sqlr_readSqlite: unknown family '//trim(familyType))
     end select

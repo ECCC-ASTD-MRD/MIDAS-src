@@ -1,5 +1,5 @@
-Obervation Flag Definitions
-===========================
+Observation Flag Definitions
+============================
 
 The integer flag for each observation is stored at the body-level in the main
 data object associated with the `obsSpaceData_mod` module in the `obs_flg` column.

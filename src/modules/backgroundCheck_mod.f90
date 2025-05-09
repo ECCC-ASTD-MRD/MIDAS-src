@@ -339,7 +339,7 @@ module backgroundCheck_mod
         i_ass = obs_bodyElem_i ( obsData, OBS_ASS, bodyIndex )
         i_vco = obs_bodyElem_i ( obsData, OBS_VCO, bodyIndex )
 
-        if( i_ass /= obs_assimilated .or. i_vco /= 2 ) cycle bodyuv
+        if( i_ass /= obs_assimilated .or. i_vco /= obs_vcoPressure ) cycle bodyuv
 
         headerIndex     = obs_bodyElem_i( obsData, OBS_HIND, bodyIndex )
         bodyIndex_start = obs_headElem_i( obsData, OBS_RLN, headerIndex )

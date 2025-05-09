@@ -616,13 +616,13 @@ contains
     if (lonIndex == 0) lonIndex=1
 
     select case(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex))
-      case(1)
+      case(obs_vcoHeight)
         ! height coordinate
         verticalIndex = 1 + nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)/deltaHeight)
-      case(2)
+      case(obs_vcoPressure)
         ! pressure coordinate
         verticalIndex = 1 + nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)/deltaPressure)
-      case(3)
+      case(obs_vcoChannel)
         ! channel number
         verticalIndex = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
         if(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == codtyp_get_codtyp("AMSUA")) then
@@ -632,7 +632,7 @@ contains
           ! ignore other types of TOVS for now
           verticalIndex = -1
         endif
-      case(4,5)
+      case(obs_vcoChemColumn,obs_vcoChemSfc)
          ! Integrated column or surface value - assign to first level
          verticalIndex = 1
       case default
@@ -946,7 +946,8 @@ contains
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
-          if (vco /= 1 .and. vco /= 2 .and. vco /= 4 .and. vco /= 5) then
+          if (vco /= obs_vcoHeight .and. vco /= obs_vcoPressure .and. &
+              vco /= obs_vcoChemColumn .and. vco /= obs_vcoChemSfc) then
              ! Vertical coordinate not handled
              write(*,*) 'osd_obsDiagnostics: Currently unaccounted VCO = ',vco
              cycle HEADER
@@ -971,7 +972,9 @@ contains
           ! Determine if this observation should be added to this group (as specified by nset)
           if (.not.utl_stnid_equal(stnid_elemID(elemID),stnid)) cycle HEADER
           if (nset >= 2.and.varno /= varno_elemID(elemID)) cycle HEADER
-          if (nset >= 3.and..not.(( nlev_obs == 1 .and. vco == 4 ).eqv.unilev_elemID(elemID))) cycle HEADER
+          if (nset >= 3.and..not.(( nlev_obs == 1 .and. vco == obs_vcoChemColumn ).eqv.unilev_elemID(elemID))) then
+            cycle HEADER
+          end if
 
           ! Accumulate for this combo
 
@@ -1045,7 +1048,7 @@ contains
           ! Convert to pressure if needed and identify unilevel observations
           unilevel = .false.
           select case(vco)
-          case(1)
+          case(obs_vcoHeight)
              ! Height coordinate
 
              nlev_mod = col_getNumLev(columnTrlOnAnlIncLev,'TH')  ! number of model levels
@@ -1063,7 +1066,7 @@ contains
 
              deallocate(pres_mod)
 
-          case(4,5)
+          case(obs_vcoChemColumn,obs_vcoChemSfc)
              ! Uni-level observations
              unilevel = .true.
           end select

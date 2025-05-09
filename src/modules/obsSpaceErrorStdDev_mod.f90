@@ -932,7 +932,7 @@ module obsSpaceErrorStdDev_mod
         !     .  -----------------------------
         !
         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND.   &
-             obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2      ) then
+             obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. obs_vcoPressure ) then
           IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
             varLevel = vnl_varLevelFromVarnum(ityp)
@@ -1033,7 +1033,7 @@ module obsSpaceErrorStdDev_mod
         !*    1. Computation of sigmap
         !     .  -----------------------------
         if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
-             obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == 1 )then
+             obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == obs_vcoHeight )then
           ITYP = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
           if ( ITYP == bufr_radarPrecip ) cycle BODY
           varLevel = vnl_varLevelFromVarnum(ityp)
@@ -1152,7 +1152,7 @@ module obsSpaceErrorStdDev_mod
            (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. BUFR_NETT) ) THEN
 
         IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
-             (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
+             (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. obs_vcoPressure) ) THEN
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
           varLevel = vnl_varLevelFromVarnum(ityp)
           IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
@@ -1218,7 +1218,7 @@ module obsSpaceErrorStdDev_mod
         ! Process all data within the domain of the model (excluding GB-GPS ZTD data)
         ok = .false.
 
-        if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == 1 ) then
+        if ( obs_bodyElem_i(lobsSpaceData, OBS_VCO, bodyIndex) == obs_vcoHeight ) then
 
           ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
           if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &

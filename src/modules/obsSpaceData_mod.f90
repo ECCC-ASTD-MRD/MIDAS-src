@@ -1637,6 +1637,11 @@ module ObsSpaceData_mod
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
+   integer, public, parameter :: obs_vcoHeight      = 1 ! OBS_VCO value for height level obs
+   integer, public, parameter :: obs_vcoPressure    = 2 ! OBS_VCO value for pressure level obs
+   integer, public, parameter :: obs_vcoChannel     = 3 ! OBS_VCO value for channel obs
+   integer, public, parameter :: obs_vcoChemColumn  = 4 ! OBS_VCO value for chemistry column integrated obs
+   integer, public, parameter :: obs_vcoChemSfc     = 5 ! OBS_VCO value for chemistry point surface obs
 
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
@@ -4154,7 +4159,7 @@ contains
       ! Locals:
       integer :: unitout_
       integer :: ipnt, idata, idata2, jdata, ivco
-      character(len=13) :: ccordtyp(4)
+      character(len=13) :: ccordtyp(6)
       integer :: obsVNM, obsFLG, obsASS
       real(pre_obsReal) :: obsPPP, obsVAR, obsOMP, obsOMA, obsOER, obsHPHT, obsOMPE
 
@@ -4167,7 +4172,9 @@ contains
       ccordtyp(1) = 'HEIGHT      :'
       ccordtyp(2) = 'PRESSURE    :'
       ccordtyp(3) = 'CHANNEL NUM :'
-      ccordtyp(4) = 'VCO UNDEFINED'
+      ccordtyp(4) = 'CHEM COLUMN :'
+      ccordtyp(5) = 'CHEM SFC    :'
+      ccordtyp(6) = 'UNKNOWN      '
       !
       ! 1. General information
       !
@@ -4193,7 +4200,7 @@ contains
         idata2 = jdata -ipnt + 1
         if ( obs_bodyElem_i( obsdat, OBS_ASS, jdata ) >= 0) then
           ivco = obs_bodyElem_i( obsdat, OBS_VCO, jdata )
-          if ( ivco < 1 .or. ivco > 3 ) ivco = 4
+          if ( ivco < 1 .or. ivco > 5 ) ivco = 6
           obsVNM = obs_bodyElem_i( obsdat, OBS_VNM , jdata )
           obsPPP = obs_bodyElem_r( obsdat, OBS_PPP , jdata )
           obsVAR = obs_bodyElem_r( obsdat, OBS_VAR , jdata )
