@@ -110,7 +110,7 @@ module midasMpi_mod
     end if
     !$OMP END PARALLEL
 
-    ! create standard mpi handles to rpn_comm mpi communicators to facilitate 
+    ! create standard mpi handles to rpn_comm mpi communicators to facilitate
     ! use of standard mpi routines
     mmpi_comm_EW = rpn_comm_comm('EW')
     mmpi_comm_NS = rpn_comm_comm('NS')
@@ -170,12 +170,12 @@ module midasMpi_mod
     ierr=fclos(nulnam)
     call utl_tmg_stop(181)
 
-  end subroutine mmpi_getptopo 
+  end subroutine mmpi_getptopo
 
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm )
+  subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm , allReduceForward_opt)
     !
     !:Purpose: Version of mpi_allReduce that always performs sum in
     !          the same order.
@@ -183,12 +183,20 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(8),          intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
-    character(len=*), intent(in)    :: comm          ! rpn_comm communicator
+    real(8),          intent(inout) :: sendRecvValue        ! value to be summed over all mpi tasks
+    character(len=*), intent(in)    :: comm                 ! rpn_comm communicator
+    logical,          optional      :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: nsize, ierr, root, rank
     real(8), allocatable :: allvalues(:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -209,8 +217,21 @@ module midasMpi_mod
     call rpn_comm_gather(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", allvalues, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if(rank.eq.root) sendRecvValue = sum(allvalues(:))
+    if(rank.eq.root) then
+      if ( allReduceForward ) then
+        ! Sum the values in the normal order
+        sendRecvValue = sum(allvalues(:))
+      else
+        ! Sum the values in the reverse order
+        sendRecvValue = sum(allvalues(nsize:1:-1))
+        ! sendRecvValue = 0d0
+        ! do valueIndex = nsize, 1, -1
+        !   sendRecvValue = sendRecvValue + allvalues(valueIndex)
+        ! end do
+      end if
+    end if
     deallocate(allvalues)
+
     call rpn_comm_bcast(sendRecvValue, 1, "MPI_DOUBLE_PRECISION", root, comm, ierr)
 
     call utl_tmg_stop(170)
@@ -220,7 +241,7 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_allReduce_sumR8_1d
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumR8_1d( sendRecvVector, comm )
+  subroutine mmpi_allreduce_sumR8_1d( sendRecvVector, comm , allReduceForward_opt)
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks, guaranteed to
     !           always be in the same order.
@@ -228,12 +249,20 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(8)         , intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
-    character(len=*), intent(in)     :: comm              ! rpn_comm communicator
+    real(8)         , intent(inout) :: sendRecvVector(:)    ! 1-D vector to be summed over all mpi tasks
+    character(len=*), intent(in)    :: comm                 ! rpn_comm communicator
+    logical,          optional      :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: nprocs_mpi, numElements, ierr, root, rank
     real(8), allocatable :: all_sendRecvVector(:,:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -258,8 +287,17 @@ module midasMpi_mod
                          root, comm, ierr)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if ( rank == root ) sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    if(rank.eq.root) then
+      if ( allReduceForward ) then
+        ! Sum the values in the normal order
+        sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+      else
+        ! Sum the values in the reverse order
+        sendRecvVector(:) = sum(all_sendRecvVector(numElements:1:-1,:),2)
+      end if
+    end if
     deallocate(all_sendRecvVector)
+
     call rpn_comm_bcast(sendRecvVector, numElements, "mpi_double_precision", &
                         root, comm, ierr)
 
@@ -317,7 +355,7 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_2d
-   
+
   !--------------------------------------------------------------------------
   ! mmpi_reduce_sumR8_1d
   !--------------------------------------------------------------------------
@@ -370,7 +408,7 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_1d
-   
+
   !--------------------------------------------------------------------------
   ! mmpi_reduce_sumR8_2d
   !--------------------------------------------------------------------------
@@ -479,12 +517,12 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
-  
+
   !--------------------------------------------------------------------------
   ! mmpi_allgather_string
   !--------------------------------------------------------------------------
   subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
-    ! 
+    !
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
     !
     implicit none
@@ -501,7 +539,7 @@ module midasMpi_mod
     ! Locals:
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
     integer :: ilist,ichar,iproc
-              
+
     ! Convert strings to integer sequences
 
     do ilist=1,nlist
@@ -513,9 +551,9 @@ module midasMpi_mod
     ! Perform allgather with converted integer sequences
 
     call rpn_comm_allgather(num_list,nlist*nchar,"MPI_INTEGER",num_list_all,nlist*nchar,"MPI_INTEGER",comm,ierr)
-       
+
     ! Convert integer sequences to stnid character strings
-          
+
     do iproc=1,nproc
        do ilist=1,nlist
           do ichar=1,nchar
