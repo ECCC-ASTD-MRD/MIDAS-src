@@ -19,7 +19,8 @@
    channelNumberList(:,1) = 4,6,8,9,10,12,11
    sensorNameList(2) = 'AMSUA  ' ! sensor/channel pairs can be prescribed on multiple lines with extra spacing in sensor name
    channelNumberList(:,2) = 7,13,14,5
-   allReduceOrder = 'backward'
+   !allReduceForward = .false
+   allReduceForward = .true.
 /
  &NAMMIN
    NVAMAJ = 25,

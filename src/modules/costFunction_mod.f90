@@ -19,13 +19,9 @@ module costFunction_mod
   ! Public procedures
   public :: cfn_calcJo, cfn_sumJo
 
-  character(len=*), parameter :: allReduceOrderForward  = 'forward'
-  character(len=*), parameter :: allReduceOrderBackward = 'backward'
-  integer,          parameter :: allReduceOrderStringLength = max(len(allReduceOrderForward),len(allReduceOrderBackward))
-
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
-  character(len=allReduceOrderStringLength) :: allReduceOrder
+  logical                        :: allReduceForward
 
 contains
 
@@ -370,7 +366,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMCFN/ sensorNameList, channelNumberList, allReduceOrder
+    NAMELIST /NAMCFN/ sensorNameList, channelNumberList, allReduceForward
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -378,7 +374,7 @@ contains
       !- Setting default values
       sensorNameList(:) = ''
       channelNumberList(:,:) = 0
-      allReduceOrder = allReduceOrderForward
+      allReduceForward = .true.
 
       if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
         if ( mmpi_myid == 0 ) then
@@ -393,29 +389,11 @@ contains
         call utl_tmg_stop(181)
 
         call sortChannelNumbersInNml
-        call validateAllReduceOrder
       end if
       if ( mmpi_myid == 0 ) write(*,nml=namcfn)
     end if
 
   end subroutine readNameList
-
-  !--------------------------------------------------------------------------
-  ! validateAllReduceOrder
-  !--------------------------------------------------------------------------
-  subroutine validateAllReduceOrder
-    !
-    !:Purpose: This routine checks if the value found in the namelist
-    !          for 'allReduceOrder' is one of the choices expected.
-    !
-    implicit none
-
-    if ( allReduceOrder /= allReduceOrderForward .and. &
-         allReduceOrder /= allReduceOrderBackward ) then
-      call utl_abort('costfunction_mod: allReduceOrder is not one of allowed choices allReduceOrder = ' // allReduceOrder)
-    end if
-
-  end subroutine validateAllReduceOrder
 
   !--------------------------------------------------------------------------
   ! sortChannelNumbersInNml
