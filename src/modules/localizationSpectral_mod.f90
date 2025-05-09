@@ -99,7 +99,7 @@ CONTAINS
     !
     !- 2.  Settings
     !
-    
+
     !- 2.1 Mode
     if ( trim(locType) == 'spectral') then
        if (mmpi_myid == 0) write(*,*)
@@ -113,7 +113,7 @@ CONTAINS
     !- 2.2 Ensemble members and Levels
     lsp%nEns=nEns
     lsp%nLev=nLev
- 
+
     !- 2.3 Horizontal grid
     lsp%ni   = hco_loc%ni
     lsp%nj   = hco_loc%nj
@@ -143,7 +143,7 @@ CONTAINS
        ! Global Mode
        lsp%nphase = 2
        lsp%nla_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+2)/2
-       
+
        lsp%gstID = gst_setup(lsp%ni,lsp%nj,lsp%ntrunc,lsp%nEnsOverDimension)
        if (mmpi_myid == 0) write(*,*) 'lsp_setup: returned value of gstID = ',lsp%gstID
 
@@ -156,7 +156,7 @@ CONTAINS
 
        lsp%nphase       = lsp%lst%nphase
        lsp%nla_mpilocal = lsp%lst%nla
-       
+
     end if
 
     !- 2.5 Distribute control vector over mpi processes according to member index and m
@@ -183,7 +183,7 @@ CONTAINS
     if (lsp%global) then
        lsp%cvDim_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev*lsp%nEns
        lsp%cvDim_mpilocal  = 0
-       
+
        do mIndex = lsp%mymBeg, lsp%mymEnd, lsp%mymSkip
           do nIndex = lsp%mynBeg, lsp%mynEnd, lsp%mynSkip
              if (mIndex.le.nIndex) then
@@ -224,7 +224,7 @@ CONTAINS
     ! Arguments:
     type(struct_lsp), pointer, intent(inout) :: lsp
     real(8),                   intent(in)    :: horizLengthScale1
-    real(8),                   intent(in)    :: horizLengthScale2 
+    real(8),                   intent(in)    :: horizLengthScale2
     real(8),                   intent(in)    :: vertLengthScale
     real(8),                   intent(in)    :: vertLocation(lsp%nLev)
     character(len=*),          intent(in)    :: localizationMode
@@ -244,13 +244,13 @@ CONTAINS
        write(*,*) 'lsp_setup: Problem allocating memory! id=9',ierr
        call utl_abort('setupLocalizationMatrices')
     end if
-    
+
     allocate(lsp%LvertSqrt(lsp%nLev,lsp%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
        call utl_abort('setupLocalizationMatrices')
     end if
-    
+
     !
     !- 2.  Compute HORIZONTAL localization correlation matrix
     !
@@ -272,7 +272,7 @@ CONTAINS
       ! vertically constant horizontal localization
        horizLengthScaleAll(:) = horizLengthScale1
     end if
-    
+
     !- 2.2 Compute the matrix
     if (lsp%global) then
        call setupGlobalSpectralHLoc(lsp,horizLengthScaleAll) ! IN
@@ -354,7 +354,7 @@ CONTAINS
       end do
       sp_mpiglobal(:,:,:) = 0.0d0
       call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, "mpi_sum")
-      
+
       do levIndex = 1, lsp%nLev
         do nIndex = 0, lsp%ntrunc
           lsp%LhorizSqrt(nIndex,levIndex) = sp_mpiglobal(nIndex+1,1,levIndex)
@@ -444,7 +444,7 @@ CONTAINS
                             sp,                 & ! OUT
                             gd,                 & ! IN
                             kind, lsp%nLev)   ! IN
- 
+
       !- 1.4 Compute band mean
       allocate(SumWeight(0:lsp%nTrunc))
       SumWeight  (:)  = 0.d0
@@ -568,7 +568,7 @@ CONTAINS
     integer :: levIndex1,levIndex2,jla,p,memberIndex
     integer :: levIndex, latIndex
     character(len=19) :: kind
-    real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:) 
+    real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:)
     real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     allocate(sp_vhLoc(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEnsOverDimension))
@@ -641,7 +641,7 @@ CONTAINS
 
     deallocate(sp_hLoc )
     deallocate(sp_vhLoc)
-    
+
   END SUBROUTINE lsp_Lsqrt
 
   !--------------------------------------------------------------------------
@@ -656,7 +656,7 @@ CONTAINS
     real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
-    integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
+    integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex
 
     if (verbose) write(*,*) 'Entering globalSpectralHloc'
     call lsp_check(lsp)
@@ -711,7 +711,7 @@ CONTAINS
     real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
-    integer :: levIndex,jla, dimIndex, memberIndex, p 
+    integer :: levIndex,jla, dimIndex, memberIndex, p
 
     if (verbose) write(*,*) 'Entering lamSpectralHloc'
     call lsp_check(lsp)
@@ -741,7 +741,7 @@ CONTAINS
     end do
 
   END SUBROUTINE lamSpectralHLoc
-  
+
   !--------------------------------------------------------------------------
   ! spectralLocalizationSqrtAd
   !--------------------------------------------------------------------------
@@ -799,7 +799,7 @@ CONTAINS
            do levIndex2 = 1, lsp%nLev
               do p = 1, lsp%nphase
                  do jla = 1, lsp%nla_mpilocal
-                    sp_hLoc(jla,p,levIndex2,memberIndex) = sp_hLoc(jla,p,levIndex2,memberIndex) +  & 
+                    sp_hLoc(jla,p,levIndex2,memberIndex) = sp_hLoc(jla,p,levIndex2,memberIndex) +  &
                          lsp%LvertSqrt(levIndex2,levIndex1)*sp_vhLoc(jla,p,levIndex1,memberIndex)
                  end do
               end do
@@ -836,7 +836,7 @@ CONTAINS
     real(8),                   intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
-    integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
+    integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex
 
     if (verbose) write(*,*) 'Entering globalSpectralHLocAd'
     call lsp_check(lsp)
@@ -876,7 +876,7 @@ CONTAINS
           write(*,*) 'loc globalSpectralHLocAd: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
           call utl_abort('globalSpectralHLocAd')
        end if
-    
+
     end do
 
   END SUBROUTINE globalSpectralHLocAd
@@ -1034,7 +1034,7 @@ CONTAINS
                       dimIndex_mpilocal = dimIndex_mpilocal + 1
                       cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
                     end if
-                           
+
                     if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
@@ -1047,12 +1047,12 @@ CONTAINS
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                       call utl_abort('lsp_reduceToMPILocal')
                     end if
- 
+
                   end if
                 end do
               end do
             end do
-                
+
           end do
 
         end do ! procs
@@ -1070,7 +1070,7 @@ CONTAINS
       deallocate(allmSkip)
 
     else
-       
+
       ! LAM
       call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
@@ -1081,11 +1081,11 @@ CONTAINS
         allocate(allnlaLocal(1))
         allocate(allilaGlobal(1,1))
       end if
-      
+
       allocate(ilaGlobal(nlaMax))
       ilaGlobal(:)             = -1
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
-      
+
       call mmpi_gather(lsp%lst%nla, allnlaLocal)
       call mmpi_gather(ilaGlobal, allilaGlobal)
 
@@ -1107,14 +1107,14 @@ CONTAINS
                                                             ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                   ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                  if ( ila_mpiglobal <= 0 ) then 
+                  if ( ila_mpiglobal <= 0 ) then
                     write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
                     call utl_abort('lsp_reduceToMPILocal')
                   end if
                   dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                        ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                                          ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
-  
+
                   if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
@@ -1127,7 +1127,7 @@ CONTAINS
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                     call utl_abort('lsp_reduceToMPILocal')
                   end if
-                  
+
                   cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
 
                 end do
@@ -1140,8 +1140,8 @@ CONTAINS
       end if
 
       deallocate(allnlaLocal)
-      deallocate(allilaGlobal) 
-      
+      deallocate(allilaGlobal)
+
     end if
 
     !- Distribute
@@ -1153,10 +1153,10 @@ CONTAINS
 
     call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
-    deallocate(displs) 
+    deallocate(displs)
     deallocate(cv_allMaxMpiLocal)
     deallocate(cvDim_allMpiLocal)
-   
+
   END SUBROUTINE Lsp_reduceToMPILocal
 
   !--------------------------------------------------------------------------
@@ -1239,7 +1239,7 @@ CONTAINS
                     dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
                     ! add offset for member index
                     dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
-                            
+
                     if (mIndex == 0) then
                       ! controlVector only contain real part for mIndex=0
                       dimIndex_mpilocal = dimIndex_mpilocal + 1
@@ -1251,7 +1251,7 @@ CONTAINS
                       dimIndex_mpilocal = dimIndex_mpilocal + 1
                       cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
                     end if
-                           
+
                     if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
@@ -1264,12 +1264,12 @@ CONTAINS
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
                       call utl_abort('lsp_reduceToMPILocal')
                     end if
- 
+
                   end if
                 end do
               end do
             end do
-                
+
           end do
 
         end do ! procs
@@ -1287,7 +1287,7 @@ CONTAINS
       deallocate(allmSkip)
 
     else
-       
+
       ! LAM
       call mmpi_allReduce(lsp%lst%nla, nlaMax, "mpi_max")
 
@@ -1298,7 +1298,7 @@ CONTAINS
         allocate(allnlaLocal(1))
         allocate(allilaGlobal(1,1))
       end if
-      
+
       allocate(ilaGlobal(nlaMax))
       ilaGlobal(:)             = -1
       ilaGlobal(1:lsp%lst%nla) = lsp%lst%ilaGlobal(:)
@@ -1324,14 +1324,14 @@ CONTAINS
                                                             ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                   ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                  if ( ila_mpiglobal <= 0 ) then 
+                  if ( ila_mpiglobal <= 0 ) then
                     write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
                     call utl_abort('lsp_reduceToMPILocal')
                   end if
                   dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                        ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                                          ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
-  
+
                   if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
@@ -1344,7 +1344,7 @@ CONTAINS
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
                     call utl_abort('lsp_reduceToMPILocal')
                   end if
-                  
+
                   cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
 
                 end do
@@ -1357,8 +1357,8 @@ CONTAINS
       end if
 
       deallocate(allnlaLocal)
-      deallocate(allilaGlobal) 
-      
+      deallocate(allilaGlobal)
+
     end if
 
     !- Distribute
@@ -1370,10 +1370,10 @@ CONTAINS
 
     call mmpi_scatterv(cv_allMaxMpiLocal, cv_mpiLocal, cvDim_allMpiLocal, displs)
 
-    deallocate(displs) 
+    deallocate(displs)
     deallocate(cv_allMaxMpiLocal)
     deallocate(cvDim_allMpiLocal)
-   
+
   END SUBROUTINE Lsp_reduceToMPILocal_r4
 
   !--------------------------------------------------------------------------
@@ -1516,7 +1516,7 @@ CONTAINS
          end do ! jproc
          !$OMP END PARALLEL DO
 
-      end if ! myid == 0 
+      end if ! myid == 0
 
       deallocate(allnBeg)
       deallocate(allnEnd)
@@ -1561,7 +1561,7 @@ CONTAINS
                                                       ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                         if ( ila_mpiglobal <= 0 ) then 
+                         if ( ila_mpiglobal <= 0 ) then
                             write(*,*) 'lsp_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
@@ -1584,7 +1584,7 @@ CONTAINS
                          end if
 
                          cv_mpiglobal(dimIndex_mpiglobal) = cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1)
-                         
+
                       end do
                    end do
                 end do
@@ -1743,7 +1743,7 @@ CONTAINS
          end do ! jproc
          !$OMP END PARALLEL DO
 
-      end if ! myid == 0 
+      end if ! myid == 0
 
       deallocate(allnBeg)
       deallocate(allnEnd)
@@ -1788,7 +1788,7 @@ CONTAINS
                                                       ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                         if ( ila_mpiglobal <= 0 ) then 
+                         if ( ila_mpiglobal <= 0 ) then
                             write(*,*) 'lsp_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
                             call utl_abort('lsp_expandToMPIGlobal')
                          end if
@@ -1811,7 +1811,7 @@ CONTAINS
                          end if
 
                          cv_mpiglobal(dimIndex_mpiglobal) = cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1)
-                         
+
                       end do
                    end do
                 end do
