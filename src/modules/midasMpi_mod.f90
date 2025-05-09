@@ -218,17 +218,12 @@ module midasMpi_mod
 
     ! sum the values on the "root" mpi task and broadcast to group
     if(rank.eq.root) then
-      if ( allReduceForward ) then
-        ! Sum the values in the normal order
-        sendRecvValue = sum(allvalues(:))
-      else
-        ! Sum the values in the reverse order
-        sendRecvValue = sum(allvalues(nsize:1:-1))
-        ! sendRecvValue = 0d0
-        ! do valueIndex = nsize, 1, -1
-        !   sendRecvValue = sendRecvValue + allvalues(valueIndex)
-        ! end do
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        allvalues(:) = allvalues(nsize:1:-1)
       end if
+
+      sendRecvValue = sum(allvalues(:))
     end if
     deallocate(allvalues)
 
@@ -288,13 +283,12 @@ module midasMpi_mod
 
     ! sum the values on the "root" mpi task and broadcast to group
     if(rank.eq.root) then
-      if ( allReduceForward ) then
-        ! Sum the values in the normal order
-        sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
-      else
-        ! Sum the values in the reverse order
-        sendRecvVector(:) = sum(all_sendRecvVector(numElements:1:-1,:),2)
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        all_sendRecvVector(:,:) = all_sendRecvVector(numElements:1:-1,:)
       end if
+
+      sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
     end if
     deallocate(all_sendRecvVector)
 
