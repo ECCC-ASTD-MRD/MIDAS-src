@@ -32,7 +32,7 @@ program midas_diagBmatrix
   !                                                    Only needed if a LQ-HU transform is used in **B**
   ! ``columnB_$VAR_$YYYYMMDDHH.fst``              Out - Column of **B**
   ! ``columnBnorm_$VAR_$YYYYMMDDHH.fst``          Out - Column of **B** normalize by the value at the pseudo-obs location
-  ! ``columnL_$YYYYMMDDHH.fst``                   Out - Column of **L** (only when ensemble-derived **B** is use) 
+  ! ``columnL_$YYYYMMDDHH.fst``                   Out - Column of **L** (only when ensemble-derived **B** is use)
   ! ``stddev_$YYYYMMDDHH.fst``                    Out - Implied variances
   !============================================= ==============================================================
   !
@@ -89,7 +89,7 @@ program midas_diagBmatrix
   ! Other **B** matrix modules   various      weight and other parameters for each type of **B** matrix
   !======================== ============ ==============================================================
   !
- 
+
   use version_mod
   use midasMpi_mod
   use message_mod
@@ -163,7 +163,7 @@ program midas_diagBmatrix
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev
   integer :: nrandseed               ! initial random seed value
-  integer :: oneobs_levs(100)        ! list of level indexes where B matrix columns are computed 
+  integer :: oneobs_levs(100)        ! list of level indexes where B matrix columns are computed
   integer :: oneobs_lonlat(100,2)    ! list of lon,lat index pairs where B matrix columns are computed
   character(len=128) :: oneobs_timeStep ! can be 'first', 'last' or 'middle'
   character(len=4) :: oneobs_varName ! can be 'all' or a specific variable name (default='all')
@@ -213,7 +213,7 @@ program midas_diagBmatrix
   end do
   nLonLatPos=0
   do index = 1, size(oneobs_lonlat(:,lonPosIndex))
-    if (oneobs_lonlat(index,lonPosIndex) >= 1 .and. oneobs_lonlat(index,latPosIndex) >= 1) nLonLatPos=nLonLatPos+1  
+    if (oneobs_lonlat(index,lonPosIndex) >= 1 .and. oneobs_lonlat(index,latPosIndex) >= 1) nLonLatPos=nLonLatPos+1
   end do
 
   ! Top Level Control setup
@@ -265,7 +265,7 @@ program midas_diagBmatrix
   !- Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_core,vco_anl)
   if ( gsv_varExist(varName='HU') ) call gvt_setupRefFromTrialFiles('HU')
-  
+
   ! Setup of the L matrix done in bmat_setup
   call msg_memUsage('midas-diagBmatrix')
 
@@ -333,7 +333,7 @@ program midas_diagBmatrix
           latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
           lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
 
-          call gsv_zero(statevector)                   
+          call gsv_zero(statevector)
           call gsv_getField(statevector,field4d,vnl_varNameList(varIndex))
 
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
@@ -348,11 +348,11 @@ program midas_diagBmatrix
           controlVector(:)=0.0d0
           call bmat_sqrtBT(controlVector,cvm_nvadim,statevector)
           call bmat_sqrtB (controlVector,cvm_nvadim,statevector)
-          
+
           write(*,*)'midas-diagBmatrix: writing out the column of B, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
 
           ip3 = ip3 + 1
-          
+
           do stepIndexInc = 1, tim_nstepobsinc
             call gio_writeToFile(statevector,filenameInc,'1OBS_'//trim(vnl_varNameList(varIndex)),  &
                  stepIndex_opt=stepIndexInc, ip3_opt=ip3, unitConversion_opt=.true.)
@@ -369,15 +369,15 @@ program midas_diagBmatrix
             end if
           end if
           call mmpi_allReduce(centralValueLocal, centralValue, "MPI_SUM")
-          
+
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
-          
+
           if (centralValue /= 0.d0) then
             call gsv_scale(statevector,1.d0/centralValue)
           else
             call utl_abort('midas-diagBmatrix: central value equals 0!')
           end if
-          
+
           do stepIndexInc = 1, tim_nstepobsinc
             call gio_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
                                  stepIndex_opt=stepIndexInc, ip3_opt=ip3,  &
@@ -436,7 +436,7 @@ program midas_diagBmatrix
         write(*,*) '********************************************'
         write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
         write(*,*) '********************************************'
-      
+
         write(*,*) ' number of levels            = ', nlevs
         write(*,*) ' number of lon-lat positions = ', nLonLatPos
 
@@ -455,10 +455,10 @@ program midas_diagBmatrix
         ip3 = 0
         do levIndex = 1, nlevs2
           do lonLatPosIndex = 1, nLonLatPos
-            
+
             latIndex = oneobs_lonlat(lonLatPosIndex,latPosIndex)
             lonIndex = oneobs_lonlat(lonLatPosIndex,lonPosIndex)
-            
+
             call ens_zero(ensAmplitude)
             call gsv_zero(statevectorEnsAmplitude)
             if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
@@ -558,7 +558,7 @@ program midas_diagBmatrix
 
       if ( writePsiChiStddev ) call gvt_transform(statevector,'UVtoPsiChi')
 
-      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -588,7 +588,7 @@ program midas_diagBmatrix
       !$OMP END PARALLEL DO
     end do
 
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
     do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -602,7 +602,7 @@ program midas_diagBmatrix
     !
     !- Remove the ensemble mean from the ensemble
     !
-    !$OMP PARALLEL DO PRIVATE (lonIndex,ensIndex,latIndex,varLevIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex,ensIndex,latIndex,varLevIndex)
     do ensIndex = 1, numperturbations
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -647,7 +647,7 @@ program midas_diagBmatrix
     !$OMP END PARALLEL DO
 
     !- Insert results in statevector
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
     do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -687,7 +687,7 @@ program midas_diagBmatrix
     call mmpi_allReduce(stddev_zm, stddev_zm2, "MPI_SUM")
 
     !- Insert results in statevector
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
     do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -755,7 +755,7 @@ program midas_diagBmatrix
         end do
       end do
     end do
-    !$OMP END PARALLEL DO 
+    !$OMP END PARALLEL DO
 
     call mmpi_allReduce(stddev_dm, stddev_dm2, "MPI_SUM")
 
