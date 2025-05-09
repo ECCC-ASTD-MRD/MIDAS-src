@@ -2,7 +2,7 @@
 module bMatrixEnsemble_mod
   ! MODULE bMatrixEnsemble_mod (prefix='ben' category='2. B and R matrices')
   !
-  !:Purpose:  Performs transformation from control vector to analysis increment 
+  !:Purpose:  Performs transformation from control vector to analysis increment
   !           (and the adjoint transformation) using the spatially localized
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
@@ -58,32 +58,32 @@ module bMatrixEnsemble_mod
     integer             :: numSubEns
     integer,allocatable :: dateStampList(:)
     integer,allocatable :: dateStampListAdvectedFields(:)
-    
+
     integer             :: numIncludeAnlVar
-    
+
     ! FSO
     real(8)             :: fsoLeadTime = -1.0D0
     integer             :: numStepAdvectFSOFcst
-    
+
     ! Localizations
     integer             :: nHorizWaveBand
     integer             :: nHorizWaveBandForFiltering = 0
     integer             :: nVertWaveBand
-    
+
     ! Ensemble perturbations
     type(struct_ens), allocatable :: ensPerts(:,:)
-    
+
     ! Ensemble amplitude (only used in diagnostic mode)
     type(struct_ens)    :: ensAmplitudeStorage
     character(len=4)    :: varNameALFA(1)
-    
+
     ! Localization
     type(struct_loc), pointer :: locStorage(:,:)
-    
+
     ! The HU LQ mess
     logical :: gsvHUcontainsLQ
-    logical :: ensShouldNotContainLQvarName 
-    
+    logical :: ensShouldNotContainLQvarName
+
     ! Vertical grid
     type(struct_vco), pointer :: vco_anl, vco_ens, vco_file => null()
 
@@ -91,7 +91,7 @@ module bMatrixEnsemble_mod
     type(struct_hco), pointer :: hco_ens  ! Ensemble   horizontal grid parameters
     type(struct_hco), pointer :: hco_core ! Core grid for limited area EnVar
     type(struct_hco), pointer :: hco_file ! Input file horizontal grid parameters
-    
+
     ! Amplitude parameters
     type(struct_adv)          :: adv_amplitudeFSOFcst
     type(struct_adv), pointer :: adv_amplitudeAssimWindow
@@ -100,12 +100,12 @@ module bMatrixEnsemble_mod
 
     integer           :: amp3dStepIndexAssimWindow
     integer           :: amp3dStepIndexFSOFcst
-    
+
     ! Variance smoothing
     logical           :: ensPertsNormalized
-    
+
     type(struct_gsv)  :: statevector_ensStdDev
-    
+
     ! Optimization
     logical             :: useSaveAmp
 
@@ -124,7 +124,7 @@ module bMatrixEnsemble_mod
     integer             :: horizWaveBandPeaks(maxNumLocalLength)
     integer             :: horizWaveBandIndexSelected
     integer             :: vertWaveBandPeaks(maxNumLocalLength)
-    real(8)             :: vertModesLengthScale(2) 
+    real(8)             :: vertModesLengthScale(2)
     logical             :: ensDiagnostic
     logical             :: advDiagnostic
     character(len=2)    :: ctrlVarHumidity
@@ -151,7 +151,7 @@ module bMatrixEnsemble_mod
 
   type(struct_bEns) :: bEns(nInstanceMax)
 
-  type(struct_ens), target :: ensAmplitudeSave(nInstanceMax) ! Save this to allow early allocation 
+  type(struct_ens), target :: ensAmplitudeSave(nInstanceMax) ! Save this to allow early allocation
                                                                ! for better efficiency
 
   character(len=15) :: ben_mode
@@ -190,7 +190,7 @@ CONTAINS
     integer        :: nulnam = 0
     ! Namelist variables
     integer             :: nEns                                   ! number of ensemble members
-    real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables 
+    real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables
     real(8)             :: scaleFactorHumidity(vco_maxNumLevels)     ! level-dependent scaling of variances for humidity
     real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)     ! level-dependent scaling of winds used to advect localization
     real(8)             :: advectFactorAssimWindow(vco_maxNumLevels) ! level-dependent scaling of winds used to advect localization
@@ -205,7 +205,7 @@ CONTAINS
     integer             :: vertWaveBandPeaks(maxNumLocalLength)   ! mode corresponding to peak of each waveband for SDL in the vertical
     real(8)             :: vertModesLengthScale(2)                ! LengthScale of the correlation function use to perform vertical-scale-decomposition
     logical             :: ensDiagnostic                          ! when `.true.` write diagnostic info related to ens. to files
-    logical             :: advDiagnostic                          ! when `.true.` write diagnostic info related to advection to files 
+    logical             :: advDiagnostic                          ! when `.true.` write diagnostic info related to advection to files
     character(len=2)    :: ctrlVarHumidity                        ! name of humidity variable used for ensemble perturbations (LQ or HU)
     character(len=32)   :: advectTypeAssimWindow                  ! what is advected in assim. window: "amplitude" or "ensPertAnlInc"
     character(len=32)   :: advectStartTimeIndexAssimWindow        ! time index where advection originates from "first" or "middle"
@@ -221,7 +221,7 @@ CONTAINS
     real(8)             :: footprintTopoThreshold                 ! parameter for variance smoothing (in meters)
     logical             :: useCmatrixOnly                         ! activate normalization of ens. perturbations by ens. stddev
     integer             :: ensDateOfValidity                      ! when set to -1, date in ens. files is ignored (only for 3D ens.)
-    real(8)             :: huMinValue                             ! minimum humidity value imposed on ensemble members 
+    real(8)             :: huMinValue                             ! minimum humidity value imposed on ensemble members
     character(len=12)   :: hInterpolationDegree                   ! select degree of horizontal interpolation (if needed)
     character(len=20)   :: transformVarKindCH                     ! name of transform performed on chemistry-related variables in ens.
 
@@ -258,9 +258,9 @@ CONTAINS
 
     !- Open the namelist and loop through it
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
- 
+
     instanceLoop: do
- 
+
       !- Set the default values for the namalist parameters
       scaleFactor(:)        =    0.0d0
       scaleFactorHumidity(:)=    1.0d0
@@ -297,7 +297,7 @@ CONTAINS
       transformVarKindCH    = ''
       huMinValue            = MPC_missingValue_R8  ! i.e. undefined
       hInterpolationDegree  = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
-      
+
       !- Read the namelist
       read(nulnam,nml=namben,iostat=ierr)
       if (ierr /= 0) then
@@ -309,12 +309,12 @@ CONTAINS
       end if
 
       if (mmpi_myid == 0) write(*,nml=namben)
- 
+
       ! We have found a valid instance
       nInstance = nInstance + 1
 
       !- Adjust some namelist-dependent variables
-      
+
       ! If zero weight, skip rest of setup
       if ( sum(scaleFactor(:)) == 0.0d0 ) then
         if (mmpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup and exit instance loop'
@@ -373,20 +373,20 @@ CONTAINS
       bEns(nInstance)%transformVarKindCH         = transformVarKindCH
       bEns(nInstance)%huMinValue                 = huMinValue
       bEns(nInstance)%hInterpolationDegree       = hInterpolationDegree
-      
+
       bEns(nInstance)%hco_ens  => hco_anl_in
       bEns(nInstance)%hco_core => hco_core_in
       bEns(nInstance)%vco_anl  => vco_anl_in
 
       !- Setup the LAM analysis grid metrics
       call lgt_setupFromHCO( hco_anl_in, hco_core_in ) ! IN
-      
+
       !- Set the instance
       call ben_setupOneInstance(nInstance,               & ! IN
                                 cvDimStorage(nInstance))   ! OUT
 
       bEns(nInstance)%initialized = .true.
-      
+
     end do instanceLoop
 
     !- Close the namelist
@@ -432,9 +432,9 @@ CONTAINS
     logical        :: scaleDecompositionNeeded = .false.
     character(len=32)   :: direction, directionEnsPerts, directionAnlInc
     character(len=32)   :: decompositionMode, filterResponseFunctionMode
-    
+
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
-    
+
     write(*,*) 'ben_setupOneInstance: enspathname = ', trim(bEns(instanceIndex)%ensPathName)
 
     !
@@ -518,7 +518,7 @@ CONTAINS
                                  profM_opt=vertLocationInc)
           call czp_fetch1DLevels(bEns(instanceIndex)%vco_file, pSurfRef, &
                                  profM_opt=vertLocationFile)
-      
+
           do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
             vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
           end do
@@ -550,7 +550,7 @@ CONTAINS
         end if
       end if
     end if
-    
+
     if (bEns(instanceIndex)%vco_anl%Vcode /= bEns(instanceIndex)%vco_ens%Vcode) then
       write(*,*) 'ben_setupOneInstance: vco_anl%Vcode = ', bEns(instanceIndex)%vco_anl%Vcode, ', vco_ens%Vcode = ', bEns(instanceIndex)%vco_ens%Vcode
       call utl_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
@@ -609,7 +609,7 @@ CONTAINS
       allocate(bEns(instanceIndex)%scaleFactor_M(bEns(instanceIndex)%nLevEns_M))
       allocate(bEns(instanceIndex)%scaleFactor_T(bEns(instanceIndex)%nLevEns_T))
       do levIndex = 1, bEns(instanceIndex)%nLevEns_T
-        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then 
+        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then
           bEns(instanceIndex)%scaleFactor(levIndex) = sqrt(bEns(instanceIndex)%scaleFactor(levIndex))
         else
           bEns(instanceIndex)%scaleFactor(levIndex) = 0.0d0
@@ -623,13 +623,13 @@ CONTAINS
       end if
 
       do levIndex = 1, bEns(instanceIndex)%nLevEns_T
-        if (bEns(instanceIndex)%scaleFactorHumidity(levIndex) > 0.0d0) then 
+        if (bEns(instanceIndex)%scaleFactorHumidity(levIndex) > 0.0d0) then
           bEns(instanceIndex)%scaleFactorHumidity(levIndex) = sqrt(bEns(instanceIndex)%scaleFactorHumidity(levIndex))
         else
           bEns(instanceIndex)%scaleFactorHumidity(levIndex) = 0.0d0
         end if
       end do
-      
+
       bEns(instanceIndex)%scaleFactor_SF = bEns(instanceIndex)%scaleFactor_T(bEns(instanceIndex)%nLevEns_T)
 
     else if (bEns(instanceIndex)%nLevEns_DP > 0) then
@@ -638,7 +638,7 @@ CONTAINS
       bEns(instanceIndex)%varNameALFA(:) = varNameALFAocean(:)
       allocate(bEns(instanceIndex)%scaleFactor_DP(bEns(instanceIndex)%nLevEns_DP))
       do levIndex = 1, bEns(instanceIndex)%nLevEns_DP
-        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then 
+        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then
           bEns(instanceIndex)%scaleFactor(levIndex) = sqrt(bEns(instanceIndex)%scaleFactor(levIndex))
         else
           bEns(instanceIndex)%scaleFactor(levIndex) = 0.0d0
@@ -648,7 +648,7 @@ CONTAINS
     else
       ! 2D surface variables
       bEns(instanceIndex)%varNameALFA(:) = varNameALFAsfc(:)
-      if (bEns(instanceIndex)%scaleFactor(1) > 0.0d0) then 
+      if (bEns(instanceIndex)%scaleFactor(1) > 0.0d0) then
         bEns(instanceIndex)%scaleFactor_SF = sqrt(bEns(instanceIndex)%scaleFactor(1))
       else
         call utl_abort('ben_setupOneInstance: with vCode == 0, the scale factor should never be equal to 0')
@@ -691,17 +691,17 @@ CONTAINS
         end if
         ! You must provide nHorizWaveBand wavenumbers in decreasing order
         ! e.g. For a 3 wave bands decomposition...
-        !      wavenumber #1 = where the response function for wave band 1 (hgh res) reaches 1 
+        !      wavenumber #1 = where the response function for wave band 1 (hgh res) reaches 1
         !                      and stays at 1 for higher wavenumbers
         !      wavenumber #2 = where the response function for wave band 2 reaches 1
-        !      wavenumber #3 = where the response function for wave band 3 (low res) reaches 1 
+        !      wavenumber #3 = where the response function for wave band 3 (low res) reaches 1
         !                      and stays at 1 for lower wavenumbers
         ! See FilterResponseFunction for further info...
 
         ! Make sure that the wavenumbers are in the correct (decreasing) order
         do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBandForFiltering-1
           if ( bEns(instanceIndex)%horizWaveBandPeaks(horizWaveBandIndex)-bEns(instanceIndex)%horizWaveBandPeaks(horizWaveBandIndex+1) <= 0 ) then
-            call utl_abort('ben_setupOneInstance: horizWaveBandPeaks are not in decreasing wavenumber order') 
+            call utl_abort('ben_setupOneInstance: horizWaveBandPeaks are not in decreasing wavenumber order')
           end if
         end do
 
@@ -754,22 +754,22 @@ CONTAINS
         scaleDecompositionNeeded = .true.
         if (mmpi_myid == 0) write(*,*)
         if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used in the vertical'
-        
+
         ! You must provide nVertWaveBand wavenumbers in decreasing order
         ! e.g. For a 3 vertical wave bands decomposition...
-        !      wavenumber #1 = where the response function for wave band 1 (hgh res) reaches 1 
+        !      wavenumber #1 = where the response function for wave band 1 (hgh res) reaches 1
         !                      and stays at 1 for higher wavenumbers
         !      wavenumber #2 = where the response function for wave band 2 reaches 1
-        !      wavenumber #3 = where the response function for wave band 3 (low res) reaches 1 
+        !      wavenumber #3 = where the response function for wave band 3 (low res) reaches 1
         !                      and stays at 1 for lower wavenumbers
         ! See FilterResponseFunction for further info...
 
         bEns(instanceIndex)%nVertWaveBand = count(bEns(instanceIndex)%vertWaveBandPeaks >= 0)
-        
+
         ! Make sure that the wavenumbers are in the correct (decreasing) order
         do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand-1
           if ( bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex)-bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex+1) <= 0 ) then
-            call utl_abort('ben_setupOneInstance: vertWaveBandPeaks are not in decreasing wavenumber order') 
+            call utl_abort('ben_setupOneInstance: vertWaveBandPeaks are not in decreasing wavenumber order')
           end if
         end do
 
@@ -790,7 +790,7 @@ CONTAINS
         if (bEns(instanceIndex)%vertModesLengthScale(2) == -1.d0) then
           bEns(instanceIndex)%vertModesLengthScale(2) = bEns(instanceIndex)%vertModesLengthScale(1)
         end if
-        
+
       case default
         call utl_abort('ben_setupOneInstance: Invalid mode for vertLocalizationType')
       end select
@@ -811,7 +811,7 @@ CONTAINS
         end if
         allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
         do levIndex = 1, bEns(instanceIndex)%nLevEns_M
-          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))         
+          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
         end do
         deallocate(vertLocationInc)
       else if ( bEns(instanceIndex)%vco_anl%nLev_depth > 0 ) then
@@ -875,8 +875,8 @@ CONTAINS
     !
     !- 2.  Read/Process the Ensemble
     !
-    
-    !- 2.1 Identify set of variables for which ensembles are required    
+
+    !- 2.1 Identify set of variables for which ensembles are required
     do jvar = 1, vnl_numvarmax
       if (trim(bEns(instanceIndex)%includeAnlVar(jvar)) == '') exit
       if (.not.gsv_varExist(varName = trim(bEns(instanceIndex)%includeAnlVar(jvar)))) then
@@ -898,13 +898,13 @@ CONTAINS
 
     bEns(instanceIndex)%ensShouldNotContainLQvarName=.false.
     if (bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. .not. bEns(instanceIndex)%ensContainsFullField) then
-      ! In this particular case, we must force readEnsemble to contains the LQ varName 
+      ! In this particular case, we must force readEnsemble to contains the LQ varName
       ! to be able to read LQ perturbations
       do jvar = 1, bEns(instanceIndex)%numIncludeAnlVar
         if (bEns(instanceIndex)%includeAnlVar(jvar) == 'LQ')  then
           call utl_abort('ben_setup: LQ must not be present in ANLVAR in this case')
         end if
-        if (bEns(instanceIndex)%includeAnlVar(jvar) == 'HU')  then 
+        if (bEns(instanceIndex)%includeAnlVar(jvar) == 'HU')  then
           bEns(instanceIndex)%includeAnlVar(jvar) = 'LQ'
           bEns(instanceIndex)%ensShouldNotContainLQvarName=.true.
         end if
@@ -1061,7 +1061,7 @@ CONTAINS
         bEns(instanceIndex)%amp3dStepIndexAssimWindow   = 1
         bEns(instanceIndex)%numStepAmplitudeAssimWindow = 1
         bEns(instanceIndex)%numStepAdvectAssimWindow    = bEns(instanceIndex)%numStep
-        
+
         select case(trim(bEns(instanceIndex)%advectStartTimeIndexAssimWindow))
         case ('first')
           directionEnsPerts='towardFirstTimeIndex'
@@ -1143,7 +1143,7 @@ CONTAINS
     if (scaleDecompositionNeeded) then
       if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent'                .or. &
           trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependentWithSpectralLoc') then
-      
+
         if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
           decompositionMode='Split'
           filterResponseFunctionMode='SumToOne'
@@ -1151,7 +1151,7 @@ CONTAINS
           decompositionMode='Select'
           filterResponseFunctionMode='SquareSumToOne'
         end if
-      
+
         call scd_horizontal(bEns(instanceIndex)%ensPerts(:,1),                                     & ! INOUT
                             bEns(instanceIndex)%nEnsOverDimension,                                 & ! IN
                             bEns(instanceIndex)%nHorizWaveBandForFiltering,                        & ! IN
@@ -1169,7 +1169,7 @@ CONTAINS
                             'Split')                                                    ! IN
         end do
       end if
-      
+
       if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'WaveBandPerturbations')
     end if
 
@@ -1232,7 +1232,7 @@ CONTAINS
         if (bEns(instanceIndex)%keepAmplitude) call ens_deallocate(bEns(instanceIndex)%ensAmplitudeStorage)
       end if
     end do
-  
+
   end subroutine ben_finalize
 
   !--------------------------------------------------------------------------
@@ -1334,7 +1334,7 @@ CONTAINS
         call ens_allocate(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),                       &
                           bEns(instanceIndex)%nEns, bEns(instanceIndex)%numStep,                                    &
                           bEns(instanceIndex)%hco_ens,                                                              &
-                          bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList,                           & 
+                          bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%dateStampList,                           &
                           hco_core_opt = bEns(instanceIndex)%hco_core,                                              &
                           varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
                           hInterpolateDegree_opt = bEns(instanceIndex)%hInterpolationDegree)
@@ -1347,7 +1347,7 @@ CONTAINS
                       trim(bEns(instanceIndex)%varianceSmoothing) /= 'none')
     call ens_readEnsemble(bEns(instanceIndex)%ensPerts(1,1), bEns(instanceIndex)%ensPathName, makeBiPeriodic,       &
                           vco_file_opt = bEns(instanceIndex)%vco_file,                                              &
-                          varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), & 
+                          varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), &
                           containsFullField_opt=bEns(instanceIndex)%ensContainsFullField)
 
     if ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1,1),'HU') .and. &
@@ -1358,11 +1358,11 @@ CONTAINS
       call qlim_setMin(bEns(instanceIndex)%ensPerts(1,1), bEns(instanceIndex)%huMinValue)
     else if ( trim(bEns(instanceIndex)%transformVarKindCH) /= '' ) then
       do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
-        if ( vnl_varKindFromVarname(bEns(instanceIndex)%includeAnlVar(varIndex)) /= 'CH' ) cycle            
+        if ( vnl_varKindFromVarname(bEns(instanceIndex)%includeAnlVar(varIndex)) /= 'CH' ) cycle
 
         transform = trim(bens(instanceIndex)%transformVarKindCH)//'CH'
-        call gvt_transform( bEns(instanceIndex)%ensPerts(1,1), trim(transform), &          
-                            varName_opt=bEns(instanceIndex)%includeAnlVar(varIndex) ) 
+        call gvt_transform( bEns(instanceIndex)%ensPerts(1,1), trim(transform), &
+                            varName_opt=bEns(instanceIndex)%includeAnlVar(varIndex) )
       end do
     end if
 
@@ -1378,7 +1378,7 @@ CONTAINS
       varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
       lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
-      if ( .not. ens_varExist(bEns(instanceIndex)%ensPerts(1,1), varName) ) cycle 
+      if ( .not. ens_varExist(bEns(instanceIndex)%ensPerts(1,1), varName) ) cycle
 
       ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
@@ -1464,7 +1464,7 @@ CONTAINS
     else
       vertWaveBandIndex = 1
     end if
-    
+
     ! set default value for optional argument undoNormalization
     if ( present(undoNormalization_opt) ) then
       undoNormalization = undoNormalization_opt
@@ -1504,7 +1504,7 @@ CONTAINS
           if (scaleFactor_MT > 0.0d0) then
             dnens2 = sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-1))/scaleFactor_MT
           else
-            if (stepIndex == 1) then 
+            if (stepIndex == 1) then
               write(*,*) 'scalefactor not positive, cannot undo normalization!'
               write(*,*) varName,scaleFactor_MT,lev
             end if
@@ -1674,7 +1674,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering ben_reduceToMPILocal'
 
     call loc_reduceToMPILocal(bEns(instanceIndex)%locStorage(1,1),cv_mpilocal,cv_mpiglobal)
-    
+
   end subroutine ben_reduceToMPILocal
 
   !--------------------------------------------------------------------------
@@ -1693,7 +1693,7 @@ CONTAINS
     call loc_reduceToMPILocal_r4(bEns(instanceIndex)%locStorage(1,1),cv_mpilocal,cv_mpiglobal) ! IN
 
   end subroutine ben_reduceToMPILocal_r4
-  
+
   !--------------------------------------------------------------------------
   ! ben_expandToMPIGlobal
   !--------------------------------------------------------------------------
@@ -1708,7 +1708,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal'
 
     call loc_expandToMPIGlobal(bEns(instanceIndex)%locStorage(1,1), cv_mpilocal, & ! IN
-                               cv_mpiglobal)                                       ! OUT  
+                               cv_mpiglobal)                                       ! OUT
 
   end subroutine ben_expandToMPIGlobal
 
@@ -1739,7 +1739,7 @@ CONTAINS
 
     ! Arguments:
     integer,                    intent(in)    :: instanceIndex
-    real(8),                    intent(in)    :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal) 
+    real(8),                    intent(in)    :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal)
     type(struct_gsv),           intent(inout) :: statevector
     logical,          optional, intent(in)    :: useFSOFcst_opt
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
@@ -1835,7 +1835,7 @@ CONTAINS
         end if
 
         ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-        call addEnsMember(ensAmplitude_ptr, statevector,     & ! INOUT 
+        call addEnsMember(ensAmplitude_ptr, statevector,     & ! INOUT
                           instanceIndex, horizWaveBandIndex, & ! IN
                           vertWaveBandIndex, useFSOFcst)       ! IN
 
@@ -1847,7 +1847,7 @@ CONTAINS
     ! 2.4 Apply the Std. Dev (if needed)
     if (bEns(instanceIndex)%ensPertsNormalized .and. .not. bEns(instanceIndex)%useCmatrixOnly) then
       call gsv_schurProduct(bEns(instanceIndex)%statevector_ensStdDev, & ! IN
-                            statevector)                                 ! INOUT 
+                            statevector)                                 ! INOUT
     end if
 
     ! 2.5 Advect Increments
@@ -1879,7 +1879,7 @@ CONTAINS
 
     ! Arguments:
     integer,                    intent(in)    :: instanceIndex
-    real(8) ,                   intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) 
+    real(8) ,                   intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal)
     type(struct_gsv),           intent(inout) :: statevector
     logical,          optional, intent(in)    :: useFSOFcst_opt
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
@@ -1937,7 +1937,7 @@ CONTAINS
     ! 2.4 Apply the Std. Dev (if needed)
     if (bEns(instanceIndex)%ensPertsNormalized .and. .not. bEns(instanceIndex)%useCmatrixOnly) then
       call gsv_schurProduct(bEns(instanceIndex)%statevector_ensStdDev, & ! IN
-                            statevector)                                 ! INOUT 
+                            statevector)                                 ! INOUT
     end if
 
     if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude'
@@ -1961,7 +1961,7 @@ CONTAINS
 
     do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
       do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand !  Loop on vertical WaveBand (for vert. SDL)
-          
+
         ! 2.3 Compute increment by multiplying amplitudes by member perturbations
         call addEnsMemberAd(statevector, ensAmplitude_ptr,     & ! INOUT
                             instanceIndex, horizWaveBandIndex, & ! IN
@@ -1975,7 +1975,7 @@ CONTAINS
           call adv_ensemble_ad(ensAmplitude_ptr,                                                       & ! INOUT
                                bEns(instanceIndex)%adv_amplitudeAssimWindow, bEns(instanceIndex)%nEns)   ! IN
         end if
-      
+
         ! 2.1 Compute the ensemble amplitudes
         call utl_tmg_start(64,'------LocSpectral_AD')
         call loc_LsqrtAd(bEns(instanceIndex)%locStorage(horizWaveBandIndex,vertWaveBandIndex), & ! IN
@@ -2046,7 +2046,7 @@ CONTAINS
     else
       numStepAmplitude =  bEns(instanceIndex)%numStepAmplitudeAssimWindow
     end if
-    
+
     allocate(ensAmplitude_MT(bEns(instanceIndex)%nEns,numStepAmplitude,bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
     allocate(increment_out2(bEns(instanceIndex)%numStep,bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
 
@@ -2720,7 +2720,7 @@ CONTAINS
     integer :: locIndexTemp
     integer :: horizWaveBandIndex
     integer :: vertWaveBandIndex
-    
+
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (locIndex < 1 .or. locIndex > (bEns(instanceIndex)%nHorizWaveBand*bEns(instanceIndex)%nVertWaveBand)) then
