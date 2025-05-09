@@ -2,7 +2,7 @@
 module sqliteRead_mod
   ! MODULE sqliteRead_mod (prefix='sqlr' category='3. Observation input/output')
   !
-  !:Purpose:  To read and update SQLITE observation files. Data is stored in 
+  !:Purpose:  To read and update SQLITE observation files. Data is stored in
   !           obsSpaceData object.
   !
   use codePrecision_mod
@@ -31,14 +31,14 @@ module sqliteRead_mod
   public :: sqlr_getColumnValuesDate
 
   contains
-  
+
   !--------------------------------------------------------------------------
   ! sqlr_readSqlite_avhrr
   !--------------------------------------------------------------------------
   subroutine sqlr_readSqlite_avhrr(obsdat, fileName, headerIndexBegin, headerIndexEnd)
     !
     ! :Purpose: To read SQLite avhrr_cloud parameters.
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -126,12 +126,12 @@ module sqliteRead_mod
   subroutine sqlr_readSqlite(obsdat, familyType, fileName)
     !
     ! :Purpose: To read SQLite namelist and files.
-    ! 
+    !
     implicit none
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
-    character(len=*) , intent(in)    :: familyType ! Family Type 
+    character(len=*) , intent(in)    :: familyType ! Family Type
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
 
     ! Locals:
@@ -143,7 +143,7 @@ module sqliteRead_mod
     logical                  :: finishedWithHeader
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
-    real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
+    real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation
     real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
     real(pre_obsReal)        :: beamLat, beamLon, beamHeight, beamDistance, beamRange
     integer                  :: vertCoordType, vertCoordFact, ierr, idProf
@@ -234,7 +234,7 @@ module sqliteRead_mod
     sqlNull            = ''
     listElem           = ''
     numberElem         = MPC_missingValue_INT
-    
+
     ! Set the type of vertical coordinate
     vertCoordType  = 1
     select case(trim(familyType))
@@ -287,18 +287,18 @@ module sqliteRead_mod
         read(utl_flnml, nml = NAMSQLpr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
-      case ('AL')  
+      case ('AL')
         read(utl_flnml, nml = NAMSQLal, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
-      case ('RO')     
+      case ('RO')
         read(utl_flnml, nml = NAMSQLro, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
         if (mmpi_myid == 0) write(*, nml = NAMSQLro)
       case ('SF','GP','HY')
         read(utl_flnml, nml = NAMSQLsfc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)        
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)
       case ('SC')
         read(utl_flnml, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
@@ -322,12 +322,12 @@ module sqliteRead_mod
       case('RA')
         read(utl_flnml, nml = NAMSQLradar, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
-        if (mmpi_myid == 0) write(*, nml =  NAMSQLradar) 
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLradar)
       case default
         call utl_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
     end select
     call utl_tmg_stop(181)
-    
+
     if (numberElem /= MPC_missingValue_R4) then
       call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
     end if
@@ -360,7 +360,7 @@ module sqliteRead_mod
     call utl_combineString(columnsHeader, ',', headSqlNames)
 
     ! ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
-    sqlDataOrder = ' order by id_obs, varno, id_data' 
+    sqlDataOrder = ' order by id_obs, varno, id_data'
 
     selectIDs  = 'select id_data, id_obs'
     csqlcrit = 'varno in ('//trim(listElem)//')'//trim(sqlExtraDat)//trim(SQLNull)
@@ -419,7 +419,7 @@ module sqliteRead_mod
     write(*,*) 'sqlr_readSqlite: =========================================='
 
     ! Here is a summary of what is going on in the rest of this routine:
-    ! 
+    !
     ! for each row of the body table (which has already been read)
     !
     !   if this is the first id_data associated with a given id_obs
@@ -723,7 +723,7 @@ module sqliteRead_mod
       ! In some cases we need to add extra row(s) to the BODY table
       if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
           .not. ovt_bufrCodeSkipped(obsVarno)) then
-          
+
         ! Add an extra row to the obsSpaceData body table
         ! to contain quantity later calculated by ovt_transformObsValue
         call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
@@ -769,7 +769,7 @@ module sqliteRead_mod
     write(*,*) 'sqlr_readSqlite: FIN numheader  =', numHeader
     write(*,*) 'sqlr_readSqlite: FIN numbody    =', numBody
 
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
     if (fSQL_error(stat) /= FSQL_OK) then
       write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
       call sqlu_handleError(stat, 'fSQL_close')
@@ -829,13 +829,13 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! Arguments:  
-    character(len=*)   , intent(in)    :: fileName    
-    character(len=*)   , intent(in)    :: tableName   
-    character(len=*)   , intent(in)    :: columnName   
-    integer,             intent(in)    :: obsSpaceColIndexSource  
+    ! Arguments:
+    character(len=*)   , intent(in)    :: fileName
+    character(len=*)   , intent(in)    :: tableName
+    character(len=*)   , intent(in)    :: columnName
+    integer,             intent(in)    :: obsSpaceColIndexSource
 
-    ! Locals: 
+    ! Locals:
     character(len=3000)         :: query
     character(len=10)           :: sqlDataType
     character(len=*), parameter :: myName = 'sqlr_addColumn'
@@ -864,26 +864,26 @@ module sqliteRead_mod
     end if
 
     ! close the sqlite file
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
-  end subroutine sqlr_addColumn  
+  end subroutine sqlr_addColumn
 
   !--------------------------------------------------------------------------
   ! sqlr_updateSqlite
   !--------------------------------------------------------------------------
   subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
     !
-    ! :Purpose: update SQLite files. List of items to update is in the 
+    ! :Purpose: update SQLite files. List of items to update is in the
     !           namSQLUpdate namelist
     implicit none
-    
+
     ! Arguments:
     type(fSQL_database), intent(inout) :: db         ! SQL database
     type (struct_obs)  , intent(inout) :: obsdat     ! obsSpaceData
-    character(len=*)   , intent(in)    :: fileName   ! file name  
-    character(len=*)   , intent(in)    :: familyType ! Observation Family Type 
+    character(len=*)   , intent(in)    :: fileName   ! file name
+    character(len=*)   , intent(in)    :: familyType ! Observation Family Type
     integer            , intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
-    
+
     ! Locals:
     type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
     type(fSQL_status)           :: stat ! type error status
@@ -958,7 +958,7 @@ module sqliteRead_mod
       if (trim(itemUpdateListRadar(itemIndex)) == '') exit
       numberUpdateItemsRadar = numberUpdateItemsRadar + 1
     end do
-    
+
     ! Append extra sqlite columns to update to itemUpdateList
     if (trim(familyType) == 'RA') then
       do itemIndex = 1, numberUpdateItemsRadar
@@ -977,7 +977,7 @@ module sqliteRead_mod
     itemCharBody='  '
     columnName = '  '
     do itemIndex = 1, numberUpdateBodyItems
-      
+
       item = trim(itemUpdateBodyList(itemIndex))
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
@@ -1033,18 +1033,18 @@ module sqliteRead_mod
 
           obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
           if (obsIdf /= fileNumber) cycle HEADERCHCK
-          
+
           obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
           obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
-    
+
           BODYCHCK: do bodyIndex = obsRln, obsNlv + obsRln - 1
             columnValue = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
 
             if (columnValue /= obs_missingValue_R) then
-              nonEmptyBodyColumn = .true.         
+              nonEmptyBodyColumn = .true.
               exit HEADERCHCK
             end if
-          
+
           end do BODYCHCK
         end do HEADERCHCK
 
@@ -1064,7 +1064,7 @@ module sqliteRead_mod
     itemCharHeader='  '
     columnName = '  '
     do itemIndex = 1, numberUpdateHeaderItems
-      
+
       item = trim(itemUpdateHeaderList(itemIndex))
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
@@ -1094,11 +1094,11 @@ module sqliteRead_mod
 
           obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
           if (obsIdf /= fileNumber) cycle HEADERCHCK2
-          
+
           columnValue = obs_headelem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
-          
+
           if (columnValue /= obs_missingValue_R) then
-            nonEmptyHeaderColumn = .true.         
+            nonEmptyHeaderColumn = .true.
             exit HEADERCHCK2
           end if
         end do HEADERCHCK2
@@ -1119,7 +1119,7 @@ module sqliteRead_mod
     last_question = scan(itemCharBody, '?', back)
     columnNameCharBody = itemCharBody(1:last_question)
     itemCharBody = columnNameCharBody
-    
+
     query = ' update data set flag = ? ' // trim(itemCharBody)
     query = trim(query) // ' where id_data = ?  ;'
     write(*,*) 'sqlr_updateSqlite: update query --->  ', query
@@ -1129,9 +1129,9 @@ module sqliteRead_mod
     call fSQL_begin(db)
 
     HEADER1: do headerIndex = 1, obs_numHeader(obsdat)
- 
+
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
- 
+
       if (obsIdf /= fileNumber) cycle HEADER1
       headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
@@ -1147,13 +1147,13 @@ module sqliteRead_mod
         do itemIndex = 1, numberUpdateBodyItems
 
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if (obsValue /= obs_missingValue_R) then  
+          if (obsValue /= obs_missingValue_R) then
             romp = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
             if (romp == obs_missingValue_R) then
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
-              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_TSEM) then 
+              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_TSEM) then
                 scaleFactor=100.0
               end if
               call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor)
@@ -1179,11 +1179,11 @@ module sqliteRead_mod
       itemCharHeader = columnNameCharHeader
 
       if (numberUpdateHeaderItems > 0) itemCharHeader = ',' // trim(itemCharHeader)
-      
+
       if (trim(familyType) == 'TO') then
         query = ' update header set status  = ?, land_sea= ?' // trim(itemCharHeader)
         lastMandatoryIndex = 2
-      else 
+      else
         query = ' update header set status  = ?' // trim(itemCharHeader)
         lastMandatoryIndex = 1
       end if
@@ -1196,7 +1196,7 @@ module sqliteRead_mod
       call fSQL_begin(db)
 
       HEADER2: do headerIndex = 1, obs_numHeader(obsdat)
-  
+
         obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
         if (obsIdf /= fileNumber) cycle HEADER2
 
@@ -1205,11 +1205,11 @@ module sqliteRead_mod
         headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
 
         call fSQL_bind_param(stmt, param_index = 1, int_var = obsStatus)
-        
+
         if (trim(familyType) == 'TO') then
           call fSQL_bind_param(stmt, param_index = 2, int_var = landsea)
         end if
-        
+
         do itemIndex = 1, numberUpdateHeaderItems
           romp = obs_headElem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
           if (romp == obs_missingValue_R) then
@@ -1218,7 +1218,7 @@ module sqliteRead_mod
             call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex, real_var = romp)
           end if
         end do
-        
+
         call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + numberUpdateHeaderItems + 1, &
                              int8_var  = headPrimaryKey)
         call fSQL_exec_stmt (stmt)
@@ -1335,13 +1335,13 @@ module sqliteRead_mod
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType, ierr 
+    integer                :: obsVarno, obsFlag, vertCoordType, ierr
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
     integer                :: numberInsert, headerIndex, bodyIndex, numHeader, itemIndex
     integer                :: obsNlv, obsRln, obsIdf, insertItem
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
-    logical                :: llok    
+    logical                :: llok
     integer, parameter     :: maxNumberInsertItems = 15
 
     ! Namelist variables
@@ -1372,7 +1372,7 @@ module sqliteRead_mod
       if ( itemInsertList(itemIndex) == MPC_missingValue_INT) exit
       numberInsertItems = numberInsertItems + 1
     end do
-    
+
     write(*,*) ' INSERT INTO SQLITE FILE ELEMENTS :--> ',(itemInsertList(insertItem), insertItem = 1, numberInsertItems)
 
     select case(trim(familyType))
@@ -1435,29 +1435,29 @@ module sqliteRead_mod
               end if
               call fSQL_bind_param(stmt, param_index = 5, int_var  = obsFlag)
               if (OMA == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 6) 
-              else 
-                call fSQL_bind_param(stmt, param_index = 6, real_var = OMA) 
+                call fSQL_bind_param(stmt, param_index = 6)
+              else
+                call fSQL_bind_param(stmt, param_index = 6, real_var = OMA)
               end if
               if (OMP == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 7) 
+                call fSQL_bind_param(stmt, param_index = 7)
               else
-                call fSQL_bind_param(stmt, param_index = 7, real_var = OMP) 
+                call fSQL_bind_param(stmt, param_index = 7, real_var = OMP)
               end if
               if (FGE == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 8) 
+                call fSQL_bind_param(stmt, param_index = 8)
               else
                 call fSQL_bind_param(stmt, param_index = 8, real_var = FGE)
               end if
               if (OER == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 9) 
+                call fSQL_bind_param(stmt, param_index = 9)
               else
-                call fSQL_bind_param(stmt, param_index = 9, real_var = OER) 
+                call fSQL_bind_param(stmt, param_index = 9, real_var = OER)
               end if
             case DEFAULT
               call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
               call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
-              call fSQL_bind_param(stmt, param_index = 3, real_var = PPP) 
+              call fSQL_bind_param(stmt, param_index = 3, real_var = PPP)
               call fSQL_bind_param(stmt, param_index = 4, int_var  = vertCoordType)
               if (obsValue == obs_missingValue_R) then
                 call fSQL_bind_param(stmt, param_index = 5)
@@ -1466,22 +1466,22 @@ module sqliteRead_mod
               end if
               call fSQL_bind_param(stmt, param_index = 6, int_var  = obsFlag)
               if (OMA == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 7) 
-              else 
+                call fSQL_bind_param(stmt, param_index = 7)
+              else
                 call fSQL_bind_param(stmt, param_index = 7, real_var = OMA)
               end if
               if (OMP == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 8) 
+                call fSQL_bind_param(stmt, param_index = 8)
               else
-                call fSQL_bind_param(stmt, param_index = 8, real_var = OMP) 
+                call fSQL_bind_param(stmt, param_index = 8, real_var = OMP)
               end if
               if (FGE == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 9) 
+                call fSQL_bind_param(stmt, param_index = 9)
               else
-                call fSQL_bind_param(stmt, param_index = 9, real_var = FGE) 
+                call fSQL_bind_param(stmt, param_index = 9, real_var = FGE)
               end if
               if (OER == obs_missingValue_R) then
-                call fSQL_bind_param(stmt, param_index = 10) 
+                call fSQL_bind_param(stmt, param_index = 10)
               else
                 call fSQL_bind_param(stmt, param_index = 10, real_var = OER)
               end if
@@ -1551,22 +1551,22 @@ module sqliteRead_mod
     type(struct_obs) , intent(inout) :: obsData
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-            
+
     ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                      ! type for error status
     integer                :: obsVarno, obsFlag, ASS, codeType, date, time, idObs, idData
-    integer, parameter     :: obsStatus = 3072 
+    integer, parameter     :: obsStatus = 3072
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate
     character(len = 12)    :: idStation
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
-        
+
     write(*,*) 'sqlr_writePseudoSSTobs: starting...'
-     
+
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsData, obsFamily, idObs, idData)
 
@@ -1587,7 +1587,7 @@ module sqliteRead_mod
     if (fileNameDir == ' ') then
       write(*,*) 'sqlr_writePseudoSSTobs: WARNING! The program may be slow creating many sqlite files in the same directory.'
       write(*,*) 'sqlr_writePseudoSSTobs: WARNING! Please, use the ram disk option prior to MIDAS run!'
-    end if  
+    end if
 
     if (obs_mpiLocal(obsData)) then
       write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
@@ -1597,7 +1597,7 @@ module sqliteRead_mod
       if (mmpi_myid > 0) return
       fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)
     end if
-    
+
 
     write(*,*) 'sqlr_writePseudoSSTobs: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
@@ -1609,10 +1609,10 @@ module sqliteRead_mod
                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                   &an_error real, fg_error real, obs_error real);'
-    
+
     call fSQL_do_many(db, queryCreate, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
-    
+
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -1625,7 +1625,7 @@ module sqliteRead_mod
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
-     
+
     numberInsertions = 0
 
     call obs_set_current_header_list(obsData, obsFamily)
@@ -1648,17 +1648,17 @@ module sqliteRead_mod
       idObs = idObs + 1
       call fSQL_bind_param(stmtHeader, param_index = 1, int_var  = idObs)
       call fSQL_bind_param(stmtHeader, param_index = 2, char_var = idStation)
-      call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat) 
-      call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon) 
-      call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date) 
-      call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time) 
-      call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType) 
+      call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat)
+      call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon)
+      call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date)
+      call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time)
+      call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType)
       call fSQL_bind_param(stmtHeader, param_index = 8, real_var = altitude)
       call fSQL_bind_param(stmtHeader, param_index = 9, int_var = obsStatus)
       call fSQL_exec_stmt (stmtHeader)
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
-         
+
         obsVarno      = obs_bodyElem_i(obsData, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsData, OBS_FLG , bodyIndex)
         obsValue      = obs_bodyElem_r(obsData, OBS_VAR , bodyIndex)
@@ -1675,39 +1675,39 @@ module sqliteRead_mod
         call fSQL_bind_param(stmtData, param_index = 2, int_var  = idObs)
         call fSQL_bind_param(stmtData, param_index = 3, int_var  = obsVarno)
         call fSQL_bind_param(stmtData, param_index = 4, real_var = PPP)
-        call fSQL_bind_param(stmtData, param_index = 5) 
-        call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue) 
+        call fSQL_bind_param(stmtData, param_index = 5)
+        call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
         call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
         if (OMA == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 8) 
-          call fSQL_bind_param(stmtData, param_index = 9) 
+          call fSQL_bind_param(stmtData, param_index = 8)
+          call fSQL_bind_param(stmtData, param_index = 9)
         else
           call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
           call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
         end if
         if (OMP == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 10) 
+          call fSQL_bind_param(stmtData, param_index = 10)
         else
           call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
         end if
         if (FGE == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 11) 
+          call fSQL_bind_param(stmtData, param_index = 11)
         else
           call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
         end if
         if (OER == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 12) 
+          call fSQL_bind_param(stmtData, param_index = 12)
         else
           call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)
-        end if 
+        end if
         call fSQL_exec_stmt (stmtData)
 
         numberInsertions = numberInsertions + 1
 
       end do BODY
-     
+
     end do HEADER
-    
+
     call fSQL_finalize(stmtData)
 
     write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily, &
@@ -1717,7 +1717,7 @@ module sqliteRead_mod
     call fSQL_close(db, stat)
 
   end subroutine sqlr_writePseudoSSTobs
-  
+
   !--------------------------------------------------------------------------
   ! sqlr_writeEmptyPseudoSSTobsFile
   !--------------------------------------------------------------------------
@@ -1729,24 +1729,24 @@ module sqliteRead_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) , intent(inout) :: obsData   
+    type(struct_obs) , intent(inout) :: obsData
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-            
+
     ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                      ! type for error status
     character(len = 512)   :: queryCreate
-    character(len = 512)   :: queryHeader, queryData  
+    character(len = 512)   :: queryHeader, queryData
     integer                :: idObs, idData
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
-        
+
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsData, obsFamily, idObs, idData)
-    
+
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') &
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
@@ -1760,7 +1760,7 @@ module sqliteRead_mod
       if (mmpi_myid > 0) return
       fileNameExtention = ' '
     end if
-    
+
     fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Creating file: ', trim(fileName)
@@ -1773,12 +1773,12 @@ module sqliteRead_mod
                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                   &an_error real, fg_error real, obs_error real);'
-    
+
     call fSQL_do_many(db, queryCreate, stat)
     if (fSQL_error(stat) /= FSQL_OK) then
       call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
     end if
-    
+
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -1856,7 +1856,7 @@ module sqliteRead_mod
     ! close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end subroutine sqlr_getColumnValuesDate
 
