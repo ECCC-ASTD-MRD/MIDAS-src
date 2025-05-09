@@ -5,7 +5,6 @@ module climatologies_mod
   ! :Purpose: Access to climatologies
   !
   use midasMpi_mod
-  use mpi
   use bufr_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
