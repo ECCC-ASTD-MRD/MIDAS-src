@@ -5,7 +5,7 @@ module codePrecision_mod
   !:Purpose: A module to specify the precision, mostly for floating
   !          point variables
   !
-  use mpi
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   implicit none
   save
   public
@@ -50,15 +50,15 @@ module codePrecision_mod
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_DOUBLE
-  integer, parameter :: pre_specTransReal    = selected_real_kind(15)
-  integer, parameter :: pre_specTransMpiType = MPI_REAL8
-  character(len=20)  :: pre_specTransMpiReal ="mpi_real8"
+  integer,            parameter :: pre_specTransReal    = selected_real_kind(15)
+  type(MPI_Datatype), parameter :: pre_specTransMpiType = MPI_REAL8
+  character(len=20),  parameter :: pre_specTransMpiReal ="mpi_real8"
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_SINGLE
-  integer, parameter :: pre_specTransReal    = selected_real_kind(6)
-  integer, parameter :: pre_specTransMpiType = MPI_REAL4
-  character(len=20)  :: pre_specTransMpiReal ="mpi_real4"
+  integer,            parameter :: pre_specTransReal    = selected_real_kind(6)
+  type(MPI_Datatype), parameter :: pre_specTransMpiType = MPI_REAL4
+  character(len=20),  parameter :: pre_specTransMpiReal ="mpi_real4"
 #endif
 
 contains
