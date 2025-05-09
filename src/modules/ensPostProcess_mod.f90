@@ -518,7 +518,7 @@ contains
       !- If SubSample requested, do remaining processing and output of sub-sampled members
       if ((writeSubSampleUnPert) .and. (recenterSubSampleUnPert)) then
         ! Compute analysis mean of sub-sampled members and
-        ! shift members to have same mean as full ensemble 
+        ! shift members to have same mean as full ensemble
         call ens_computeMean(ensembleAnlSubSampleUnPert)
         call ens_recenter(ensembleAnlSubSampleUnPert, stateVectorMeanAnl,  &
                           recenteringCoeffScalar_opt=1.0D0)
@@ -575,7 +575,7 @@ contains
 
       ! Compute the ensemble increments
       call ens_add(ensembleAnl, ensembleAnlInc, scaleFactorInOut_opt=-1.0D0)
-      
+
       !- Mask the ensemble increments for LAM grid and recompute ensemble analysis
       if (.not. hco_ens%global .and. useAnalIncMask) then
         call ens_applyMaskLAM(ensembleAnlInc, stateVectorAnalIncMask)
@@ -860,7 +860,7 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
-            
+
             if (writeNetCDFInc) then
               call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
                                          dateStampListInc(stateVectorMeanInc%anltime), &
@@ -902,7 +902,7 @@ contains
           call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket,  &
                                typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
                                stepIndex_opt = stepIndex, containsFullField_opt = .true.)
-        end do          
+        end do
 
         if (writeNetCDFensAnalysis) then
           call utl_abort('epp_postProcess: output netCDF file requested but not required.')
@@ -1272,7 +1272,7 @@ contains
     if ( vco_getNumLev(vco_ens,'OT','I0') > 0 .or. &
          vco_getNumLev(vco_ens,'OT','I1') > 0 ) then
       write(*,*)
-      write(*,*) 'epp_addRandomPert: copying number of levels for land surface variables!' 
+      write(*,*) 'epp_addRandomPert: copying number of levels for land surface variables!'
       write(*,*)
       vco_randomPert%nlev_Other(:) = vco_ens%nlev_Other(:)
     end if
@@ -1351,7 +1351,7 @@ contains
     do memberIndex = 1, nEns
 
       if( mmpi_myid == 0 ) then
-        write(*,*) 
+        write(*,*)
         write(*,*) 'Computing random perturbation number= ', memberIndex
       end if
 
@@ -1586,7 +1586,7 @@ contains
     allocate(weightArrayEnsMean1(vco_maxNumLevels))
     allocate(weightArrayEnsMean2(vco_maxNumLevels))
 
-    ! read the optiontable file, if requested    
+    ! read the optiontable file, if requested
     if (useOptionTableRecenter) then
       write(*,*) 'epp_hybridRecentering: using optiontable file to specify recentering weights.'
       nulFile = 0
@@ -1672,7 +1672,7 @@ contains
       call gsv_zero(stateVectorEnsMean)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorEnsMean)
-      
+
       call gsv_allocate(stateVectorEnsMean4D, tim_nstepobs, hco_ens, vco_ens,   &
                         dateStamp_opt = localDateStamp, mpi_local_opt = .true., &
                         mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
@@ -1684,7 +1684,7 @@ contains
       call gsv_deallocate(stateVectorEnsMean)
 
     else
-      
+
       do stepIndex = 1, tim_nstepobsinc
         call gio_readFromFile(stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
                               stepIndex_opt = stepIndex, containsFullField_opt = .true., &
@@ -1736,7 +1736,7 @@ contains
     integer,          intent(in) :: nEns
 
     ! Locals:
-    real(8), allocatable          :: rmsvalue(:) 
+    real(8), allocatable          :: rmsvalue(:)
     type(struct_vco), pointer     :: vco
     type(struct_hco), pointer     :: hco
     character(len=4), allocatable :: nomvar_v(:)
@@ -1868,7 +1868,7 @@ contains
       end if
 
       varLevIndexCount = 0
-      if ( (nomvar_v(1) == 'UU') .and. (nomvar_v(1+nLev_M) == 'VV') ) then        
+      if ( (nomvar_v(1) == 'UU') .and. (nomvar_v(1+nLev_M) == 'VV') ) then
         do levIndex = 1, nLev_M
           varLevIndexCount = varLevIndexCount + 2
           varLevIndexUU = levIndex
@@ -1881,7 +1881,7 @@ contains
       end if
       do varLevIndex = varLevIndexCount+1, numVarLev
         write(nulFile,100) elapsed, ftype, nEns, nomvar_v(varLevIndex), &
-                           pressureOrHeightOrDepth(varLevIndex), rmsvalue(varLevIndex)   
+                           pressureOrHeightOrDepth(varLevIndex), rmsvalue(varLevIndex)
       end do
       ierr = fclos(nulFile)
     end if
