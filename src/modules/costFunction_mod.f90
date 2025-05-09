@@ -84,7 +84,7 @@ contains
     character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
-  
+
     real(8), allocatable :: joSSTInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
     integer :: SSTdatasetIndex, codeType
@@ -101,7 +101,7 @@ contains
     if (.not. allocated(sensorNameList)) then
       allocate(sensorNameList(tvs_nsensors))
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       allocate(joSSTInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
       allocate(nobsInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
@@ -188,19 +188,19 @@ contains
       if ( printJoTovsPerChannelSensor ) then
         loopSensor1: do sensorIndexInList = 1, tvs_nsensors
           call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
-          
+
           if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
             sensorIndexInListFound = sensorIndexInList
             exit loopSensor1
           end if
-          
+
         end do loopSensor1
       end if
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
         dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-        
+
         if ( printJoTovsPerChannelSensor .and. &
             sensorIndexInListFound > 0 ) then
           call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
@@ -338,12 +338,12 @@ contains
                                                           nobsInstrumentGlob(SSTdatasetIndex),&
                                                           joSSTInstrument(SSTdatasetIndex) / &
                                                           real(nobsInstrumentGlob(SSTdatasetIndex))
-          end if    
+          end if
         end do
       end if
 
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       deallocate(joSSTInstrument)
       deallocate(nobsInstrument)
