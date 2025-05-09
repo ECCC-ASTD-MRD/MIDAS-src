@@ -50,9 +50,9 @@ module minimization_mod
   integer             :: nmtra,nwork
   integer             :: nvadim_mpilocal ! for mpi
   logical             :: preconFileExists
-  character(len=20)   :: preconFileName    = './preconin'  
-  character(len=20)   :: preconFileNameOut = './pm1q'  
-  character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'  
+  character(len=20)   :: preconFileName    = './preconin'
+  character(len=20)   :: preconFileNameOut = './pm1q'
+  character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'
   integer             :: n1gc = 3
 
   ! variables stored for later call to min_writeHessian
@@ -147,7 +147,7 @@ CONTAINS
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
-      call utl_abort('min_setup: only N1GC=3 currently supported!') 
+      call utl_abort('min_setup: only N1GC=3 currently supported!')
     END IF
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
@@ -283,11 +283,11 @@ CONTAINS
 
       if (lvarqc .and. outerLoopIndex==1) call vqc_setup(obsSpaceData)
 
-      min_nsim=0 
+      min_nsim=0
 
       if(mmpi_myid == 0) then
         impres=5
-      else 
+      else
         impres=0
       endif
 
@@ -382,7 +382,7 @@ CONTAINS
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
       call utl_tmg_stop(91)
       lvarqc = llvarqc
-      
+
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
 
       CALL PRSCAL(nvadim_mpilocal,VAZG,VAZG,DLGNORM)
@@ -595,10 +595,10 @@ CONTAINS
        endif
 
        ! note: controlVectorIncrSum_ptr is sum of previous outer-loops
-       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + controlVectorIncrSum_ptr(1:nvadim_mpilocal)     
+       dl_v(1:nvadim_mpilocal) = da_v(1:nvadim_mpilocal) + controlVectorIncrSum_ptr(1:nvadim_mpilocal)
 
        ! Computation of background term of cost function:
-       dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
+       dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0
        call mmpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
        if (oneDVarMode) then
@@ -623,24 +623,24 @@ CONTAINS
        call utl_tmg_start(10,'--Observations')
        call utl_tmg_start(18,'----ObsOper_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
-                    initializeLinearization_opt=initializeForOuterLoop) 
+                    initializeLinearization_opt=initializeForOuterLoop)
        call utl_tmg_stop(18)
        call utl_tmg_stop(10)
 
        ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-       call res_compute(obsSpaceData_ptr)  
+       call res_compute(obsSpaceData_ptr)
 
        call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
        ! Save as OBS_WORK : R**-1/2 (d-Hdx)
        call utl_tmg_start(10,'--Observations')
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)
        call utl_tmg_stop(10)
 
        ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
-       call cfn_calcJo(obsSpaceData_ptr) 
+       call cfn_calcJo(obsSpaceData_ptr)
 
-       ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+       ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1))
        IF ( LVARQC ) THEN
          call vqc_NlTl(obsSpaceData_ptr)
        endif
@@ -662,7 +662,7 @@ CONTAINS
 
        ! Modify OBS_WORK : R**-1 (d-Hdx)
        call utl_tmg_start(10,'--Observations')
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  
+       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)
        call utl_tmg_stop(10)
 
        IF ( LVARQC ) THEN
@@ -670,7 +670,7 @@ CONTAINS
        endif
 
        ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
-       call res_computeAd(obsSpaceData_ptr)  
+       call res_computeAd(obsSpaceData_ptr)
 
        call col_zero(columnAnlInc_ptr)
 
@@ -931,7 +931,7 @@ CONTAINS
       call mmpi_bcast(iztrl_io)
 
       !- Read the Hessian
-      if(mmpi_myid == 0) then 
+      if(mmpi_myid == 0) then
          write(*,*) 'min_hessianIO : reading Hessian'
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
       else
@@ -941,7 +941,7 @@ CONTAINS
 
       if (k1gc == 3) ictrlvec = 2*nvamaj+1
       do jvec = 1, ictrlvec
- 
+
          if (mmpi_myid == 0) then
             read(ireslun) vatravec_r4_mpiglobal
          end if
@@ -956,8 +956,8 @@ CONTAINS
 
       end do
 
-      deallocate(vatravec_r4_mpiglobal)       
-      deallocate(vatra_r4)       
+      deallocate(vatravec_r4_mpiglobal)
+      deallocate(vatra_r4)
 
       imode = 2
       iztrl(:) = iztrl_io(1:5)
@@ -969,9 +969,9 @@ CONTAINS
          iztrl(5) = iztrl_io(5)
       end if
 
-      !- Read VAZXBAR 
+      !- Read VAZXBAR
       if (ibrpstamp == kbrpstamp .and. llxbar) then
-         if (mmpi_myid == 0) then 
+         if (mmpi_myid == 0) then
             write(*,*) 'min_hessianIO : reading vazxbar'
             allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
             read(ireslun) vazxbar_mpiglobal
@@ -985,7 +985,7 @@ CONTAINS
 
       !- Read VAZX
       if (ibrpstamp == kbrpstamp .and. llvazx) then
-         if (mmpi_myid == 0) then 
+         if (mmpi_myid == 0) then
             write(*,*) 'min_hessianIO : reading vazx'
             allocate(vazx_mpiglobal(nvadim_mpiglobal))
             read(ireslun) vazx_mpiglobal
@@ -1008,7 +1008,7 @@ CONTAINS
       !- 2.  Write Hessian
       !
 
-      !- Open the Hessian matrix file on processor 0 and write some metadata 
+      !- Open the Hessian matrix file on processor 0 and write some metadata
       if (mmpi_myid == 0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V5'
       itrunc=0
