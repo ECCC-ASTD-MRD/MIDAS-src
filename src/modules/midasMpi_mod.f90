@@ -16,13 +16,13 @@ module midasMpi_mod
 
   ! Public variables
   logical, public, protected :: mmpi_doBarrier = .true.
-  integer, public, protected :: mmpi_myid   = 0
-  integer, public, protected :: mmpi_myidHost = 0
-  integer, public, protected :: mmpi_nprocs = 0
-  integer, public, protected :: mmpi_myidx  = 0
-  integer, public, protected :: mmpi_myidy  = 0
-  integer, public, protected :: mmpi_npex   = 0
-  integer, public, protected :: mmpi_npey   = 0
+  integer, public, protected :: mmpi_myid      = 0
+  integer, public, protected :: mmpi_myidHost  = 0
+  integer, public, protected :: mmpi_nprocs    = 0
+  integer, public, protected :: mmpi_myidx     = 0
+  integer, public, protected :: mmpi_myidy     = 0
+  integer, public, protected :: mmpi_npex      = 0
+  integer, public, protected :: mmpi_npey      = 0
   integer, public, protected :: mmpi_numthread = 0
   integer, public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
   integer, public, protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int

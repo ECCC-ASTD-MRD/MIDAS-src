@@ -31,7 +31,7 @@ module stateToColumn_mod
   implicit none
   save
   private
-  
+
   ! Public routines
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
@@ -99,7 +99,7 @@ module stateToColumn_mod
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
   logical :: NNInterpForCloudVars          ! to perform nearest neighbour horizontal interpolation for cloudy variables
   logical :: NNInterpForAllVars            ! to perform nearest neighbour horizontal interpolation for selected variablles
-contains 
+contains
 
 
   !---------------------------------------------------------
@@ -186,7 +186,7 @@ contains
           end do BODY
         end if
       end do ! loop on pressure variables
-     
+
     end do HEADER
 
     write(*,*) 'pressureProfileMonotonicityCheck: END'
@@ -369,7 +369,7 @@ contains
     real(kdkind), allocatable :: positionArray(:,:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs)
     integer :: recvdispls(mmpi_nprocs), allVarLevBeg(mmpi_nprocs)
-    integer :: codeType, nlev_T, nlev_M, levIndex 
+    integer :: codeType, nlev_T, nlev_M, levIndex
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numVarLevToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
@@ -457,10 +457,10 @@ contains
                    interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
     if ((stateVector%heightSfcPresent) .and. (mmpi_myid == 0)) then
-      myVarLevBeg = 0 
+      myVarLevBeg = 0
     else
       myVarLevBeg = stateVector%myVarLevBeg
-    end if   
+    end if
 
     call mmpi_allGather(myVarLevBeg, allVarLevBeg)
 
@@ -508,7 +508,7 @@ contains
     if ((gsv_varExist(varName='UU') .or. gsv_varExist(varName='VV')) .and.  &
          stateVector%hco%rotated ) then
       call uvr_Setup(interpInfo%uvr, & ! INOUT
-                     stateVector%hco)  ! IN 
+                     stateVector%hco)  ! IN
     end if
 
     allocate(interpInfo%stepProcData(mmpi_nprocs,numStep))
@@ -560,7 +560,7 @@ contains
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSetup3dHeights ) then
 
-      write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType 
+      write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType
 
       if ( inputStateVectorType == 'nl' ) then
         nullify(varNames)
@@ -613,7 +613,7 @@ contains
         call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_M')
         height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
 
-      end if ! inputStateVectorType 
+      end if ! inputStateVectorType
 
       ! Communicate 3D height fields onto all mpi tasks
       call gsv_allocate(stateVector_1Step, 1, &
@@ -625,14 +625,14 @@ contains
       call utl_tmg_stop(32)
       call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
       call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
-    
+
       write(*,*) 's2c_setupInterpInfo, height3D_T_r4='
       write(*,*) height3D_T_r4(1,1,:)
       write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
       write(*,*) height3D_M_r4(1,1,:)
 
       call msg_memUsage('s2c_setupInterpInfo')
-    end if ! doSlantPath 
+    end if ! doSlantPath
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
@@ -726,7 +726,7 @@ contains
                    stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPathRA = .false.
             end if
-            
+
              ! calculate lat/lon along the radar beam obs
              call slp_calcLatLonRadar(obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                       height3D_T_r4, height3D_M_r4,                 & ! IN
@@ -893,7 +893,7 @@ contains
           call latlonChecks (obsSpaceData, stateVector%hco, & ! IN
                              headerIndex, rejectOutsideObs, & ! IN
                              latLev_T, lonLev_T,            & ! IN/OUT
-                             latLev_M, lonLev_M )             ! IN/OUT 
+                             latLev_M, lonLev_M )             ! IN/OUT
 
           latColumn(headerUsedIndex,allVarLevBeg(1)) = latLev_T(1)
           lonColumn(headerUsedIndex,allVarLevBeg(1)) = lonLev_T(1)
@@ -917,7 +917,7 @@ contains
         deallocate(latLev_M)
         deallocate(lonLev_M)
 
-      end if ! doSlantPath 
+      end if ! doSlantPath
 
       deallocate(lonColumn)
       deallocate(latColumn)
@@ -970,11 +970,11 @@ contains
         end do
 
         nullify(tree)
-        tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+        tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.)
 
         if ( inputStateVectorType == 'nl' ) then
           tree_nl => tree
-        else 
+        else
           tree_tlad => tree
         end if
 
@@ -1132,7 +1132,7 @@ contains
     end if
 
     ! Count the number of TOVS using footprint operator on one level
-    if ( useFootprintForTovs ) then 
+    if ( useFootprintForTovs ) then
       numTovsUsingFootprint = 0
       numAllTovs = 0
       procIndex = mmpi_myid + 1
@@ -1144,18 +1144,18 @@ contains
 
           if ( tvs_isIdBurpTovs(codeType) ) then
             if ( footprintRadius_r4 > 0.0 ) numTovsUsingFootprint = numTovsUsingFootprint + 1
-            numAllTovs = numAllTovs + 1 
+            numAllTovs = numAllTovs + 1
           end if
         end do
       end do
 
-      if ( numAllTovs > 0 ) then 
+      if ( numAllTovs > 0 ) then
         write(*,'(A,2(I5,A2),F5.1,A)') 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', &
                        numTovsUsingFootprint, ' /', numAllTovs, ' (', &
                        real(numTovsUsingFootprint) / real(numAllTovs) * 100.0, '%)'
       end if
     end if
-    
+
     deallocate(allFootprintRadius_r4)
     deallocate(allLonOneLev)
     deallocate(allLatOneLev)
@@ -1211,7 +1211,7 @@ contains
 
     call mmpi_barrier
 
-    if ( .not. gsv_isAllocated(stateVector_in) ) then 
+    if ( .not. gsv_isAllocated(stateVector_in) ) then
       call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
@@ -1405,7 +1405,7 @@ contains
       call gsv_deallocate( stateVector )
       deallocate(stateVector)
     end if
-    
+
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
     call utl_tmg_stop(38)
@@ -1453,7 +1453,7 @@ contains
 
     call mmpi_barrier
 
-    if ( .not. gsv_isAllocated(stateVector_out) ) then 
+    if ( .not. gsv_isAllocated(stateVector_out) ) then
       call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
@@ -1530,7 +1530,7 @@ contains
         ! This is varLevIndex value of destination (can be different for source)
         varLevIndex2 = statevector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
         if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
-        
+
         ! Figure out which variable/level of source
         varName = gsv_getVarNameFromVarLev(statevector,varLevIndex2)
         levIndex = gsv_getLevFromVarLev(statevector,varLevIndex2)
@@ -1664,7 +1664,7 @@ contains
     logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals:
-    type(struct_gsv), save :: stateVector_VarsLevs 
+    type(struct_gsv), save :: stateVector_VarsLevs
     integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
@@ -1703,7 +1703,7 @@ contains
       call msg_memUsage('s2c_nl')
     end if
 
-    if (.not. gsv_isAllocated(stateVector)) then 
+    if (.not. gsv_isAllocated(stateVector)) then
       call utl_abort('s2c_nl: stateVector must be allocated')
     end if
 
@@ -1724,7 +1724,7 @@ contains
       if (numObsBatches /= 1) then
         write(*,*) 's2c_nl: WARNING! numObsBatches=', numObsBatches, ' will be set to 1.'
       end if
-      
+
       numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
     end if
 
@@ -1736,7 +1736,7 @@ contains
       end if
     end if
 
-    if (stateVector%mpi_distribution /= 'Tiles') then 
+    if (stateVector%mpi_distribution /= 'Tiles') then
       call utl_abort('s2c_nl: stateVector must by Tiles distributed')
     end if
 
@@ -1773,7 +1773,7 @@ contains
     if (.not. interpInfo_nl%initialized) then
       call utl_tmg_stop(34)
       call utl_tmg_start(31,'----s2c_Setups')
-      ! also reject obs outside (LAM) domain and optionally move obs near 
+      ! also reject obs outside (LAM) domain and optionally move obs near
       ! numerical pole to first/last analysis grid latitude
       call latlonChecksAnlGrid(obsSpaceData, hco_core, moveObsAtPole)
 
@@ -1807,7 +1807,7 @@ contains
            write(*,*) 's2c_nl: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
         end if
       end if
-      
+
       if (.not. interpInfo_nl%initialized) then
         call utl_tmg_stop(34)
         call utl_tmg_start(31,'----s2c_Setups')
@@ -1996,7 +1996,7 @@ contains
 
         if (mmpi_myid == 0) then
           varName = 'GZ'
-          varLevIndexHeightSfc = 0    
+          varLevIndexHeightSfc = 0
           step_loop_height: do stepIndex = 1, numStep
 
             if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_height
@@ -2501,7 +2501,7 @@ contains
           latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, varLevIndex)
           lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, varLevIndex)
 
-          call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN 
+          call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN
                                   subGridIndex,             & ! IN
                                   interpUU(subGridIndex),   & ! INOUT
                                   interpVV(subGridIndex),   & ! INOUT
@@ -2570,7 +2570,7 @@ contains
     end if
 
     allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%numVarLev))
-  
+
     zgd(:,:,:)=0.0d0
     call gsv_getField(statevector,field_ptr)
     zgd(1:statevector%ni,1:statevector%nj,1:statevector%numVarLev)= &
@@ -2646,14 +2646,14 @@ contains
       dlw4 =       dldx  *       dldy
 
       !- 2.4 Interpolate the model state to the obs point
-           
+
       do varIndex = 1, vnl_numvarmax
         if (.not. col_varExist(column,trim(vnl_varNameList(varIndex)))) cycle
         varName=trim(vnl_varNameList(varIndex))
         varColumn => col_getColumn(column,headerIndex,varName)
-        
+
         if(gsv_varExist(statevector,varName)) then
-          do jk = 1, gsv_getNumLevFromVarName(statevector,varName)      
+          do jk = 1, gsv_getNumLevFromVarName(statevector,varName)
               jk2=jk+gsv_getOffsetFromVarName(statevector,varName)
               varColumn(jk) =   dlw1*zgd(lonIndex  ,ila,jk2)  &
                                 + dlw2*zgd(lonIndex+1,ila,jk2)  &
@@ -2661,10 +2661,10 @@ contains
                                 + dlw4*zgd(lonIndex+1,ila+1,jk2)
           end do
         end if
-        
+
         nullify(varColumn)
       end do
-      
+
     end do
 
     deallocate(zgd)
@@ -2832,7 +2832,7 @@ contains
     !          it has zero interpolation weight (usually because an ocean
     !          obs is touching land) on any mpi task.
     !
-    implicit none    
+    implicit none
 
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
@@ -2944,7 +2944,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer, parameter :: leftIndex = 1, rightIndex = 2, bottomIndex = 1, topIndex = 2
     logical :: isCloudVariable
-    
+
     numGridpt(:) = 0
 
     lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex) *  &
@@ -3084,11 +3084,11 @@ contains
         end if
       end if
 
-      if (NNInterpForAllVars) then 
+      if (NNInterpForAllVars) then
         dldx = real(nint(dldx), 8)
         dldy = real(nint(dldy), 8)
       end if
-      
+
       if ( mask(leftIndex ,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
@@ -3244,7 +3244,7 @@ contains
     else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
       write(*,*) 's2c_setupFootprintInterp: Warning! For TOVS headerIndex=', headerIndex, &
                  ' number of grid points found within footprint radius=', fpr, ' is less than ', &
-                 minNumLocalGridptsSearch 
+                 minNumLocalGridptsSearch
     end if
 
     ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
@@ -3497,7 +3497,7 @@ contains
     else
 
       if ( allocated(interpInfo%interpWeightDepot) ) then
-      
+
         depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
 
         interpInfo%interpWeightDepot(depotIndex) = 1.d0
@@ -3534,12 +3534,12 @@ contains
                  col_getNumVarLev(column), gsv_getNumVarLev(statevector)
       call utl_abort('checkColumnStatevectorMatch: col_getNumVarLev(column) /= gsv_getNumVarLev(statevector)')
     end if
-    
+
     ! loop through k and check varNames are same between column/statevector
     do varLevIndex = 1, col_getNumVarLev(column)
       if (gsv_getVarNameFromVarLev(statevector,varLevIndex) /= col_getVarNameFromVarLev(column,varLevIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
-                   gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex) 
+                   gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex)
         call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
       end if
     end do
@@ -3704,7 +3704,7 @@ contains
     real(4)                       :: footPrintRadius_r4
 
     ! Locals:
-    integer :: codtyp, sensorIndex 
+    integer :: codtyp, sensorIndex
     real(8) :: fovAngularDiameter, satHeight, footPrintRadius
     character(len=codtyp_name_length) :: instrumName
     logical :: beSilent
@@ -3719,7 +3719,7 @@ contains
     sensorIndex = tvs_lsensor(headerIndex)
     satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
 
-    ! FOV angular diameter  
+    ! FOV angular diameter
     codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
     instrumName = codtyp_get_name(codtyp)
     select case(trim(instrumName))
@@ -3745,7 +3745,7 @@ contains
       fovAngularDiameter = -1.0d0
     end select
 
-    if ( fovAngularDiameter < 0.0d0 ) then 
+    if ( fovAngularDiameter < 0.0d0 ) then
       footPrintRadius_r4 = bilinearFootprint
     else
       ! get foot print radius (meter) from angular diameter
@@ -3767,7 +3767,7 @@ contains
   subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                interpWeight, latIndex, lonIndex, gridptCount)
     ! :Purpose: Returns the weights and grid point indexes for a single observation.
-    !           
+    !
     !
     implicit none
 
