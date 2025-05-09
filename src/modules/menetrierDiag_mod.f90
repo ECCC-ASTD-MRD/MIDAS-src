@@ -2,7 +2,7 @@
 module menetrierDiag_mod
   ! MODULE menetrierDiag_mod (prefix='bmd' category='1. High-level functionality')
   !
-  !:Purpose:  To compute optimal localization radii according to the theory 
+  !:Purpose:  To compute optimal localization radii according to the theory
   !           developed by Benjamin Menetrier (Meteo-France) and reported
   !           in Menetrier, Michel, Montmerle and Berre, 2015, Parts 1 and 2.
   !
@@ -24,7 +24,7 @@ module menetrierDiag_mod
   public :: bmd_setup, bmd_localizationRadii
 
   real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
-  
+
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
   integer :: nens, ni, nj, nLevEns_M, nLevEns_T, numVarLevEns
@@ -69,7 +69,7 @@ contains
     NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc,horizPadding
 
     !
-    !- 1.  Input parameters 
+    !- 1.  Input parameters
     !
     hco_ens   => hco_core_in
     nens      = nens_in
@@ -85,7 +85,7 @@ contains
 
     nullify(varNamesList)
     call gsv_varNamesList(varNamesList, statevector_template)
-    
+
     nVar = size(varNamesList)
     allocate(varLevOffset(nVar))
     nVar3d = 0
@@ -315,7 +315,7 @@ contains
     do k = myVarLevBeg, myVarLevEnd
       write(*,*) 'Computing distance-bin statistics for ensemble level: ', k
 
-      !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
+      !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local
       !  because ensemble member is the last loop index below)
       do ens = 1, nens
         call gsv_getField(statevector_oneMember(ens),ptr3d_r4)
@@ -325,7 +325,7 @@ contains
           end do
         end do
       end do
-      
+
       gridPointAlreadyUsed(:,:) = .false.
 
       do jref = nint(stride/2.0)+horizPadding, nj-horizPadding, stride    ! Pick every stride point to save cost.
@@ -337,7 +337,7 @@ contains
 
           do j = 1+horizPadding, nj-horizPadding
             do i = 1+horizPadding, ni-horizPadding
-              
+
               if ( gridPointAlreadyUsed(i,j) ) cycle ! prevent using the same pair of points more than once
 
               distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
@@ -418,13 +418,13 @@ contains
       !$OMP PARALLEL DO PRIVATE (k,bin)
       do k = 1, numVarLevEns
         do bin = 1, numbins
-          
+
           meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
           meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
           meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
           meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
           meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
-          
+
           if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
             ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
             localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
@@ -455,9 +455,9 @@ contains
       allocate(localizationRadii(numFunctions,numVarLevEns))
       allocate(distanceBinMean(numBins))
       allocate(distanceBinWeight(numBins))
-      
+
       call lfn_setup('FifthOrder') ! IN
-      
+
       localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
       distanceBinWeight(:)   = 1.d0            ! Even weight
       do bin = 1, numBins
@@ -467,7 +467,7 @@ contains
           distanceBinMean(bin) = 0.5d0*(distanceBinThresholds(bin)+distanceBinThresholds(bin-1))
         end if
       end do
-      
+
       do f = 1, numFunctions
         write(*,*)
         write(*,*) 'Localization Function : ', f
@@ -481,7 +481,7 @@ contains
                numbins )                       ! IN
         end do
       end do
-      
+
       !
       !- 4.  Write to file
       !
@@ -492,7 +492,7 @@ contains
         end if
         write(wbnum,'(I2.2)') waveBandIndex_opt
       end if
-      
+
       !- 4.1 Localization functions in txt format (for plotting purposes)
       do jvar = 1, nvar3d
         if ( nWaveBand == 1 ) then
@@ -501,7 +501,7 @@ contains
           outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
         end if
         open (unit=99,file=outfilename,action="write",status="new")
-        
+
         if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
           nLevEns = nLevEns_M
         else
@@ -523,7 +523,7 @@ contains
         end do
         close(unit=99)
       end do
-      
+
       do jvar = 1, nvar2d
         k = varLevOffset(nvar3d+1)+jvar
         if ( nWaveBand == 1 ) then
@@ -546,7 +546,7 @@ contains
         end do
         close(unit=99)
       end do
-      
+
       !- 4.2 Localization radii in txt format (for plotting purposes)
       do jvar = 1, nvar3d
         if ( nWaveBand == 1 ) then
@@ -555,7 +555,7 @@ contains
           outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
         end if
         open (unit=99,file=outfilename,action="write",status="new")
-        
+
         if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
@@ -571,7 +571,7 @@ contains
         end do
         close(unit=99)
       end do
-      
+
       do jvar = 1, nvar2d
         k = varLevOffset(nvar3d+1)+jvar
         if ( nWaveBand == 1 ) then
@@ -732,7 +732,7 @@ contains
     allocate(meanCovarianceSquare(numBins,numVarLevEns))
     allocate(meanFourthMoment(numBins,numVarLevEns))
     allocate(sumWeight(numBins,numVarLevEns))
-    
+
     allocate(meanCorrelSquare_local(numBins,numVarLevEns))
     allocate(meanCorrel_local(numBins,numVarLevEns))
     allocate(meanVarianceProduct_local(numBins,numVarLevEns))
@@ -784,7 +784,7 @@ contains
         if (iref < myLonBeg .or. iref > myLonEnd .or. &
             jref < myLatBeg .or. jref > myLatEnd ) cycle
 
-        !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
+        !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local
         !  because ensemble member is the last loop index below)
         do ens = 1, nens
           do k = 1, numVarLevEns
@@ -868,7 +868,7 @@ contains
     if (mmpi_myid == 0) then
       !- 2.3  Computation of the localization functions
       allocate(localizationFunctions(numFunctions,numBins,numVarLevEns))
-      
+
       t1=dble((nens-1)**2)/dble(nens*(nens-3))
       t2=dble(nens)/dble((nens-2)*(nens-3))
       t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
@@ -881,7 +881,7 @@ contains
         endif
         nLevStart = varLevOffset(jvar)+ 1
         nLevEnd   = varLevOffset(jvar)+ nLevEns
-        !$OMP PARALLEL DO PRIVATE (k,bin)       
+        !$OMP PARALLEL DO PRIVATE (k,bin)
         do k = nLevStart, nLevEnd
           do bin = 1, nLevEns
             meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
@@ -920,9 +920,9 @@ contains
       !
       allocate(localizationRadii(numFunctions,numVarLevEns))
       allocate(distanceBinWeight(numBins))
-      
+
       call lfn_setup('FifthOrder') ! IN
-      
+
       localizationRadii(:,:) = 2.d0 ! First Guess (in ln(p) distance)
       distanceBinWeight(:)   = 1.d0 ! Even weight
 
@@ -936,12 +936,12 @@ contains
         endif
         nLevStart = varLevOffset(jvar)+ 1
         nLevEnd   = varLevOffset(jvar)+ nLevEns
-        
+
         write(*,*)
         write(*,*) nomvar3d(jvar)
-        
+
         do f = 1, numFunctions
-          
+
           write(*,*)
           write(*,*) 'Localization Function : ', f
           do k =  nLevStart, nLevEnd
@@ -967,7 +967,7 @@ contains
         end if
         write(wbnum,'(I2.2)') waveBandIndex_opt
       end if
-      
+
       !- 4.1 Localization functions in txt format (for plotting purposes)
       do jvar = 1, nvar3d
         if ( nWaveBand == 1 ) then
@@ -976,17 +976,17 @@ contains
           outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
         end if
         open (unit=99,file=outfilename,action="write",status="new")
-        
+
         if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
-          distanceBinInLnP => distanceBinInLnP_M 
+          distanceBinInLnP => distanceBinInLnP_M
         else
           nLevEns = nLevEns_T
           PressureProfile => pressureProfile_T
           distanceBinInLnP => distanceBinInLnP_T
         endif
-        
+
         do k=1,nlevEns
           do bin = 1, nlevEns
             write(99,'(I3,2X,I3,2X,F7.2,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
@@ -1003,7 +1003,7 @@ contains
         end do
         close(unit=99)
       end do
-      
+
       !- 4.2 Localization radii in txt format (for plotting purposes)
       do jvar = 1, nvar3d
         if ( nWaveBand == 1 ) then
@@ -1012,7 +1012,7 @@ contains
           outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar))//"_"//wbnum//".txt"
         end if
         open (unit=99,file=outfilename,action="write",status="new")
-        
+
         if(vnl_varLevelFromVarName(nomvar3d(jvar)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
