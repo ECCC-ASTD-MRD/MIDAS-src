@@ -87,7 +87,7 @@ program midas_adjointTest
   use localization_mod
   use lamBmatrixHI_mod
   use calcHeightAndPressure_mod
-  
+
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()
@@ -107,7 +107,7 @@ program midas_adjointTest
   integer :: ierr, cvDim
   integer :: idate, itime, dateStamp
   integer, external :: newdate
-  
+
   character(len=20) :: test     ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   integer           :: testdate ! yyyymmddhh date
   NAMELIST /NAMADT/ test, testdate
@@ -138,7 +138,7 @@ program midas_adjointTest
   call gio_setup
 
   !- 1.5 Test selection
-  test = 'Bhi' ! default test 
+  test = 'Bhi' ! default test
 
   if ( .not. utl_isNamelistPresent('NAMADT','./flnml') ) then
     if (mmpi_myid == 0) then
@@ -199,24 +199,24 @@ program midas_adjointTest
   !
   !- 2.  The tests
   !
- 
+
   write(*,*)
   write(*,*) '> midas-adjointTest: '//test
   if ( test == 'Bhi') then
     !- 2.1 Bhi
     call check_bhi
-  else if ( test == 'Bens') then  
+  else if ( test == 'Bens') then
     !- 2.2 Bens
     call check_bens
   else if ( test == 'advEns') then
     !- 2.3 AdvectionENS
     call check_advectionENS
-  else if ( test == 'advGSV') then 
+  else if ( test == 'advGSV') then
     !- 2.4 AdvectionGSV
     call check_advectionGSV
   else if ( test == 'loc') then
     !- 2.5 Localization
-    call check_loc 
+    call check_loc
   !else if ( test == 'addMem') then
   !  !- 2.6 Localization
   !  call check_addmem
@@ -268,7 +268,7 @@ contains
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     allocate ( controlVector1(cvDim) )
-    
+
     ! x
     !statevector_x%gd3d_r8(:,:,:) = 13.3d0
     call gsv_getField(statevector_x,field4d_r8)
@@ -321,7 +321,7 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     allocate ( controlVector2(cvDim) )
     controlVector2 = 0.d0
@@ -339,10 +339,10 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkAndOutputInnerProd
-    
+
     deallocate(controlVector2)
     deallocate(controlVector1)
 
@@ -410,13 +410,13 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     allocate ( controlVector2(cvDim) )
     controlVector2 = 0.d0
     call ben_bSqrtAd( 1, statevector_x, &  ! IN
                       controlVector2 )  ! OUT
-    
+
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
     call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
@@ -426,7 +426,7 @@ contains
 
     ! Results
     call checkAndOutputInnerProd
-    
+
     deallocate(controlVector2)
     deallocate(controlVector1)
 
@@ -489,7 +489,7 @@ contains
                       mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
 
     call ens_allocate(ensAmplitude_x, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+                      datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ensAmplitude_Ly, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
                       datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 
@@ -539,7 +539,7 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     allocate ( controlVector2(cvDim) )
     controlVector2 = 0.d0
@@ -554,10 +554,10 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkAndOutputInnerProd
-    
+
     deallocate(controlVector2)
     deallocate(controlVector1)
 
@@ -601,8 +601,8 @@ contains
 !!$                    cvdim )             ! OUT
 !!$
 !!$    write(*,*) 'JFC ben_Setup done '
-!!$    
-!!$    
+!!$
+!!$
 !!$    loc => ben_getLoc(1)
 !!$    if ( cvDim /= loc%cvDim ) then
 !!$      call utl_abort('check_loc: cvDim /= loc%cvDim')
@@ -632,7 +632,7 @@ contains
 !!$                      mpi_local_opt=.true., varNames_opt=varNameALFA, dataKind_opt=8)
 !!$
 !!$    call ens_allocate(ensAmplitude_LTx, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
-!!$                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)    
+!!$                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 !!$    call ens_allocate(ensAmplitude_y, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
 !!$                        datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)
 !!$
@@ -665,7 +665,7 @@ contains
 !!$
 !!$    ! Ly
 !!$    call addEnsMember( ensAmplitude_y,    & ! IN
-!!$                       statevector_Ly,    & ! OUT 
+!!$                       statevector_Ly,    & ! OUT
 !!$                       1, .false. )         ! IN
 !!$
 !!$    ! <x ,L(y)>
@@ -677,9 +677,9 @@ contains
 !!$    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
 !!$    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
 !!$    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-!!$    
+!!$
 !!$    ! L_T(x)
-!!$    call addEnsMemberad( statevector_x,   & ! IN 
+!!$    call addEnsMemberad( statevector_x,   & ! IN
 !!$                         ensAmplitude_LTx,  & ! OUT
 !!$                         1, .false. )       ! IN
 !!$
@@ -696,10 +696,10 @@ contains
 !!$    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
 !!$    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
 !!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-!!$    
+!!$
 !!$    ! Results
 !!$    call checkAndOutputInnerProd
-!!$    
+!!$
 !!$    call gsv_deallocate(statevector_LTx)
 !!$    call gsv_deallocate(statevector_y)
 !!$    call gsv_deallocate(statevector_x)
@@ -752,7 +752,7 @@ contains
                     'MMLevsOnly', steeringFlowFilename_opt='ensemble/forecast_for_advection' ) ! IN
 
     deallocate(advectFactor)
-    
+
     call ens_allocate(ens_x, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
                       hco_core_opt=hco_core, varNames_opt=varNameALFA, dataKind_opt=8)
     call ens_allocate(ens_Ly, nEns, numStepAdvect, hco_anl, vco_anl, dateStampList, &
@@ -816,13 +816,13 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     call ens_copy(ens_x, & ! IN
                   ens_LTx)  ! OUT
     call adv_ensemble_ad( ens_LTx, & ! INOUT
                           adv_analInc, nEns )      ! IN
-    
+
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
     call gsv_getField(statevector_LTx,field4d_LTx_r8)
@@ -838,7 +838,7 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkAndOutputInnerProd
 
@@ -946,13 +946,13 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     call gsv_copy(statevector_x, & ! IN
                   statevector_LTx)  ! OUT
     call adv_statevector_ad( statevector_LTx, & ! INOUT
                              adv_analInc )      ! IN
-    
+
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
     call gsv_getField(statevector_LTx, field4d_LTx_r8 )
@@ -965,7 +965,7 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkAndOutputInnerProd
 
@@ -990,7 +990,7 @@ contains
 
     type(struct_gsv) :: statevectorRef
     type(struct_gsv) :: statevectorRef_noZnoP
-    
+
     allocate(dateStampList(tim_nstepobsinc))
     call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
@@ -1001,7 +1001,7 @@ contains
     !
     !- Create the needed reference state
     !
-    
+
     ! Initialize stateVectorHeight on analysis grid
     call gsv_allocate(stateVectorRef, tim_nstepobsinc, hco_anl, &
                       vco_anl, dateStamp_opt=tim_getDateStamp(), &
@@ -1089,13 +1089,13 @@ contains
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call mmpi_allReduce(innerProduct1_local, innerProduct1_global, "mpi_sum")
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
-    
+
     ! L_T(x)
     call gsv_copy(statevector_x,  & ! IN
                   statevector_LTx)  ! OUT
     call czp_calcPressure_ad(statevector_LTx, & ! INOUT
                              statevectorRef)    ! IN
- 
+
     ! <L_T(x),y>
     innerProduct2_local = 0.d0
     call gsv_getField(statevector_LTx, field4d_LTx_r8 )
@@ -1107,7 +1107,7 @@ contains
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call mmpi_allReduce(innerProduct2_local, innerProduct2_global, "mpi_sum")
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
-    
+
     ! Results
     call checkAndOutputInnerProd
 
@@ -1115,9 +1115,9 @@ contains
     call gsv_deallocate(statevector_Ly)
     call gsv_deallocate(statevector_LTx)
     call gsv_deallocate(statevector_y)
-       
+
   end subroutine check_calcHeightAndPressure
-  
+
   !--------------------------------------------------------------------------
   !- Inner product computation
   !--------------------------------------------------------------------------
