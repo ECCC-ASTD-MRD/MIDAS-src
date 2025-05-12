@@ -4,7 +4,7 @@ module gridStateVector_mod
   !
   !:Purpose: The grid-point state vector and related information.
   !
-  use mpi, only : mpi_status_size ! this is the mpi library module
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use codePrecision_mod
   use midasMpi_mod
   use earthConstants_mod
@@ -1022,13 +1022,13 @@ module gridStateVector_mod
     allocate(statevector%allUVvarLevEnd(mmpi_nprocs))
 
     if (statevector%mpi_local) then
-      call mmpi_allGather(statevector%myLonBeg, statevector%allLonBeg,   communicator_opt = 'EW')
-      call mmpi_allGather(statevector%myLonEnd, statevector%allLonEnd,   communicator_opt = 'EW')
-      call mmpi_allGather(statevector%lonPerPE, statevector%allLonPerPE, communicator_opt = 'EW')
+      call mmpi_allGather(statevector%myLonBeg, statevector%allLonBeg,   communicator_opt = mmpi_comm_EW)
+      call mmpi_allGather(statevector%myLonEnd, statevector%allLonEnd,   communicator_opt = mmpi_comm_EW)
+      call mmpi_allGather(statevector%lonPerPE, statevector%allLonPerPE, communicator_opt = mmpi_comm_EW)
 
-      call mmpi_allGather(statevector%myLatBeg, statevector%allLatBeg,   communicator_opt = 'NS')
-      call mmpi_allGather(statevector%myLatEnd, statevector%allLatEnd,   communicator_opt = 'NS')
-      call mmpi_allGather(statevector%latPerPE, statevector%allLatPerPE, communicator_opt = 'NS')
+      call mmpi_allGather(statevector%myLatBeg, statevector%allLatBeg,   communicator_opt = mmpi_comm_NS)
+      call mmpi_allGather(statevector%myLatEnd, statevector%allLatEnd,   communicator_opt = mmpi_comm_NS)
+      call mmpi_allGather(statevector%latPerPE, statevector%allLatPerPE, communicator_opt = mmpi_comm_NS)
 
       call gsv_checkMpiDistribution(stateVector)
 
@@ -1199,16 +1199,16 @@ module gridStateVector_mod
     integer :: dateOriginList(statevector%numStep)
     logical :: onPhysicsGrid(vnl_numVarMax)
 
-    call mmpi_allReduce(statevector%deet, deet, 'MPI_MAX')
+    call mmpi_allReduce(statevector%deet, deet, MPI_MAX)
     statevector%deet = deet
-    call mmpi_allReduce(statevector%ip2List, ip2List, 'MPI_MAX', statevector%numStep)
+    call mmpi_allReduce(statevector%ip2List, ip2List, MPI_MAX, statevector%numStep)
     statevector%ip2List(:) = ip2List(:)
-    call mmpi_allReduce(statevector%npasList, npasList, 'MPI_MAX', statevector%numStep)
+    call mmpi_allReduce(statevector%npasList, npasList, MPI_MAX, statevector%numStep)
     statevector%npasList(:) = npasList(:)
-    call mmpi_allReduce(statevector%dateOriginList, dateOriginList, 'MPI_MAX', statevector%numStep)
+    call mmpi_allReduce(statevector%dateOriginList, dateOriginList, MPI_MAX, statevector%numStep)
     statevector%dateOriginList(:) = dateOriginList(:)
 
-    call mmpi_allReduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), 'MPI_LOR')
+    call mmpi_allReduce(statevector%onPhysicsGrid(:), onPhysicsGrid(:), MPI_LOR)
     statevector%onPhysicsGrid(:) = onPhysicsGrid(:)
 
     call msg('gsv_communicateTimeParams', 'deet = '//str(deet) &
@@ -3531,11 +3531,11 @@ module gridStateVector_mod
     logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
-    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
+    integer :: youridx, youridy, yourid, nsize, maxkcount, mpiTagUU, mpiTagVV
     integer :: sendrecvKind, inKind, outKind, varLevIndexUU, varLevIndexVV, MpiIdUU, MpiIdVV
     integer :: levUV, stepIndex, numSend, numRecv
-    integer :: requestIdSend(stateVector_out%numVarLev), requestIdRecv(stateVector_out%numVarLev)
-    integer :: mpiStatuses(mpi_status_size,stateVector_out%numVarLev)
+    type(mpi_request) :: requestIdSend(stateVector_out%numVarLev), requestIdRecv(stateVector_out%numVarLev)
+    type(mpi_status)  :: mpiStatuses(stateVector_out%numVarLev)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
@@ -3742,23 +3742,23 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (outKind == 8) then
               call mpi_irecv(statevector_out%gdUV(varLevIndexUU)%r8(:, :, stepIndex),  &
-                             nsize, mmpi_datyp_real8, MpiIdVV, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real8, MpiIdVV, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(statevector_out%gdUV(varLevIndexUU)%r4(:, :, stepIndex),  &
-                             nsize, mmpi_datyp_real4, MpiIdVV, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real4, MpiIdVV, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (outKind == 8) then
               call mpi_isend(statevector_out%gd_r8(:, :, varLevIndexUU, stepIndex),  &
-                             nsize, mmpi_datyp_real8, MpiIdVV, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real8, MpiIdVV, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             else
               call mpi_isend(statevector_out%gd_r4(:, :, varLevIndexUU, stepIndex),  &
-                             nsize, mmpi_datyp_real4, MpiIdVV, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real4, MpiIdVV, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             end if
 
           else if (mmpi_myid == MpiIdVV) then  ! I have VV
@@ -3766,23 +3766,23 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (outKind == 8) then
               call mpi_irecv(statevector_out%gdUV(varLevIndexVV)%r8(:, :, stepIndex),  &
-                             nsize, mmpi_datyp_real8, MpiIdUU, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real8, MpiIdUU, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(statevector_out%gdUV(varLevIndexVV)%r4(:, :, stepIndex),  &
-                             nsize, mmpi_datyp_real4, MpiIdUU, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real4, MpiIdUU, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (outKind == 8) then
               call mpi_isend(statevector_out%gd_r8(:, :, varLevIndexVV, stepIndex),  &
-                             nsize, mmpi_datyp_real8, MpiIdUU, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real8, MpiIdUU, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             else
               call mpi_isend(statevector_out%gd_r4(:, :, varLevIndexVV, stepIndex),  &
-                             nsize, mmpi_datyp_real4, MpiIdUU, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real4, MpiIdUU, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             end if
 
           end if
@@ -3790,11 +3790,11 @@ module gridStateVector_mod
         end do LOOP_VARLEV
 
         if (numRecv > 0) then
-          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
+          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(1:numRecv))
         end if
 
         if (numSend > 0) then
-          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(1:numSend))
         end if
 
       end if ! UU and VV exist
@@ -3862,11 +3862,11 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
-    integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiIdUU, mpiIdVV
+    integer :: youridx, youridy, yourid, nsize, maxkcount, mpiIdUU, mpiIdVV
     integer :: sendrecvKind, inKind, outKind, varLevIndexUU, varLevIndexVV, varLevIndex
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
-    integer :: requestIdSend(stateVector_in%numVarLev), requestIdRecv(stateVector_in%numVarLev)
-    integer :: mpiStatuses(mpi_status_size,stateVector_in%numVarLev)
+    type(mpi_request) :: requestIdSend(stateVector_in%numVarLev), requestIdRecv(stateVector_in%numVarLev)
+    type(mpi_status)  :: mpiStatuses(stateVector_in%numVarLev)
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     logical :: uuExist, vvExist
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
@@ -3952,25 +3952,25 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (sendrecvKind == 4) then
               call mpi_irecv(gd_r4(:, :, varLevIndexUU),  &
-                             nsize, mmpi_datyp_real4, MpiIdVV, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real4, MpiIdVV, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(gd_r8(:, :, varLevIndexUU),  &
-                             nsize, mmpi_datyp_real8, MpiIdVV, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real8, MpiIdVV, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (sendrecvKind == 4) then
               gdUV_r4(:, :, varLevIndexUU) = statevector_in%gdUV(varLevIndexUU)%r4(:, :, stepIndex)
               call mpi_isend(gdUV_r4(:, :, varLevIndexUU),  &
-                             nsize, mmpi_datyp_real4, MpiIdVV, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real4, MpiIdVV, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             else
               gdUV_r8(:, :, varLevIndexUU) = statevector_in%gdUV(varLevIndexUU)%r8(:, :, stepIndex)
               call mpi_isend(gdUV_r8(:, :, varLevIndexUU),  &
-                             nsize, mmpi_datyp_real8, MpiIdVV, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real8, MpiIdVV, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             end if
 
           else if (mmpi_myid == MpiIDVV) then ! I have VV
@@ -3978,25 +3978,25 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (sendrecvKind == 4) then
               call mpi_irecv(gd_r4(:, :, varLevIndexVV),  &
-                             nsize, mmpi_datyp_real4, MpiIdUU, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real4, MpiIdUU, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(gd_r8(:, :, varLevIndexVV),  &
-                             nsize, mmpi_datyp_real8, MpiIdUU, mpiTagUU,  &
-                             mmpi_comm_grid, requestIdRecv(numRecv), ierr)
+                             nsize, mpi_real8, MpiIdUU, mpiTagUU,  &
+                             mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (sendrecvKind == 4) then
               gdUV_r4(:, :, varLevIndexVV) = statevector_in%gdUV(varLevIndexVV)%r4(:, :, stepIndex)
               call mpi_isend(gdUV_r4(:, :, varLevIndexVV),  &
-                             nsize, mmpi_datyp_real4, MpiIdUU, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real4, MpiIdUU, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             else
               gdUV_r8(:, :, varLevIndexVV) = statevector_in%gdUV(varLevIndexVV)%r8(:, :, stepIndex)
               call mpi_isend(gdUV_r8(:, :, varLevIndexVV),  &
-                             nsize, mmpi_datyp_real8, MpiIdUU, mpiTagVV,  &
-                             mmpi_comm_grid, requestIdSend(numSend), ierr)
+                             nsize, mpi_real8, MpiIdUU, mpiTagVV,  &
+                             mmpi_comm_grid, requestIdSend(numSend))
             end if
 
           end if
@@ -4004,11 +4004,11 @@ module gridStateVector_mod
         end do LOOP_VARLEV
 
         if (numRecv > 0) then
-          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(:,1:numRecv), ierr)
+          call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), mpiStatuses(1:numRecv))
         end if
 
         if (numSend > 0) then
-          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(:,1:numSend), ierr)
+          call mpi_waitAll(numSend, requestIdSend(1:numSend), mpiStatuses(1:numSend))
         end if
 
         if (statevector_in%UVComponentPresent) then
@@ -4653,7 +4653,7 @@ module gridStateVector_mod
     else
       inKindLocal = -1
     end if
-    call mmpi_allReduce(inKindLocal, inKind, 'MPI_MAX')
+    call mmpi_allReduce(inKindLocal, inKind, MPI_MAX)
     outKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -4704,7 +4704,7 @@ module gridStateVector_mod
       else
         allZero = .true.
       end if
-      call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
+      call mmpi_allReduce(allZero,allZero_mpiglobal,mpi_land)
       if (allZero_mpiglobal) then
         ! Field equal to zero, skipping this varLevIndex to save time
         cycle varLevIndex_Loop
@@ -4939,7 +4939,7 @@ module gridStateVector_mod
     else
       outKindLocal = -1
     end if
-    call mmpi_allReduce(outKindLocal, outKind, 'MPI_MAX')
+    call mmpi_allReduce(outKindLocal, outKind, MPI_MAX)
     inKind = stateVector_tiles%dataKind
     if (inKind == 4 .or. outKind == 4) then
       sendrecvKind = 4
@@ -5980,7 +5980,7 @@ module gridStateVector_mod
       allZero = utl_isEqual(maxval(abs(field_r8_ptr(:,:,:,:))), 0.0D0)
     end if
 
-    call mmpi_allReduce(allZero,allZero_mpiglobal,'mpi_land')
+    call mmpi_allReduce(allZero,allZero_mpiglobal,mpi_land)
     stateVectorHasNonZeroValue = .not. allZero_mpiglobal
 
   end function gsv_containsNonZeroValues
