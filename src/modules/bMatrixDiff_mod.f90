@@ -7,6 +7,7 @@ MODULE bMatrixDiff_mod
   !           covariance matrix based on correlations modelled using a
   !           diffusion operator.
   !
+  use mpi_f08, only: mpi_sum, mpi_max, mpi_min
   use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -255,7 +256,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "MPI_SUM")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, MPI_SUM)
 
     allocate(stddev(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d))
 
@@ -407,8 +408,8 @@ CONTAINS
       call gsv_getField(statevector, field3D_r8_ptr, bdiff_varNameList(variableIndex))
       stddev(:,:,variableIndex) = dble(field3D_r8_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-        call mmpi_allreduce(minval(stddev(:,:,variableIndex)), minStddev, 'mpi_min')
-        call mmpi_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev, 'mpi_max')
+        call mmpi_allreduce(minval(stddev(:,:,variableIndex)), minStddev, mpi_min)
+        call mmpi_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev, mpi_max)
       else
         minStddev = minval(stddev(:,:,variableIndex))
         maxStddev = maxval(stddev(:,:,variableIndex))
@@ -905,8 +906,8 @@ CONTAINS
       stddev(:,:,1) = (1. - weight) * field3DLeft_r8_ptr(:,:,1) + &
                             weight  * field3DRight_r8_ptr(:,:,1)
       if (mmpi_nprocs > 1) then
-        call mmpi_allreduce(minval(stddev(:,:,1)), minStddev, 'mpi_min')
-        call mmpi_allreduce(maxval(stddev(:,:,1)), maxStddev, 'mpi_max')
+        call mmpi_allreduce(minval(stddev(:,:,1)), minStddev, mpi_min)
+        call mmpi_allreduce(maxval(stddev(:,:,1)), maxStddev, mpi_max)
       else
         minStddev = minval(stddev(:,:,1))
         maxStddev = maxval(stddev(:,:,1))
