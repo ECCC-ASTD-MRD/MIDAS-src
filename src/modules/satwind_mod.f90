@@ -19,16 +19,16 @@ contains
   !--------------------------------------------------------------------------
   ! swd_readSwqi
   !--------------------------------------------------------------------------
-  subroutine swd_readSwqi(SWname,QIvalue,SWDeweight)
+  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn)
     !
     !:Purpose: read NAMSW block in the namelist
     !
     implicit none
 
     ! Arguments:
-    character(len=*), allocatable,           intent(out) :: SWname(:)     ! the name of satellite
-    character(len=*), allocatable,           intent(out) :: QIvalue(:)    ! Quality Indicator (QI) for AMV
-    character(len=*), allocatable, optional, intent(out) :: SWDeweight(:) ! the name of satellites to be de-weighted
+    character(len=*), allocatable,           intent(out) :: SWname(:)   ! the name of satellite
+    character(len=*), allocatable,           intent(out) :: QIvalue(:)  ! Quality Indicator (QI) for AMV
+    character(len=*), allocatable, optional, intent(out) :: SWAddThn(:) ! the name of satellites for additional thinning
 
     ! Locals:
     integer :: ierr
@@ -38,9 +38,9 @@ contains
 
     ! Namelist variables
     character(len=20) :: SWQI(maxSat)
-    character(len=20) :: SWDW(maxSat)
+    character(len=20) :: SWAT(maxSat)
 
-    namelist /NAMSW/ SWQI, SWDW
+    namelist /NAMSW/ SWQI, SWAT
 
     ! Defeault values for namelist variables
     SWQI(:)  = ''
@@ -71,7 +71,7 @@ contains
     SWQI(25) = 'METOP1-3:qi1'
     SWQI(26) = 'GEO-POL:qi1'
 
-    SWDW(:) = ''
+    SWAT(:) = ''
 
     ! Read the namelist for SatWinds observations
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
@@ -96,13 +96,13 @@ contains
       deallocate(SWQIArray)
     end do
 
-    if (present(SWDeweight)) then
-      nsats = getNumSats(maxSat,SWDW)
+    if (present(SWAddThn)) then
+      nsats = getNumSats(maxSat,SWAT)
       if ( nsats /= 0 ) then
-        if (allocated(SWDeweight)) deallocate(SWDeweight)
-        allocate(SWDeweight(nsats))
+        if (allocated(SWAddThn)) deallocate(SWAddThn)
+        allocate(SWAddThn(nsats))
         do isat = 1, nsats
-          SWDeweight(isat) = SWDW(isat)
+          SWAddThn(isat) = SWAT(isat)
         end do
       end if
     end if

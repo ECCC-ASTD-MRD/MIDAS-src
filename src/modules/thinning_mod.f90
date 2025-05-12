@@ -3542,7 +3542,7 @@ contains
     integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:), headerIndexValid(:)
     logical,           allocatable :: valid(:), valid2(:), validMpi(:), validMpi2(:), validMpi3(:)
-    character(len=20), allocatable :: SWname(:), QIvalue(:), SWDeweight(:)
+    character(len=20), allocatable :: SWname(:), QIvalue(:), SWAddThn(:)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
@@ -3601,9 +3601,9 @@ contains
     missingCount = 0
 
     ! get QI and deweighting information
-    call swd_readSwqi(SWname,QIvalue,SWDeweight)
+    call swd_readSwqi(SWname,QIvalue,SWAddThn)
 
-    if (allocated(SWDeweight)) write(*,*) 'thn_satWindsByDistance: SWDeweight is allocated'
+    if (allocated(SWAddThn)) write(*,*) 'thn_satWindsByDistance: SWAddThn is allocated'
 
     ! First pass through observations
     numStnId = 0
@@ -3681,15 +3681,6 @@ contains
         if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
 
-      ! Inflate the QI value if the name of satellite is not in the SWDeweight
-      !if (allocated(SWDeweight)) then
-      !  if (.not. utl_isInArray(stnId(2:),SWDeweight)) then
-      !    quality(headerIndex) = quality(headerIndex)*1000
-      !  end if
-      !else
-      !  quality(headerIndex) = quality(headerIndex)*1000
-      !end if
-
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = nullValue
       vObsFlag = nullValue
@@ -3720,7 +3711,7 @@ contains
 
     end do HEADER1
 
-      ! Gather needed information from all MPI tasks
+    ! Gather needed information from all MPI tasks
     allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(validMpi2(numHeaderMaxMpi*mmpi_nprocs))
     allocate(validMpi3(numHeaderMaxMpi*mmpi_nprocs))
@@ -3796,7 +3787,6 @@ contains
 
           ! only consider obs with high quality
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
-          !if (qualityMpi(numHeaderMpi-obsIndex1+1) >= 1000 .and. qualityMpi(numHeaderMpi-obsIndex1+1) <= 10000 ) cycle OBSLOOP1 ! originally 1-10 before inflation
 
           ! only consider obs from current satellite
           do charIndex = 1, lenStnId
@@ -3853,7 +3843,7 @@ contains
                countObs, countObsOutMpi
 
     ! additional thnning for selected satellites (e.g. GEO-POL)
-    if (allocated(SWDeweight)) then
+    if (allocated(SWAddThn)) then
 
       allocate(headerIndexValid(numHeaderMpi))
 
@@ -3870,7 +3860,7 @@ contains
       STNIDLOOP2: do stnIdIndex = 1, numStnId
 
         ! only for satellites in the list
-        if (utl_isInArray(stnidList(stnIdIndex)(2:),SWDeweight)) then
+        if (utl_isInArray(stnidList(stnIdIndex)(2:),SWAddThn)) then
 
           write(*,*) 'thn_satWindsByDistance: applying additional thinning for: ', &
                    trim(stnidList(stnIdIndex))
@@ -3888,11 +3878,11 @@ contains
               ! only obs with current layer being considered
               if (obsLayerIndexMpi(headerIndex1) /= layerIndex) cycle OBSLOOP4
 
-              ! only consider AMVs in the SWDeweight
+              ! only consider AMVs in the SWAddThn
               do charIndex = 1, lenStnId
                 stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
               end do
-              if (.not. utl_isInArray(stnId(2:),SWDeweight)) cycle OBSLOOP4
+              if (.not. utl_isInArray(stnId(2:),SWAddThn)) cycle OBSLOOP4
 
               ! We count the number of observations that are already selected
               skipthisObs = .false.
@@ -3903,13 +3893,13 @@ contains
                 ! only obs with current layer being considered
                 if (obsLayerIndexMpi(headerIndex2) /= layerIndex) cycle OBSLOOP5
 
-                ! only consider AMVs not in the SWDeweight
+                ! only consider AMVs not in the SWAddThn
                 do charIndex = 1, lenStnId
                   stnId2(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex2))
                 end do
 
-                ! only consider satellites not in SWDeweight
-                if (utl_isInArray(stnId2(2:),SWDeweight)) cycle OBSLOOP5
+                ! only consider satellites not in SWAddThn
+                if (utl_isInArray(stnId2(2:),SWAddThn)) cycle OBSLOOP5
 
                 ! Calculates the distances between the current data and all other relevant data
                 if ( abs(obsStepIndexMpi(headerIndex1) - &
@@ -3929,7 +3919,6 @@ contains
               end do OBSLOOP5
 
               if (skipthisObs) then
-                write(*,*) 'thn_satWindsByDistance: DEBUG skip this obs ', stnId(2:), stnId2(2:), headerIndex1, headerIndex2, validMpi(headerIndex1), validMpi(headerIndex2)
                 validMpi(headerIndex1) = .false.
               end if
 
@@ -3944,15 +3933,6 @@ contains
       nsize = numHeaderMaxMpi * mmpi_nprocs
       call rpn_comm_allReduce(validMpi, validMpi3, nsize, 'mpi_logical', &
                               'mpi_lor','grid',ierr)
-
-      ! DEBUG: compare the arrays and print differences
-      if (mmpi_myid == 0) then
-        do obsIndex1 = 1, numHeaderMpi
-          if (validMpi2(obsIndex1) .neqv. validMpi3(obsIndex1)) then
-            write(*,*) 'thnDEBUG: ', obsIndex1, validMpi2(obsIndex1), validMpi3(obsIndex1)
-          end if
-        end do
-      end if
 
       ! Update local copy of valid from global mpi version (one more)
       headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
@@ -4050,7 +4030,7 @@ contains
     deallocate(stnIdIntMpi)
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
-    if (allocated(SWDeweight)) deallocate(SWDeweight)
+    if (allocated(SWAddThn)) deallocate(SWAddThn)
     deallocate(QIvalue)
     deallocate(SWname)
 
