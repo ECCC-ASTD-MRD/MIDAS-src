@@ -504,7 +504,7 @@ contains
             ! Determine which MPI task is ready for a new work assignment
             call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &
                           mmpi_comm_grid, mpiStatus, ierr)
-            workerProcID = mpiStatus
+            workerProcID = mpiStatus%MPI_SOURCE
 
             if (readySignal == 'N') then
               procAlreadyFinished(workerProcID+1) = .true.
