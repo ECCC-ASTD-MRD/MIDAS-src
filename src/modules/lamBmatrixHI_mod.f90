@@ -6,6 +6,7 @@ module lamBmatrixHI_mod
   !           using the homogeneous and isotropic background error covariance
   !           matrix.
   !
+  use mpi_f08, only: mpi_sum, mpi_max
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -219,7 +220,7 @@ contains
     cvDim_out = cvDim
 
     ! also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim, cvDim_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(cvDim, cvDim_mpiglobal, mpi_sum)
 
     !- 2.3 Initialized the Wind spectral transform
     if ( trim(WindTransform) == 'VortDiv' ) then
@@ -1268,13 +1269,13 @@ contains
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: nlaMax, cvDim_maxmpilocal, jproc
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1378,13 +1379,13 @@ contains
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: nlaMax, cvDim_maxmpilocal, jproc
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1496,7 +1497,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1518,7 +1519,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1613,7 +1614,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1635,7 +1636,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
