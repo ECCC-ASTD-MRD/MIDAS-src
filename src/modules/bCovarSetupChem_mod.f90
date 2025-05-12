@@ -35,6 +35,7 @@ module bCovarSetupChem_mod
   !    bcsc_addBgStddev: Add background stddev profiles (and inverse) to
   !                      bgStddev which can be retrieved later using a header index.
 
+  use mpi_f08, only: mpi_sum
   use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod
@@ -950,7 +951,7 @@ module bCovarSetupChem_mod
 
     call mmpi_allReduce(wtemp(0:bgStats%ntrunc, 1:bgStats%nJ,1), &
                         zleg (0:bgStats%ntrunc, 1:bgStats%nJ),   &
-                        "mpi_sum")
+                        mpi_sum)
     deallocate(wtemp)
     allocate(wtemp(bgStats%nj, bgStats%nlev, bgStats%numvar3d+bgStats%numvar2d))
     wtemp(:,:,:)=0.0
@@ -974,7 +975,7 @@ module bCovarSetupChem_mod
     end do
 
     nsize=bgStats%nj*bgStats%numVarLev
-    call mmpi_allReduce(wtemp, hcorrel, "mpi_sum", nsize)
+    call mmpi_allReduce(wtemp, hcorrel, mpi_sum, nsize)
     deallocate(wtemp)
 
     varIndex = 1
@@ -1565,7 +1566,7 @@ module bCovarSetupChem_mod
 
          call mmpi_allReduce(corns_temp,                                  &
               bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
-              "mpi_sum")
+              mpi_sum)
          deallocate(corns_temp,eigenvec,result)
 
       end if
