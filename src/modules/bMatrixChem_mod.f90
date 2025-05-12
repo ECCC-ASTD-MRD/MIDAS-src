@@ -32,6 +32,7 @@ module bMatrixChem_mod
   !    bchm_expand*   MPI manipulations of contol vector(s)
   !    bchm_reduce*   MPI manipulations related to contol vector(s)
   !
+  use mpi_f08, only: mpi_sum, mpi_max
   use midasMpi_mod
   use message_mod
   use gridStateVector_mod
@@ -162,7 +163,7 @@ module bMatrixChem_mod
     cvDim_out = cvDim_mpilocal
 
     ! Also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal,  "mpi_sum")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, mpi_sum)
 
     initialized = .true.
 
@@ -685,7 +686,7 @@ module bMatrixChem_mod
 
     if (.not.initialized) return
 
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -829,7 +830,7 @@ module bMatrixChem_mod
 
     if (.not.initialized) return
 
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
 
     if (mmpi_myid == 0) then
       allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -975,7 +976,7 @@ module bMatrixChem_mod
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1105,7 +1106,7 @@ module bMatrixChem_mod
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "MPI_MAX")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
