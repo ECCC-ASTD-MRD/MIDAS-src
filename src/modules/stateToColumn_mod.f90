@@ -6,9 +6,10 @@ module stateToColumn_mod
   !           horizontal-temporal interpolation between a gridStateVector object
   !           and a columnData object.
   !
+  use mpi_f08, only: mpi_max, mpi_lor
+  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
-  use midasMpi_mod
   use message_mod
   use codePrecision_mod
   use gridStateVector_mod
@@ -1262,7 +1263,7 @@ contains
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
-    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
+    call mmpi_allReduce(numHeader, numHeaderMax, MPI_MAX)
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
@@ -1492,7 +1493,7 @@ contains
 
     numStep = stateVector_VarsLevs%numStep
     numHeader = obs_numheader(obsSpaceData)
-    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
+    call mmpi_allReduce(numHeader, numHeaderMax, MPI_MAX)
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
@@ -1796,7 +1797,7 @@ contains
         headerIndexEnd = headerIndexBeg + (obs_numheader(obsSpaceData) / numObsBatches) - 1
       end if
       numHeader = headerIndexEnd - headerIndexBeg + 1
-      call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
+      call mmpi_allReduce(numHeader, numHeaderMax, MPI_MAX)
 
       call mmpi_allGather(numHeader,      allNumHeader)
       call mmpi_allGather(headerIndexBeg, allHeaderIndexBeg)
@@ -2850,7 +2851,7 @@ contains
     write(*,*) 's2c_rejectZeroWeightObs: Starting'
 
     numHeader = obs_numheader(obsSpaceData)
-    call mmpi_allReduce(numHeader, numHeaderMax, 'MPI_MAX')
+    call mmpi_allReduce(numHeader, numHeaderMax, MPI_MAX)
 
     allocate(allRejectObs(numHeaderMax,mmpi_nprocs))
     allocate(allRejectObsMpiGlobal(numHeaderMax,mmpi_nprocs))
@@ -2879,7 +2880,7 @@ contains
     end do ! procIndex
 
     ! do global communication of reject flags
-    call mmpi_allReduce(allRejectObs, allRejectObsMpiGlobal, 'MPI_LOR')
+    call mmpi_allReduce(allRejectObs, allRejectObsMpiGlobal, MPI_LOR)
 
     ! modify obsSpaceData based on reject flags
     do headerIndex = 1, obs_numHeader(obsSpaceData)
