@@ -4,6 +4,7 @@ module obsdbFiles_mod
   !
   !:Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
+  use mpi_f08, only: mpi_max
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -452,8 +453,8 @@ contains
     call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validTime)
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call mmpi_allReduce(validDate, validDateRecv, "MPI_MAX")
-    call mmpi_allReduce(validTime, validTimeRecv, "MPI_MAX")
+    call mmpi_allReduce(validDate, validDateRecv, MPI_MAX)
+    call mmpi_allReduce(validTime, validTimeRecv, MPI_MAX)
 
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
       call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
