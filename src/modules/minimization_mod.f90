@@ -5,6 +5,8 @@ module minimization_mod
   !:Purpose:  Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use codePrecision_mod
   use message_mod
   use timeCoord_mod
@@ -13,7 +15,6 @@ module minimization_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use midasMpi_mod
   use horizontalCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -882,8 +883,8 @@ CONTAINS
       call utl_abort('min_hessianIO: status not valid ')
     endif
 
-    call mmpi_allReduce(nvadim_mpilocal, nvadim_mpiglobal, "mpi_sum")
-    call mmpi_allReduce(nmtra, nmtra_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(nvadim_mpilocal, nvadim_mpiglobal, mpi_sum)
+    call mmpi_allReduce(nmtra,           nmtra_mpiglobal,  mpi_sum)
 
     ireslun=0
 
