@@ -5,13 +5,14 @@ module sqliteFiles_mod
   !:Purpose:  To store the filenames of the sqlite observation files and call
   !           subroutines in readSqlite to read and update sqlite files.
   !
+  use mpi_f08, only: mpi_max ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use mathPhysConstants_mod
-  use sqliteRead_mod
-  use obsSpaceData_mod
   use fSQLite
   use utilities_mod
-  use midasMpi_mod
   use codePrecision_mod
+  use sqliteRead_mod
+  use obsSpaceData_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use timeCoord_mod
@@ -60,8 +61,8 @@ module sqliteFiles_mod
     end if
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call mmpi_allReduce(validDate, validDateRecv, "MPI_MAX")
-    call mmpi_allReduce(validTime, validTimeRecv, "MPI_MAX")
+    call mmpi_allReduce(validDate, validDateRecv, MPI_MAX)
+    call mmpi_allReduce(validTime, validTimeRecv, MPI_MAX)
 
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
       write(*,*) 'sqlf_getDateStamp: WARNING: Error in getting valid date and time!'
