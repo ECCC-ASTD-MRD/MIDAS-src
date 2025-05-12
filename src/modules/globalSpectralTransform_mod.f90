@@ -3,11 +3,11 @@ module globalSpectralTransform_mod
   ! MODULE globalSpectralTransform_mod (prefix='gst' category='4. Data Object transformations')
   !
   !:Purpose:  To perform global spectral transform (spherical harmonic transform
-  !           with grid-point field on a standard global Gaussian grid). 
+  !           with grid-point field on a standard global Gaussian grid).
   !
-  use codePrecision_mod
-  use mpi
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
+  use codePrecision_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
@@ -69,8 +69,8 @@ module globalSpectralTransform_mod
     integer,allocatable   :: allnBeg(:), allnEnd(:), allnSkip(:)
     integer               :: myLevBeg, myLevEnd, myLevCount, maxMyLevCount
     integer,allocatable   :: allLevBeg(:), allLevEnd(:)
-    integer               :: sendType_LevToLon, recvType_LevToLon
-    integer               :: sendType_LonToLev, recvType_LonToLev
+    type(mpi_datatype)    :: sendType_LevToLon, recvType_LevToLon
+    type(mpi_datatype)    :: sendType_LonToLev, recvType_LonToLev
     logical               :: lonLatDivisible
   end type T_gst
 
@@ -387,7 +387,7 @@ contains
     enddo
 
     ! determine maximum value of myNla over all processors (used for dimensioning)
-    call mmpi_allReduce(myNla, maxMyNla, 'MPI_MAX')
+    call mmpi_allReduce(myNla, maxMyNla, MPI_MAX)
 
     allocate(ilaList(maxMyNla))
     ilaList(:) = 0
@@ -461,7 +461,8 @@ contains
     integer  :: mynBeg, mynEnd, mynSkip, mynCount
     real(8)  :: znnp1, z1snp1
     integer(kind=MPI_ADDRESS_KIND) :: lowerBound, extent
-    integer :: realSize, sendType, recvType
+    integer :: realSize
+    type(mpi_datatype) :: sendType, recvType
     logical :: divisibleLon, divisibleLat
 
     if(nGstAlreadyAllocated.eq.nMaxGst) then
@@ -491,7 +492,7 @@ contains
     call mmpi_setup_latbands(gst(gstID)%nj,  &
          latPerPE, latPerPEmax, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd, divisible_opt=divisibleLat)
     call mmpi_setup_lonbands(gst(gstID)%ni,  &
-         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt= divisibleLon)
+         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt=divisibleLon)
 
     gst(gstID)%lonLatDivisible = (divisibleLon .and. divisibleLat)
     if( mmpi_myid == 0 ) write(*,*) 'gst_setup: lonLatDivisible = ', gst(gstID)%lonLatDivisible
@@ -526,12 +527,12 @@ contains
     gst(gstID)%mymEnd = mymEnd
     gst(gstID)%mymSkip = mymSkip
     gst(gstID)%mymCount = mymCount
-    call mmpi_allReduce(gst(gstID)%mymCount, gst(gstID)%maxmCount, 'MPI_MAX')
+    call mmpi_allReduce(gst(gstID)%mymCount, gst(gstID)%maxmCount, MPI_MAX)
     ! range of levels handled by this processor when in spectral space
     gst(gstID)%myLevBeg = myLevBeg
-    gst(gstID)%myLevEnd = myLevEnd      
+    gst(gstID)%myLevEnd = myLevEnd
     gst(gstID)%myLevCount = myLevCount
-    call mmpi_allReduce(gst(gstID)%myLevCount, gst(gstID)%maxMyLevCount, 'MPI_MAX')
+    call mmpi_allReduce(gst(gstID)%myLevCount, gst(gstID)%maxMyLevCount, MPI_MAX)
 
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allocating comleg...'
     call allocate_comleg
@@ -547,23 +548,23 @@ contains
 
     allocate(gst(gstID)%allNla(mmpi_npex))
     allocate(gst(gstID)%allIlaList(gst(gstID)%maxMyNla,mmpi_npex))
-    call mmpi_allGather(gst(gstID)%myNla,   gst(gstID)%allNla, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%myNla,   gst(gstID)%allNla, communicator_opt = mmpi_comm_EW)
     call mmpi_allGather(gst(gstID)%ilaList, gst(gstID)%allIlaList, gst(gstID)%maxMyNla, &
-                        communicator_opt = 'EW')
+                        communicator_opt = mmpi_comm_EW)
 
     allocate(gst(gstID)%allLonBeg(mmpi_npex))
     allocate(gst(gstID)%allLonEnd(mmpi_npex))
     allocate(gst(gstID)%allLonPerPE(mmpi_npex))
-    call mmpi_allGather(gst(gstID)%myLonBeg, gst(gstID)%allLonBeg,   communicator_opt = 'EW')
-    call mmpi_allGather(gst(gstID)%myLonEnd, gst(gstID)%allLonEnd,   communicator_opt = 'EW')
-    call mmpi_allGather(gst(gstID)%lonPerPE, gst(gstID)%allLonPerPE, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%myLonBeg, gst(gstID)%allLonBeg,   communicator_opt = mmpi_comm_EW)
+    call mmpi_allGather(gst(gstID)%myLonEnd, gst(gstID)%allLonEnd,   communicator_opt = mmpi_comm_EW)
+    call mmpi_allGather(gst(gstID)%lonPerPE, gst(gstID)%allLonPerPE, communicator_opt = mmpi_comm_EW)
 
     allocate(gst(gstID)%allLatBeg(mmpi_npey))
     allocate(gst(gstID)%allLatEnd(mmpi_npey))
     allocate(gst(gstID)%allLatPerPE(mmpi_npey))
-    call mmpi_allGather(gst(gstID)%myLatBeg, gst(gstID)%allLatBeg,   communicator_opt = 'NS')
-    call mmpi_allGather(gst(gstID)%myLatEnd, gst(gstID)%allLatEnd,   communicator_opt = 'NS')
-    call mmpi_allGather(gst(gstID)%latPerPE, gst(gstID)%allLatPerPE, communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%myLatBeg, gst(gstID)%allLatBeg,   communicator_opt = mmpi_comm_NS)
+    call mmpi_allGather(gst(gstID)%myLatEnd, gst(gstID)%allLatEnd,   communicator_opt = mmpi_comm_NS)
+    call mmpi_allGather(gst(gstID)%latPerPE, gst(gstID)%allLatPerPE, communicator_opt = mmpi_comm_NS)
 
     allocate(gst(gstID)%mymIndex(gst(gstID)%mymBeg:gst(gstID)%mymEnd))
     gst(gstID)%mymIndex(:) = 0
@@ -579,21 +580,21 @@ contains
     allocate(gst(gstID)%allnBeg(mmpi_npex))
     allocate(gst(gstID)%allnEnd(mmpi_npex))
     allocate(gst(gstID)%allnSkip(mmpi_npex))
-    call mmpi_allGather(gst(gstID)%mynBeg,  gst(gstID)%allnBeg,  communicator_opt = 'EW')
-    call mmpi_allGather(gst(gstID)%mynEnd,  gst(gstID)%allnEnd,  communicator_opt = 'EW')
-    call mmpi_allGather(gst(gstID)%mynSkip, gst(gstID)%allnSkip, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%mynBeg,  gst(gstID)%allnBeg,  communicator_opt = mmpi_comm_EW)
+    call mmpi_allGather(gst(gstID)%mynEnd,  gst(gstID)%allnEnd,  communicator_opt = mmpi_comm_EW)
+    call mmpi_allGather(gst(gstID)%mynSkip, gst(gstID)%allnSkip, communicator_opt = mmpi_comm_EW)
 
     allocate(gst(gstID)%allmBeg(mmpi_npey))
     allocate(gst(gstID)%allmEnd(mmpi_npey))
     allocate(gst(gstID)%allmSkip(mmpi_npey))
-    call mmpi_allGather(gst(gstID)%mymBeg, gst(gstID)%allmBeg,   communicator_opt = 'NS')
-    call mmpi_allGather(gst(gstID)%mymEnd, gst(gstID)%allmEnd,   communicator_opt = 'NS')
-    call mmpi_allGather(gst(gstID)%mymSkip, gst(gstID)%allmSkip, communicator_opt = 'NS')
+    call mmpi_allGather(gst(gstID)%mymBeg, gst(gstID)%allmBeg,   communicator_opt = mmpi_comm_NS)
+    call mmpi_allGather(gst(gstID)%mymEnd, gst(gstID)%allmEnd,   communicator_opt = mmpi_comm_NS)
+    call mmpi_allGather(gst(gstID)%mymSkip, gst(gstID)%allmSkip, communicator_opt = mmpi_comm_NS)
 
     allocate(gst(gstID)%allLevBeg(mmpi_npex))
     allocate(gst(gstID)%allLevEnd(mmpi_npex))
-    call mmpi_allGather(gst(gstID)%myLevBeg, gst(gstID)%allLevBeg, communicator_opt = 'EW')
-    call mmpi_allGather(gst(gstID)%myLevEnd, gst(gstID)%allLevEnd, communicator_opt = 'EW')
+    call mmpi_allGather(gst(gstID)%myLevBeg, gst(gstID)%allLevBeg, communicator_opt = mmpi_comm_EW)
+    call mmpi_allGather(gst(gstID)%myLevEnd, gst(gstID)%allLevEnd, communicator_opt = mmpi_comm_EW)
 
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allLonBeg=',gst(gstID)%allLonBeg
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allLonEnd=',gst(gstID)%allLonEnd
@@ -687,7 +688,7 @@ contains
     integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -705,7 +706,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = mmpi_comm_EW)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -744,7 +745,7 @@ contains
     integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -764,7 +765,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(sp_send, sp_recv, communicator_opt = mmpi_comm_EW)
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
@@ -803,7 +804,7 @@ contains
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('NS')
+    call mmpi_barrier(mmpi_comm_NS)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -828,7 +829,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -874,7 +875,7 @@ contains
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('NS')
+    call mmpi_barrier(mmpi_comm_NS)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -898,7 +899,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -942,7 +943,7 @@ contains
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('NS')
+    call mmpi_barrier(mmpi_comm_NS)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -967,7 +968,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1013,7 +1014,7 @@ contains
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('NS')
+    call mmpi_barrier(mmpi_comm_NS)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -1037,7 +1038,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npey.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
@@ -1081,7 +1082,7 @@ contains
     integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1098,7 +1099,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1127,10 +1128,10 @@ contains
                                     gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    integer :: nsize,ierr
+    integer :: nsize
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1138,7 +1139,7 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
+                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1158,14 +1159,14 @@ contains
                                     gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    integer :: nsize,ierr
+    integer :: nsize
     real(4) :: pgd_in_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(4) :: pgd_out_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1174,7 +1175,7 @@ contains
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
       call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
+                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
@@ -1202,7 +1203,7 @@ contains
     integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1216,7 +1217,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1251,7 +1252,7 @@ contains
     integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1268,7 +1269,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
@@ -1298,10 +1299,10 @@ contains
                                     gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    integer :: nsize, ierr
+    integer :: nsize
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1309,7 +1310,7 @@ contains
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
       call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
+                        pgd_out, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
@@ -1329,14 +1330,14 @@ contains
                                     gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
-    integer :: nsize, ierr
+    integer :: nsize
     real(4) :: pgd_in_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(4) :: pgd_out_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1345,7 +1346,7 @@ contains
     if(mmpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
       call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
+                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
@@ -1373,7 +1374,7 @@ contains
     integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier('EW')
+    call mmpi_barrier(mmpi_comm_EW)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1388,7 +1389,7 @@ contains
     !$OMP END PARALLEL DO
 
     if(mmpi_npex.gt.1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
