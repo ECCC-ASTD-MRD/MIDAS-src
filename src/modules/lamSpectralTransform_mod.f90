@@ -5,7 +5,7 @@ module lamSpectralTransform_mod
   !:Purpose:  Bi-Fourier spectral transform for limited-area applications.
   !           Depends on ffft8 and setfft8 routines in ARMNLIB.
   !
-  use mpi
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod
@@ -72,8 +72,8 @@ module lamSpectralTransform_mod
      integer, allocatable :: KfromMNglb(:,:)
      character(len=10)    :: MpiMode
      character(len=3)     :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
-     integer              :: sendType_LevToLon, recvType_LevToLon
-     integer              :: sendType_LonToLev, recvType_LonToLev
+     type(mpi_datatype)   :: sendType_LevToLon, recvType_LevToLon
+     type(mpi_datatype)   :: sendType_LonToLev, recvType_LonToLev
      logical              :: lonLatDivisible
    end type struct_lst
 
@@ -110,7 +110,7 @@ contains
     real(8), allocatable            :: Kr8fromMN(:,:)
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
-    integer                         :: kref, mref, nref
+    integer                         :: kref, mref, nref, realSize, ierr
     integer                         :: m, n, k, kMax, ila, nfact_lon, nfact_lat
     integer                         :: ilaglb, i, j, p
     real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq, r
@@ -120,7 +120,7 @@ contains
     character(len=60)               :: kreftype
     logical                         :: divisibleLon, divisibleLat
     integer(kind=MPI_ADDRESS_KIND)  :: lowerBound, extent
-    integer :: realSize, sendType, recvType, ierr
+    type(mpi_datatype)              :: sendType, recvType
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
@@ -291,65 +291,65 @@ contains
 
       ! Gathering with respect to Longitude
       allocate(lst%allLonBeg(mmpi_npex))
-      call mmpi_allGather(lst%myLonBeg, lst%allLonBeg, communicator_opt = 'EW')
+      call mmpi_allGather(lst%myLonBeg, lst%allLonBeg, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLonBeg =', lst%allLonBeg(:)
 
       allocate(lst%allLonEnd(mmpi_npex))
-      call mmpi_allGather(lst%myLonEnd, lst%allLonEnd, communicator_opt = 'EW')
+      call mmpi_allGather(lst%myLonEnd, lst%allLonEnd, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLonEnd =', lst%allLonEnd(:)
 
       allocate(lst%allLonPerPE(mmpi_npex))
-      call mmpi_allGather(lst%lonPerPE, lst%allLonPerPE, communicator_opt = 'EW')
+      call mmpi_allGather(lst%lonPerPE, lst%allLonPerPE, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLonPerPE =', lst%allLonPerPE(:)
 
       ! Gathering with respect to Latitude
       allocate(lst%allLatBeg(mmpi_npey))
-      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = 'NS')
+      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'AllLatBeg =', lst%allLatBeg(:)
 
       allocate(lst%allLatEnd(mmpi_npey))
-      call mmpi_allGather(lst%myLatEnd, lst%allLatEnd, communicator_opt = 'NS')
+      call mmpi_allGather(lst%myLatEnd, lst%allLatEnd, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'AllLatEnd =', lst%allLatEnd(:)
 
       allocate(lst%allLatPerPE(mmpi_npey))
-      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = 'NS')
+      call mmpi_allGather(lst%myLatBeg, lst%allLatBeg, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'AllLatPerPE =', lst%allLatPerPE(:)
 
       ! Gathering with respect to M
       allocate(lst%allmBeg(mmpi_npey))
-      call mmpi_allGather(lst%mymBeg, lst%allmBeg, communicator_opt = 'NS')
+      call mmpi_allGather(lst%mymBeg, lst%allmBeg, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'AllmBeg =', lst%allmBeg(:)
 
       allocate(lst%allmEnd(mmpi_npey))
-      call mmpi_allGather(lst%mymEnd, lst%allmEnd, communicator_opt = 'NS')
+      call mmpi_allGather(lst%mymEnd, lst%allmEnd, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'allmEnd =', lst%allmEnd(:)
 
       allocate(lst%allmSkip(mmpi_npey))
-      call mmpi_allGather(lst%mymSkip, lst%allmSkip, communicator_opt = 'NS')
+      call mmpi_allGather(lst%mymSkip, lst%allmSkip, communicator_opt = mmpi_comm_NS)
       if (mmpi_myid == 0) write(*,*) 'allmSkip = ', lst%allmSkip(:)
 
       allocate(lst%allnBeg(mmpi_npex))
-      call mmpi_allGather(lst%mynBeg, lst%allnBeg, communicator_opt = 'EW')
+      call mmpi_allGather(lst%mynBeg, lst%allnBeg, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllnBeg =', lst%allnBeg(:)
 
       allocate(lst%allnEnd(mmpi_npex))
-      call mmpi_allGather(lst%mynEnd, lst%allnEnd, communicator_opt = 'EW')
+      call mmpi_allGather(lst%mynEnd, lst%allnEnd, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllnEnd =', lst%allnEnd(:)
 
       allocate(lst%allnSkip(mmpi_npex))
-      call mmpi_allGather(lst%mynSkip, lst%allnSkip, communicator_opt = 'EW')
+      call mmpi_allGather(lst%mynSkip, lst%allnSkip, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
 
       ! Gathering with respect to levels
-      call mmpi_allReduce(lst%myLevCount, lst%maxLevCount, "MPI_MAX")
+      call mmpi_allReduce(lst%myLevCount, lst%maxLevCount, MPI_MAX)
       if (mmpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
 
       allocate(lst%allLevBeg(mmpi_npex))
-      call mmpi_allGather(lst%myLevBeg, lst%allLevBeg, communicator_opt = 'EW')
+      call mmpi_allGather(lst%myLevBeg, lst%allLevBeg, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLevBeg =', lst%allLevBeg(:)
 
       allocate(lst%allLevEnd(mmpi_npex))
-      call mmpi_allGather(lst%myLevEnd, lst%allLevEnd, communicator_opt = 'EW')
+      call mmpi_allGather(lst%myLevEnd, lst%allLevEnd, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
 
       ! Setup mpi derived types used in transposes (only used when grid is divisible)
@@ -362,28 +362,28 @@ contains
       ! create the send type for LevToLon
       extent = lst%maxLevCount * lst%lonPerPE * realSize
       call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-           lst%maxLevCount * lst%ni, MPI_REAL8, sendtype, ierr)
+                           lst%maxLevCount * lst%ni, MPI_REAL8, sendtype)
       call mpi_type_create_resized(sendtype, lowerBound , extent, lst%sendType_LevToLon, ierr);
       call mpi_type_commit(lst%sendType_LevToLon,ierr)
 
       ! create the receive type for LevToLon
       extent = lst%maxLevCount * realSize
       call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-           maxlevels_opt, MPI_REAL8, recvtype, ierr);
+                           maxlevels_opt, MPI_REAL8, recvtype, ierr);
       call mpi_type_create_resized(recvtype, lowerBound, extent, lst%recvType_LevToLon, ierr);
       call mpi_type_commit(lst%recvType_LevToLon, ierr)
 
       ! create the send type for LonToLev
       extent = lst%maxLevCount * realSize
       call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-           maxlevels_opt, MPI_REAL8, sendtype, ierr);
+                           maxlevels_opt, MPI_REAL8, sendtype, ierr);
       call mpi_type_create_resized(sendtype, lowerBound, extent, lst%sendType_LonToLev, ierr);
       call mpi_type_commit(lst%sendType_LonToLev, ierr)
 
       ! create the recv type for LonToLev
       extent = lst%maxLevCount * lst%lonPerPE * realSize
       call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-           lst%maxLevCount * lst%ni, MPI_REAL8, recvtype, ierr)
+                           lst%maxLevCount * lst%ni, MPI_REAL8, recvtype, ierr)
       call mpi_type_create_resized(recvtype, lowerBound , extent, lst%recvType_LonToLev, ierr);
       call mpi_type_commit(lst%recvType_LonToLev,ierr)
 
@@ -481,7 +481,7 @@ contains
 
     lst%nla = ila     ! Number of spectral element per phase in the VAR array
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%nla, lst%maxnla, "MPI_MAX")
+      call mmpi_allReduce(lst%nla, lst%maxnla, MPI_MAX)
       if (mmpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
     end if
 
@@ -490,7 +490,7 @@ contains
     my_KfromMNglb = 0
     my_KFromMNglb(:,:) = KFromMN(:,:)
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(my_KFromMNglb, lst%KFromMNglb, "MPI_MAX")
+      call mmpi_allReduce(my_KFromMNglb, lst%KFromMNglb, MPI_MAX)
     end if
     deallocate(my_KfromMNglb)
 
@@ -499,7 +499,7 @@ contains
       if (KfromMN(m,0) /= -1) lst%mymActiveCount = lst%mymActiveCount + 1
     end do
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%mymActiveCount, lst%maxmActiveCount, "MPI_MAX")
+      call mmpi_allReduce(lst%mymActiveCount, lst%maxmActiveCount, MPI_MAX)
       if (mmpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
     end if
 
@@ -563,7 +563,7 @@ contains
     lst%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
 
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, "MPI_SUM")
+      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, MPI_SUM)
     end if
 
     deallocate(Kr8fromMN)
@@ -1445,7 +1445,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1535,7 +1535,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1593,7 +1593,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1682,7 +1682,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -1747,7 +1747,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1819,7 +1819,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1892,7 +1892,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -1964,7 +1964,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npey > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'NS')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
@@ -2038,7 +2038,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2100,7 +2100,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2151,7 +2151,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
@@ -2218,7 +2218,7 @@ contains
     !$OMP END PARALLEL DO
 
     if (mmpi_npex > 1) then
-      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = 'EW')
+      call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_EW)
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if

@@ -5,7 +5,7 @@ module enkf_mod
   !:Purpose:  Various routines that are useful for implementing
   !           an EnKF in MIDAS, including the LETKF.
   !
-  use mpi                 ! this is the mpi library module
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use utilities_mod
   use message_mod
