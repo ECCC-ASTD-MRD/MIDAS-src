@@ -153,9 +153,9 @@ contains
     implicit none
 
     ! Locals:
-    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
+    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
+    integer :: rpn_comm_mype
     integer :: ierr, numNodeMasters
-    integer :: rpn_comm_comm
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
@@ -164,7 +164,7 @@ contains
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
     integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
-    ! Initilize MPI
+    ! Initialize MPI
     npex=0
     npey=0
     call rpn_comm_init(mmpi_getptopo,mmpi_myid,mmpi_nprocs,npex,npey)
@@ -191,11 +191,28 @@ contains
     write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost = ', &
                                  mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost
 
+    ! create standard mpi handles to rpn_comm mpi communicators to facilitate
+    ! use of standard mpi routines
+    ! mmpi_comm_GRID = rpn_comm_comm(mmpi_rpn_comm_grid)
+    ! Since, we are only considering a single grid, we can assume here that
+    mmpi_comm_GRID = mpi_comm_world
+    ! mmpi_comm_EW  = rpn_comm_comm('EW')
+    mmpi_comm_EW = mpi_comm_null
+    call mpi_comm_split(mmpi_comm_GRID, mmpi_myidy+1, mmpi_myidx+1, mmpi_comm_EW, ierr)
+    call handleMpiError(ierr, 'Error when calling  MPI_COMM_SPLIT for ''EW'' communicator in ''mmpi_initialize''')
+
+    ! mmpi_comm_NS = rpn_comm_comm('NS')
+    mmpi_comm_NS = mpi_comm_null
+    call mpi_comm_split(mmpi_comm_GRID, mmpi_myidx+1, mmpi_myidy+1, mmpi_comm_NS, ierr)
+    call handleMpiError(ierr, 'Error when calling  MPI_COMM_SPLIT for ''NS'' communicator in ''mmpi_initialize''')
+
+    !call mpi_comm_split(pe_multi_grid, my_color, pe_me_multi_grid, mmpi_comm_GRID, ierr)
+    !call handleError(ierr)
+
     ! Determine list of node masters (i.e. first task on each node)
     allocate(allMyidHost(mmpi_nprocs))
-    call rpn_comm_allgather(mmpi_myidHost, 1, 'mpi_integer', &
-                            allMyidHost,   1, 'mpi_integer', &
-                            mmpi_rpn_comm_grid, ierr)
+    call mpi_allgather(mmpi_myidHost, 1, mpi_integer, &
+                       allMyidHost,   1, mpi_integer, mmpi_comm_GRID, ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
     allocate(mmpi_nodeMasters(numNodeMasters))
     mmpi_nodeMasters = utl_findlocs(allMyidHost,0) - 1
@@ -210,12 +227,6 @@ contains
       mmpi_numthread = numthread
     end if
     !$OMP END PARALLEL
-
-    ! create standard mpi handles to rpn_comm mpi communicators to facilitate
-    ! use of standard mpi routines
-    mmpi_comm_EW   = rpn_comm_comm('EW')
-    mmpi_comm_NS   = rpn_comm_comm('NS')
-    mmpi_comm_GRID = rpn_comm_comm(mmpi_rpn_comm_grid)
 
     ! get some other useful values
     call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, maxTagValue, flag, ierr)
