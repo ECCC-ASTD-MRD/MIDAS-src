@@ -6,8 +6,9 @@ module calcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
-  use codePrecision_mod
+  use mpi_f08, only: mpi_max, mpi_sum
   use midasMpi_mod
+  use codePrecision_mod
   use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -166,7 +167,7 @@ module calcStatsGlb_mod
 
     ! setup ensemble members mpi partinionning (when working with struct_ens)
     call mmpi_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
-    call mmpi_allReduce(myMemberCount, maxMyMemberCount, "MPI_MAX")
+    call mmpi_allReduce(myMemberCount, maxMyMemberCount, MPI_MAX)
     nEnsOverDimension = mmpi_npex * maxMyMemberCount
 
     !- Setup ip1s
@@ -1332,7 +1333,7 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    call mmpi_allReduce(corns, corns_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(corns, corns_mpiglobal, mpi_sum)
     corns(:,:,:) = corns_mpiglobal(:,:,:)
 
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
@@ -1473,7 +1474,7 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    call mmpi_allReduce(corns, corns_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(corns, corns_mpiglobal, mpi_sum)
     corns(:,:,:) = corns_mpiglobal(:,:,:)
 
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
@@ -2324,8 +2325,8 @@ module calcStatsGlb_mod
       end do
     end do
 
-    call mmpi_allReduce(zchipsi, zchipsi_mpiglobal, "mpi_sum")
-    call mmpi_allReduce(zpsipsi, zpsipsi_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(zchipsi, zchipsi_mpiglobal, mpi_sum)
+    call mmpi_allReduce(zpsipsi, zpsipsi_mpiglobal, mpi_sum)
 
     !  calculate THETA
     do latIndex = 1, nj
@@ -2446,8 +2447,8 @@ module calcStatsGlb_mod
     END DO
 
     ! communicate matrices to have global result on all tasks
-    call mmpi_allReduce(zm1, zm1_mpiglobal, "mpi_sum")
-    call mmpi_allReduce(zm2, zm2_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(zm1, zm1_mpiglobal, mpi_sum)
+    call mmpi_allReduce(zm2, zm2_mpiglobal, mpi_sum)
 
     ! SET ZM1_MPIGLOBAL, ZM2_MPIGLOBAL EQUAL FOR ALL THREE REGIONS
     DO JK1 = 1, NLEVPTOT
@@ -2540,7 +2541,7 @@ module calcStatsGlb_mod
             dmean = dmean + ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)
           end do
         end do
-        call mmpi_allReduce(dmean, dmean_mpiglobal, "mpi_sum")
+        call mmpi_allReduce(dmean, dmean_mpiglobal, mpi_sum)
         dmean_mpiglobal = dmean_mpiglobal/(dble(ni)*dble(nj))
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -2590,7 +2591,7 @@ module calcStatsGlb_mod
     !$OMP END PARALLEL DO
 
     ! combine info from all mpi tasks
-    call mmpi_allReduce(fieldsZonAvg, fieldsZonAvg_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(fieldsZonAvg, fieldsZonAvg_mpiglobal, mpi_sum)
 
     deallocate(fieldsZonAvg)
 
@@ -2746,7 +2747,7 @@ module calcStatsGlb_mod
       spvor_mpiglobal(1,2,levIndex) = 0.0D0
     end do
 
-    call mmpi_allReduce(spvor_mpiglobal, spvor_mpiglobal2, "mpi_sum")
+    call mmpi_allReduce(spvor_mpiglobal, spvor_mpiglobal2, mpi_sum)
 
     ! initialize output field to zero
     spgz_mpiglobal(:,:,:)=0.0d0
