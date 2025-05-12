@@ -7,11 +7,12 @@ module analysisErrorOI_mod
   !           where it is assumed that only a subset of the
   !           total number of observations influence the analysis at a given grid point.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use kdTree2_mod
-  use midasMpi_mod
   use obsSpaceData_mod
   use physicsFunctions_mod
   use stateToColumn_mod
@@ -1298,7 +1299,7 @@ contains
     if (mmpi_nprocs > 1) then
       write(*,*) 'aer_computeAnlErrorStd: do mpi communication of anlErrorStdDev'
       allocate(anlErrorStdDevMpiGlobal(ni,nj,numStep,numLev))
-      call mmpi_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal, "MPI_SUM")
+      call mmpi_reduce(anlErrorStdDev_ptr, anlErrorStdDevMpiGlobal, MPI_SUM)
       anlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDevMpiGlobal(:,:,:,:)
       deallocate(anlErrorStdDevMpiGlobal)
     end if
