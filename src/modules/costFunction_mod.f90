@@ -4,6 +4,7 @@ module costFunction_mod
   !
   !:Purpose: To compute Jo term.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use obsSpaceData_mod
   use rttov_const, only : inst_name, platform_name
@@ -273,7 +274,7 @@ contains
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
       call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
-      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), "mpi_sum")
+      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), mpi_sum)
     end do
 
     if ( mmpi_myid == 0 .and. .not. beSilent ) then
