@@ -6,8 +6,11 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use mpi_f08, only: mpi_sum
+  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+  use utilities_mod
   use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -16,14 +19,12 @@ module calcStatsLam_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use localizationFunction_mod
-  use utilities_mod
   use menetrierDiag_mod
   use ensemblestatevector_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use gridBinning_mod
   use timeCoord_mod
-  use midasMpi_mod
   use calcHeightAndPressure_mod
 
   implicit none
@@ -796,11 +797,11 @@ contains
 
     ! Gather the all the info in processor 0
     SpVertCorrel(:,:,:) = 0.d0
-    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, "mpi_sum")
+    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, mpi_sum)
 
     allocate(SumWeight(0:nTrunc))
     SumWeight(:) = 0.d0
-    call mmpi_reduce(SumWeight_local, SumWeight, "mpi_sum")
+    call mmpi_reduce(SumWeight_local, SumWeight, mpi_sum)
 
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
@@ -1299,7 +1300,7 @@ contains
     end do ! Loop in Ensemble
 
     !- Communication
-    call mmpi_reduce(vertCorrel_local, vertCorrel, "mpi_sum")
+    call mmpi_reduce(vertCorrel_local, vertCorrel, mpi_sum)
 
     deallocate(vertCorrel_local)
 
