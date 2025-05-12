@@ -154,13 +154,14 @@ program midas_dfs
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use mpi_f08, only: mpi_sum, mpi_max ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use version_mod
   use codePrecision_mod
+  use mathPhysConstants_mod
   use ramDisk_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
-  use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -530,7 +531,7 @@ contains
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
 
     numHeader = obs_numHeader(obsSpaceData)
-    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mpi_max)
 
     allocate(headerIndexList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
@@ -603,11 +604,9 @@ contains
       end if
     end do HEADER1
 
-    call mmpi_allReduce(countObs, sumCountObsMpi, 'mpi_sum')
-
-    call mmpi_allReduce(countObs, maxCountObsMpi, 'mpi_max')
-
-    call mmpi_allReduce(countChannel, maxCountChannelMpi, 'mpi_max')
+    call mmpi_allReduce(countObs,     sumCountObsMpi,     mpi_sum)
+    call mmpi_allReduce(countObs,     maxCountObsMpi,     mpi_max)
+    call mmpi_allReduce(countChannel, maxCountChannelMpi, mpi_max)
 
     if (.not. computeInParallel) then
       allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
