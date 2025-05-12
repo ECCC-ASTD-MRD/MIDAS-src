@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.10.0]
+
+### Added
+
  * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
  * Revert the changes made with issues #1049 (!973) and #1112 (!1030) (#1112 and !1037)
    * major impact on results comparing with `v_3.9.7` but no impact
@@ -1206,7 +1224,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...HEAD
+[3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
 [3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
