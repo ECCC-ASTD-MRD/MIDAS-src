@@ -6,6 +6,7 @@ module gridBinning_mod
   !           contained in a gridStateVector or in an ensemble of
   !           gridStateVectors (e.g. the respective mean over land and sea)
   !
+  use mpi_f08, only: mpi_sum
   use midasMpi_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
@@ -298,7 +299,7 @@ contains
         end do
 
         !- Compute the mean per bin
-        call mmpi_allReduce(myBinCount, binCount, "MPI_SUM")
+        call mmpi_allReduce(myBinCount, binCount, MPI_SUM)
         do binIndex = 1, gbi%numBins2d
           binMean(binIndex) = myBinSum(binIndex)
           call mmpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
@@ -404,8 +405,8 @@ contains
         end do
 
         !- Compute the stdDev per bin
-        call mmpi_allReduce(myBinCount, binCount,  "MPI_SUM")
-        call mmpi_allReduce(myBinSum,   binStdDev, "MPI_SUM")
+        call mmpi_allReduce(myBinCount, binCount,  MPI_SUM)
+        call mmpi_allReduce(myBinSum,   binStdDev, MPI_SUM)
 
         do binIndex = 1, gbi%numBins2d
           if (binCount(binIndex) /= 0 ) then
