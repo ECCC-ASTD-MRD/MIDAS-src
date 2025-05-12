@@ -323,8 +323,6 @@ contains
     ! Locals:
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
-    integer :: mpiStatus(MPI_STATUS_SIZE)
-    integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
     integer :: latIndex, lonIndex, levIndex
@@ -332,18 +330,19 @@ contains
     integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonCalcMax, myNumLatLonSendMax
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
-    integer :: requestIdSignal
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
-    integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
-    integer, allocatable :: requestIdRecv(:), requestIdSend(:)
+    integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: latLonTagMpiGlobal(:,:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(4), allocatable :: vertLocation_r4(:,:,:)
     real(8), allocatable :: weightsSendCombined(:,:,:), weightsRecvCombined(:,:,:)
+    type(mpi_request) :: requestIdSignal
+    type(mpi_request) :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
+    type(mpi_request), allocatable :: requestIdRecv(:), requestIdSend(:)
+    type(mpi_status)  :: mpiStatus
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
@@ -390,14 +389,8 @@ contains
     ! Allocate and initialize various arrays needed for MPI communication
     allocate(requestIdSend(myNumLatLonSendMax))
     allocate(requestIdRecv(myNumLatLonRecv))
-    allocate(waitStatusesSend(MPI_STATUS_SIZE,myNumLatLonSendMax))
-    allocate(waitStatusesRecv(MPI_STATUS_SIZE,myNumLatLonRecv))
     allocate(weightsRecvCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonRecv))
     allocate(weightsSendCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonCalcMax))
-    requestIdRecv(:) = 0
-    requestIdSend(:) = 0
-    waitStatusesRecv(:,:) = 0
-    waitStatusesSend(:,:) = 0
     weightsRecvCombined(:,:,:) = 0.0d0
     weightsSendCombined(:,:,:) = 0.0d0
 
@@ -479,8 +472,8 @@ contains
         numRecv = numRecv + 1
         weightsRecvCombined(:,:,latLonIndex) = -999.8d0
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
-                        nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
-                        mmpi_comm_grid, requestIdRecv(numRecv), ierr )
+                        nsize, mpi_real8, mpi_any_source, recvTag,  &
+                        mmpi_comm_grid, requestIdRecv(numRecv))
       end do
       call utl_tmg_stop(148)
       call utl_tmg_stop(132)
@@ -511,7 +504,7 @@ contains
             ! Determine which MPI task is ready for a new work assignment
             call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &
                           mmpi_comm_grid, mpiStatus, ierr)
-            workerProcID = mpiStatus(MPI_SOURCE)
+            workerProcID = mpiStatus
 
             if (readySignal == 'N') then
               procAlreadyFinished(workerProcID+1) = .true.
@@ -688,7 +681,7 @@ contains
               call utl_abort('numSend larger than allowed limit')
             end if
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
-                            nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
+                            nsize, mpi_real8, procIndexSend-1, sendTag,  &
                             mmpi_comm_grid, requestIdSend(numSend), ierr )
           end do
           call utl_tmg_stop(149)
@@ -702,7 +695,7 @@ contains
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), waitStatusesRecv(:,1:numRecv), ierr)
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for IRECV')
       end if
       call utl_tmg_stop(147)
@@ -748,7 +741,7 @@ contains
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatusesSend(:,1:numSend), ierr)
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
       end if
       call utl_tmg_stop(146)
@@ -2479,7 +2472,7 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, mpi_sum)
     call mmpi_allGather(myNumLatLon, allNumLatLon)
     numLatLonMax = maxval(allNumLatLon)
 
@@ -2628,7 +2621,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor')
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, mpi_lor)
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0
