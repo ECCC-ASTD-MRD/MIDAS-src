@@ -5,8 +5,9 @@ module obsFilter_mod
   !:Purpose:  Various types of filters that are applied to the observations
   !           mostly to reject them so that they will not be assimilated.
   !
-  use codePrecision_mod
+  use mpi_f08, only: mpi_sum
   use midasMpi_mod
+  use codePrecision_mod
   use earthConstants_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -382,7 +383,7 @@ contains
 
     end do body
 
-    call mmpi_allReduce(iknt, iknt_mpiglobal, "MPI_SUM")
+    call mmpi_allReduce(iknt, iknt_mpiglobal, MPI_SUM)
     if(mmpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
 
     if(mmpi_myid == 0) write(*,*) 'end of filt_suprep'
