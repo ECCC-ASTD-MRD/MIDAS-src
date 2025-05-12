@@ -4,6 +4,8 @@ module sstBias_mod
   !
   !:Purpose: Compute SST satellite data bias estimation and correction.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -12,7 +14,6 @@ module sstBias_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
-  use midasMpi_mod
   use codtyp_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -227,7 +228,7 @@ module sstBias_mod
     write(*,*) ''
     write(*,"(a, i10, a)") 'sstb_getGriddedObs: found ', countObsLoc, ' '//trim(instrumentString)//' data'
 
-    call mmpi_allReduce(countObsLoc, countObsGlob, "mpi_sum")
+    call mmpi_allReduce(countObsLoc, countObsGlob, mpi_sum)
 
     obsGrid(:, :) = 0.0d0
     ndataFoundGridLoc(:,:) = 0
@@ -322,7 +323,7 @@ module sstBias_mod
         do lonIndex = 1, hco%ni
           ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
           call mmpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
-          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), ndataFoundGridGlob(lonIndex, latIndex), 'mpi_sum')
+          call mmpi_allReduce(ndataFoundGridLoc(lonIndex, latIndex), ndataFoundGridGlob(lonIndex, latIndex), mpi_sum)
           if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
             obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
                                           real(ndataFoundGridGlob(lonIndex, latIndex))
