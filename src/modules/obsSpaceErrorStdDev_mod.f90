@@ -5,6 +5,7 @@ module obsSpaceErrorStdDev_mod
   !:Purpose:  Contains subroutines for computing background-error and OmP-error
   !           standard deviations in observation space
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -2482,9 +2483,9 @@ module obsSpaceErrorStdDev_mod
 
       ! Combine from all processors
 
-      call mmpi_allReduce(nSeries, nSeriest, "MPI_SUM")
-      call mmpi_allReduce(sumOmP2d, sumOmP2dt, "MPI_SUM")
-      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, "MPI_SUM")
+      call mmpi_allReduce(nSeries,     nSeriest,     MPI_SUM)
+      call mmpi_allReduce(sumOmP2d,    sumOmP2dt,    MPI_SUM)
+      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, MPI_SUM)
 
       if (any(nSeriest > 5*minCount)) then
 
