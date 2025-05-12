@@ -5,11 +5,12 @@ module sqliteRead_mod
   !:Purpose:  To read and update SQLITE observation files. Data is stored in
   !           obsSpaceData object.
   !
-  use codePrecision_mod
-  use obsSpaceData_mod
+  use mpi_f08, only: mpi_lor
   use midasMpi_mod
   use fSQLite
+  use codePrecision_mod
   use mathPhysConstants_mod
+  use obsSpaceData_mod
   use obsUtil_mod
   use utilities_mod
   use bufr_mod
@@ -1048,7 +1049,7 @@ module sqliteRead_mod
           end do BODYCHCK
         end do HEADERCHCK
 
-        call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, "MPI_LOR")
+        call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, MPI_LOR)
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
         if (nonEmptyBodyColumn_mpiglobal) then
@@ -1103,7 +1104,7 @@ module sqliteRead_mod
           end if
         end do HEADERCHCK2
 
-        call mmpi_allReduce(nonEmptyHeaderColumn, nonEmptyHeaderColumn_mpiglobal, "MPI_LOR")
+        call mmpi_allReduce(nonEmptyHeaderColumn, nonEmptyHeaderColumn_mpiglobal, MPI_LOR)
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
         if (nonEmptyHeaderColumn_mpiglobal) then
