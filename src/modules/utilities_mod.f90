@@ -4,9 +4,10 @@ module utilities_mod
   !
   !:Purpose: A place to collect numerous simple utility routines.
   !
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use netcdf
   use clibInterfaces_mod
   use randomNumber_mod
-  use netcdf
   use mathPhysConstants_mod
 
   implicit none
@@ -112,8 +113,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: fileSize, ierr, nulnam, positionBeg, positionEnd
-    integer :: myid, myidx, myidy, rpn_comm_mype
+    integer :: myid, fileSize, ierr, nulnam, positionBeg, positionEnd
     logical :: fileExists
 
     write(*,*)
@@ -122,13 +122,10 @@ contains
     ! We cannot use 'midasMPI_mod' modules variables 'mmpi_myid',
     ! 'mmpi_myidx' and 'mmpi_myidy' because depending on that module
     ! would introduce a circular dependency.
-    ierr = rpn_comm_mype(myid,myidx,myidy)
+    call mpi_comm_rank(mpi_comm_world, myid, ierr)
     if ( ierr /= 0 ) then
-      call utl_abort('MPI error raised in rpn_comm_mype called from utl_readNml')
+      call utl_abort('MPI error raised in mpi_comm_rank called from utl_readNml')
     end if
-
-    ! Get some MPI information
-    ierr = rpn_comm_mype(myid,myidx,myidy)
 
     ! First read the file flnml which must exist
     inquire(file='./flnml', exist=fileExists, size=fileSize)
