@@ -4,6 +4,7 @@ module fsoi_mod
   !
   !:Purpose: Observation impact (FSOI) library.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use message_mod
   use codePrecision_mod
@@ -501,12 +502,12 @@ module fsoi_mod
     do familyIndex = 1, numFamily
       call mmpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
       totFSO = totFSO + tfso(familyIndex)
-      call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), 'MPI_SUM')
+      call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), MPI_SUM)
     end do
 
     do sensorIndex = 1, tvs_nsensors
       call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex),'GRID')
-      call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), 'MPI_SUM')
+      call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), MPI_SUM)
     end do
 
     if (mmpi_myid == 0) then
