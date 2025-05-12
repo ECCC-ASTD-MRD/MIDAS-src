@@ -25,7 +25,6 @@ module midasMpi_mod
   integer, public, protected :: mmpi_npey      = 0
   integer, public, protected :: mmpi_numthread = 0
   type(mpi_comm), public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
-  type(mpi_datatype), public, protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
   integer, public, protected :: mmpi_maxTagValue
   integer, public, protected, allocatable :: mmpi_nodeMasters(:)
 
@@ -223,10 +222,6 @@ contains
     mmpi_comm_EW   = rpn_comm_comm('EW')
     mmpi_comm_NS   = rpn_comm_comm('NS')
     mmpi_comm_GRID = rpn_comm_comm(mmpi_rpn_comm_grid)
-
-    mmpi_datyp_real4 = MPI_REAL4   !rpn_comm_datyp('MPI_REAL4')
-    mmpi_datyp_real8 = MPI_REAL8   !rpn_comm_datyp('MPI_REAL8')
-    mmpi_datyp_int   = MPI_INTEGER !rpn_comm_datyp('MPI_INTEGER')
 
     ! get some other useful values
     call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, maxTagValue, flag, ierr)
