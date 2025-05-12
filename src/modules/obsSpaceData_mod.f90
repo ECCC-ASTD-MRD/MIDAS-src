@@ -1464,7 +1464,7 @@ module ObsSpaceData_mod
   !          * ``bodyIndex``, etc. is necessarily a row index
   !          * ``HeaderIndex``, etc. is necessarily a row index
   !
-   use mpi_f08 ! this is the Fortran 2008 MPI library module
+   use mpi_f08, only: mpi_sum, mpi_max, mpi_lor ! this is the Fortran 2008 MPI library module
    use midasMpi_mod
    use codePrecision_mod
    use message_mod

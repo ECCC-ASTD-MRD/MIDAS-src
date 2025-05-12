@@ -5,7 +5,7 @@ module codePrecision_mod
   !:Purpose: A module to specify the precision, mostly for floating
   !          point variables
   !
-  use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use mpi_f08, only: MPI_Datatype, mpi_real4, mpi_real8 ! this is the Fortran 2008 MPI library module
   implicit none
   save
   public
@@ -18,14 +18,14 @@ module codePrecision_mod
 #endif
 
 #ifdef CODEPRECISION_OBS_REAL_DOUBLE
-  integer,            parameter :: pre_obsReal    = selected_real_kind(15)
-  type(MPI_Datatype), parameter :: pre_obsMpiReal = mpi_real8
+  integer,                   parameter :: pre_obsReal       = selected_real_kind(15)
+  type(MPI_Datatype),        parameter :: pre_obsMpiReal    = mpi_real8
   character(len=*), private, parameter :: pre_obsMpiRealStr = 'mpi_real8'
 #endif
 
 #ifdef CODEPRECISION_OBS_REAL_SINGLE
-  integer,            parameter :: pre_obsReal    = selected_real_kind(6)
-  type(MPI_Datatype), parameter :: pre_obsMpiReal = mpi_real4
+  integer,                   parameter :: pre_obsReal       = selected_real_kind(6)
+  type(MPI_Datatype),        parameter :: pre_obsMpiReal    = mpi_real4
   character(len=*), private, parameter :: pre_obsMpiRealStr = 'mpi_real4'
 #endif
 
@@ -52,14 +52,14 @@ module codePrecision_mod
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_DOUBLE
-  integer,            parameter :: pre_specTransReal    = selected_real_kind(15)
-  type(MPI_Datatype), parameter :: pre_specTransMpiType = MPI_REAL8
+  integer,                   parameter :: pre_specTransReal       = selected_real_kind(15)
+  type(MPI_Datatype),        parameter :: pre_specTransMpiType    = MPI_REAL8
   character(len=*), private, parameter :: pre_specTransMpiTypeStr = 'mpi_real8'
 #endif
 
 #ifdef CODEPRECISION_SPECTRANS_REAL_SINGLE
-  integer,            parameter :: pre_specTransReal    = selected_real_kind(6)
-  type(MPI_Datatype), parameter :: pre_specTransMpiType = MPI_REAL4
+  integer,                   parameter :: pre_specTransReal       = selected_real_kind(6)
+  type(MPI_Datatype),        parameter :: pre_specTransMpiType    = MPI_REAL4
   character(len=*), private, parameter :: pre_specTransMpiTypeStr = 'mpi_real4'
 #endif
 
@@ -73,10 +73,10 @@ contains
 
     write(*,*)
     write(*,*) " <<<<<< Code precision parameters >>>>>>"
-    write(*,"(A36, I2)")  "         pre_obsReal= ", pre_obsReal
-    write(*,"(A36, A20)") "      pre_obsMpiReal= ", pre_obsMpiRealStr
-    write(*,"(A36, I2)")  "        pre_incrReal= ", pre_incrReal
-    write(*,"(A36, I2)")  "   pre_specTransReal= ", pre_specTransReal
+    write(*,"(A36, I2)")  "         pre_obsReal= ",    pre_obsReal
+    write(*,"(A36, A20)") "      pre_obsMpiReal= ",    pre_obsMpiRealStr
+    write(*,"(A36, I2)")  "        pre_incrReal= ",    pre_incrReal
+    write(*,"(A36, I2)")  "   pre_specTransReal= ",    pre_specTransReal
     write(*,*)  "             pre_specTransMpiType= ", pre_specTransMpiTypeStr
     write(*,*)
 
