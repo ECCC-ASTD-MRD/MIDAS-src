@@ -43,12 +43,6 @@ module midasMpi_mod
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
 
-  ! Private module variables
-  ! Following http://web-mrb.cmc.ec.gc.ca/science//si/eng/si/libraries/rpncomm/rpn_comm/RPN_COMM_allgather.php
-  !   The longest possible value for the communicator is "BLOCMASTER" which is 10 characters
-  integer,          parameter :: mmpi_communicator_max_length = 10
-  character(len=*), parameter :: mmpi_rpn_comm_grid = 'GRID'
-
   ! module interfaces
   ! -----------------
 
