@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Fix library loading and SSM publishing for the platform `rhel-8-icelake-64` (#1100 and !1043)
+ * (Nothing yet)
 
 ### Changed
 
@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.10.1]
+
+### Added
+
+ * Fix library loading and SSM publishing for the platform `rhel-8-icelake-64` (#1100 and !1043)
 
 ## [3.10.0]
 
@@ -1224,7 +1230,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...HEAD
+[3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
 [3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
 [3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
