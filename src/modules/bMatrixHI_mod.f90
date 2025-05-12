@@ -7,6 +7,7 @@ MODULE bMatrixHI_mod
   !           matrix based on homogeneous and isotropic correlations. This is
   !           the Global version. A separate module exists for limited-area applications.
   !
+  use mpi_f08, only: mpi_sum, mpi_max
   use midasMpi_mod
   use message_mod
   use earthConstants_mod
@@ -286,7 +287,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, mpi_sum)
 
     allocate(PtoT(nlev_T+1,nlev_M,nj_l))
     allocate(tantheta(nlev_M,nj_l))
@@ -843,7 +844,7 @@ CONTAINS
 
     enddo ! jn
 
-    call mmpi_allReduce(corns_temp, corns, "mpi_sum")
+    call mmpi_allReduce(corns_temp, corns, mpi_sum)
     deallocate(corns_temp)
 
     if(mmpi_myid==0) then
@@ -1395,7 +1396,7 @@ CONTAINS
       enddo
     enddo
 
-    call mmpi_allReduce(my_zsp_mpiglobal, zsp_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(my_zsp_mpiglobal, zsp_mpiglobal, mpi_sum)
     deallocate(my_zsp_mpiglobal)
 
     ! 2.4.4  Check positiveness
@@ -2491,7 +2492,7 @@ CONTAINS
     integer :: jproc,cvDim_maxmpilocal
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2630,7 +2631,7 @@ CONTAINS
     integer :: jproc,cvDim_maxmpilocal
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
 
     if(mmpi_myid == 0) then
        allocate(cvDim_allMpiLocal(mmpi_nprocs))
@@ -2771,7 +2772,7 @@ CONTAINS
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -2894,7 +2895,7 @@ CONTAINS
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
