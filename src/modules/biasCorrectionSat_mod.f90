@@ -8,13 +8,14 @@ module biasCorrectionSat_mod
   !          for estimating the bias. Existing bias correction estimates
   !          can also be applied to observations.
   !
+  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
+  use mathPhysConstants_mod
+  use earthConstants_mod
   use utilities_mod
   use ramDisk_mod
-  use MathPhysConstants_mod
-  use earthConstants_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use midasMpi_mod
   use rttov_const, only : ninst
   use tovs_mod
   use timeCoord_mod
@@ -627,7 +628,7 @@ contains
         end do
 
         temp_nobs(:) = 0
-        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, "mpi_sum")
+        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, mpi_sum)
 
         do i = 1, bias(iSensor)%numChannels
           bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
@@ -1082,7 +1083,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
+      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0)
@@ -1206,7 +1207,7 @@ contains
 
       call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
-      call mmpi_reduce(tcount, countMpiGlobal,  "MPI_SUM")
+      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0)
@@ -2925,7 +2926,7 @@ contains
       if (mimicSatbcor) then
         call mmpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       end if
-      call mmpi_reduce(OmFCount, omfCountMpiGlobal, "MPI_SUM")
+      call mmpi_reduce(OmFCount, omfCountMpiGlobal, MPI_SUM)
 
       if (mimicSatbcor)  then
         if (mmpi_myId == 0) then
@@ -3162,7 +3163,7 @@ contains
 
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
-      call mmpi_reduce(tcount, countMpiGlobal, "MPI_SUM")
+      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
