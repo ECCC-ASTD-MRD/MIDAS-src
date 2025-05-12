@@ -6,13 +6,14 @@ MODULE ensembleObservations_mod
   !           This module uses the kdtree2 module for efficiently finding the
   !           nearest observations within the local volume.
   !
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use midasMpi_mod
   use kdTree2_mod
   use message_mod
   use columnData_mod
   use tovs_mod
   use rttov_types, only: rttov_transmission, rttov_profile
   use parkind1, only: jpim, jprb
-  use midasMpi_mod
   use oceanMask_mod
   use verticalCoord_mod
   use obsSpaceData_mod
@@ -27,7 +28,6 @@ MODULE ensembleObservations_mod
   use varnamelist_mod
   use localizationFunction_mod
   use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
-  use mpi   ! This is the standard mpi library
 
   implicit none
   save
@@ -70,15 +70,15 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
-    integer                       :: Yb_window = -1   ! handle to shared data "window" for Yb_r4
+    type(mpi_win)                 :: Yb_window = MPI_WIN_NULL   ! handle to shared data "window" for Yb_r4
     type(c_ptr)                   :: Yb_baseptr                 ! pointer used to allocated shared memory
     real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
-    integer                       :: Ya_window = -1             ! handle to shared data "window" for Ya_r4
+    type(mpi_win)                 :: Ya_window = MPI_WIN_NULL   ! handle to shared data "window" for Ya_r4
     type(c_ptr)                   :: Ya_baseptr                 ! pointer used to allocated shared memory
     real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space
     type(c_ptr)                   :: randPert_baseptr           ! pointer used to allocated shared memory
     real(4), pointer              :: randPert_r4(:,:) => null() ! unbiased random perturbations with covariance equal to R
-    integer                       :: randPert_window = -1       ! handle to shared data "window" for Ya_r4
+    type(mpi_win)                 :: randPert_window = MPI_WIN_NULL ! handle to shared data "window" for Ya_r4
     real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
@@ -315,9 +315,6 @@ CONTAINS
     ! Arguments:
     type(struct_eob), intent(inout) :: ensObs ! eob object to be deallocated
 
-    ! Locals:
-    integer :: ierr
-
     if (.not. ensObs%allocated) return
 
     deallocate(ensObs%lat)
@@ -331,28 +328,28 @@ CONTAINS
     deallocate(ensObs%assFlag)
     deallocate(ensObs%codTyp)
 
-    if (ensObs%Yb_window /= -1) then
+    if (ensObs%Yb_window /= MPI_WIN_NULL) then
       ! using shared memory
-      call mpi_win_free(ensObs%Yb_window, ierr)
-      ensObs%Yb_window = -1
+      call mpi_win_free(ensObs%Yb_window)
+      ensObs%Yb_window = MPI_WIN_NULL
     else if (associated(ensObs%Yb_r4)) then
       deallocate(ensObs%Yb_r4)
     end if
     nullify(ensObs%Yb_r4)
 
-    if (ensObs%Ya_window /= -1) then
+    if (ensObs%Ya_window /= MPI_WIN_NULL) then
       ! using shared memory
-      call mpi_win_free(ensObs%Ya_window, ierr)
-      ensObs%Ya_window = -1
+      call mpi_win_free(ensObs%Ya_window)
+      ensObs%Ya_window = MPI_WIN_NULL
     else if (associated(ensObs%Ya_r4)) then
       deallocate(ensObs%Ya_r4)
     end if
     nullify(ensObs%Ya_r4)
 
-    if (ensObs%randPert_window /= -1) then
+    if (ensObs%randPert_window /= MPI_WIN_NULL) then
       ! using shared memory
-      call mpi_win_free(ensObs%randPert_window, ierr)
-      ensObs%randPert_window = -1
+      call mpi_win_free(ensObs%randPert_window)
+      ensObs%randPert_window = MPI_WIN_NULL
     else if (associated(ensObs%randPert_r4)) then
       deallocate(ensObs%randPert_r4)
     end if
@@ -551,7 +548,7 @@ CONTAINS
     integer :: ierr, nsize, procIndex, memberIndex, numObs_mpiglobal
     integer :: allNumObs(mmpi_nprocs), displs(mmpi_nprocs)
     integer :: dispUnit, arrayShape(2)
-    integer, allocatable :: requestId(:)
+    type(mpi_request), allocatable :: requestId(:)
     integer(kind=mpi_address_kind) :: windowSize
     real(4), allocatable :: tempBuffer(:,:)
 
@@ -700,7 +697,7 @@ CONTAINS
       allocate(requestId(size(mmpi_nodeMasters)-1))
       do procIndex = 2, size(mmpi_nodeMasters)
         call mpi_isend(ensObs_mpiglobal%Yb_r4(:,:),  &
-                       nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 1,  &
+                       nsize, mpi_real4, mmpi_nodeMasters(procIndex), 1,  &
                        mmpi_comm_grid, requestId(procIndex-1), ierr)
       end do
       if (size(mmpi_nodeMasters) > 1) then
@@ -709,7 +706,7 @@ CONTAINS
       if (associated(ensObs_mpiglobal%Ya_r4)) then
         do procIndex = 2, size(mmpi_nodeMasters)
           call mpi_isend(ensObs_mpiglobal%Ya_r4(:,:),  &
-                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 2,  &
+                         nsize, mpi_real4, mmpi_nodeMasters(procIndex), 2,  &
                          mmpi_comm_grid, requestId(procIndex-1), ierr)
         end do
         if (size(mmpi_nodeMasters) > 1) then
@@ -719,7 +716,7 @@ CONTAINS
       if (associated(ensObs_mpiglobal%randPert_r4)) then
         do procIndex = 2, size(mmpi_nodeMasters)
           call mpi_isend(ensObs_mpiglobal%randPert_r4(:,:),  &
-                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 3,  &
+                         nsize, mpi_real4, mmpi_nodeMasters(procIndex), 3,  &
                          mmpi_comm_grid, requestId(procIndex-1), ierr)
         end do
         if (size(mmpi_nodeMasters) > 1) then
@@ -729,16 +726,16 @@ CONTAINS
     else if(mmpi_myidHost == 0) then
       write(*,*) 'eob_allGather: I am a nodeMaster, receive data for shared array'
       call mpi_recv(ensObs_mpiglobal%Yb_r4(:,:),  &
-                    nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 1,  &
+                    nsize, mpi_real4, MPI_ANY_SOURCE, 1,  &
                     mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       if (associated(ensObs_mpiglobal%Ya_r4)) then
         call mpi_recv(ensObs_mpiglobal%Ya_r4(:,:),  &
-                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 2,  &
+                      nsize, mpi_real4, MPI_ANY_SOURCE, 2,  &
                       mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       end if
       if (associated(ensObs_mpiglobal%randPert_r4)) then
         call mpi_recv(ensObs_mpiglobal%randPert_r4(:,:),  &
-                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 3,  &
+                      nsize, mpi_real4, MPI_ANY_SOURCE, 3,  &
                       mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       end if
     else
@@ -2051,7 +2048,7 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mpi_sum)
     write(*,*)
     write(*,*) 'eob_backgroundCheck: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2108,7 +2105,7 @@ CONTAINS
       end do BODY_LOOP
     end do HEADER_LOOP
 
-    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mpi_sum)
     write(*,*)
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2227,7 +2224,7 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(huberCount, huberCountMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(huberCount, huberCountMpiGlobal, mpi_sum)
     write(*,*)
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (local) = ', huberCount
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (global)= ', huberCountMpiGlobal
@@ -2271,8 +2268,8 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, "mpi_sum")
-    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, mpi_sum)
+    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, mpi_sum)
     write(*,*)
     write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (local) : ',  &
                acceptCount, rejectCount
