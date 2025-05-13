@@ -26,6 +26,7 @@ module bgckMicrowave_mod
   ! Module variable
   real(8) :: mwbg_clwQcThreshold
   real(8) :: mwbg_cloudyClwThresholdBcorr
+  real(8) :: mwbg_clwDiffThreshBcorr
   real(8) :: mwbg_minSiOverWaterThreshold      ! for AMSUB/MHS
   real(8) :: mwbg_maxSiOverWaterThreshold      ! for AMSUB/MHS
   real(8) :: mwbg_cloudySiThresholdBcorr       ! for AMSUB/MHS
@@ -46,6 +47,7 @@ module bgckMicrowave_mod
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
   logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
+  logical :: mwbg_useClwDiffForAllskyBcorr
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0
@@ -97,6 +99,7 @@ module bgckMicrowave_mod
   character(len=9)   :: instName                      ! instrument name
   real(4)            :: clwQcThreshold                !
   real(4)            :: cloudyClwThresholdBcorr       !
+  real(4)            :: clwDiffThreshBcorr            !
   real(4)            :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real(4)            :: cloudySiThresholdBcorr        !
@@ -118,11 +121,12 @@ module bgckMicrowave_mod
   logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
   logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
+  logical            :: useClwDiffForAllskyBcorr
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, resetQc,  &
-                    cloudyClwThresholdBcorr, modLSQ, &
+                    cloudyClwThresholdBcorr, clwDiffThreshBcorr, modLSQ, &
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
@@ -131,8 +135,9 @@ module bgckMicrowave_mod
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useMwhs2Ch10OmpThreshRogueCheck, mwhs2Ch10OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
-                    useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
-
+                    useMeanTb183OnlyOverLandInAllskyHu, skipTestArr, &
+                    useClwDiffForAllskyBcorr
+                    
 
 contains
 
@@ -150,6 +155,7 @@ contains
     clwQcThreshold                      = 0.3
     useUnbiasedObsForClw                = .false.
     cloudyClwThresholdBcorr             = 0.05
+    clwDiffThreshBcorr                  = 0.1
     minSiOverWaterThreshold             = -10.0
     maxSiOverWaterThreshold             = 30.0
     cloudySiThresholdBcorr              = 5.0
@@ -169,6 +175,7 @@ contains
     mwhs2RogueFactor(:)                  = -1.0
     atmsCh17OmpThreshRogueCheck         = 5.0
     mwhs2Ch10OmpThreshRogueCheck        = 5.0
+    useClwDiffForAllskyBcorr            = .false.
     skipTestArr(:)                      = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
@@ -181,6 +188,7 @@ contains
     mwbg_clwQcThreshold = real(clwQcThreshold,8)
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = real(cloudyClwThresholdBcorr,8)
+    mwbg_clwDiffThreshBcorr = real(clwDiffThreshBcorr,8)
     mwbg_minSiOverWaterThreshold = real(minSiOverWaterThreshold,8)
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
@@ -200,6 +208,7 @@ contains
     mwbg_mwhs2ch10OmpRejectUpperHuChan = mwhs2ch10OmpRejectUpperHuChan
     mwbg_allowClwRejectHuChanAllskyHu = allowClwRejectHuChanAllskyHu
     mwbg_useMeanTb183OnlyOverLandInAllskyHu = useMeanTb183OnlyOverLandInAllskyHu
+    mwbg_useClwDiffForAllskyBcorr = useClwDiffForAllskyBcorr
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -950,11 +959,11 @@ contains
     integer,          intent(in)    :: headerIndex  ! current header Index
 
     ! Locals:
-    integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
+    integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset
-    real(8) :: clwUsedForQC, clwObsFGaveraged
+    real(8) :: clwUsedForQC, clwObsFGaveraged, clwDiff
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
-    logical :: surfTypeIsWater, cldPredMissing
+    logical :: surfTypeIsWater, cldPredMissing, obsTooCloudy
     character(len=9) :: stnId
 
     testIndex = 12
@@ -1002,8 +1011,14 @@ contains
       ! In all-sky mode, turn on bit=23 for channels in mwbg_chanRejectForClw(:) as
       ! cloud-affected radiances over sea when there is mismatch between
       ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
-      clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
-      IF (tvs_mwAllskyAssim .and. clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr) then
+      if (mwbg_useClwDiffForAllskyBcorr) then
+        clwDiff = abs(cloudLiquidWaterPathObs - cloudLiquidWaterPathFG)
+        obsTooCloudy = (clwDiff > mwbg_clwDiffThreshBcorr)
+      else
+        clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
+        obsTooCloudy = (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr)
+      end if
+      IF (tvs_mwAllskyAssim .and. obsTooCloudy) then
         BODY2: do bodyIndex = bodyIndexBeg, bodyIndexEnd
           obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -5912,8 +5927,8 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, scatwObsFGaveraged
-    real(8) :: scatIndexOverWaterObsUsed
-    logical :: instrumentIsAllskyTt, instrumentIsAllskyHu, surfTypeIsIce
+    real(8) :: scatIndexOverWaterObsUsed, clwDiff
+    logical :: instrumentIsAllskyTt, instrumentIsAllskyHu, surfTypeIsIce, obsTooCloudy
     logical, allocatable :: lflagchn(:)
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
@@ -6075,8 +6090,15 @@ contains
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
+      if (mwbg_useClwDiffForAllskyBcorr) then
+        clwDiff = abs(cloudLiquidWaterPathObs - cloudLiquidWaterPathFG)
+        obsTooCloudy = (clwDiff > mwbg_clwDiffThreshBcorr)
+      else
+        clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
+        obsTooCloudy = (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr)
+      end if
       if (instrumentIsAllskyTt .and. waterobs .and. channelIndex /= 0 .and. &
-          (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
+          (obsTooCloudy .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
         call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
