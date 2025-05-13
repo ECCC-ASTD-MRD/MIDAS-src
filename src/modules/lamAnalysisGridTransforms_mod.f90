@@ -6,11 +6,12 @@ module lamAnalysisGridTransforms_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
+  use rpn_comm
+  use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use midasMpi_mod
   use utilities_mod
   use Vgrid_Descriptors
 

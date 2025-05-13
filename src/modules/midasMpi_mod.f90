@@ -8,6 +8,7 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  !use rpn_comm, only: rpn_comm_mype, rpn_comm_init, rpn_comm_finalize
   use utilities_mod
 
   implicit none
@@ -155,6 +156,7 @@ contains
     ! Locals:
     integer :: mythread, numthread
     integer :: omp_get_thread_num, omp_get_num_threads
+    integer :: rpn_comm_mype
     integer :: ierr, numNodeMasters
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
@@ -165,8 +167,14 @@ contains
     call mmpi_getptopo
 
     ! Initialize MPI
-    call mpi_init(ierr)
-    call handleMpiError(ierr, 'Error when calling MPI_INIT in ''mmpi_initialize''')
+    !call mpi_init(ierr)
+    !call handleMpiError(ierr, 'Error when calling MPI_INIT in ''mmpi_initialize''')
+
+    ! We need to call 'rpn_comm_init' because there is a call to
+    ! 'RPN_COMM_xch_halo_8' and 'RPN_COMM_adj_halo8' in
+    ! 'lamAnalysisGridTransforms_mod'.
+    call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, mmpi_npex, mmpi_npey)
+    call handleMpiError(ierr, 'Error when calling RPN_COMM_INIT in ''mmpi_initialize''')
 
     ! get rank as 'mmpi_myid'
     call mpi_comm_rank(mpi_comm_world, mmpi_myid, ierr)
@@ -186,8 +194,10 @@ contains
       mmpi_myidx=0
       mmpi_myidy=0
     else
-      mmpi_myidx = mod(mmpi_myid,mmpi_npex)
-      mmpi_myidy = (mmpi_myid-mmpi_myidx)/mmpi_npey
+      !mmpi_myidx = mod(mmpi_myid,mmpi_npex)
+      !mmpi_myidy = (mmpi_myid-mmpi_myidx)/mmpi_npey
+      ierr = rpn_comm_mype(mmpi_myid,mmpi_myidx,mmpi_myidy) ! this routine always return success
+
       call mpi_comm_rank(mmpi_mpicomm_shared, mmpi_myidHost, ierr)
       call handleMpiError(ierr, 'Error when calling MPI_COMM_RANK for shared communicator in ''mmpi_initialize''')
     endif
@@ -264,7 +274,10 @@ contains
     ! Locals:
     integer :: ierr
 
-    call mpi_finalize(ierr)
+    ! We need to call 'rpn_comm_finalize' because there was a
+    ! 'rpn_comm_init' in 'mmpi_initialize'
+    ! call mpi_finalize(ierr)
+    call rpn_comm_finalize(ierr)
 
     call handleMpiError(ierr, 'mmpi_finalize')
 
