@@ -6,7 +6,6 @@ module lamAnalysisGridTransforms_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
-  use rpn_comm
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
@@ -726,9 +725,8 @@ contains
     allocate(field_8(0:ni+1,0:nj+1, nk))
     field_8(0:ni+1,0:nj+1,:) = field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:)
 
-    call RPN_COMM_adj_halo8(field_8,                 & ! INOUT
-                            0,ni+1,0,nj+1,ni,nj,nk,  & ! IN
-                            1,1,.true.,.true.,ni,0)    ! IN
+    call mmpi_adj_halo(field_8,    & ! INOUT
+                       ni, nj, nk)   ! IN
 
     !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
