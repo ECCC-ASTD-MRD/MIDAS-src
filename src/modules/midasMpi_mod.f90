@@ -511,7 +511,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_reduce_sumR8_1d
   !--------------------------------------------------------------------------
-  subroutine mmpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
+  subroutine mmpi_reduce_sumR8_1d(sendVector, recvVector)
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks guaranteed to
     !           always be in the same order.
@@ -519,42 +519,33 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)         , intent(in)  :: sendVector(:) ! 1-D vector to be summed over all mpi tasks
-    real(8)         , intent(out) :: recvVector(:) ! 1-D vector to be summed over all mpi tasks
-    integer         , intent(in)  :: root          ! mpi task id where data is put
-    character(len=*), intent(in)  :: comm          ! rpn_comm communicator
+    real(8), intent(in)  :: sendVector(:) ! 1-D vector to be summed over all mpi tasks
+    real(8), intent(out) :: recvVector(:) ! 1-D vector to be summed over all mpi tasks
 
     ! Locals:
-    integer :: nprocs_mpi, numElements, ierr, rank
+    integer, parameter :: ROOT = 0
+    integer :: numElements
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call mmpi_barrier
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendVector)
 
-    ! determine number of processors in the communicating group
-    call rpn_comm_size(comm,nprocs_mpi,ierr)
-
-    ! determine rank of group
-    call rpn_comm_rank(comm,rank,ierr)
-
     ! gather vectors to be added onto 1 processor
-    if ( rank == root ) then
-      allocate(all_sendRecvVector(numElements,0:nprocs_mpi-1))
+    if ( mmpi_myid == ROOT ) then
+      allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
     else
       allocate(all_sendRecvVector(1,1))
     end if
-    call rpn_comm_gather(sendVector        , numElements, "mpi_double_precision", &
-                         all_sendRecvVector, numElements, "mpi_double_precision", &
-                         root, comm, ierr)
+    call mmpi_gather(sendVector, all_sendRecvVector)
 
     ! sum the values on the "root" mpi task
-    if ( rank == root ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
+    if ( mmpi_myid == ROOT ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
     deallocate(all_sendRecvVector)
 
     call utl_tmg_stop(170)
@@ -572,8 +563,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)         , intent(in)  :: sendVector(:,:) ! 2-D vector to be summed over all mpi tasks
-    real(8)         , intent(out) :: recvVector(:,:) ! 2-D vector to be summed over all mpi tasks
+    real(8), intent(in)  :: sendVector(:,:) ! 2-D vector to be summed over all mpi tasks
+    real(8), intent(out) :: recvVector(:,:) ! 2-D vector to be summed over all mpi tasks
 
     ! Locals:
     integer, parameter :: ROOT = 0
@@ -617,8 +608,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)         , intent(in)  :: sendVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
-    real(8)         , intent(out) :: recvVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
+    real(8), intent(in)  :: sendVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
+    real(8), intent(out) :: recvVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
 
     ! Locals:
     integer, parameter :: ROOT = 0

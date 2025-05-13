@@ -1919,7 +1919,7 @@ contains
             nSize = bias(iSensor)%chans(iChan)%numActivePredictors
             allocate(temp_coeffIncr(nSize))
             temp_coeffIncr(:) = 0.0d0
-            call mmpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr(:), temp_coeffIncr, 0, "GRID" )
+            call mmpi_reduce_sumR8_1d(bias(iSensor)%chans(ichan)%coeffIncr(:), temp_coeffIncr)
             bias(iSensor)%chans(ichan)%coeffIncr(:) = temp_coeffIncr(:)
             deallocate(temp_coeffIncr)
           end if
@@ -1937,7 +1937,7 @@ contains
           do ichan = 1, nChan
             if (bias(iSensor)%chans(ichan)%isDynamic) then
               temp_coeffIncr_fov(:) = 0.0d0
-              call mmpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr_fov, temp_coeffIncr_fov, 0, "GRID" )
+              call mmpi_reduce_sumR8_1d(bias(iSensor)%chans(ichan)%coeffIncr_fov, temp_coeffIncr_fov)
               bias(iSensor)%chans(iChan)%coeffIncr_fov(:) = temp_coeffIncr_fov(:)
             end if
           end do
@@ -3161,7 +3161,7 @@ contains
       allocate(countMpiGlobal(nchans))
       allocate(predBiasMpiGlobal(nchans,numPredictors))
 
-      call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_1d(OmFBias,  omfBiasMpiGlobal)
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal)
       call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
