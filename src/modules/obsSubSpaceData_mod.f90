@@ -629,7 +629,7 @@ contains
     integer, allocatable :: nrep(:)
     character(len=oss_code_len), allocatable :: code_local(:),code_global(:,:)
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
-    integer :: i,ierr,nrep_total,nrep_max,irep
+    integer :: i,nrep_total,nrep_max,irep
 
     write(*,*) 'Begin oss_obsdata_MPIallgather'
 
@@ -658,7 +658,7 @@ contains
     code_local(:)=''
     if (obsdata%nrep > 0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
 
-    call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,mmpi_nprocs,"GRID",ierr)
+    call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len)
 
     if (obsdata%ndim == 1) then
        allocate(data1d_local(obsdata%dim1,nrep_max))
@@ -875,7 +875,7 @@ contains
     integer, save :: iset=2
     logical, save :: lall_combos=.true.
     logical :: same,init
-    integer :: i,j,iproc,ierr
+    integer :: i,j,iproc
 
     init=.false.
     if (present(initialize_opt)) init = initialize_opt
@@ -933,7 +933,7 @@ contains
           call mmpi_barrier
 
           call mmpi_allGather(num_unique, num_unique_all)
-          call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,mmpi_nprocs,"GRID",ierr)
+          call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len)
           if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all)
           if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all)
 

@@ -673,27 +673,23 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allgather_string
   !--------------------------------------------------------------------------
-  subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
+  subroutine mmpi_allgather_string(str_list, str_list_all, nlist, nchar)
     !
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
     !
     implicit none
 
     ! Arguments:
-    integer             , intent(in) :: nlist
-    integer             , intent(in) :: nchar
-    character(len=nchar), intent(in) :: str_list(nlist)
-    character(len=*)    , intent(in) :: comm
-    integer             , intent(in) :: nproc
-    character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
-    integer             , intent(out) :: ierr
+    integer,              intent(in)  :: nlist
+    integer,              intent(in)  :: nchar
+    character(len=nchar), intent(in)  :: str_list(nlist)
+    character(len=nchar), intent(out) :: str_list_all(nlist,mmpi_nprocs)
 
     ! Locals:
-    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
-    integer :: ilist,ichar,iproc
+    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,mmpi_nprocs)
+    integer :: ierr,ilist,ichar,iproc
 
     ! Convert strings to integer sequences
-
     do ilist=1,nlist
        do ichar=1,nchar
           num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
@@ -701,12 +697,12 @@ contains
     end do
 
     ! Perform allgather with converted integer sequences
-
-    call rpn_comm_allgather(num_list,nlist*nchar,"MPI_INTEGER",num_list_all,nlist*nchar,"MPI_INTEGER",comm,ierr)
+    call mpi_allgather(num_list,     nlist*nchar, MPI_INTEGER, &
+                       num_list_all, nlist*nchar, MPI_INTEGER, mmpi_comm_GRID, ierr)
+    call handleMpiError(ierr, 'mmpi_allgather_string')
 
     ! Convert integer sequences to stnid character strings
-
-    do iproc=1,nproc
+    do iproc=1,mmpi_nprocs
        do ilist=1,nlist
           do ichar=1,nchar
              str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
