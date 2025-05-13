@@ -819,7 +819,7 @@ module quasiNewton_mod
               do i = 1, n
                 ps=ps+diag(i)*aux(i)*aux(i)
               end do
-              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps)
               d1=1.d0/ps
               if (impres.ge.5) then
                   write (io,934) d1
@@ -839,7 +839,7 @@ module quasiNewton_mod
               do i = 1, n
                 ps=ps+gg(i)*gg(i)/diag(i)
               end do
-              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps)
               den=ps
               !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
               do i = 1, n
@@ -859,7 +859,7 @@ module quasiNewton_mod
                   do i = 1, n
                       ps=ps+diag(i)
                     end do
-                  call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps)
                   ps=ps/ntotal
                   preco=ps
 !
@@ -867,7 +867,7 @@ module quasiNewton_mod
                   do i = 1, n
                     ps2=ps2+(diag(i)-ps)**2
                   end do
-                  call mmpi_allreduce_sumreal8scalar(ps2,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps2)
                   ps2=sqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3, &

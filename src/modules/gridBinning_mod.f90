@@ -302,7 +302,7 @@ contains
         call mmpi_allReduce(myBinCount, binCount, MPI_SUM)
         do binIndex = 1, gbi%numBins2d
           binMean(binIndex) = myBinSum(binIndex)
-          call mmpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
+          call mmpi_allreduce_sumreal8scalar(binMean(binIndex))
         end do
 
         do binIndex = 1, gbi%numBins2d

@@ -2676,9 +2676,9 @@ CONTAINS
           end do !latIndex
         end do ! stepIndex
       end do ! levIndex
-      call mmpi_allreduce_sumreal8scalar(sumeu,'grid')
-      call mmpi_allreduce_sumreal8scalar(sumev,'grid')
-      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumeu)
+      call mmpi_allreduce_sumreal8scalar(sumev)
+      call mmpi_allreduce_sumreal8scalar(sumScale)
       sumeu = sumeu/sumScale
       sumev = sumev/sumScale
 
@@ -2722,8 +2722,8 @@ CONTAINS
           end do
         end do ! stepIndex
       end do ! levIndex
-      call mmpi_allreduce_sumreal8scalar(sumet,'grid')
-      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumet)
+      call mmpi_allreduce_sumreal8scalar(sumScale)
       sumet = sumet/sumScale
       field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
     else
@@ -2764,8 +2764,8 @@ CONTAINS
           end do
         end do ! stepIndex
       end do ! latIndex
-      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
-      call mmpi_allreduce_sumreal8scalar(sumeq,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale)
+      call mmpi_allreduce_sumreal8scalar(sumeq)
       sumeq = sumeq/sumScale
       field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale
     else
@@ -2795,8 +2795,8 @@ CONTAINS
         end do ! latIndex
       end do ! stepIndex
 
-      call mmpi_allreduce_sumreal8scalar(sumep,'grid')
-      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumep)
+      call mmpi_allreduce_sumreal8scalar(sumScale)
       sumep = sumep/sumScale
       field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
     else
@@ -2822,7 +2822,7 @@ CONTAINS
           end do
         end do ! latIndex
       end do ! stepIndex
-      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale)
       field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale
     else
       field_TG(:,:,:,:) = field_TG(:,:,:,:)*0.0D0

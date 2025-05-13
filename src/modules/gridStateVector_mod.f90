@@ -5375,7 +5375,7 @@ module gridStateVector_mod
       end do
     end do
 
-    call mmpi_allreduce_sumreal8scalar(dotsum,'grid')
+    call mmpi_allreduce_sumreal8scalar(dotsum)
 
   end subroutine gsv_dotProduct
 

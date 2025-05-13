@@ -376,7 +376,7 @@ contains
     real(8), intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
 
     ! Locals:
-    integer :: nsize, ierr, root, rank
+    integer :: root
     real(8), allocatable :: allvalues(:)
 
     ! do a barrier so that timing on reduce operation is accurate
@@ -393,7 +393,7 @@ contains
     call mmpi_gather(sendRecvValue, allvalues, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if(rank.eq.root) sendRecvValue = sum(allvalues(:))
+    if( mmpi_myid == root ) sendRecvValue = sum(allvalues(:))
     deallocate(allvalues)
     call mmpi_bcast(sendRecvValue, procID_opt = root)
 

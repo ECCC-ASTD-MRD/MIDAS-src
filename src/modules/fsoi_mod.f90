@@ -500,13 +500,13 @@ module fsoi_mod
     end do
 
     do familyIndex = 1, numFamily
-      call mmpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(tfso(familyIndex))
       totFSO = totFSO + tfso(familyIndex)
       call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), MPI_SUM)
     end do
 
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex))
       call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), MPI_SUM)
     end do
 
@@ -593,7 +593,7 @@ module fsoi_mod
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call mmpi_allreduce_sumreal8scalar(Jb,'GRID')
+      call mmpi_allreduce_sumreal8scalar(Jb)
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
@@ -681,7 +681,7 @@ module fsoi_mod
       ddsc = ddsc + px(cvIndex)*py(cvIndex)
     end do
 
-    call mmpi_allreduce_sumreal8scalar(ddsc,'GRID')
+    call mmpi_allreduce_sumreal8scalar(ddsc)
 
   end subroutine prscal
 

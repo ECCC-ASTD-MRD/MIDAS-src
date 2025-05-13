@@ -1783,7 +1783,7 @@ contains
                weight(lonIndex,latIndex)
         end do
       end do
-      call mmpi_allreduce_sumreal8scalar(rmsvalue(varLevIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(rmsvalue(varLevIndex))
       rmsvalue(varLevIndex) = rmsvalue(varLevIndex)**0.5
     end do
 

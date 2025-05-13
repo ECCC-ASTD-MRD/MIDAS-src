@@ -600,7 +600,7 @@ CONTAINS
 
        ! Computation of background term of cost function:
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0
-       call mmpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
+       call mmpi_allreduce_sumreal8scalar(dl_Jb)
 
        if (oneDVarMode) then
          call bmat1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
@@ -760,7 +760,7 @@ CONTAINS
       ddsc = ddsc + px(j)*py(j)
     end do
 
-    call mmpi_allreduce_sumreal8scalar(ddsc,"GRID")
+    call mmpi_allreduce_sumreal8scalar(ddsc)
 
   end subroutine prscal
 
@@ -1108,7 +1108,7 @@ CONTAINS
   nl_indic = 2
   call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
-  call mmpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
+  call mmpi_allreduce_sumreal8scalar(dl_gnorm0)
   dl_start = 1.d0
   dl_end   = 10.0d0**(-na_range)
   write(*,FMT=9100) dl_start,dl_end, dl_j0, dl_gnorm0

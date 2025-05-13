@@ -244,24 +244,24 @@ contains
       end do
     end if
 
-    call mmpi_allreduce_sumreal8scalar( pjo, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosatwind, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosurfc, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoscat, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljotov, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoprof, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsztd, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljochm, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosst, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
-    call mmpi_allreduce_sumreal8scalar( dljoice, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
+    call mmpi_allreduce_sumreal8scalar(pjo)
+    call mmpi_allreduce_sumreal8scalar(dljoraob)
+    call mmpi_allreduce_sumreal8scalar(dljoairep)
+    call mmpi_allreduce_sumreal8scalar(dljosatwind)
+    call mmpi_allreduce_sumreal8scalar(dljosurfc)
+    call mmpi_allreduce_sumreal8scalar(dljoscat)
+    call mmpi_allreduce_sumreal8scalar(dljotov)
+    call mmpi_allreduce_sumreal8scalar(dljogpsro)
+    call mmpi_allreduce_sumreal8scalar(dljoprof)
+    call mmpi_allreduce_sumreal8scalar(dljogpsztd)
+    call mmpi_allreduce_sumreal8scalar(dljochm)
+    call mmpi_allreduce_sumreal8scalar(dljosst)
+    call mmpi_allreduce_sumreal8scalar(dljoaladin)
+    call mmpi_allreduce_sumreal8scalar(dljoice)
+    call mmpi_allreduce_sumreal8scalar(dljohydro)
+    call mmpi_allreduce_sumreal8scalar(dljoradar)
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
+      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex))
     end do
     if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
@@ -273,7 +273,7 @@ contains
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
+      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex))
       call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), mpi_sum)
     end do
 
