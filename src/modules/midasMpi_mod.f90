@@ -279,17 +279,17 @@ contains
     type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the MPI communicator
 
     ! Locals:
-    integer :: ierr, ierr2, nameLength
+    integer :: nameLength
     type(mpi_comm) :: communicator
     character(len=MPI_MAX_OBJECT_NAME) :: commName
 
     if (mmpi_doBarrier) then
       communicator = handleCommunicator(communicator_opt)
 
-      call mpi_barrier(communicator,ierr)
+      call mpi_barrier(communicator)
 
       if (ierr /= 0) then
-        call mpi_comm_get_name(communicator, commName, nameLength, ierr2)
+        call mpi_comm_get_name(communicator, commName, nameLength)
         call handleMpiError(ierr, 'mmpi_barrier for communicator ''' // commName // '''')
       end if
     end if
