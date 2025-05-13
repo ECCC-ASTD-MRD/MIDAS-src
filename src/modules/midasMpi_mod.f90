@@ -460,7 +460,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumR8_2d
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumR8_2d( sendRecvVector, comm )
+  subroutine mmpi_allreduce_sumR8_2d(sendRecvVector)
     !
     ! :Purpose: Perform sum of 2d array over all MPI tasks guaranteed
     !           to always be in the same order.
@@ -468,16 +468,15 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)         , intent(inout)  :: sendRecvVector(:,:) ! 2-D vector to be summed over all mpi tasks
-    character(len=*), intent(in)     :: comm                ! rpn_comm communicator
+    real(8), intent(inout)  :: sendRecvVector(:,:) ! 2-D vector to be summed over all mpi tasks
 
     ! Locals:
-    integer :: nprocs_mpi, numElements1, numElements2, ierr, root, rank
+    integer :: numElements1, numElements2, root
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call mmpi_barrier
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -485,24 +484,17 @@ contains
     numElements1 = size(sendRecvVector,1)
     numElements2 = size(sendRecvVector,2)
 
-    ! determine number of processors in the communicating group
-    call rpn_comm_size(comm,nprocs_mpi,ierr)
-
-    ! determine where to gather the values: first task in group
-    call rpn_comm_rank(comm,rank,ierr)
-    call rpn_comm_allreduce(rank,root,1,"mpi_integer","mpi_min",comm,ierr)
+    call mmpi_allreduce(mmpi_myid,root, MPI_MIN)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements1,numElements2,0:nprocs_mpi-1))
-    call rpn_comm_gather(sendRecvVector    , numElements1*numElements2, "mpi_double_precision", &
-                         all_sendRecvVector, numElements1*numElements2, "mpi_double_precision", &
-                         root, comm, ierr)
+    allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
+    call mmpi_gather(sendRecvVector, all_sendRecvVector)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if ( rank == root ) sendRecvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
+    if ( mmpi_myid == root ) sendRecvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
     deallocate(all_sendRecvVector)
-    call rpn_comm_bcast(sendRecvVector, numElements1*numElements2, "mpi_double_precision", &
-                        root, comm, ierr)
+
+    call mmpi_bcast(sendRecvVector)
 
     call utl_tmg_stop(170)
 

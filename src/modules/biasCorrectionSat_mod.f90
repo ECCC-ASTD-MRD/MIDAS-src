@@ -619,7 +619,7 @@ contains
       do iSensor = 1, tvs_nSensors
         temp_offset(:,:) = 0.0d0
         temp_offset(:,:) = temp_offset2(iSensor,:,:)
-        call mmpi_allreduce_sumR8_2d( temp_offset, "GRID" )
+        call mmpi_allreduce_sumR8_2d(temp_offset)
 
         do i = 1, bias(iSensor)%numChannels
           do j = 2, bias(iSensor)%chans(i)%numActivePredictors

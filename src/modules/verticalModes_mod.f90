@@ -195,8 +195,8 @@ contains
       end do ! Loop on Ensemble
 
       !- Communication
-      call mmpi_allreduce_sumR8_2d(vModes%allVar3d(var3dIndex)%autoCovariance, "GRID")
-      call mmpi_allreduce_sumR8_2d(sumWeight, "GRID")
+      call mmpi_allreduce_sumR8_2d(vModes%allVar3d(var3dIndex)%autoCovariance)
+      call mmpi_allreduce_sumR8_2d(sumWeight)
 
       !- Apply the appropriate scaling
       do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev

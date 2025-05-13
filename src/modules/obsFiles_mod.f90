@@ -776,7 +776,7 @@ contains
     character(len=*), intent(in) :: fileTypeList(:)
 
     ! Locals:
-    integer :: fileIndex, fileIndex2, procIndex, ierr
+    integer :: fileIndex, fileIndex2, procIndex
     character(len=maxLengthFilename), allocatable :: baseFileNameListAllMpi(:,:)
     character(len=familyTypeLen), allocatable :: familyTypeListAllMpi(:,:)
     character(len=fileTypeLen), allocatable :: fileTypeListAllMpi(:,:)

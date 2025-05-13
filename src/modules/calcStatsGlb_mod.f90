@@ -1609,7 +1609,7 @@ module calcStatsGlb_mod
     !
     !- Communicate between all tasks
     !
-    call mmpi_allreduce_sumR8_2d(powerSpec, "GRID")
+    call mmpi_allreduce_sumR8_2d(powerSpec)
 
     !
     !- Apply the appropriate scaling
@@ -3780,7 +3780,7 @@ module calcStatsGlb_mod
     !
     !- Communicate between all tasks
     !
-    call mmpi_allreduce_sumR8_2d(powerSpec, "GRID")
+    call mmpi_allreduce_sumR8_2d(powerSpec)
     call mmpi_allreduce_sumreal8scalar(sumWeight, "GRID")
 
     !
