@@ -690,9 +690,8 @@ contains
 
     field_8(1:ni,1:nj,:) = field_in(iBeg:iEnd,jBeg:jEnd,:)
 
-    call RPN_COMM_xch_halo_8(field_8,                & ! INOUT
-                             0,ni+1,0,nj+1,ni,nj,nk, & ! IN
-                             1,1,.true.,.true.,ni,0)   ! IN
+    call mmpi_xch_halo(field_8,    & ! INOUT
+                       ni, nj, nk)   ! IN
 
     field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:) = field_8(0:ni+1,0:nj+1,:)
     deallocate(field_8)

@@ -43,6 +43,7 @@ module midasMpi_mod
   public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
+  public :: mmpi_xch_halo !, mmpi_adj_halo
 
   ! module interfaces
   ! -----------------
@@ -2228,6 +2229,50 @@ contains
     call handleMpiError(ierr, 'mmpi_sendrecv_real8')
 
   end subroutine mmpi_sendrecv_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_xch_halo
+  !--------------------------------------------------------------------------
+  subroutine mmpi_xch_halo(field, ni, nj, nk)
+    !
+    !:Purpose: exchange a halo of 1 element with N/S/E/W neighbours
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout) :: field(:,:,:)
+    integer, intent(in)    :: ni ! first  dimension of the initial field
+    integer, intent(in)    :: nj ! second dimension of the initial field
+    integer, intent(in)    :: nk ! third  dimension of the initial field
+
+    ! Constants
+    integer, parameter :: halox = 1        ! Halo size in the first  dimension
+    integer, parameter :: haloy = 1        ! Halo size in the second dimension
+    logical, parameter :: periodx = .true. ! Is the domain periodic in the first  dimension
+    logical, parameter :: periody = .true. ! Is the domain periodic in the second dimension
+    integer, parameter :: npol_row = 0     ! A parameter that must be zero when calling 'RPN_COMM_adj_halo8'
+
+    ! Locals:
+    integer :: minx    ! Lowest  index of first dimension of 'field'
+    integer :: maxx    ! Highest index of first dimension of 'field'
+    integer :: miny    ! Lowest  index of second dimension of 'field'
+    integer :: maxy    ! Highest index of second dimension of 'field'
+    integer :: globNI  ! Size of the global domain in the first dimension
+
+    minx = 0
+    maxx = ni+1
+    miny = 0
+    maxy = nj+1
+    globNI = ni
+
+    call RPN_COMM_xch_halo_8(field,   & ! INOUT (all subsequent parameters are inputs only)
+                             minx,    maxx, miny, maxy, &
+                             ni,      nj,   nk,         &
+                             halox,   haloy,            &
+                             periodx, periody,          &
+                             globNI,  npol_row)
+
+  end subroutine mmpi_xch_halo
 
   !--------------------------------------------------------------------------
   ! handleCommunicator (private)
