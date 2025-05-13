@@ -333,7 +333,7 @@ module obsOperatorsChem_mod
 
     ! Allocation of oopc_efftemp done in oopc_setupCH instead of obsdata_add_data1d
     ! to ensure allocation is done for all processors, including those without associated data.
-    ! This is to ensure that rpn_comm_allgather will work in routine obsdata_MPIGather.
+    ! This is to ensure that 'mmpi_allgather will work in routine 'oss_obsdata_MPIallgather'.
 
     if (.not.associated(oopc_efftemp%data1d)) then
       call oss_obsdata_alloc(oopc_efftemp,oopc_obsdata_maxsize,dim1=1)

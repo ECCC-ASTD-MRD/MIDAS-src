@@ -2988,7 +2988,7 @@ contains
       !
       ! :Note: for the character data cstnid(:), this is converted to integers
       !       with IACHAR and back to characters with ACHAR, to facilitate this
-      !       gather through rpn_comm_allreduce
+      !       gather through 'mmpi_allreduce'
       !
       implicit none
 
@@ -3901,11 +3901,6 @@ contains
       !
       ! :Note: this subroutine is called before converting from mpiglobal to
       !        mpilocal
-      !
-      ! :Comments:  In principle this method could have obtained
-      !           my_mpi_id by use'ing the module, mpi.  However, it queries
-      !           rpn_comm for itself because the mpi module belongs to the
-      !           3dvar code, whereas the present module is shared code.
       !
       implicit none
 

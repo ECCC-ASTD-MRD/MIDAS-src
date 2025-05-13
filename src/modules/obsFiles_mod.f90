@@ -1016,7 +1016,7 @@ contains
 
       if (obsf_filesSplit()) then
         ! Must allocate obsdata so that it is available from ALL processors when
-        ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
+        ! requiring of 'mmpi_allgather' via 'oss_obsdata_MPIallgather'.
         if (ndim == 1) then
           call oss_obsdata_alloc(obsdata,1,dim1=nlev)
         else

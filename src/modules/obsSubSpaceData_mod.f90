@@ -562,19 +562,19 @@ contains
     !           code          identifying code based on (lat,long,date,hhmm) if not also stnid
     !           maxsize       max allowed size for obsdata
     !           dim1          value() dimension (optional)
-    !           obsdata       Updated obsdata 
-    ! 
+    !           obsdata       Updated obsdata
+    !
     ! :Comments:
     !
     !          - Retrieval of values from obsdata%data1d to be done via oss_obsdata_get_element (or oss_obsdata_get_array1d).
-    !          - If obsdata allocation is required for all processors (such as for use later with obsdata_MPIGather), 
-    !            allocation and/or initialization of arrays needs to be done at a corresponding appropriate location 
-    !            outside the obs operations such as in oss_setup to ensure allocation is done for all processors, 
-    !            including those without associated data. This is to ensure that rpn_comm_allgather will work 
-    !            in routine obsdata_MPIGather.
+    !          - If obsdata allocation is required for all processors (such as for use later with obsdata_MPIGather),
+    !            allocation and/or initialization of arrays needs to be done at a corresponding appropriate location
+    !            outside the obs operations such as in oss_setup to ensure allocation is done for all processors,
+    !            including those without associated data. This is to ensure that 'mmpi_allGather' will work
+    !            in routine 'oss_obsdata_MPIallgather'.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
     real(8)                 , intent(in)    :: val(:)
