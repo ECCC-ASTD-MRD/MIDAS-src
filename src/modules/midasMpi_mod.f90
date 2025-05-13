@@ -749,7 +749,11 @@ contains
       myLatEnd = nj
     end if
     latPerPE = myLatEnd - myLatBeg + 1
-    call rpn_comm_allreduce(latPerPE,latPerPEmax,1,'MPI_INTEGER','MPI_MAX','NS',ierr)
+
+    call mpi_allReduce(latPerPE,latPerPEmax,1, mpi_integer, mpi_max, &
+                       mmpi_comm_NS, ierr)
+
+    call handleMpiError(ierr, 'mmpi_setup_lonbands')
 
     if( firstCall ) then
       write(*,'(a,4i8)') 'mmpi_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
@@ -803,7 +807,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
     !
-    !:Purpose: Compute parameters that define the mpi distribution of
+    !:Purpose: Compute parameters that define the MPI distribution of
     !          longitudes over tasks in X direction (npex)
     !
     implicit none
@@ -828,7 +832,11 @@ contains
       myLonEnd = ni
     end if
     lonPerPE = myLonEnd - myLonBeg + 1
-    call rpn_comm_allreduce(lonPerPE,lonPerPEmax,1,'MPI_INTEGER','MPI_MAX','EW',ierr)
+
+    call mpi_allReduce(lonPerPE,lonPerPEmax,1, mpi_integer, mpi_max, &
+                       mmpi_comm_EW, ierr)
+
+    call handleMpiError(ierr, 'mmpi_setup_lonbands')
 
     if( firstCall ) then
       write(*,'(a,4i8)') 'mmpi_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
