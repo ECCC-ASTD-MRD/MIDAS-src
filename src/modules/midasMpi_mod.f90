@@ -153,25 +153,29 @@ contains
     implicit none
 
     ! Locals:
-    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
-    integer :: rpn_comm_mype
+    integer :: mythread, numthread
+    integer :: omp_get_thread_num, omp_get_num_threads
     integer :: ierr, numNodeMasters
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 
-    ! Namelist variables
-    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
-    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+    ! read MPI topology in namelist 'ptopo_nml'
+    ! will initialize 'mmpi_npex', 'mmpi_npey' and 'mmpi_nprocs'
+    call mmpi_getptopo
 
     ! Initialize MPI
-    npex=0
-    npey=0
-    call rpn_comm_init(mmpi_getptopo,mmpi_myid,mmpi_nprocs,npex,npey)
+    call mpi_init(ierr)
+    call handleMpiError(ierr, 'Error when calling MPI_INIT in ''mmpi_initialize''')
 
-    ! this is a special mpi communicator (not rpn_comm) for using shared memory arrays
+    ! get rank as 'mmpi_myid'
+    call mpi_comm_rank(mpi_comm_world, mmpi_myid, ierr)
+    call handleMpiError(ierr, 'Error when calling MPI_COMM_RANK for global communicator in ''mmpi_initialize''')
+
+    ! this is a special mpi communicator for using shared memory arrays
     call mpi_comm_split_type(mpi_comm_world, mpi_comm_type_shared, 0,  &
-                             mpi_info_null, mmpi_mpicomm_SHARED,ierr)
+                             mpi_info_null,  mmpi_mpicomm_SHARED,  ierr)
+    call handleMpiError(ierr, 'Error when calling MPI_COMM_SPLIT_TYPE for shared communicator in ''mmpi_initialize''')
 
     if(mmpi_nprocs.lt.1) then
       mmpi_nprocs=1
@@ -182,32 +186,32 @@ contains
       mmpi_myidx=0
       mmpi_myidy=0
     else
-      ierr = rpn_comm_mype(mmpi_myid,mmpi_myidx,mmpi_myidy)
-      mmpi_npex=npex
-      mmpi_npey=npey
+      mmpi_myidx = mod(mmpi_myid,mmpi_npex)
+      mmpi_myidy = (mmpi_myid-mmpi_myidx)/mmpi_npey
       call mpi_comm_rank(mmpi_mpicomm_shared, mmpi_myidHost, ierr)
+      call handleMpiError(ierr, 'Error when calling MPI_COMM_RANK for shared communicator in ''mmpi_initialize''')
     endif
 
     write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost = ', &
                                  mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost
 
-    ! create standard mpi handles to rpn_comm mpi communicators to facilitate
-    ! use of standard mpi routines
+    ! create some MPI communicators to facilitate
+
     ! mmpi_comm_GRID = rpn_comm_comm(mmpi_rpn_comm_grid)
     ! Since, we are only considering a single grid, we can assume here that
     mmpi_comm_GRID = mpi_comm_world
-    ! mmpi_comm_EW  = rpn_comm_comm('EW')
+
+    ! Initiliazing the 'EW' communicator, with RPN_COMM, it used to be the command
+    !       mmpi_comm_EW  = rpn_comm_comm('EW')
     mmpi_comm_EW = mpi_comm_null
     call mpi_comm_split(mmpi_comm_GRID, mmpi_myidy+1, mmpi_myidx+1, mmpi_comm_EW, ierr)
     call handleMpiError(ierr, 'Error when calling  MPI_COMM_SPLIT for ''EW'' communicator in ''mmpi_initialize''')
 
-    ! mmpi_comm_NS = rpn_comm_comm('NS')
+    ! Initiliazing the 'NS' communicator, with RPN_COMM, it used to be the command
+    !        mmpi_comm_NS = rpn_comm_comm('NS')
     mmpi_comm_NS = mpi_comm_null
     call mpi_comm_split(mmpi_comm_GRID, mmpi_myidx+1, mmpi_myidy+1, mmpi_comm_NS, ierr)
     call handleMpiError(ierr, 'Error when calling  MPI_COMM_SPLIT for ''NS'' communicator in ''mmpi_initialize''')
-
-    !call mpi_comm_split(pe_multi_grid, my_color, pe_me_multi_grid, mmpi_comm_GRID, ierr)
-    !call handleError(ierr)
 
     ! Determine list of node masters (i.e. first task on each node)
     allocate(allMyidHost(mmpi_nprocs))
@@ -260,7 +264,7 @@ contains
     ! Locals:
     integer :: ierr
 
-    call rpn_comm_finalize(ierr)
+    call mpi_finalize(ierr)
 
     call handleMpiError(ierr, 'mmpi_finalize')
 
@@ -279,14 +283,14 @@ contains
     type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the MPI communicator
 
     ! Locals:
-    integer :: nameLength
+    integer :: ierr, nameLength
     type(mpi_comm) :: communicator
     character(len=MPI_MAX_OBJECT_NAME) :: commName
 
     if (mmpi_doBarrier) then
       communicator = handleCommunicator(communicator_opt)
 
-      call mpi_barrier(communicator)
+      call mpi_barrier(communicator, ierr)
 
       if (ierr /= 0) then
         call mpi_comm_get_name(communicator, commName, nameLength)
@@ -331,34 +335,43 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_getptopo
   !--------------------------------------------------------------------------
-  subroutine mmpi_getptopo( npex, npey )
+  subroutine mmpi_getptopo
     !
-    !:Purpose: Subroutine called by the rpn_comm MPI initializing
-    !          subroutine rpn_comm_init.
+    !:Purpose: Read the file 'ptopo_nml' to get the value of 'npex'
+    !          and 'npey' in 'PTOPO' namelist
     !
     implicit none
 
-    ! Arguments:
-    integer, intent(out) :: npex
-    integer, intent(out) :: npey
-
     ! Locals:
     integer :: ierr
-    integer :: nulnam,fnom,fclos
-    namelist /ptopo/npex,npey
+    integer :: nulnam, fnom, fclos
+
+    ! Namelist variables
+    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+    namelist /ptopo/ npex, npey
 
     npex=1
     npey=1
 
     call utl_tmg_start(181,'low-level--readNML')
+
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
+
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
     read(nulnam,nml=ptopo,iostat=ierr)
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
+
     write(*,nml=ptopo)
+
     ierr=fclos(nulnam)
+
     call utl_tmg_stop(181)
+
+    mmpi_npex   = npex
+    mmpi_npey   = npey
+    mmpi_nprocs = npex*npey
 
   end subroutine mmpi_getptopo
 
