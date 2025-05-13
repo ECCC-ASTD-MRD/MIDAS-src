@@ -1081,8 +1081,8 @@ contains
       allocate( stdMpiGlobal(nchans,nscan) )
       allocate( countMpiGlobal(nchans,nscan) )
 
-      call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
-      call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d(tbias, biasMpiGlobal)
+      call mmpi_reduce_sumR8_2d(tstd,  stdMpiGlobal)
       call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
@@ -1205,8 +1205,8 @@ contains
       allocate(stdMpiGlobal(nchans,nfiles))
       allocate(countMpiGlobal(nchans,nfiles))
 
-      call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
-      call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d(tbias, biasMpiGlobal)
+      call mmpi_reduce_sumR8_2d(tstd,  stdMpiGlobal)
       call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
@@ -2924,7 +2924,7 @@ contains
       allocate(omfCountMpiGlobal(nchans,nscan))
 
       if (mimicSatbcor) then
-        call mmpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+        call mmpi_reduce_sumR8_2d(OmFBias, omfBiasMpiGlobal)
       end if
       call mmpi_reduce(OmFCount, omfCountMpiGlobal, MPI_SUM)
 
@@ -3016,7 +3016,7 @@ contains
 
       ! communication MPI pour tout avoir sur tache 0
       call mmpi_reduce_sumR8_3d(matrix, matrixMpiGlobal)
-      call mmpi_reduce_sumR8_2d( Vector, vectorMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d(vector, vectorMpiGlobal)
 
       do iChannel = 1, nchans
 
@@ -3162,7 +3162,7 @@ contains
       allocate(predBiasMpiGlobal(nchans,numPredictors))
 
       call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
-      call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal)
       call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
 
       if (mmpi_myId == 0) then
