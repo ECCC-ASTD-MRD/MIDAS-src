@@ -3414,8 +3414,8 @@ contains
     !
     ! :Purpose: check out if the input character variable exists in the input array
     !
-    character(len=*), intent(in) :: invar
-    character(len=*), intent(in) :: inarr(:)
+    character(len=*), intent(in) :: invar     ! the input character variable
+    character(len=*), intent(in) :: inarr(:)  ! the input array
     ! Result:
     logical :: exists
     
