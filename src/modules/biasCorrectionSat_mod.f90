@@ -3015,7 +3015,7 @@ contains
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call mmpi_reduce_sumR8_3d( Matrix, matrixMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_3d(matrix, matrixMpiGlobal)
       call mmpi_reduce_sumR8_2d( Vector, vectorMpiGlobal, 0, "GRID" )
 
       do iChannel = 1, nchans
@@ -3224,7 +3224,7 @@ contains
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call mmpi_reduce_sumR8_3d(matrix, matrixMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_3d(matrix, matrixMpiGlobal)
       deallocate(matrix)
       deallocate(OmFBiasMpiGLobal)
       deallocate(predBiasMpiGLobal)
