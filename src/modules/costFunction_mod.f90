@@ -267,7 +267,7 @@ contains
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
+        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex))
       end do loopSensor2
     end if
 
