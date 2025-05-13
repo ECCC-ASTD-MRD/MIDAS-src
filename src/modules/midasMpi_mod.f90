@@ -271,12 +271,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine mmpi_barrier(communicator_opt)
     !
-    !:Purpose: Execute 'rpn_comm_barrier' while catching any error that may be raised.
+    !:Purpose: Execute 'mpi_barrier' while catching any error that may be raised.
     !
     implicit none
 
     ! Arguments:
-    type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the RPN_COMM MPI communicator
+    type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the MPI communicator
 
     ! Locals:
     integer :: ierr, ierr2, nameLength
@@ -2339,7 +2339,7 @@ contains
 
     ! Arguments:
     type(*),           intent(in) :: inputData(..) ! input array (rank and size will be used to find the length)
-    type(mpi_comm),    intent(in) :: communicator  ! string identifying the RPN_COMM MPI communicator
+    type(mpi_comm),    intent(in) :: communicator  ! string identifying the MPI communicator
     integer, optional, intent(in) :: length_opt    ! optional length
     ! Result:
     integer :: length ! length if 'length_opt' is not provided
@@ -2355,7 +2355,7 @@ contains
       ! store the data for each MPI rank.
 
       ! The input array is of the form 'inputData(..,mmpi_{nprocs,npex,npey})'
-      ! and the size expected by 'rpn_comm_alltoall' does not include
+      ! and the size expected by 'mpi_alltoall' does not include
       ! the last dimension.
       if ( communicator == mmpi_comm_GRID ) then
         length = length/mmpi_nprocs
@@ -2381,7 +2381,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: errCode ! error code from MPI or RPN_COMM routine
+    integer,          intent(in) :: errCode ! error code from MPI routine
     character(len=*), intent(in) :: context ! string containing the context if an error is raised
 
     ! Locals:
