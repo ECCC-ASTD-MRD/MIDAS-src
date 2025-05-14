@@ -180,7 +180,7 @@ contains
     ! 'lamAnalysisGridTransforms_mod'.
     npex=0
     npey=0
-    call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, npex, npey)
+    call rpn_comm_init(mmpi_getptopo2, mmpi_myid, mmpi_nprocs, npex, npey)
     !call handleMpiError(ierr, 'Error when calling RPN_COMM_INIT in ''mmpi_initialize''')
 
     ! get rank as 'mmpi_myid'
@@ -400,8 +400,8 @@ contains
     implicit none
 
     ! Arguments
-    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
-    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+    integer, intent(out) :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer, intent(out) :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
     ! Locals:
     integer :: ierr
@@ -410,7 +410,7 @@ contains
     ! Namelist variables
     namelist /ptopo/ npex, npey
 
-    write(*,*) 'Ervig:  mmpi_getptopo: starting...'
+    write(*,*) 'Ervig:  mmpi_getptopo2: starting...'
     npex=1
     npey=1
 
@@ -428,7 +428,7 @@ contains
     ierr=fclos(nulnam)
 
     call utl_tmg_stop(181)
-    write(*,*) 'Ervig:  mmpi_getptopo: ended'
+    write(*,*) 'Ervig:  mmpi_getptopo2: ended'
     !call flush(6)
 
   end subroutine mmpi_getptopo2
