@@ -159,13 +159,10 @@ contains
     integer :: omp_get_thread_num, omp_get_num_threads
     integer :: rpn_comm_mype
     integer :: ierr, numNodeMasters
+    integer :: npex, npey
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
-
-    ! Namelist variables
-    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
-    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
     ! read MPI topology in namelist 'ptopo_nml'
     ! will initialize 'mmpi_npex', 'mmpi_npey' and 'mmpi_nprocs'
@@ -180,8 +177,7 @@ contains
     ! 'lamAnalysisGridTransforms_mod'.
     npex=0
     npey=0
-    call rpn_comm_init(mmpi_getptopo2, mmpi_myid, mmpi_nprocs, npex, npey)
-    !call handleMpiError(ierr, 'Error when calling RPN_COMM_INIT in ''mmpi_initialize''')
+    call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, npex, npey)
 
     ! get rank as 'mmpi_myid'
     call mpi_comm_rank(mpi_comm_world, mmpi_myid, ierr)
@@ -358,41 +354,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_getptopo
   !--------------------------------------------------------------------------
-  subroutine mmpi_getptopo( npex, npey )
-    !
-    !:Purpose: Subroutine called by the rpn_comm MPI initializing
-    !          subroutine rpn_comm_init.
-    !
-    implicit none
-
-    ! Arguments:
-    integer, intent(out) :: npex
-    integer, intent(out) :: npey
-
-    ! Locals:
-    integer :: ierr
-    integer :: nulnam,fnom,fclos
-    namelist /ptopo/npex,npey
-
-    npex=1
-    npey=1
-
-    call utl_tmg_start(181,'low-level--readNML')
-    nulnam=0
-    ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
-    read(nulnam,nml=ptopo,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
-    write(*,nml=ptopo)
-    ierr=fclos(nulnam)
-    call utl_tmg_stop(181)
-
-  end subroutine mmpi_getptopo
-
-  !--------------------------------------------------------------------------
-  ! mmpi_getptopo
-  !--------------------------------------------------------------------------
-  subroutine mmpi_getptopo2(npex, npey)
+  subroutine mmpi_getptopo(npex, npey)
     !
     !:Purpose: Read the file 'ptopo_nml' to get the value of 'npex'
     !          and 'npey' in 'PTOPO' namelist
@@ -410,7 +372,6 @@ contains
     ! Namelist variables
     namelist /ptopo/ npex, npey
 
-    write(*,*) 'Ervig:  mmpi_getptopo2: starting...'
     npex=1
     npey=1
 
@@ -428,10 +389,8 @@ contains
     ierr=fclos(nulnam)
 
     call utl_tmg_stop(181)
-    write(*,*) 'Ervig:  mmpi_getptopo2: ended'
-    !call flush(6)
 
-  end subroutine mmpi_getptopo2
+  end subroutine mmpi_getptopo
 
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
