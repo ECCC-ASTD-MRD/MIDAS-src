@@ -163,9 +163,13 @@ contains
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 
+    ! Namelist variables
+    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+
     ! read MPI topology in namelist 'ptopo_nml'
     ! will initialize 'mmpi_npex', 'mmpi_npey' and 'mmpi_nprocs'
-    call mmpi_getptopo
+    !call mmpi_getptopo
 
     ! Initialize MPI
     !call mpi_init(ierr)
@@ -174,8 +178,10 @@ contains
     ! We need to call 'rpn_comm_init' because there is a call to
     ! 'RPN_COMM_xch_halo_8' and 'RPN_COMM_adj_halo8' in
     ! 'lamAnalysisGridTransforms_mod'.
-    call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, mmpi_npex, mmpi_npey)
-    call handleMpiError(ierr, 'Error when calling RPN_COMM_INIT in ''mmpi_initialize''')
+    npex=0
+    npey=0
+    call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, npex, npey)
+    !call handleMpiError(ierr, 'Error when calling RPN_COMM_INIT in ''mmpi_initialize''')
 
     ! get rank as 'mmpi_myid'
     call mpi_comm_rank(mpi_comm_world, mmpi_myid, ierr)
@@ -195,6 +201,9 @@ contains
       mmpi_myidx=0
       mmpi_myidy=0
     else
+      mmpi_npex = npex
+      mmpi_npey = npey
+
       !mmpi_myidx = mod(mmpi_myid,mmpi_npex)
       !mmpi_myidy = (mmpi_myid-mmpi_myidx)/mmpi_npey
       ierr = rpn_comm_mype(mmpi_myid,mmpi_myidx,mmpi_myidy) ! this routine always return success
@@ -349,22 +358,59 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_getptopo
   !--------------------------------------------------------------------------
-  subroutine mmpi_getptopo
+  subroutine mmpi_getptopo( npex, npey )
+    !
+    !:Purpose: Subroutine called by the rpn_comm MPI initializing
+    !          subroutine rpn_comm_init.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(out) :: npex
+    integer, intent(out) :: npey
+
+    ! Locals:
+    integer :: ierr
+    integer :: nulnam,fnom,fclos
+    namelist /ptopo/npex,npey
+
+    npex=1
+    npey=1
+
+    call utl_tmg_start(181,'low-level--readNML')
+    nulnam=0
+    ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
+    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
+    read(nulnam,nml=ptopo,iostat=ierr)
+    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
+    write(*,nml=ptopo)
+    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
+
+  end subroutine mmpi_getptopo
+
+  !--------------------------------------------------------------------------
+  ! mmpi_getptopo
+  !--------------------------------------------------------------------------
+  subroutine mmpi_getptopo2(npex, npey)
     !
     !:Purpose: Read the file 'ptopo_nml' to get the value of 'npex'
     !          and 'npey' in 'PTOPO' namelist
     !
     implicit none
 
+    ! Arguments
+    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+
     ! Locals:
     integer :: ierr
     integer :: nulnam, fnom, fclos
 
     ! Namelist variables
-    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
-    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
     namelist /ptopo/ npex, npey
 
+    write(*,*) 'Ervig:  mmpi_getptopo: starting...'
     npex=1
     npey=1
 
@@ -382,12 +428,10 @@ contains
     ierr=fclos(nulnam)
 
     call utl_tmg_stop(181)
+    write(*,*) 'Ervig:  mmpi_getptopo: ended'
+    !call flush(6)
 
-    mmpi_npex   = npex
-    mmpi_npey   = npey
-    mmpi_nprocs = npex*npey
-
-  end subroutine mmpi_getptopo
+  end subroutine mmpi_getptopo2
 
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
