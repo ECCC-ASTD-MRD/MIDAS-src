@@ -5,7 +5,8 @@
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
-   HLOCALIZE                = 2000.0D0
+   hLinearLoc               = .true.
+   HLOCALIZE                = 2500.0D0, 2000.0D0, 1800.0D0, 1500.0D0
    VLOCALIZE                = 2.0D0
    modifyAmsubObsError      = .false.
    backgroundCheck          = .false.

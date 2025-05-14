@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added piecewise linear interpolation of the letkf horizontal localization radius (#1024 and !978)
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
  * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
    * Small impacts on results when using `gsv_smoothHorizontal`
