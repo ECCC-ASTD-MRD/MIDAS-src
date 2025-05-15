@@ -472,7 +472,7 @@ contains
         numRecv = numRecv + 1
         weightsRecvCombined(:,:,latLonIndex) = -999.8d0
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
-                        nsize, mpi_real8, mpi_any_source, recvTag,  &
+                        nsize, mmpi_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv))
       end do
       call utl_tmg_stop(148)
@@ -681,7 +681,7 @@ contains
               call utl_abort('numSend larger than allowed limit')
             end if
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
-                            nsize, mpi_real8, procIndexSend-1, sendTag,  &
+                            nsize, mmpi_real8, procIndexSend-1, sendTag,  &
                             mmpi_comm_grid, requestIdSend(numSend), ierr )
           end do
           call utl_tmg_stop(149)

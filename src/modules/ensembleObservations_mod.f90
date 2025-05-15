@@ -697,7 +697,7 @@ CONTAINS
       allocate(requestId(size(mmpi_nodeMasters)-1))
       do procIndex = 2, size(mmpi_nodeMasters)
         call mpi_isend(ensObs_mpiglobal%Yb_r4(:,:),  &
-                       nsize, mpi_real4, mmpi_nodeMasters(procIndex), 1,  &
+                       nsize, mmpi_real4, mmpi_nodeMasters(procIndex), 1,  &
                        mmpi_comm_grid, requestId(procIndex-1), ierr)
       end do
       if (size(mmpi_nodeMasters) > 1) then
@@ -706,7 +706,7 @@ CONTAINS
       if (associated(ensObs_mpiglobal%Ya_r4)) then
         do procIndex = 2, size(mmpi_nodeMasters)
           call mpi_isend(ensObs_mpiglobal%Ya_r4(:,:),  &
-                         nsize, mpi_real4, mmpi_nodeMasters(procIndex), 2,  &
+                         nsize, mmpi_real4, mmpi_nodeMasters(procIndex), 2,  &
                          mmpi_comm_grid, requestId(procIndex-1), ierr)
         end do
         if (size(mmpi_nodeMasters) > 1) then
@@ -716,7 +716,7 @@ CONTAINS
       if (associated(ensObs_mpiglobal%randPert_r4)) then
         do procIndex = 2, size(mmpi_nodeMasters)
           call mpi_isend(ensObs_mpiglobal%randPert_r4(:,:),  &
-                         nsize, mpi_real4, mmpi_nodeMasters(procIndex), 3,  &
+                         nsize, mmpi_real4, mmpi_nodeMasters(procIndex), 3,  &
                          mmpi_comm_grid, requestId(procIndex-1), ierr)
         end do
         if (size(mmpi_nodeMasters) > 1) then
@@ -726,16 +726,16 @@ CONTAINS
     else if(mmpi_myidHost == 0) then
       write(*,*) 'eob_allGather: I am a nodeMaster, receive data for shared array'
       call mpi_recv(ensObs_mpiglobal%Yb_r4(:,:),  &
-                    nsize, mpi_real4, MPI_ANY_SOURCE, 1,  &
+                    nsize, mmpi_real4, MPI_ANY_SOURCE, 1,  &
                     mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       if (associated(ensObs_mpiglobal%Ya_r4)) then
         call mpi_recv(ensObs_mpiglobal%Ya_r4(:,:),  &
-                      nsize, mpi_real4, MPI_ANY_SOURCE, 2,  &
+                      nsize, mmpi_real4, MPI_ANY_SOURCE, 2,  &
                       mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       end if
       if (associated(ensObs_mpiglobal%randPert_r4)) then
         call mpi_recv(ensObs_mpiglobal%randPert_r4(:,:),  &
-                      nsize, mpi_real4, MPI_ANY_SOURCE, 3,  &
+                      nsize, mmpi_real4, MPI_ANY_SOURCE, 3,  &
                       mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       end if
     else

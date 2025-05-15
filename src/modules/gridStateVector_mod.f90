@@ -3742,22 +3742,22 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (outKind == 8) then
               call mpi_irecv(statevector_out%gdUV(varLevIndexUU)%r8(:, :, stepIndex),  &
-                             nsize, mpi_real8, MpiIdVV, mpiTagVV,  &
+                             nsize, mmpi_real8, MpiIdVV, mpiTagVV,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(statevector_out%gdUV(varLevIndexUU)%r4(:, :, stepIndex),  &
-                             nsize, mpi_real4, MpiIdVV, mpiTagVV,  &
+                             nsize, mmpi_real4, MpiIdVV, mpiTagVV,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (outKind == 8) then
               call mpi_isend(statevector_out%gd_r8(:, :, varLevIndexUU, stepIndex),  &
-                             nsize, mpi_real8, MpiIdVV, mpiTagUU,  &
+                             nsize, mmpi_real8, MpiIdVV, mpiTagUU,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             else
               call mpi_isend(statevector_out%gd_r4(:, :, varLevIndexUU, stepIndex),  &
-                             nsize, mpi_real4, MpiIdVV, mpiTagUU,  &
+                             nsize, mmpi_real4, MpiIdVV, mpiTagUU,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             end if
 
@@ -3766,22 +3766,22 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (outKind == 8) then
               call mpi_irecv(statevector_out%gdUV(varLevIndexVV)%r8(:, :, stepIndex),  &
-                             nsize, mpi_real8, MpiIdUU, mpiTagUU,  &
+                             nsize, mmpi_real8, MpiIdUU, mpiTagUU,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(statevector_out%gdUV(varLevIndexVV)%r4(:, :, stepIndex),  &
-                             nsize, mpi_real4, MpiIdUU, mpiTagUU,  &
+                             nsize, mmpi_real4, MpiIdUU, mpiTagUU,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
             numSend = numSend + 1
             if (outKind == 8) then
               call mpi_isend(statevector_out%gd_r8(:, :, varLevIndexVV, stepIndex),  &
-                             nsize, mpi_real8, MpiIdUU, mpiTagVV,  &
+                             nsize, mmpi_real8, MpiIdUU, mpiTagVV,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             else
               call mpi_isend(statevector_out%gd_r4(:, :, varLevIndexVV, stepIndex),  &
-                             nsize, mpi_real4, MpiIdUU, mpiTagVV,  &
+                             nsize, mmpi_real4, MpiIdUU, mpiTagVV,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             end if
 
@@ -3952,11 +3952,11 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (sendrecvKind == 4) then
               call mpi_irecv(gd_r4(:, :, varLevIndexUU),  &
-                             nsize, mpi_real4, MpiIdVV, mpiTagVV,  &
+                             nsize, mmpi_real4, MpiIdVV, mpiTagVV,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(gd_r8(:, :, varLevIndexUU),  &
-                             nsize, mpi_real8, MpiIdVV, mpiTagVV,  &
+                             nsize, mmpi_real8, MpiIdVV, mpiTagVV,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
@@ -3964,12 +3964,12 @@ module gridStateVector_mod
             if (sendrecvKind == 4) then
               gdUV_r4(:, :, varLevIndexUU) = statevector_in%gdUV(varLevIndexUU)%r4(:, :, stepIndex)
               call mpi_isend(gdUV_r4(:, :, varLevIndexUU),  &
-                             nsize, mpi_real4, MpiIdVV, mpiTagUU,  &
+                             nsize, mmpi_real4, MpiIdVV, mpiTagUU,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             else
               gdUV_r8(:, :, varLevIndexUU) = statevector_in%gdUV(varLevIndexUU)%r8(:, :, stepIndex)
               call mpi_isend(gdUV_r8(:, :, varLevIndexUU),  &
-                             nsize, mpi_real8, MpiIdVV, mpiTagUU,  &
+                             nsize, mmpi_real8, MpiIdVV, mpiTagUU,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             end if
 
@@ -3978,11 +3978,11 @@ module gridStateVector_mod
             numRecv = numRecv + 1
             if (sendrecvKind == 4) then
               call mpi_irecv(gd_r4(:, :, varLevIndexVV),  &
-                             nsize, mpi_real4, MpiIdUU, mpiTagUU,  &
+                             nsize, mmpi_real4, MpiIdUU, mpiTagUU,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             else
               call mpi_irecv(gd_r8(:, :, varLevIndexVV),  &
-                             nsize, mpi_real8, MpiIdUU, mpiTagUU,  &
+                             nsize, mmpi_real8, MpiIdUU, mpiTagUU,  &
                              mmpi_comm_grid, requestIdRecv(numRecv))
             end if
 
@@ -3990,12 +3990,12 @@ module gridStateVector_mod
             if (sendrecvKind == 4) then
               gdUV_r4(:, :, varLevIndexVV) = statevector_in%gdUV(varLevIndexVV)%r4(:, :, stepIndex)
               call mpi_isend(gdUV_r4(:, :, varLevIndexVV),  &
-                             nsize, mpi_real4, MpiIdUU, mpiTagVV,  &
+                             nsize, mmpi_real4, MpiIdUU, mpiTagVV,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             else
               gdUV_r8(:, :, varLevIndexVV) = statevector_in%gdUV(varLevIndexVV)%r8(:, :, stepIndex)
               call mpi_isend(gdUV_r8(:, :, varLevIndexVV),  &
-                             nsize, mpi_real8, MpiIdUU, mpiTagVV,  &
+                             nsize, mmpi_real8, MpiIdUU, mpiTagVV,  &
                              mmpi_comm_grid, requestIdSend(numSend))
             end if
 

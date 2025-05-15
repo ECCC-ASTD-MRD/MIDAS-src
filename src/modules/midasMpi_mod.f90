@@ -39,7 +39,7 @@ module midasMpi_mod
   type(mpi_datatype), public, parameter :: mmpi_integer8 = MPI_INTEGER8
   type(mpi_datatype), public, parameter :: mmpi_real4    = MPI_REAL4
   type(mpi_datatype), public, parameter :: mmpi_real8    = MPI_REAL8
-  ! Mpi operations
+  ! MPI operations
   type(mpi_op), public, parameter :: mmpi_sum  = MPI_SUM
   type(mpi_op), public, parameter :: mmpi_max  = MPI_MAX
   type(mpi_op), public, parameter :: mmpi_min  = MPI_MIN
@@ -244,8 +244,8 @@ contains
 
     ! Determine list of node masters (i.e. first task on each node)
     allocate(allMyidHost(mmpi_nprocs))
-    call mpi_allgather(mmpi_myidHost, 1, mpi_integer, &
-                       allMyidHost,   1, mpi_integer, mmpi_comm_GRID, ierr)
+    call mpi_allgather(mmpi_myidHost, 1, mmpi_integer, &
+                       allMyidHost,   1, mmpi_integer, mmpi_comm_GRID, ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
     allocate(mmpi_nodeMasters(numNodeMasters))
     mmpi_nodeMasters = utl_findlocs(allMyidHost,0) - 1
@@ -691,8 +691,8 @@ contains
     end do
 
     ! Perform allgather with converted integer sequences
-    call mpi_allgather(num_list,     nlist*nchar, MPI_INTEGER, &
-                       num_list_all, nlist*nchar, MPI_INTEGER, mmpi_comm_GRID, ierr)
+    call mpi_allgather(num_list,     nlist*nchar, mmpi_integer, &
+                       num_list_all, nlist*nchar, mmpi_integer, mmpi_comm_GRID, ierr)
     call handleMpiError(ierr, 'mmpi_allgather_string')
 
     ! Convert integer sequences to stnid character strings
@@ -740,7 +740,7 @@ contains
     end if
     latPerPE = myLatEnd - myLatBeg + 1
 
-    call mpi_allReduce(latPerPE,latPerPEmax,1, mpi_integer, mpi_max, &
+    call mpi_allReduce(latPerPE, latPerPEmax, 1, mmpi_integer, mpi_max, &
                        mmpi_comm_NS, ierr)
 
     call handleMpiError(ierr, 'mmpi_setup_lonbands')
@@ -823,7 +823,7 @@ contains
     end if
     lonPerPE = myLonEnd - myLonBeg + 1
 
-    call mpi_allReduce(lonPerPE,lonPerPEmax,1, mpi_integer, mpi_max, &
+    call mpi_allReduce(lonPerPE, lonPerPEmax, 1, mmpi_integer, mpi_max, &
                        mmpi_comm_EW, ierr)
 
     call handleMpiError(ierr, 'mmpi_setup_lonbands')
@@ -1072,7 +1072,7 @@ contains
     length = handleLength(logicalData, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_bcast(logicalData, length, MPI_LOGICAL, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(logicalData, length, mmpi_logical, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_logical')
 
@@ -1099,7 +1099,7 @@ contains
     length = handleLength(integerData, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_bcast(integerData, length, MPI_INTEGER, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(integerData, length, mmpi_integer, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_integer')
 
@@ -1126,7 +1126,7 @@ contains
     length = handleLength(real4Data, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_bcast(real4Data, length, MPI_REAL4, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(real4Data, length, mmpi_real4, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_real4')
 
@@ -1153,7 +1153,7 @@ contains
     length = handleLength(real8Data, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_bcast(real8Data, length, MPI_REAL8, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(real8Data, length, mmpi_real8, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_real8')
 
@@ -1181,8 +1181,8 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_gather(sending,   length, mpi_logical, &
-                    receiving, length, mpi_logical, procID, mmpi_comm_GRID, ierr)
+    call mpi_gather(sending,   length, mmpi_logical, &
+                    receiving, length, mmpi_logical, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_gather_logical')
 
@@ -1210,8 +1210,8 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_gather(sending,   length, mpi_integer, &
-                    receiving, length, mpi_integer, procID, mmpi_comm_GRID, ierr)
+    call mpi_gather(sending,   length, mmpi_integer, &
+                    receiving, length, mmpi_integer, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_gather_integer')
 
@@ -1239,8 +1239,8 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_gather(sending,   length, mpi_integer8, &
-                    receiving, length, mpi_integer8, procID, mmpi_comm_GRID, ierr)
+    call mpi_gather(sending,   length, mmpi_integer8, &
+                    receiving, length, mmpi_integer8, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_gather_integer8')
 
@@ -1268,8 +1268,8 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_gather(sending,   length, mpi_real4, &
-                    receiving, length, mpi_real4, procID, mmpi_comm_GRID, ierr)
+    call mpi_gather(sending,   length, mmpi_real4, &
+                    receiving, length, mmpi_real4, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_gather_real4')
 
@@ -1297,8 +1297,8 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_gather(sending,   length, mpi_real8, &
-                    receiving, length, mpi_real8, procID, mmpi_comm_GRID, ierr)
+    call mpi_gather(sending,   length, mmpi_real8, &
+                    receiving, length, mmpi_real8, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_gather_real8')
 
@@ -1326,8 +1326,8 @@ contains
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_allGather(sending,   length, mpi_logical,  &
-                       receiving, length, mpi_logical, communicator, ierr)
+    call mpi_allGather(sending,   length, mmpi_logical,  &
+                       receiving, length, mmpi_logical, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
@@ -1355,8 +1355,8 @@ contains
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_allGather(sending,   length, mpi_integer,  &
-                       receiving, length, mpi_integer, communicator, ierr)
+    call mpi_allGather(sending,   length, mmpi_integer,  &
+                       receiving, length, mmpi_integer, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_integer')
 
@@ -1384,8 +1384,8 @@ contains
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_allGather(sending,   length, mpi_real4,  &
-                       receiving, length, mpi_real4, communicator, ierr)
+    call mpi_allGather(sending,   length, mmpi_real4,  &
+                       receiving, length, mmpi_real4, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real4')
 
@@ -1413,8 +1413,8 @@ contains
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_allGather(sending,   length, mpi_real8,  &
-                       receiving, length, mpi_real8, communicator, ierr)
+    call mpi_allGather(sending,   length, mmpi_real8,  &
+                       receiving, length, mmpi_real8, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_allGather_real8')
 
@@ -1442,8 +1442,8 @@ contains
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call mpi_alltoall(sending,   length, mpi_integer,  &
-                      receiving, length, mpi_integer, communicator, ierr)
+    call mpi_alltoall(sending,   length, mmpi_integer,  &
+                      receiving, length, mmpi_integer, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_integer')
 
@@ -1471,8 +1471,8 @@ contains
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call mpi_alltoall(sending,   length, mpi_integer8,  &
-                      receiving, length, mpi_integer8, communicator, ierr)
+    call mpi_alltoall(sending,   length, mmpi_integer8,  &
+                      receiving, length, mmpi_integer8, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_integer8')
 
@@ -1500,8 +1500,8 @@ contains
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call mpi_alltoall(sending,   length, mpi_real4,  &
-                      receiving, length, mpi_real4, communicator, ierr)
+    call mpi_alltoall(sending,   length, mmpi_real4,  &
+                      receiving, length, mmpi_real4, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_real4')
 
@@ -1529,8 +1529,8 @@ contains
     communicator = handleCommunicator(communicator_opt)
     length = handleLength(sending, communicator, length_opt)
 
-    call mpi_alltoall(sending,   length, mpi_real8,  &
-                      receiving, length, mpi_real8, communicator, ierr)
+    call mpi_alltoall(sending,   length, mmpi_real8,  &
+                      receiving, length, mmpi_real8, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoall_real8')
 
@@ -1562,8 +1562,8 @@ contains
 
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_alltoallv(sending,   sendsizes, senddispls, mpi_real4, &
-                       receiving, recvsizes, recvdispls, mpi_real4, &
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_real4, &
+                       receiving, recvsizes, recvdispls, mmpi_real4, &
                        communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoallv_real4')
@@ -1595,8 +1595,8 @@ contains
 
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_alltoallv(sending,   sendsizes, senddispls, mpi_real8, &
-                       receiving, recvsizes, recvdispls, mpi_real8, &
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_real8, &
+                       receiving, recvsizes, recvdispls, mmpi_real8, &
                        communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_alltoallv_real8')
@@ -1623,7 +1623,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_allReduce(sending, receiving, length, mpi_logical, operation, &
+    call mpi_allReduce(sending, receiving, length, mmpi_logical, operation, &
                        mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_logical')
@@ -1650,7 +1650,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_allReduce(sending, receiving, length, mpi_integer, operation, &
+    call mpi_allReduce(sending, receiving, length, mmpi_integer, operation, &
                        mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_integer')
@@ -1677,7 +1677,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_allReduce(sending, receiving, length, mpi_integer8, operation, &
+    call mpi_allReduce(sending, receiving, length, mmpi_integer8, operation, &
                        mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_integer8')
@@ -1704,7 +1704,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_allReduce(sending, receiving, length, mpi_real4, operation, &
+    call mpi_allReduce(sending, receiving, length, mmpi_real4, operation, &
                        mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_real4')
@@ -1731,7 +1731,7 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_allReduce(sending, receiving, length, mpi_real8, operation, &
+    call mpi_allReduce(sending, receiving, length, mmpi_real8, operation, &
                        mmpi_comm_grid, ierr)
 
     call handleMpiError(ierr, 'mmpi_allReduce_real8')
@@ -1843,8 +1843,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_gatherv(sending,   length,                    mpi_logical, &
-                     receiving, allLengths, displacements, mpi_logical, &
+    call mpi_gatherv(sending,   length,                    mmpi_logical, &
+                     receiving, allLengths, displacements, mmpi_logical, &
                      procID,    mmpi_comm_GRID, ierr )
 
     call handleMpiError(ierr, 'mmpi_gatherv_logical_displs')
@@ -1903,8 +1903,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_gatherv(sending,   length,                    mpi_integer, &
-                     receiving, allLengths, displacements, mpi_integer, &
+    call mpi_gatherv(sending,   length,                    mmpi_integer, &
+                     receiving, allLengths, displacements, mmpi_integer, &
                      procID,    mmpi_comm_GRID, ierr )
 
     call handleMpiError(ierr, 'mmpi_gatherv_integer_displs')
@@ -1964,8 +1964,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_gatherv(sending,   length,                    mpi_real4, &
-                     receiving, allLengths, displacements, mpi_real4, &
+    call mpi_gatherv(sending,   length,                    mmpi_real4, &
+                     receiving, allLengths, displacements, mmpi_real4, &
                      procID,    mmpi_comm_GRID, ierr )
 
     call handleMpiError(ierr, 'mmpi_gatherv_real4_displs')
@@ -2025,8 +2025,8 @@ contains
 
     length = handleLength(sending, length_opt)
 
-    call mpi_gatherv(sending,   length,                    mpi_real8, &
-                     receiving, allLengths, displacements, mpi_real8, &
+    call mpi_gatherv(sending,   length,                    mmpi_real8, &
+                     receiving, allLengths, displacements, mmpi_real8, &
                      procID,    mmpi_comm_GRID, ierr )
 
     call handleMpiError(ierr, 'mmpi_gatherv_real8_displs')
@@ -2055,7 +2055,7 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_reduce(sending, receiving, length, mpi_integer, operation, &
+    call mpi_reduce(sending, receiving, length, mmpi_integer, operation, &
                     procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_reduce_integer')
@@ -2084,7 +2084,7 @@ contains
     length = handleLength(sending, length_opt)
     procID = handleProcID(procID_opt)
 
-    call mpi_reduce(sending, receiving, length, mpi_real8, operation, &
+    call mpi_reduce(sending, receiving, length, mmpi_real8, operation, &
                     procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_reduce_real8')
@@ -2113,8 +2113,8 @@ contains
 
     length = handleLength(receiving, length_opt)
 
-    call mpi_scatterv(sending,   allLengths, displacements, mpi_real4, &
-                      receiving, length,                    mpi_real4, &
+    call mpi_scatterv(sending,   allLengths, displacements, mmpi_real4, &
+                      receiving, length,                    mmpi_real4, &
                       procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_scatterv_real4')
@@ -2143,8 +2143,8 @@ contains
 
     length = handleLength(receiving, length_opt)
 
-    call mpi_scatterv(sending,   allLengths, displacements, mpi_real8, &
-                      receiving, length,                    mpi_real8, &
+    call mpi_scatterv(sending,   allLengths, displacements, mmpi_real8, &
+                      receiving, length,                    mmpi_real8, &
                       procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_scatterv_real8')
@@ -2174,7 +2174,7 @@ contains
     length = handleLength(data, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_send(data, length, mpi_real8, procID, tag, communicator, ierr)
+    call mpi_send(data, length, mmpi_real8, procID, tag, communicator, ierr)
 
     call handleMpiError(ierr, 'mmpi_send_real8')
 
@@ -2203,7 +2203,7 @@ contains
     length = handleLength(data, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_recv(data, length, mpi_real8, procID, tag, communicator, &
+    call mpi_recv(data, length, mmpi_real8, procID, tag, communicator, &
                   MPI_STATUS_IGNORE, ierr)
 
     call handleMpiError(ierr, 'mmpi_recv_real8')
@@ -2238,8 +2238,8 @@ contains
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
 
-    call mpi_sendrecv(sending,   length, mpi_real8, sendProcID, sendTag, &
-                      receiving, length, mpi_real8, recvProcID, recvTag, &
+    call mpi_sendrecv(sending,   length, mmpi_real8, sendProcID, sendTag, &
+                      receiving, length, mmpi_real8, recvProcID, recvTag, &
                       communicator, MPI_STATUS_IGNORE, ierr)
 
     call handleMpiError(ierr, 'mmpi_sendrecv_real8')

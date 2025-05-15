@@ -356,34 +356,34 @@ contains
       ! ... mpi_type_vector(count, blocklength, stride, ...)
       ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
 
-      call mpi_type_size(MPI_REAL8, realSize, ierr)
+      call mpi_type_size(mmpi_real8, realSize, ierr)
       lowerBound = 0
 
       ! create the send type for LevToLon
       extent = lst%maxLevCount * lst%lonPerPE * realSize
       call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-                           lst%maxLevCount * lst%ni, MPI_REAL8, sendtype)
+                           lst%maxLevCount * lst%ni, mmpi_real8, sendtype)
       call mpi_type_create_resized(sendtype, lowerBound , extent, lst%sendType_LevToLon, ierr);
       call mpi_type_commit(lst%sendType_LevToLon,ierr)
 
       ! create the receive type for LevToLon
       extent = lst%maxLevCount * realSize
       call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-                           maxlevels_opt, MPI_REAL8, recvtype, ierr);
+                           maxlevels_opt, mmpi_real8, recvtype, ierr);
       call mpi_type_create_resized(recvtype, lowerBound, extent, lst%recvType_LevToLon, ierr);
       call mpi_type_commit(lst%recvType_LevToLon, ierr)
 
       ! create the send type for LonToLev
       extent = lst%maxLevCount * realSize
       call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-                           maxlevels_opt, MPI_REAL8, sendtype, ierr);
+                           maxlevels_opt, mmpi_real8, sendtype, ierr);
       call mpi_type_create_resized(sendtype, lowerBound, extent, lst%sendType_LonToLev, ierr);
       call mpi_type_commit(lst%sendType_LonToLev, ierr)
 
       ! create the recv type for LonToLev
       extent = lst%maxLevCount * lst%lonPerPE * realSize
       call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-                           lst%maxLevCount * lst%ni, MPI_REAL8, recvtype, ierr)
+                           lst%maxLevCount * lst%ni, mmpi_real8, recvtype, ierr)
       call mpi_type_create_resized(recvtype, lowerBound , extent, lst%recvType_LonToLev, ierr);
       call mpi_type_commit(lst%recvType_LonToLev,ierr)
 
