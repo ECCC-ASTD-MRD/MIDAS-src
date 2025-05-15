@@ -276,7 +276,7 @@ module midasMpi_mod
     call rpn_comm_allreduce(rank,root,1,"mpi_integer","mpi_min",comm,ierr)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements,0:nprocs_mpi-1))
+    allocate(all_sendRecvVector(numElements,nprocs_mpi))
     call rpn_comm_gather(sendRecvVector    , numElements, "mpi_double_precision", &
                          all_sendRecvVector, numElements, "mpi_double_precision", &
                          root, comm, ierr)
@@ -285,7 +285,7 @@ module midasMpi_mod
     if(rank.eq.root) then
       ! if asked, reverse the order of the values
       if ( .not. allReduceForward ) then
-        all_sendRecvVector(:,:) = all_sendRecvVector(:,nprocs_mpi-1:0:-1)
+        all_sendRecvVector(:,:) = all_sendRecvVector(:,nprocs_mpi:1:-1)
       end if
 
       sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
@@ -335,7 +335,7 @@ module midasMpi_mod
     call rpn_comm_allreduce(rank,root,1,"mpi_integer","mpi_min",comm,ierr)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements1,numElements2,0:nprocs_mpi-1))
+    allocate(all_sendRecvVector(numElements1,numElements2,nprocs_mpi))
     call rpn_comm_gather(sendRecvVector    , numElements1*numElements2, "mpi_double_precision", &
                          all_sendRecvVector, numElements1*numElements2, "mpi_double_precision", &
                          root, comm, ierr)
@@ -387,7 +387,7 @@ module midasMpi_mod
 
     ! gather vectors to be added onto 1 processor
     if ( rank == root ) then
-      allocate(all_sendRecvVector(numElements,0:nprocs_mpi-1))
+      allocate(all_sendRecvVector(numElements,nprocs_mpi))
     else
       allocate(all_sendRecvVector(1,1))
     end if
@@ -441,7 +441,7 @@ module midasMpi_mod
 
     ! gather vectors to be added onto 1 processor
     if ( rank == root ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,0:nprocs_mpi-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,nprocs_mpi))
     else
       allocate(all_sendRecvVector(1,1,1))
     end if
@@ -496,7 +496,7 @@ module midasMpi_mod
 
     ! gather vectors to be added onto 1 processor
     if ( rank == root ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,0:nprocs_mpi-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,nprocs_mpi))
     else
       allocate(all_sendRecvVector(1,1,1,1))
     end if
