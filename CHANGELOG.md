@@ -35,12 +35,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.9.7]
+
+### Fixed
+
+ * Fixed bug in RttovScatt that was present from the beginning. Major impact when allSky assimilation of microwave humidity channels is involved (#1049 and !973)
+
+## [3.9.6]
+
+### Added
+
+ * Small modifications are included to enable handling observations from the mwhs2 FY3-D and FY3-E within the assimilation system (#1029 and !974)
+ * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
+
+### Fixed
+
+ * Up to 20 data sources can be specified in the namelist NAMICEBGCHECK (#1055 and !954)
+
 ## [3.9.5]
 
 ### Changed
 
-* Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
-  * Adapting scripts and fortran code for the new file type code for SQLite files.
+ * Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
+ * Adapting scripts and fortran code for the new file type code for SQLite files.
 
 ## [3.9.4]
 
@@ -77,12 +94,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [3.9.0]
 
 ### Added
- 
+
  * Added an extra norm, named stratoNorm, from 100hPa to 1hPa for FSOI(#836 and !785)
  * Added RCM data for sea ice concentration analysis (#848 and !761)
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
- * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744) 
+ * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744)
  * Added ability to specify variable names for obs families being passively assimilated or simulated (#825 and !741)
  * Added namelist variable to scale Lcorr and apply max limit to trial error stddev for analysisErrorOI (#832 and !740)
  * Introduction of variable `passiveChannelList` in namelist section `NAMBIASSAT` (#824 and !737)
@@ -901,7 +918,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     * dPdPsfc is no longer used in any observation operators since the increment of pressure is calculated on the grid and is interpolated to the observation location.
     * Change namelist variable `addGZsfcOffset` to `addHeightSfcOffset`.
     * Variable/function/subroutine names that include `gz` are changed to `height` to reflect the fact that geometric altitude/height is now the primary variable instead of geopotential.
-    * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations). 
+    * Memory requirements are higher for some programs and configurations (but not gdps and rdps configurations).
     * The execution time is also increased for some (e.g. gdps takes ~100 seconds longer, but this can be reduced by increasing number of nodes to 30 or 36).
  * Minor change in `tt2phi_mod` (slightly affects results): now setting near-sfc temperature and momentum altitude levels to their known height offset (#180 and !212).
  * The namelist variable `scaleFactor` in `NAMBHI` must now be specified in all 3DVar configurations because default value was changed from 1.0 to 0.0. (#224 and !209)
@@ -1197,7 +1214,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...HEAD
+[3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
+[3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
 [3.9.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_3.9.4
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
