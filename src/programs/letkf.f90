@@ -383,7 +383,7 @@ program midas_letkf
     endif
   end if
 
-  do locIndex = 1,maxNumLocalize
+  do locIndex = 1, maxNumLocalize-1
    ! check if hLocalizePressure positive values decrease
    if ((hLocalizePressure(locIndex) >= hLocalizePressure(locIndex+1)) .and. &
         hLocalizePressure(locIndex+1) > 0.0d0) then
