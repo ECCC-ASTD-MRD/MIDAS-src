@@ -387,7 +387,7 @@ contains
     enddo
 
     ! determine maximum value of myNla over all processors (used for dimensioning)
-    call mmpi_allReduce(myNla, maxMyNla, MPI_MAX)
+    call mmpi_allReduce(myNla, maxMyNla, mmpi_max)
 
     allocate(ilaList(maxMyNla))
     ilaList(:) = 0
@@ -527,12 +527,12 @@ contains
     gst(gstID)%mymEnd = mymEnd
     gst(gstID)%mymSkip = mymSkip
     gst(gstID)%mymCount = mymCount
-    call mmpi_allReduce(gst(gstID)%mymCount, gst(gstID)%maxmCount, MPI_MAX)
+    call mmpi_allReduce(gst(gstID)%mymCount, gst(gstID)%maxmCount, mmpi_max)
     ! range of levels handled by this processor when in spectral space
     gst(gstID)%myLevBeg = myLevBeg
     gst(gstID)%myLevEnd = myLevEnd
     gst(gstID)%myLevCount = myLevCount
-    call mmpi_allReduce(gst(gstID)%myLevCount, gst(gstID)%maxMyLevCount, MPI_MAX)
+    call mmpi_allReduce(gst(gstID)%myLevCount, gst(gstID)%maxMyLevCount, mmpi_max)
 
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: allocating comleg...'
     call allocate_comleg

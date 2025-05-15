@@ -429,7 +429,7 @@ contains
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
-    call mmpi_allreduce(mmpi_myid, root, MPI_MIN)
+    call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather values to be added onto 1 processor
     allocate(allvalues(mmpi_nprocs))
@@ -470,7 +470,7 @@ contains
 
     numElements = size(sendRecvVector)
 
-    call mmpi_allreduce(mmpi_myid, root, MPI_MIN)
+    call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
     allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
@@ -513,7 +513,7 @@ contains
     numElements1 = size(sendRecvVector,1)
     numElements2 = size(sendRecvVector,2)
 
-    call mmpi_allreduce(mmpi_myid, root, MPI_MIN)
+    call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
     allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
@@ -740,7 +740,7 @@ contains
     end if
     latPerPE = myLatEnd - myLatBeg + 1
 
-    call mpi_allReduce(latPerPE, latPerPEmax, 1, mmpi_integer, mpi_max, &
+    call mpi_allReduce(latPerPE, latPerPEmax, 1, mmpi_integer, mmpi_max, &
                        mmpi_comm_NS, ierr)
 
     call handleMpiError(ierr, 'mmpi_setup_lonbands')
@@ -823,7 +823,7 @@ contains
     end if
     lonPerPE = myLonEnd - myLonBeg + 1
 
-    call mpi_allReduce(lonPerPE, lonPerPEmax, 1, mmpi_integer, mpi_max, &
+    call mpi_allReduce(lonPerPE, lonPerPEmax, 1, mmpi_integer, mmpi_max, &
                        mmpi_comm_EW, ierr)
 
     call handleMpiError(ierr, 'mmpi_setup_lonbands')
@@ -1755,7 +1755,7 @@ contains
     integer :: localValue, globalValue
 
     localValue = localGlobalValue
-    call mmpi_allReduce(localValue, globalValue, mpi_sum)
+    call mmpi_allReduce(localValue, globalValue, mmpi_sum)
     localGlobalValue = globalValue
 
   end subroutine mmpi_allReduce_scalar_integer

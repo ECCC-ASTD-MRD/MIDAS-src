@@ -5,7 +5,6 @@ module obsTimeInterp_mod
   !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
-  use mpi_f08, only: mpi_sum, mpi_max
   use midasMpi_mod
   use utilities_mod
   use message_mod
@@ -124,9 +123,9 @@ contains
     write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,stepIndex)),stepIndex=1,nStepObs+1)
     write(*,*) '----------------------------------------------------------------'
 
-    call mmpi_allReduce(my_inumheader, inumheader, mpi_sum)
+    call mmpi_allReduce(my_inumheader, inumheader, mmpi_sum)
     deallocate(my_inumheader)
-    call mmpi_allReduce(my_idataass, idataass, mpi_sum)
+    call mmpi_allReduce(my_idataass, idataass, mmpi_sum)
     deallocate(my_idataass)
     if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'
@@ -302,7 +301,7 @@ contains
     numHeader = size(oti%timeInterpWeight,1)
     numStep = size(oti%timeInterpWeight,2)
     write(*,*) 'oti_setupMpiGlobal: before allreduce ', numHeader, numStep
-    call mmpi_allReduce(numHeader, numHeaderMax, mpi_max)
+    call mmpi_allReduce(numHeader, numHeaderMax, mmpi_max)
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
                numHeaderMax, numStep, mmpi_nprocs

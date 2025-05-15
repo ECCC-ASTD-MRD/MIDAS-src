@@ -5,7 +5,6 @@ module ensembleStateVector_mod
   !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use ramDisk_mod
   use midasMpi_mod
   use message_mod
@@ -2151,7 +2150,7 @@ CONTAINS
             end do
           end do
 
-          call mmpi_allReduce(globalMean, globalMean_mpiglobal, mpi_sum)
+          call mmpi_allReduce(globalMean, globalMean_mpiglobal, mmpi_sum)
           globalMean_mpiglobal = globalMean_mpiglobal / &
                (real(ens%statevector_work%ni,8)*real(ens%statevector_work%nj,8))
 

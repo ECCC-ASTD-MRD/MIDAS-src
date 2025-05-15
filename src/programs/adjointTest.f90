@@ -66,7 +66,6 @@ program midas_adjointTest
   !             * **'advGSV'** : test the adjoint of the advection operator on a single
   !               statevector
   !
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -320,7 +319,7 @@ contains
          field3d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, 1)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -338,7 +337,7 @@ contains
     innerProduct2_local = 0.d0
     call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
@@ -409,7 +408,7 @@ contains
          field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -422,7 +421,7 @@ contains
     innerProduct2_local = 0.d0
     call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
@@ -538,7 +537,7 @@ contains
            statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -553,7 +552,7 @@ contains
     innerProduct2_local = 0.d0
     call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
@@ -676,7 +675,7 @@ contains
 !!$         statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
 !!$         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
 !!$    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-!!$    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+!!$    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
 !!$    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 !!$
 !!$    ! L_T(x)
@@ -695,7 +694,7 @@ contains
 !!$           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
 !!$    end do
 !!$    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-!!$    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+!!$    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
 !!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 !!$
 !!$    ! Results
@@ -815,7 +814,7 @@ contains
            statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -837,7 +836,7 @@ contains
            statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
     end do
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
@@ -945,7 +944,7 @@ contains
          field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -964,7 +963,7 @@ contains
          statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
 !    call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
@@ -1088,7 +1087,7 @@ contains
          field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
-    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mpi_sum)
+    call mmpi_allReduce(innerProduct1_local, innerProduct1_global, mmpi_sum)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
 
     ! L_T(x)
@@ -1106,7 +1105,7 @@ contains
          field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
          statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
-    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mpi_sum)
+    call mmpi_allReduce(innerProduct2_local, innerProduct2_global, mmpi_sum)
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results

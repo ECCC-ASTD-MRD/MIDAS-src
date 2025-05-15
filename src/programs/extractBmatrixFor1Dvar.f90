@@ -66,7 +66,6 @@ program midas_extractBmatrixFor1Dvar
   !              *  ``varNameExtract`` name of the variable to extract or ``all`` to extract everything in namstate
   !              *  ``stepBinExtract`` should be one of ``first``, ``middle`` or ``last`` to define when in the assimilation window the B matrix is valid
   !
-  use mpi_f08, only: mpi_max ! this is the Fortran 2008 MPI library module
   use version_mod
   use midasMpi_mod
   use message_mod
@@ -310,7 +309,7 @@ program midas_extractBmatrixFor1Dvar
           bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
                                                 field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if
-        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, mpi_max)
+        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, mmpi_max)
       end do variableLoop2
 
     end do variableLoop1

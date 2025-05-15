@@ -16,7 +16,6 @@ module diffusion_mod
   !:Basic equations: * Lcorr^2 = 2*k*dt*numt   (1)
   !                  * stab    = k*dt/dx^2     (2)
   !
-  use mpi_f08, only: mpi_sum
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -509,7 +508,7 @@ contains
       end do
 
       lambdaLocal(myLonBeg : myLonEnd, myLatBeg : myLatEnd) = diff(diffID)%Lambda(myLonBeg : myLonEnd, myLatBeg : myLatEnd)
-      call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, mpi_sum)
+      call mmpi_allReduce(lambdaLocal, diff(diffID)%Lambda, mmpi_sum)
 
       if (mmpi_myid == 0) then
 

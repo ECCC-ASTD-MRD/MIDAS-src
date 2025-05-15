@@ -3,7 +3,6 @@ module var1DIdealize_mod
     !
     ! :Purpose: contains all 1Dvar-related methods.
     !
-    use mpi_f08, only: mpi_lor ! this is the Fortran 2008 MPI library module
     use midasMpi_mod
     use codeprecision_mod
     use mathphysconstants_mod
@@ -720,7 +719,7 @@ module var1DIdealize_mod
       end do BODYCHCK
     end do HEADERCHCK
 
-    call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, MPI_LOR)
+    call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, mmpi_lor)
 
     if (nonEmptyBodyColumn_mpiglobal) then
       call utl_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')

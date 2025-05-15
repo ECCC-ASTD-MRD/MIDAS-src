@@ -90,7 +90,6 @@ program midas_diagBmatrix
   !======================== ============ ==============================================================
   !
 
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -369,7 +368,7 @@ program midas_diagBmatrix
               centralValueLocal = field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex)
             end if
           end if
-          call mmpi_allReduce(centralValueLocal, centralValue, MPI_SUM)
+          call mmpi_allReduce(centralValueLocal, centralValue, mmpi_sum)
 
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
 
@@ -685,7 +684,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO
 
-    call mmpi_allReduce(stddev_zm, stddev_zm2, MPI_SUM)
+    call mmpi_allReduce(stddev_zm, stddev_zm2, mmpi_sum)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
@@ -758,7 +757,7 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO
 
-    call mmpi_allReduce(stddev_dm, stddev_dm2, MPI_SUM)
+    call mmpi_allReduce(stddev_dm, stddev_dm2, mmpi_sum)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)

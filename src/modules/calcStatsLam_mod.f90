@@ -6,7 +6,6 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
-  use mpi_f08, only: mpi_sum
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -797,11 +796,11 @@ contains
 
     ! Gather the all the info in processor 0
     SpVertCorrel(:,:,:) = 0.d0
-    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, mpi_sum)
+    call mmpi_reduce(SpVertCorrel_local, SpVertCorrel, mmpi_sum)
 
     allocate(SumWeight(0:nTrunc))
     SumWeight(:) = 0.d0
-    call mmpi_reduce(SumWeight_local, SumWeight, mpi_sum)
+    call mmpi_reduce(SumWeight_local, SumWeight, mmpi_sum)
 
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
@@ -1300,7 +1299,7 @@ contains
     end do ! Loop in Ensemble
 
     !- Communication
-    call mmpi_reduce(vertCorrel_local, vertCorrel, mpi_sum)
+    call mmpi_reduce(vertCorrel_local, vertCorrel, mmpi_sum)
 
     deallocate(vertCorrel_local)
 

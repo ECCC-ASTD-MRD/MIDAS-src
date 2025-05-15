@@ -10,7 +10,6 @@ module obsFiles_mod
   !              2. SQLITE (burp2rdb format)
   !              3. SQLITE (obsDB format)
   !
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use ramDisk_mod
   use utilities_mod
@@ -1085,7 +1084,7 @@ contains
     end if
 
     if (obsf_filesSplit()) then
-       call mmpi_allReduce(nrep_modified, nrep_modified_global, MPI_SUM)
+       call mmpi_allReduce(nrep_modified, nrep_modified_global, mmpi_sum)
        nrep_modified = nrep_modified_global
     end if
 

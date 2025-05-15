@@ -8,7 +8,6 @@ module biasCorrectionSat_mod
   !          for estimating the bias. Existing bias correction estimates
   !          can also be applied to observations.
   !
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -628,7 +627,7 @@ contains
         end do
 
         temp_nobs(:) = 0
-        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, mpi_sum)
+        call mmpi_allReduce(temp_nobs2(iSensor,:), temp_nobs, mmpi_sum)
 
         do i = 1, bias(iSensor)%numChannels
           bias(iSensor)%chans(i)%coeff_nobs = temp_nobs(i)
@@ -1083,7 +1082,7 @@ contains
 
       call mmpi_reduce_sumR8_2d(tbias, biasMpiGlobal)
       call mmpi_reduce_sumR8_2d(tstd,  stdMpiGlobal)
-      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
+      call mmpi_reduce(tcount, countMpiGlobal, mmpi_sum)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0)
@@ -1207,7 +1206,7 @@ contains
 
       call mmpi_reduce_sumR8_2d(tbias, biasMpiGlobal)
       call mmpi_reduce_sumR8_2d(tstd,  stdMpiGlobal)
-      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
+      call mmpi_reduce(tcount, countMpiGlobal, mmpi_sum)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal > 0)
@@ -2926,7 +2925,7 @@ contains
       if (mimicSatbcor) then
         call mmpi_reduce_sumR8_2d(OmFBias, omfBiasMpiGlobal)
       end if
-      call mmpi_reduce(OmFCount, omfCountMpiGlobal, MPI_SUM)
+      call mmpi_reduce(OmFCount, omfCountMpiGlobal, mmpi_sum)
 
       if (mimicSatbcor)  then
         if (mmpi_myId == 0) then
@@ -3163,7 +3162,7 @@ contains
 
       call mmpi_reduce_sumR8_1d(OmFBias,  omfBiasMpiGlobal)
       call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal)
-      call mmpi_reduce(tcount, countMpiGlobal, MPI_SUM)
+      call mmpi_reduce(tcount, countMpiGlobal, mmpi_sum)
 
       if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0

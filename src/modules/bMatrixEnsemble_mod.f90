@@ -7,7 +7,6 @@ module bMatrixEnsemble_mod
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
   !
-  use mpi_f08, only: mpi_max
   use midasMpi_mod
   use message_mod
   use fileNames_mod
@@ -664,7 +663,7 @@ CONTAINS
     if ( trim(ben_mode) == 'Analysis' ) then
 
       call mmpi_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
-      call mmpi_allReduce(myMemberCount, maxMyMemberCount, MPI_MAX)
+      call mmpi_allReduce(myMemberCount, maxMyMemberCount, mmpi_max)
       bEns(instanceIndex)%nEnsOverDimension = mmpi_npex * maxMyMemberCount
 
       !- Horizontal Localization

@@ -5,7 +5,6 @@ module obsSpaceDiag_mod
   !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
-  use mpi_f08, only: mpi_max, mpi_sum, mpi_lor ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use codePrecision_mod
   use bufr_mod
@@ -476,13 +475,13 @@ contains
           endif
         enddo BODY
 
-        call mmpi_allReduce(ivco, ivco_recv, MPI_MAX)
+        call mmpi_allReduce(ivco, ivco_recv, mmpi_max)
         ivco = ivco_recv
 
-        call mmpi_allReduce(my_counts,   counts,   MPI_SUM)
-        call mmpi_allReduce(my_innovStd, innovStd, MPI_SUM)
-        if (lpert_static) call mmpi_allReduce(my_bmatHiStd, bmatHiStd, MPI_SUM)
-        if (lpert_ens)    call mmpi_allReduce(my_bmatEnStd, bmatEnStd, MPI_SUM)
+        call mmpi_allReduce(my_counts,   counts,   mmpi_sum)
+        call mmpi_allReduce(my_innovStd, innovStd, mmpi_sum)
+        if (lpert_static) call mmpi_allReduce(my_bmatHiStd, bmatHiStd, mmpi_sum)
+        if (lpert_ens)    call mmpi_allReduce(my_bmatEnStd, bmatEnStd, mmpi_sum)
 
         where (counts > 0) innovStd = sqrt(innovStd/counts)
         if (lpert_static) then
@@ -1492,16 +1491,16 @@ contains
     allocate(nstatus_global(nlat,nlon,nlev,0:2))
 
     ! Reduce from all mpi processes
-    call mmpi_allReduce(obs_diagn%OmP_stats,      OmP_global,      MPI_SUM)
-    call mmpi_allReduce(obs_diagn%OmA_stats,      OmA_global,      MPI_SUM)
-    call mmpi_allReduce(obs_diagn%obs_stats,      obs_global,      MPI_SUM)
-    call mmpi_allReduce(obs_diagn%Jo_stats,       Jo_global,       MPI_SUM)
-    call mmpi_allReduce(obs_diagn%Jpa_stats,      Jpa_global,      MPI_SUM)
-    call mmpi_allReduce(obs_diagn%diagR_stats,    diagR_global,    MPI_SUM)
-    call mmpi_allReduce(obs_diagn%diagHPHT_stats, diagHPHT_global, MPI_SUM)
-    call mmpi_allReduce(obs_diagn%counts,         counts_global,   MPI_SUM)
-    call mmpi_allReduce(obs_diagn%nstatus,        nstatus_global,  MPI_SUM)
-    call mmpi_allReduce(obs_diagn%assim_mode,     assim_global,    MPI_LOR)
+    call mmpi_allReduce(obs_diagn%OmP_stats,      OmP_global,      mmpi_sum)
+    call mmpi_allReduce(obs_diagn%OmA_stats,      OmA_global,      mmpi_sum)
+    call mmpi_allReduce(obs_diagn%obs_stats,      obs_global,      mmpi_sum)
+    call mmpi_allReduce(obs_diagn%Jo_stats,       Jo_global,       mmpi_sum)
+    call mmpi_allReduce(obs_diagn%Jpa_stats,      Jpa_global,      mmpi_sum)
+    call mmpi_allReduce(obs_diagn%diagR_stats,    diagR_global,    mmpi_sum)
+    call mmpi_allReduce(obs_diagn%diagHPHT_stats, diagHPHT_global, mmpi_sum)
+    call mmpi_allReduce(obs_diagn%counts,         counts_global,   mmpi_sum)
+    call mmpi_allReduce(obs_diagn%nstatus,        nstatus_global,  mmpi_sum)
+    call mmpi_allReduce(obs_diagn%assim_mode,     assim_global,    mmpi_lor)
 
     ! save in struct_osd_diagn
     obs_diagn%OmP_stats = OmP_global

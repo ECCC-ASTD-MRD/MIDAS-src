@@ -88,7 +88,6 @@ program midas_prepcma
   !=================== ====================== ===========================================
   !
   !
-  use mpi_f08, only: mpi_sum
   use midasMpi_mod
   use version_mod
   use obsSpaceData_mod
@@ -576,9 +575,9 @@ contains
 
     ! do mpi communication of the accumulators
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call mmpi_allReduce(nstation,   nstationMpiGlobal,    mpi_sum)
-    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, mpi_sum)
-    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, mpi_sum)
+    call mmpi_allReduce(nstation,   nstationMpiGlobal,    mmpi_sum)
+    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, mmpi_sum)
+    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, mmpi_sum)
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
                 nrep_count, nrep_count_mpiGlobal
@@ -587,7 +586,7 @@ contains
                 nobs_count, nobs_count_mpiGlobal
 
     if (cfam == 'TO') then
-      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, mpi_sum)
+      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, mmpi_sum)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -663,8 +662,8 @@ contains
     end do
 
     ! mpi communication of accumulators
-    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, mpi_sum)
-    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, mpi_sum)
+    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, mmpi_sum)
+    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, mmpi_sum)
 
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
           nrep_count_thin, nrep_count_thin_mpiGlobal
@@ -672,7 +671,7 @@ contains
           nobs_count_thin, nobs_count_thin_mpiGlobal
 
     if (cfam == 'TO') then
-      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, mpi_sum)
+      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, mmpi_sum)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &

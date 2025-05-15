@@ -104,7 +104,6 @@ program midas_randomPert
   !           and isotropic chemical constituents covariances.
   !
 
-  use mpi_f08, only: mpi_sum ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
@@ -490,8 +489,8 @@ program midas_randomPert
     end do
 
     n_grid_point = lonPerPEa*latPerPEa
-    call mmpi_allReduce(n_grid_point, n_grid_point_glb, mpi_sum)
-    call mmpi_allReduce(avg_pturb_var, avg_pturb_var_glb, mpi_sum)
+    call mmpi_allReduce(n_grid_point, n_grid_point_glb, mmpi_sum)
+    call mmpi_allReduce(avg_pturb_var, avg_pturb_var_glb, mmpi_sum)
 
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)
     do levIndex = 1, numVarLev

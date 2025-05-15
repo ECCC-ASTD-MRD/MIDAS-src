@@ -5,7 +5,6 @@ module burpFiles_mod
   !:Purpose:  To store the filenames of the burp observation files and call
   !           subroutines in readBurp_mod to read and update burp files.
   !
-  use mpi_f08, only: mpi_max
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -108,8 +107,8 @@ contains
     !- Set reference datestamp
     !
     ! Make sure all mpi tasks have a valid date (important for split burp files)
-    call mmpi_allReduce(kdate, kdate_recv, MPI_MAX)
-    call mmpi_allReduce(ktime, ktime_recv, MPI_MAX)
+    call mmpi_allReduce(kdate, kdate_recv, mmpi_max)
+    call mmpi_allReduce(ktime, ktime_recv, mmpi_max)
     kdate = kdate_recv
     ktime = ktime_recv
     if (nresume >= 1 ) then

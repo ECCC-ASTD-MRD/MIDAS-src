@@ -2472,7 +2472,7 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, mpi_sum)
+    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, mmpi_sum)
     call mmpi_allGather(myNumLatLon, allNumLatLon)
     numLatLonMax = maxval(allNumLatLon)
 
@@ -2621,7 +2621,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, mpi_lor)
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, mmpi_lor)
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0

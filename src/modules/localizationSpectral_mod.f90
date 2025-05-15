@@ -6,7 +6,6 @@ MODULE localizationSpectral_mod
   !           ensemble member from a given (1D) control vector of
   !           SPECTRAL ELEMENTS
   !
-  use mpi_f08, only: mpi_max, mpi_sum
   use midasMpi_mod
   use utilities_mod
   use globalSpectralTransform_mod
@@ -136,7 +135,7 @@ CONTAINS
     lsp%dlon = hco_loc%dlon
 
     call mmpi_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
-    call mmpi_allReduce(myMemberCount, maxMyMemberCount, mpi_max)
+    call mmpi_allReduce(myMemberCount, maxMyMemberCount, mmpi_max)
     nEnsOverDimension_out     = mmpi_npex * maxMyMemberCount
     lsp%nEnsOverDimension = nEnsOverDimension_out
 
@@ -354,7 +353,7 @@ CONTAINS
         sp_mympiglobal(ila_mpiglobal,:,:) = sp_mpilocal(jla_mpilocal,:,:)
       end do
       sp_mpiglobal(:,:,:) = 0.0d0
-      call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, mpi_sum)
+      call mmpi_allReduce(sp_mympiglobal, sp_mpiglobal, mmpi_sum)
 
       do levIndex = 1, lsp%nLev
         do nIndex = 0, lsp%ntrunc
@@ -968,7 +967,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal'
     call lsp_check(lsp)
 
-    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
@@ -1073,7 +1072,7 @@ CONTAINS
     else
 
       ! LAM
-      call mmpi_allReduce(lsp%lst%nla, nlaMax, mpi_max)
+      call mmpi_allReduce(lsp%lst%nla, nlaMax, mmpi_max)
 
       if (mmpi_myid == 0) then
         allocate(allnlaLocal(mmpi_nprocs))
@@ -1185,7 +1184,7 @@ CONTAINS
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
     call lsp_check(lsp)
 
-    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, MPI_MAX)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
@@ -1290,7 +1289,7 @@ CONTAINS
     else
 
       ! LAM
-      call mmpi_allReduce(lsp%lst%nla, nlaMax, mpi_max)
+      call mmpi_allReduce(lsp%lst%nla, nlaMax, mmpi_max)
 
       if (mmpi_myid == 0) then
         allocate(allnlaLocal(mmpi_nprocs))
@@ -1408,7 +1407,7 @@ CONTAINS
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1529,7 +1528,7 @@ CONTAINS
     else
 
       ! LAM
-       call mmpi_allReduce(lsp%lst%nla, nlaMax, mpi_max)
+       call mmpi_allReduce(lsp%lst%nla, nlaMax, mmpi_max)
 
        if (mmpi_myid == 0) then
           allocate(allnlaLocal(mmpi_nprocs))
@@ -1635,7 +1634,7 @@ CONTAINS
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(lsp%cvDim_mpiLocal, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mpi_max)
+    call mmpi_allReduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1756,7 +1755,7 @@ CONTAINS
     else
 
       ! LAM
-       call mmpi_allReduce(lsp%lst%nla, nlaMax, mpi_max)
+       call mmpi_allReduce(lsp%lst%nla, nlaMax, mmpi_max)
 
        if (mmpi_myid == 0) then
           allocate(allnlaLocal(mmpi_nprocs))

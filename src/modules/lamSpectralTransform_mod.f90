@@ -341,7 +341,7 @@ contains
       if (mmpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
 
       ! Gathering with respect to levels
-      call mmpi_allReduce(lst%myLevCount, lst%maxLevCount, MPI_MAX)
+      call mmpi_allReduce(lst%myLevCount, lst%maxLevCount, mmpi_max)
       if (mmpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
 
       allocate(lst%allLevBeg(mmpi_npex))
@@ -481,7 +481,7 @@ contains
 
     lst%nla = ila     ! Number of spectral element per phase in the VAR array
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%nla, lst%maxnla, MPI_MAX)
+      call mmpi_allReduce(lst%nla, lst%maxnla, mmpi_max)
       if (mmpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
     end if
 
@@ -490,7 +490,7 @@ contains
     my_KfromMNglb = 0
     my_KFromMNglb(:,:) = KFromMN(:,:)
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(my_KFromMNglb, lst%KFromMNglb, MPI_MAX)
+      call mmpi_allReduce(my_KFromMNglb, lst%KFromMNglb, mmpi_max)
     end if
     deallocate(my_KfromMNglb)
 
@@ -499,7 +499,7 @@ contains
       if (KfromMN(m,0) /= -1) lst%mymActiveCount = lst%mymActiveCount + 1
     end do
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%mymActiveCount, lst%maxmActiveCount, MPI_MAX)
+      call mmpi_allReduce(lst%mymActiveCount, lst%maxmActiveCount, mmpi_max)
       if (mmpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
     end if
 
@@ -563,7 +563,7 @@ contains
     lst%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
 
     if (trim(lst%MpiMode) /= 'NoMpi') then
-      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, MPI_SUM)
+      call mmpi_allReduce(lst%nePerK, lst%nePerKglobal, mmpi_sum)
     end if
 
     deallocate(Kr8fromMN)

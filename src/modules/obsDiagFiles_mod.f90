@@ -5,7 +5,6 @@ module obsDiagFiles_mod
   !:Purpose:  To write the "diag" format SQLITE observation files. Data is stored in
   !           obsSpaceData object.
   !
-  use mpi_f08, only: mpi_max
   use midasMpi_mod
   use fSQLite
   use mathPhysConstants_mod
@@ -574,7 +573,7 @@ module obsDiagFiles_mod
 
     allocate(allObsFamilyListSizeMpiLocal(mmpi_nprocs))
     call mmpi_allGather(obsFamilyListSizeMpiLocal, allObsFamilyListSizeMpiLocal)
-    call mmpi_allReduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, mpi_max)
+    call mmpi_allReduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, mmpi_max)
 
     ! convert local family list from characters to integers
     allocate(intObsFamilyListMpiLocal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal))

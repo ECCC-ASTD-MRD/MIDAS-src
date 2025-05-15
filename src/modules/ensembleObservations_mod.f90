@@ -2048,7 +2048,7 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mpi_sum)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mmpi_sum)
     write(*,*)
     write(*,*) 'eob_backgroundCheck: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_backgroundCheck: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2105,7 +2105,7 @@ CONTAINS
       end do BODY_LOOP
     end do HEADER_LOOP
 
-    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mpi_sum)
+    call mmpi_allReduce(numRejected, numRejectedMpiGlobal, mmpi_sum)
     write(*,*)
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (local) =', numRejected
     write(*,*) 'eob_removeObsNearLand: number of observations rejected (global)=', numRejectedMpiGlobal
@@ -2224,7 +2224,7 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(huberCount, huberCountMpiGlobal, mpi_sum)
+    call mmpi_allReduce(huberCount, huberCountMpiGlobal, mmpi_sum)
     write(*,*)
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (local) = ', huberCount
     write(*,*) 'eob_huberNorm: number of obs with increased error stddev (global)= ', huberCountMpiGlobal
@@ -2268,8 +2268,8 @@ CONTAINS
       end if
     end do
 
-    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, mpi_sum)
-    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, mpi_sum)
+    call mmpi_allReduce(acceptCount, acceptCountMpiGlobal, mmpi_sum)
+    call mmpi_allReduce(rejectCount, rejectCountMpiGlobal, mmpi_sum)
     write(*,*)
     write(*,*) 'eob_rejectRadNearSfc: Number of accepted, rejected observations (local) : ',  &
                acceptCount, rejectCount
