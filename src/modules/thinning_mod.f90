@@ -675,7 +675,7 @@ contains
 
     ! Default values for namelist variables
     deltemps(:)   = 1        ! default is a single time bin for thinning time intervals
-    deldist(:)    = 111.32d0 ! default value is for 1 degree of arc on the Earth's surface at the equator
+    deldist(:)    = 111.2d0  ! default value is for 1 degree of arc on the Earth's surface at the equator
     stnIdList(:)  = ''
     methodList(:) = ''
     maxSunList(:) = 90.0d0 
@@ -699,14 +699,15 @@ contains
 
     STNIDLOOP: do stnIdIndex = 1, maxStnIdNum
       if (trim(stnidList(stnIdIndex)) == '') exit STNIDLOOP
+      write(*,*) 'Thinning for StnId ',trim(stnidList(stnIdIndex))
       if (trim(methodList(stnIdIndex)) == 'byDistance') then
-        call utl_tmg_start(114,'--ObsThinning for ' // stnIdList(stnIdIndex) )
+        call utl_tmg_start(114,'--ObsThinning')
         call thn_CHfamByDistance(obsdat, deltemps(stnIdIndex), deldist(stnIdIndex), &
                                  maxSunList(stnIdIndex), stnIdList(stnIdIndex))
         call utl_tmg_stop(114)
       else if (trim(methodList(stnIdIndex)) == 'byNthLevel' .and. &
                keepNthVertical(stnIdIndex) > 1) then
-        call utl_tmg_start(114,'--ObsThinning for ' // stnIdList(stnIdIndex) )
+        call utl_tmg_start(114,'--ObsThinning')
         call thn_keepNthObs(obsdat, 'CH', keepNthVertical(stnIdIndex), &
                              stnId_opt = stnIdList(stnIdIndex))
         call utl_tmg_stop(114)
@@ -5420,10 +5421,11 @@ contains
     integer,                    intent(in)    :: keepNthVertical ! keep every nth vertical datum
 
     ! Locals:
-    integer :: headerIndex, bodyIndex
-    integer :: flag
-    integer :: countKeepN ! count to keep every Nth observation in the column
-    logical :: flagged
+    integer              :: headerIndex, bodyIndex
+    integer              :: flag, countObs, countReject
+    integer              :: countKeepN ! count to keep every Nth observation in the column
+    logical              :: exponentPresent
+    logical, allocatable :: flagged(:)
 
     write(*,*)
     write(*,*) 'thn_keepNthObs: Starting'
@@ -5441,6 +5443,12 @@ contains
         end if
       end if
 
+      if (allocated(flagged)) deallocate(flagged)
+      allocate(flagged(obs_headElem_i(obsdat, OBS_NLV, headerIndex)))
+      flagged(:) = .false.
+      exponentPresent = .false.
+      countObs = 0
+      countReject = 0
       countKeepN = 0
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY: do
@@ -5448,40 +5456,57 @@ contains
         if (bodyIndex < 0) exit BODY
         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
             BUFR_SCALE_EXPONENT) then
-          ! Exponent expected to follow the datum
-          if (flagged) then
-            ! Reject exponent associated to the observation
-            ! Assumes/requires the exponent to follow the mantissa
-            flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
-          end if
-          cycle BODY
+          exponentPresent = .true.
+          exit BODY
         end if
 
+        countObs = countObs + 1
         ! If datum already rejected, ignore it
         flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        if (btest(flag,11)) flagged(countObs) = .true.
         if (trim(familyType) == 'AL') then
-          if ( btest(flag,9) .or. btest(flag,11) ) cycle BODY            
+          if ( btest(flag,9) .or. btest(flag,11) ) cycle BODY
         else if (btest(flag,18) .or. btest(flag,16) .or. &
                  btest(flag,11) .or. btest(flag,9) .or.  btest(flag,8) .or. &
                  btest(flag,4) .or. btest(flag,3) .or. btest(flag,2)) then
-          flagged = .false.
           cycle BODY
         end if
 
         countKeepN=countKeepN + 1
         if ( countKeepN == keepNthVertical ) then
           ! Reset the counter and keep this observation
-          flagged = .false.
           countKeepN=0
         else
           ! Reject this observation
-          flagged = .true.
+          flagged(countObs) = .true.
+          countReject = countReject + 1
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
         end if
 
       end do BODY
+
+      write(*,*) 'thn_keepNthObs: Number of newly rejected levels is ',countReject
+
+      if (exponentPresent) then
+        countObs = 0
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY2
+          if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
+              BUFR_SCALE_EXPONENT) then
+            countObs = countObs + 1
+            if (flagged(countObs)) then
+              ! Reject exponent associated to the observation
+              flag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+              call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
+            end if
+          end if
+        end do BODY2
+      end if
+
     end do HEADER
+    if (allocated(flagged)) deallocate(flagged)
 
     write(*,*)
     write(*,*) 'thn_keepNthObs: Finished'

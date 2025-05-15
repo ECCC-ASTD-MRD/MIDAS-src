@@ -6072,8 +6072,8 @@ contains
     real, parameter             :: missingValue = -9999.0
     integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
-    logical                     :: resumeReport, cleanLevels, checkBlock
-    character(len=2)            :: familyTypesToDo(7) = (/'AI','SW','TO','SC','GP','UA','SF'/)
+    logical                     :: resumeReport, cleanLevels, checkBlock, cleanLevelsCH
+    character(len=2)            :: familyTypesToDo(8) = (/'AI','SW','TO','SC','GP','UA','SF','CH'/)
     character(len=9)            :: stnid
     logical                     :: debug = .false.
 
@@ -6142,13 +6142,14 @@ contains
     reports: do reportIndex = 1, numReports
 
       numReject = 0
+      cleanLevelsCH = .false.
 
       call burp_get_report(inputFile,          &
            report    = inputReport,            &
            ref       = addresses(reportIndex), &
-           iostat    = error) 
+           iostat    = error)
       call handle_error(error, "brpr_burpClean: burp_get_report")
-      
+
       call burp_get_property(inputReport, stnid=stnid)
       resumeReport = (stnid(1:2) == ">>")
 
@@ -6173,12 +6174,12 @@ contains
              iostat      = error)
         call handle_error(error, "brpr_burpClean: burp_find_block #1")
         if (refBlock < 0) exit blocks
-         
+
         call burp_get_property(inputBlock, &
              nele   = numElem,             &
              nval   = numLevels,           &
              nt     = numObsProfiles,      &
-             btyp   = btyp,                & 
+             btyp   = btyp,                &
              iostat = error)
         call handle_error(error, "brpr_burpClean: burp_get_property #1")
 
@@ -6187,8 +6188,13 @@ contains
           checkBlock = btest(btyp,13)
         else
           checkBlock = .true.
+          if (trim(familyType) == 'CH' .and. btest(btyp,13)) then
+            cleanLevelsCH = .true.
+          else
+            cleanLevelsCH = .false.
+          end if
         end if
-          
+
         if (isFlagBlock(familyType, btyp) .and. checkBlock) then
           foundFlags = .true.
           if (debug) write(*,*) 'Found a block with flags: ', reportIndex, familyType, btyp
@@ -6244,7 +6250,6 @@ contains
             elements: do elemIndex = 1, numElem
               ! skip this element if it is not normally read
               if ( all(elementIdsBlock(elemIndex) /= (200000 + elementIdsRead(:))) ) cycle elements
-
               ! if at least one element in profile is 'good', then cannot reject
               if ( (.not.btest(flagValues(elemIndex,levelIndex,obsProfIndex),11)) .and.  &
                    (obsValues(elemIndex,levelIndex,obsProfIndex) /= missingValue) ) then
@@ -6263,13 +6268,13 @@ contains
               end if
 
             end do elements
-            if (cleanLevels) then
+            if (cleanLevels .or. cleanLevelsCH) then
               ! count number of individual rejected levels
               if (rejectObs(levelIndex,obsProfIndex)) numReject = numReject + 1
             end if
           end do obsLevels
           if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(1,obsProfIndex)
-          if (.not. cleanLevels) then
+          if (.not. cleanLevels .and. .not. cleanLevelsCH) then
             ! count number of rejected complete profiles (all levels must be rejected)
             if (all(rejectObs(:,obsProfIndex))) numReject = numReject + 1
           end if
@@ -6278,10 +6283,10 @@ contains
         numRejectTotal = numRejectTotal + numReject
 
       end if
-        
+
       ! copy reduced blocks output report
       emptyReport = .false.
-      refBlock = 0      
+      refBlock = 0
       blocks2: do
 
         refBlock = burp_find_block(inputReport, &
@@ -6291,7 +6296,7 @@ contains
              iostat      = error)
         call handle_error(error, "brpr_burpClean: burp_find_block #2")
         if (refBlock < 0) exit blocks2
-         
+
         call burp_get_property(inputBlock2, &
              nele   = numElem2,             &
              nval   = numLevels2,           &
@@ -6306,12 +6311,17 @@ contains
           checkBlock = btest(btyp,13)
         else
           checkBlock = .true.
+          if (trim(familyType) == 'CH' .and. btest(btyp,13)) then
+            cleanLevelsCH = .true.
+          else
+            cleanLevelsCH = .false.
+          end if
         end if
-          
-        if (checkBlock) then
+
+        if (.not.isInfoBlock(btyp,familyType_opt=trim(familyType)) .and. checkBlock) then
 
           if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
-          if (cleanLevels) then
+          if (cleanLevels .or. cleanLevelsCH) then
             newNumLevels = numLevels2 - numReject
             if (debug) write(*,*) 'ReportIndex = ', reportIndex
             if (debug) write(*,*) 'Reducing the number of levels from ', numLevels2, ' to ', newNumLevels
@@ -6399,7 +6409,7 @@ contains
         end if
 
       end do blocks2
-      
+
       ! delete existing report and write new report into file
       call burp_delete_report(inputFile, inputReport, iostat=error)
       call handle_error(error, "brpr_burpClean: burp_delete_report")
@@ -6666,6 +6676,12 @@ contains
       if ( .not.isFlag ) then
         isFlag = (btyp10 == btyp10flg-2 .or. btyp10 == btyp10flg-offset-2)
       end if
+    else if (trim(familyType)=='CH') then
+      offset = 256
+      isFlag = (btyp10 == btyp10flg .or. btyp10 == btyp10flg - offset)
+      if ( .not.isFlag ) then
+        isFlag = (btyp10 == btyp10flg-2 .or. btyp10 == btyp10flg-offset-2)
+      end if
     else
       select case(trim(familyType))
       case('AI','SW','SC')
@@ -6677,7 +6693,7 @@ contains
       end select
       isFlag = (btyp10 == btyp10flg-offset .or. btyp10 == btyp10flg-offset-2)
     end if
-    
+
   end function isFlagBlock
 
 
@@ -6704,6 +6720,12 @@ contains
       if ( .not.isObs ) then
         isObs = (btyp10 == btyp10obs-2 .or. btyp10 == btyp10obs-offset-2)
       end if
+    else if (trim(familyType)=='CH') then
+      offset = 256
+      isObs = (btyp10 == btyp10obs .or. btyp10 + offset == btyp10obs)
+      if ( .not.isObs ) then
+        isObs = (btyp10 == btyp10obs-2 .or. btyp10 == btyp10obs-offset-2)
+      end if
     else
       select case(trim(familyType))
       case('AI','SW','SC')
@@ -6715,10 +6737,50 @@ contains
       end select
       isObs = (btyp10 == btyp10obs-offset .or. btyp10 == btyp10obs-offset-2)
     end if
-    
+
   end function isObsBlock
 
-  
+
+  function isInfoBlock(btyp,familyType_opt,requiredFamilyType_opt) result(isInfo)
+    !
+    !:Purpose:  To determine if this is an info block of the optionally
+    !           specified obs family.
+    !
+
+    implicit none
+
+    ! Arguments:
+    character(len=*), optional, intent(in) :: familyType_opt         ! Obs family
+    character(len=*), optional, intent(in) :: requiredFamilyType_opt ! Required obs family
+    integer,                    intent(in) :: btyp                   ! BURP block btyp
+    ! Result:
+    logical :: isInfo
+
+    ! Locals:
+    integer          :: btyp10, btyp10inf
+    character(len=2) :: requiredFamilyType ! Required obs family
+
+    if (present(familyType_opt)) then
+      requiredFamilyType = 'CH'
+      if (present(requiredFamilyType_opt)) then
+        requiredFamilyType = trim(requiredFamilyType_opt)
+      else       
+        requiredFamilyType = 'CH'
+      end if
+
+      if (trim(familyType_opt) /= trim(requiredFamilyType)) then
+        isInfo = .false.
+        return
+      end if
+    end if
+
+    btyp10 = ishft(btyp,-5)
+    btyp10inf = 96
+    isInfo = ( (btyp10 == btyp10inf) .or. (btyp10 - btyp10inf == 1) )
+
+  end function isInfoBlock
+
+
   subroutine getElementIdsRead(familyType, elementIds)
     implicit none
 
@@ -6727,7 +6789,8 @@ contains
     integer, allocatable, intent(out) :: elementIds(:)
 
     ! Locals:
-    integer :: elementIndex, elementCount
+    integer :: elementIndex, elementCount, nelemsMax
+    integer, allocatable :: bListElementsMax(:)
 
     if (allocated(elementIds)) deallocate(elementIds)
 
@@ -6764,6 +6827,34 @@ contains
       call brpacma_nml('namburp_filter_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
+
+    case('CH')
+      ! Identify max possible number of elements
+      call brpacma_nml('namburp_filter_chm_sfc', beSilent_opt=.true.)
+      nelemsMax = nelems
+      call brpacma_nml('namburp_filter_chm', beSilent_opt=.true.)
+      nelemsMax = nelemsMax + nelems
+      allocate(bListElementsMax(nelemsMax))
+
+      ! Combine sets, excluding repeated values
+      call brpacma_nml('namburp_filter_chm_sfc', beSilent_opt=.true.)
+      elementCount = 0
+      do elementIndex = 1,nelems
+        if (blistelements(elementIndex) /= BUFR_SCALE_EXPONENT) then
+          elementCount = elementCount + 1
+          bListElementsMax(elementCount) = blistelements(elementIndex)
+        end if
+      end do
+      call brpacma_nml('namburp_filter_chm', beSilent_opt=.true.)
+      do elementIndex = 1, nelems
+        if (any(bListElementsMax(1:elementCount) == blistelements(elementIndex)) .or. &
+            blistelements(elementIndex) == BUFR_SCALE_EXPONENT) cycle
+        elementCount = elementCount + 1
+        bListElementsMax(elementCount) = blistelements(elementIndex)
+      end do
+      allocate(elementIds(elementCount))
+      elementIds(:) = bListElementsMax(1:elementCount)
+      deallocate(bListElementsMax)
 
     case default
       call utl_abort('getElementIdsRead: unknown familyType: ' // trim(familyType))
