@@ -1,25 +1,3 @@
-# Breaking change!
-
-If you compile MIDAS code after tag `v_3.7.2` on HPCR-U2, then you
-must update your login profile to version `1.19.0`:
-```bash
-ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.19.0 ~/.profile_1.19.0
-rm -v ~/.profile && ln -svi .profile_1.19.0 ~/.profile
-```
-
-This change is backward compatible for your suites but you absolutely
-need to update your profile to compile any MIDAS code after version
-`v_3.7.2`.
-
-To know if your code is after `v_3.7.2`, you can execute:
-```bash
-git describe
-```
-
-Also, to run the system tests for versions that include the latest
-update to `rpn/utils`, you must update your login profile to
-version `1.28.0` or later.
-
 # MIDAS Fortran coding standards:
 
 * [List of standards](docs/codingStandards.md)
@@ -101,7 +79,7 @@ To proceed to compilation tasks, you should be in the `src/` directory.
 `midas_build` compiles by default on both platforms.
 
 ## Compiling a single program
-To compile a single program on both platforms, do the following from the 
+To compile a single program on both platforms, do the following from the
 frontnode:
 ```bash
 cd ${where_your_code_is}
@@ -113,8 +91,8 @@ the sub-directory `src/programs` or [`splitobs`](./src/README.md#splitobs-an-ext
 If you installed the [auto-completion feature](./src/README.md#auto-completion)
 you can browse all install targets by pressing `<TAB>` following `./midas_build`.
 
-By default the binary will be installed in 
-`${HOME}/data_maestro/ords/midas-bld/midas_abs/` 
+By default the binary will be installed in
+`${HOME}/data_maestro/ords/midas-bld/midas_abs/`
 (this can be [configured by environment variables](./src/README.md#configuring-the-compilation-and-linking-process)).
 
 ## Compiling all programs
