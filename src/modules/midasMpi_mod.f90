@@ -25,9 +25,26 @@ module midasMpi_mod
   integer, public, protected :: mmpi_npex      = 0
   integer, public, protected :: mmpi_npey      = 0
   integer, public, protected :: mmpi_numthread = 0
-  type(mpi_comm), public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
+  type(mpi_comm), public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_mpicomm_SHARED
   integer, public, protected :: mmpi_maxTagValue
   integer, public, protected, allocatable :: mmpi_nodeMasters(:)
+
+  ! module constants
+  ! global communicator
+  ! Since, we are only considering a single grid, we can assume here that there is only one world
+  type(mpi_comm), public, parameter :: mmpi_comm_GRID = MPI_COMM_WORLD
+  ! MPI types
+  type(mpi_datatype), public, parameter :: mmpi_logical  = MPI_LOGICAL
+  type(mpi_datatype), public, parameter :: mmpi_integer  = MPI_INTEGER
+  type(mpi_datatype), public, parameter :: mmpi_integer8 = MPI_INTEGER8
+  type(mpi_datatype), public, parameter :: mmpi_real4    = MPI_REAL4
+  type(mpi_datatype), public, parameter :: mmpi_real8    = MPI_REAL8
+  ! Mpi operations
+  type(mpi_op), public, parameter :: mmpi_sum  = MPI_SUM
+  type(mpi_op), public, parameter :: mmpi_max  = MPI_MAX
+  type(mpi_op), public, parameter :: mmpi_min  = MPI_MIN
+  type(mpi_op), public, parameter :: mmpi_lor  = MPI_LOR
+  type(mpi_op), public, parameter :: mmpi_land = MPI_LAND
 
   ! Public procedures
   public :: mmpi_initialize,mmpi_getptopo
@@ -180,7 +197,7 @@ contains
     call rpn_comm_init(mmpi_getptopo, mmpi_myid, mmpi_nprocs, npex, npey)
 
     ! get rank as 'mmpi_myid'
-    call mpi_comm_rank(mpi_comm_world, mmpi_myid, ierr)
+    call mpi_comm_rank(mmpi_comm_grid, mmpi_myid, ierr)
     call handleMpiError(ierr, 'Error when calling MPI_COMM_RANK for global communicator in ''mmpi_initialize''')
 
     ! this is a special mpi communicator for using shared memory arrays
@@ -212,10 +229,6 @@ contains
                                  mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost
 
     ! create some MPI communicators to facilitate
-
-    ! mmpi_comm_GRID = rpn_comm_comm(mmpi_rpn_comm_grid)
-    ! Since, we are only considering a single grid, we can assume here that
-    mmpi_comm_GRID = mpi_comm_world
 
     ! Initiliazing the 'EW' communicator, with RPN_COMM, it used to be the command
     !       mmpi_comm_EW  = rpn_comm_comm('EW')
