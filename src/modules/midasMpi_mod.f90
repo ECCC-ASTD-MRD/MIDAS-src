@@ -175,7 +175,7 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm , allReduceForward_opt)
+  subroutine mmpi_allreduce_sumreal8scalar(sendRecvValue, comm, allReduceForward_opt)
     !
     !:Purpose: Version of mpi_allReduce that always performs sum in
     !          the same order.
