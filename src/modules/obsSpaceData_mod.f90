@@ -18,7 +18,7 @@ module IndexListDepot_mod
   ! :Usage:
   !    An ObsSpaceData_mod client must first call either
   !    obs_set_current_body_list or obs_set_current_header_list, specifying
-  !    either the family of interest or the header row index of interest. 
+  !    either the family of interest or the header row index of interest.
   !    This does not return the list directly to the caller, but rather writes
   !    the list, as a struct_index_list, to the private contents of the obs
   !    oject that is returned to the caller but which cannot be examined by the
@@ -27,7 +27,7 @@ module IndexListDepot_mod
   !
   !    In order to access the indices that are in the list, the
   !    ObsSpaceData_mod client must call either obs_getHeaderIndex or
-  !    obs_getBodyIndex, giving the ObsSpaceData object as the only argument. 
+  !    obs_getBodyIndex, giving the ObsSpaceData object as the only argument.
   !    On each call, one index is returned.  On calls after the last index in
   !    the list, a value of -1 is returned.
   !
@@ -56,7 +56,7 @@ module IndexListDepot_mod
   ! OMP:
   !    ObsSpaceData_mod has been designed so that it may be called from within
   !    an OMP section of code.  If there are n OMP threads, it is possible that
-  !    there be as many as n lists in use simultaneously.  The parameter, 
+  !    there be as many as n lists in use simultaneously.  The parameter,
   !    NUMBER_OF_LISTS, has been set to n to accommodate that many threads.  In
   !    this case, because the current_list of the depot is not OMP-private, it
   !    cannot be asked to remember the current list for each of the OMP
@@ -87,7 +87,7 @@ module IndexListDepot_mod
    end interface ild_get_next_index
 
                                         ! This dimension must accommodate the
-                                        ! maximum number of OMP processors 
+                                        ! maximum number of OMP processors
    integer, parameter :: NUMBER_OF_LISTS = 32
 
    type struct_index_list
@@ -256,7 +256,7 @@ contains
    subroutine ild_initialize(depot, numHeaderBody_max)
       !
       ! :Purpose: Initialize the indicated list depot
-      !   
+      !
       ! :Note: indices is allocated with 2 extra elements to make room for
       !        the end-of-list flag that is set in
       !        obs_set_current_header/body_list
@@ -308,7 +308,7 @@ module ObsColumnNames_mod
 
    !
    ! INTEGER-HEADER COLUMN NUMBERS
-   !  
+   !
    ! the first column index for integer header variables defined below
    ! (chosen such that every column number is unique, so that a mismatch between
    !  a column number and a column type (real, int, head, body) can be detected)
@@ -316,9 +316,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RLN = NHDR_INT_BEG ! report location
                                              ! unique(within obsdat), possibly
    integer, parameter, public :: OBS_ONM = OBS_RLN+1  ! ordered, station id number
-   integer, parameter, public :: OBS_INS = OBS_ONM+1  ! instrument ID  
+   integer, parameter, public :: OBS_INS = OBS_ONM+1  ! instrument ID
    integer, parameter, public :: OBS_ITY = OBS_INS+1  ! code: instrument & retrieval type
-   integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code 
+   integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code
    integer, parameter, public :: OBS_TEC = OBS_SAT+1  ! satellite processing technique
    integer, parameter, public :: OBS_SEN = OBS_TEC+1  ! satellite sensor code
    integer, parameter, public :: OBS_DAT = OBS_SEN+1  ! observation date YYYYMMD
@@ -351,7 +351,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SWGA= OBS_SWLS+1 ! QUALITY VALUES FOR SW (AMV) DATA
    integer, parameter, public :: OBS_SWHA= OBS_SWGA+1 ! QUALITY VALUES FOR SW (AMV) DATA
    integer, parameter, public :: OBS_CHM = OBS_SWHA+1 ! BUFR code (table 08046) of constituent type (for the CH family)
-   integer, parameter, public :: OBS_FOV = OBS_CHM+1  ! field of view 
+   integer, parameter, public :: OBS_FOV = OBS_CHM+1  ! field of view
    integer, parameter, public :: OBS_PRFL= OBS_FOV+1  ! profile id. number
    integer, parameter, public :: OBS_PHAS= OBS_PRFL+1 ! phase of flight
    integer, parameter, public :: OBS_ORI = OBS_PHAS+1 ! originating centre code
@@ -362,9 +362,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_TFLG= OBS_HDT+1  ! flag for hi-res time element
    integer, parameter, public :: OBS_LFLG= OBS_TFLG+1 ! flag for hi-res lat element
    integer, parameter, public :: OBS_ORBI= OBS_LFLG+1! satellite orbit index
-   integer, parameter, public :: OBS_AQF1= OBS_ORBI+1! ATMS Geolocalisation Quality Control Flag 
-   integer, parameter, public :: OBS_AQF2= OBS_AQF1+1! ATMS Granule Level Quality Control Flag 
-   integer, parameter, public :: OBS_AQF3= OBS_AQF2+1! ATMS Scan Level Quality Control Flag 
+   integer, parameter, public :: OBS_AQF1= OBS_ORBI+1! ATMS Geolocalisation Quality Control Flag
+   integer, parameter, public :: OBS_AQF2= OBS_AQF1+1! ATMS Granule Level Quality Control Flag
+   integer, parameter, public :: OBS_AQF3= OBS_AQF2+1! ATMS Scan Level Quality Control Flag
    integer, parameter, public :: OBS_TTYP= OBS_AQF3+1! TERRAIN TYP INDICE for TOVS QC
    integer, parameter, public :: OBS_INFG= OBS_TTYP+1! SATPLOT INFO FLAG for TOVS
    integer, parameter, public :: OBS_RAIN= OBS_INFG+1! UKMO rain flag for ssmis obs
@@ -380,8 +380,8 @@ module ObsColumnNames_mod
    ! INTEGER-HEADER COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
-      (/ 'RLN ','ONM ','INS ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &  
-         'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
+      (/ 'RLN ','ONM ','INS ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &
+         'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &
          'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG',&
@@ -508,8 +508,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CF7   = OBS_CF6  +1 ! AVHRR fraction of class 7
    integer, parameter, public :: OBS_ETOP  = OBS_CF7  +1 ! CO2 slicing consensus (median) cloud top pressure
    integer, parameter, public :: OBS_VTOP  = OBS_ETOP +1 ! estimated error on CO2 slicing cloud top pressure
-   integer, parameter, public :: OBS_ECF   = OBS_VTOP +1 ! CO2 slicing effective cloud fraction 
-   integer, parameter, public :: OBS_VCF   = OBS_ECF  +1 ! estimated error on CO2 CO2 slicing cloud  fraction 
+   integer, parameter, public :: OBS_ECF   = OBS_VTOP +1 ! CO2 slicing effective cloud fraction
+   integer, parameter, public :: OBS_VCF   = OBS_ECF  +1 ! estimated error on CO2 CO2 slicing cloud  fraction
    integer, parameter, public :: OBS_HE    = OBS_VCF  +1 ! cloud effective height (one channel)
    integer, parameter, public :: OBS_ZTSR  = OBS_HE   +1 ! retrieved skin temperature from window channel in K
    integer, parameter, public :: OBS_ZTM   = OBS_ZTSR +1 ! model temperature, eta=1, in K (should not be there)
@@ -531,12 +531,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_IWV   = OBS_SIB  +1 ! atmospheric integrated water vapor for ssmis
    integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam   (radians)
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
-   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
+   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam
    integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam
    integer, parameter, public :: OBS_ELEV  = OBS_RANE +1 ! Model Surface Elevation
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_ELEV 
+   integer, parameter :: NHDR_REAL_END = OBS_ELEV
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -593,7 +593,7 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
       (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
-          'CLA '/)  
+          'CLA '/)
 
    !
    ! REAL-BODY COLUMN NUMBERS
@@ -616,7 +616,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_OMA0= OBS_OMP6+1 ! obs - H (analysis at central time)
    integer, parameter, public :: OBS_SIGI= OBS_OMA0+1 ! ensemble-based estimate of the innov std dev
    integer, parameter, public :: OBS_SIGO= OBS_SIGI+1 ! ensemble-based estimate of obs std dev
-   integer, parameter, public :: OBS_POB = OBS_SIGO+1 ! initial value of "gamma" for variational QC 
+   integer, parameter, public :: OBS_POB = OBS_SIGO+1 ! initial value of "gamma" for variational QC
    integer, parameter, public :: OBS_WORK= OBS_POB +1 ! temporary values
    integer, parameter, public :: OBS_PRM = OBS_WORK+1 ! (adjusted) observed value for tovs in variational assimilation
    integer, parameter, public :: OBS_JOBS= OBS_PRM +1 ! contribution to obs cost function
@@ -629,7 +629,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! obs LONgitude in Data table (radians)
    integer, parameter, public :: OBS_BTCL= OBS_LOND+1 ! clear-sky simulated observation
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
-   integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space 
+   integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space
    integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
    integer, parameter, public :: OBS_TSEM= OBS_EMER+1 ! true surface emissivity
    integer, parameter, public :: OBS_OERI= OBS_TSEM+1 ! Initial sigma(obs)
@@ -732,9 +732,9 @@ module ObsDataColumn_mod
                                         !   1st dim'n: column index (column name)
       type(struct_obsDataColumn), dimension(:), pointer :: columns => NULL()
    end type struct_obsDataColumn_Array
-  
 
-   ! These arrays store the status of the columns.  An active column is 
+
+   ! These arrays store the status of the columns.  An active column is
    ! allocated (and can therefore be used) in any object that is instantiated.
    logical, target :: columnActive_IH(NHDR_INT_BEG:NHDR_INT_END ) = .false.
    logical, target :: columnActive_RH(NHDR_REAL_BEG:NHDR_REAL_END) = .false.
@@ -842,7 +842,7 @@ contains
 
    subroutine odc_allocate( odc, numRows, name, dataType, scratchReal, scratchInt )
      !
-     ! :Purpose: Allocate a single column of obs data according to 
+     ! :Purpose: Allocate a single column of obs data according to
      !           specifications in input arguments
      !
      ! :Arguments:
@@ -920,7 +920,7 @@ contains
       !
       ! :Purpose: Set pointers according to the four column flavours (header /
       !           body, integer / real).
-      !      
+      !
       implicit none
 
       ! Arguments:
@@ -964,8 +964,8 @@ contains
             odc_flavour%activeIndexFromColumnIndex=>activeIndexFromColumnIndex_IH
             odc_flavour%activeIndexFromColumnIndex_defined = .false.
             odc_flavour%columnIndexFromActiveIndex=>columnIndexFromActiveIndex_IH
-            odc_flavour%columnIndexFromActiveIndex_defined = .false. 
-         case ('BODY') 
+            odc_flavour%columnIndexFromActiveIndex_defined = .false.
+         case ('BODY')
             odc_flavour%ncol_beg = NBDY_INT_BEG
             odc_flavour%ncol_end = NBDY_INT_END
             odc_flavour%columnActive   => columnActive_IB
@@ -1108,7 +1108,7 @@ contains
               OBS_ZHA , OBS_POB , OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , &
               OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, OBS_LOCI, &
               OBS_OMHX, (0,ii=23,100) /)
-         
+
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
             if(column_index == 0) exit
@@ -1370,10 +1370,10 @@ module ObsSpaceData_mod
   !
   !           |
   !
-  !           Very generally, obsSpaceData can be thought as two tables linked to one another. 
-  !           
+  !           Very generally, obsSpaceData can be thought as two tables linked to one another.
+  !
   !           A "Header" table:
-  ! 
+  !
   !           +-----------------+------+------+------+
   !           | headerIndex     | Lat  | Lon  | ...  |
   !           +=================+======+======+======+
@@ -1387,7 +1387,7 @@ module ObsSpaceData_mod
   !           +-----------------+------+------+------+
   !
   !           and a "data" table:
-  ! 
+  !
   !           +-----------------+-------------------------+-------------+------+
   !           | dataIndex       | Associated headerIndex  | Obs Value   | ...  |
   !           +=================+=========================+=============+======+
@@ -1415,8 +1415,8 @@ module ObsSpaceData_mod
   !           |
   !
   !           * For satellite observations
-  !               * One header contains information on lat/lon, azimuth, zenith angle and time. 
-  !               * Data entries contain: channels, measurement value, etc. 
+  !               * One header contains information on lat/lon, azimuth, zenith angle and time.
+  !               * Data entries contain: channels, measurement value, etc.
   !
   !             .. image:: /_static/satellite.png
   !                 :align: center
@@ -1424,8 +1424,8 @@ module ObsSpaceData_mod
   !           |
   !
   !           * For radar observations
-  !               * One header for each radar "ray". Contains information on lat/lon of radar, elevation, azimuth, etc. 
-  !               * Data entries contain: range, altitude, Doppler velocity, etc. 
+  !               * One header for each radar "ray". Contains information on lat/lon of radar, elevation, azimuth, etc.
+  !               * Data entries contain: range, altitude, Doppler velocity, etc.
   !
   !             .. image:: /_static/radar.png
   !                 :align: center
@@ -1433,7 +1433,7 @@ module ObsSpaceData_mod
   !           |
   !
   !           * For gps radio occultation (GPS-RO)
-  !               * One header for each profile. Contains information on lat/lon time, etc. 
+  !               * One header for each profile. Contains information on lat/lon time, etc.
   !               * Data entries contain: bending angle, refractivity, etc.
   !
   !             .. image:: /_static/gps_ro.png
@@ -1441,9 +1441,9 @@ module ObsSpaceData_mod
   !
   !           |
   !
-  !           * For other observations types such as radiosondes and aircrafts, there is one data entry per header rentry. 
-  !               * headers contain information on lat/lon, time, etc. 
-  !               * Data entries contain measurement values. 
+  !           * For other observations types such as radiosondes and aircrafts, there is one data entry per header rentry.
+  !               * headers contain information on lat/lon, time, etc.
+  !               * Data entries contain measurement values.
   !
   !             .. image:: /_static/others.png
   !                 :align: center
@@ -1454,16 +1454,17 @@ module ObsSpaceData_mod
   !          * ``IndexListDepot_mod``
   !          * ``ObsColumnNames_mod``
   !          * ``ObsDataColumn_mod``
-  ! 
+  !
   !:Note:   Throughout this file:
   !
-  !          * Column_index  is not (in general) indexed from one.  
+  !          * Column_index  is not (in general) indexed from one.
   !          * Each column index has an equivalent name, ``OBS_*`` as defined in ``ObsColumnNames_mod``.
   !          * Active_index is indexed from one by definition (a column index).
   !          * row_index is indexed from one.  It has no equivalent name.
   !          * ``bodyIndex``, etc. is necessarily a row index
   !          * ``HeaderIndex``, etc. is necessarily a row index
   !
+   use midasMpi_mod
    use codePrecision_mod
    use message_mod
    use ObsColumnNames_mod
@@ -1471,7 +1472,6 @@ module ObsSpaceData_mod
    use IndexListDepot_mod
    use mathPhysConstants_mod
    use utilities_mod
-   use midasMpi_mod
 
    implicit none
    save
@@ -1593,7 +1593,7 @@ module ObsSpaceData_mod
    public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_IDF, OBS_ITY, OBS_SAT, OBS_TEC
    public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP , OBS_SEN
    public :: OBS_IPF, OBS_IPC, OBS_IPT
-   public :: OBS_ST1 
+   public :: OBS_ST1
    public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
@@ -2044,12 +2044,12 @@ contains
 
    subroutine obs_clean(obsdat,hx,nens,nobsout,qcvar,checkZha_opt)
       !
-      ! :Purpose: remove all observations from the obsdat  
-      !           that will not be assimilated. 
+      ! :Purpose: remove all observations from the obsdat
+      !           that will not be assimilated.
       !
       ! :Arguments:
       !           :nobsout: unit number for the ASCII output
-      !           :qcvar:   input logical indicating if the input obsdat 
+      !           :qcvar:   input logical indicating if the input obsdat
       !                     data have benefited from a qc-var procedure
       ! :The logic applied:
       !     A body (and its associated header)
@@ -2089,7 +2089,7 @@ contains
         checkZha = .true.
       end if
 
-      kobsout=0 
+      kobsout=0
       iwrite=0
       stations: do kobs=1,obsdat%numHeader
          ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs)
@@ -2097,7 +2097,7 @@ contains
          iaccept=0
          observations: do jdata = ipnt, ipnt + idata - 1
             if (     btest(obs_bodyElem_i(obsdat, OBS_FLG, jdata),12) &
-                .or. .not. qcvar) then 
+                .or. .not. qcvar) then
                ! data will be accepted if they went through the variational
                ! system  including the qcvar. They will also be accepted if the
                ! qcvar procedure was not applied (i.e. when backalt files are
@@ -2115,7 +2115,7 @@ contains
             endif
 
             if (      (obs_bodyElem_i(obsdat, OBS_ASS, jdata) == obs_assimilated) &
-                 .and.(var3d == 1)) then 
+                 .and.(var3d == 1)) then
                ! the observation will be used in the analysis
                iaccept=iaccept+1
                iwrite=iwrite+1
@@ -2137,7 +2137,7 @@ contains
             endif
          enddo observations
 
-         ! adjust obsdat%realHeaders%columns 
+         ! adjust obsdat%realHeaders%columns
          if (iaccept > 0) then
             kobsout=kobsout+1
             do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
@@ -2167,7 +2167,7 @@ contains
         write(nobsout,'(1x,A)') 'after cleanup of the cma: '
         write(nobsout,'(1x,A,I7)') &
              'number of stations containing valid data   ',obsdat%numHeader
-        write(nobsout,'(1x,A,I7)') & 
+        write(nobsout,'(1x,A,I7)') &
              'number of observations now in the cma file ',obsdat%numBody
       end if
 
@@ -2176,8 +2176,8 @@ contains
 
    subroutine obs_clean2(obsdat)
      !
-     ! :Purpose: remove all observations from the obsdat  
-     !           that will not be assimilated. 
+     ! :Purpose: remove all observations from the obsdat
+     !           that will not be assimilated.
      !           modified version of obs_clean, used by MIDAS
      !
      implicit none
@@ -2195,7 +2195,7 @@ contains
      write(*,*) 'number of headers ', obsdat%numHeader
      write(*,*) 'number of bodies  ', obsdat%numBody
 
-     numHeaderCleaned = 0 
+     numHeaderCleaned = 0
      numBodyCleaned = 0
      stations: do headerIndex = 1, obsdat%numHeader
        bodyIndexBeg = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
@@ -2223,7 +2223,7 @@ contains
          endif
        enddo observations
 
-       ! adjust obsdat%realHeaders%columns 
+       ! adjust obsdat%realHeaders%columns
        if (numBodyAccept > 0) then
          numHeaderCleaned = numHeaderCleaned + 1
          do active_index = 1, odc_numActiveColumn(obsdat%intHeaders)
@@ -2401,10 +2401,10 @@ contains
    end function obs_columnIndexFromName
 
 
-  function obs_isColumnNameValid(column_name) result(isValid)  
+  function obs_isColumnNameValid(column_name) result(isValid)
     !
     ! :Purpose: Check if the obsSpaceData column name is valid.
-    !      
+    !
     implicit none
 
     ! Arguments:
@@ -2412,16 +2412,16 @@ contains
     ! Result:
     logical                       :: isValid
 
-    ! Locals: 
+    ! Locals:
     integer                       :: column_index
 
     call odc_initAllColumnFlavours()
 
     isValid = .false.
 
-    ! check "STID" 
+    ! check "STID"
     if (trim(column_name) == "STID") isValid = .true.
- 
+
     if (isValid) return
 
     ! check integer-header
@@ -2443,7 +2443,7 @@ contains
       end if
     end do
     if (isValid) return
-  
+
     ! check integer-body
     do column_index = odc_flavour_IB%ncol_beg, odc_flavour_IB%ncol_end
       if (trim(column_name) == &
@@ -2463,7 +2463,7 @@ contains
       end if
     end do
     if (isValid) return
-   
+
   end function obs_isColumnNameValid
 
 
@@ -2617,7 +2617,7 @@ contains
       do headerIndex = 1, obs_numHeader(obsSpaceData)
          bodyIndexStart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
          bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexStart - 1
-         
+
          do bodyIndex = bodyIndexStart, bodyIndexEnd
             if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
                call obs_bodySet_r(obsSpaceData,bodyDestination,bodyIndex, &
@@ -2625,7 +2625,7 @@ contains
             end if
          end do
       end do
-      
+
    end subroutine obs_copyRealColumnBodyToBody
 
 
@@ -2657,7 +2657,7 @@ contains
          return
       endif
 
-      !** Commented out by M. Buehner to allow use in EnVar (also added copy of 
+      !** Commented out by M. Buehner to allow use in EnVar (also added copy of
       !** headerIndex_mpiglobal and bodyIndex_mpiglobal, if they exist)
       !if(obs_a%mpi_local)then
       !   call obs_abort( &
@@ -2742,7 +2742,7 @@ contains
             nullify(obsdat%headerPrimaryKey)
             if(ierr /= 0)write(*,*) 'Problem detected with headerPrimaryKey. IERR =',ierr
          end if
-          
+
          if (associated(obsdat%cfamily)) then
             deallocate(obsdat%cfamily,STAT=ierr)
             nullify(obsdat%cfamily)
@@ -2844,7 +2844,7 @@ contains
       ! :Purpose:  print all data records associated with an observation
       !
       ! :Arguments:
-      !     :kstn: no. of station 
+      !     :kstn: no. of station
       !     :kulout: unit used for printing
       !
       implicit none
@@ -2878,7 +2878,7 @@ contains
          'zhad  vco'
       do jdata = ipnt, ipnt + idata - 1
          idata2 = jdata -ipnt + 1
-         if (btest(obsdat%intBodies%columns(OBS_FLG)%value_i(jdata),12)) then 
+         if (btest(obsdat%intBodies%columns(OBS_FLG)%value_i(jdata),12)) then
             var3d=1
          else
             var3d=0
@@ -2962,7 +2962,7 @@ contains
       obsREG = obs_headElem_i(obsdata, OBS_REG, kobs)
       obsIP  = obs_headElem_i(obsdata, OBS_IP , kobs)
       write(kulout,fmt=9201) obsNLV, obsPAS, obsREG, obsIP
-         
+
 
 9200  format(2x,'position within realBodies:',i8,1x,'stn. number:',i6,1x,/, &
          '  date: ',i10,1x,' time: ',i8,/, &
@@ -2987,7 +2987,7 @@ contains
       !
       ! :Note: for the character data cstnid(:), this is converted to integers
       !       with IACHAR and back to characters with ACHAR, to facilitate this
-      !       gather through rpn_comm_allreduce
+      !       gather through 'mmpi_allreduce'
       !
       implicit none
 
@@ -3085,7 +3085,7 @@ contains
       enddo
 
       ! gather the lists of mpiglobal header indices on proc 0 to know where everything goes
-      call mmpi_allReduce(obsdat%numHeader, numHeader_mpilocalmax, "mpi_max")
+      call mmpi_allReduce(obsdat%numHeader, numHeader_mpilocalmax, mmpi_max)
       allocate(headerIndex_mpiglobal(numHeader_mpilocalmax))
       headerIndex_mpiglobal(:)=0
       do headerIndex_mpilocal=1,obsdat%numHeader
@@ -3116,7 +3116,7 @@ contains
       end if
       call mmpi_gather(headerPrimaryKey_mpilocal, all_headerPrimaryKey_mpilocal)
       deallocate(headerPrimaryKey_mpilocal)
-      
+
       ! make header-level integer data mpiglobal
       allocate(intHeaders_mpilocal(odc_numActiveColumn(obsdat%intHeaders),numHeader_mpilocalmax))
       intHeaders_mpilocal(:,:)=0
@@ -3150,7 +3150,7 @@ contains
                obs_headElem_r(obsdat, columnIndex, headerIndex_mpilocal)
          enddo
       enddo
-      
+
       if(mmpi_myid == 0) then
          allocate(all_realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax,0:mmpi_nprocs-1))
       else
@@ -3202,7 +3202,7 @@ contains
       call msg_memUsage('obs_expandToMpiGlobal')
 
       ! gather the lists of mpiglobal body indices on proc 0 to know where everything goes
-      call mmpi_allReduce(obsdat%numBody, numBody_mpilocalmax, "mpi_max")
+      call mmpi_allReduce(obsdat%numBody, numBody_mpilocalmax, mmpi_max)
       allocate(bodyIndex_mpiglobal(numBody_mpilocalmax))
       bodyIndex_mpiglobal(:)=0
       do bodyIndex_mpilocal=1,obsdat%numBody
@@ -3350,7 +3350,7 @@ contains
                endif
             enddo
          enddo
- 
+
 
          ! Make RLN point to global data
          do headerIndex=1,numHeader_mpiGlobal
@@ -3593,7 +3593,7 @@ contains
    end function obs_getFamily
 
 
-   function obs_getNclassAvhrr() 
+   function obs_getNclassAvhrr()
      !
      ! :Purpose:
      !      to get the number of  AVHRR radiance classes
@@ -3607,7 +3607,7 @@ contains
 
    end function obs_getNclassAvhrr
 
-   function obs_getNchanAvhrr() 
+   function obs_getNchanAvhrr()
      !
      ! :Purpose:
      !      to get the number of AVHRR channels
@@ -3892,19 +3892,14 @@ contains
    subroutine obs_mpiDistributeIndices(obsdat)
       !
       ! :Purpose:
-      !  Compute headerIndex_mpiglobal and bodyIndex_mpiglobal: 
+      !  Compute headerIndex_mpiglobal and bodyIndex_mpiglobal:
       !  this determines how obs are distributed over MPI processes
       !  and is needed for converting from mpiglobal to mpilocal and vice versa.
       !  The header indices are distributed following the chosen strategy,
       !  currently either "round robin" or by latitude bands.
       !
-      ! :Note: this subroutine is called before converting from mpiglobal to 
+      ! :Note: this subroutine is called before converting from mpiglobal to
       !        mpilocal
-      !
-      ! :Comments:  In principle this method could have obtained
-      !           my_mpi_id by use'ing the module, mpi.  However, it queries
-      !           rpn_comm for itself because the mpi module belongs to the
-      !           3dvar code, whereas the present module is shared code.
       !
       implicit none
 
@@ -3973,9 +3968,9 @@ contains
          headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
          idata= obs_headElem_i(obsdat, OBS_RLN, headerIndex_mpiglobal)
          idataend = obs_headElem_i(obsdat, OBS_NLV, headerIndex_mpiglobal) &
-                  + idata -1 
-         do bodyIndex_mpiglobal=idata,idataend 
-            bodyIndex_mpilocal=bodyIndex_mpilocal+1 
+                  + idata -1
+         do bodyIndex_mpiglobal=idata,idataend
+            bodyIndex_mpilocal=bodyIndex_mpilocal+1
             obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal) = bodyIndex_mpiglobal
          enddo
       enddo
@@ -4050,7 +4045,7 @@ contains
       integer :: numBody_mpiGlobal
 
       if(obsdat%mpi_local)then
-         call mmpi_allReduce(obsdat%numBody, numBody_mpiGlobal, "mpi_sum")
+         call mmpi_allReduce(obsdat%numBody, numBody_mpiGlobal, mmpi_sum)
          obs_numBody_mpiglobal = numBody_mpiGlobal
       else
          obs_numBody_mpiglobal = obsdat%numBody
@@ -4106,7 +4101,7 @@ contains
 
       if(obsdat%mpi_local)then
          sizedata=1
-         call mmpi_allReduce(obsdat%numHeader, numHeader_mpiGlobal, "mpi_sum", sizedata)
+         call mmpi_allReduce(obsdat%numHeader, numHeader_mpiGlobal, mmpi_sum, sizedata)
          obs_numHeader_mpiglobal = numHeader_mpiGlobal
       else
          obs_numHeader_mpiglobal = obsdat%numHeader
@@ -4319,7 +4314,7 @@ contains
    subroutine obs_reduceToMpiLocal(obsdat)
       !
       ! :Purpose: re-construct observation data object by
-      !          giving local Obs TAG. 
+      !          giving local Obs TAG.
       !      To retain in the observation object only those data that are
       !      pertinent to the present mpi processor, i.e. convert from mpiglobal
       !      to mpilocal.
@@ -4363,9 +4358,9 @@ contains
       ! compute the mpilocal lists of indices into the mpiglobal data
       call obs_mpiDistributeIndices(obsdat)
 
-      ! calculate the size of the local obs data  
+      ! calculate the size of the local obs data
       if(associated(obsdat%headerIndex_mpiglobal)) then
-         numHeader_mpilocal=size(obsdat%headerIndex_mpiglobal) 
+         numHeader_mpilocal=size(obsdat%headerIndex_mpiglobal)
       else
          numHeader_mpilocal=0
       endif
@@ -4381,9 +4376,9 @@ contains
 
       ! allocate temporary arrays to hold mpilocal data
       if(numHeader_mpiLocal > 0) then
-         allocate(headerPrimaryKey_tmp(numHeader_mpiLocal)) 
-         allocate(cfamily_tmp(    numHeader_mpiLocal)) 
-         allocate( cstnid_tmp(    numHeader_mpiLocal)) 
+         allocate(headerPrimaryKey_tmp(numHeader_mpiLocal))
+         allocate(cfamily_tmp(    numHeader_mpiLocal))
+         allocate( cstnid_tmp(    numHeader_mpiLocal))
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
                                   numHeader_mpilocal))
          allocate( intHeaders_tmp(odc_numActiveColumn(obsdat%intHeaders), &
@@ -4391,7 +4386,7 @@ contains
       endif
 
       if(numBody_mpiLocal > 0) then
-         allocate(bodyPrimaryKey_tmp(numBody_mpiLocal)) 
+         allocate(bodyPrimaryKey_tmp(numBody_mpiLocal))
          allocate( realBodies_tmp(odc_numActiveColumn(obsdat%realBodies), &
                                   numBody_mpilocal))
          allocate(  intBodies_tmp(odc_numActiveColumn(obsdat%intBodies), &
@@ -4399,7 +4394,7 @@ contains
       endif
 
       ! copy the mpilocal data to temporary arrays: header-level data
-      do headerIndex_mpilocal=1,numHeader_mpilocal 
+      do headerIndex_mpilocal=1,numHeader_mpilocal
          headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
 
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
@@ -4441,20 +4436,20 @@ contains
                   + intHeaders_tmp(odc_activeIndexFromColumnIndex( &
                                         obsdat%intHeaders%odc_flavour,OBS_NLV), &
                                    headerIndex_mpilocal-1 &
-                                  ) 
+                                  )
          endif
       enddo
 
       ! copy the mpilocal data to temporary arrays: body-level data
-      bodyIndex_mpilocal=0 
+      bodyIndex_mpilocal=0
       do headerIndex_mpilocal=1,numHeader_mpilocal
          headerIndex_mpiglobal=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
- 
+
                                         ! Make HIND point to local header
          idata    = obs_headElem_i(obsdat, OBS_RLN,headerIndex_mpiglobal)
          idataend = obs_headElem_i(obsdat, OBS_NLV,headerIndex_mpiglobal)+idata-1
-         do bodyIndex_mpiglobal=idata,idataend 
-            bodyIndex_mpilocal=bodyIndex_mpilocal+1 
+         do bodyIndex_mpiglobal=idata,idataend
+            bodyIndex_mpilocal=bodyIndex_mpilocal+1
 
             bodyPrimaryKey_tmp(bodyIndex_mpilocal)= &
                         obsdat%bodyPrimaryKey(bodyIndex_mpiglobal)
@@ -4488,8 +4483,8 @@ contains
 
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(numHeader_mpiLocal > 0) then
-         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:  ) 
-         obsdat%cfamily(:  )=cfamily_tmp(:  ) 
+         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:  )
+         obsdat%cfamily(:  )=cfamily_tmp(:  )
          obsdat%cstnid (:  )= cstnid_tmp(:  )
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
@@ -4524,7 +4519,7 @@ contains
             column_index=odc_columnIndexFromActiveIndex( &
                                       obsdat%intBodies%odc_flavour, active_index)
             obsdat%intBodies%columns(column_index)%value_i(:) &
-                                                  =intBodies_tmp(active_index,:) 
+                                                  =intBodies_tmp(active_index,:)
          enddo
 
          ! deallocate temporary arrays
@@ -4572,8 +4567,8 @@ contains
       ! allocate temporary arrays to hold data
       if(obsdat%numHeader > 0) then
          allocate(headerPrimaryKey_tmp(obsdat%numHeader))
-         allocate(cfamily_tmp(    obsdat%numHeader)) 
-         allocate( cstnid_tmp(    obsdat%numHeader)) 
+         allocate(cfamily_tmp(    obsdat%numHeader))
+         allocate( cstnid_tmp(    obsdat%numHeader))
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
                                   obsdat%numHeader))
          allocate( intHeaders_tmp(odc_numActiveColumn(obsdat%intHeaders), &
@@ -4589,10 +4584,10 @@ contains
       endif
 
       ! copy the data to temporary arrays: header-level data
-      do headerIndex=1,obsdat%numHeader 
+      do headerIndex=1,obsdat%numHeader
          headerPrimaryKey_tmp(headerIndex)= &
                       obsdat%headerPrimaryKey(headerIndex)
-        
+
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
                                     obsdat%realHeaders%odc_flavour, active_index)
@@ -4617,10 +4612,10 @@ contains
                                         ! Make HIND point to local header
          idata    = obs_headElem_i(obsdat, OBS_RLN,headerIndex)
          idataend = obs_headElem_i(obsdat, OBS_NLV,headerIndex)+idata-1
-         do bodyIndex=idata,idataend 
+         do bodyIndex=idata,idataend
             bodyPrimaryKey_tmp(bodyIndex)= &
                         obsdat%bodyPrimaryKey(bodyIndex)
-           
+
             do active_index=1,odc_numActiveColumn(obsdat%realBodies)
                column_index=odc_columnIndexFromActiveIndex( &
                                       obsdat%realBodies%odc_flavour,active_index)
@@ -4647,7 +4642,7 @@ contains
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(obsdat%numHeader > 0) then
          obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:)
-         obsdat%cfamily(:)=cfamily_tmp(:) 
+         obsdat%cfamily(:)=cfamily_tmp(:)
          obsdat%cstnid (:)= cstnid_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
@@ -4682,7 +4677,7 @@ contains
             column_index=odc_columnIndexFromActiveIndex( &
                                       obsdat%intBodies%odc_flavour, active_index)
             obsdat%intBodies%columns(column_index)%value_i(:) &
-                                                  =intBodies_tmp(active_index,:) 
+                                                  =intBodies_tmp(active_index,:)
          enddo
 
          ! deallocate temporary arrays
@@ -4698,7 +4693,7 @@ contains
 
    subroutine obs_MpiRedistribute( obsdat_inout, target_ip_index )
       !
-      ! :Purpose: Redistribute obs over mpi tasks according to mpi task id stored 
+      ! :Purpose: Redistribute obs over mpi tasks according to mpi task id stored
       !                            in the integer header column "target_ip_index"
       !
       implicit none
@@ -4741,7 +4736,7 @@ contains
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
          if (target_ip /= mmpi_myid) needToRedistribute = .true.
       enddo
-      call mmpi_allReduce(needToRedistribute, needToRedistribute_mpiglobal, "MPI_LOR")
+      call mmpi_allReduce(needToRedistribute, needToRedistribute_mpiglobal, mmpi_lor)
       if(.not.needToRedistribute_mpiglobal) then
          write(*,*) 'obs_MpiRedistribute: do not need to redistribute, returning'
          return
@@ -4761,16 +4756,16 @@ contains
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
          numBodyPE_mpilocal(1+target_ip)   = numBodyPE_mpilocal(1+target_ip)   + obs_headElem_i(obsdat_inout,OBS_NLV,headerIndex)
       enddo
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_SUM")
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_SUM")
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, mmpi_sum)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, mmpi_sum)
       numHeader_out = numHeaderPE_mpiglobal(mmpi_myid+1)
       numBody_out   = numBodyPE_mpiglobal(mmpi_myid+1)
       write(*,*) 'obs_MpiRedistribute: num mpi header and body before redistribution =', numHeader_in, numBody_in
       write(*,*) 'obs_MpiRedistribute: num mpi header and body after redistribution  =', numHeader_out, numBody_out
 
       ! Compute the max number of headers and bodies in each mpi message sent/received in the transpose
-      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, "MPI_MAX")
-      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, "MPI_MAX")
+      call mmpi_allReduce(numHeaderPE_mpilocal, numHeaderPE_mpiglobal, mmpi_max)
+      call mmpi_allReduce(numBodyPE_mpilocal, numBodyPE_mpiglobal, mmpi_max)
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
       if(mmpi_myid == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
@@ -5644,8 +5639,8 @@ contains
 
    subroutine obs_write(obsdat,hx, &
       nens,nobshdrout,nobsbdyout,nobshxout,nobsdimout)
-      ! 
-      ! :Purpose: 
+      !
+      ! :Purpose:
       !      Write the obsdat info to unformatted files.
       !
       ! :Note: the body information is written in the order that it will
@@ -5691,9 +5686,9 @@ contains
       ! :Arguments:
       !           :obsdat: obsSpaceData object
       !           :kobs: no. of observation
-      !           :kulout: unit used for writing 
+      !           :kulout: unit used for writing
       !
-      implicit none 
+      implicit none
 
       ! Arguments:
       type(struct_obs), intent(in) :: obsdat
@@ -5703,7 +5698,7 @@ contains
       ! Locals:
       integer :: ipnt,idata,j,jdata,k
 
-      ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs) 
+      ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs)
       idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
 
       ! write the data records
@@ -5729,7 +5724,7 @@ contains
       ! :Arguments:
       !           :obsdat: obsSpaceData object
       !           :kobs: no. of observation
-      !           :kulout: unit used for output 
+      !           :kulout: unit used for output
       !           :irealBodies: location in the sorted realBodies
       !           :nrealBodies: number of observations for this header
       !
@@ -5752,7 +5747,7 @@ contains
       end if
 
       nrealBodies=obs_headElem_i(obsdat, OBS_NLV, kobs)
-      ! write the header's content 
+      ! write the header's content
       write(kulout) irealBodies, &
             (obs_headElem_i &
                   (obsdat, &
@@ -5787,11 +5782,11 @@ contains
       !
       ! :Arguments:
       !           :obsdat: obsSpaceData object
-      !           :hx: interpolated values    
-      !           :kobs: no. of station 
-      !           :kulout: unit used for writing 
+      !           :hx: interpolated values
+      !           :kobs: no. of station
+      !           :kulout: unit used for writing
       !
-      implicit none 
+      implicit none
 
       ! Arguments:
       type(struct_obs), intent(in) :: obsdat
@@ -5804,7 +5799,7 @@ contains
 
       nens = size(hx,1)
 
-      ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs) 
+      ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs)
       idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
 
       ! write the data records
@@ -5829,7 +5824,7 @@ contains
      !           :family: Obs family
      !           :localMPI_opt: return MPI local result; optional, default is .false.
      !
-     implicit none 
+     implicit none
 
      ! Arguments:
      type(struct_obs),  intent(in) :: obsdat
@@ -5847,7 +5842,7 @@ contains
      else
         local = .false.
      end if
-     
+
      famExist = .false.
 
      ! check if family exists in local MPI process
@@ -5863,7 +5858,7 @@ contains
         obs_famExist = famExist
      else
         ! return MPI global value
-        call mmpi_allReduce(famExist, obs_famExist, "MPI_LOR")
+        call mmpi_allReduce(famExist, obs_famExist, mmpi_lor)
      end if
 
    end function obs_famExist

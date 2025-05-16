@@ -1,7 +1,7 @@
 program midas_prepcma
   !
-  !:Purpose: Read the observation files (usually after output by the background check) 
-  !          and apply further quality control and thinning for use by the ``LETKF`` program 
+  !:Purpose: Read the observation files (usually after output by the background check)
+  !          and apply further quality control and thinning for use by the ``LETKF`` program
   !
   !          ---
   !
@@ -11,10 +11,10 @@ program midas_prepcma
   !            on the data types of aircraft (AI), scatterometer (SC),
   !            satellite winds (SW) and some radiance (TO). The rejection and thinning
   !            are controlled by the options in the namelist of ``NAMPREPCMA``.
-  !            
+  !
   !            ---
   !
-  !:File I/O: The required input files and produced output files are listed as follows. 
+  !:File I/O: The required input files and produced output files are listed as follows.
   !
   !          --
   !
@@ -26,7 +26,7 @@ program midas_prepcma
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family"
   ! ``stats_tovs``                                 In - Satellite radiance observation errors
-  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - final observation file for each family
   !============================================== ==============================================================
   !
@@ -35,33 +35,33 @@ program midas_prepcma
   !:Synopsis: Below is a summary of the ``prepcma`` program calling sequence:
   !
   !           - **Initial setups:**
-  !            
-  !             - Read the NAMPREPCMA namelist and check/modify some values.            
+  !
+  !             - Read the NAMPREPCMA namelist and check/modify some values.
   !
   !             - ``filt_setup``: set up list of elements to be assimilated and flags for rejection
-  !                              
+  !
   !             - ``obsf_setup``: get observation file names and datestamp
   !
   !           - **Computation:**
   !
-  !             - ``obsf_readFiles``: get the observations 
+  !             - ``obsf_readFiles``: get the observations
   !
-  !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags 
+  !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags
   !
-  !             - ``oer_setObsErrors``: initialize obs error covariances and set flag 
+  !             - ``oer_setObsErrors``: initialize obs error covariances and set flag
   !
   !             - ``oti_setup``: reject any observations outside the data assimilation window
   !
   !             - ``enkf_rejectHighLatIR``: reject all IR radiance observation in arctic and antarctic
   !
-  !             - ``enkf_modifyAmsubObsError``: modify the obs error stddev for AMSUB in the tropics 
+  !             - ``enkf_modifyAmsubObsError``: modify the obs error stddev for AMSUB in the tropics
   !
   !             - ``thinning_fam``: perform thinning for aircraft (AI), scatterometer (SC),
   !                                 satellite winds (SW) and some radiance (TO)
   !
   !           - **Final steps:**
   !
-  !             - ``obsf_writeFiles``: write to burp/sqlite files 
+  !             - ``obsf_writeFiles``: write to burp/sqlite files
   !
   !             - ``obsf_printFiles``: print to ascci file and to unformatted files
   !
@@ -74,20 +74,21 @@ program midas_prepcma
   !            prepcma are listed in the following table:
   !
   !          --
-  !   
+  !
   !=================== ====================== ===========================================
   ! Program/Module     Namelist               Description of what is controlled
   !=================== ====================== ===========================================
-  ! ``midas_prepcma``  ``NAMPREPCMA``         parameters for CMA format and others 
-  !                                           to modify, reject and thinning some  
-  !                                           observation data 
+  ! ``midas_prepcma``  ``NAMPREPCMA``         parameters for CMA format and others
+  !                                           to modify, reject and thinning some
+  !                                           observation data
   ! ``timeCoord_mod``  ``NAMTIME``            assimilation time window length, temporal
-  !                                           resolution of the background state and the 
+  !                                           resolution of the background state and the
   !                                           analysis
   ! ``tovs_nl_mod``    ``NAMTOV``             The list of satellite and instrument
   !=================== ====================== ===========================================
   !
   !
+  use midasMpi_mod
   use version_mod
   use obsSpaceData_mod
   use obsFiles_mod
@@ -98,7 +99,6 @@ program midas_prepcma
   use timeCoord_mod
   use enkf_mod
   use utilities_mod
-  use midasMpi_mod
   use ramDisk_mod
   use regions_mod
   use burpRead_mod
@@ -123,7 +123,7 @@ program midas_prepcma
   integer, parameter :: nai_target = 10
   integer, parameter :: nsc_target = 10
   integer, parameter :: nsw_target = 6
-  integer, parameter :: nto_target = 6 
+  integer, parameter :: nto_target = 6
   integer :: numTovsInstNameList, sensorIndex
   integer :: maxNumHeaderPerInst
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
@@ -136,7 +136,7 @@ program midas_prepcma
 
   ! Namelist variables:
   integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst
-  character(len=codtyp_name_length) :: tovsInstNamesWithMaxNumHeaders(tvs_maxNumberOfSensors) ! List of TOVS inst names 
+  character(len=codtyp_name_length) :: tovsInstNamesWithMaxNumHeaders(tvs_maxNumberOfSensors) ! List of TOVS inst names
                                       ! to prescribe max number of headers
   character(len=256) :: cmahdr        ! should not be used anymore
   character(len=256) :: cmabdy        ! should not be used anymore
@@ -234,10 +234,10 @@ program midas_prepcma
   write(*,*) 'midas-prepcma: obs_numbody   =', numbody
 
   !- Determine if qcvar flag is expected to be present
-  resumeType = brpr_getTypeResume() 
+  resumeType = brpr_getTypeResume()
   write(*,*) 'midas_prepcma: RESUME type =', resumeType
   qcvar = (resumeType == 'POSTALT')
-  if (qcvar) then 
+  if (qcvar) then
     write(*,*) 'midas_prepcma: The input file is a postalt file'
   else
     write(*,*) 'midas_prepcma: The input file is NOT a postalt file'
@@ -280,7 +280,7 @@ program midas_prepcma
                     headerIndexBeg=1, headerIndexEnd=obs_numheader(obsSpaceData), &
                     flagObsOutside_opt=.true. )
   end if
-  
+
   !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
   if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 
@@ -427,24 +427,24 @@ contains
     character(len=codtyp_name_length) :: instName
     logical, save :: firstCall = .true.
 
-    ! box size that is used for observation thinning 
+    ! box size that is used for observation thinning
     ! (the numerator is an approximate distance in km)
     real(8), parameter :: r0_count_km = 200.0/(2**0.5)
     ! next two parameters are not used in this program
     real(8), parameter :: r1_dum = 1.0
     real(8), parameter :: rz_dum = 1.0
 
-    beSilent = (.not. firstCall) 
+    beSilent = (.not. firstCall)
     if (firstCall) firstCall = .false.
 
     numHeader = obs_numheader(obsSpaceData)
-    npres = size(n_pmax,1) 
+    npres = size(n_pmax,1)
     write(*,*) 'Start thinning for ', cfam, ' data'
-    ! at this stage we still have many radiance channels 
+    ! at this stage we still have many radiance channels
     ! that will be rejected at a later stage.
     if (cfam == 'XX') then
       ! never getting here
-      write(*,*) 'count individual observations'   
+      write(*,*) 'count individual observations'
       count_obs = .true.
     else
       write(*,*) 'count the number of reports'
@@ -471,7 +471,7 @@ contains
       nblockoffset(ilat) = nblocksum
       nblocksum = nblocksum + nlonblock(ilat)
       if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
-    end do 
+    end do
     if (mmpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
 
     nrep_count = 0
@@ -548,9 +548,9 @@ contains
           ipres = 1
           do
             if ((n_pmax(ipres) > pressure) .or. (ipres > npres)) exit
-            ipres = ipres + 1 
+            ipres = ipres + 1
           end do
-        end if  
+        end if
         if (ipres <= npres) then
           if (count_obs) then
             incr = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex)
@@ -562,7 +562,7 @@ contains
           nrep_count = nrep_count + 1
           ai_indices(nrep_count, 1) = headerIndex
           ai_indices(nrep_count, 2) = iblock
-          ai_indices(nrep_count, 3) = ipres 
+          ai_indices(nrep_count, 3) = ipres
         end if
 
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
@@ -575,9 +575,9 @@ contains
 
     ! do mpi communication of the accumulators
     allocate(nstationMpiGlobal(nblocksum, npres))
-    call mmpi_allReduce(nstation,   nstationMpiGlobal,    'mpi_sum')
-    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, 'mpi_sum')
-    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, 'mpi_sum')
+    call mmpi_allReduce(nstation,   nstationMpiGlobal,    mmpi_sum)
+    call mmpi_allReduce(nrep_count, nrep_count_mpiGlobal, mmpi_sum)
+    call mmpi_allReduce(nobs_count, nobs_count_mpiGlobal, mmpi_sum)
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
                 nrep_count, nrep_count_mpiGlobal
@@ -586,7 +586,7 @@ contains
                 nobs_count, nobs_count_mpiGlobal
 
     if (cfam == 'TO') then
-      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, "mpi_sum")
+      call mmpi_allReduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, mmpi_sum)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -622,7 +622,7 @@ contains
 
     if (count_obs) then
       write(*,*) 'Estimated remaining number of ', cfam, ' observations (mpiGlobal): ', n_count_thin
-    else 
+    else
       write(*,*) 'Estimated remaining number of ', cfam, ' reports (mpiGlobal): ', n_count_thin
     end if
 
@@ -657,21 +657,21 @@ contains
           ! also set the 'rejected by selection process' flag (bit 11)
           call obs_bodySet_i( obsSpaceData, obs_flg, bodyIndex,  &
                               ibset( obs_bodyElem_i( obsSpaceData, obs_flg, bodyIndex ), 11) )
-        end do       
+        end do
       end if
     end do
 
     ! mpi communication of accumulators
-    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, 'mpi_sum')
-    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 'mpi_sum')
-    
+    call mmpi_allReduce(nrep_count_thin, nrep_count_thin_mpiGlobal, mmpi_sum)
+    call mmpi_allReduce(nobs_count_thin, nobs_count_thin_mpiGlobal, mmpi_sum)
+
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
           nrep_count_thin, nrep_count_thin_mpiGlobal
     write(*,*) 'True remaining number of ', cfam, ' observations (local, mpiGlobal): ',  &
           nobs_count_thin, nobs_count_thin_mpiGlobal
 
     if (cfam == 'TO') then
-      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, "mpi_sum")
+      call mmpi_allReduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, mmpi_sum)
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
@@ -762,8 +762,8 @@ contains
   !----------------------------------------------------------------------
   subroutine checkTovsInstNamesInNml()
     !
-    ! :Purpose: Perform the following checks on namelist variable tovsInstNamesWithMaxNumHeaders: 
-    !           1- no duplicate in the list; 2- amsub is not present in the list. 
+    ! :Purpose: Perform the following checks on namelist variable tovsInstNamesWithMaxNumHeaders:
+    !           1- no duplicate in the list; 2- amsub is not present in the list.
     !
     implicit none
 
@@ -786,7 +786,7 @@ contains
 
     do sensorIndex = 1, tvs_nsensors
       if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == 'amsub') then
-        call utl_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')        
+        call utl_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')
       end if
     end do
 
@@ -863,7 +863,7 @@ contains
     end if
 
     headerFoundForInst = .true.
- 
+
     ! find the first inst with non-zero number of headers
     instNameUniqueListWithHeader(:) = ''
     numInstNameUniqueListWithHeader = 1
@@ -950,7 +950,7 @@ contains
       end if
     end do ! sensorIndex2
 
-    ! check the sum over all blocks match the counts per sensor 
+    ! check the sum over all blocks match the counts per sensor
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
       matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
       if (matchIndexList(1) > 0) then
@@ -959,7 +959,7 @@ contains
         numHeadersFound_mpiGlobal = 0
         do matchFoundIndex = 1, numMatchFound
           numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + &
-                                      sum(numHeaderPerTovsInst_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+                                      sum(numHeaderPerTovsInst_mpiGlobal(:,matchIndexList(matchFoundIndex)))
         end do
 
         if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
@@ -1017,7 +1017,7 @@ contains
             write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
           end do
           write(*,*)
-          
+
         end do ! iblock
 
         ! print max of all block for sensor

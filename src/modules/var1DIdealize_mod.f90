@@ -3,18 +3,18 @@ module var1DIdealize_mod
     !
     ! :Purpose: contains all 1Dvar-related methods.
     !
+    use midasMpi_mod
+    use codeprecision_mod
+    use mathphysconstants_mod
     use columnData_mod
     use columnVariableTransforms_mod
     use controlVector_mod
     use gridStatevector_mod
     use horizontalCoord_mod
-    use midasMpi_mod 
     use obsSpaceData_mod
     use timeCoord_mod
     use utilities_mod
     use verticalCoord_mod
-    use codeprecision_mod
-    use mathphysconstants_mod
     use randomNumber_mod
     use bMatrix1Dvar_mod
     use innovation_mod
@@ -29,11 +29,11 @@ module var1DIdealize_mod
     use obsErrors_mod
     use tovs_mod
     use surfaceEmissivity_mod
-  
+
     implicit none
     save
     private
-  
+
     ! Public procedures
     public :: var1Di_simulateBackgroundState, var1Di_simulateObservation
     public :: var1Di_estSigmaBObsSpace
@@ -57,7 +57,7 @@ module var1DIdealize_mod
     type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
     integer,                         intent(in)    :: seed                  ! Seed to random number generator
     real(8),                         intent(in)    :: inflateEmissErr       ! Emissvity error inflation scale factor
-    
+
     ! Locals:
     type(struct_columnData)         :: columnPertOnAnLev
     type(struct_columnData)         :: columnTruthOnAnlLev
@@ -101,7 +101,7 @@ module var1DIdealize_mod
 
     call col_setVco(columnPertOnTrlLev, col_getVco(columnTruthOnTrlLev))
     call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
-    
+
     ! Interpolate (B^1/2)*Pert from analysis to trial level
     call var1Di_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
 
@@ -173,8 +173,8 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   subroutine var1Di_vInterpPertAnLev2TrlLev(columnAnlLev, columnTrlLev, columnPresRef)
     !
-    ! :Purpose: Vertically Interpolate the generated perturbation from analysis to trial level. 
-    !           An reference column on trial level is required to compute the pressure level, which 
+    ! :Purpose: Vertically Interpolate the generated perturbation from analysis to trial level.
+    !           An reference column on trial level is required to compute the pressure level, which
     !           is used for the vertical interpolation
     !
     implicit none
@@ -182,7 +182,7 @@ module var1DIdealize_mod
     ! arguments
     type(struct_columnData), intent(in)     :: columnAnlLev  ! Column data in analysis level
     type(struct_columnData), intent(inout)  :: columnTrlLev  ! Column data in trial level
-    type(struct_columnData), intent(in)     :: columnPresRef ! Column data where sfc pressure variables 
+    type(struct_columnData), intent(in)     :: columnPresRef ! Column data where sfc pressure variables
                                                              ! will be used for vertical interpolation
 
     ! locals:
@@ -218,12 +218,12 @@ module var1DIdealize_mod
       if (.not. col_varExist(columnAnlLev, vnl_varNameList3D(varIndex)) ) cycle
       call int_vInterp_col(columnAnlLev, columnTrlLev, vnl_varNameList3D(varIndex), sfcPressureRef_opt=pSfcRef)
     end do
-  
+
     ! Copy 2D surface variables
     do varIndex = 1, vnl_numvarmax2D
       if (.not. varneed(vnl_varNameList2D(varIndex))) cycle
       if (.not. col_varExist(columnAnlLev, vnl_varNameList2D(varIndex))) cycle
-      if (col_getNumCol(columnAnlLev) > 0) then       
+      if (col_getNumCol(columnAnlLev) > 0) then
         do columnIndex = 1, col_getNumCol(columnAnlLev)
           columnTrlLev_ptr => col_getColumn(columnTrlLev , columnIndex, vnl_varNameList2D(varIndex))
           columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameList2D(varIndex))
@@ -231,13 +231,13 @@ module var1DIdealize_mod
         end do
       end if
     end do
-    
+
     ! Copy other variables
     do varIndex = 1, vnl_numvarmaxOther
       if (.not. varneed(vnl_varNameListOther(varIndex))) cycle
       if (.not. col_varExist(columnAnlLev, vnl_varNameListOther(varIndex))) cycle
       if (col_getNumCol(columnAnlLev) <= 0) cycle
-           
+
       do columnIndex = 1, col_getNumCol(columnAnlLev)
         columnTrlLev_ptr => col_getColumn(columnTrlLev, columnIndex, vnl_varNameListOther(varIndex))
         columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameListOther(varIndex))
@@ -251,7 +251,7 @@ module var1DIdealize_mod
 
     logical function varneed(varName)
       implicit none
-      ! Arguements: 
+      ! Arguements:
       character(len=*) :: varName ! Variable Name
 
       ! Locals:
@@ -272,7 +272,7 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   subroutine var1Di_writeSimTrial(statevectorSim, prefixFileName, etiket, containsFullField)
     !
-    ! :Purpose: Write the simulate background state from statevector strucure (1Dvar case) 
+    ! :Purpose: Write the simulate background state from statevector strucure (1Dvar case)
     !           into output standard file
     implicit none
 
@@ -287,7 +287,7 @@ module var1DIdealize_mod
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=100)   :: fileName
-   
+
     if(mmpi_myid == 0) write(*,*) 'var1Di_writeSimTrial: STARTING'
 
     ! loop over times for which increment is computed
@@ -339,16 +339,16 @@ module var1DIdealize_mod
     integer              :: bodyIndexBeg, bodyIndexEnd, idatyp, count, channelNumber, channelIndex
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
-    
+
     beSilent = .false.
     bgckMode = .false.
 
     write(*,*) 'var1Di_simulateObservation: Starting'
-    
+
     ! Compute the Truth the observation space
     write(*,*) 'var1Di_simulateObservation: Computing the truth in Obs Space'
 
-    if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
+    if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
       call tvs_allocateEmissivity(tvs_maxChannelNumber)
     end if
 
@@ -376,7 +376,7 @@ module var1DIdealize_mod
       bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-      do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
@@ -385,7 +385,7 @@ module var1DIdealize_mod
           if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
             call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, headerIndex))
           end if
-        end if 
+        end if
       end do
     end do HEADER
 
@@ -399,7 +399,7 @@ module var1DIdealize_mod
     end if
 
     call rng_setup(abs(randomSeed))
-    
+
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
@@ -425,7 +425,7 @@ module var1DIdealize_mod
 
         ! Read the Sigma O from ObsSpaceData
         count = 0
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
           if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
@@ -438,7 +438,7 @@ module var1DIdealize_mod
           end if
         end do
 
-        if (count > 0) then 
+        if (count > 0) then
           ! Compute Observation Perturbation
           call rmat_Rsqrt(tvs_lsensor(headerIndex), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
                           list_OER(1:count))
@@ -448,7 +448,7 @@ module var1DIdealize_mod
             call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(headerIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
           end do
         end if
-        
+
         deallocate(pert)
         deallocate(obsPert)
         deallocate(list_OER)
@@ -457,18 +457,18 @@ module var1DIdealize_mod
         deallocate(list_bodyIndex)
       end if
     end do HEADER2
-    
-   
+
+
     if (useSimObsErr) then
       if (col_varExist(columnTruthOnTrlLev, 'EMMW')) then
-        ! Compute R matrix based on the difference between simulated obseration and truth 
+        ! Compute R matrix based on the difference between simulated obseration and truth
         ! that is based on the true state and simulated emissivity
         ! (H(x_true, emiss_true)+ obs_error) - H(x_true, emiss_true)
         ! Estimate and update R-Matrix.
         call rmat_updateRmat(obsSpaceData, OBS_VAR, OBS_TRUO)
         call rmat_writeRCorrFile
       else
-        ! Compute R matrix based on the difference between simulated obseration and truth 
+        ! Compute R matrix based on the difference between simulated obseration and truth
         ! that is based on the true state and simulated emissivity
         ! (H(x_true, emiss_true) + obs_error) - H(x_true, emiss_sim)
 
@@ -500,12 +500,12 @@ module var1DIdealize_mod
           bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
           bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-          do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
             if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
               call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                     channelNumber, channelIndex)
               call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(headerIndex)%bt(channelIndex))
-            end if 
+            end if
           end do
         end do HEADER3
 
@@ -516,7 +516,7 @@ module var1DIdealize_mod
     end if
 
     ! Compute the Jacobian
-    if (tvs_computeJacobian) then 
+    if (tvs_computeJacobian) then
       call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, "nl", beSilent)
 
       call tvs_rttov_k(columnTruthOnTrlLev, obsSpaceData)
@@ -557,7 +557,7 @@ module var1DIdealize_mod
 
     ! Read Surface Emissivity Error Correlation Matrix
     call sse_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
-    
+
     ! Initialize random number generation for simulating surface emissivity
     if (simEmissSeed == 0) then
       randomSeed = var1Di_randomSeed()
@@ -593,7 +593,7 @@ module var1DIdealize_mod
       allocate(list_bodyIndex(emissNumChan))
 
       count = 0
-      do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           count = count + 1
           channelNumber = obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex)
@@ -609,10 +609,10 @@ module var1DIdealize_mod
             list_bodyIndex(count) = bodyIndex
             list_chanNumber(count) = channelNumber - tvs_channelOffset(sensorIndex)
             pert(count) = rng_gaussian()
-        end if 
+        end if
       end do
 
-      if (count > 0) then 
+      if (count > 0) then
         ! Generate the emissivity errors
         call sse_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
                        emissErrCMat, chanListCMat, nchanCMat)
@@ -712,14 +712,14 @@ module var1DIdealize_mod
         columnValue = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
 
         if (columnValue /= MPC_missingValue_R8) then
-          nonEmptyBodyColumn = .true.         
+          nonEmptyBodyColumn = .true.
           exit HEADERCHCK
         end if
-      
+
       end do BODYCHCK
     end do HEADERCHCK
 
-    call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, "MPI_LOR")
+    call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, mmpi_lor)
 
     if (nonEmptyBodyColumn_mpiglobal) then
       call utl_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')
@@ -735,9 +735,9 @@ module var1DIdealize_mod
     call rng_setup(abs(randomSeed))
 
     do sampleIndex = 1, numSamplesHBHT
-      
+
       allocate(controlVector(cvm_nvadim))
-      
+
       ! Generate perturbation sampling
       do cvIndex = 1, cvm_nvadim
         controlVector(cvIndex) = rng_gaussian()
@@ -746,7 +746,7 @@ module var1DIdealize_mod
       ! Compute (B^1/2)*Pert (column)
       call col_setVco(columnPertOnAnLev, vco_anl)
       call col_allocate(columnPertOnAnLev, obs_numheader(obsSpaceData), setToZero_opt=.true.)
-      
+
       if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
         call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
                         inflateEmissErr_opt = inflateEmissErr)
@@ -756,14 +756,14 @@ module var1DIdealize_mod
 
       call col_setVco(columnPertOnTrlLev, col_getVco(columnTruthOnTrlLev))
       call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
-    
+
       ! Interpolate (B^1/2)*Pert from analysis to trial level
       call var1Di_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
-    
+
       call col_setVco(columnSimTrlOnTrlLev, col_getVco(columnTruthOnTrlLev))
       call col_allocate(columnSimTrlOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
       call col_copy(columnTruthOnTrlLev, columnSimTrlOnTrlLev)
-    
+
       ! Add the truth and (B^1/2)*Pert columns
       call col_add(columnPertOnTrlLev, columnSimTrlOnTrlLev)
 
@@ -781,12 +781,12 @@ module var1DIdealize_mod
 
       ! Compute radiance
       call tvs_rttov(obsSpaceData, bgckMode, beSilent)
-      
+
       obsCount = 0
-      
+
       ! loop over all header indices of the 'TO' family
       call obs_set_current_header_list(obsSpaceData,'TO')
-      
+
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
@@ -801,7 +801,7 @@ module var1DIdealize_mod
         bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
           if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
@@ -809,7 +809,7 @@ module var1DIdealize_mod
 
             errHx(sampleIndex, obsCount) = tvs_radiance(headerIndex)%bt(channelIndex) - &
                                     obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
-            
+
             errHxBodyList(obsCount) = bodyIndex
           end if
         end do
@@ -839,7 +839,7 @@ module var1DIdealize_mod
     !
     implicit none
 
-    ! Results: 
+    ! Results:
     integer           :: randomSeed  ! Generated random seed
 
     ! Locals:
@@ -857,7 +857,3 @@ module var1DIdealize_mod
   end function var1Di_randomSeed
 
 end module var1DIdealize_mod
-
-  
-
-   

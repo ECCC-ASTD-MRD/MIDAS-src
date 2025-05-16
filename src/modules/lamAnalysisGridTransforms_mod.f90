@@ -2,15 +2,15 @@
 module lamAnalysisGridTransforms_mod
   ! MODULE lamAnalysisGridTransforms_mod (prefix='lgt' category='7. Low-level data objects')
   !
-  !:Purpose:  Performs some horizontal grid-point variable transforms 
+  !:Purpose:  Performs some horizontal grid-point variable transforms
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
+  use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use midasMpi_mod
   use utilities_mod
   use Vgrid_Descriptors
 
@@ -106,7 +106,7 @@ contains
       hco_core => hco_ext_in
     end if
 
-    if ( (.not. hco_core%initialized) .or.  & 
+    if ( (.not. hco_core%initialized) .or.  &
          (.not. hco_ext%initialized) ) then
       write(*,*)
       write(*,*) 'lgt_SetupFromHCO: At least one hco structure was not initilzed'
@@ -115,7 +115,7 @@ contains
       call utl_abort('lgt_SetupFromHCO: abort')
     end if
 
-    if ( (hco_core%global) .or.  & 
+    if ( (hco_core%global) .or.  &
          (hco_ext%global) ) then
       write(*,*)
       write(*,*) 'lgt_SetupFromHCO: At least one hco structure is from a global grid, skipping rest of setup'
@@ -168,14 +168,14 @@ contains
 
     dlat_ref = hco_core%lat(2) - hco_core%lat(1)
     do j = 2, nj_core
-      dlat_test = hco_core%lat(j) - hco_core%lat(j-1) 
+      dlat_test = hco_core%lat(j) - hco_core%lat(j-1)
       if ( (dlat_test - dlat_ref) > dlat_ref/100.0d0 ) then
         write(*,*)
         write(*,*) 'lgt_SetupFromHCO: Core grid spacing is not uniform in x-direction'
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO') 
+        call utl_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -202,7 +202,7 @@ contains
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO') 
+        call utl_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -277,7 +277,7 @@ contains
     call lgt_mach(rdmu   (1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN
     call lgt_mach(rdmuh  (1:nj_ext), & ! INOUT
-                   1, nj_ext,1)        ! IN 
+                   1, nj_ext,1)        ! IN
     call lgt_mach(r1mmu2 (1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN
     call lgt_mach(r1mmu2h(1:nj_ext), & ! INOUT
@@ -312,7 +312,7 @@ contains
 
     !
     ! Conversion of wind images to physical winds and vice-versa
-    ! N.B.: Those are geometrical factors of the COMPUTATIONAL grid 
+    ! N.B.: Those are geometrical factors of the COMPUTATIONAL grid
     !        ==> only computational latitude variation...
     !
     allocate(glmf%conphy(nj_ext))
@@ -376,13 +376,13 @@ contains
 
     ! Locals:
     integer :: j
-    
+
     do j = jstart, 0
       coef_inout(j) = coef_inout(nj_ext+j)
     end do
 
     do j = nj_ext+1, jend
-      coef_inout(j) = coef_inout(j-nj_ext) 
+      coef_inout(j) = coef_inout(j-nj_ext)
     end do
 
   end subroutine symmetrize_coef
@@ -490,7 +490,7 @@ contains
     ! Arguments:
     integer, intent(in)  :: nk
     real(8), intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8), intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)    
+    real(8), intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
     real(8), intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
     real(8), intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
@@ -689,9 +689,8 @@ contains
 
     field_8(1:ni,1:nj,:) = field_in(iBeg:iEnd,jBeg:jEnd,:)
 
-    call RPN_COMM_xch_halo_8(field_8,                & ! INOUT
-                             0,ni+1,0,nj+1,ni,nj,nk, & ! IN
-                             1,1,.true.,.true.,ni,0)   ! IN
+    call mmpi_xch_halo(field_8,    & ! INOUT
+                       ni, nj, nk)   ! IN
 
     field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:) = field_8(0:ni+1,0:nj+1,:)
     deallocate(field_8)
@@ -726,9 +725,8 @@ contains
     allocate(field_8(0:ni+1,0:nj+1, nk))
     field_8(0:ni+1,0:nj+1,:) = field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:)
 
-    call RPN_COMM_adj_halo8(field_8,                 & ! INOUT
-                            0,ni+1,0,nj+1,ni,nj,nk,  & ! IN
-                            1,1,.true.,.true.,ni,0)    ! IN
+    call mmpi_adj_halo(field_8,    & ! INOUT
+                       ni, nj, nk)   ! IN
 
     !$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
@@ -792,7 +790,7 @@ contains
     do k = 1, nk
     !
     !- 1.  Periodicized in x-direction from ni_core to ni
-    !    
+    !
     if ( ni > 1 ) then
       istart = ni_core - 2  ! I-limit where backward derivatives will be evaluated
       con = 1.d0 / ( glmf%rdlon * MPC_DEGREES_PER_RADIAN_R8 * 111.d+3)
@@ -883,7 +881,7 @@ contains
     do k = 1, nk
     !
     !- 1.  Periodicized in x-direction from ni_core to ni
-    !    
+    !
     if ( ni > 1 ) then
       istart = ni_core - 2  ! I-limit where backward derivatives will be evaluated
       con = 1.0 / ( glmf%rdlon * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3)
@@ -1117,16 +1115,16 @@ contains
     allocate(lat_ext(nj_ext))
 
     !- Copy core grid info
-    lon_ext(1:hco_core%ni) = hco_core%lon(:) 
+    lon_ext(1:hco_core%ni) = hco_core%lon(:)
     lat_ext(1:hco_core%nj) = hco_core%lat(:)
 
     !- Extend the lat lon
-    dlon = hco_core%lon(2) - hco_core%lon(1) 
+    dlon = hco_core%lon(2) - hco_core%lon(1)
     do i = hco_core%ni + 1, ni_ext
       lon_ext(i) = lon_ext(hco_core%ni) + (i - hco_core%ni) * dlon
     end do
 
-    dlat = hco_core%lat(2) - hco_core%lat(1) 
+    dlat = hco_core%lat(2) - hco_core%lat(1)
     do j = hco_core%nj + 1, nj_ext
       lat_ext(j) = lat_ext(hco_core%nj) + (j - hco_core%nj) * dlat
     end do
@@ -1201,11 +1199,11 @@ contains
     if (vco%vgridPresent) then
       !- 4.1 Write the toc-toc
       status = vgd_write(vco%vgrid,iun,'fst')
-      
+
       if ( status /= VGD_OK ) then
         call utl_abort('createLamTemplateGrids: ERROR with vgd_write')
       end if
-      
+
       !- 4.2 Write a dummy 2D field for each MM and TH levels
       npak   = -12
       dateo  = 0
@@ -1224,10 +1222,10 @@ contains
       ig3    = 0
       ig4    = 0
       datyp  = 1
-      
+
       allocate(dummy2D(ni,nj))
       dummy2D(:,:) = 0.0
-      
+
       do lev = 1, vco%nlev_M
         ip1 = vco%ip1_M(lev)
         ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &

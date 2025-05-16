@@ -62,7 +62,7 @@ module fsoi_mod
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
   character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO' or 'EFSO'
-  logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa 
+  logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa
 
   contains
 
@@ -491,7 +491,7 @@ module fsoi_mod
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle 
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
         tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
         numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
@@ -499,14 +499,14 @@ module fsoi_mod
     end do
 
     do familyIndex = 1, numFamily
-      call mmpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(tfso(familyIndex))
       totFSO = totFSO + tfso(familyIndex)
-      call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), 'MPI_SUM')
+      call mmpi_allReduce(numAss_local(familyIndex), numAss_global(familyIndex), mmpi_sum)
     end do
 
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex),'GRID')
-      call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), 'MPI_SUM')
+      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex))
+      call mmpi_allReduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex), mmpi_sum)
     end do
 
     if (mmpi_myid == 0) then
@@ -592,7 +592,7 @@ module fsoi_mod
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call mmpi_allreduce_sumreal8scalar(Jb,'GRID')
+      call mmpi_allreduce_sumreal8scalar(Jb)
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
@@ -680,7 +680,7 @@ module fsoi_mod
       ddsc = ddsc + px(cvIndex)*py(cvIndex)
     end do
 
-    call mmpi_allreduce_sumreal8scalar(ddsc,'GRID')
+    call mmpi_allreduce_sumreal8scalar(ddsc)
 
   end subroutine prscal
 

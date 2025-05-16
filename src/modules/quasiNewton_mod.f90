@@ -8,36 +8,36 @@ module quasiNewton_mod
       use midasMpi_mod
 
       implicit none
-      save 
+      save
       private
 
       ! Public procedures
       public :: qna_n1qn3
 
       contains
-      
+
       subroutine dcube(t,f,fp,ta,fa,fpa,tlower,tupper)
 !
 !:Purpose: [to be completed]
 !
 
-!     
+!
 !     --- arguments
-!     
+!
       real(8) sign,den,anum,t,f,fp,ta,fa,fpa,tlower,tupper
-!     
+!
 !     --- variables locales
-!     
+!
       real(8) z1,b,discri
-!     
+!
 !     Using f and fp at t and ta, computes new t by cubic formula
 !     safeguarded inside [tlower,tupper].
-!     
+!
       z1=fp+fpa-3.d0*(fa-f)/(ta-t)
       b=z1+fp
-!     
+!
 !     first compute the discriminant (without overflow)
-!     
+!
       if (abs(z1).le.1.d0) then
          discri=z1*z1-fp*fpa
       else
@@ -59,9 +59,9 @@ module quasiNewton_mod
          if (fp.ge.0.d0) t=tlower
          go to 900
       endif
-!     
+!
 !     discriminant nonnegative, compute solution (without overflow)
-!     
+!
       discri=sqrt(discri)
  120  if (t-ta.lt.0.d0) discri=-discri
       sign=(t-ta)/abs(t-ta)
@@ -129,7 +129,7 @@ module quasiNewton_mod
           call prosca (n,depl,sbar(1,jp),ps,izs,rzs,dzs)
           r=ps
           alpha(jp)=r
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             depl(i)=depl(i)-r*ybar(i,jp)
           end do
@@ -139,7 +139,7 @@ module quasiNewton_mod
 !         preconditionnement
 !
       if (sscale) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             depl(i)=depl(i)*precos
           end do
@@ -277,39 +277,39 @@ module quasiNewton_mod
       subroutine qna_n1qn3 (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1, &
            epsg,impres,io,mode,niter,nsim,iz,dz,ndz, &
            izs,rzs,dzs)
-      !     
+      !
       !:Purpose: N1QN3, Version 2.0c, June 1995
       !          Jean Charles Gilbert, Claude Lemarechal, INRIA.
-      !     
+      !
       !          Double precision version of M1QN3.
-      !     
+      !
       !          N1qn3 has two running modes: the SID (Scalar Initial Scaling) mode
       !          and the DIS (Diagonal Initial Scaling) mode. Both do not require
       !          the same amount of storage, the same subroutines, ...
       !          In the description below, items that differ in the DIS mode with
       !          respect to the SIS mode are given in brakets.
-      !     
+      !
       !          Use the following subroutines:
       !
       !          * N1QN3A
       !          * DDD, DDDS
       !          * NLIS0 + DCUBE (Dec 88)
       !          * MUPDT
-      !     
+      !
       !          The following routines are proposed to the user in case the
       !          Euclidean scalar product is used:
       !          DUCLID, DTONBE, DTCABE.
-      !     
+      !
       !          La sous-routine N1QN3 est une interface entre le programme
       !          appelant et la sous-routine N1QN3A, le minimiseur proprement dit.
-      !     
+      !
       !          Le module PROSCA est sense realiser le produit scalaire de deux
       !          vecteurs de Rn; le module DTONB est sense realiser le changement
       !          de coordonnees correspondant au changement de bases: base
       !          euclidienne -> base orthonormale (pour le produit scalaire
       !          PROSCA); le module CTBAB fait la transformation inverse: base
       !          orthonormale -> base euclidienne.
-      !     
+      !
       !          Iz is an integer working zone for N1QN3A, its dimension is 5.
       !          It is formed of 5 scalars that are set by the optimizer:
       !
@@ -317,48 +317,48 @@ module quasiNewton_mod
       !          - a identifier of the scaling mode,
       !          - the number of updates,
       !          - two pointers.
-      !     
+      !
       !          Dz est la zone de travail pour N1QN3A, de dimension ndz.
       !          Elle est subdivisee en
       !
       !          - 3 [ou 4] vecteurs de dimension n: d,gg,[diag,]aux
       !          - m vecteurs de dimension n: ybar
       !          - m vecteurs de dimension n: sbar
-      !     
+      !
       !          m est alors le plus grand entier tel que
       !
       !          - m*(2*n+1)+3*n .le. ndz [m*(2*n+1)+4*n .le. ndz)]
       !          - soit m := (ndz-3*n) / (2*n+1) [m := (ndz-4*n) / (2*n+1)].
       !          Il faut avoir m >= 1, donc ndz >= 5n+1 [ndz >= 6n+1].
-      !     
+      !
       !          A chaque iteration la metrique est formee a partir d'un multiple
       !          de l'identite [d'une matrice diagonale] D qui est mise a jour m
       !          fois par la formule de BFGS en utilisant les m couples {y,s} les
       !          plus recents.
-      !     
+      !
 
-!     
+!
 !     arguments
-!     
+!
       integer n,impres,io,mode,niter,nsim,iz(5),ndz,izs(1)
       real rzs(1)
       real(8) x(n),f,g(n),dxmin,df1,epsg,dz(ndz),dzs(1)
       external simul,prosca,dtonb,dtcab
-!     
+!
 !     variables locales
-!     
+!
       logical inmemo,sscale
       integer ntravu,id,igg,idiag,iaux,iybar,isbar,m,mmemo,ntotal
       integer m_max
       real(8) d1,d2,ps
-!     
+!
 !---- impressions initiales et controle des arguments
-!     
+!
       write(io,*) '--------------------------------------------------'
       write(io,*) 'N1QN3: calling modified MPI version of modulopt!!!'
       write(io,*) '--------------------------------------------------'
 
-      call mmpi_allReduce(n, ntotal, "mpi_max")
+      call mmpi_allReduce(n, ntotal, mmpi_max)
 
       if (impres.ge.1) &
            write (io,900) n,dxmin,df1,epsg,niter,nsim,impres
@@ -378,9 +378,9 @@ module quasiNewton_mod
  901     format (/" >>> n1qn3: inconsistent call")
          return
       endif
-!     
+!
 !---- what method
-!     
+!
       if (mod(mode,2).eq.0) then
          if (impres.ge.1) write (io,920)
  920     format (/" n1qn3: Diagonal Initial Scaling mode")
@@ -390,7 +390,7 @@ module quasiNewton_mod
  921     format (/" n1qn3: Scalar Initial Scaling mode")
          sscale=.true.
       endif
-!     
+!
       if ( n.gt.0 .and. &
            ((ndz.lt.5*n+1).or.((.not.sscale).and.(ndz.lt.6*n+1))) ) then
          mode=2
@@ -398,30 +398,30 @@ module quasiNewton_mod
  902     format (/" >>> n1qn3: not enough memory allocated")
          return
       endif
-!     
+!
 !---- Compute m
-!     
+!
       call mupdts (sscale,inmemo,n,m,ndz)
-      call mmpi_allReduce(m, m_max, "mpi_max")
+      call mmpi_allReduce(m, m_max, mmpi_max)
       if (m.ne.m_max) then
          write(io,*) 'replacing value of m, ',m,' with ',m_max
          m=m_max
       endif
-!     
+!
 !     --- Check the value of m (if (y,s) pairs in core, m will be >= 1)
-!     
+!
       if (m.lt.1) then
          mode=2
          write (io,9020)
  9020    format (/" >>> n1qn3: m is set too small in mupdts")
          return
       endif
-!     
+!
 !     --- mmemo = number of (y,s) pairs in core memory
-!     
+!
       mmemo=1
       if (inmemo) mmemo=m
-!     
+!
       ntravu=2*(2+mmemo)*n
       if (sscale) ntravu=ntravu-n
       write (io,903) ndz,ntravu,m
@@ -433,7 +433,7 @@ module quasiNewton_mod
          write (io,902)
          return
       endif
-!     
+!
       if (impres.ge.1) then
          if (inmemo) then
             write (io,907)
@@ -443,11 +443,11 @@ module quasiNewton_mod
       endif
  907  format (5x,"(y,s) pairs are stored in core memory")
  908  format (5x,"(y,s) pairs are stored by the user")
-!     
+!
 !---- cold start or warm restart ?
 !     check iz: iz(1)=n, iz(2)=(0 if DIS, 1 if SIS),
 !     iz(3)=m, iz(4)=jmin, iz(5)=jmax
-!     
+!
       if (mode/2.eq.0) then
          if (impres.ge.1) write (io,922)
       else
@@ -472,9 +472,9 @@ module quasiNewton_mod
       iz(2)=0
       if (sscale) iz(2)=1
       iz(3)=m
-!     
+!
 !---- split the working zone dz
-!     
+!
       idiag=1
       iybar=idiag+n
       if (sscale) iybar=1
@@ -482,16 +482,16 @@ module quasiNewton_mod
       id=isbar+n*mmemo
       igg=id+n
       iaux=igg+n
-!     
+!
 !---- call the optimization code
-!     
+!
       call n1qn3a (simul,prosca,dtonb,dtcab,n,x,f,g,dxmin,df1,epsg, &
            impres,io,mode,niter,nsim,inmemo,iz(3),iz(4),iz(5), &
            dz(id),dz(igg),dz(idiag),dz(iaux), &
            dz(iybar),dz(isbar),izs,rzs,dzs)
-!     
+!
 !---- impressions finales
-!     
+!
       if (impres.ge.1) write (io,905) mode,niter,nsim,epsg
  905  format (/,1x,79("-")/  &
            /" n1qn3: output mode is ",i2 &
@@ -505,7 +505,7 @@ module quasiNewton_mod
       if (impres.ge.1) write (io,906) d1,f,d2
  906  format (5x,"norm of x = ",d15.8 &
            /5x,"f         = ",d15.8 &
-           /5x,"norm of g = ",d15.8) 
+           /5x,"norm of g = ",d15.8)
       !return
       end subroutine qna_n1qn3
 
@@ -558,8 +558,8 @@ module quasiNewton_mod
       isim=1
       eps1=1.d+0
 !
-      call mmpi_allReduce(impres, impresmax, "mpi_max")
-      call mmpi_allReduce(n, ntotal, "mpi_max")
+      call mmpi_allReduce(impres, impresmax, mmpi_max)
+      call mmpi_allReduce(n, ntotal, mmpi_max)
 !
       call prosca (n,g,g,ps,izs,rzs,dzs)
       gnorm=sqrt(ps)
@@ -670,7 +670,7 @@ module quasiNewton_mod
       if (impres.ge.3) write (io,910) niter,isim,f,hp0
   910 format (" n1qn3: iter ",i3,", simul ",i3, &
               ", f=",d15.8,", h'(0)=",d12.5)
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
       do i = 1, n
         gg(i)=g(i)
       end do
@@ -688,7 +688,7 @@ module quasiNewton_mod
       do i = 1, n
         tmin=max(tmin,abs(d(i)))
       end do
-      call mmpi_allReduce(tmin, tmin_mpiglobal, "mpi_max")
+      call mmpi_allReduce(tmin, tmin_mpiglobal, mmpi_max)
       tmin = tmin_mpiglobal
 
       tmin=dxmin/tmin
@@ -759,7 +759,7 @@ module quasiNewton_mod
 !
 !         --- y, s et (y,s)
 !
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             sbar(i,jcour)=t*d(i)
             ybar(i,jcour)=g(i)-gg(i)
@@ -786,7 +786,7 @@ module quasiNewton_mod
 !         --- ybar et sbar
 !
           d1=sqrt(1.d+0/ys)
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             sbar(i,jcour)=d1*sbar(i,jcour)
             ybar(i,jcour)=d1*ybar(i,jcour)
@@ -818,13 +818,13 @@ module quasiNewton_mod
               do i = 1, n
                 ps=ps+diag(i)*aux(i)*aux(i)
               end do
-              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps)
               d1=1.d0/ps
               if (impres.ge.5) then
                   write (io,934) d1
   934             format(5x,"fitting the ellipsoid: factor = ",d10.3)
               endif
-              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
               do i = 1, n
                 diag(i)=diag(i)*d1
               end do
@@ -838,9 +838,9 @@ module quasiNewton_mod
               do i = 1, n
                 ps=ps+gg(i)*gg(i)/diag(i)
               end do
-              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps)
               den=ps
-              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
               do i = 1, n
                 diag(i)=1.d0/ &
                      (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
@@ -858,7 +858,7 @@ module quasiNewton_mod
                   do i = 1, n
                       ps=ps+diag(i)
                     end do
-                  call mmpi_allreduce_sumreal8scalar(ps,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps)
                   ps=ps/ntotal
                   preco=ps
 !
@@ -866,7 +866,7 @@ module quasiNewton_mod
                   do i = 1, n
                     ps2=ps2+(diag(i)-ps)**2
                   end do
-                  call mmpi_allreduce_sumreal8scalar(ps2,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps2)
                   ps2=sqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3, &
@@ -906,13 +906,13 @@ module quasiNewton_mod
 !
       if (m.eq.0) then
           preco=2.d0*(ff-f)/(eps1*gnorm)**2
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             d(i)=-g(i)*preco
           end do
           !$OMP END PARALLEL DO
       else
-          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I)
           do i = 1, n
             d(i)=-g(i)
           end do
@@ -999,7 +999,7 @@ module quasiNewton_mod
  1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
  1007 format (/4x," mlis0",10x,"tmin forced to tmax")
  1008 format (/4x," mlis0",10x,"inconsistent call")
-      call mmpi_allReduce(n, ntotal, "mpi_max")
+      call mmpi_allReduce(n, ntotal, mmpi_max)
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
        .and. tmax.gt.0.d0 .and. amf.gt.0.d0 &
        .and. amd.gt.amf .and. amd.lt.1.d0) go to 5
@@ -1181,7 +1181,7 @@ module quasiNewton_mod
             exit
           endif
       enddo
-      call mmpi_allReduce(lfound, lfound2, "mpi_lor")
+      call mmpi_allReduce(lfound, lfound2, mmpi_lor)
       if(lfound2) go to 950
 !
 ! --- arret sur dxmin ou de secours

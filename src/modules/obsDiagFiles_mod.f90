@@ -2,13 +2,13 @@
 module obsDiagFiles_mod
   ! MODULE obsDiagFiles_mod (prefix='diaf' category='3. Observation input/output')
   !
-  !:Purpose:  To write the "diag" format SQLITE observation files. Data is stored in 
+  !:Purpose:  To write the "diag" format SQLITE observation files. Data is stored in
   !           obsSpaceData object.
   !
-  use obsSpaceData_mod
   use midasMpi_mod
   use fSQLite
   use mathPhysConstants_mod
+  use obsSpaceData_mod
   use utilities_mod
   use ramDisk_mod
   use tovs_mod
@@ -32,7 +32,7 @@ module obsDiagFiles_mod
   subroutine diaf_writeAllSqlDiagFiles(obsdat, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
-    !  
+    !
     implicit none
 
     ! Arguments:
@@ -41,7 +41,7 @@ module obsDiagFiles_mod
     logical         ,           intent(in)    :: onlyAssimObs   ! only write assimilated obs
     logical         ,           intent(in)    :: addFSOdiag     ! include FSO column in body table
     type(struct_eob), optional, intent(in)    :: ensObs_opt     ! ensObs object
-    
+
     ! Locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
     character(len=2)       :: obsFamilyList(50)
@@ -59,7 +59,7 @@ module obsDiagFiles_mod
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
     write(*,*) 'tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
     write(*,*) 'tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
-    
+
     tovsFileNameListSize = 0
     tovsFileNameList(:) = 'XXXXX'
     do codeTypeIndex = 1, tovsAllCodeTypeListSize
@@ -71,7 +71,7 @@ module obsDiagFiles_mod
     end do
     write(*,*) 'tovsFileNameListSize = ', tovsFileNameListSize
     write(*,*) 'tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
-    
+
     do familyIndex = 1, obsFamilyListSize
 
       write(*,*) 'diaf_writeAllSqlDiagFiles: Family = ', familyIndex, obsFamilyList(familyIndex)
@@ -93,26 +93,26 @@ module obsDiagFiles_mod
           end do
 
           write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
-          write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
+          write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize)
           call diaf_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, &
                                      tovsFileNameList(fileIndex), &
-                                     tovsCodeTypeList(1:tovsCodeTypeListSize), & 
-                                     ensObs_opt=ensObs_opt ) 
+                                     tovsCodeTypeList(1:tovsCodeTypeListSize), &
+                                     ensObs_opt=ensObs_opt )
         end do
 
       else
 
         fileName = diaf_getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
         call diaf_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), &
-                                   onlyAssimObs, addFSOdiag, fileName, & 
-                                   ensObs_opt=ensObs_opt ) 
+                                   onlyAssimObs, addFSOdiag, fileName, &
+                                   ensObs_opt=ensObs_opt )
 
-      end if   
-      
+      end if
+
     end do
 
   end subroutine diaf_writeAllSqlDiagFiles
- 
+
   !--------------------------------------------------------------------------
   ! diaf_writeSqlDiagFile
   !--------------------------------------------------------------------------
@@ -129,7 +129,7 @@ module obsDiagFiles_mod
     logical                    , intent(in)    :: addFSOdiag
     character(len=*)           , intent(in)    :: instrumentFileName
     integer          , optional, intent(in)    :: codeTypeList_opt(:)
-    type(struct_eob) , optional, intent(in)    :: ensObs_opt 
+    type(struct_eob) , optional, intent(in)    :: ensObs_opt
 
     ! Locals:
     type(fSQL_DATABASE)    :: db                                   ! type for SQLIte  file handle
@@ -140,13 +140,13 @@ module obsDiagFiles_mod
     real                   :: latData, lonData
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs 
+    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs
     character(len = 12)    :: idStation
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
     logical                :: writeHeader
-        
+
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
 
@@ -180,7 +180,7 @@ module obsDiagFiles_mod
       if (mmpi_myid > 0) return
       fileNameExtention = ' '
     end if
-    
+
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
     write(*,*) 'diaf_writeSqlDiagFile: Creating file: ', trim(fileName)
@@ -205,7 +205,7 @@ module obsDiagFiles_mod
 
     call fSQL_do_many(db, queryCreate, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
-    
+
     ! If the analysis members in obs space are allocated, make table queries for trial members and analysis members
     if ( present( ensObs_opt ) ) then
       ! Create
@@ -213,7 +213,7 @@ module obsDiagFiles_mod
       call fSQL_do_many(db, queryCreateEnsObs, stat)
       if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
     end if
-    
+
     if (addFSOdiag) then
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                    &obs_error, sigi, sigo, zhad, latd, lond, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -221,7 +221,7 @@ module obsDiagFiles_mod
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                   &obs_error, sigi, sigo, zhad, latd, lond) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     end if
-    
+
     queryHeader = 'insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev) values(?,?,?,?,?,?,?,?); '
 
     write(*,*) 'diaf_writeSqlDiagFile: Insert query Data   = ', trim(queryData)
@@ -232,24 +232,24 @@ module obsDiagFiles_mod
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
-    
+
     if ( present( ensObs_opt ) ) then
       ! Insert
       queryCreateEnsObs = 'insert into ensobs (id_data, id_obs, id_member, obstrl, obsanl) values(?,?,?,?,?);'
       write(*,*) 'diaf_writeSqlDiagFile: Insert query EnsObs   = ', trim(queryCreateEnsObs)
 
       call fSQL_prepare(db, queryCreateEnsObs, stmtEnsObs, stat)
-      
+
       if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
     end if
-    
+
     numberInsertions = 0
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER: do
 
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER
-        
+
       codeType  = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (present(codeTypeList_opt)) then
         if (all(codeTypeList_opt(:) /= codeType)) cycle HEADER
@@ -257,8 +257,8 @@ module obsDiagFiles_mod
 
       obsRln    = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
       obsNlv    = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
-      idStation = obs_elem_c    (obsdat, 'STID' , headerIndex) 
-      altitude  = obs_headElem_r(obsdat, OBS_ALT, headerIndex)      
+      idStation = obs_elem_c    (obsdat, 'STID' , headerIndex)
+      altitude  = obs_headElem_r(obsdat, OBS_ALT, headerIndex)
       lon       = obs_headElem_r(obsdat, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       lat       = obs_headElem_r(obsdat, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       if (lon > 180.) lon = lon - 360.
@@ -282,11 +282,11 @@ module obsDiagFiles_mod
       idObs = idObs + 1
       call fSQL_bind_param(stmtHeader, param_index = 1, int_var  = idObs)
       call fSQL_bind_param(stmtHeader, param_index = 2, char_var = idStation)
-      call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat) 
-      call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon) 
-      call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date) 
-      call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time) 
-      call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType) 
+      call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat)
+      call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon)
+      call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date)
+      call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time)
+      call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType)
       call fSQL_bind_param(stmtHeader, param_index = 8, real_var = altitude)
       call fSQL_exec_stmt (stmtHeader)
 
@@ -351,7 +351,7 @@ module obsDiagFiles_mod
                codeType == codtyp_get_codtyp('amsub') .or. &
                codeType == codtyp_get_codtyp('mhs')) vertCoordType = 2150
           case ('SF', 'SC', 'GP')
-            vertCoordType = MPC_missingValue_INT 
+            vertCoordType = MPC_missingValue_INT
         end select
 
         ! insert order: id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad, latd, lond, fso
@@ -361,61 +361,61 @@ module obsDiagFiles_mod
         call fSQL_bind_param(stmtData, param_index = 3, int_var  = obsVarno)
         call fSQL_bind_param(stmtData, param_index = 4, real_var = PPP)
         if (vertCoordType == MPC_missingValue_INT) then
-          call fSQL_bind_param(stmtData, param_index = 5) 
+          call fSQL_bind_param(stmtData, param_index = 5)
         else
-          call fSQL_bind_param(stmtData, param_index = 5, int_var  = vertCoordType) 
+          call fSQL_bind_param(stmtData, param_index = 5, int_var  = vertCoordType)
         end if
-        call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue) 
+        call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
         call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
         if (OMA == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 8) 
-          call fSQL_bind_param(stmtData, param_index = 9) 
+          call fSQL_bind_param(stmtData, param_index = 8)
+          call fSQL_bind_param(stmtData, param_index = 9)
         else
           call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
           call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
         end if
         if (OMP == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 10) 
+          call fSQL_bind_param(stmtData, param_index = 10)
         else
           call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
         end if
         if (FGE == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 11) 
+          call fSQL_bind_param(stmtData, param_index = 11)
         else
           call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
         end if
         if (OER == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 12) 
+          call fSQL_bind_param(stmtData, param_index = 12)
         else
           call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)
-        end if 
+        end if
         if (ensInnovStdDev == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 13) 
+          call fSQL_bind_param(stmtData, param_index = 13)
         else
           call fSQL_bind_param(stmtData, param_index = 13, real_var = ensInnovStdDev)
-        end if 
+        end if
         if (ensObsErrStdDev == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 14) 
+          call fSQL_bind_param(stmtData, param_index = 14)
         else
           call fSQL_bind_param(stmtData, param_index = 14, real_var = ensObsErrStdDev)
-        end if 
+        end if
         if (zhad == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 15) 
+          call fSQL_bind_param(stmtData, param_index = 15)
         else
           call fSQL_bind_param(stmtData, param_index = 15, real_var = zhad)
-        end if 
+        end if
         if (latData == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 16) 
+          call fSQL_bind_param(stmtData, param_index = 16)
         else
           latData = latData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 16, real_var = latData)
-        end if 
+        end if
         if (lonData == obs_missingValue_R) then
-          call fSQL_bind_param(stmtData, param_index = 17) 
+          call fSQL_bind_param(stmtData, param_index = 17)
         else
           lonData = lonData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 17, real_var = lonData)
-        end if 
+        end if
         if (addFSOdiag) then
           if (fso == obs_missingValue_R) then
             call fSQL_bind_param(stmtData, param_index = 18)
@@ -450,12 +450,12 @@ module obsDiagFiles_mod
             end if
             call fSQL_exec_stmt (stmtEnsObs)
           end do
-        end if  
-          
+        end if
+
       end do BODY
-     
+
     end do HEADER
-    
+
     call fSQL_finalize (stmtData)
 
     write(*,*) 'diaf_writeSqlDiagFile: Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
@@ -510,7 +510,7 @@ module obsDiagFiles_mod
             tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
           fileName = 'atms_allsky'
         else
-          fileName = 'atms'        
+          fileName = 'atms'
         end if
       else
         fileName = codtyp_get_name(codeType_opt)
@@ -538,7 +538,7 @@ module obsDiagFiles_mod
     ! :Purpose: Obtain a common set of obs family names over all mpi tasks
     !
     implicit none
-      
+
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer         , intent(out)   :: obsFamilyListSizeCommon
@@ -562,7 +562,7 @@ module obsDiagFiles_mod
     allocate(obsFamilyListMpiLocal(obsFamilyListSizeMax))
     obsFamilyListMpiLocal(:) = 'XX'
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
-      currentObsFamily = obs_getFamily(obsdat, headerIndex_opt=headerIndex) 
+      currentObsFamily = obs_getFamily(obsdat, headerIndex_opt=headerIndex)
       if (any(obsFamilyListMpiLocal(:) == currentObsFamily)) cycle HEADER
       obsFamilyListSizeMpiLocal = obsFamilyListSizeMpiLocal + 1
       obsFamilyListMpiLocal(obsFamilyListSizeMpiLocal) = currentObsFamily
@@ -573,7 +573,7 @@ module obsDiagFiles_mod
 
     allocate(allObsFamilyListSizeMpiLocal(mmpi_nprocs))
     call mmpi_allGather(obsFamilyListSizeMpiLocal, allObsFamilyListSizeMpiLocal)
-    call mmpi_allReduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, 'mpi_max')
+    call mmpi_allReduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, mmpi_max)
 
     ! convert local family list from characters to integers
     allocate(intObsFamilyListMpiLocal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal))

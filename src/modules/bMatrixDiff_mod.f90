@@ -2,7 +2,7 @@
 MODULE bMatrixDiff_mod
   ! MODULE bMatrixDiff_mod (prefix='bdiff' category='2. B and R matrices')
   !
-  !:Purpose:  Performs transformation from control vector to analysis increment 
+  !:Purpose:  Performs transformation from control vector to analysis increment
   !           (and the adjoint transformation) using the background-error
   !           covariance matrix based on correlations modelled using a
   !           diffusion operator.
@@ -167,7 +167,7 @@ CONTAINS
       bdiff_varNameList(numvar2d) = 'GL  '
 
     end if
-   
+
     if (gsv_varExist(varName = 'TM  ')) then
 
       numvar2d = numvar2d + 1
@@ -177,7 +177,7 @@ CONTAINS
     end if
 
     if (numvar2d == 0) then
-       
+
       if (mmpi_myid == 0) then
         call msg('bdiff_setup', 'Bdiff matrix not produced.')
         call msg('bdiff_setup', 'END')
@@ -185,13 +185,13 @@ CONTAINS
       call utl_tmg_stop(65)
       cvdim_out = 0
       return
-      
+
     else if (mmpi_myid == 0) then
       write(*,*) 'bdiff_setup: number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)
     end if
 
     if (trim(bdiff_mode) == 'BackgroundCheck') then
-      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble)
                        ! that Diff is used
       call utl_tmg_stop(65)
       return
@@ -200,7 +200,7 @@ CONTAINS
     ! Assumes the input 'scalefactor' is a scaling factor of the variances.
 
     do variableIndex = 1, numvar2d
-      if (scaleFactor( variableIndex ) > 0.0d0) then 
+      if (scaleFactor( variableIndex ) > 0.0d0) then
         scaleFactor_sigma(variableIndex) = sqrt(scaleFactor(variableIndex))
       else
         scaleFactor_sigma(variableIndex) = 0.0d0
@@ -224,8 +224,8 @@ CONTAINS
       latLoop: do latIndex = 1, nj_l
         if (distance(latIndex)/maxDistance > latIgnoreFraction) then
           if (mmpi_myid==0) then
-            write(*,*) '   latIndex-1, distance, fraction = ', latIndex-1, distance(latIndex-1), distance(latIndex-1)/maxDistance 
-            write(*,*) '***latIndex  , distance, fraction = ', latIndex  , distance(latIndex  ), distance(latIndex  )/maxDistance 
+            write(*,*) '   latIndex-1, distance, fraction = ', latIndex-1, distance(latIndex-1), distance(latIndex-1)/maxDistance
+            write(*,*) '***latIndex  , distance, fraction = ', latIndex  , distance(latIndex  ), distance(latIndex  )/maxDistance
             write(*,*) '   latIndex+1, distance, fraction = ', latIndex+1, distance(latIndex+1), distance(latIndex+1)/maxDistance
           end if
           latIndexIgnore = latIndex
@@ -241,7 +241,7 @@ CONTAINS
     allocate( diffID( numvar2d ) )
     do variableIndex = 1, numvar2d
       write(*,*) 'bdiff_setup: setup the diffusion operator for the variable ', &
-                 bdiff_varNameList(variableIndex) 
+                 bdiff_varNameList(variableIndex)
       diffID(variableIndex) = diff_setup (variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, &
                                           corr_len(variableIndex), stab(variableIndex), nsamp(variableIndex), &
                                           useImplicit(variableIndex), latIndexIgnore)
@@ -255,7 +255,7 @@ CONTAINS
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, "MPI_SUM")
+    call mmpi_allReduce(cvDim_mpilocal, cvDim_mpiglobal, mmpi_sum)
 
     allocate(stddev(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d))
 
@@ -270,14 +270,14 @@ CONTAINS
     call utl_tmg_stop(65)
 
   end subroutine bdiff_setup
-  
+
   !--------------------------------------------------------------------------
   ! bdiff_getScaleFactor
   !--------------------------------------------------------------------------
   subroutine bdiff_getScaleFactor(scaleFactor_out)
     !
     !:Purpose: Return the specified scaleFactor.
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -287,13 +287,13 @@ CONTAINS
     integer :: variableIndex
 
     do variableIndex = 1, numvar2d
-       
+
       scaleFactor_out( variableIndex ) = scaleFactor( variableIndex )
-       
+
     end do
 
   end subroutine bdiff_getScaleFactor
-  
+
   !--------------------------------------------------------------------------
   ! bdiff_rdstats
   !--------------------------------------------------------------------------
@@ -302,23 +302,23 @@ CONTAINS
     !:Purpose: To read background-error stats file.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco_in
     type(struct_vco), pointer, intent(in) :: vco_in
-    
+
     ! Locals:
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
     integer :: variableIndex
     logical :: lExists
-    
+
     call msg('bdiff_rdstats', 'stddevMode is '//stddevMode)
     write(*,*) 'bdiff_rdstats: Number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)
-    
+
     if (stddevMode == 'GD2D') then
 
       inquire(file = './bgstddev', exist = lExists)
-       
+
       if (lexists) then
         ierr = fnom(nulbgst, './bgstddev', 'RND+OLD+R/O', 0)
         if (ierr == 0) then
@@ -327,9 +327,9 @@ CONTAINS
           call utl_abort('bdiff_rdstats: Error opening file bgstddev')
         end if
       else
-        ! Assume background-error stats in file bgcov. 
-        inquire( file = './bgcov', exist = lExists )  
-        if (lexists) then 
+        ! Assume background-error stats in file bgcov.
+        inquire( file = './bgcov', exist = lExists )
+        if (lexists) then
           ierr = fnom(nulbgst, './bgcov', 'RND+OLD+R/O', 0)
           if (ierr == 0) then
             nmax = fstouv(nulbgst, 'RND+OLD')
@@ -354,10 +354,10 @@ CONTAINS
 
       do variableIndex = 1, numvar2d
         write(*,*) 'bdiff_rdstats: stdev = ', homogeneous_std(variableIndex), &
-                   ' for variable ', bdiff_varNameList(variableIndex)    
+                   ' for variable ', bdiff_varNameList(variableIndex)
         stddev(:,:,variableIndex) = homogeneous_std(variableIndex)
       end do
-       
+
     else
 
       call utl_abort('bdiff_rdstats: unknown stddevMode: '//trim(stddevMode))
@@ -367,7 +367,7 @@ CONTAINS
     call bdiff_scalestd
 
     call msg('bdiff_rdstats', 'Completed.')
-    
+
   end subroutine bdiff_rdstats
 
   !--------------------------------------------------------------------------
@@ -379,7 +379,7 @@ CONTAINS
     !          stored on Z, U or G grid and interpolate it to the analysis grid
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco
     type(struct_vco), pointer, intent(in) :: vco
@@ -393,7 +393,7 @@ CONTAINS
     call msg('bdiff_readBGstdField', 'Reading 2D fields from ./bgstddev...')
     call msg('bdiff_readBGstdField', 'Number of 2D variables'//str(numvar2d)//&
                                      str(bdiff_varNameList(1:numvar2d)))
-  
+
     call gsv_allocate(stateVector, 1, hco, vco, dateStamp_opt = -1, &
                       dataKind_opt = 8, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', &
@@ -407,8 +407,8 @@ CONTAINS
       call gsv_getField(statevector, field3D_r8_ptr, bdiff_varNameList(variableIndex))
       stddev(:,:,variableIndex) = dble(field3D_r8_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-        call mmpi_allreduce(minval(stddev(:,:,variableIndex)), minStddev, 'mpi_min')
-        call mmpi_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev, 'mpi_max')
+        call mmpi_allreduce(minval(stddev(:,:,variableIndex)), minStddev, mmpi_min)
+        call mmpi_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev, mmpi_max)
       else
         minStddev = minval(stddev(:,:,variableIndex))
         maxStddev = maxval(stddev(:,:,variableIndex))
@@ -417,7 +417,7 @@ CONTAINS
       call msg('bdiff_readBGstdField', 'Variable '//bdiff_varNameList(variableIndex)//&
                                        ' min/max: '//str(minStddev)//', '//str(maxStddev))
     end do
- 
+
     call gsv_deallocate(statevector)
 
     call msg('bdiff_readBGstdField', 'Completed.')
@@ -436,13 +436,13 @@ CONTAINS
     ! Locals:
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_scalestd'
-    
+
     do variableIndex = 1, numvar2d
-       
+
       write(*,*) myName//': scaling ', bdiff_varNameList( variableIndex ), ' STD field with the factor ',  scaleFactor_sigma( variableIndex )
-       
+
       stddev( :, :, variableIndex ) = scaleFactor_sigma( variableIndex ) * stddev( : , : , variableIndex )
-      
+
     end do
 
   end subroutine bdiff_scalestd
@@ -452,8 +452,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine bdiff_bSqrt( controlVector_in, statevector )
     !
-    !:Purpose: Apply the sqrt of the B matrix 
-    !    
+    !:Purpose: Apply the sqrt of the B matrix
+    !
     implicit none
 
     ! Arguments:
@@ -465,7 +465,7 @@ CONTAINS
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_bSqrt'
-    
+
     if( .not. initialized) then
       if( mmpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
       return
@@ -498,7 +498,7 @@ CONTAINS
   subroutine bdiff_bSqrtAd( statevector, controlVector_out )
     !
     !:Purpose: Apply the adjoint (i.e. transpose) of the sqrt of the B matrix
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -542,8 +542,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine bdiff_copyToStatevector ( statevector, gd )
     !
-    !:Purpose: Copy the working array to a statevector object 
-    !    
+    !:Purpose: Copy the working array to a statevector object
+    !
     implicit none
 
     ! Arguments:
@@ -555,14 +555,14 @@ CONTAINS
     real(4), pointer :: field_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:)
     character(len=*), parameter :: myName = 'bdiff_copyToStatevector'
-    
+
     do variableIndex = 1, numvar2d
 
       ilev1 = nsposit( variableIndex )
-      ilev2 = nsposit( variableIndex + 1 ) - 1 
+      ilev2 = nsposit( variableIndex + 1 ) - 1
 
       if ( mmpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
-      
+
       if (gsv_getDataKind(statevector) == 4) then
         call gsv_getField( statevector, field_r4, bdiff_varNameList( variableIndex ) )
         do jlev = ilev1, ilev2
@@ -595,7 +595,7 @@ CONTAINS
   subroutine bdiff_copyFromStatevector( statevector, gd )
     !
     !:Purpose: Copy the contents of the statevector object to the working array
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -611,7 +611,7 @@ CONTAINS
     do variableIndex = 1, numvar2d
 
       ilev1 = nsposit( variableIndex )
-      ilev2 = nsposit( variableIndex + 1 ) - 1 
+      ilev2 = nsposit( variableIndex + 1 ) - 1
 
       if ( mmpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
       if (gsv_getDataKind(statevector) == 4) then
@@ -669,9 +669,9 @@ CONTAINS
           end do
         end do
       end do
-    end if 
+    end if
     call mmpi_bcast(gd_mpiGlobal)
-    
+
     jn = 0
     do jlev = 1, numvar2d
       do jlat = myLatBeg, myLatEnd
@@ -692,7 +692,7 @@ CONTAINS
   subroutine bdiff_cain( controlVector_in, gd_out )
     !
     !:Purpose: Transform from control vector to working array
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -720,7 +720,7 @@ CONTAINS
   subroutine bdiff_cainAd( gd_in, diffControlVector_out )
     !
     !:Purpose: Transform from working array to control vector
-    !        
+    !
     implicit none
 
     ! Arguments:
@@ -747,8 +747,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine bdiff_Finalize()
     !
-    !:Purpose: Deallocate some arrays after we don't need the B matrix anymore. 
-    !        
+    !:Purpose: Deallocate some arrays after we don't need the B matrix anymore.
+    !
     implicit none
 
     if ( initialized ) then
@@ -769,23 +769,23 @@ CONTAINS
     !:Purpose: to get SST 2D background error standard deviation field
     !          stored on Z, U or G grid and interpolate it to the analysis grid.
     !          The operationally used BG std field is updated daily using
-    !          four seasonal fields. The estimation for current day is computed 
+    !          four seasonal fields. The estimation for current day is computed
     !          as a weighted average between two fields: from the left and from the right
     !          of the current date.
-    ! 
+    !
     implicit none
-    
+
     ! Arguments:
     type(struct_hco), pointer , intent(in)    :: hco             ! horizontal coordinates
     type(struct_vco), pointer , intent(in)    :: vco             ! vertical coordinates
-    type(struct_gsv), optional, intent(inout) :: stateVector_opt ! state vector with resulting estimation 
+    type(struct_gsv), optional, intent(inout) :: stateVector_opt ! state vector with resulting estimation
                                                                  ! of SST BG std
 
     ! Locals:
     integer          :: indexLeft, indexRight
     type(struct_gsv) :: stateVectorLeft, stateVectorRight
     real(8), pointer :: field3DLeft_r8_ptr(:,:,:), field3DRight_r8_ptr(:,:,:)
-    real(8), pointer :: ptr_r8(:,:,:) 
+    real(8), pointer :: ptr_r8(:,:,:)
     real(8)          :: minStddev, maxStddev
     integer          :: hour, day, month, yyyy, ndays, indexMonth
     integer          :: dateStamp ! date stamp for the current day
@@ -794,18 +794,18 @@ CONTAINS
     real(8)          :: deltaDatestampLeft, deltaRightLeft, delta
 
     type :: bgops      ! operationally used estimations of background error standard deviation
-                       ! are valid on the 15th of Feb, 15th May, 15th Aug and 15th Nov. 
+                       ! are valid on the 15th of Feb, 15th May, 15th Aug and 15th Nov.
       character(len=3) :: validMonthName(4)   = (/    'Feb',    'May',    'Aug',    'Nov' /)
-      character(len=6) :: etiket(4)           = (/ 'STDFEB', 'STDMAY', 'STDAUG', 'STDNOV' /) 
-      integer          :: validMonthNumber(4) = (/        2,        5,        8,       11 /)  
+      character(len=6) :: etiket(4)           = (/ 'STDFEB', 'STDMAY', 'STDAUG', 'STDNOV' /)
+      integer          :: validMonthNumber(4) = (/        2,        5,        8,       11 /)
       integer          :: validDay  = 15
       integer          :: validHour = 0
       integer          :: dataStamp(4)
     end type bgops
-    type(bgops) :: bgstd 
+    type(bgops) :: bgstd
 
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading SST BG std fields from ./bgstddev...')
-  
+
     dateStamp = tim_getDateStamp()
     call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy)
     call msg('bdiff_getSSTBGstdFromFourSeasons', &
@@ -864,7 +864,7 @@ CONTAINS
     if (deltaDatestampLeft < 0. .or. deltaRightLeft < 0.) then
       call utl_abort('bdiff_getSSTBGstdFromFourSeasons: Confusion! '//&
                      'Both distances between two dates must be positive! '//&
-                     str(deltaDatestampLeft)//', '//str(deltaRightLeft))  
+                     str(deltaDatestampLeft)//', '//str(deltaRightLeft))
     end if
 
     weight  = deltaDatestampLeft / deltaRightLeft
@@ -885,7 +885,7 @@ CONTAINS
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVectorLeft, './bgstddev', bgstd%etiket(indexLeft), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVectorLeft, field3DLeft_r8_ptr) 
+    call gsv_getField(stateVectorLeft, field3DLeft_r8_ptr)
 
     ! read BG std from the right
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexRight)//&
@@ -895,7 +895,7 @@ CONTAINS
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVectorRight, './bgstddev', bgstd%etiket(indexRight), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVectorRight, field3DRight_r8_ptr) 
+    call gsv_getField(stateVectorRight, field3DRight_r8_ptr)
 
     if (present(stateVector_opt)) then
       call gsv_getField(stateVector_opt, ptr_r8)
@@ -905,8 +905,8 @@ CONTAINS
       stddev(:,:,1) = (1. - weight) * field3DLeft_r8_ptr(:,:,1) + &
                             weight  * field3DRight_r8_ptr(:,:,1)
       if (mmpi_nprocs > 1) then
-        call mmpi_allreduce(minval(stddev(:,:,1)), minStddev, 'mpi_min')
-        call mmpi_allreduce(maxval(stddev(:,:,1)), maxStddev, 'mpi_max')
+        call mmpi_allreduce(minval(stddev(:,:,1)), minStddev, mmpi_min)
+        call mmpi_allreduce(maxval(stddev(:,:,1)), maxStddev, mmpi_max)
       else
         minStddev = minval(stddev(:,:,1))
         maxStddev = maxval(stddev(:,:,1))
@@ -915,7 +915,7 @@ CONTAINS
                'SST BG std min/max: '//str(minStddev)//', '//str(maxStddev))
     end if
 
-    call gsv_deallocate(stateVectorLeft)      
+    call gsv_deallocate(stateVectorLeft)
     call gsv_deallocate(stateVectorRight)
 
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'Completed.')

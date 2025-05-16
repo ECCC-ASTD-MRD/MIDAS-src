@@ -40,20 +40,20 @@ module obsSpaceErrorStdDev_mod
 
   type :: struct_OmPStdDevCH
      !
-     ! Structure containing information retrieved from auxiliary file for holding 
+     ! Structure containing information retrieved from auxiliary file for holding
      ! OmP std dev information
      !
      !  Variable               Description
      !  --------               -----------
      !  n_stnid                Number of sub-families (identified via STNIDs)
      !  stnids                 Sub-families (STNIDs; * are wild cards)
-     !  element                BUFR element in data block 
-     !  source                 0: Set entirely from the auxiliary file being read 
+     !  element                BUFR element in data block
+     !  source                 0: Set entirely from the auxiliary file being read
      !                            as a function latitude, vertical level, and month.
-     !                         1: Values to be calculated from OmP differences 
+     !                         1: Values to be calculated from OmP differences
      !                            (requires a large data set size for each assim)
-     !                            using read in latitudes and vertical levels 
-     !                         2: Values to be calculated from OBS_OER and estimated 
+     !                            using read in latitudes and vertical levels
+     !                         2: Values to be calculated from OBS_OER and estimated
      !                            OBS_HPHT (default in absence of stnid and element)
      !  std_type               Index of std dev being read for source=0 or calculated for source=1
      !                         0: absolute value
@@ -65,7 +65,7 @@ module obsSpaceErrorStdDev_mod
      !  n_lat                  Number of latitudes
      !  lat                    Latitudes (degrees; ordered in increasing size)
      !  n_month                Number of months (requires n_lat>1 to be >1)
-     !  month                  Months numbered between 1 and 12.  
+     !  month                  Months numbered between 1 and 12.
      !  std                    OmP error std dev (or fraction)
 
      integer ::  n_stnid
@@ -89,8 +89,8 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   subroutine ose_computeStddev(columnTrlOnAnlIncLev,hco_anl_in,obsSpaceData)
     !
-    !:Purpose: To set OmP-error std dev when possible. Otherwise 
-    !          compute background-error stddev in observation space to 
+    !:Purpose: To set OmP-error std dev when possible. Otherwise
+    !          compute background-error stddev in observation space to
     !          estimate OmP-error std dev.
     !
     implicit none
@@ -99,7 +99,7 @@ module obsSpaceErrorStdDev_mod
     type(struct_columnData),   intent(inout) :: columnTrlOnAnlIncLev ! Background columns on anl levels, obs horiz locations
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
     type(struct_obs),          intent(inout) :: obsSpaceData         ! Observation-related data
-    
+
     ! Locals:
     real(8) :: HBHT_static, HBHT_ensemble, HBHT_hybrid
     logical :: staticHBHT = .false.
@@ -123,26 +123,26 @@ module obsSpaceErrorStdDev_mod
     !- 1.  Compute HBHT (sigma_b in observation space) or OmP error std dev
 
     !- 1.1 Compute error std dev from static statistics
-    !      OmP error std dev (OBS_OMPE) when possible and required. 
+    !      OmP error std dev (OBS_OMPE) when possible and required.
     !      Otherwise, compute HBHT
     !      obsSpaceData - INOUT ( OmP error std dev outputted in OBS_OMPE or/and
     !                            sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
-  
+
     call ose_setStaticErrorStddev( columnTrlOnAnlIncLev, obsSpaceData, staticHBHT, staticHBHT_ch, staticOMPE_ch )
 
     !- 1.2 HBHT from the Bens
     !      obsSpaceData - INOUT (HBensHT std. dev. outputted in OBS_WORK)
-    
-    call ose_compute_hbht_ensemble( columnTrlOnAnlIncLev,      & 
+
+    call ose_compute_hbht_ensemble( columnTrlOnAnlIncLev,      &
                                     obsSpaceData, &
-                                    ensemble )                               
-    
+                                    ensemble )
+
     if ( .not. staticHBHT .and. .not. staticOMPE .and. .not. ensemble .and. &
          .not. staticHBHT_ch .and. .not. staticOMPE_ch ) &
          call utl_abort('ose_computeStddev: no OmP std dev or sqrt(HBHT) was initialized')
-    
+
     !- 2. Select/Blend HBHT.
-   
+
     if ( staticHBHT .and. .not. ensemble ) then
       ! Bnmc only
       write(*,*)
@@ -173,7 +173,7 @@ module obsSpaceErrorStdDev_mod
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         if ( HBHT_static <= 0.0d0 ) then
           call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_ensemble)
-        else      
+        else
           select case ( trim(hybrid_mode) )
           case ('WEIGHTED_SUM')
             HBHT_hybrid = sqrt(HBHT_static**2 + HBHT_ensemble**2)
@@ -191,7 +191,7 @@ module obsSpaceErrorStdDev_mod
     end if
 
   end subroutine ose_computeStddev
-  
+
   !--------------------------------------------------------------------------
   ! ose_setStaticErrorStddev
   !--------------------------------------------------------------------------
@@ -201,36 +201,36 @@ module obsSpaceErrorStdDev_mod
     !          observation space where requested. If not possible or available,
     !          compute background-error standard deviation.
     !
-    !:Note: OmP error std dev assigment currently only available for the CH obs family. 
-    ! 
+    !:Note: OmP error std dev assigment currently only available for the CH obs family.
+    !
     !-------------------------------------------------------------------------
     implicit none
-  
+
     ! Arguments:
     type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
     type(struct_obs),        intent(inout) :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
     logical,                 intent(inout) :: statusHBHT
     logical,                 intent(inout) :: statusHBHT_ch
     logical,                 intent(inout) :: statusOMPE_ch
-    
+
     ! Locals:
     integer :: famIndex
     character(len=4), allocatable :: availableOMPE(:)
-    
-    allocate(availableOMPE(ofl_numFamily)) 
+
+    allocate(availableOMPE(ofl_numFamily))
     availableOMPE(:) = '    '
-           
+
     ! Assignment of OBS_OMPE in obsSpaceData according to obs family where possible and required
-    
-    do famIndex=1,ofl_numFamily  
+
+    do famIndex=1,ofl_numFamily
       if ( .not. obs_famExist(obsSpaceData,ofl_familyList(famIndex),localMPI_opt=.true.) ) cycle
-      
+
       if ( ofl_familyList(famIndex) == 'CH' ) then
         write(*,*)
         write(*,*) 'ose_setStaticErrorStddev: Setting of OmP error std dev begins for family ',ofl_familyList(famIndex)
         availableOMPE(famIndex) = ose_setOmPstddevCH(obsSpaceData)
       else
-        ! Not available 
+        ! Not available
         availableOMPE(famIndex) = 'None'
       end if
       if ( trim(availableOMPE(famIndex)) == 'Some' .or. &
@@ -241,31 +241,31 @@ module obsSpaceErrorStdDev_mod
       else if ( trim(availableOMPE(famIndex)) == 'None' ) then
         if ( ofl_familyList(famIndex) == 'CH' ) then
           write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev to be estimated via HBHT calc for all obs'
-        end if        
+        end if
       else if ( trim(availableOMPE(famIndex)) == 'Some' ) then
-        write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev partially completed (some HBHT calc needed to complete)'       
+        write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev partially completed (some HBHT calc needed to complete)'
       else
         write(*,*) 'ose_setStaticErrorStddev: Setting of ',ofl_familyList(famIndex),' OmP error std dev completed (no HBHT calc needed)'
       end if
-      
+
     end do
-    
+
     ! Computation of background-error standard deviation for obs families or groups of families when required
 
-    ! HBHT from the Bnmc matrix for weather 
+    ! HBHT from the Bnmc matrix for weather
     ! obsSpaceData - INOUT (HBnmcHT std. dev. output in OBS_HPHT)
-     
+
     if ( any(ofl_familyList /= 'CH' .and. ofl_familyList /= 'TO' .and. &
        ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
        call ose_compute_hbht_static( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT )
 
     ! HBHT from the B matrix for constituents
-    
+
     if ( any(ofl_familyList == 'CH' .and. ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
        call ose_compute_hbht_static_chem( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT_ch )
-    
+
     deallocate(availableOMPE)
-    
+
   end subroutine ose_setStaticErrorStddev
 
   !--------------------------------------------------------------------------
@@ -282,7 +282,7 @@ module obsSpaceErrorStdDev_mod
     type(struct_obs),        intent(inout) :: lobsSpaceData
     type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
     logical,                 intent(out)   :: active
-      
+
     ! Locals:
     type(struct_vco), pointer        :: vco_anl
     type(struct_columnData) :: column
@@ -307,9 +307,9 @@ module obsSpaceErrorStdDev_mod
     !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
-    ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
-    !        in BackgroundCheck mode, the only purpose of bhi_setup is to read 
-    !        the scaleFactor and to check the consistency between the vco from 
+    ! Note : Here we can use the global B_hi even if we are in LAM mode since,
+    !        in BackgroundCheck mode, the only purpose of bhi_setup is to read
+    !        the scaleFactor and to check the consistency between the vco from
     !        analysisgrid and cov file
     call bhi_setup( hco_anl,vco_anl,           &  ! IN
                     cvdim,                     &  ! OUT
@@ -380,8 +380,8 @@ module obsSpaceErrorStdDev_mod
     ! READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
 
     clnomvar = 'UU'
-    write(*,*) clnomvar 
-    call gsv_getField(statevector,field_ptr,'UU')       
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'UU')
     do jlev = 1, nlev_M
       ip1 = vco_anl%ip1_M(jlev)
       ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -700,7 +700,7 @@ module obsSpaceErrorStdDev_mod
 
     ! READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
     ! ---------------------------------------------
-      
+
     clnomvar = 'LQ'
     write(*,*) clnomvar
     call gsv_getField(statevector,field_ptr,'HU')
@@ -736,9 +736,9 @@ module obsSpaceErrorStdDev_mod
 
     write(*,*)
     write(*,*) 'Computing HBHT from Bnmc - END'
-      
+
   end subroutine ose_compute_hbht_static
-  
+
   !--------------------------------------------------------------------------
   ! ose_compute_hbht_static_chem
   !--------------------------------------------------------------------------
@@ -748,7 +748,7 @@ module obsSpaceErrorStdDev_mod
     !          observation space, sqrt(diag(H*B_static*H^T)).
     !
     implicit none
-  
+
     ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev      ! column at observation location
     type(struct_obs),        intent(inout) :: obsSpaceData ! observation-space data, output saved in OBS_HPHT column
@@ -756,12 +756,12 @@ module obsSpaceErrorStdDev_mod
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
- 
+
     !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
-  
+
     call bcsc_setupCH( hco_anl,vco_anl,active,'BackgroundCheck' )
-  
+
     if (active) then
       write(*,*)
       write(*,*) 'Computing H*B*H^T using B_static_chm - Start'
@@ -769,12 +769,12 @@ module obsSpaceErrorStdDev_mod
       if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_HBHT_static_chem: option NOT ACTIVATED'
       return
     end if
-          
+
     call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,'HBHT')
-  
+
     write(*,*)
     write(*,*) 'Computing H*B*H^T using B_static_chm - End'
-  
+
     RETURN
   end subroutine ose_compute_hbht_static_chem
 
@@ -856,7 +856,7 @@ module obsSpaceErrorStdDev_mod
       call s2c_tl( statevector,           &
                    column,                &
                    columnTrlOnAnlIncLev, obsSpaceData )
-                   
+
       !- 2.3 Interpolation to observation space
       !         obsSpaceData - OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
       call oop_Htl( column, columnTrlOnAnlIncLev, &
@@ -889,7 +889,7 @@ module obsSpaceErrorStdDev_mod
   end subroutine ose_compute_hbht_ensemble
 
   !-------------------- Weather obs FGE std dev routines --------------------
-  
+
   !--------------------------------------------------------------------------
   ! setfgefam
   !--------------------------------------------------------------------------
@@ -924,7 +924,7 @@ module obsSpaceErrorStdDev_mod
 
       ! loop over all body indices for this index_header
       call obs_set_current_body_list(lobsSpaceData, index_header)
-      BODY: do 
+      BODY: do
         index_body = obs_getBodyIndex(lobsSpaceData)
         if (index_body < 0) exit BODY
         !
@@ -1026,7 +1026,7 @@ module obsSpaceErrorStdDev_mod
 
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list(obsSpaceData, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if ( bodyIndex < 0 ) exit BODY
 
@@ -1079,17 +1079,17 @@ module obsSpaceErrorStdDev_mod
           else if( cdfam == 'PR' )then
             fge_fam = ZWB*col_getElem(column, IPB, headerIndex) &
                     + ZWT*col_getElem(column, IPT, headerIndex)
-                  
-          else if( cdfam == 'RA' .and. ITYP == bufr_radvel ) then    
 
-            ! Calculation of sigmap^2 = diag(H*P*H^t) to save sigmap in OBS_HPHT  
-            ! 
-            ! H includes vertical interpolation  
+          else if( cdfam == 'RA' .and. ITYP == bufr_radvel ) then
+
+            ! Calculation of sigmap^2 = diag(H*P*H^t) to save sigmap in OBS_HPHT
+            !
+            ! H includes vertical interpolation
             !   and projection of U and V wind components along the direction of the beam
             !
             ! P forecast error covariance
-            !  
-            ! H = [ ZWT*sin(az) ZWT*cos(az) ZWB*sin(az) ZWB*cos(az) ] 
+            !
+            ! H = [ ZWT*sin(az) ZWT*cos(az) ZWB*sin(az) ZWB*cos(az) ]
             ! diag(P) = [ sigmap_uuT^2  sigmap_vvT^2  sigmap_uuB^2  sigmap_vvB^2  ]
             sigmap_uuT = col_getElem(column, IPT, headerIndex, 'UU')
             sigmap_uuB = col_getElem(column, IPB, headerIndex, 'UU')
@@ -1098,7 +1098,7 @@ module obsSpaceErrorStdDev_mod
 
             fge_fam = sqrt((sigmap_uuT*ZWT*sin(azimuth))**2 + (sigmap_vvT*ZWT*cos(azimuth))**2 + &
                            (sigmap_uuB*ZWB*sin(azimuth))**2 + (sigmap_vvB*ZWB*cos(azimuth))**2)
-                 
+
           else
 
             write(*,*)"ERROR:  The family", cdfam, " is not supported by setfgefamz"
@@ -1108,7 +1108,7 @@ module obsSpaceErrorStdDev_mod
 
           ! Store fge_fam in OBS_HPHT
           call obs_bodySet_r(obsSpaceData, OBS_HPHT, bodyIndex, fge_fam)
-        
+
         end if
 
       end do BODY
@@ -1434,7 +1434,7 @@ module obsSpaceErrorStdDev_mod
             zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
             zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
-            ! approximation for dPdPs               
+            ! approximation for dPdPs
             if (associated(dPdPs)) then
               deallocate(dPdPs)
             end if
@@ -1566,13 +1566,13 @@ module obsSpaceErrorStdDev_mod
     !
     !:Note:
     !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-    !                             9 October 2015                               
-    !                                                                          
-    !          :NOTE: Effective Rev644M, this routine is no longer used!       
-    !                 FGE for ZTD is no longer needed for background check.    
-    !                 Routine is called only when gps_gb_LTESTOP=.true., in which     
-    !                 case the operator test only is done.                     
-    !                                                                          
+    !                             9 October 2015
+    !
+    !          :NOTE: Effective Rev644M, this routine is no longer used!
+    !                 FGE for ZTD is no longer needed for background check.
+    !                 Routine is called only when gps_gb_LTESTOP=.true., in which
+    !                 case the operator test only is done.
+    !
     !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
     !
     implicit none
@@ -1656,7 +1656,7 @@ module obsSpaceErrorStdDev_mod
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     iversion = vco_anl%Vcode
     if (iversion .eq. 5002) then
-      LSTAG = .TRUE. 
+      LSTAG = .TRUE.
       WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
       WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
     else
@@ -1804,7 +1804,7 @@ module obsSpaceErrorStdDev_mod
         ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
         ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
-        ! approximation for dPdPs               
+        ! approximation for dPdPs
         if (associated(dPdPs)) then
           deallocate(dPdPs)
         end if
@@ -1886,7 +1886,7 @@ module obsSpaceErrorStdDev_mod
           WRITE(*,*) '  DELTAH_NL, DELTAH_TL = ', DELTAH_NL*1000.d0, DELTAH_TL*1000.d0
           WRITE(*,*) ' '
           WRITE(*,*) '  DELTAH_TL/DELTAH_NL = ', DELTAH_TL/DELTAH_NL
-          WRITE(*,*) ' '  
+          WRITE(*,*) ' '
 
           ZSUMTEST = ZSUMTEST + (DELTAH_TL/DELTAH_NL)
 
@@ -1898,7 +1898,7 @@ module obsSpaceErrorStdDev_mod
       WRITE(*,*) 'SETFGEGPS: ----- GPS ZTD OBSOP TEST SUMMARY -----'
       WRITE(*,*) '           NUMBER OF TESTS (sites) = ', icount
       WRITE(*,*) '           AVG DELTAH_TL/DELTAH_NL = ', ZSUMTEST/real(icount,4)
-      WRITE(*,*) ' '  
+      WRITE(*,*) ' '
 
       deallocate(ZTTB_P)
       deallocate(ZQQB_P)
@@ -1922,14 +1922,14 @@ module obsSpaceErrorStdDev_mod
   end subroutine setfgegps
 
   !------------------ CH obs family OmP error std dev routines --------------
-  
+
   !--------------------------------------------------------------------------
   ! ose_setOmPstddevCH
   !--------------------------------------------------------------------------
   character(len=4) function ose_setOmPstddevCH(obsSpaceData) result(availableOMPE)
     !
     !:Purpose: To read OmP error std dev from auxiliary file or calculate from OmP.
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -1941,10 +1941,10 @@ module obsSpaceErrorStdDev_mod
     ! Check for the presence of CH observations
     availableOMPE = '    '
     if ( .not.obs_famExist(obsSpaceData,'CH',localMPI_opt=.true.) ) return
-            
+
     ! read the OmP error std. dev. information from the auxiliary file
     call ose_readOmPstddev_auxfileCH
-    
+
     availableOMPE='None'
     if ( OmPstdCH%n_stnid == 0 ) return ! All CH family OBS_OMPE to be estimated elsewhere via use of OBS_HPHT and OBS_OER
 
@@ -1953,10 +1953,10 @@ module obsSpaceErrorStdDev_mod
 
     ! Assign OmP error std dev values to OBS_OMPE for CH family
     if ( any(OmPstdCH%source(1:OmPstdCH%n_stnid) <= 1) ) call ose_fillOmPstddevCH(obsSpaceData)
-    
+
     ! Deallocate OmPstdCH space
     call ose_deallocOmPstddevCH
-    
+
     ! Check if ALL CH family obs have been assigned usable values in OBS_OMPE
     if ( .not. ose_OmPstddevExistsForAllCH(ObsSpaceData) ) then
       ! For some obs, need to calc OBS_HPHT to get OBS_OMPE
@@ -1965,9 +1965,9 @@ module obsSpaceErrorStdDev_mod
       ! All OBS_OMPE are available
       availableOMPE='All '
     end if
-    
+
   end function ose_setOmPstddevCH
-  
+
   !--------------------------------------------------------------------------
   ! ose_readOmPstddev_auxfileCH
   !--------------------------------------------------------------------------
@@ -1981,7 +1981,7 @@ module obsSpaceErrorStdDev_mod
     ! Locals:
     integer, external :: fnom, fclos
     integer :: ierr, nulstat
-    logical :: LnewExists  
+    logical :: LnewExists
     character (len=128) :: ligne
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
     integer :: ipos, stnidIndex, monthIndex, levIndex, ios, isize, icount
@@ -2011,27 +2011,27 @@ module obsSpaceErrorStdDev_mod
     else
       call utl_abort('ose_readOmPstddev_auxfileCH: COULD NOT OPEN AUXILIARY FILE ' //  trim(AuxObsDataFileCH) )
     end if
-  
+
     ! Read OmP error standard deviations for constituents or related directives if available.
-    
+
     ios=0
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    do while (trim(adjustl(ligne(1:12))) /= 'SECTION V:') 
+    do while (trim(adjustl(ligne(1:12))) /= 'SECTION V:')
         read(nulstat,'(A)',iostat=ios,err=10,end=15) ligne
-    end do 
-  
+    end do
+
     ! Read number of observation set sub-families (STNIDs and ...) and allocate space
 
     read(nulstat,*,iostat=ios,err=10,end=10) OmPstdCH%n_stnid
     read(nulstat,*,iostat=ios,err=10,end=10) isize
-  
+
     allocate(OmPstdCH%stnids(OmPstdCH%n_stnid),OmPstdCH%std_type(OmPstdCH%n_stnid))
     allocate(OmPstdCH%n_month(OmPstdCH%n_stnid),OmPstdCH%n_lat(OmPstdCH%n_stnid))
     allocate(OmPstdCH%source(OmPstdCH%n_stnid),OmPstdCH%ibegin(OmPstdCH%n_stnid))
     allocate(OmPstdCH%element(OmPstdCH%n_stnid),OmPstdCH%n_lvl(OmPstdCH%n_stnid))
     allocate(OmPstdCH%std(isize))
     allocate(OmPstdCH%levels(isize),OmPstdCH%lat(isize),OmPstdCH%month(isize))
- 
+
     OmPstdCH%element(:)=0
     OmPstdCH%source(:)=0
     OmPstdCH%std_type(:)=0
@@ -2049,8 +2049,8 @@ module obsSpaceErrorStdDev_mod
       ! disregard line of dashes
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
-      ! Read STNID (* as wildcard)    
-      read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) OmPstdCH%stnids(stnidIndex) 
+      ! Read STNID (* as wildcard)
+      read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) OmPstdCH%stnids(stnidIndex)
 
       !   Read (1) BUFR element
       !        (2) Flag indication if OmP error std dev provided from this auxiliary file or
@@ -2062,7 +2062,7 @@ module obsSpaceErrorStdDev_mod
       !
       !   Important: Combination of STNID and BUFR element
       !              to determine association to the observations.
-    
+
       read(nulstat,*,iostat=ios,err=10,end=10) &
         OmPstdCH%element(stnidIndex),OmPstdCH%source(stnidIndex),  &
         OmPstdCH%std_type(stnidIndex),OmPstdCH%n_lvl(stnidIndex),  &
@@ -2074,13 +2074,13 @@ module obsSpaceErrorStdDev_mod
 
       if ( icount+OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_month(stnidIndex) > isize ) then
          write(*,'(10X,"Max array size exceeded: ",I6)') isize
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: PROBLEM READING OBSERR STD DEV.')  
+         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: PROBLEM READING OBSERR STD DEV.')
       else if ( OmPstdCH%n_lat(stnidIndex) == 1 .and. OmPstdCH%n_month(stnidIndex) > 1 ) then
          write(*,'(10X,"Fails for stnid number: ",I6)') stnidIndex
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Cannot depend on month if not dependent on latitude')  
+         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Cannot depend on month if not dependent on latitude')
       else if ( OmPstdCH%n_month(stnidIndex) /= 1 .and. OmPstdCH%n_month(stnidIndex) /= 12 ) then
          write(*,'(10X,"Fails for stnid number: ",I6)') stnidIndex
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Number of months must be 1 or 12')  
+         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Number of months must be 1 or 12')
       end if
 
       ! disregard line of dashes
@@ -2089,37 +2089,37 @@ module obsSpaceErrorStdDev_mod
       if ( OmPstdCH%source(stnidIndex) > 1 ) then
          ! Disregard data section
          OmPstdCH%ibegin(stnidIndex)=icount
-         cycle STNIDLOOP 
+         cycle STNIDLOOP
       else if ( OmPstdCH%source(stnidIndex) == 1 ) then
 
         OmPstdCH%ibegin(stnidIndex)=icount+1
-        
-        ! Only reference vertical levels and latitudes to be determined 
+
+        ! Only reference vertical levels and latitudes to be determined
         ! For use in determining error std dev from OmPs of current processing window
 
-        OmPstdCH%n_month(stnidIndex) = 1          
+        OmPstdCH%n_month(stnidIndex) = 1
         if ( OmPstdCH%n_lvl(stnidIndex) == 1 .and. OmPstdCH%n_lat(stnidIndex) == 1 ) then
-           
+
           icount=icount+1
-       
+
         else if ( OmPstdCH%n_lvl(stnidIndex) == 1 .and. OmPstdCH%n_lat(stnidIndex) > 1 ) then
-           
+
           ! Read reference latitudes (must be in order of increasing size)
-       
+
           read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%lat(icount+1:icount+OmPstdCH%n_lat(stnidIndex))
           icount=icount+OmPstdCH%n_lat(stnidIndex)
-               
+
         else if ( OmPstdCH%n_lvl(stnidIndex) > 1 .and. OmPstdCH%n_lat(stnidIndex) == 1 ) then
-        
+
           ! Read reference vertical levels (must be in order of increasing size)
-       
+
           read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%levels(icount+1:icount+OmPstdCH%n_lvl(stnidIndex))
           icount=icount+OmPstdCH%n_lvl(stnidIndex)
-                 
-        else 
-        
+
+        else
+
           ! Read reference latitudes (must be in order of increasing size)
           read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%lat(icount+1:icount+OmPstdCH%n_lat(stnidIndex))
@@ -2127,106 +2127,106 @@ module obsSpaceErrorStdDev_mod
           ! Read reference vertical levels (must be in order of increasing size)
           read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%levels(icount+1:icount+OmPstdCH%n_lvl(stnidIndex))
-               
+
           icount=icount+OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex)
 
         end if
-        
+
         cycle STNIDLOOP
-         
+
       end if
-      
+
       ! For OmPstdCH%source(stnidIndex) == 0
-      
+
       OmPstdCH%ibegin(stnidIndex)=icount+1
       if ( OmPstdCH%n_lvl(stnidIndex) == 1 .and. OmPstdCH%n_lat(stnidIndex) == 1 ) then
-    
+
         ! Read one value only (independent of level and latitude)
         ! Assumes one month only.
-        
+
         read(nulstat,*,iostat=ios,err=10,end=10) OmPstdCH%std(icount+1)
         icount=icount+1
 
       else if ( OmPstdCH%n_lvl(stnidIndex) == 1 .and. OmPstdCH%n_lat(stnidIndex) > 1 ) then
-    
-        ! Value dependent on latitude 
-       
+
+        ! Value dependent on latitude
+
         ! Read reference latitudes (must be in order of increasing size)
-       
+
         read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%lat(icount+1:icount+OmPstdCH%n_lat(stnidIndex))
-      
+
         ! Read OMP error std dev related values
-  
+
         if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
-        
+
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
                    OmPstdCH%std(icount+1:icount+OmPstdCH%n_lat(stnidIndex))
-        
+
         else
-        
+
           do monthIndex=1,OmPstdCH%n_month(stnidIndex)
-          
-            ! Read reference month (must be in order of increasing size)     
+
+            ! Read reference month (must be in order of increasing size)
             read(nulstat,*,iostat=ios,err=10,end=10) OmPstdCH%month(icount+monthIndex)
 
             ipos=icount+(monthIndex-1)*OmPstdCH%n_lat(stnidIndex)
-                       
+
             read(nulstat,*,iostat=ios,err=10,end=10)                 &
                    OmPstdCH%std(ipos+1:ipos+OmPstdCH%n_lat(stnidIndex))
           end do
-                               
+
         end if
-        
+
         icount = icount + OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_month(stnidIndex)
-        
+
       else if ( OmPstdCH%n_lvl(stnidIndex) > 1 .and. OmPstdCH%n_lat(stnidIndex) == 1 ) then
-    
+
        ! Value dependent on vertical level and not latitude
-       
+
         if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
-        
+
           do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
             icount=icount+1
-            
+
             ! Read vertical level and OMP error std dev related value.
-          
+
             read(nulstat,*,iostat=ios,err=10,end=10)                 &
                  OmPstdCH%levels(icount),OmPstdCH%std(icount)
 
           end do
-          
+
         else
-        
+
           do monthIndex=1,OmPstdCH%n_month(stnidIndex)
-          
-            ! Read reference month (must be in order of increasing size)     
+
+            ! Read reference month (must be in order of increasing size)
             read(nulstat,*,iostat=ios,err=10,end=10) OmPstdCH%month(icount+monthIndex)
 
             ipos=icount+(monthIndex-1)*OmPstdCH%n_lvl(stnidIndex)
-                       
+
             read(nulstat,*,iostat=ios,err=10,end=10)                 &
                    OmPstdCH%std(ipos+1:ipos+OmPstdCH%n_lvl(stnidIndex))
           end do
-          
+
         end if
-         
+
         icount = icount + OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_month(stnidIndex)
-   
+
       else if ( OmPstdCH%n_lvl(stnidIndex) > 1 .and. OmPstdCH%n_lat(stnidIndex) > 1 ) then
-    
-        ! Value dependent on vertical level and latitude 
-       
+
+        ! Value dependent on vertical level and latitude
+
         ! Read reference latitudes (must be in order of increasing size)
         read(nulstat,*,iostat=ios,err=10,end=10)                      &
                OmPstdCH%lat(icount+1:icount+OmPstdCH%n_lat(stnidIndex))
 
         if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
-            
+
           do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
-          
+
             ! Read vertical level and OMP error std dev related lat-dependent values.
-          
+
             read(nulstat,*,iostat=ios,err=10,end=10)    &
                  OmPstdCH%levels(icount+levIndex),    &
                  OmPstdCH%std(icount+(levIndex-1)*    &
@@ -2235,18 +2235,18 @@ module obsSpaceErrorStdDev_mod
           end do
 
         else
-        
+
           do monthIndex=1,OmPstdCH%n_month(stnidIndex)
-          
-            ! Read reference month (must be in order of increasing size)     
+
+            ! Read reference month (must be in order of increasing size)
             read(nulstat,*,iostat=ios,err=10,end=10) OmPstdCH%month(icount+monthIndex)
 
             ipos=icount+(monthIndex-1)*OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_lvl(stnidIndex)
-                             
+
             do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
-          
+
               ! Read vertical level and OMP error std dev related lat-dependent values.
-          
+
               read(nulstat,*,iostat=ios,err=10,end=10)     &
                  OmPstdCH%levels(icount+levIndex),       &
                  OmPstdCH%std(ipos+(levIndex-1)* &
@@ -2255,42 +2255,42 @@ module obsSpaceErrorStdDev_mod
             end do
 
           end do
-                
+
         end if
-        
+
         icount=icount+OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_month(stnidIndex)
       end if
     end do STNIDLOOP
-     
+
  10 if (ios.gt.0) then
       write(abortText,*) ios
       call utl_abort('ose_readOmPstddev_auxfileCHin: PROBLEM READING OMP ERR STD DEV. - ' // &
-                     'File read error message number: ' // trim(abortText) )    
+                     'File read error message number: ' // trim(abortText) )
     end if
-    
+
     return
-    
+
     ! Reached end of file and no related section found.
-    
+
  15 OmPstdCH%n_stnid = 0
 
     close(unit=nulstat)
-    ierr=fclos(nulstat)    
+    ierr=fclos(nulstat)
 
   end subroutine ose_readOmPstddev_auxfileCH
-  
+
   !--------------------------------------------------------------------------
   ! ose_calcOmPstddevCH
   !--------------------------------------------------------------------------
   subroutine ose_calcOmPstddevCH(obsSpaceData)
-    ! 
+    !
     !:Purpose: To calc OmP error std dev for some obs sets of the CH family
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
-    
+
     ! Locals:
     logical :: availableOmP
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
@@ -2306,45 +2306,45 @@ module obsSpaceErrorStdDev_mod
     real(8), parameter :: minVal = 1.0d-20
     real(4) :: rseries(maxCount)
     integer :: ip(maxCount)
-    
+
     ! Loop over all obs types
- 
+
     do stnidIndex=1,OmPstdCH%n_stnid
       ! Check if OBS_OMPE is to be estimated elsewhere via use of OBS_HPHT and OBS_OER
       ! instead of via ose_fillOmPstddevCH
       if ( OmPstdCH%source(stnidIndex) /= 1 ) cycle
 
-      write(*,*) 
+      write(*,*)
       write(*,*) 'ose_calcOmPstddevCH: Online calculation of OmP error std dev of CH family stnid ',OmPstdCH%stnids(stnidIndex)
       write(*,*)
 
-      ! Identify start position index (-1) in OmPstdCH  
+      ! Identify start position index (-1) in OmPstdCH
       ibegin=OmPstdCH%ibegin(stnidIndex)-1
-      
+
       allocate(series(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex),maxCount))
-      allocate(nSeries(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))        
+      allocate(nSeries(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       allocate(sumOmP2d(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       allocate(sumSqrOmP2d(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       nSeries(:,:)=0
       sumOmP2d(:,:)=0.0d0
       sumSqrOmP2d(:,:)=0.0d0
-      
-      allocate(nSeriest(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))        
+
+      allocate(nSeriest(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       allocate(sumOmP2dt(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       allocate(sumSqrOmP2dt(OmPstdCH%n_lvl(stnidIndex),OmPstdCH%n_lat(stnidIndex)))
       nSeriest(:,:)=0
-      
+
       ! Loop over all header indices of the 'CH' family:
-      
+
       call obs_set_current_header_list(obsSpaceData,'CH')
       HEADER: do
 
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
-  
-        icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)        
+
+        icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
-      
+
         stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
         if ( .not. utl_stnid_equal(OmPstdCH%stnids(stnidIndex),stnid) ) cycle HEADER
 
@@ -2357,13 +2357,13 @@ module obsSpaceErrorStdDev_mod
              if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= OmPstdCH%element(stnidIndex) ) cycle HEADER
           end if
         end do
-           
+
         zlat   = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-        idate  = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex ) 
+        idate  = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
         itime  = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
         ! Identify lat and month index
-        if (OmPstdCH%n_lat(stnidIndex) == 1) then      
+        if (OmPstdCH%n_lat(stnidIndex) == 1) then
            latIndex = 1
         else
 
@@ -2381,9 +2381,9 @@ module obsSpaceErrorStdDev_mod
             end do
           end if
         end if
-        
+
         if (OmPstdCH%n_month(stnidIndex) == 1) then
-          monthIndex = 1 
+          monthIndex = 1
         else
           ! Find month index
           monthIndex=(idate-(idate/10000)*10000)/100
@@ -2394,12 +2394,12 @@ module obsSpaceErrorStdDev_mod
 
           iass  = obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex )
           if ( iass /= obs_assimilated ) cycle
-           
-          ! Identify vertical level 
+
+          ! Identify vertical level
           zlev  = obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex )
           if ( OmPstdCH%n_lvl(stnidIndex) == 1 ) then
             levIndex = 1
-          else if ( OmPstdCH%levels(ibegin+1) < OmPstdCH%levels(ibegin+2) ) then             
+          else if ( OmPstdCH%levels(ibegin+1) < OmPstdCH%levels(ibegin+2) ) then
             if (zlev <= 0.5*(OmPstdCH%levels(ibegin+1)+OmPstdCH%levels(ibegin+2)) ) then
               levIndex = 1
             else
@@ -2417,9 +2417,9 @@ module obsSpaceErrorStdDev_mod
               end do
             end if
           end if
-          
+
           ! Store OmP in work array
-          
+
           if ( OmPstdCH%std_type(stnidIndex) == 1 ) then
             zval  = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
             if ( zval > minVal ) then
@@ -2432,15 +2432,15 @@ module obsSpaceErrorStdDev_mod
           end if
           ! Check if enough data
           if ( nSeries(levIndex,latIndex) == maxCount ) exit
-          
+
         end do
-        
+
       end do HEADER
-     
+
       if ( any(nSeries > 0) ) then
-      
+
         ! Calc OmP error std dev
-      
+
         !write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
         do levIndex=1,OmPstdCH%n_lvl(stnidIndex)
         do latIndex=1,OmPstdCH%n_lat(stnidIndex)
@@ -2449,14 +2449,14 @@ module obsSpaceErrorStdDev_mod
             rseries(1:nSeries(levIndex,latIndex))=series(levIndex,latIndex,1:nSeries(levIndex,latIndex))
             call ipsort(ip,rseries(1:nSeries(levIndex,latIndex)),nSeries(levIndex,latIndex))
             medianOmP=series(levIndex,latIndex,ip(nSeries(levIndex,latIndex)/2))
-               
+
             sumOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
-            meanOmP=sumOmP/nSeries(levIndex,latIndex)            
+            meanOmP=sumOmP/nSeries(levIndex,latIndex)
             sumSqrOmP = sum(series(levIndex,latIndex,1:nSeries(levIndex,latIndex))*series(levIndex,latIndex,1:nSeries(levIndex,latIndex)))
             varOmP = sumSqrOmP/nSeries(levIndex,latIndex) - (sumOmP/nSeries(levIndex,latIndex))**2
             if (varOmP  > minVal*minVal ) then
               do loopIndex=1,nSeries(levIndex,latIndex)
-                maxOmP = stdScale*sqrt(varOmP) 
+                maxOmP = stdScale*sqrt(varOmP)
                 ! if ( abs(series(levIndex,latIndex,loopIndex)-meanOmP) > maxOmP ) then
                 if ( abs(series(levIndex,latIndex,loopIndex)-medianOmP) > maxOmP ) then
                   sumOmP = sumOmP - series(levIndex,latIndex,loopIndex)
@@ -2467,7 +2467,7 @@ module obsSpaceErrorStdDev_mod
               varOmP = sumSqrOmP/nSeries(levIndex,latIndex) - (sumOmP/nSeries(levIndex,latIndex))**2
               !write(*,110) latIndex,levIndex,nSeries(levIndex,latIndex),sumOmP/nSeries(levIndex,latIndex),sqrt(varOmP)
               sumOmP2d(levIndex,latIndex)=sumOmP
-              sumSqrOmP2d(levIndex,latIndex)=sumSqrOmP   
+              sumSqrOmP2d(levIndex,latIndex)=sumSqrOmP
               if (varOmP  < minVal*minVal ) availableOmP = .false.
             else
               availableOmP = .false.
@@ -2479,17 +2479,17 @@ module obsSpaceErrorStdDev_mod
         end do
         end do
       end if
-                  
+
       ! Combine from all processors
 
-      call mmpi_allReduce(nSeries, nSeriest, "MPI_SUM")
-      call mmpi_allReduce(sumOmP2d, sumOmP2dt, "MPI_SUM")
-      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, "MPI_SUM")
-      
+      call mmpi_allReduce(nSeries,     nSeriest,     mmpi_sum)
+      call mmpi_allReduce(sumOmP2d,    sumOmP2dt,    mmpi_sum)
+      call mmpi_allReduce(sumSqrOmP2d, sumSqrOmP2dt, mmpi_sum)
+
       if (any(nSeriest > 5*minCount)) then
-      
+
         where ( nSeriest > 5*minCount ) sumSqrOmP2dt = sumSqrOmP2dt/nSeriest - (sumOmP2dt/nSeriest)**2
-        
+
         if (mmpi_myid == 0) then
            write(*,*) 'Calculated OmP error std dev'
            write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
@@ -2501,58 +2501,58 @@ module obsSpaceErrorStdDev_mod
             varOmP =  sumSqrOmP2dt(levIndex,latIndex)
             if (varOmP  < minVal*minVal ) then
                availableOmP = .false.
-            else     
+            else
               if (mmpi_myid == 0 ) write(*,110) latIndex,levIndex,nSeriest(levIndex,latIndex),sumOmP2dt(levIndex,latIndex)/nSeriest(levIndex,latIndex),sqrt(varOmP)
             end if
           else
             availableOmP = .false.
           end if
-  
+
           ! Store in structure
-   
+
           ! Indentify position in structure
           if (OmPstdCH%n_lvl(stnidIndex) > 1) then
             posIndex=ibegin+(levIndex-1)*OmPstdCH%n_lat(stnidIndex)
           else
             posIndex=ibegin
           end if
-      
+
           if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
             posIndex = posIndex + latIndex
           else
             posIndex = posIndex + (monthIndex-1)*OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex) + latIndex
           end if
-        
+
           if (availableOmP) then
             OmPstdCH%std(posIndex)  = sqrt(varOmP)
           else
              OmPstdCH%std(posIndex)  = MPC_missingValue_R8
           end if
-        
+
         end do
         end do
-      end if  
+      end if
 110   format(I5,I7,I7,3x,G11.3,G11.3)
-                 
+
       deallocate(series,nSeries,sumOmP2d,sumSqrOmP2d)
       deallocate(nSeriest,sumOmP2dt,sumSqrOmP2dt)
     end do
-    
+
   end subroutine ose_calcOmPstddevCH
 
   !--------------------------------------------------------------------------
   ! ose_fillOmPstddevCH
   !--------------------------------------------------------------------------
   subroutine ose_fillOmPstddevCH(obsSpaceData)
-    ! 
-    !:Purpose: To assign the Omp error std dev where possible for the obs 
+    !
+    !:Purpose: To assign the Omp error std dev where possible for the obs
     !          of the CH obs family.
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
-    
+
     ! Locals:
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, monthIndex, ibegin
@@ -2560,29 +2560,29 @@ module obsSpaceErrorStdDev_mod
     character(len=12) :: stnid
 
     ! Loop over all obs types
-    
+
     do stnidIndex=1,OmPstdCH%n_stnid
       ! Check if OBS_OMPE is to be estimated elsewhere via use of OBS_HPHT and OBS_OER
       ! instead of via ose_fillOmPstddevCH
       if ( OmPstdCH%source(stnidIndex) > 1 ) cycle
 
       ! Loop over all header indices of the 'CH' family:
-       
+
       call obs_set_current_header_list(obsSpaceData,'CH')
       HEADER: do
-      
+
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
-  
+
         icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
-      
+
         stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
         if ( .not. utl_stnid_equal(OmPstdCH%stnids(stnidIndex),stnid) ) cycle HEADER
-        
+
         bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-        
+
         ! Check OBS_VNM value.
         do bodyIndex=bodyIndex_start,bodyIndex_end
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= BUFR_SCALE_EXPONENT) then
@@ -2595,14 +2595,14 @@ module obsSpaceErrorStdDev_mod
         itime  = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
 
         ! Identify lat and month index
-        if (OmPstdCH%n_lat(stnidIndex) == 1) then      
+        if (OmPstdCH%n_lat(stnidIndex) == 1) then
            latIndex = 0 ! no interpolation
         else
 
           ! Find latitude index for interpolation.
           ! Assuming increasing latitudes in OmPstdCH%lat
           ! Interpolation to between latIndex and latIndex-1
-          
+
           lat = zlat / MPC_RADIANS_PER_DEGREE_R8  ! radians to degrees
 
           ibegin=OmPstdCH%ibegin(stnidIndex)-1
@@ -2617,9 +2617,9 @@ module obsSpaceErrorStdDev_mod
             end do
           end if
         end if
-        
+
         if (OmPstdCH%n_month(stnidIndex) == 1) then
-          monthIndex = 1 
+          monthIndex = 1
         else
           ! Find month index
           monthIndex=(idate-(idate/10000)*10000)/100
@@ -2629,8 +2629,8 @@ module obsSpaceErrorStdDev_mod
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) cycle
 
           zlev  = obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex )
-                    
-          ! Get OmP error std dev 
+
+          ! Get OmP error std dev
           OmP_err_stddev = ose_getOmPstddevCH( lat, zlev, stnidIndex, latIndex, monthIndex )
           if ( OmPstdCH%std_type(stnidIndex) == 1 ) then
             iass  = obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex )
@@ -2639,20 +2639,20 @@ module obsSpaceErrorStdDev_mod
               call obs_bodySet_r( obsSpaceData, OBS_OMPE, bodyIndex, OmP_err_stddev )
             end if
           else
-             call obs_bodySet_r( obsSpaceData, OBS_OMPE, bodyIndex, OmP_err_stddev )             
+             call obs_bodySet_r( obsSpaceData, OBS_OMPE, bodyIndex, OmP_err_stddev )
           end if
 
         end do
       end do HEADER
     end do
-   
+
   end subroutine ose_fillOmPstddevCH
-  
+
   !--------------------------------------------------------------------------
   ! ose_getOmPstddevCH
   !--------------------------------------------------------------------------
-  real(8) function ose_getOmPstddevCH(zlat,zlev,stnidIndex,latIndex,monthIndex) result(OmP_err_stddev) 
-    ! 
+  real(8) function ose_getOmPstddevCH(zlat,zlev,stnidIndex,latIndex,monthIndex) result(OmP_err_stddev)
+    !
     !:Purpose: To return the OmP error std dev for a CH family measurement
     !
     implicit none
@@ -2674,11 +2674,11 @@ module obsSpaceErrorStdDev_mod
     ! Get OmP error std. dev.
 
     ibegin=OmPstdCH%ibegin(stnidIndex)-1
-    
+
     if (OmPstdCH%n_lvl(stnidIndex) > 1) then
-                 
+
       ! Find nearest vertical level (no vertical interpolation in this version)
-                 
+
       levDiff=1.0d10
       do loopIndex=1,OmPstdCH%n_lvl(stnidIndex)
          if ( levDiff > abs(zlev-OmPstdCH%levels(ibegin+loopIndex)) ) THEN
@@ -2690,26 +2690,26 @@ module obsSpaceErrorStdDev_mod
     else
       posIndex=ibegin
     end if
-      
+
     if ( OmPstdCH%n_month(stnidIndex) == 1 ) then
        posIndex = posIndex + latIndex
     else
        posIndex = posIndex + (monthIndex-1)*OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_lvl(stnidIndex) + latIndex
-    end if   
-    
+    end if
+
     if ( OmPstdCH%n_lat(stnidIndex) > 1 ) then
       ! Apply interpolation in latitude
-  
+
       if ( latIndex == 1 .or. latIndex > OmPstdCH%n_lat(stnidIndex)) then
         if ( abs(OmPstdCH%std(posIndex) - MPC_missingValue_R8) > minDiff ) then
-          OmP_err_stddev = MPC_missingValue_R8    
-        else     
+          OmP_err_stddev = MPC_missingValue_R8
+        else
           OmP_err_stddev = OmPstdCH%std(posIndex)
         end if
-      else        
+      else
         if ( abs(OmPstdCH%std(posIndex-1) - MPC_missingValue_R8) < minDiff .and. &
              abs(OmPstdCH%std(posIndex) - MPC_missingValue_R8) < minDiff ) then
-          OmP_err_stddev = MPC_missingValue_R8  
+          OmP_err_stddev = MPC_missingValue_R8
         else if ( abs(OmPstdCH%std(posIndex-1) - MPC_missingValue_R8) < minDiff ) then
           OmP_err_stddev = OmPstdCH%std(posIndex)
         else if ( abs(OmPstdCH%std(posIndex) - MPC_missingValue_R8) < minDiff ) then
@@ -2719,14 +2719,14 @@ module obsSpaceErrorStdDev_mod
             OmPstdCH%std(posIndex)*(zlat-OmPstdCH%lat(ibegin+latIndex-1)))/                 &
             (OmPstdCH%lat(ibegin+latIndex)-OmPstdCH%lat(ibegin+latIndex-1))
         end if
-      end if       
+      end if
     else
       if ( abs(OmPstdCH%std(posIndex) - MPC_missingValue_R8) > minDiff ) then
-        OmP_err_stddev = MPC_missingValue_R8    
-      else     
-        OmP_err_stddev = OmPstdCH%std(posIndex)  
-      end if           
-    end if 
+        OmP_err_stddev = MPC_missingValue_R8
+      else
+        OmP_err_stddev = OmPstdCH%std(posIndex)
+      end if
+    end if
 
   end function ose_getOmPstddevCH
 
@@ -2734,36 +2734,36 @@ module obsSpaceErrorStdDev_mod
   ! ose_OmPstddevExistsForAllCH
   !--------------------------------------------------------------------------
   logical function ose_OmPstddevExistsForAllCH(obsSpaceData) result(allOMPE)
-    ! 
-    !:Purpose: To determine if all obs to be processed have usable OBS_OMPE values 
+    !
+    !:Purpose: To determine if all obs to be processed have usable OBS_OMPE values
     !          for the CH obs family.
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
-    
+
     ! Local:
     integer :: headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
-     
+
     ! Loop over all header indices of the 'CH' family:
-       
+
     allOMPE = .true.
-    
+
     call obs_set_current_header_list(obsSpaceData,'CH')
     HEADER: do
 
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-  
+
       icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
-      
+
       bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
 
       ! Check for cases were OmP error std dev is not available
-      
+
       do bodyIndex=bodyIndex_start,bodyIndex_end
          if ( obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) <= 0.0d0 .and. &
               obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
@@ -2776,14 +2776,14 @@ module obsSpaceErrorStdDev_mod
          end if
       end do
     end do HEADER
-   
+
   end function ose_OmPstddevExistsForAllCH
 
   !--------------------------------------------------------------------------
   ! ose_deallocOmPstddevCH
   !--------------------------------------------------------------------------
   subroutine ose_deallocOmPstddevCH
-    ! 
+    !
     !:Purpose: To deallocate temporary storage space used for OmP error std dev
     !          for the CH family.
     !

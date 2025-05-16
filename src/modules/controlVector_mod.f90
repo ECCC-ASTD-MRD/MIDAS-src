@@ -2,10 +2,10 @@
 module controlVector_mod
   ! MODULE controlVector_mod (prefix='cvm' category='6. High-level data objects')
   !
-  !:Purpose: The control vector and related information.  
+  !:Purpose: The control vector and related information.
   !
-  use utilities_mod
   use midasMpi_mod
+  use utilities_mod
 
   implicit none
   save
@@ -53,7 +53,7 @@ contains
       call utl_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
     end if
 
-    call mmpi_allReduce(dimVector, dimVector_mpiglobal, 'MPI_SUM')
+    call mmpi_allReduce(dimVector, dimVector_mpiglobal, mmpi_sum)
 
     ! just return if subVector dimension is zero on all MPI tasks
     if ( dimVector_mpiglobal == 0 ) return

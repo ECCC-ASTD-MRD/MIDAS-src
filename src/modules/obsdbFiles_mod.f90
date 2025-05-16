@@ -32,7 +32,7 @@ module obsdbFiles_mod
   integer, parameter :: obsColIndex   = 2
   integer, parameter :: varNoColIndex = 2
   integer, parameter :: maxElementnumber = 100
-  
+
   character(len=lenSqlName) :: headTableName = ' '
   character(len=lenSqlName) :: bodyTableName = ' '
   character(len=lenSqlName) :: midasBodyTableName = ' '
@@ -40,14 +40,14 @@ module obsdbFiles_mod
 
   ! ...for the header table
 
-  integer :: numHeadMatch 
+  integer :: numHeadMatch
   character(len=lenSqlName) :: obsHeadKeySqlName = ' '
-  character(len=lenSqlName) :: headDateSqlName = ' ' 
-  character(len=lenSqlName), allocatable :: headMatchList(:,:) 
+  character(len=lenSqlName) :: headDateSqlName = ' '
+  character(len=lenSqlName), allocatable :: headMatchList(:,:)
   character(len=6), allocatable :: headBufrList(:)
 
   ! ...for the body table
-  
+
   integer :: numBodyMatch
   character(len=lenSqlName) :: obsBodyKeySqlName = ' '
   character(len=lenSqlName), allocatable :: bodyMatchList(:,:)
@@ -65,9 +65,9 @@ module obsdbFiles_mod
   ! Column names for the MIDAS Body table and corresponding obsSpace names
   character(len=lenSqlName) :: midasBodyKeySqlName
   integer :: numMidasBodyMatch
-  character(len=lenSqlName), allocatable :: midasBodyNamesList(:,:)  
+  character(len=lenSqlName), allocatable :: midasBodyNamesList(:,:)
   integer :: numBodyMidasTableRequired
-   
+
   ! Other constants
   logical, parameter :: setObsFlagZero = .true.
   character(len=20)  :: combinedTableName = 'combinedTable'
@@ -145,16 +145,16 @@ contains
     integer            :: nulfile, ierr
     integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
-    character(len=512), parameter :: obsDbColumnFile = 'obsdbColumnTable.dat' 
+    character(len=512), parameter :: obsDbColumnFile = 'obsdbColumnTable.dat'
     character(len=512) :: readLine
-    character(len=lenSqlName) :: readDBColumn, readObsSpaceColumn, readBufrColumn  ! Strings to temporary assign 
+    character(len=lenSqlName) :: readDBColumn, readObsSpaceColumn, readBufrColumn  ! Strings to temporary assign
                                                                                 ! read header and body column names
-    integer            :: headerTableRow, bodyTableRow, midasBodyTableRow, midasHeadTableRow ! Counters to determine the size of 
+    integer            :: headerTableRow, bodyTableRow, midasBodyTableRow, midasHeadTableRow ! Counters to determine the size of
                                                                          ! header and body table
-    integer            :: countRow, countMatchRow, countVarRow                        
+    integer            :: countRow, countMatchRow, countVarRow
     integer            :: stringFoundIndex
     logical            :: obsColumnIsValid
-                                                                       
+
     if ( alreadyRead ) return
 
     alreadyRead = .true.
@@ -163,17 +163,17 @@ contains
 
     ! initialize obsDb columns names to be consistent with MIDAS obsSpaceData Report column names
 
-    nulfile = 0 
+    nulfile = 0
     ierr = fnom(nulfile,trim(obsDbColumnFile),'FTN+SEQ+R/O',0)
-    if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading ObsDBColumnTable file') 
-  
+    if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading ObsDBColumnTable file')
+
     ! Get number of rows in ObsDBColumnTable file
     headerTableRow = 0
     bodyTableRow = 0
     midasBodyTableRow = 0
     midasHeadTableRow = 0
     numHeadMatch = 0
-    numBodyMatch = 0 
+    numBodyMatch = 0
     numMidasBodyMatch = 0
     numMidasHeadMatch = 0
     numVarNo = 0
@@ -187,22 +187,22 @@ contains
           ! Stop search at the end of header table
           if (index(trim(readline),'OBS_HEADER TABLE INFO ENDS') > 0) exit
           headerTableRow = headerTableRow +1
-          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
-            ! Count obsSpaceData header columns  
+          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then
+            ! Count obsSpaceData header columns
             numHeadMatch = numHeadMatch + 1
           end if
         end do
 
-      else if (index(trim(readline),'OBS_BODY TABLE INFO BEGINS') > 0) then  
+      else if (index(trim(readline),'OBS_BODY TABLE INFO BEGINS') > 0) then
         ! Found the start of the body table
         do while (ierr == 0)
           read(nulfile,'(A)' ,iostat = ierr) readline
           ! Stop search at the end of body table
           if (index(trim(readline),'OBS_BODY TABLE INFO ENDS') > 0) exit
           bodyTableRow = bodyTableRow + 1
-          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
+          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then
             ! Count obsSpaceData body columns
-            numBodyMatch = numBodyMatch + 1 
+            numBodyMatch = numBodyMatch + 1
             if (index(trim(readline),'VAR') /= 0) then
               ! Count VarNo columns
               numVarNo = numVarNo + 1
@@ -218,7 +218,7 @@ contains
           if (index(trim(readline),'MIDAS_HEADER TABLE INFO ENDS') > 0) exit
           midasHeadTableRow = midasHeadTableRow + 1
           ! Count obsSpaceData  MIDAS_HEADER columns
-          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
+          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then
             numMidasHeadMatch = numMidasHeadMatch + 1
           end if
         end do
@@ -231,7 +231,7 @@ contains
           if (index(trim(readline),'MIDAS_BODY TABLE INFO ENDS') > 0) exit
           midasBodyTableRow = midasBodyTableRow + 1
           ! Count obsSpaceData MIDAS_BODY columns
-          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then 
+          if (index(trim(readline),'[') == 0 .and. index(trim(readline),']') == 0) then
             numMidasBodyMatch = numMidasBodyMatch + 1
           end if
         end do
@@ -242,7 +242,7 @@ contains
     write(*,*) 'odbf_setup: Number of obs body columns in ObsDBColumnTable', bodyTableRow
     write(*,*) 'odbf_setup: Number of midas header columns in ObsDBColumnTable', midasHeadTableRow
     write(*,*) 'odbf_setup: Number of midas body columns in ObsDBColumnTable', midasBodyTableRow
-    
+
     write(*,*) 'odbf_setup: numHeadMatch', numHeadMatch
     write(*,*) 'odbf_setup: numBodyMatch', numBodyMatch
     write(*,*) 'odbf_setup: numMidasHeadMatch',numMidasHeadMatch
@@ -264,24 +264,24 @@ contains
       read(nulfile, '(A)' ,iostat = ierr) readline
 
       if (index(trim(readline),'OBS_HEADER TABLE INFO BEGINS') > 0) then
-        ! Found the start of Obs Header table in the file  
+        ! Found the start of Obs Header table in the file
         countMatchRow = 0
         do countRow = 1, headerTableRow
           ! Read all header table rows
-          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn      
+          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn
           select case (trim(readObsSpaceColumn))
             ! Assign read values to appropriate variable
             case ('[headTableName]')
               headTableName = trim(readDBColumn)
-              ! Remove the brackets from column name string 
+              ! Remove the brackets from column name string
               headTableName = headTableName(1:len(headTableName)-1)
             case ('[headPrimaryKey]')
               obsHeadKeySqlName = trim(readDBColumn)
-              ! Remove the brackets from column name string 
+              ! Remove the brackets from column name string
               obsHeadKeySqlName = obsHeadKeySqlName(1:len(obsHeadKeySqlName)-1)
             case ('[headDateSqlName]')
               headDateSqlName = trim(readDBColumn)
-              ! Remove the brackets from column name string  
+              ! Remove the brackets from column name string
               headDateSqlName = headDateSqlName(1:len(headDateSqlName)-1)
             case default
               countMatchRow = countMatchRow + 1
@@ -292,12 +292,12 @@ contains
         end do ! do countRow
 
       else if (index(trim(readline),'OBS_BODY TABLE INFO BEGINS') > 0) then
-        ! Found the start of Obs BODY table in the file  
+        ! Found the start of Obs BODY table in the file
         countMatchRow = 0
-        countVarRow = 0 
+        countVarRow = 0
         do countRow = 1, bodyTableRow
-          ! Read all body table rows 
-          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn      
+          ! Read all body table rows
+          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn
           select case (trim(readObsSpaceColumn))
             ! Assign read values to appropriate variable
             case ('[bodyTableName]')
@@ -316,8 +316,8 @@ contains
 
               ! Assign varNoList if appropriate
               if (bodyMatchList(2,countMatchRow) == 'VAR') then
-                countVarRow = countVarRow + 1 
-                varNoList(1, countVarRow) = bodyMatchList(1,countMatchRow) 
+                countVarRow = countVarRow + 1
+                varNoList(1, countVarRow) = bodyMatchList(1,countMatchRow)
                 varNoList(2, countVarRow) = bodyBufrList(countMatchRow)
               end if
           end select
@@ -339,7 +339,7 @@ contains
               midasHeadKeySqlName = midasHeadKeySqlName(1:len(midasHeadKeySqlName)-1)
             case default
               countMatchRow = countMatchRow + 1
-              midasHeadNamesList(1,countMatchRow) = trim(readDBColumn)              
+              midasHeadNamesList(1,countMatchRow) = trim(readDBColumn)
               midasHeadNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
           end select
         end do ! do countRow
@@ -350,7 +350,7 @@ contains
         countMatchRow = 0
         do countRow = 1, midasBodyTableRow
           ! Read all body table rows
-          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn      
+          read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn
           select case (trim(readObsSpaceColumn))
             ! Assign read values to appropriate variable
             case ('[midasBodyTableName]')
@@ -363,10 +363,10 @@ contains
               midasBodyKeySqlName = midasBodyKeySqlName(1:len(midasBodyKeySqlName)-1)
             case default
               countMatchRow = countMatchRow + 1
-              midasBodyNamesList(1,countMatchRow) = trim(readDBColumn)              
+              midasBodyNamesList(1,countMatchRow) = trim(readDBColumn)
               midasBodyNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
-             
-              ! Check if the ObsSpaceData column name is mandatory 
+
+              ! Check if the ObsSpaceData column name is mandatory
               stringFoundIndex = index(midasBodyNamesList(2,countMatchRow),'*')
               if (stringFoundIndex > 0) then
                 midasBodyNamesList(2,countMatchRow) = trim(midasBodyNamesList(2,countMatchRow)(1:stringFoundIndex-1))
@@ -378,8 +378,8 @@ contains
     end do ! do while (ierr == 0)
 
     ierr = fclos(nulfile)
- 
-    ! Check if the header, body and MIDAS table column names are read correctly 
+
+    ! Check if the header, body and MIDAS table column names are read correctly
     if (len(trim(headTableName)) == 0) call utl_abort('odbf_setup: headTableName is incorrectly defined or missing')
     if (len(trim(obsHeadKeySqlName)) == 0) call utl_abort('odbf_setup: obsHeadKeySqlName is incorrectly defined or missing')
     if (len(trim(headDateSqlName)) == 0) call utl_abort('odbf_setup: headDateSqlName is incorrectly defined or missing')
@@ -396,8 +396,8 @@ contains
                        trim(headMatchList(2,countRow)))
       end if
     end do
-      
-    do countRow = 1, numBodyMatch 
+
+    do countRow = 1, numBodyMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(bodyMatchList(2,countRow)))
       if (.not. obsColumnIsValid) then
         call utl_abort('odbf_setup: Column in Body Table does not exist in ObsSpaceData: ' // &
@@ -405,7 +405,7 @@ contains
       end if
     end do
 
-    do countRow = 1, numMidasBodyMatch 
+    do countRow = 1, numMidasBodyMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(midasBodyNamesList(2,countRow)))
       if (.not. obsColumnIsValid) then
         call utl_abort('odbf_setup: Column in MIDAS Body Table does not exist in ObsSpaceData: ' // &
@@ -413,7 +413,7 @@ contains
       end if
     end do
 
-    do countRow = 1, numMidasHeadMatch 
+    do countRow = 1, numMidasHeadMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(midasHeadNamesList(2,countRow)))
       if (.not. obsColumnIsValid) then
         call utl_abort('odbf_setup: Column in MIDAS Header Table does not exist in ObsSpaceData: ' // &
@@ -431,11 +431,11 @@ contains
     ! Purpose: get dateStamp from an obsDB file
     !
     implicit none
-    
+
     ! Arguments:
     integer         , intent(out) :: dateStamp
     character(len=*), intent(in)  :: fileName
-    
+
     ! Locals:
     integer,    allocatable :: headDateValues(:), headTimeValues(:)
     integer                 :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
@@ -446,19 +446,19 @@ contains
     call sqlu_getColumnValuesDateStr(headDateValues, headTimeValues, fileName=trim(fileName), &
                                      tableName=headTableName, sqlColumnName=headDateSqlName)
 
-    validDate = MPC_missingValue_INT 
-    validTime = MPC_missingValue_INT 
+    validDate = MPC_missingValue_INT
+    validTime = MPC_missingValue_INT
 
     call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validTime)
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call mmpi_allReduce(validDate, validDateRecv, "MPI_MAX")
-    call mmpi_allReduce(validTime, validTimeRecv, "MPI_MAX")
-    
+    call mmpi_allReduce(validDate, validDateRecv, mmpi_max)
+    call mmpi_allReduce(validTime, validTimeRecv, mmpi_max)
+
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
       call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
     end if
-    
+
     ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
     imode = 3
     ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
@@ -547,7 +547,7 @@ contains
                                   tableName=bodyTableName, sqlColumnNames=bodySqlNames)
     numRowsBodyTable = size(bodyValues,1)
     numRowsHeadTable = size(headValues,1)
-    
+
     ! For debugging, print first 10 rows of each local table to the listing
     do headTableIndex = 1, min(10, numRowsHeadTable)
       write(*,*) 'odbf_readFile: headKeyValues  = ', headPrimaryKey(headTableIndex)
@@ -568,7 +568,7 @@ contains
       write(*,*) 'odbf_readFile: bodyValues = ', bodyValues(bodyTableIndex,:)
     end do
 
-    
+
 
     ! Starting point for adding rows to obsSpaceData
     bodyIndexBegin = obs_numBody(obsdat) + 1
@@ -638,7 +638,7 @@ contains
       call obsu_computeVertCoordSurfObs(obsdat, headIndexBegin, headIndexEnd )
     end if
 
-    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error)
     ! for all ZTD observations (element 15031)
     if ( trim(familyType) == 'GP' ) then
       write(*,*) 'odbf_readFile: Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
@@ -669,7 +669,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: fileName   
+    character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: fileIndex
 
@@ -722,7 +722,7 @@ contains
       write(*,*) 'odbf_readMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort('odbf_readMidasBodyTable: fSQL_open')
     end if
-    
+
     ! read the contents of the MIDAS table, one column at a time
     SQLNAME: do sqlNameIndex = 1, numMidasBodyMatch
 
@@ -824,7 +824,7 @@ contains
     end do SQLNAME
 
     ! close the obsDB file
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
     deallocate(midasColumnExists)
 
@@ -920,7 +920,7 @@ contains
     ! close the obsDB file
     call fSQL_free_mem(stmt)
     call fSQL_finalize(stmt)
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
   end subroutine odbf_getPrimaryKeys
 
@@ -968,10 +968,10 @@ contains
     write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numColumns = ', numColumns
     if (numRows /= numRowsHeadTable) then
       write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, &
-                 ', numRowsHeadTable = ', numRowsHeadTable      
+                 ', numRowsHeadTable = ', numRowsHeadTable
       call utl_abort('odbf_setSurfaceType: Number of rows found in mask query is ' // &
                      'not equal to total number of rows in head table')
-    end if      
+    end if
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix(stmt, columnValues)
 
@@ -979,7 +979,7 @@ contains
     do headTableIndex = 1, numRows
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_STYP, headIndex, columnValues(headTableIndex,1))
-      
+
       if (columnValues(headTableIndex,1) == 1 .and. columnValues(headTableIndex,2) == 1) then
         ! set terrain type to 0 over water with sea ice
         call obs_headSet_i(obsdat, OBS_TTYP, headIndex, 0)
@@ -993,7 +993,7 @@ contains
     ! close the obsDB file
     call fSQL_free_mem(stmt)
     call fSQL_finalize(stmt)
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
   end subroutine odbf_setSurfaceType
 
@@ -1055,7 +1055,7 @@ contains
       if (codeType == -1) then
         write(*,*) 'odbf_copyToObsSpaceHeadChar: obs type =', &
                    trim(headCharValues(headTableIndex,columnIndex))
-        call utl_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found') 
+        call utl_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found')
       end if
       call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeType)
     end do ! do headTableIndex
@@ -1463,7 +1463,7 @@ contains
         if (obs_columnActive_RB(obsdat, OBS_SEM)) then
           do bodyIndex = bodyIndexStart, bodyIndexEnd
             surfEmiss = obs_bodyElem_r(obsdat, OBS_SEM, bodyIndex)
-            if (surfEmiss /= MPC_missingValue_R8) then 
+            if (surfEmiss /= MPC_missingValue_R8) then
               surfEmiss = surfEmiss * 0.01D0
             end if
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss)
@@ -1523,7 +1523,7 @@ contains
     ! not found in either list, abort
     write(*,*) 'odbf_sqlNameFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
     call utl_abort('odbf_sqlNameFromObsSpaceName: obsSpace name not found in matching list')
-    
+
   end function odbf_sqlNameFromObsSpaceName
 
   !--------------------------------------------------------------------------
@@ -1556,7 +1556,7 @@ contains
     ! not found, abort
     write(*,*) 'odbf_midasTabColFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
     call utl_abort('odbf_midasTabColFromObsSpaceName: obsSpace name not found in midasSQLNamesList')
-    
+
   end function odbf_midasTabColFromObsSpaceName
 
   !--------------------------------------------------------------------------
@@ -1577,7 +1577,7 @@ contains
     ! Locals:
     integer           :: matchIndex
     character(len=10) :: varNoStr
-  
+
     matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
     if (matchIndex > 0) then
       varNoStr = varNoList(varNoColIndex,matchIndex)
@@ -1587,7 +1587,7 @@ contains
 
     write(*,*) 'odbf_varNoFromSqlName: requested sqlName = ', trim(sqlName)
     call utl_abort('odbf_varNoFromSqlName: not found in varNo list')
-    
+
   end function odbf_varNoFromSqlName
 
   !--------------------------------------------------------------------------
@@ -1598,7 +1598,7 @@ contains
     ! :Purpose: Call subroutines to update MIDAS Header and Body tables
     !
     implicit none
-    
+
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     character(len=*),  intent(in)    :: fileName
@@ -1606,7 +1606,7 @@ contains
     integer,           intent(in)    :: fileIndex
 
     call utl_tmg_start(14,'----UpdateObsDBfile')
-    
+
     call odbf_setup()
 
     ! Check if the Midas Header Table needs to be updated, specified from namelist
@@ -1649,13 +1649,13 @@ contains
     !           (e.g. ETOP, VTOP, ECF,...).
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: fileName
-    character(len=*), intent(in)    :: familyType 
+    character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: fileIndex
-    
+
     ! Locals:
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
@@ -1723,7 +1723,7 @@ contains
     if (.not. midasTableExists) then
       ! create midasTable by copying rearranging contents of observation table
       call odbf_createMidasHeaderTable(fileName)
-    
+
       ! open the obsDB file
       call fSQL_open(db, trim(fileName), stat)
       if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -1741,7 +1741,7 @@ contains
 
       call mmpi_allGather(maxNumHeader, maxNumHeaderAllMpi)
 
-      ! Set the midasKey to start counting based on the latest value from the previous 
+      ! Set the midasKey to start counting based on the latest value from the previous
       ! mpi task
       if( mmpi_myid == 0 ) then
         midasKey = 0
@@ -1769,14 +1769,14 @@ contains
         call fSQL_bind_param(stmt, PARAM_INDEX = 2, INT8_VAR  = obsIdo)
 
         call fSQL_exec_stmt (stmt)
-      
+
       end do HEADER
 
       call fSQL_finalize(stmt)
       call fSQL_commit(db)
 
       ! close the obsDB file
-      call fSQL_close(db, stat) 
+      call fSQL_close(db, stat)
     else
       write(*,*) 'odbf_insertInMidasHeaderTable: the midas header output table already exists, ' // &
                  'proceed to join with temporary table that has new columns.'
@@ -1788,7 +1788,7 @@ contains
       write(*,*) 'odbf_insertInMidasHeaderTable: fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort('odbf_insertInMidasHeaderTable: fSQL_open')
     end if
-    
+
     tableInsertColumnList = ''
     obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
     call getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
@@ -1801,7 +1801,7 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
       call utl_abort('odbf_insertInMidasHeaderTable: Problem with fSQL_do_many')
-    end if 
+    end if
 
     ! Prepare to insert into the table
     write(*,*) 'odbf_insertInMidasHeaderTable: queryInsertInTable -->', trim(queryInsertInTable)
@@ -1868,7 +1868,7 @@ contains
   subroutine odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     !
     ! :Purpose: Insert selected columns in the MIDAS body table using
-    !           values from obsSpaceData. If the MIDAS Body table does not already 
+    !           values from obsSpaceData. If the MIDAS Body table does not already
     !           exist, it is created by copying the observation table.
     !           A single table is created that contains all quantities being
     !           updated. Unlike the observation table, each observed variable
@@ -1879,7 +1879,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: fileName   
+    character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: fileIndex
 
@@ -1938,9 +1938,9 @@ contains
         numberUpdateItems = numberUpdateItems + 1
         updateItemList(numberUpdateitems) = trim(midasBodyNamesList(2,columnIndex))
       end do
-         
+
       numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'FLG'      
+      updateItemList(numberUpdateItems) = 'FLG'
 
       if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_insertInMidasBodyTable: NOTE: the FLG/VNM/PPP/VAR columns are always added to update list'
@@ -1977,7 +1977,7 @@ contains
         bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
         bodyIndexEnd = bodyIndexBegin + &
                        obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
-        
+
         BODY1: do bodyIndex = bodyIndexBegin, bodyIndexEnd
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue == obs_missingValue_R ) cycle BODY1
@@ -1987,14 +1987,14 @@ contains
 
       call mmpi_allGather(maxNumBody, maxNumBodyAllMpi)
 
-      ! Set the midasKey to start counting based on the latest value from the previous 
+      ! Set the midasKey to start counting based on the latest value from the previous
       ! mpi task
       if( mmpi_myid == 0 ) then
         midasKey = 0
       else
         midasKey = sum(maxNumBodyAllMpi(1:mmpi_myid))
       end if
-                      
+
       ! set the primary key, keys to main obsDB tables and other basic info
       query = 'insert into ' // trim(midasBodyTableName) // '(' // &
               trim(midasBodyKeySqlName) // ',' // trim(obsHeadKeySqlName) // ',' // &
@@ -2034,7 +2034,7 @@ contains
       call fSQL_commit(db)
 
       ! close the obsDB file
-      call fSQL_close(db, stat) 
+      call fSQL_close(db, stat)
 
     else
       write(*,*) 'odbf_insertInMidasBodyTable: the midas body output table already exists, ' // &
@@ -2060,7 +2060,7 @@ contains
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
       call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-    end if 
+    end if
 
     ! Prepare to insert into the table
     write(*,*) 'odbf_insertInMidasBodyTable: queryInsertInTable -->', trim(queryInsertInTable)
@@ -2082,7 +2082,7 @@ contains
                      obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
 
       BODY2: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-      
+
         ! do not try to update if the observed value is missing
         obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
         if ( obsValue == obs_missingValue_R ) cycle BODY2
@@ -2178,7 +2178,7 @@ contains
     end if
 
     ! close the obsDB file
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
   end subroutine odbf_createMidasHeaderTable
 
@@ -2220,7 +2220,7 @@ contains
     end if
 
     ! close the obsDB file
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
   end subroutine odbf_createMidasBodyTable
 
@@ -2230,9 +2230,9 @@ contains
   subroutine odbf_clean(fileName, familyType)
 
     ! :Purpose: After the observational thinning procedure, this subroutine removes
-    !           rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
-    !           the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding 
-    !           ID_Report and ID_Observation are also removed. 
+    !           rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table
+    !           the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding
+    !           ID_Report and ID_Observation are also removed.
 
     implicit none
 
@@ -2285,18 +2285,18 @@ contains
       write(*,*) 'odbf_clean: fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort('odbf_clean: fSQL_open')
     end if
-    
+
     ! Determine the number of rows in each table before cleaning
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';'
     numHeadTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';'
     numBodyTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';'
     numMidasHeadTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';'
     numMidasBodyTableRow = sqlu_query(db,trim(query))
 
     flgSqlName = odbf_midasTabColFromObsSpaceName('FLG', midasBodyNamesList)
@@ -2373,16 +2373,16 @@ contains
     call fSQL_finalize(stmt)
 
     ! Determine the number of rows in each table after cleaning
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';'
     numCleanHeadTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';'
     numCleanBodyTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';'
     numCleanMidasHeadTableRow = sqlu_query(db,trim(query))
 
-    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';' 
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';'
     numCleanMidasBodyTableRow = sqlu_query(db,trim(query))
 
     write(*,*) 'odbf_clean: Cleaning Summary:'
@@ -2395,7 +2395,7 @@ contains
     write(*,'(A, A9, A9)') ' odbf_clean: Header count before/after cleaning in ' //  trim(midasBodyTableName), &
                 trim(numMidasBodyTableRow), trim(numCleanMidasBodyTableRow)
 
-    ! Reduces the size of SQL file 
+    ! Reduces the size of SQL file
     if ( useVacuum ) then
       query = 'vacuum;'
       write(*,*) 'odbf_clean: query = ', trim(query)
@@ -2444,7 +2444,7 @@ contains
       ! get obsSpaceData column index for source of updated sql column
       obsSpaceColumnName = updateItemList(updateItemIndex)
       ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))      
+      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
 
       if (midasTableType == 'header') then
         sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasHeadNamesList)
@@ -2468,7 +2468,7 @@ contains
                              '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')
 
           queryInsertInTable = 'insert into '// trim(combinedTableName) // '(' // new_line('A') // &
-                               '  ' // trim(obsBodyKeySqlName) // new_line('A')                              
+                               '  ' // trim(obsBodyKeySqlName) // new_line('A')
         end if ! if (midasTableType == 'header')
 
         queryForValues = 'values(?'
@@ -2485,7 +2485,7 @@ contains
 
       if (updateItemIndex == numberUpdateItems) then
         queryCreateTable = trim(queryCreateTable) // ');'
-        queryForValues = trim(queryForValues) // ')'        
+        queryForValues = trim(queryForValues) // ')'
         queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
       end if
 
@@ -2503,8 +2503,8 @@ contains
                                      tableInsertColumnList)
     !
     ! :Purpose: In a series of join/drop/alter merge input table and midasTable
-    !           to create a new midasTable which contains the original columns plus 
-    !           columns from the input table.   
+    !           to create a new midasTable which contains the original columns plus
+    !           columns from the input table.
     !
     implicit none
 
@@ -2537,7 +2537,7 @@ contains
             '  ' // trim(combinedTableName) // ' inner join ' // trim(midasTableName) // ' on ' // new_line('A') // &
             '  ' // trim(combinedTableName) // '.' // trim(jointColumnName) // '=' // &
             trim(midasTableName) // '.' // trim(jointColumnName) // ';'
-   
+
     write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2547,7 +2547,7 @@ contains
 
     ! Drop the midasTable
     query = 'drop table ' // trim(midasTableName) // ';'
-      
+
     write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2575,7 +2575,7 @@ contains
     end if
 
     ! close the obsDB file
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
     write(*,*)
     write(*,*) 'mergeTableInMidasTables: END'

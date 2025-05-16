@@ -2,8 +2,8 @@
 module lamBmatrixHI_mod
   ! MODULE lamBmatrixHI_mod (prefix='lbhi' category='2. B and R matrices')
   !
-  !:Purpose:  Performs transformation from control vector to analysis increment 
-  !           using the homogeneous and isotropic background error covariance 
+  !:Purpose:  Performs transformation from control vector to analysis increment
+  !           using the homogeneous and isotropic background error covariance
   !           matrix.
   !
   use midasMpi_mod
@@ -59,7 +59,7 @@ module lamBmatrixHI_mod
   integer              :: numVarLev
   integer              :: cvDim
   integer              :: cvDim_mpiglobal
-  
+
   integer              :: nlev_M
   integer              :: nlev_T
 
@@ -117,7 +117,7 @@ contains
     nLev = max(max(vco_anl_in%nlev_M,vco_anl_in%nlev_T),1)
 
     do levIndex = 1, nLev
-      if ( scaleFactor(levIndex) > 0.0d0 ) then 
+      if ( scaleFactor(levIndex) > 0.0d0 ) then
         scaleFactor(levIndex) = sqrt(scaleFactor(levIndex))
       else
         scaleFactor(levIndex) = 0.0d0
@@ -133,7 +133,7 @@ contains
 
     !- Setup the LAM analysis grid metrics
     call lgt_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
-    
+
     trunc = ntrunc
     write(*,*)
     write(*,*) 'Spectral TRUNCATION = ', trunc
@@ -219,7 +219,7 @@ contains
     cvDim_out = cvDim
 
     ! also compute mpiglobal control vector dimension
-    call mmpi_allReduce(cvDim, cvDim_mpiglobal, "mpi_sum")
+    call mmpi_allReduce(cvDim, cvDim_mpiglobal, mmpi_sum)
 
     !- 2.3 Initialized the Wind spectral transform
     if ( trim(WindTransform) == 'VortDiv' ) then
@@ -309,50 +309,50 @@ contains
     nomvar = 'CVN'
 
     etiket = 'MODEL'
-    key = fstlir_s(ControlModelVarnameList,                    & ! OUT 
-                   iu_bstats,                                  & ! IN
-                   ni, nj, nlev,                               & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
-    if (key < 0) then
-      write(*,*)
-      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar 
-      call utl_abort('lbhi_GetControlVariableInfo') 
-    end if
-
-    etiket = 'B_HI'
-    key = fstlir_s(ControlBhiVarnameList,                      & ! OUT 
+    key = fstlir_s(ControlModelVarnameList,                    & ! OUT
                    iu_bstats,                                  & ! IN
                    ni, nj, nlev,                               & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call utl_abort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo')
     end if
-    
+
+    etiket = 'B_HI'
+    key = fstlir_s(ControlBhiVarnameList,                      & ! OUT
+                   iu_bstats,                                  & ! IN
+                   ni, nj, nlev,                               & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    if (key < 0) then
+      write(*,*)
+      write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
+      call utl_abort('lbhi_GetControlVariableInfo')
+    end if
+
 
     nomvar = 'CVL'
 
     etiket = 'NLEV'
-    key = fstlir  (ControlVarNlevList,                         & ! OUT 
+    key = fstlir  (ControlVarNlevList,                         & ! OUT
                    iu_bstats,                                  & ! IN
                    ni, nj, nlev,                               & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call utl_abort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo')
     end if
 
     etiket = 'LEVTYPE'
-    key = fstlir_s(ControlVarGridTypeList,                     & ! OUT 
+    key = fstlir_s(ControlVarGridTypeList,                     & ! OUT
                    iu_bstats,                                  & ! IN
                    ni, nj, nlev,                               & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call utl_abort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo')
     end if
 
     !
@@ -364,7 +364,7 @@ contains
        ControlVariable(var)%nlev            = ControlVarNlevList(var)
        ControlVariable(var)%GridType        = trim(ControlVarGridTypeList(var))
 
-       if      (trim(ControlVariable(var)%nomvar(cv_model)) == 'UU' ) then 
+       if      (trim(ControlVariable(var)%nomvar(cv_model)) == 'UU' ) then
           UWindID = var
        else if (trim(ControlVariable(var)%nomvar(cv_model)) == 'VV' ) then
           VWindID = var
@@ -505,7 +505,7 @@ contains
     integer, parameter :: nmax=2000
     integer :: liste(nmax)
     integer                     :: ip1, ip2, ip3
-    integer                     :: ni_t, nj_t, nlev_t, dateo  
+    integer                     :: ni_t, nj_t, nlev_t, dateo
     character(len=4 )           :: nomvar
     character(len=2 )           :: typvar
     character(len=12)           :: etiket
@@ -539,7 +539,7 @@ contains
       end if
     else
       write(*,*)
-      write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar 
+      write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar
       call utl_abort('lbhi_ReadBSqrt')
     end if
 
@@ -567,7 +567,7 @@ contains
         endif
 
         !- 2.3 Reading
-        key = utl_fstlir( bsqrt2d,                                    & ! OUT 
+        key = utl_fstlir( bsqrt2d,                                    & ! OUT
                           iu_bstats,                                  & ! IN
                           ni_t, nj_t, nlev_t,                         & ! OUT
                           dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
@@ -634,10 +634,10 @@ contains
         end if
 
         !- 1.2.1 Reading
-        ier = utl_fstlir( StdDev2D,                                   & ! OUT 
+        ier = utl_fstlir( StdDev2D,                                   & ! OUT
                           iu_bstats,                                  & ! IN
                           ni_t, nj_t, nlev_t,                         & ! OUT
-                          dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN 
+                          dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
         if (ier < 0) then
           write(*,*)
@@ -654,7 +654,7 @@ contains
           write(*,*) 'nomvar      =', trim(ControlVariable(var)%nomvar(cv_bhi))
           write(*,*) 'etiket      =', trim(etiket)
           write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
-          write(*,*) 'Found ni,nj =', ni_t, nj_t 
+          write(*,*) 'Found ni,nj =', ni_t, nj_t
           write(*,*) 'Should be   =', hco_bstats%ni, hco_bstats%nj
           call utl_abort('lbhi_ReadGridPointStdDev')
         end if
@@ -721,7 +721,7 @@ contains
 
     call lbhi_cv2gd( hiControlVector,   & ! IN
                      gd_out           )   ! OUT
-    
+
     deallocate(hiControlVector)
 
     !
@@ -861,7 +861,7 @@ contains
             ControlVariable(VWindID)%nlev /= nlev_M  ) then
           call utl_abort('lbhi_cv2gd: Error in Wind related parameters')
        end if
-    
+
        if ( trim(WindTransform) /= 'UV') then
 
           allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
@@ -875,11 +875,11 @@ contains
              !  4.1.1 Putting vorticity in psi array and divergence in chi array
              psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
              chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
-             
+
              !  4.1.2 Vort -> Psi
              call lst_Laplacian(lst_wind,           & ! IN
                                 Psi,                & ! INOUT
-                                'Inverse', nlev_M)    ! IN    
+                                'Inverse', nlev_M)    ! IN
 
              !  4.1.3 Div -> Chi
              call lst_Laplacian(lst_wind,          & ! IN
@@ -902,12 +902,12 @@ contains
           !  4.2.2 Insert results in gd_out and deallocate memories
           gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
           gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
-          
+
           deallocate(chi)
           deallocate(psi)
           deallocate(vphy)
           deallocate(uphy)
-          
+
        end if
 
     end if
@@ -940,14 +940,14 @@ contains
             ControlVariable(VWindID)%nlev /= nlev_M  ) then
           call utl_abort('lbhi_cv2gdadj: Error in Wind related parameters')
        end if
-       
+
        if ( trim(WindTransform) /= 'UV' ) then
 
           allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
           allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
           allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
           allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-          
+
           !- 4.2  U-wind / V-wind -> Psi / Chi
 
           !  4.2.2 Extract winds
@@ -965,7 +965,7 @@ contains
              !  4.1.2 Psi -> Vort
              call lst_Laplacian(lst_wind,          & ! IN
                                 Psi,               & ! INOUT
-                                'Inverse', nlev_M)   ! IN    
+                                'Inverse', nlev_M)   ! IN
 
              !  4.1.3 Chi -> Vort
              call lst_Laplacian(lst_wind,          & ! IN
@@ -1052,7 +1052,7 @@ contains
       end do
       !$OMP END PARALLEL DO
 
-      !- 1.2 Compute bsqrt * sp_in using DGEMM 
+      !- 1.2 Compute bsqrt * sp_in using DGEMM
 
       ! For documentation on dgemm, see: http://www.netlib.org/blas/dgemm.f
       ! Matrix A = BSQRT(:,:,totwvnb)
@@ -1188,7 +1188,7 @@ contains
 
       kgdStart = ControlVariable(var)%kDimStart
       kgdEnd   = ControlVariable(var)%kDimEnd
-   
+
       nlev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varname))
       if ( kgdEnd - kgdStart + 1  /= nlev ) then
          write(*,*)
@@ -1262,19 +1262,19 @@ contains
 
     ! Locals:
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
-    integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: nlaMax, cvDim_maxmpilocal, jproc
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mmpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1283,7 +1283,7 @@ contains
        allocate(allnlaLocal(1))
        allocate(allilaGlobal(1,1))
     end if
-    
+
     allocate(ilaGlobal(nlaMax))
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
@@ -1372,19 +1372,19 @@ contains
 
     ! Locals:
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
-    integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: nlaMax, cvDim_maxmpilocal, jproc
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
 
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mmpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1393,11 +1393,11 @@ contains
        allocate(allnlaLocal(1))
        allocate(allilaGlobal(1,1))
     end if
-    
+
     allocate(ilaGlobal(nlaMax))
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
-    
+
     call mmpi_gather(lst_bhi%nla, allnlaLocal)
     call mmpi_gather(ilaGlobal, allilaGlobal)
 
@@ -1496,7 +1496,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1518,7 +1518,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mmpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1527,7 +1527,7 @@ contains
        allocate(allnlaLocal(1))
        allocate(allilaGlobal(1,1))
     end if
-    
+
     allocate(ilaGlobal(nlaMax))
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
@@ -1550,17 +1550,17 @@ contains
                                                         ( (ila-1) * lst_bhi%nphase ) + p
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
-                   if ( ila_mpiglobal <= 0 ) then 
+                   if ( ila_mpiglobal <= 0 ) then
                       write(*,*) 'lbhi_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
                                             ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
-  
+
                    if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                       write(*,*)
-                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
@@ -1570,7 +1570,7 @@ contains
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
-                   
+
                    cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
 
                 end do
@@ -1613,7 +1613,7 @@ contains
     allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call mmpi_allGather(cvDim, cvDim_allMpiLocal)
 
-    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, "mpi_max")
+    call mmpi_allReduce(cvDim, cvDim_maxmpilocal, mmpi_max)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
@@ -1635,7 +1635,7 @@ contains
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
 
-    call mmpi_allReduce(lst_bhi%nla, nlaMax, "mpi_max")
+    call mmpi_allReduce(lst_bhi%nla, nlaMax, mmpi_max)
 
     if (mmpi_myid == 0) then
        allocate(allnlaLocal(mmpi_nprocs))
@@ -1644,7 +1644,7 @@ contains
        allocate(allnlaLocal(1))
        allocate(allilaGlobal(1,1))
     end if
-    
+
     allocate(ilaGlobal(nlaMax))
     ilaGlobal(:)             = -1
     ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
@@ -1667,17 +1667,17 @@ contains
                                                         ( (ila-1) * lst_bhi%nphase ) + p
 
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
-                   if ( ila_mpiglobal <= 0 ) then 
+                   if ( ila_mpiglobal <= 0 ) then
                       write(*,*) 'lbhi_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
                                             ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
-  
+
                    if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                       write(*,*)
-                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
@@ -1687,7 +1687,7 @@ contains
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
                       call utl_abort('lbhi_expandToMPIGlobal')
                    end if
-                   
+
                    cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
 
                 end do

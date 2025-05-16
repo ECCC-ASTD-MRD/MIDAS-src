@@ -26,7 +26,7 @@ module obsFiles_mod
   use burpRead_mod
   use biasCorrectionConv_mod
   use clibInterfaces_mod
-  use tovs_mod 
+  use tovs_mod
   use ensembleObservations_mod
 
   implicit none
@@ -122,7 +122,7 @@ contains
     if ( .not.initialized ) call utl_abort('obsf_filesSplit: obsFiles_mod not initialized!')
 
     obsFilesSplit_out = obsFilesSplit
-        
+
   end function obsf_filesSplit
 
   !--------------------------------------------------------------------------
@@ -145,7 +145,7 @@ contains
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
-    ! for every splitted file, the file type is defined separately 
+    ! for every splitted file, the file type is defined separately
     do fileIndex = 1, obsf_numMpiUniqueList
 
       fileName = trim(obsf_baseFileNameMpiUniqueList(fileIndex)) // '_' // trim(obsf_myIdExt)
@@ -168,7 +168,7 @@ contains
           ! Bias correction elements for AI are added at the derivate file stage
           if ( obsFamilyType == 'TO' ) then
             call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
-          else 
+          else
             if ( bcc_biasActive(obsFamilyType) ) then
               call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
             end if
@@ -196,7 +196,7 @@ contains
       if (obsFileType == 'BURP') then
         call setHeadBodyPrimaryKeyColumns(obsSpaceData, numHeaderRead, numBodyRead)
       end if
-      
+
     end do
 
     ! abort if NAMTOV does not exist but there are radiance observation files
@@ -207,7 +207,7 @@ contains
 
     ! initialize OBS_HIND for each observation
     call obs_sethind(obsSpaceData)
-  
+
   end subroutine obsf_readFiles
 
   !--------------------------------------------------------------------------
@@ -221,8 +221,8 @@ contains
     real(8),          optional, intent(in)    :: HXens_mpiglobal_opt(:,:)
     logical,          optional, intent(in)    :: asciDumpObs_opt
     logical,          optional, intent(in)    :: writeDiagFiles_opt
-    type(struct_eob), optional, intent(in)    :: ensObs_opt          
-  
+    type(struct_eob), optional, intent(in)    :: ensObs_opt
+
     ! Locals:
     integer           :: fileIndex, ierr, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
@@ -243,7 +243,7 @@ contains
     call utl_tmg_start(10,'--Observations')
 
     if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
- 
+
     call obsf_determineFileType(obsFileType)
 
     lwritediagsql = .false.
@@ -323,10 +323,10 @@ contains
           baseName = 'odb' // trim(baseNameNoPrefix)
 
           fullNameWithPath = trim(fileNameDir) // trim(obsDirectory) // '/'//trim(baseName)
-          
+
           call odbf_updateFile(obsSpaceData, fullNameWithPath, &
                                obsf_familyType(fileIndex), fileIndex)
-        end do        
+        end do
       end if
 
     end if
@@ -338,7 +338,7 @@ contains
     end if
 
     call utl_tmg_start(15,'----WriteDiagFiles')
-    if (lwritediagsql) then 
+    if (lwritediagsql) then
       call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
                                      addFSOdiag, ensObs_opt=ensObs_opt)
     end if
@@ -348,7 +348,7 @@ contains
       if ( asciDumpObs_opt ) then
         if ( obsFileType == 'BURP' .or. obsFileType == 'OBSDB' .or.  &
              obsFileType == 'SQLITE' .or. mmpi_myid == 0   ) then
-          ! all processors write to files only for BURP, OBSDB and SQLITE    
+          ! all processors write to files only for BURP, OBSDB and SQLITE
           call obsf_writeAsciDump(obsSpaceData)
         end if
       end if
@@ -369,16 +369,16 @@ contains
     character(len=fileTypeLen) :: obsFileType
 
     if ( .not.initialized ) call utl_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
-   
+
     call obsf_determineFileType(obsFileType)
 
     if ( obsFileType /= 'BURP' .and. obsFileType /= 'OBSDB' .and.  &
          obsFileType /= 'SQLITE' ) then
       write(*,*) 'obsf_cleanObsFiles: obsFileType=', obsFileType, &
-                ' is not BURP, OBSDB nor SQLITE. Return.' 
+                ' is not BURP, OBSDB nor SQLITE. Return.'
       return
     end if
-    
+
     call utl_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
@@ -395,7 +395,7 @@ contains
 
     call utl_tmg_stop(23)
 
-  end subroutine obsf_cleanObsFiles 
+  end subroutine obsf_cleanObsFiles
 
   !--------------------------------------------------------------------------
   ! obsf_writeHX
@@ -422,7 +422,7 @@ contains
       call obs_write_hx(obsSpaceData, HXens_mpiglobal, headerIndex, unitHX)
 
     enddo
- 
+
     ierr = fclos(unitHX)
 
   end subroutine obsf_writeHX
@@ -476,7 +476,7 @@ contains
     character(len=2) :: familyName(maxNumObsfiles)
     character(len=4) :: myIdxStr, myIdyStr
     character(len=256):: obsDirectory
-    character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than 
+    character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than
                                                                 ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
     character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
     character(len=fileTypeLen)       :: fileTypeList(maxNumObsfiles)
@@ -500,7 +500,7 @@ contains
     namePrefix( 7)  = 'brpto_amsua'
     namePrefix( 8)  = 'obsto_amsua'
     namePrefix( 9)  = 'brpto_amsua_allsky'
-    namePrefix(10)  = 'obsto_amsua_allsky' 
+    namePrefix(10)  = 'obsto_amsua_allsky'
     namePrefix(11)  = 'brpto_amsub'
     namePrefix(12)  = 'obsto_amsub'
     namePrefix(13)  = 'brpto_amsub_allsky'
@@ -722,7 +722,7 @@ contains
     baseFileNameList(:) = ''
     fileTypeList(:) = ''
 
-    do fileIndex = 1, maxNumObsfiles 
+    do fileIndex = 1, maxNumObsfiles
 
       if(namePrefix(fileIndex) == '') exit
 
@@ -742,7 +742,7 @@ contains
         baseFileNameList(obsf_nfiles) = trim(baseFileName)
         obsf_fileName(obsf_nfiles) = fileNameFull
         obsf_familyType(obsf_nfiles) = familyName(fileIndex)
-        
+
         call obsf_determineSplitFileType(obsFileType,fileNameFull)
         fileTypeList(obsf_nfiles) = obsFileType
       end if
@@ -750,7 +750,7 @@ contains
     end do
 
     call setObsFilesMpiUniqueList(baseFileNameList,fileTypeList)
-    
+
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
     write(*,*)'Type  Name '
@@ -775,7 +775,7 @@ contains
     character(len=*), intent(in) :: fileTypeList(:)
 
     ! Locals:
-    integer :: fileIndex, fileIndex2, procIndex, ierr
+    integer :: fileIndex, fileIndex2, procIndex
     character(len=maxLengthFilename), allocatable :: baseFileNameListAllMpi(:,:)
     character(len=familyTypeLen), allocatable :: familyTypeListAllMpi(:,:)
     character(len=fileTypeLen), allocatable :: fileTypeListAllMpi(:,:)
@@ -784,22 +784,19 @@ contains
     allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
     baseFileNameListAllMpi(:,:) = ''
     call mmpi_allgather_string(baseFileNameList, baseFileNameListAllMpi, &
-                               maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
-                               "GRID", ierr)
+                               maxNumObsfiles, maxLengthFilename)
 
     ! Communicate familyTypes across all mpi tasks
     allocate(familyTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeListAllMpi(:,:) = ''
     call mmpi_allgather_string(obsf_familyType, familyTypeListAllMpi, &
-                               maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
-                               "GRID", ierr)
+                               maxNumObsfiles, familyTypeLen)
 
     ! Communicate fileTypes across all mpi tasks
     allocate(fileTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     fileTypeListAllMpi(:,:) = ''
     call mmpi_allgather_string(fileTypeList, fileTypeListAllMpi, &
-                               maxNumObsfiles, fileTypeLen, mmpi_nprocs, &
-                               "GRID", ierr)
+                               maxNumObsfiles, fileTypeLen)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameMpiUniqueList(:) = ''
@@ -810,7 +807,7 @@ contains
     obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeListAllMpi(1,1)
     obsf_fileTypeMpiUniqueList(obsf_numMpiUniqueList) = fileTypeListAllMpi(1,1)
     do procIndex = 1, mmpi_nprocs
-      loopFilename: do fileIndex = 1, maxNumObsfiles 
+      loopFilename: do fileIndex = 1, maxNumObsfiles
         if (trim((baseFileNameListAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
 
         ! cycle if filename already exists in the unique list
@@ -820,7 +817,7 @@ contains
             cycle loopFilename
           end if
         end do
-        
+
         ! add the filename to the unique list
         obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
         obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameListAllMpi(fileIndex,procIndex)
@@ -841,7 +838,7 @@ contains
     end do
 
   end subroutine setObsFilesMpiUniqueList
-    
+
   !--------------------------------------------------------------------------
   ! obsf_determineFileType
   !--------------------------------------------------------------------------
@@ -891,7 +888,7 @@ contains
     character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
-    
+
     obsFileType = trim(utl_fileType(fileName))
     if (.not. (trim(obsFileType) == 'BURP' .or. trim(obsFileType) == 'sqliteOrObsdb')) then
       write(*,*) 'obsf_determineSplitFileType: obsFileType=', obsFileType
@@ -936,7 +933,7 @@ contains
 
     filename = ""
     numFound = 0
-   
+
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_familyType(ifile)) then
           filename = obsf_fileName(ifile)
@@ -1015,7 +1012,7 @@ contains
 
       if (obsf_filesSplit()) then
         ! Must allocate obsdata so that it is available from ALL processors when
-        ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
+        ! requiring of 'mmpi_allgather' via 'oss_obsdata_MPIallgather'.
         if (ndim == 1) then
           call oss_obsdata_alloc(obsdata,1,dim1=nlev)
         else
@@ -1043,7 +1040,7 @@ contains
     ! :Arguments:
     !           :obsdata: Input struct_oss_obsdata object for varno.
     !           :obsfam:  observation family name
-    !           :varno:   BUFR descriptors. Number of elements must be 
+    !           :varno:   BUFR descriptors. Number of elements must be
     !                     max(1,obsdata%dim2)
     !           :bkstp_opt: bkstp number of requested block if BURP file type (optional)
     !           :block_opt: block type of requested block if BURP file type (optional)
@@ -1087,7 +1084,7 @@ contains
     end if
 
     if (obsf_filesSplit()) then
-       call mmpi_allReduce(nrep_modified, nrep_modified_global, "MPI_SUM")
+       call mmpi_allReduce(nrep_modified, nrep_modified_global, mmpi_sum)
        nrep_modified = nrep_modified_global
     end if
 
@@ -1117,13 +1114,13 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) == 'SQLITE' )  then
         call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_fileName(fileIndex))
-      else if ( trim(obsFileType) == 'BURP' ) then 
+      else if ( trim(obsFileType) == 'BURP' ) then
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_fileName(fileIndex) ) )
       else if ( trim(obsFileType) == 'OBSDB' ) then
         ! The variables updated here for other file types are added/updated in ObsDb files using a
         ! seperate subroutine called odbf_updateMidasHeaderTable which is called when writing everything else.
         write(*,*) 'obsf_addCloudParametersAndEmissivity: obsDB files handled separately'
-      else  
+      else
         write(*,*) ' UNKNOWN FileType=',obsFileType
         call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
       end if
@@ -1149,7 +1146,7 @@ contains
     character(len=fileTypeLen) :: obsFileType
     logical                    :: toDataPresent
     integer                    :: headerIndex
-    integer                    :: codtyp 
+    integer                    :: codtyp
 
     toDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -1160,7 +1157,7 @@ contains
       if ( (tvs_isIdBurpInst(codtyp,'atms' )) .or. &
            (tvs_isIdBurpInst(codtyp,'amsua')) .or. &
            (tvs_isIdBurpInst(codtyp,'amsub')) .or. &
-           (tvs_isIdBurpInst(codtyp,'mhs'  )) .or. & 
+           (tvs_isIdBurpInst(codtyp,'mhs'  )) .or. &
            (tvs_isIdBurpInst(codtyp,'radianceclear'  )) ) then
         toDataPresent = .true.
       end if
@@ -1242,7 +1239,7 @@ contains
       ! Remove the directory
       if (obsf_filesSplit()) call mmpi_barrier
       if (mmpi_myid == 0) status = clib_remove(trim(directoryInOut))
-      
+
     else
 
       call utl_abort('obsf_copyObsDirectory: invalid value for direction')
@@ -1256,7 +1253,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine setHeadBodyPrimaryKeyColumns(obsDat, numHeaderRead, numBodyRead)
     !
-    ! :Purpose: Set header/body primary keys in obsSpaceData that 
+    ! :Purpose: Set header/body primary keys in obsSpaceData that
     !           will ensure unique values over all mpi tasks.
     !
     implicit none
@@ -1277,7 +1274,7 @@ contains
     write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
     numHeaders = obs_numHeader(obsDat)
     numBodies = obs_numBody(obsDat)
-     
+
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaders=', numHeaders, ', numBodies=', numBodies
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaderRead=', numHeaderRead, &
                 ', numBodyRead=', numBodyRead
@@ -1306,7 +1303,7 @@ contains
       headerPrimaryKey = headerPrimaryKey + 1
       call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
     end do
-        
+
     bodyIndexBegin = numBodies - numBodyRead + 1
     bodyIndexEnd = numBodies
     bodyPrimaryKey = initialBodyindex

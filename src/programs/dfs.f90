@@ -2,20 +2,20 @@ program midas_dfs
   !
   !:Purpose: Main program for computing degrees of freedom for signal (DFS)
   !          total and a iterative channel selection (optionally) for an infrared instrument.
-  !            
+  !
   !
   !          --
   !
-  !:Algorithm: The channel selection with the DFS is computed following these steps:            
+  !:Algorithm: The channel selection with the DFS is computed following these steps:
   !
   !            1. HBHt is extracted column by column for the specified instrument for all the channels
   !
   !            2. The total DFS is calculated for all channels
-  !                           
+  !
   !            3.1 Channel selection: DFS is calculated (DFS= tr(HBHt (HBHt+R)-1)) for each channel of
   !               the instrument individually and the channel with the largest DFS is selected
   !
-  !            3.2 DFS is calculated to find a second channel after the first selected 
+  !            3.2 DFS is calculated to find a second channel after the first selected
   !               channel with the largest total DFS combined
   !
   !            3.4 Channels are selected iteratively until all the channels are ordered
@@ -24,7 +24,7 @@ program midas_dfs
   !            --
   !
   !:File I/O: The required input files and produced output files can vary
-  !           according to the application. 
+  !           according to the application.
   !
   !           --
   !
@@ -46,7 +46,7 @@ program midas_dfs
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Correlations structure of the R matrix
   ! ``dfs.dat``                                    Out - Total DFS of all channels available
   ! ``HBHt.dat``                                   Out - HBHt matrix for the specified instrument
-  ! ``selection.dat``                              Out - Selected channels ordered by decreasing contribution to the DFS 
+  ! ``selection.dat``                              Out - Selected channels ordered by decreasing contribution to the DFS
   !============================================== ==============================================================
   !
   !           --
@@ -115,7 +115,7 @@ program midas_dfs
   !
   !               - Compute the total DFS
   !
-  !               - If requested, compute the channel selection 
+  !               - If requested, compute the channel selection
   !
   !
   !
@@ -140,7 +140,7 @@ program midas_dfs
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            dfs calculation are listed in the following table:
-  ! 
+  !
   !======================== ============ ==============================================================
   ! Module                   Namelist     Description of what is controlled
   !======================== ============ ==============================================================
@@ -154,18 +154,18 @@ program midas_dfs
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use midasMpi_mod
   use version_mod
   use codePrecision_mod
+  use mathPhysConstants_mod
   use ramDisk_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
-  use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use controlVector_mod
@@ -180,7 +180,7 @@ program midas_dfs
   use tovs_mod
   use rMatrix_mod
   use thinning_mod
-  
+
   implicit none
 
   integer, external :: exdb, exfin, fnom, fclos
@@ -202,13 +202,13 @@ program midas_dfs
   integer, parameter :: nObsMax=10
 
   integer :: nLevelsDfs, levelIndex
-  
+
   ! Namelist variables:
   character(len=2) :: familyType                 ! familyType to consider (TO, UA, AI, RO, etc... one at a time)
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
   integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
   logical :: outputHBHt                          ! flag to output HBHt
-  logical :: doThinning                          ! flag to perform thinning on the observations, if .true. thinning is done 
+  logical :: doThinning                          ! flag to perform thinning on the observations, if .true. thinning is done
   integer :: nDfsMax                             ! maximum number of DFS computations
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
@@ -221,15 +221,15 @@ program midas_dfs
                                                  ! if .false. (default) observation processed one at a time (slow)
   real(8) :: highResWaterFractionThreshold       ! value for the highResWaterFraction threshold
   real(8) :: lowResWaterFractionThreshold        ! value for the lowResWaterFraction threshold
-  
+
   NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
-  
+
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
   call ver_printNameAndVersion('dfs', 'Dfs computation')
 
   ! MPI initilization
-  call mmpi_initialize 
+  call mmpi_initialize
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
@@ -247,7 +247,7 @@ program midas_dfs
   call gio_setup
 
   ! Do initial set up
-  
+
   ! Set/Read values for the namelist NAMDFS
   ! setting default values
   familyType = 'TO'
@@ -266,7 +266,7 @@ program midas_dfs
   highResWaterFractionThreshold=0.99d0
   lowResWaterFractionThreshold=0.97d0
 
-  
+
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
     write(*,*)
@@ -285,7 +285,7 @@ program midas_dfs
     if (lonList(obsindex) == MPC_missingValue_R8) cycle
     if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
   end do
-  
+
   if (mmpi_myid == 0) write(*, nml = NAMDFS)
 
   nLevelsDfs = 0
@@ -294,8 +294,8 @@ program midas_dfs
     nLevelsDfs = nLevelsDfs + 1
   end do
 
-  if (nLevelsDfs == 0) call utl_abort('midas-dfs: empty vertical coordinate list vCoordList !') 
- 
+  if (nLevelsDfs == 0) call utl_abort('midas-dfs: empty vertical coordinate list vCoordList !')
+
   if (doChannelSelection .and. familyType /= 'TO') then
     call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
@@ -322,7 +322,7 @@ program midas_dfs
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                  stateVectorTrialHighRes )
-  
+
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
@@ -332,7 +332,7 @@ program midas_dfs
   ! Set up parameters for water fraction
   call tvs_emis_read_climatology ()
   call tvs_allocateSurfaceParameters ()
-  
+
   ! Compute HBHt, dfs and perform channel selection
   call diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
 
@@ -376,13 +376,13 @@ contains
     write(*,*) '-- Starting subroutine dfs_setup --'
     write(*,*) '-----------------------------------'
     call utl_printTime()
-    
+
     !
     !- Initialize the Temporal grid and set dateStamp from env variable
     !
     call tim_setup()
 
-    !     
+    !
     !- Initialize burp file names and set datestamp if not already
     !
     call obsf_setup(dateStampFromObs, 'analysis')
@@ -421,7 +421,7 @@ contains
       call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
     end if
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile(vco_anl, './analysisgrid') ! IN
@@ -461,15 +461,15 @@ contains
 
     !
     ! - Initialize the gridded variable transform module
-    !   
+    !
     call gvt_setup(hco_anl, hco_core, vco_anl)
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
-    
+
     call msg_memUsage('midas-dfs')
     write(*,*) 'dfs_setup: exiting...'
     call utl_printTime()
-    
+
   end subroutine dfs_setup
 
   !--------------------------------------------------------------------------
@@ -516,7 +516,7 @@ contains
     write(*,*)
     write(*,*) 'Computing HBHT from selected observations start'
     call utl_printTime()
-    
+
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
     call gsv_allocate(stateVector, tim_nstepobsinc, hco_anl, vco_anl, &
@@ -528,9 +528,9 @@ contains
 
     !- 1.6
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
-    
+
     numHeader = obs_numHeader(obsSpaceData)
-    call mmpi_allReduce(numHeader, numHeaderMaxMpi, 'mpi_max')
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
 
     allocate(headerIndexList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
@@ -546,20 +546,20 @@ contains
     if (doThinning) then
 
       call thn_thinHyper(obsSpaceData)
-      
+
       call obs_set_current_header_list(obsSpaceData,trim(familyType))
       HEADER0: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER0
-   
+
         bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
 
-          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then            
+          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
           end if
-          
+
         end do BODY0
       end do HEADER0
     end if ! if (doThinning)
@@ -567,7 +567,7 @@ contains
     ! First step count the number of selected observation for each MPI task
     countObs = 0
     countChannel = 0 ! necessary in the case where no obs in the file
-    
+
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -602,19 +602,17 @@ contains
         end do BODY2
       end if
     end do HEADER1
-    
-    call mmpi_allReduce(countObs, sumCountObsMpi, 'mpi_sum')
 
-    call mmpi_allReduce(countObs, maxCountObsMpi, 'mpi_max')
-
-    call mmpi_allReduce(countChannel, maxCountChannelMpi, 'mpi_max')
+    call mmpi_allReduce(countObs,     sumCountObsMpi,     mmpi_sum)
+    call mmpi_allReduce(countObs,     maxCountObsMpi,     mmpi_max)
+    call mmpi_allReduce(countChannel, maxCountChannelMpi, mmpi_max)
 
     if (.not. computeInParallel) then
       allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
       allocate(levelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
       allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
       allocate(stdDevListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
-    
+
       headerIndexListMpi(:,:) = MPC_missingValue_INT
       levelListMpi(:,:,:) = MPC_missingValue_INT
       bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
@@ -626,13 +624,13 @@ contains
       call mmpi_allGather(stdDevList,      stdDevListMpi)
 
       call mmpi_barrier
-    
+
       deallocate(bodyIndexList)
       deallocate(levelList)
       deallocate(headerIndexList)
       deallocate(stdDevList)
     end if
-    
+
     if (mmpi_myId == 0) then
       if (outputHbHt) then
         nulhbht = 0
@@ -645,7 +643,7 @@ contains
       nulDfs = 0
       ierr = fnom(nulDfs, './dfs.dat', 'FTN+FMT+R/W', 0)
     end if
-    
+
     allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
     HBHtMatrix(:,:) = MPC_missingValue_R8
@@ -658,13 +656,13 @@ contains
       allocate(dfsIncremental(sizeSelect))
       allocate(order(sizeSelect))
     end if
-    
+
     dfsCount = 0
-    
+
     if (computeInParallel) then
       observationLoop1:do obsIndex = 1, maxCountObsMpi
         channelLoop1:do channelIndex1 = 1, maxCountChannelMpi
-          ! We need to initialize the full OBS_WORK column to zero 
+          ! We need to initialize the full OBS_WORK column to zero
           do bodyIndex2 = 1, obs_numBody(obsSpaceData)
             call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
           end do
@@ -672,9 +670,9 @@ contains
           if (headerIndex /= MPC_missingValue_INT) then
             bodyIndex1 = bodyIndexList(obsIndex,channelIndex1)
             call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-          end if          
-          call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData) 
-         
+          end if
+          call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
+
           do channelIndex2 = 1, maxCountChannelMpi
             bodyIndex2 = bodyIndexList(obsIndex,channelIndex2)
             if (bodyIndex2 /= MPC_missingValue_INT) then !useless ?
@@ -684,13 +682,13 @@ contains
           write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
           call utl_printTime()
         end do channelLoop1
-      
+
         headerObs = ''
         dfs = 0.d0
         if (headerIndex /= MPC_missingValue_INT) then
           dfsCount = dfsCount + 1
           call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
-          
+
           ! Extraction of the R matrix
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
           Rsub(:,:) = MPC_missingValue_R8
@@ -709,14 +707,14 @@ contains
 
           ! Computation of total dfs
           dfs = computeDfs(HBHtMatrix, Rsub)
-         
-          ! Calculate the selection of channels 
+
+          ! Calculate the selection of channels
           if (doChannelSelection) then
             call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
           end if
           deallocate(Rsub)
         end if
-        
+
         allocate(headerObsForOutput(mmpi_nprocs))
         allocate(stringInt(stringLength))
         do stringIndex = 1, stringLength
@@ -729,11 +727,11 @@ contains
             headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
           end do
         end do
-        
+
         if (outputHBHt) then
           allocate(HBHtMatrixForOutput(nLevelsDfs,nLevelsDfs,mmpi_nprocs))
           call mmpi_gather(HBHtMatrix, HBHtMatrixForOutput)
-          
+
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
               if (len_trim(headerObsForOutput(outTaskIndex)) == 0) cycle
@@ -749,9 +747,9 @@ contains
               write(nulHBHt,*)
             end do
           end if
-        
+
         end if ! if (outputHBHt)
-        
+
         allocate(dfsForOutput(mmpi_nprocs))
         call mmpi_gather(dfs, dfsForOutput)
         if (mmpi_myId == 0) then
@@ -761,7 +759,7 @@ contains
             end if
           end do
         end if
-      
+
         if (doChannelSelection) then
           allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
           call mmpi_gather(dfsIncremental, dfsIncrementalForOutput)
@@ -789,9 +787,9 @@ contains
         deallocate(stringIntforOutput)
         if (dfsCount == nDfsMax) exit observationLoop1
       end do observationLoop1
-     
+
      else ! if (computeInParallel)
-      
+
       mpiTaskLoop:do procIndex = 1, mmpi_nprocs
         observationLoop2:do obsIndex = 1, maxCountObsMpi
           headerIndex = headerIndexListMpi(obsIndex,procIndex)
@@ -800,13 +798,13 @@ contains
           channelLoop2:do channelIndex1 = 1, maxCountChannelMpi
             bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
             channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
-            ! We need to initialize the full OBS_WORK column to zero 
+            ! We need to initialize the full OBS_WORK column to zero
             do bodyIndex2 = 1, obs_numBody(obsSpaceData)
               call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
             end do
             if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
             call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
-              
+
             do channelIndex2 = 1, maxCountChannelMpi
               bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
               if (mmpi_myId == taskIndex .and. bodyIndex2 /= MPC_missingValue_INT) then
@@ -820,7 +818,7 @@ contains
 
           if (mmpi_myId == taskIndex) then
             call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
-            
+
             ! Extraction of the R matrix
             allocate(Rsub(nLevelsDfs,nLevelsDfs))
             if (familyType == 'TO') then
@@ -838,14 +836,14 @@ contains
 
             ! Computation of total dfs
             dfs = computeDfs(HBHtMatrix, Rsub)
-         
-            ! Calculate the selection of channels 
+
+            ! Calculate the selection of channels
             if (doChannelSelection) then
               call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
             end if
             deallocate(Rsub)
           end if
-        
+
           call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
@@ -893,26 +891,26 @@ contains
       ierr = fclos(nuldfs)
     end if
 
-    
+
     if (allocated(bodyIndexList))  deallocate(bodyIndexList)
     if (allocated(levelList))  deallocate(levelList)
     if (allocated(headerIndexList))  deallocate(headerIndexList)
     if (allocated(stdDevList))  deallocate(stdDevList)
-    
-    
+
+
     if (allocated(Rsub)) deallocate(Rsub)
     if (allocated(dfsIncremental)) deallocate(dfsIncremental)
     if (allocated(order)) deallocate(order)
     if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
-    
+
     deallocate(perturbationVector)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
-    
+
     call msg_memUsage('midas-dfs')
     write(*,*)
     write(*,*) 'Computing DFS from selected observations end'
-    
+
   end subroutine diagDFS
 
 
@@ -924,20 +922,20 @@ contains
     !:Purpose: apply chain of operators to apply HBHt (input and output in obsSpaceData OBS_WORK)
     !
     implicit none
-    
+
     ! Arguments
     type(struct_columnData), intent(inout) :: columnAnlInc          ! Analysis increment as a column
     type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev  ! Trial field interpolated on the analysis increment as a column
     type(struct_gsv),        intent(inout) :: stateVector           ! State vector
-    real(8),                 intent(inout) :: perturbationVector(:) ! Vector of perturbations            
+    real(8),                 intent(inout) :: perturbationVector(:) ! Vector of perturbations
     type(struct_obs),        intent(inout) :: obsSpaceData          ! Observation-related data structure
 
     ! Locals
     integer       :: localDimension
     logical, save :: firstCall=.true.
-    
+
     call msg_memUsage('midas-dfs')
-    
+
     localDimension = size(perturbationvector)
     call col_zero(columnAnlInc)
     call oop_Had(columnAnlInc, & !output
@@ -952,7 +950,7 @@ contains
         obsSpaceData)
     perturbationVector(:) = 0.d0
     call bmat_sqrtBT(perturbationVector, & !output
-        localDimension,                  &  
+        localDimension,                  &
         stateVector)                       !input
     call gsv_zero(stateVector)
     call bmat_sqrtB(perturbationVector, & !input
@@ -960,15 +958,15 @@ contains
         stateVector)                      !output
     call s2c_tl(stateVector,  & !input
         columnAnlInc,         & !output
-        columnTrlOnAnlIncLev, & 
+        columnTrlOnAnlIncLev, &
         obsSpaceData)
     call oop_Htl(columnAnlInc, & !input
         columnTrlOnAnlIncLev,  &
         obsSpaceData,          & !output
         min_nsim = 1, initializeLinearization_opt = .false.)
-    
+
   end subroutine applyHBHtOperator
-  
+
  !--------------------------------------------------------------------------
   ! createHeaderString
   !--------------------------------------------------------------------------
@@ -977,7 +975,7 @@ contains
     !:Purpose: create header string to be writen into output ascii files
     !
     implicit none
-    
+
     ! Arguments
     type(struct_obs), intent(inout) :: obsSpaceData ! Observation-related data structure
     integer,          intent(in)    :: headerIndex  ! Current observation index in header obsSpacedata structure
@@ -986,7 +984,7 @@ contains
 
     ! Locals
     character(len=16) :: headerObs
-   
+
     write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                          &
         obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
         obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
@@ -995,11 +993,11 @@ contains
         obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
     if (familyType == 'TO')  then
       write(headerObs,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-      headerString = trim(headerString) // trim(headerObs) 
+      headerString = trim(headerString) // trim(headerObs)
     end if
-    
+
   end subroutine createHeaderString
-  
+
   !--------------------------------------------------------------------------
   ! subsetMatrix
   !--------------------------------------------------------------------------
@@ -1008,16 +1006,16 @@ contains
     !:Purpose: extract sub-Matrix for a subset of channels/levels
     !
     implicit none
-    
+
     ! Arguments:
     real(8), intent(in)  :: matrixInput(:,:)                         ! Initial matrix
     integer, intent(in)  :: order(:)                                 ! Ordered list of channels wanted to be extracted
     real(8), intent(out) :: matrixOutput(size(order), size(order))   ! Subset of the initial matrix with columns extracted
 
     matrixOutput(:, :) = matrixInput(order(:), order(:))
- 
+
   end subroutine subsetMatrix
-  
+
   !--------------------------------------------------------------------------
   ! computeDfs
   !--------------------------------------------------------------------------
@@ -1026,13 +1024,13 @@ contains
     !:Purpose: compute DFS from given HBHt and R matrices of the appropriate size
     !
     implicit none
-    
+
     ! Arguments
     real(8), intent(in) :: HBHt(:,:)  ! HBHt matrix
     real(8), intent(in) :: R(:,:)     ! Observation covariance matrix
     ! Result
     real(8)             :: dfs        ! Degrees of freedom for signal
-    
+
     ! Locals
     integer :: nbLevels, levelIndex
     real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
@@ -1041,7 +1039,7 @@ contains
     allocate(dMatrix(nbLevels,nbLevels))
     allocate(inverse(nbLevels,nbLevels))
     allocate(hk(nbLevels,nbLevels))
-    
+
     dMatrix(:,:) =  HBHt(:,:) + R(:,:)
     call utl_fastInverse(dMatrix, inverse)
     hk = matmul(HBHt, inverse)
@@ -1049,27 +1047,27 @@ contains
     do levelIndex = 1, nbLevels
       dfs = dfs + hk(levelIndex,levelIndex)
     end do
-     
+
     deallocate(hk, inverse, dMatrix)
-    
+
   end function computeDfs
-  
+
   !--------------------------------------------------------------------------
   ! selectChannels
   !--------------------------------------------------------------------------
   subroutine selectChannels(HBHt, R, orderedDfs, orderedChannelIndexes, nChannelsOut_opt)
     !
     !:Purpose: perform DFS-based channel selection
-    !   
+    !
     implicit none
-    
+
     ! Arguments
     real(8),            intent(in)    :: HBHt(:,:)                 ! Matrix HBHt
     real(8),            intent(in)    :: R(:,:)                    ! Observation covariance matrix R
     real(8),            intent(out)   :: orderedDfs(:)             ! list of incremental DFS for each new added channel
     integer,            intent(out)   :: orderedChannelIndexes(:)  ! list of the channels selected in order
     integer, optional,  intent(in)    :: nChannelsOut_opt          ! number of channels wanted to be selected
-    
+
     ! Locals
     integer, allocatable :: tmpOrder(:), freeIndexList(:), tmpFree(:)
     real(8)              :: optimalDfs, dfsTest
@@ -1081,7 +1079,7 @@ contains
     call msg_memUsage('selectChannels')
     call utl_printTime()
     nChannelsIn = size(R, dim = 1)
-    
+
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
         write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
@@ -1095,12 +1093,12 @@ contains
     else
       nChannelsOut = nChannelsIn
     end if
-    
+
     allocate(freeIndexList(nChannelsIn))
     do channelIndex1 = 1, nChannelsIn
       freeIndexList(channelIndex1) = channelIndex1
     end do
-    
+
     orderedChannelIndexes(:) = -1
     allocate(tmpOrder(nChannelsOut))
     do channelIndex1 = 1, nChannelsOut
@@ -1125,14 +1123,14 @@ contains
       orderedDfs(channelIndex1) = optimalDfs
       orderedChannelIndexes(channelIndex1) = optimalIndex
       allocate(tmpFree(numberOfFreeChannels))
-      !https://stackoverflow.com/questions/42140832/automatic-array-allocation-upon-assignment-in-fortran could help to simplify a bit this 
+      !https://stackoverflow.com/questions/42140832/automatic-array-allocation-upon-assignment-in-fortran could help to simplify a bit this
       !but it is needed to get rid of the (:) which in contradiction with our coding style
       tmpFree(:) = freeIndexList(:)
       call utl_reAllocate(freeIndexList, numberOfFreeChannels - 1)
       freeIndexList(:) = pack(tmpFree, tmpFree /= optimalIndex)
       deallocate(tmpFree)
     end do
-    
+
     deallocate(freeIndexList)
     deallocate(tmpOrder)
 
@@ -1152,7 +1150,7 @@ contains
     integer, intent(in) :: headerIndex ! Position in the header of obsSpaceData
     !Result
     logical             :: selected
-    
+
     ! Locals
     integer            :: obsIndex
     real(8)            :: latitude(1), longitude(1), satelliteZenithAngle
@@ -1166,7 +1164,7 @@ contains
     latitude(1) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
     longitude(1) = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
     observationIndex(1)=headerIndex
-    call tvs_interp_sfc (latIndex, lonIndex, 1, latitude, longitude, observationIndex, skipAlbedo_opt= .true.)  
+    call tvs_interp_sfc (latIndex, lonIndex, 1, latitude, longitude, observationIndex, skipAlbedo_opt= .true.)
 
     highResWaterFraction = tvs_surfaceParameters(headerIndex) % pcnt_wat
 
@@ -1175,65 +1173,65 @@ contains
     call tvs_pcnt_box (lowResWaterFraction, 1 ,latIndex,lonIndex, boxSize)
 
     waterFractionTest : if (highResWaterFraction < highResWaterFractionThreshold .or. lowResWaterFraction(1) < lowResWaterFractionThreshold) then
-      selected= .false.      
+      selected= .false.
     else
-      
+
       if (selectSpecificObservationsFromList) then
         selected = .false.
         satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
         date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
         hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
-        
+
         do obsIndex = 1, nObsMax
           definedConditions = 0
           satisfiedConditions = 0
-          
+
           if (latList(obsindex) /= MPC_missingValue_R8) then
             definedConditions =  definedConditions + 1
-            
+
             if (abs(latList(obsIndex)-latitude(1)) < epsilon) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
-          
+
           if (lonList(obsindex) /= MPC_missingValue_R8) then
             definedConditions =  definedConditions + 1
-            
+
             if (abs(lonList(obsIndex)-longitude(1)) < epsilon) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
 
           if (satZenList(obsindex) /= MPC_missingValue_R8) then
             definedConditions =  definedConditions + 1
-            
+
             if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
-          
+
           if (dayList(obsindex) /= MPC_missingValue_INT) then
             definedConditions =  definedConditions + 1
-            
+
             if (dayList(obsIndex) == date) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
-          
+
           if (timeList(obsindex) /= MPC_missingValue_INT) then
             definedConditions =  definedConditions + 1
             if (timeList(obsIndex) == hour) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
-          
+
           if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
             selected = .true.
             return
           end if
-          
+
         end do
-      
+
       else
         selected = .true.
       end if
     end if waterFractionTest
 
   end function isSelected
-    
+
 end program midas_dfs

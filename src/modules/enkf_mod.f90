@@ -5,7 +5,7 @@ module enkf_mod
   !:Purpose:  Various routines that are useful for implementing
   !           an EnKF in MIDAS, including the LETKF.
   !
-  use mpi                 ! this is the mpi library module
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use utilities_mod
   use message_mod
@@ -120,7 +120,7 @@ contains
     integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
     character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
     integer  :: nEns                 ! ensemble size
-    logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
+    logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles
     logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
     integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
     integer  :: maxNumLocalObsPerType ! maximum number of obs of each type in each local volume to assimilate
@@ -135,7 +135,7 @@ contains
     logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
     logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
     logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
-    logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
+    logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite
     logical  :: localSelectionOutput ! write output about the local selection of observations
     logical  :: debug                ! debug option to print values to the listings.
     logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
@@ -150,7 +150,7 @@ contains
     integer  :: fileMemberIndex1     ! first member index in ensemble set to be read
     logical  :: readEnsMeanFromFile  ! choose to read ens mean from file (when reading subset of members)
     integer  :: numFullEns           ! number of full ensemble set (needed only for modulated ensemble)
- 
+
     NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                        ensPathName, randomShuffleSubEns,  &
                        hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -160,7 +160,7 @@ contains
                        obsTimeInterpType, mpiDistribution, etiket_anl, localObsSorting, &
                        readEnsObsFromFile, writeLocalEnsObsToFile, &
                        numRetainedEigen, myNumLatLonSendFactor, debug, &
-                       fileMemberIndex1, readEnsMeanFromFile, numFullEns 
+                       fileMemberIndex1, readEnsMeanFromFile, numFullEns
 
     !- 1.1 Setting default namelist variable values
     algorithm                = 'LETKF'
@@ -323,8 +323,6 @@ contains
     ! Locals:
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
-    integer :: mpiStatus(MPI_STATUS_SIZE)
-    integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
     integer :: latIndex, lonIndex, levIndex
@@ -332,18 +330,19 @@ contains
     integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonCalcMax, myNumLatLonSendMax
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
-    integer :: requestIdSignal
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
-    integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
-    integer, allocatable :: requestIdRecv(:), requestIdSend(:)
+    integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: latLonTagMpiGlobal(:,:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(4), allocatable :: vertLocation_r4(:,:,:)
     real(8), allocatable :: weightsSendCombined(:,:,:), weightsRecvCombined(:,:,:)
+    type(mpi_request) :: requestIdSignal
+    type(mpi_request) :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
+    type(mpi_request), allocatable :: requestIdRecv(:), requestIdSend(:)
+    type(mpi_status)  :: mpiStatus
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
@@ -374,7 +373,7 @@ contains
     write(*,*) 'enkf_LETKFanalyses: numLatLonMpiGlobal, maxval(numProcsSendMpiGlobal) = ', &
                                     numLatLonMpiGlobal, maxval(numProcsSendMpiGlobal)
 
-    ! Compute maximum expected number of grid points where weights computed on each mpi task 
+    ! Compute maximum expected number of grid points where weights computed on each mpi task
     if (trim(enkfNML%mpiDistribution) == 'ROUNDROBIN') then
       myNumLatLonCalcMax = ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
     else if (trim(enkfNML%mpiDistribution) == 'MASTERWORKER') then
@@ -390,14 +389,8 @@ contains
     ! Allocate and initialize various arrays needed for MPI communication
     allocate(requestIdSend(myNumLatLonSendMax))
     allocate(requestIdRecv(myNumLatLonRecv))
-    allocate(waitStatusesSend(MPI_STATUS_SIZE,myNumLatLonSendMax))
-    allocate(waitStatusesRecv(MPI_STATUS_SIZE,myNumLatLonRecv))
     allocate(weightsRecvCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonRecv))
     allocate(weightsSendCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonCalcMax))
-    requestIdRecv(:) = 0
-    requestIdSend(:) = 0
-    waitStatusesRecv(:,:) = 0
-    waitStatusesSend(:,:) = 0
     weightsRecvCombined(:,:,:) = 0.0d0
     weightsSendCombined(:,:,:) = 0.0d0
 
@@ -473,14 +466,14 @@ contains
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
         recvTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
-        recvTag = 1 + mod(recvTag-1, mmpi_maxTagValue - 10) 
+        recvTag = 1 + mod(recvTag-1, mmpi_maxTagValue - 10)
 
         nsize = nEnsGain * (enkfNML%nEns+1)
         numRecv = numRecv + 1
         weightsRecvCombined(:,:,latLonIndex) = -999.8d0
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
-                        nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
-                        mmpi_comm_grid, requestIdRecv(numRecv), ierr )
+                        nsize, mmpi_real8, mpi_any_source, recvTag,  &
+                        mmpi_comm_grid, requestIdRecv(numRecv))
       end do
       call utl_tmg_stop(148)
       call utl_tmg_stop(132)
@@ -509,9 +502,9 @@ contains
           ReadyLoop: do ! Loop until we get a valid read signal
 
             ! Determine which MPI task is ready for a new work assignment
-            call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &  
+            call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &
                           mmpi_comm_grid, mpiStatus, ierr)
-            workerProcID = mpiStatus(MPI_SOURCE)
+            workerProcID = mpiStatus%MPI_SOURCE
 
             if (readySignal == 'N') then
               procAlreadyFinished(workerProcID+1) = .true.
@@ -543,7 +536,7 @@ contains
           numFinished = numFinished + 1
 
           ! Wait for signal for every task that last assignment is complete
-          call MPI_IRECV(readySignal, 1, MPI_CHARACTER, procIndex-1, readyTag, &  
+          call MPI_IRECV(readySignal, 1, MPI_CHARACTER, procIndex-1, readyTag, &
                          mmpi_comm_grid, requestIdRecvFinished(numFinished), ierr)
 
           ! Tell this worker we are done
@@ -582,7 +575,7 @@ contains
             if ( (latLonIndex+1) <= myNumLatLonCalcMax) then
 
               ! Post recv to obtain assignment or signal that we are done
-              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &
                              mmpi_comm_grid, requestIdSignal, ierr)
 
               ! Signal that I am ready for assignment
@@ -595,7 +588,7 @@ contains
             else ! Reached the maximum calculations allowed, inform master
 
               ! Post recv to obtain assignment that WILL BE IGNORED
-              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &
                              mmpi_comm_grid, requestIdSignal, ierr)
 
               ! Signal that I reached my maximum number of assignments
@@ -636,7 +629,7 @@ contains
               if (mod(latLonIndexMpiGlobal-1,mmpi_nprocs)==mmpi_myid) then
                 exit
               end if
-            end do              
+            end do
 
           else ! mpiDistribution is not MASTERWORKER and not ROUNDROBIN
 
@@ -679,7 +672,7 @@ contains
           ! Loop over the tasks where I need to send the weights
           do procIndex = 1, numProcsSendMpiGlobal(latLonIndexMpiGlobal)
             sendTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
-            sendTag = 1 + mod(sendTag-1, mmpi_maxTagValue - 10) 
+            sendTag = 1 + mod(sendTag-1, mmpi_maxTagValue - 10)
             procIndexSend = procIndexesSendMpiGlobal(latLonIndexMpiGlobal, procIndex)
 
             nsize = nEnsGain * (enkfNML%nEns+1)
@@ -688,7 +681,7 @@ contains
               call utl_abort('numSend larger than allowed limit')
             end if
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
-                            nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
+                            nsize, mmpi_real8, procIndexSend-1, sendTag,  &
                             mmpi_comm_grid, requestIdSend(numSend), ierr )
           end do
           call utl_tmg_stop(149)
@@ -702,7 +695,7 @@ contains
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), waitStatusesRecv(:,1:numRecv), ierr)
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for IRECV')
       end if
       call utl_tmg_stop(147)
@@ -748,7 +741,7 @@ contains
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatusesSend(:,1:numSend), ierr)
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
       end if
       call utl_tmg_stop(146)
@@ -798,7 +791,7 @@ contains
     ! Arguments:
     type(struct_enkfNML),     intent(in)    :: enkfNML                   ! Derived type variable with namelist variables
     real(8),                  intent(inout) :: weightsMeanLatLon(:,:)    ! Ens mean weights at one grid point
-    real(8),                  intent(inout) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point 
+    real(8),                  intent(inout) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point
     type(struct_ens),         intent(in)    :: ensembleAnl               ! Analysis ensemble
     integer,                  intent(in)    :: levIndex                  ! Level index
     integer,                  intent(in)    :: latIndex                  ! Latitude index
@@ -909,7 +902,7 @@ contains
       else
         YbTinvR_mean => YbTinvR_pert
         YbTinvRYb_mean => YbTinvRYb_pert
-      end if    
+      end if
     end if
 
     ! The lat-lon of the grid point for which we are computing the weights
@@ -1050,7 +1043,7 @@ contains
       weightsMembersLatLon(:,:) = 0.0d0
       do memberIndex = 1, enkfNML%nEns
         if ( useModulatedEns ) then
-          do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen 
+          do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
             memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
             weightsMembersLatLon(memberIndexInModEns,memberIndex) = 1.0d0
           end do
@@ -1066,7 +1059,7 @@ contains
     firstCall = .false.
 
   end subroutine enkf_LETKFcomputeWeights
-  
+
   !----------------------------------------------------------------------
   ! enkf_algorithmLETKF (private subroutine)
   !----------------------------------------------------------------------
@@ -1108,7 +1101,7 @@ contains
     call utl_tmg_stop(135)
 
     if (eob_simObsAssim) then
-      PaInv(:,:) = YbTinvRYb_mean(:,:)            
+      PaInv(:,:) = YbTinvRYb_mean(:,:)
       do memberIndex = 1, enkfNML%nEns
         PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(enkfNML%nEns - 1,8)
       end do
@@ -1221,7 +1214,7 @@ contains
       end do
     end do
 
-    ! Compute ensemble perturbation weights: 
+    ! Compute ensemble perturbation weights:
     ! Wa = [ - (Nens-1)^1/2 * E *
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb ]
@@ -1357,7 +1350,7 @@ contains
       end do
     end do
 
-    ! Compute ensemble perturbation weights: 
+    ! Compute ensemble perturbation weights:
     ! Wa = [ - (Nens-1)^1/2 * E *
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb_mod ]
@@ -1489,8 +1482,8 @@ contains
       end do
     end do
 
-    ! Compute ensemble perturbation weights: 
-    ! Wa = [ I - (Nens-1)^1/2 * E * 
+    ! Compute ensemble perturbation weights:
+    ! Wa = [ I - (Nens-1)^1/2 * E *
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb ]
     ! Loop over sub-ensembles
@@ -1658,7 +1651,7 @@ contains
       end do
     end do
 
-    ! Compute ensemble perturbation weights: 
+    ! Compute ensemble perturbation weights:
     ! Wa = [ - (Nens-1)^1/2 * E *
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb_mod ]
@@ -1736,7 +1729,7 @@ contains
            weightsMembersLatLon(memberIndex,:) - &
            sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
-    
+
   end subroutine enkf_algorithmCVLETKFME
 
   !----------------------------------------------------------------------
@@ -1818,10 +1811,10 @@ contains
       end do
     end do
 
-    ! Compute ensemble perturbation weights using mean increment weights 
-    ! formula, but with subset of members: 
+    ! Compute ensemble perturbation weights using mean increment weights
+    ! formula, but with subset of members:
     ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
-    ! Wa   = wa_i - mean_over_i(wa_i) 
+    ! Wa   = wa_i - mean_over_i(wa_i)
     !
     ! Loop over sub-ensembles
     !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
@@ -1855,7 +1848,7 @@ contains
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndexCV1 = 1, nEnsIndependentPerSubEns
             memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-            weightsTemp(memberIndexCV1) =  & 
+            weightsTemp(memberIndexCV1) =  &
                  weightsTemp(memberIndexCV1) +   &
                  YbTinvR_pert(memberIndex1,localObsIndex) *  &
                  ( ensObs_mpiglobal%obsValue(bodyIndex) +  &
@@ -2006,7 +1999,7 @@ contains
       memberIndex = 1
       do subEnsIndex2 = 1, enkfNML%numSubEns
         if (subEnsIndex2 == subEnsIndex) cycle
-          
+
         if ( .not. useModulatedEns ) then
           memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
                memberIndexSubEns(:,subEnsIndex2)
@@ -2192,7 +2185,7 @@ contains
                     ! Index of the modulated ensemble member corresponding to original
                     ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex1
-                      
+
                     ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                     !   original ensemble (memberIndex2)
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
@@ -2479,7 +2472,7 @@ contains
     end do
 
     ! Communicate to all mpi tasks
-    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, "mpi_sum")
+    call mmpi_allReduce(myNumLatLon, numLatLonMpiGlobal, mmpi_sum)
     call mmpi_allGather(myNumLatLon, allNumLatLon)
     numLatLonMax = maxval(allNumLatLon)
 
@@ -2580,7 +2573,7 @@ contains
 
     ! Arguments:
     integer, intent(out) :: latLonTagMpiGlobal(:,:) ! Output list of unique MPI tags for weight communication
-    integer, intent(in)  :: myLatIndexesRecv(:)     ! Input latIndex list for locally needed weights 
+    integer, intent(in)  :: myLatIndexesRecv(:)     ! Input latIndex list for locally needed weights
     integer, intent(in)  :: myLonIndexesRecv(:)     ! Input lonIndex list for locally needed weights
 
     ! Locals:
@@ -2628,7 +2621,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, 'mpi_lor')
+    call mmpi_allReduce(tagNeededMpiLocal, tagNeededMpiGlobal, mmpi_lor)
 
     ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0
@@ -2771,7 +2764,7 @@ contains
           ! Find nearest grid point with a value towards left
           wInterpInfo%numIndexes(lonIndex,latIndex) = 2
           wInterpInfo%lonIndexes(1,lonIndex,latIndex) = myLonBegHalo +  &
-               weightLatLonStep * floor(real(lonIndex - myLonBegHalo)/real(weightLatLonStep)) 
+               weightLatLonStep * floor(real(lonIndex - myLonBegHalo)/real(weightLatLonStep))
           wInterpInfo%lonIndexes(2,lonIndex,latIndex) = min(ni,  &
                wInterpInfo%lonIndexes(1,lonIndex,latIndex) + weightLatLonStep)
           wInterpInfo%latIndexes(1,lonIndex,latIndex) = latIndex
@@ -2792,7 +2785,7 @@ contains
           wInterpInfo%lonIndexes(1,lonIndex,latIndex) = lonIndex
           wInterpInfo%lonIndexes(2,lonIndex,latIndex) = lonIndex
           wInterpInfo%latIndexes(1,lonIndex,latIndex) = myLatBegHalo +  &
-               weightLatLonStep * floor(real(latIndex - myLatBegHalo)/real(weightLatLonStep)) 
+               weightLatLonStep * floor(real(latIndex - myLatBegHalo)/real(weightLatLonStep))
           wInterpInfo%latIndexes(2,lonIndex,latIndex) = min(nj,  &
                wInterpInfo%latIndexes(1,lonIndex,latIndex) + weightLatLonStep)
           ! Ensure we do not interpolate values across Yin-Yang boundary
@@ -2817,9 +2810,9 @@ contains
           wInterpInfo%numIndexes(lonIndex,latIndex) = 4
           ! 1. bottom-left indexes
           wInterpInfo%lonIndexes(1,lonIndex,latIndex) = myLonBegHalo +  &
-               weightLatLonStep * floor(real(lonIndex - myLonBegHalo)/real(weightLatLonStep)) 
+               weightLatLonStep * floor(real(lonIndex - myLonBegHalo)/real(weightLatLonStep))
           wInterpInfo%latIndexes(1,lonIndex,latIndex) = myLatBegHalo +  &
-               weightLatLonStep * floor(real(latIndex - myLatBegHalo)/real(weightLatLonStep)) 
+               weightLatLonStep * floor(real(latIndex - myLatBegHalo)/real(weightLatLonStep))
           ! 2. bottom-right indexes
           wInterpInfo%lonIndexes(2,lonIndex,latIndex) = min(ni,  &
                wInterpInfo%lonIndexes(1,lonIndex,latIndex) + weightLatLonStep)
@@ -2945,7 +2938,7 @@ contains
     real(pre_obsReal)  :: lat_obs
 
     ! for AMSUB observations set the observation error std dev equal to 1.0
-    ! in the larger tropical area where the spread-skill correlation suggests 
+    ! in the larger tropical area where the spread-skill correlation suggests
     ! that the data are accurate (.i.e |lat|<40. ). Otherwise don't reduce the
     ! observational error.
     do headerIndex = 1, obs_numheader(obsSpaceData)
@@ -3103,7 +3096,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_setupModulationFactor(enkfNML, vco, beSilent)
     !
-    !:Purpose: Setup modulationFactorArray by calling getModulationFactor for first time. 
+    !:Purpose: Setup modulationFactorArray by calling getModulationFactor for first time.
     !
     implicit none
 
@@ -3122,7 +3115,7 @@ contains
     call getModulationFactor(enkfNML, vco, eigenVectorLevelIndex, &
                              eigenVectorColumnIndex, &
                              modulationFactor_r4, beSilent_opt=beSilent)
-     
+
   end subroutine enkf_setupModulationFactor
 
   !--------------------------------------------------------------------------
@@ -3224,7 +3217,7 @@ contains
       do levIndex1 = 1, nLev
         do levIndex2 = 1, nLev
           do eigenIndex = 1, enkfNML%numRetainedEigen
-            verticalLocalizationMatLowRank(levIndex1,levIndex2) = verticalLocalizationMatLowRank(levIndex1,levIndex2) + & 
+            verticalLocalizationMatLowRank(levIndex1,levIndex2) = verticalLocalizationMatLowRank(levIndex1,levIndex2) + &
                                                                   eigenVectors(levIndex1,eigenIndex) * &
                                                                   eigenVectors(levIndex2,eigenIndex) * &
                                                                   eigenValues(eigenIndex)
@@ -3257,7 +3250,7 @@ contains
     end if
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
-  
+
   end subroutine getModulationFactor
 
 end module enkf_mod

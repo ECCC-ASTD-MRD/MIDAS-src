@@ -21,7 +21,7 @@ module verticalModes_mod
   implicit none
   save
   private
-  
+
   ! Public derived type
   public :: struct_vms
 
@@ -37,7 +37,7 @@ module verticalModes_mod
     real(8), allocatable :: eigenValues(:)
     real(8), allocatable :: eigenVectorsInv(:,:)
   end type struct_oneVar3d
-  
+
   type :: struct_vms
     private
     integer :: nVar3d
@@ -63,11 +63,11 @@ contains
 
     ! Locals:
     integer :: nLev, varNameIndex, var3dIndex
-    
+
     if (vModes%initialized) return
-    
+
     !
-    !- Set parameters 
+    !- Set parameters
     !
     vModes%nVar3d = 0
     do varNameIndex = 1, size(varNamesList)
@@ -102,7 +102,7 @@ contains
     vModes%initialized = .true.
 
   end subroutine vms_setup
-  
+
   !--------------------------------------------------------------------------
   ! vms_computeModesFromEns
   !--------------------------------------------------------------------------
@@ -128,7 +128,7 @@ contains
     integer :: lonIndex, latIndex, nEns, memberIndex
     integer :: var3dIndex, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     character(len=4), pointer :: varNamesList(:)
-    
+
     !
     !- Structure initialization
     !
@@ -136,7 +136,7 @@ contains
     call ens_varNamesList(varNamesList, ensPerts)
 
     vco_ens => ens_getVco(ensPerts)
-    
+
     call vms_setup(varNamesList, vco_ens, & ! IN
                    vModes)                  ! OUT
 
@@ -144,7 +144,7 @@ contains
     !- Compute the vertical auto-covariance matrices
     !
     nEns = ens_getNumMembers(ensPerts)
-    
+
     hco_ens => ens_getHco(ensPerts)
     allocate(latWeight(hco_ens%nj))
     do latIndex = 1, hco_ens%nj
@@ -152,15 +152,15 @@ contains
       if (mmpi_myid == 0) then
         write(*,*) latIndex, hco_ens%lat(latIndex), cos(hco_ens%lat(latIndex))
       end if
-    end do 
-    
+    end do
+
     call ens_getLatLonBounds(ensPerts, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-    
+
     do var3dIndex = 1, vModes%nVar3d
 
       allocate(sumWeight(vModes%allVar3d(var3dIndex)%nLev,vModes%allVar3d(var3dIndex)%nLev))
       sumWeight(:,:)      = 0.d0
-      
+
       vModes%allVar3d(var3dIndex)%autoCovariance(:,:) = 0.d0
 
       do memberIndex = 1, nEns
@@ -173,7 +173,7 @@ contains
 
             ptr4d_1_r4 => ens_getOneLev_r4(ensPerts,varLevIndex1)
             ptr4d_2_r4 => ens_getOneLev_r4(ensPerts,varLevIndex2)
-          
+
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
 
@@ -184,10 +184,10 @@ contains
                                      * latWeight(latIndex)
 
                 sumWeight(levIndex1,levIndex2) = sumWeight(levIndex1,levIndex2) + latWeight(latIndex)
-                
+
               end do
             end do
-            
+
           end do
         end do
         !$OMP END PARALLEL DO
@@ -195,8 +195,8 @@ contains
       end do ! Loop on Ensemble
 
       !- Communication
-      call mmpi_allreduce_sumR8_2d(vModes%allVar3d(var3dIndex)%autoCovariance, "GRID")
-      call mmpi_allreduce_sumR8_2d(sumWeight, "GRID")
+      call mmpi_allreduce_sumR8_2d(vModes%allVar3d(var3dIndex)%autoCovariance)
+      call mmpi_allreduce_sumR8_2d(sumWeight)
 
       !- Apply the appropriate scaling
       do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
@@ -282,7 +282,7 @@ contains
     else
       call utl_abort('vms_computeModes: Unknown value of vcode')
     end if
-      
+
     do levIndex = 1, vco%nLev_M
       vertLocation_MM(levIndex) = log(vertLocation_MM(levIndex))
     end do
@@ -302,7 +302,7 @@ contains
 
       lengthScaleGradient = (lengthScaleTop-lengthScaleBot) / &
                             (vertLocation(1)-vertLocation(vModes%allVar3d(var3dIndex)%nLev))
-      
+
       do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
         do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
           distance = abs(vertLocation(levIndex2) - vertLocation(levIndex1))
@@ -319,7 +319,7 @@ contains
             write(*,*) 'vms_computeModesFromFunction: function length scale (', &
                         levIndex2,') = ', lengthScaleAvg
           end if
- 
+
           correl = lfn_response(distance,lengthScaleAvg)
           vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2) = correl
         end do
@@ -348,10 +348,10 @@ contains
     type(struct_vms), intent(inout) :: vModes
 
     ! Locals:
-    real(8) :: tolerance    
+    real(8) :: tolerance
     integer :: levIndex1, levIndex2, var3dIndex
     integer :: matrixRank
-    
+
     !
     !- Compute the eigenvectors and eigenvalue
     !
@@ -382,7 +382,7 @@ contains
       end do
 
     end do
-    
+
   end subroutine vms_computeModes
 
   !--------------------------------------------------------------------------
@@ -414,8 +414,8 @@ contains
     ! Locals:
     integer :: latIndex, lonIndex
     integer :: varIndexAssociated, varIndex
-    integer :: nMode, modeBeg, modeEnd 
-    
+    integer :: nMode, modeBeg, modeEnd
+
     !
     !- 1.  Find the appropriate modes for the provided varName
     !
@@ -480,7 +480,7 @@ contains
     else
       modeEnd = nMode
     end if
-    
+
     !
     !- 2.  Do the transform
     !
@@ -496,7 +496,7 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
-      
+
     case ('VertModesToGridPoint')
 
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
@@ -514,9 +514,9 @@ contains
       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
       call utl_abort('vms_transform')
     end select
-    
+
   end subroutine vms_transform
-  
+
   !--------------------------------------------------------------------------
   ! vms_writeModes
   !--------------------------------------------------------------------------
@@ -534,7 +534,7 @@ contains
     integer :: fstouv, fnom, fstfrm, fclos, iunstats, errorID
     character(len=4), allocatable :: varName3d(:)
     character(len=128) :: outfilename
-    
+
     if (.not. vModes%initialized) then
       call utl_abort('vms_writeModes: The vModes structure is not initialized')
     end if
@@ -546,7 +546,7 @@ contains
       allocate(varName3d(vModes%nVar3d))
       iunstats = 0
       errorID = fnom(iunstats,'./vertAutoCov.fst','RND',0)
-      errorID = fstouv(iunstats,'RND')      
+      errorID = fstouv(iunstats,'RND')
       do var3dIndex = 1, vModes%nVar3d
         call writeMatrix2d_r8(vModes%allVar3d(var3dIndex)%autoCovariance, vModes%allVar3d(var3dIndex)%nlev, &
                               iunstats, vModes%allVar3d(var3dIndex)%varName,'AUTOCOVAR')
@@ -652,7 +652,7 @@ contains
     !- Convert to real 4
     workecr(:,:) = real(matrix2d(:,:),4)
 
-    !- Writing 
+    !- Writing
     errorID = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,    &
                      ig1, ig2, ig3, ig4, datyp, .true.)
@@ -714,13 +714,13 @@ contains
     !- Convert to real 4
     workecr(:) = real(array(:),4)
 
-    !- Writing 
+    !- Writing
     errorID = fstecr(workecr, work, npak, iun, dateo, deet, npas, ni, nj, &
                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,    &
                      ig1, ig2, ig3, ig4, datyp, .true.)
 
     deallocate(workecr)
-    
+
   end subroutine writeArray1d_r8
 
   !--------------------------------------------------------------------------
@@ -776,5 +776,5 @@ contains
                       ig1, ig2, ig3, ig4, datyp, .true.)
 
   end subroutine writeArray1d_c4
-  
+
 end module verticalModes_mod

@@ -1,12 +1,12 @@
 program midas_extractBmatrixFor1Dvar
   !
   !:Purpose: Main program to extract B matrix to binary file Bmatrix.bin suitable for 1Dvar applications
-  !          The B matrix is defined at a set of locations specified by the variable lonlatExtract and date 
+  !          The B matrix is defined at a set of locations specified by the variable lonlatExtract and date
   !          extractDate
   !
   !          ---
   !
-  !:Algorithm:  The B matrix is computed column by column by application of operators bmat_sqrtBT and bmat_sqrtB 
+  !:Algorithm:  The B matrix is computed column by column by application of operators bmat_sqrtBT and bmat_sqrtB
   !
   !            --
   !
@@ -18,14 +18,14 @@ program midas_extractBmatrixFor1Dvar
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``bgcov``                                      In - The B NMC matrix file
-  ! ``analysisgrid``                               In - analysis grid 
+  ! ``analysisgrid``                               In - analysis grid
   ! ``Bmatrix.bin``                                Out - The Bmatrix binary file for 1DVar
   !============================================== ==============================================================
   !
   !           --
   !
   !:Synopsis: Below is a summary of the ``extractBmatrixFor1Dvar`` program calling sequence:
-  !    
+  !
   !             - **Initial setups:**
   !
   !               - Read parameters from the program namelist section NAMEXTRACT
@@ -38,11 +38,11 @@ program midas_extractBmatrixFor1Dvar
   !
   !               - Initialize the B matrix
   !
-  !               - Initialize the gridded variable transform module 
+  !               - Initialize the gridded variable transform module
   !
   !             - **Computation:**
   !
-  !               - For each location specified in the namelist: 
+  !               - For each location specified in the namelist:
   !
   !                   - for each element of the stateVector
   !
@@ -147,7 +147,7 @@ program midas_extractBmatrixFor1Dvar
 
   nLonLatPos = 0
   do lonlatPosIndex = 1, size(lonlatExtract(:,lonColumn))
-    if (lonlatExtract(lonlatPosIndex,lonColumn) >= 1 .and. lonlatExtract(lonlatPosIndex,latColumn) >= 1) nLonLatPos = nLonLatPos + 1  
+    if (lonlatExtract(lonlatPosIndex,lonColumn) >= 1 .and. lonlatExtract(lonlatPosIndex,latColumn) >= 1) nLonLatPos = nLonLatPos + 1
   end do
 
   if ( nLonLatPos == 0 ) then
@@ -224,7 +224,7 @@ program midas_extractBmatrixFor1Dvar
     write(*,*) 'Unsupported stepBinExtract : ', trim(stepBinExtract)
     call utl_abort('midas-extractBmatrix')
   end select
-  
+
   allocate(controlVector(cvm_nvadim))
 
   write(*,*) '************************************************************'
@@ -233,7 +233,7 @@ program midas_extractBmatrixFor1Dvar
   write(*,*)
   write(*,*) ' temporal location           = ', trim(stepBinExtract), stepBinExtractIndex
   write(*,*) ' number of lon-lat positions = ', nLonLatPos
-  
+
   if (mmpi_myId == 0) then
     varCount = 0
     do varIndex=1, vnl_numvarmax
@@ -255,14 +255,14 @@ program midas_extractBmatrixFor1Dvar
          vco_anl % ip1_sfc, vco_anl % ip1_T_2m, vco_anl % ip1_M_10m, varCount, numVarLev, nLonLatPos
     write(nulmat) vco_anl % ip1_T(:), vco_anl % ip1_M(:), varList(:)
   end if
-  
+
   locationLoop:do lonLatPosIndex = 1, nLonLatPos
 
     Bmatrix(:,:) = MPC_missingValue_R8
 
     latIndex = lonlatExtract(lonLatPosIndex,latColumn)
     lonIndex = lonlatExtract(lonLatPosIndex,lonColumn)
-    
+
     latitude = hco_anl%lat2d_4(lonIndex, latIndex)
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
 
@@ -270,10 +270,10 @@ program midas_extractBmatrixFor1Dvar
       varName1 = gsv_getVarNameFromVarLev(statevector, varLevIndex1)
       if ( .not. gsv_varExist(varName=varName1) ) cycle
       if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
-      
+
       write(*,*)
       write(*,*) 'midas-extractBmatrix: simulating a pseudo-observation of ', trim(varName1)
-      
+
       factor1 = getConversionFactor( varName1 )
       levIndex1 = gsv_getLevFromVarLev(statevector, varLevIndex1)
       call gsv_zero(statevector)
@@ -294,7 +294,7 @@ program midas_extractBmatrixFor1Dvar
       ! ici statevector contient la colonne correspondante de la matrice B
       write(*,*) 'midas-extractBmatrix: writing out the column of B. levIndex1,lonIndex,latIndex=', &
                  levIndex1,lonIndex,latIndex
-      
+
       variableLoop2:do varLevIndex2 = 1, numVarLev
         varName2 = gsv_getVarNameFromVarLev(statevector, varLevIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
@@ -309,7 +309,7 @@ program midas_extractBmatrixFor1Dvar
           bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
                                                 field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if
-        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, "mpi_max")
+        call mmpi_allReduce(columnProcIdLocal, columnProcIdGlobal, mmpi_max)
       end do variableLoop2
 
     end do variableLoop1
@@ -320,7 +320,7 @@ program midas_extractBmatrixFor1Dvar
     end if
 
   end do locationLoop
-    
+
   if (mmpi_myId ==0) then
     ierr = fclos(nulmat)
   end if
@@ -350,7 +350,7 @@ contains
       getConversionFactor = mpc_knots_per_m_per_s_r4 ! m/s -> knots
     else if ( trim(varName) == 'P0' ) then
       getConversionFactor = 0.01 ! Pa -> hPa
-    else 
+    else
       getConversionFactor = 1.0 ! no conversion
     end if
   end function getConversionFactor

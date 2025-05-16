@@ -84,7 +84,7 @@ contains
     character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
-  
+
     real(8), allocatable :: joSSTInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
     integer :: SSTdatasetIndex, codeType
@@ -101,7 +101,7 @@ contains
     if (.not. allocated(sensorNameList)) then
       allocate(sensorNameList(tvs_nsensors))
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       allocate(joSSTInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
       allocate(nobsInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
@@ -188,19 +188,19 @@ contains
       if ( printJoTovsPerChannelSensor ) then
         loopSensor1: do sensorIndexInList = 1, tvs_nsensors
           call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
-          
+
           if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
             sensorIndexInListFound = sensorIndexInList
             exit loopSensor1
           end if
-          
+
         end do loopSensor1
       end if
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
         dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-        
+
         if ( printJoTovsPerChannelSensor .and. &
             sensorIndexInListFound > 0 ) then
           call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
@@ -243,37 +243,37 @@ contains
       end do
     end if
 
-    call mmpi_allreduce_sumreal8scalar( pjo, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosatwind, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosurfc, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoscat, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljotov, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoprof, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsztd, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljochm, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosst, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
-    call mmpi_allreduce_sumreal8scalar( dljoice, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
+    call mmpi_allreduce_sumreal8scalar(pjo)
+    call mmpi_allreduce_sumreal8scalar(dljoraob)
+    call mmpi_allreduce_sumreal8scalar(dljoairep)
+    call mmpi_allreduce_sumreal8scalar(dljosatwind)
+    call mmpi_allreduce_sumreal8scalar(dljosurfc)
+    call mmpi_allreduce_sumreal8scalar(dljoscat)
+    call mmpi_allreduce_sumreal8scalar(dljotov)
+    call mmpi_allreduce_sumreal8scalar(dljogpsro)
+    call mmpi_allreduce_sumreal8scalar(dljoprof)
+    call mmpi_allreduce_sumreal8scalar(dljogpsztd)
+    call mmpi_allreduce_sumreal8scalar(dljochm)
+    call mmpi_allreduce_sumreal8scalar(dljosst)
+    call mmpi_allreduce_sumreal8scalar(dljoaladin)
+    call mmpi_allreduce_sumreal8scalar(dljoice)
+    call mmpi_allreduce_sumreal8scalar(dljohydro)
+    call mmpi_allreduce_sumreal8scalar(dljoradar)
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
+      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex))
     end do
     if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
+        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex))
       end do loopSensor2
     end if
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
-      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), "mpi_sum")
+      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex))
+      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), mmpi_sum)
     end do
 
     if ( mmpi_myid == 0 .and. .not. beSilent ) then
@@ -338,12 +338,12 @@ contains
                                                           nobsInstrumentGlob(SSTdatasetIndex),&
                                                           joSSTInstrument(SSTdatasetIndex) / &
                                                           real(nobsInstrumentGlob(SSTdatasetIndex))
-          end if    
+          end if
         end do
       end if
 
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       deallocate(joSSTInstrument)
       deallocate(nobsInstrument)
