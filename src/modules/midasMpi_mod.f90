@@ -230,13 +230,13 @@ contains
 
     ! create some MPI communicators to facilitate
 
-    ! Initiliazing the 'EW' communicator, with RPN_COMM, it used to be the command
+    ! Initializing the 'EW' communicator, with RPN_COMM, it used to be the command
     !       mmpi_comm_EW  = rpn_comm_comm('EW')
     mmpi_comm_EW = mpi_comm_null
     call mpi_comm_split(mmpi_comm_GRID, mmpi_myidy+1, mmpi_myidx+1, mmpi_comm_EW, ierr)
     call handleMpiError(ierr, 'Error when calling  MPI_COMM_SPLIT for ''EW'' communicator in ''mmpi_initialize''')
 
-    ! Initiliazing the 'NS' communicator, with RPN_COMM, it used to be the command
+    ! Initializing the 'NS' communicator, with RPN_COMM, it used to be the command
     !        mmpi_comm_NS = rpn_comm_comm('NS')
     mmpi_comm_NS = mpi_comm_null
     call mpi_comm_split(mmpi_comm_GRID, mmpi_myidx+1, mmpi_myidy+1, mmpi_comm_NS, ierr)
