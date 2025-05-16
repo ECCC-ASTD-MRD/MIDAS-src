@@ -479,31 +479,31 @@ contains
     ! Locals:
     integer ::  numStep, stepIndex
     real(kind=8), pointer       :: Hsfc(:,:), HsfcLS(:,:)
-    real(kind=4), allocatable   :: Hsfc4(:,:), HsfcLS4(:,:)
+    real(kind=4), allocatable   :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
     real(kind=4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
-    allocate(Hsfc4(statevector%myLonBeg:statevector%myLonEnd, &
-                   statevector%myLatBeg:statevector%myLatEnd))
+    allocate(Hsfc_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                     statevector%myLatBeg:statevector%myLatEnd))
     Hsfc => gsv_getHeightSfc(statevector)
-    Hsfc4 = real(Hsfc,4)
+    Hsfc_r4 = real(Hsfc,4)
 
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
       if (gsv_getVco(statevector)%sleveCoord) then
-        allocate(HsfcLS4(statevector%myLonBeg:statevector%myLonEnd, &
-                         statevector%myLatBeg:statevector%myLatEnd))
+        allocate(HsfcLS_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                           statevector%myLatBeg:statevector%myLatEnd))
         HsfcLS => gsv_getHeightSfcLS(statevector)
-        HsfcLS4 = real(HsfcLS,4)
+        HsfcLS_r4 = real(HsfcLS,4)
         
-        call fetch3DLevels_r4(gsv_getVco(statevector), sfcFld=Hsfc4, sfcFldLS_opt=HsfcLS4, &
+        call fetch3DLevels_r4(gsv_getVco(statevector), sfcFld=Hsfc_r4, sfcFldLS_opt=HsfcLS_r4, &
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
 
-        deallocate(HsfcLS4)
+        deallocate(HsfcLS_r4)
       else
-        call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc4, & 
+        call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc_r4, & 
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       end if
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out, skipDiagLevel=.true.)
@@ -512,7 +512,7 @@ contains
 
     end do
 
-    deallocate(Hsfc4)
+    deallocate(Hsfc_r4)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r4

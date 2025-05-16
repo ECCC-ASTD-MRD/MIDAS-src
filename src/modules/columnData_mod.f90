@@ -669,7 +669,7 @@ contains
   end function col_getHeightLS
   
   !--------------------------------------------------------------------------
-  ! col_setHeightsSfc
+  ! col_setHeightSfc
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
     !
@@ -692,7 +692,7 @@ contains
   end subroutine col_setHeightSfc
 
   !--------------------------------------------------------------------------
-  ! col_setHeightsSfcLS
+  ! col_setHeightSfcLS
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfcLS(column,headerIndex,heightLS)
     !
