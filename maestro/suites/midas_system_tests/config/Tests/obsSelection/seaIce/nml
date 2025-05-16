@@ -29,10 +29,12 @@
   listPlatformIce(2) = 'GCOM-W1'
   listPlatformIce(3) = 'METOP-1'
   listPlatformIce(4) = 'METOP-2'
-  listPlatformIce(5) = 'CIS_DAILY'
-  listPlatformIce(6) = 'RS1_IMG'
-  listPlatformIce(7) = 'CIS_REGIONAL'
-  listPlatformIce(8) = 'iceclake'
+  listPlatformIce(5) = 'METOP-3'
+  listPlatformIce(6) = 'CIS_DAILY'
+  listPlatformIce(7) = 'RS1_IMG'
+  listPlatformIce(8) = 'CIS_REGIONAL'
+  listPlatformIce(9) = 'iceclake'
+  listPlatformIce(10) = 'RCM'
 /
  &NAMSQLgl
   listElem="20222,20237,21169,21199"
@@ -59,7 +61,11 @@
  idStation(8) = 'GCOM-W1'
  idStation(9) = 'METOP-1'
  idStation(10) = 'METOP-2'
- idStation(11) = 'iceclake'
+ idStation(11) = 'METOP-3'
+ idStation(12) = 'iceclake'
+ idStation(13) = 'RCM1'
+ idStation(14) = 'RCM2'
+ idStation(15) = 'RCM3'
  OmpRmsdThresh(1) = 38.0
  OmpRmsdThresh(2) = 70.0
  OmpRmsdThresh(3) = 60.0
@@ -67,10 +73,14 @@
  OmpRmsdThresh(5) = 60.0
  OmpRmsdThresh(6) = 60.0
  OmpRmsdThresh(7) = 60.0
- OmpRmsdThresh(8) = 60.0
+ OmpRmsdThresh(8) = 35.0
  OmpRmsdThresh(9) = 10.0
  OmpRmsdThresh(10) = 10.0
- OmpRmsdThresh(11) = 95.0
+ OmpRmsdThresh(11) = 10.0
+ OmpRmsdThresh(12) = 95.0
+ OmpRmsdThresh(13) = 70.0
+ OmpRmsdThresh(14) = 70.0
+ OmpRmsdThresh(15) = 70.0
  maxSwath = 10
  maxPerSwath = 200000
 /
