@@ -21,6 +21,7 @@ module costFunction_mod
 
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
+  logical                        :: allReduceForward
 
 contains
 
@@ -84,7 +85,7 @@ contains
     character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
-  
+
     real(8), allocatable :: joSSTInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
     integer :: SSTdatasetIndex, codeType, ierr
@@ -101,7 +102,7 @@ contains
     if (.not. allocated(sensorNameList)) then
       allocate(sensorNameList(tvs_nsensors))
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       allocate(joSSTInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
       allocate(nobsInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
@@ -188,19 +189,19 @@ contains
       if ( printJoTovsPerChannelSensor ) then
         loopSensor1: do sensorIndexInList = 1, tvs_nsensors
           call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
-          
+
           if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
             sensorIndexInListFound = sensorIndexInList
             exit loopSensor1
           end if
-          
+
         end do loopSensor1
       end if
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
         dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-        
+
         if ( printJoTovsPerChannelSensor .and. &
             sensorIndexInListFound > 0 ) then
           call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
@@ -243,36 +244,36 @@ contains
       end do
     end if
 
-    call mmpi_allreduce_sumreal8scalar( pjo, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosatwind, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosurfc, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoscat, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljotov, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoprof, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljogpsztd, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljochm, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljosst, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
-    call mmpi_allreduce_sumreal8scalar( dljoice, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
-    call mmpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
+    call mmpi_allreduce_sumreal8scalar(pjo,         "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoraob,    "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoairep,   "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosatwind, "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosurfc,   "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoscat,    "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljotov,     "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljogpsro,   "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoprof,    "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljogpsztd,  "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljochm,     "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosst,     "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoaladin,  "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoice,     "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljohydro,   "GRID", allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoradar,   "GRID", allReduceForward_opt = allReduceForward)
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
+      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID", allReduceForward_opt = allReduceForward)
     end do
     if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
+        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID", allReduceForward_opt = allReduceForward)
       end do loopSensor2
     end if
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
+      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid", allReduceForward_opt = allReduceForward)
       call rpn_comm_allreduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
                               1, "mpi_integer", "mpi_sum", "grid", ierr)
     end do
@@ -339,12 +340,12 @@ contains
                                                           nobsInstrumentGlob(SSTdatasetIndex),&
                                                           joSSTInstrument(SSTdatasetIndex) / &
                                                           real(nobsInstrumentGlob(SSTdatasetIndex))
-          end if    
+          end if
         end do
       end if
 
     end if
-    
+
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       deallocate(joSSTInstrument)
       deallocate(nobsInstrument)
@@ -365,7 +366,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMCFN/ sensorNameList, channelNumberList
+    NAMELIST /NAMCFN/ sensorNameList, channelNumberList, allReduceForward
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -373,6 +374,7 @@ contains
       !- Setting default values
       sensorNameList(:) = ''
       channelNumberList(:,:) = 0
+      allReduceForward = .true.
 
       if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
         if ( mmpi_myid == 0 ) then
