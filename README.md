@@ -110,7 +110,7 @@ To proceed to compilation tasks, you should be in the `src/` directory.
 `midas_build` compiles by default on both platforms.
 
 ## Compiling a single program
-To compile a single program on both platforms, do the following from the 
+To compile a single program on both platforms, do the following from the
 frontnode:
 ```bash
 cd ${where_your_code_is}
@@ -122,8 +122,8 @@ the sub-directory `src/programs` or [`splitobs`](./src/README.md#splitobs-an-ext
 If you installed the [auto-completion feature](./src/README.md#auto-completion)
 you can browse all install targets by pressing `<TAB>` following `./midas_build`.
 
-By default the binary will be installed in 
-`${HOME}/data_maestro/ords/midas-bld/midas_abs/` 
+By default the binary will be installed in
+`${HOME}/data_maestro/ords/midas-bld/midas_abs/`
 (this can be [configured by environment variables](./src/README.md#configuring-the-compilation-and-linking-process)).
 
 ## Compiling all programs
