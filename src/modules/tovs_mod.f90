@@ -3409,7 +3409,8 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_rttov_scatt_setupindex
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov_scatt_setupindex (errorStatus, nprofiles, n_chan, coef_rttov, coef_scatt, nchannels, chanprof, frequencies, lchannel_subset)
+  subroutine tvs_rttov_scatt_setupindex (errorStatus, nprofiles, n_chan, coef_rttov, coef_scatt, nchannels, &
+                                         chanprof, frequencies, lchannel_subset)
     !
     ! :Purpose: modified version of RTTOV's library rttov_scatt_setupindex
     !           the modification (bug fix ?) allows to use RTTOVscatt with only
@@ -3419,21 +3420,23 @@ contains
     !
     implicit none
 
-    integer (kind=jpim), intent(out)          :: errorStatus                        ! error status
-    integer (kind=jpim), intent(in)           :: nprofiles                          ! number of profiles
-    integer (kind=jpim), intent(in)           :: n_chan                             ! number of channels
-    type  (rttov_coefs), intent(in)           :: coef_rttov                         ! Rttov coefficients
-    type (rttov_scatt_coef), intent(in)       :: coef_scatt                         ! RTTOV_SCATT Coefficients
-    integer (kind=jpim), intent(in)           :: nchannels                          ! number of calculated channels
-    logical (kind=jplm), optional, intent(in) :: lchannel_subset(nprofiles, n_chan) ! array of logical flags to indicate a subset of channels
-    integer  (kind=jpim), intent (out), dimension (nchannels) :: frequencies        ! array, frequency number for each "channel"
-    type(rttov_chanprof), Intent (out), dimension (nchannels) :: chanprof           ! Channel and profile indices
+    ! Arguments:
+    integer(kind=jpim),           intent(out) :: errorStatus                        ! error status
+    integer(kind=jpim),           intent(in)  :: nprofiles                          ! number of profiles
+    integer(kind=jpim),           intent(in)  :: n_chan                             ! number of channels
+    type (rttov_coefs),           intent(in)  :: coef_rttov                         ! Rttov coefficients
+    type (rttov_scatt_coef),      intent(in)  :: coef_scatt                         ! RTTOV_SCATT Coefficients
+    integer(kind=jpim),           intent(in)  :: nchannels                          ! number of calculated channels
+    type(rttov_chanprof),         intent(out) :: chanprof(nchannels)                ! Channel and profile indices
+    integer(kind=jpim),           intent(out) :: frequencies(nchannels)             ! array, frequency number for each "channel"
+    logical(kind=jplm), optional, intent(in)  :: lchannel_subset(nprofiles, n_chan) ! array of logical flags to indicate a subset of channels
 
-    integer (kind=jpim) :: profileIndex, channelIndex1, channelIndex2, frequencyIndex, polarisationId
-    integer (kind=jpim) :: oldPolarisationId
-    real (kind=jprb)    :: waveNumber, oldWaveNumber, freq1, freq2
-    logical (kind=jplm) :: luse(nprofiles, n_chan)
-    logical (kind=jplm) :: polarisedScattering
+    ! Locals:
+    integer(kind=jpim) :: profileIndex, channelIndex1, channelIndex2, frequencyIndex, polarisationId
+    integer(kind=jpim) :: oldPolarisationId
+    real(kind=jprb)    :: waveNumber, oldWaveNumber, freq1, freq2
+    logical(kind=jplm) :: luse(nprofiles, n_chan)
+    logical(kind=jplm) :: polarisedScattering
 
     errorstatus = errorstatus_success
 
