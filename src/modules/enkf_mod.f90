@@ -220,7 +220,7 @@ contains
 
     ! default hLocalizePressure values assume four radii, or just one
     if (hLocalizePressure(1) < 0.0d0) then
-      write(*,*) 'midas-letkf: hLocalizePressure not set in namelist. Setting default values.'
+      write(*,*) 'enkf_readNML: hLocalizePressure not set in namelist. Setting default values.'
       if (hLinearLoc) then
         hLocalizePressure(1:4)   = (/6.0d0, 144.0d0, 237.0d0, 700.0d0/) ! midpoints
       else
@@ -231,7 +231,7 @@ contains
     ! if only 1 value given for hLocalize, use it for the entire column
     if (hLocalize(1) > 0.0d0 .and. hLocalize(2) < 0.0d0) then
       hLocalize(:) = hLocalize(1)
-      if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize is modified after reading namelist. ' // &
+      if ( mmpi_myid == 0 ) write(*,*) 'enkf_readNML: hLocalize is modified after reading namelist. ' // &
            'hLocalize(:)=', hLocalize(1)
       ! if no value give for hLocalize, abort
     else if ( hLocalize(1) < 0.0d0 ) then
@@ -244,12 +244,12 @@ contains
       ! Therefore, hLocalizePressurec has one less value than hLocalize
       if ( (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0)     .and.       hLinearLoc) .or. &
            (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0) + 1 .and. .not. hLinearLoc) ) then
-        write(*,*) 'midas-letkf: hLocalize and hLocalizePressure have inconsistent lengths.'
-        write(*,*) 'midas-letkf: hLocalize has',count(hLocalize > 0.0d0),'positive values'
-        write(*,*) 'midas-letkf: hLocalizePressure has',count(hLocalizePressure > 0.0d0),'positive values'
-        write(*,*) 'midas-letkf: hLocalize = ',hLocalize(:)
-        write(*,*) 'midas-letkf: hLocalizePressure = ',hLocalizePressure(:)
-        call utl_abort('midas-letkf: hLocalize and hLocalizePressure inconsistency')
+        write(*,*) 'enkf_readNML: hLocalize and hLocalizePressure have inconsistent lengths.'
+        write(*,*) 'enkf_readNML: hLocalize has',count(hLocalize > 0.0d0),'positive values'
+        write(*,*) 'enkf_readNML: hLocalizePressure has',count(hLocalizePressure > 0.0d0),'positive values'
+        write(*,*) 'enkf_readNML: hLocalize = ',hLocalize(:)
+        write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
+        call utl_abort('enkf_readNML: hLocalize and hLocalizePressure inconsistency')
       endif
     end if
 
@@ -257,8 +257,8 @@ contains
       ! check if hLocalizePressure positive values decrease
       if ((hLocalizePressure(locIndex) >= hLocalizePressure(locIndex+1)) .and. &
            hLocalizePressure(locIndex+1) > 0.0d0) then
-        write(*,*) 'midas-letkf: hLocalizePressure = ',hLocalizePressure(:)
-        call utl_abort('midas-letkf: hLocalizePressure does not decrease')
+        write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
+        call utl_abort('enkf_readNML: hLocalizePressure does not decrease')
       end if
     enddo
 
@@ -274,8 +274,8 @@ contains
     enddo
 
     if ( mmpi_myid == 0 ) then
-      write(*,*) 'midas-letkf: hLocalize (meters):',hlocalize
-      write(*,*) 'midas-letkf: hLocalizePressure (log(Pa)):',hlocalizePressure
+      write(*,*) 'enkf_readNML: hLocalize (meters):',hlocalize
+      write(*,*) 'enkf_readNML: hLocalizePressure (log(Pa)):',hlocalizePressure
     endif
 
     if (minDistanceToLand > 0.0D0) then
