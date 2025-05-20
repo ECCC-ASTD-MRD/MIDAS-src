@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added thinning for chemical constituent observations with new namelist thin_CH (#945 and !990)
  * Added `allReduceForward` to `&NAMCFN` (#1079 and !985)
  * Added more efficient method for interpolating to observation locations/times (#568 and !979)
    * Small impact on results when interpolating to obs locations/times with new method activated
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Several fixes for GEM-H, including changing treatment of MELS (#1074 and !984)
  * Fix bug related to surface variables in bMatrixEnsemble_mod with GEM-H (#1060 and !965)
  * Fix missing SSM for interactive debugging (#1059 and !964)
 
