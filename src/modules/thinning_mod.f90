@@ -712,10 +712,10 @@ contains
                              stnId_opt = stnIdList(stnIdIndex))
         call utl_tmg_stop(114)
       else
-         call utl_abort('thn_thinCH: Thinning method not recognized ' // &
-                        'or identified for ' //  stnIdList(stnIdIndex))
+        call utl_abort('thn_thinCH: Thinning method not recognized ' // &
+                       'or identified for ' //  stnIdList(stnIdIndex))
       end if
-   end do STNIDLOOP
+    end do STNIDLOOP
 
   end subroutine thn_thinCH
 
@@ -3763,7 +3763,7 @@ contains
     integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
     integer :: ierr, numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsInMpi, countObsOutMpi
-    integer :: oountRejectedInObs, countRejectedInObsMpi
+    integer :: countRejectedInObs, countRejectedInObsMpi
     integer :: obsDate, obsTime, obsFlag, nsize
     integer :: flagCount, badFlagCount
     integer :: badTimeCount, badTimeCountMpi
@@ -3791,7 +3791,7 @@ contains
 
     ! Identify set of observations to be treated in thinning
     countObs = 0
-    oountRejectedInObs = 0
+    countRejectedInObs = 0
     allocate(quality(numHeaderMaxMpi))
     allocate(qualityMpi(numHeaderMpi))
     quality(:) = nullValue
@@ -3825,7 +3825,7 @@ contains
           countObs = countObs + 1
           quality(headerIndex) = 1
         else
-          oountRejectedInObs = oountRejectedInObs + 1
+          countRejectedInObs = countRejectedInObs + 1
           call obs_set_current_body_list(obsdat, headerIndex)
           BODY01b: do
             bodyIndex = obs_getBodyIndex(obsdat)
@@ -3836,14 +3836,14 @@ contains
         end if
       else
         ! Flag and exclude data beyond solar zenith angle threshold
-        oountRejectedInObs  = oountRejectedInObs + 1
+        countRejectedInObs  = countRejectedInObs + 1
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY02: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY02
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
-         end do BODY02
+        end do BODY02
       end if
     end do HEADER0
 
@@ -3858,13 +3858,12 @@ contains
       return
     end if
 
-    call rpn_comm_allReduce(oountRejectedInObs, countRejectedInObsMpi, 1, 'mpi_integer', &
+    call rpn_comm_allReduce(countRejectedInObs, countRejectedInObsMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
-
     write(*,*) 'thn_CHfamByDistance: number of valid initial obs  = ', &
                countObs, countObsInMpi
     write(*,*) 'thn_CHfamByDistance: number of rejected initial obs  = ', &
-               oountRejectedInObs, countRejectedInObsMpi
+               countRejectedInObs, countRejectedInObsMpi
 
     thinDistance = real(deldist)
 
@@ -3942,14 +3941,14 @@ contains
 
     ! Gather needed information from all MPI tasks
     nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
+                            qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLatBurpFile,    nsize, 'mpi_integer',  &
                             obsLatBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonBurpFile,    nsize, 'mpi_integer',  &
                             obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
-                            qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
 
     do obsIndex1 = 1, numHeaderMpi
       headerIndexSorted(obsIndex1)  = obsIndex1
@@ -5417,8 +5416,8 @@ contains
     ! Arguments:
     type(struct_obs),           intent(inout) :: obsdat
     character(len=*),           intent(in)    :: familyType      ! Obs family
-    character(len=*), optional, intent(in)    :: stnId_opt       ! Station ID (optional)
     integer,                    intent(in)    :: keepNthVertical ! keep every nth vertical datum
+    character(len=*), optional, intent(in)    :: stnId_opt       ! Station ID (optional)
 
     ! Locals:
     integer              :: headerIndex, bodyIndex

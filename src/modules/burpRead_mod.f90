@@ -6318,7 +6318,8 @@ contains
           end if
         end if
 
-        if (.not.isInfoBlock(btyp,familyType_opt=trim(familyType)) .and. checkBlock) then
+        if (((numObsProfiles2 == 1 .and. .not.isInfoBlock(btyp)) .or. &
+             numObsProfiles2 > 1) .and. checkBlock) then
 
           if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
           if (cleanLevels .or. cleanLevelsCH) then
@@ -6741,38 +6742,20 @@ contains
   end function isObsBlock
 
 
-  function isInfoBlock(btyp,familyType_opt,requiredFamilyType_opt) result(isInfo)
+  function isInfoBlock(btyp) result(isInfo)
     !
-    !:Purpose:  To determine if this is an info block of the optionally
-    !           specified obs family.
+    !:Purpose:  To determine if this is an info block
     !
 
     implicit none
 
     ! Arguments:
-    character(len=*), optional, intent(in) :: familyType_opt         ! Obs family
-    character(len=*), optional, intent(in) :: requiredFamilyType_opt ! Required obs family
-    integer,                    intent(in) :: btyp                   ! BURP block btyp
+    integer, intent(in) :: btyp ! BURP block btyp
     ! Result:
     logical :: isInfo
 
     ! Locals:
-    integer          :: btyp10, btyp10inf
-    character(len=2) :: requiredFamilyType ! Required obs family
-
-    if (present(familyType_opt)) then
-      requiredFamilyType = 'CH'
-      if (present(requiredFamilyType_opt)) then
-        requiredFamilyType = trim(requiredFamilyType_opt)
-      else       
-        requiredFamilyType = 'CH'
-      end if
-
-      if (trim(familyType_opt) /= trim(requiredFamilyType)) then
-        isInfo = .false.
-        return
-      end if
-    end if
+    integer :: btyp10, btyp10inf
 
     btyp10 = ishft(btyp,-5)
     btyp10inf = 96
