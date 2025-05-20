@@ -901,6 +901,7 @@ contains
     character(len=1)        :: grtyp
     character(len=4)        :: nomvxx
     character(len=2)        :: typxx
+    character(len=10)       :: blk_s
     integer                 :: boxPointIndex
     integer                 :: boxPointNum
     integer                 :: dataIndex
@@ -920,7 +921,7 @@ contains
     integer                 :: iUnGeo
     integer                 :: latIndex
     integer                 :: lonIndex
-    integer                 :: ni, nj, nk
+    integer                 :: ni, nj, nk, ip1_sfc
     integer                 :: nLat
     integer                 :: nLon
     integer                 :: nObsLat
@@ -941,7 +942,6 @@ contains
     integer, external       :: fstlir
     integer, external       :: fstouv
     integer, external       :: fstprm
-    integer, external       :: ip1_all
 
     ! STEP 1: CHECK if obsLatitude AND obsLongitude ARE SAME DIMENSION
     nObsLat = size(obsLatitude)
@@ -953,15 +953,21 @@ contains
     end if
 
     ! STEP 2: READ GZ from the FST FILE
-    if(ifFirstCall) then
+    if (ifFirstCall) then
       iUnGeo = 0
       ier = fnom(iUnGeo,'trlm_01','STD+RND+R/O',0)
       ier = fstouv(iUnGeo,'RND')
 
-      ! Using hybrid coordinates
-      irec = fstinf(iUnGeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
+      ! Using first pressure-based coordinates (i.e., GEM-P)
+      call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
+      irec = fstinf(iUnGeo,ni,nj,nk,-1,' ',ip1_sfc,-1,-1,' ','GZ')
       if (irec < 0) then
-        call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: LA TOPOGRAPHIE EST INEXISTANTE')
+        ! Try with height-based coordinates (i.e., GEM-H, vCode = 21001)
+        call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
+        irec = fstinf(iUnGeo,ni,nj,nk,-1,' ',ip1_sfc,-1,-1,' ','GZ')
+        if (irec < 0) then
+          call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Could not find GZ at the surface')
+        end if
       end if
       topoFact = 10.0  ! dam --> m
 
@@ -970,7 +976,7 @@ contains
       if ( ier /= 0 ) then
         call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Allocation of array GZ failed')
       end if
-      ier = fstlir(GZ,iUnGeo,ni,nj,nk,-1,' ',ip1_all(1.0,5),-1,-1,' ','GZ')
+      ier = fstlir(GZ,iUnGeo,ni,nj,nk,-1,' ',ip1_sfc,-1,-1,' ','GZ')
 
       GZ(:) = GZ(:)*topoFact
 

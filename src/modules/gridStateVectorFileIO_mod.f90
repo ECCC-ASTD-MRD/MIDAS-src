@@ -829,7 +829,7 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     integer :: ierr, ip1, ni_file, nj_file, nk_file, varLevIndex, stepIndex
-    integer :: ikey, levIndex, nulfile, nulfile_mels, nulfileToRead, dateStampToRead 
+    integer :: ikey, levIndex, nulfile, nulfileToRead, dateStampToRead 
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
     integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
     integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
@@ -846,14 +846,13 @@ module gridStateVectorFileIO_mod
     real(8), pointer :: field_r8_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:), gd2d_r4_UV_ptr(:,:,:)
     real(8), pointer :: gd2d_r8_UV_ptr(:,:,:)
-    real(8), pointer :: heightSfc_ptr(:,:)
+    real(8), pointer :: heightSfc_ptr(:,:), heightSfcLS_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
     character(len=4)   :: varName, varNameToRead
     character(len=4)   :: varLevel
-    character(len=256) :: fileNameMels
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
-    logical :: foundVarNameInFile, ignoreDate, melsFileExists
+    logical :: foundVarNameInFile, ignoreDate
 
     write(*,*) 'gio_readFileFst: starting'
     call msg_memUsage('gio_readFileFst')
@@ -905,28 +904,11 @@ module gridStateVectorFileIO_mod
       call utl_abort('gio_readFileFst: unit number for input file not valid')
     end if
 
-    !- Open separate file with MELS, if it exists (special treatment if ram disk used)
-    nulfile_mels = 0
-    if (ram_fileIsOnRamDisk(fileName)) then
-      fileNameMels = ram_removeRamDiskFromName(fileName)
-      fileNameMels = trim(fileNameMels)//'_mels'
-    else
-      fileNameMels = trim(fileName)//'_mels'
-    end if
-    inquire(file = trim(fileNameMels), exist = melsFileExists)
-    if (melsFileExists) then
-      ierr = fnom(nulfile_mels, trim(fileNameMels), 'RND+OLD+R/O', 0)
-      write(*,*) 'gio_readFileFst: opening separate file with MELS with unit = ', nulfile_mels
-      if (ierr >= 0) then
-        ierr  =  fstouv(nulfile_mels,'RND+OLD')
-      else
-        call utl_abort('gio_readFileFst: problem opening separate file with MELS')
-      end if
-    end if
-
-    ! Read surface height if requested
+    ! Read surface height and height LS if requested
     if (present(readHeightSfc_opt)) then
       if (readHeightSfc_opt .and. gsv_isAssocHeightSfc(stateVector)) then
+
+        ! HeightSfc
         write(*,*) 'gio_readFileFst: reading the surface height'
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
@@ -968,7 +950,48 @@ module gridStateVectorFileIO_mod
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
                                           1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
+        
         deallocate(gd2d_file_r4)
+        
+        ! HeightSfcLS
+        if (statevector%vco%vCode == 21001 .and. statevector%vco%sleveCoord) then
+          write(*,*) 'gio_readFileFst: reading the surface height LS'      
+          varName = 'MELS'
+          ip1 = -1
+          typvar_var = ''
+          ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                        -1, etiket_in, &
+                        -1, -1, -1, typvar_var, varName)
+
+          if (ikey < 0) then
+            write(*,*) 'gio_readFileFst: etiket_in = ', etiket_in
+            write(*,*) 'gio_readFileFst: typvar_in = ', typvar_in
+            call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
+          end if
+
+          if (ni_file /= stateVector%hco%ni .or. nj_file /= stateVector%hco%nj) then
+            write(*,*) 'ni, nj in file        = ', ni_file, nj_file
+            write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
+            call utl_abort('gio_readFileFst: Dimensions of surface height LS not consistent')
+          end if
+
+          allocate(gd2d_file_r4(ni_file, nj_file))
+          gd2d_file_r4(:,:) = 0.0d0
+          ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file, &
+                        -1, etiket_in, ip1, -1, -1, typvar_var,varName)
+          if (ierr < 0) then
+            write(*,*) 'ip1 = ', ip1
+            write(*,*) 'etiket_in = ', etiket_in
+            write(*,*) 'typvar_var = ', typvar_var
+            call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
+          end if
+          heightSfcLS_ptr => gsv_getHeightSfcLS(statevector)
+          heightSfcLS_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+               1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
+
+          deallocate(gd2d_file_r4)
+        end if
+        
       end if
     end if
 
@@ -1059,11 +1082,6 @@ module gridStateVectorFileIO_mod
         varNameToRead = varName
         typvarToRead = typvar_in
 
-        if (trim(varName) == 'MELS') then
-          dateStampToRead = -1
-          typvarToRead = ' '
-        end if
-
         if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
           select case (trim(varName))
           case ('LVIS')
@@ -1072,19 +1090,6 @@ module gridStateVectorFileIO_mod
             cycle k_loop
           case ('LPR')
             varNameToRead = 'PR'
-          case ('MELS')
-            ! Try reading MELS in separate file with suffix '_mels'
-            if (melsFileExists) then
-              if (vnl_varNamePresentInFile(varName, fileName = trim(fileNameMels))) then
-                nulfileToRead = nulfile_mels
-              else
-                call utl_abort('gio_readFileFst: variable MELS'// &
-                               ' was not found in '//trim(fileNameMels))
-              end if
-            else
-              call utl_abort('gio_readFileFst: variable MELS'// &
-                             ' was not found in '//trim(fileName))
-            end if
           case default
             call utl_abort('gio_readFileFst: variable '//trim(varName)//&
                            ' was not found in '//trim(fileName))
@@ -1140,13 +1145,12 @@ module gridStateVectorFileIO_mod
                       datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
                       etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
                       lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
-        if (trim(nomvar_var) /= 'MELS') then
-          statevector%deet                      = deet_var
-          statevector%ip2List(stepIndex)        = ip2_var
-          statevector%npasList(stepIndex)       = npas_var
-          statevector%dateOriginList(stepIndex) = dateo_var
-          statevector%etiket                    = etiket_var
-        end if
+
+        statevector%deet                      = deet_var
+        statevector%ip2List(stepIndex)        = ip2_var
+        statevector%npasList(stepIndex)       = npas_var
+        statevector%dateOriginList(stepIndex) = dateo_var
+        statevector%etiket                    = etiket_var
 
         ! Check if we found a mask field by mistake - if yes, need to fix the code!
         if (typvar_var == '@@') then
@@ -1176,7 +1180,7 @@ module gridStateVectorFileIO_mod
             end if
           end if
 
-          if (statevector%hco%global .and. trim(varNameToRead) /= 'MELS') then
+          if (statevector%hco%global) then
             call utl_abort('gio_readFileFst: This is not allowed in global mode!')
           end if
 
@@ -1304,10 +1308,6 @@ module gridStateVectorFileIO_mod
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)
-    if (nulfile_mels > 0) then
-      ierr = fstfrm(nulfile_mels)
-      ierr = fclos(nulfile_mels)
-    end if
     if (associated(gd2d_file_r4)) deallocate(gd2d_file_r4)
 
     ! Read in an oceanMask if it is present in the file
@@ -1623,7 +1623,7 @@ module gridStateVectorFileIO_mod
     integer :: varLevIndexBeg, varLevIndexEnd
     real(4), allocatable :: work2d_r4(:,:,:) ! last dimension is along the thread id
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
-    real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
+    real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:), heightSfcLS_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
@@ -1840,9 +1840,11 @@ module gridStateVectorFileIO_mod
       allocate(work2d_r4(1,1,0:numThreadsForWriting-1))
     end if
 
-    ! Write surface height, if requested
+    ! Write surface height and height LS, if requested
     if (present(writeHeightSfc_opt)) then
       if (writeHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector)) then
+
+        ! HeightSfc
         call msg('gio_writeToFile', 'Writing surface height')
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         ! MPI communication
@@ -1895,6 +1897,61 @@ module gridStateVectorFileIO_mod
           end if
         end if ! iDoWriting
 
+        ! HeightSfcLS
+        if (statevector%vco%vCode == 21001 .and. statevector%vco%sleveCoord) then
+          call msg('gio_writeToFile', 'Writing surface height LS')
+          heightSfcLS_ptr => gsv_getHeightSfcLS(statevector)
+          ! MPI communication
+          gd_send_r4(1:statevector%lonPerPE, &
+                     1:statevector%latPerPE) =  &
+                 real(heightSfcLS_ptr(statevector%myLonBeg:statevector%myLonEnd, &
+                                      statevector%myLatBeg:statevector%myLatEnd),4)
+          if ((mmpi_nprocs > 1) .and. statevector%mpi_local) then
+            nsize = statevector%lonPerPEmax * statevector%latPerPEmax
+            call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4', &
+                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
+          else
+            ! just copy when either nprocs is 1 or data is global
+            gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+          end if
+          if (mmpi_myid == 0 .and. statevector%mpi_local) then
+            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mmpi_npey-1)
+              do youridx = 0, (mmpi_npex-1)
+                yourid = youridx + youridy*mmpi_npex
+                work2d_r4(statevector%allLonBeg(youridx + 1):statevector%allLonEnd(youridx + 1),  &
+                          statevector%allLatBeg(youridy + 1):statevector%allLatEnd(youridy + 1),0) = &
+                     gd_recv_r4(1:statevector%allLonPerPE(youridx + 1),  &
+                                1:statevector%allLatPerPE(youridy + 1),yourid + 1)
+              end do
+            end do
+            !$OMP END PARALLEL DO
+          else if (.not. statevector%mpi_local) then
+            work2d_r4(:,:,0) = gd_recv_r4(:,:,1)
+          end if
+
+          ! now do writing
+          if (iDoWriting) then
+            fstRecords(0)%ip1 = 0
+            fstRecords(0)%pack_bits = packBits2D
+            nomvar = 'MELS'
+            fstRecords(0)%nomvar = nomvar
+
+            !- Scale
+            factor_r4 = utl_unitConvMultFactor_r4(nomvar,'toFSTfile')
+            work2d_r4(:,:,0) = factor_r4 * work2d_r4(:,:,0)
+
+            fstRecords(0)%data = c_loc(work2d_r4(:,:,0))
+
+            !- Writing to file
+            success = fstFiles(0) % write(fstRecords(0))
+            if (.not. success) then
+              call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
+                              str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
+            end if
+          end if ! iDoWriting
+        end if
+        
       end if
     end if
 

@@ -1545,7 +1545,6 @@ CONTAINS
     integer, save, pointer :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
 
     write(*,*) 'UVtoPsiChi_gsv: starting'
-    flush(6)
 
     if ( .not. statevector%hco%global ) then
 
@@ -1608,14 +1607,12 @@ CONTAINS
       end do
 
       write(*,*) 'deallocate'
-      flush(6)
       deallocate(gridState)
       deallocate(spectralState)
 
     end if
 
     write(*,*) 'UVtoPsiChi_gsv: finished'
-    flush(6)
 
   end subroutine UVtoPsiChi_gsv
   
@@ -1763,6 +1760,9 @@ CONTAINS
                       datestamp_opt=tim_getDatestamp(), allocHeightSfc_opt=.true.,              &
                       mpi_local_opt=.true., dataKind_opt=8)
 
+    ! Add HeighSfc and, if existing, HeightSfcLs
+    call ens_copyHeightSfcToGsv(ens, gridStateVector_oneMember)
+    
     !
     !- 2.  Loop on members
     !
