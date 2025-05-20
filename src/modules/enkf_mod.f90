@@ -234,9 +234,7 @@ contains
       if ( mmpi_myid == 0 ) write(*,*) 'enkf_readNML: hLocalize is modified after reading namelist. ' // &
            'hLocalize(:)=', hLocalize(1)
       ! if no value give for hLocalize, abort
-    else if ( hLocalize(1) < 0.0d0 ) then
-      call utl_abort('midas-letkf: hLocalize(1) < 0.0d0')
-    else
+    else if ( hLocalize(1) > 0.0d0 ) then
       ! Check hLocalizePressure and hLocalize lengths consistency
       ! For a linearly varying localization radius, the radius is set for the hLocalizePressure values
       ! Therefore, hLocalizePressure has the same length as hLocalize
@@ -3349,6 +3347,10 @@ contains
     integer              :: hLocIndex, numPresValues
 
     numPresValues = count(hLocalizePressure > 0.0d0)
+
+    if ( hLocalize(1) < 0.0d0 ) then
+      call utl_abort('enkf_getLocalizationRadius: hLocalize(1) < 0.0d0')
+    end if
 
     ! radius is constant
     if ( all(hLocalize(:) == hLocalize(1)) ) then
