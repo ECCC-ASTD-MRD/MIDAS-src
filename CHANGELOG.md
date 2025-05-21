@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changes for genCoeff: more robust output of bcr files, new smaller system test (#1054 and !977)
  * Adopt Fortran 2008 interface for MPI routines (#1078 and !986)
  * Replace direct calls to `rpn_comm` routines with local wrappers (#1065 and !976)
  * Generalizations for averaging kernel and observation operator applications for constituents (#791 and !962)

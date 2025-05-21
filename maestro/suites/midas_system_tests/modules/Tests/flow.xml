@@ -578,8 +578,16 @@
   </FAMILY>
 
   <FAMILY  name="genCoeff">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="7days"/>
+    <FAMILY  name="7days">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="1day"/>
+    <FAMILY  name="1day">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="calcStats">
