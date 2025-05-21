@@ -554,8 +554,7 @@ module backgroundCheck_mod
                   if ( varNum == bufr_nebd ) then
                     if (ABS(ZOMF) > 0.1d0) then
                       call obs_bodySet_r(obsData,OBS_OMP,bodyIndex,0.d0)
-                      call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
-                      call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
+                      call flg_setFlag(obsData, bodyIndex, [flg_16rejOmP,flg_09rejBgck])
                       write(*,'(A40,F10.0,3F12.4)') '0 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if
                   end if

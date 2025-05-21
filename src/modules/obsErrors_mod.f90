@@ -26,6 +26,7 @@ module obsErrors_mod
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
   use satWind_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -1286,7 +1287,7 @@ contains
                   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
                   if (trim(obserrorMode) == 'bgck' .or. useTovsUtil) then
                     if  (tovutil(channelNumber, sensorIndex) == 0) &
-                      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 8))
+                      call flg_setFlag(obsSpaceData, bodyIndex, flg_08rejBlackL)
                   end if
                 end if
               end do

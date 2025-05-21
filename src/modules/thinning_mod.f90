@@ -5417,7 +5417,7 @@ contains
     integer :: headerIndex
     integer :: numHeader, numHeaderMaxMpi
     integer :: bodyIndex,  obsTime, obsDate !stepIndex
-    integer :: loscan, hiscan, obsFlag, obsFov
+    integer :: loscan, hiscan, obsFov
     integer :: countObs, countObsMpi, countObsOutMpi
     integer :: countQc
     real(8) :: obsLat1, obsLat2, obsLon1, obsLon2
@@ -5574,10 +5574,9 @@ contains
 
         ! If not a blacklisted channel (note that bit 11 is set in
         ! satqc_amsu*.f for blacklisted channels)
-        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-        if ( .not. btest(obsFlag,11) ) then
+        if ( .not. flg_flagIsOn(obsdat, bodyIndex, flg_11rejSelect) ) then
           numObsAssim = numObsAssim + 1
-          if ( btest(obsFlag,9) ) then
+          if ( flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck) ) then
             rejectRate = rejectRate + 1.0
           end if
         end if
@@ -5744,8 +5743,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY2
 
-          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
 
         end do BODY2
       else
