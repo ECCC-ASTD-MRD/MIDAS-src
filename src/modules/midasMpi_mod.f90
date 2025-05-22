@@ -1170,7 +1170,7 @@ contains
 
     ! Arguments:
     logical, contiguous, intent(in)  :: sending(..)     ! logical data sent to 'procID_opt'
-    logical, contiguous, intent(out) :: receiving(..,:) ! logical array which stores the data received
+    logical, contiguous, intent(out) :: receiving(..)   ! logical array which stores the data received
     integer, optional,   intent(in)  :: length_opt      ! size of the input data
     integer, optional,   intent(in)  :: procID_opt      ! MPI rank to gather to
 
@@ -1199,7 +1199,7 @@ contains
 
     ! Arguments:
     integer, contiguous, intent(in)  :: sending(..)     ! integer data sent to 'procID_opt'
-    integer, contiguous, intent(out) :: receiving(..,:) ! integer array which stores the data received
+    integer, contiguous, intent(out) :: receiving(..)   ! integer array which stores the data received
     integer, optional,   intent(in)  :: length_opt      ! size of the input data
     integer, optional,   intent(in)  :: procID_opt      ! MPI rank to gather to
 
@@ -1228,7 +1228,7 @@ contains
 
     ! Arguments:
     integer(8), contiguous, intent(in)  :: sending(..)     ! integer(8) data sent to 'procID_opt'
-    integer(8), contiguous, intent(out) :: receiving(..,:) ! integer(8) array which stores the data received
+    integer(8), contiguous, intent(out) :: receiving(..)   ! integer(8) array which stores the data received
     integer, optional,      intent(in)  :: length_opt      ! size of the input data
     integer, optional,      intent(in)  :: procID_opt      ! MPI rank to gather to
 
@@ -1257,7 +1257,7 @@ contains
 
     ! Arguments:
     real(4), contiguous, intent(in)  :: sending(..)     ! real(4) data sent to 'procID_opt'
-    real(4), contiguous, intent(out) :: receiving(..,:) ! real(4) array which stores the data received
+    real(4), contiguous, intent(out) :: receiving(..)   ! real(4) array which stores the data received
     integer, optional,   intent(in)  :: length_opt      ! size of the input data
     integer, optional,   intent(in)  :: procID_opt      ! MPI rank to gather to
 
@@ -1286,7 +1286,7 @@ contains
 
     ! Arguments:
     real(8), contiguous, intent(in)  :: sending(..)     ! real(8) data sent to 'procID_opt'
-    real(8), contiguous, intent(out) :: receiving(..,:) ! real(8) array which stores the data received
+    real(8), contiguous, intent(out) :: receiving(..)   ! real(8) array which stores the data received
     integer, optional,   intent(in)  :: length_opt      ! size of the input data
     integer, optional,   intent(in)  :: procID_opt      ! MPI rank to gather to
 
@@ -1315,7 +1315,7 @@ contains
 
     ! Arguments:
     logical,        contiguous, intent(in)  :: sending(..)      ! logical data sent to all MPI ranks
-    logical,        contiguous, intent(out) :: receiving(..,:)  ! logical array which stores the data received
+    logical,        contiguous, intent(out) :: receiving(..)    ! logical array which stores the data received
     integer,        optional,   intent(in)  :: length_opt       ! size of the input data
     type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
@@ -1344,7 +1344,7 @@ contains
 
     ! Arguments:
     integer,        contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
-    integer,        contiguous, intent(out) :: receiving(..,:)  ! integer array which stores the data received
+    integer,        contiguous, intent(out) :: receiving(..)    ! integer array which stores the data received
     integer,        optional,   intent(in)  :: length_opt       ! size of the input data
     type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
@@ -1373,7 +1373,7 @@ contains
 
     ! Arguments:
     real(4),        contiguous, intent(in)  :: sending(..)     ! real(4) data sent to all MPI ranks
-    real(4),        contiguous, intent(out) :: receiving(..,:) ! real(4) array which stores the data received
+    real(4),        contiguous, intent(out) :: receiving(..)   ! real(4) array which stores the data received
     integer,        optional,   intent(in)  :: length_opt      ! size of the input data
     type(mpi_comm), optional,   intent(in) :: communicator_opt ! the MPI communicator
 
@@ -1402,7 +1402,7 @@ contains
 
     ! Arguments:
     real(8),        contiguous, intent(in)  :: sending(..)      ! real(8) data sent to all MPI ranks
-    real(8),        contiguous, intent(out) :: receiving(..,:)  ! real(8) array which stores the data received
+    real(8),        contiguous, intent(out) :: receiving(..)    ! real(8) array which stores the data received
     integer,        optional,   intent(in)  :: length_opt       ! size of the input data
     type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
 
