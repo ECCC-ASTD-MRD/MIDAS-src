@@ -778,7 +778,7 @@ contains
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
-          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
+          if (vco.ne.obs_vcoHeight .and. vco.ne.obs_vcoPressure .and. vco.ne.obs_vcoChemColumn .and. vco.ne.obs_vcoChemSfc) then
              ! Vertical coordinate not handled
              write(*,*) 'oss_get_comboIdlist: Currently unaccounted VCO = ',vco
              cycle HEADER
@@ -798,7 +798,7 @@ contains
           end do
 
           ! Adds to running list of unique pairs if unique
-          call oss_comboIdlist(stnid_add_opt=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add_opt=varno, unilev_add_opt=(nlev_obs.eq.1.and.vco.ge.4))
+          call oss_comboIdlist(stnid_add_opt=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add_opt=varno, unilev_add_opt=(nlev_obs.eq.1.and.vco.ge.obs_vcoChemColumn))
 
        end do HEADER
 

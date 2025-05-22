@@ -2,7 +2,7 @@
 module burpRead_mod
   ! MODULE burpRead_mod (prefix='brpr' category='3. Observation input/output')
   !
-  !:Purpose:  To read and update BURP observation files. Data is stored in 
+  !:Purpose:  To read and update BURP observation files. Data is stored in
   !           obsSpaceData object.
   !
 
@@ -41,14 +41,14 @@ module burpRead_mod
   CHARACTER(len=3) :: BITEMLIST(maxItems) ! list of blocks to include in updated file (e.g. 'OMP','OMA')
   CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'      ! can be 'BGCKALT', 'POSTALT' or 'DERIALT'
   LOGICAL          :: ENFORCE_CLASSIC_SONDES       ! choose to ignore high-res raobs lat/lon/time information
-  LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs 
+  LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs
   LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES ! choose to read flag of higher precision elements for raobs
   LOGICAL          :: READ_QI_GA_MT_SW     ! read additional QC-related elements for AMV obs
   logical          :: addBtClearToBurp     ! choose to write clear-sky radiance to file in all-sky mode
   integer          :: clwFgElementId       ! bufr element id of cloud liquid water from background in all-sky mode
   integer          :: siFgElementId        ! bufr element id of scattering index in all-sky mode
   integer          :: btClearElementId     ! bufr element id of clear-sky radiance in all-sky mode
-  integer          :: scanPosElementIdCris ! bufr element id for CrIS scan position (default to 5045) 
+  integer          :: scanPosElementIdCris ! bufr element id for CrIS scan position (default to 5045)
 contains
 
   character(len=7) function brpr_getTypeResume()
@@ -74,7 +74,7 @@ contains
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat     ! obsSpaceData object
     character(len=*),  intent(in)    :: FAMILYTYPE ! type of family('UA','SF','AI','SW','TO', ...)
-    character(len=*),  intent(in)    :: BRP_FILE   ! name of burp file 
+    character(len=*),  intent(in)    :: BRP_FILE   ! name of burp file
     integer,           intent(in)    :: FILENUMB
 
     ! Locals:
@@ -99,7 +99,7 @@ contains
 
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
-    integer                :: BTYP,BFAM,BTYP10,BTYP10FLG_uni,BTYP10obs_uni 
+    integer                :: BTYP,BFAM,BTYP10,BTYP10FLG_uni,BTYP10obs_uni
     integer                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
 
     integer                :: NB_RPTS,REF_RPT,REF_BLK,COUNT
@@ -138,11 +138,11 @@ contains
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
     integer                :: LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements),is_in_list
-    
+
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
     logical                :: FSOFound, convertOnRead
-    logical                :: btClearElementFound 
+    logical                :: btClearElementFound
 
     ! ensure kdtrees object is null
     nullify(tree)
@@ -246,7 +246,7 @@ contains
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
-        
+
         CALL BRPACMA_NML('namburp_filter_tovs')
 
         if ( addBtClearToBurp ) then
@@ -267,7 +267,7 @@ contains
         WINDS=.FALSE.
       CASE('CH')
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
-                           ! 'uni' level data are assumed not to have any accompanynig vertical 
+                           ! 'uni' level data are assumed not to have any accompanynig vertical
                            ! coordinate element in addition to having only one level.
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
 
@@ -307,10 +307,10 @@ contains
 
     SELECT CASE( trim(TYPE_RESUME))
       CASE("BGCKALT", "POSTALT")
-        BIT_STATUS = 12 
+        BIT_STATUS = 12
       CASE("DERIALT")
-        BIT_STATUS = 11 
-    END SELECT 
+        BIT_STATUS = 11
+    END SELECT
 
     if (trim(BURP_TYP) == 'uni') then
       btyp_offset=256
@@ -375,7 +375,7 @@ contains
     call BURP_Init(BLOCK_FGE_SFC)
     call BURP_Init(BLOCK_FSO_SFC)
     call BURP_Init(BLOCK_FLG_SFC)
-    
+
     call BURP_Init(BLOCK_FLG)
     call BURP_Init(Block_FLG_CP)
 
@@ -433,7 +433,7 @@ contains
             bit_alt=1
           CASE(">>DERIALT")
             bit_alt=2
-        END SELECT 
+        END SELECT
       END IF
 
       if (ref_rpt < 0) Exit
@@ -460,7 +460,7 @@ contains
             write(*,*) 'brpr_updateBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
             stn_resume = '>>BGCKALT'
             bit_alt=1
-        END SELECT 
+        END SELECT
       else
         write(*,*) 'brpr_updateBurp: WARNING: No file read has RESUME record, assume BGCKALT'
         stn_resume = '>>BGCKALT'
@@ -514,7 +514,7 @@ contains
                 & REPORT    = Rpt_in, &
                 & REF       = address(kk), &
                 & IOSTAT    = error)
-        call handle_error(error, "brpr_updateBurp: BURP_Get_Report #1") 
+        call handle_error(error, "brpr_updateBurp: BURP_Get_Report #1")
         call burp_get_property(Rpt_in, &
                STNID = stnid ,TEMPS =hhmm_h,FLGS = status ,IDTYP =idtyp,LATI = lati &
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
@@ -626,7 +626,7 @@ contains
         else
           post_bit=0
         end if
-        
+
         BLOCKS1: do bl=1,NBLOC_LIST
 
           if( BLOCK_LIST(bl) < 0 ) cycle
@@ -647,7 +647,7 @@ contains
           if (bl == 6) then
             BLOCK_GEN = BLOCK_IN
           end if
-          
+
           call BURP_Get_Property(Block_in, &
                            & NELE   = nbele, &
                            & NVAL   = nvale, &
@@ -696,7 +696,7 @@ contains
             end if
 
             il_index=0
-             
+
             !call BURP_Delete_BLOCK(Rpt_in,BLOCK=Block_in)
 
             OMA_SFC_EXIST=.true.
@@ -705,16 +705,16 @@ contains
 
                call BURP_New(BLOCK_OMA_SFC,NELE =NBELE,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA #1") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA #1")
                call BURP_New(BLOCK_OMP_SFC,NELE =NBELE,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP_SFC #1") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP_SFC #1")
                call BURP_New(BLOCK_OER_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER_SFC #1") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER_SFC #1")
                call BURP_New(BLOCK_FGE_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
                     ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE_SFC #1") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE_SFC #1")
                call BURP_New(BLOCK_FSO_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2 &
                              ,IOSTAT = error)
                call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FSO_SFC #1")
@@ -725,40 +725,40 @@ contains
 
                call BURP_New(BLOCK_OMA_SFC,NELE =NBELE+2,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA_SFC #2") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA_SFC #2")
                call BURP_New(BLOCK_OMP_SFC,NELE =NBELE+2,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP_SFC #2") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP_SFC #2")
                call BURP_New(BLOCK_OER_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER_SFC #2") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER_SFC #2")
                call BURP_New(BLOCK_FGE_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
                              ,IOSTAT = error)
-               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE_SFC #2") 
+               call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE_SFC #2")
                call BURP_New(BLOCK_FSO_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2 &
                              ,IOSTAT = error)
                call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FSO_SFC #2")
                ILEMU = 11215
                ILEMV = 11216
                call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA_SFC ILEMU") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA_SFC ILEMU")
                call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA_SFC ILEMV") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA_SFC ILEMV")
 
                call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP_SFC ILEMU") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP_SFC ILEMU")
                call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP_SFC ILEMV") 
-   
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP_SFC ILEMV")
+
                call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER_SFC ILEMU") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER_SFC ILEMU")
                call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER_SFC ILEMV") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER_SFC ILEMV")
 
                call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE_SFC ILEMU") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE_SFC ILEMU")
                call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
-               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE_SFC ILEMV") 
+               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE_SFC ILEMV")
 
                call BURP_Set_Element( BLOCK_FSO_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
                call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FSO_SFC ILEMU")
@@ -766,14 +766,14 @@ contains
                call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FSO_SFC ILEMV")
 
                do k =1,nte
-                 call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                 call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
                  call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
                  call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
                end do
@@ -781,25 +781,25 @@ contains
 
                IF (IND_eleu < 0 .and. IND_elef > 0) THEN
                  call BURP_Resize_Block(BLOCK_OBS_SFC_CP,ADD_NELE = 2 ,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Resize_Block #1") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Resize_Block #1")
                  call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_SFC_CP ILEMU") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_SFC_CP ILEMU")
                  call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_SFC_CP ILEMV") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_SFC_CP ILEMV")
                  do k =1,nte
-                   call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
-                   call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                   call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                   call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
                  end do
 
                  call BURP_Resize_Block(BLOCK_MAR_SFC_CP,ADD_NELE = 2 ,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp:  BURP_Resize_Block #2") 
+                 call handle_error(error, "brpr_updateBurp:  BURP_Resize_Block #2")
                  call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU+200000,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_SFC_CP ILEMU") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_SFC_CP ILEMU")
                  call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV+200000,IOSTAT=error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_SFC_CP ILEMV") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_SFC_CP ILEMV")
                  do k =1,nte
-                   call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
-                   call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
+                   call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,tblval = 0 )
+                   call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,tblval = 0 )
                  end do
                  il_index=2
                  nbele=nbele +2
@@ -813,12 +813,12 @@ contains
                KOBSN=0
 
 !-------------------------------------------
-               elems_sfc: do IL = 1, NBELE  
+               elems_sfc: do IL = 1, NBELE
 !-------------------------------------------
 
                  iele=-1
                  iele=BURP_Get_Element(BLOCK_OBS_SFC_CP,INDEX =il,IOSTAT= error)
-                 call handle_error(error, "brpr_updateBurp: BURP_GET_ELEMENT #1") 
+                 call handle_error(error, "brpr_updateBurp: BURP_GET_ELEMENT #1")
 
                  IND_ELE_MAR= BURP_Find_Element(Block_MAR_SFC_CP, ELEMENT=iele+200000)
                  if (IND_ele_mar <= 0 ) cycle
@@ -852,8 +852,8 @@ contains
                  call BURP_Set_Rval(Block_OMA_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
                  call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
                  call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
-                 call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4) 
-                 call BURP_Set_Rval(Block_FSO_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4) 
+                 call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                 call BURP_Set_Rval(Block_FSO_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
 
                  IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
                  OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
@@ -875,7 +875,7 @@ contains
                  OBSDATA: do LK=IRLN,IRLN+INLV-1
 
                    VNM=obs_bodyElem_i(obsdat,OBS_VNM ,LK)
-                   if( VNM == iele ) then 
+                   if( VNM == iele ) then
                      OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
                      OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
                      OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
@@ -894,8 +894,8 @@ contains
                      FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
                      KOBSN= KOBSN + 1
                      SUM=SUM +1
-                     call BURP_Set_Rval( Block_OER_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OER   ) 
-                     call BURP_Set_Rval( Block_FGE_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FGE  ) 
+                     call BURP_Set_Rval( Block_OER_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OER   )
+                     call BURP_Set_Rval( Block_FGE_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FGE  )
                      call BURP_Set_Rval( Block_FSO_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FSO  )
 
                      IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele)
@@ -909,20 +909,20 @@ contains
                      IND_ELE_stat  = BURP_Find_Element(BLOCK_FSO_SFC, ELEMENT=iele)
                      if (IND_ELE_stat==-1)call handle_error(IND_ELE_stat, "brpr_updateBurp: element not found in BLOCK_FSO_SFC #1")
                      call BURP_Set_Rval( Block_FSO_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FSO)
-   
-                     call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG) 
-   
+
+                     call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG)
+
                      !OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
                      IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele)
                      if (IND_ELE==-1) call handle_error(IND_ele, "brpr_updateBurp: element not found in BLOCK_OBS_SFC #1")
-                     call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = OBS ) 
+                     call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = OBS )
 
                      if (iele == BUFR_NEZD) then
                        IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=ILEMZBCOR)
                        if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) &
-                            call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = BCOR ) 
+                            call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = BCOR )
                      end if
-                        
+
                      exit
                    end if
 
@@ -936,7 +936,7 @@ contains
                  STATUS=IBSET(STATUS,BIT_STATUS)
                  ind055200 = BURP_Find_Element(Block_FLG_CP, ELEMENT=055200)
                  if (ind055200==-1)call handle_error(ind055200, "brpr_updateBurp: element 055200 not found in Block_FLG_CP")
-                 call BURP_Set_tblval( Block_FLG_CP, NELE_IND =ind055200,NVAL_IND =1,NT_IND = k ,TBLVAL = STATUS ) 
+                 call BURP_Set_tblval( Block_FLG_CP, NELE_IND =ind055200,NVAL_IND =1,NT_IND = k ,TBLVAL = STATUS )
                  OBSN=OBSN +1
                  OBS_START=OBS_START +1
                end if
@@ -950,14 +950,14 @@ contains
                  call BURP_Reduce_Block(BLOCK_OMA_SFC, NEW_NELE =il_index )
                  call BURP_Write_Block( CP_RPT, BLOCK_OMA_SFC,&
                       ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMA_SFC") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMA_SFC")
                  cycle
                end if
                if ( BITEMLIST(item) == 'OMP') then
                  call BURP_Reduce_Block(BLOCK_OMP_SFC, NEW_NELE =il_index )
                  call BURP_Write_Block( CP_RPT, BLOCK_OMP_SFC,&
                       ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                 call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMP_SFC") 
+                 call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMP_SFC")
                  cycle
                end if
               if ( BITEMLIST(item) == 'OER') then
@@ -965,12 +965,12 @@ contains
                   call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
                   call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
                        ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_SFC") 
+                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_SFC")
                 else
                   call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
                   call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_CP")                 
+                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_CP")
                 end if
                 cycle
               end if
@@ -979,12 +979,12 @@ contains
                   call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
                   call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
                        ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_SFC") 
+                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_SFC")
                 else
                   call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
                   call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_CP")                 
+                  call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_CP")
                 end if
                 cycle
               end if
@@ -1004,10 +1004,10 @@ contains
 
             call BURP_Write_Block( CP_RPT, BLOCK_OBS_SFC_CP,&
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OBS_SFC_CP") 
+            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OBS_SFC_CP")
             call BURP_Write_Block( CP_RPT, BLOCK_MAR_SFC_CP,&
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_MAR_SFC_CP") 
+            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_MAR_SFC_CP")
             IF ( KOBSN > 0 .and. .not. REGRUP ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
               STATUS=IBSET(STATUS,BIT_STATUS)
@@ -1040,16 +1040,16 @@ contains
             il_index=1
             call BURP_New(BLOCK_OMA, NELE =1, NVAL =nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                   ,IOSTAT = error)
-            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA") 
+            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMA")
             call BURP_New(BLOCK_OMP, NELE =1, NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
                   ,IOSTAT = error)
-            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP") 
+            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OMP")
             call BURP_New(BLOCK_OER, NELE =1, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
                   ,IOSTAT = error)
-            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER") 
+            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_OER")
             call BURP_New(BLOCK_FGE, NELE =1, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
                   ,IOSTAT = error)
-            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE") 
+            call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FGE")
             call BURP_New(BLOCK_FSO, NELE =1, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2  &
                   ,IOSTAT = error)
             call handle_error(error, "brpr_updateBurp: BURP_New BLOCK_FSO")
@@ -1058,7 +1058,7 @@ contains
             k=0
             IND_VCOORD=-1
             do while (vcord_type(k+1) /= -1 .and. IND_VCOORD == -1)
-               k=k+1 
+               k=k+1
                IND_VCOORD  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type(k))
             end do
             IF ( IND_VCOORD > 0 ) then
@@ -1067,13 +1067,13 @@ contains
                  IF (vcord_type(k) == 7006) ELEVFACT=1.0
               END IF
               call BURP_Set_Element(BLOCK_OMA,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA")
               call BURP_Set_Element(BLOCK_OMP,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP")
               call BURP_Set_Element(BLOCK_OER,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER")
               call BURP_Set_Element(BLOCK_FGE,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE")
               call BURP_Set_Element(BLOCK_FSO,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FSO #1")
               VCOORD_POS=1
@@ -1089,33 +1089,33 @@ contains
             OMA_ALT_EXIST=.false.
             if(WINDS .and. IND_eleu < 0 .and. IND_elef > 0) then
               call BURP_Resize_Block(BLOCK_OMA,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMA #1") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMA #1")
               call BURP_Set_Element( BLOCK_OMA,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA ILEMU")
               call BURP_Set_Element( BLOCK_OMA,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA ILEMV")
               OMA_ALT_EXIST=.true.
 
               call BURP_Resize_Block(BLOCK_OMP,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMP #1") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMP #1")
               call BURP_Set_Element( BLOCK_OMP,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP ILEMU")
               call BURP_Set_Element( BLOCK_OMP,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP ILEMV")
 
               call BURP_Resize_Block(BLOCK_OER,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OER #1") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OER #1")
               call BURP_Set_Element( BLOCK_OER,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER ILEMU")
               call BURP_Set_Element( BLOCK_OER,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER ILEMV")
 
               call BURP_Resize_Block(BLOCK_FGE,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_FGE #1") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_FGE #1")
               call BURP_Set_Element( BLOCK_FGE,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE ILEMU")
               call BURP_Set_Element( BLOCK_FGE,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE ILEMV")
 
               call BURP_Resize_Block(BLOCK_FSO,ADD_NELE = 2 ,IOSTAT=error)
               call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_FSO #1")
@@ -1125,36 +1125,36 @@ contains
               call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FSO ILEMV")
 
               call BURP_Resize_Block(BLOCK_OBS_MUL_CP,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OBS_MUL_CP") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OBS_MUL_CP")
               call BURP_Set_Element( BLOCK_OBS_MUL_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_MUL_CP ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_MUL_CP ILEMU")
               call BURP_Set_Element( BLOCK_OBS_MUL_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_MUL_CP ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OBS_MUL_CP ILEMV")
 
               call BURP_Resize_Block(BLOCK_MAR_MUL_CP,ADD_NELE = 2 ,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_MAR_MUL_CP") 
+              call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_MAR_MUL_CP")
               call BURP_Set_Element( BLOCK_MAR_MUL_CP,NELE_IND = nbele+1,ElEMENT=ILEMU+200000,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_MUL_CP ILEMU") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_MUL_CP ILEMU")
               call BURP_Set_Element( BLOCK_MAR_MUL_CP,NELE_IND = nbele+2,ElEMENT=ILEMV+200000,IOSTAT=error)
-              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_MUL_CP ILEMV") 
+              call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_MAR_MUL_CP ILEMV")
 
               do k=1,nte
                 do jj=1,nvale
-                  call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
-                  call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
                   call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
                   call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
 
-                  call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4) 
-                  call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4) 
-                  call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  ) 
-                  call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  ) 
+                  call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                  call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                  call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  )
+                  call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  )
                 end do
               end do
               nbele=nbele+2
@@ -1183,7 +1183,7 @@ contains
 
               levels: do j=1,nvale
 
-                if (OBSN > obs_numHeader(obsdat)) then 
+                if (OBSN > obs_numHeader(obsdat)) then
                   write(*,*) ' debordement  altitude OBSN=',OBSN
                 else
                   IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
@@ -1202,18 +1202,18 @@ contains
                     end do
                     if (associated(tree)) call kdtree2_destroy(tree)
                       tree => kdtree2_create(PPPandVNM, sort=.true., rearrange=.true.)
-                  end if 
+                  end if
                 end if
 
                 !pikpik
                 if(HIRES) KOBSN=0
                 !pikpik
 
-                ! Loop over elements to add all to the new blocks and the initialize values 
+                ! Loop over elements to add all to the new blocks and the initialize values
                 elems0: do IL = 1, NBELE
 
                   iele=BURP_Get_Element(BLOCK_OBS_MUL_CP,INDEX =il,IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP") 
+                  call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP")
 
                   IND_ELE_MAR= BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000)
                   if (IND_ele_mar <  0 ) cycle
@@ -1229,22 +1229,22 @@ contains
 
                     il_index=il_index +1
                     call BURP_Resize_Block(BLOCK_OMA,ADD_NELE = 1 ,IOSTAT=error)
-                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMA #2") 
+                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMA #2")
                     call BURP_Set_Element (BLOCK_OMA,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
                     call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMA")
 
                     call BURP_Resize_Block(BLOCK_OMP,ADD_NELE = 1 ,IOSTAT=error)
-                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMP #2") 
+                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OMP #2")
                     call BURP_Set_Element (BLOCK_OMP,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
                     call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OMP")
 
                     call BURP_Resize_Block(BLOCK_OER,ADD_NELE = 1 ,IOSTAT=error)
-                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OER #2") 
+                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_OER #2")
                     call BURP_Set_Element (BLOCK_OER,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
                     call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_OER")
 
                     call BURP_Resize_Block(BLOCK_FGE,ADD_NELE = 1 ,IOSTAT=error)
-                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_FGE #2") 
+                    call handle_error(error, "brpr_updateBurp: BURP_Resize_Block BLOCK_FGE #2")
                     call BURP_Set_Element (BLOCK_FGE,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
                     call handle_error(error, "brpr_updateBurp: BURP_Set_Element BLOCK_FGE")
 
@@ -1255,10 +1255,10 @@ contains
 
                     do ki=1,nte
                       do jj=1,nvale
-                        call BURP_Set_Rval( Block_OMA, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
-                        call BURP_Set_Rval( Block_OMP, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
-                        call BURP_Set_Rval( Block_OER, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
-                        call BURP_Set_Rval( Block_FGE, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
+                        call BURP_Set_Rval( Block_OMA, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
+                        call BURP_Set_Rval( Block_OMP, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
+                        call BURP_Set_Rval( Block_OER, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
+                        call BURP_Set_Rval( Block_FGE, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
                         call BURP_Set_Rval( Block_FSO, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
                       end do
                     end do
@@ -1268,11 +1268,11 @@ contains
                 end do elems0
 
                 ! Loop over elements to update the values
-                elems: do IL = 1, NBELE  
+                elems: do IL = 1, NBELE
 
                   iele=-1
                   iele=BURP_Get_Element(BLOCK_OBS_MUL_CP,INDEX =il,IOSTAT= error)
-                  call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP") 
+                  call handle_error(error, "brpr_updateBurp: BURP_Get_Element BLOCK_OBS_MUL_CP")
 
                   IND_ELE_MAR= BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000)
                   if (IND_ele_mar <  0 ) cycle
@@ -1288,10 +1288,10 @@ contains
                                       &   NVAL_IND = j, &
                                       &   NT_IND   = k)
                   IF (il == IND_VCOORD) THEN
-                    call BURP_Set_Rval( Block_OMA, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
-                    call BURP_Set_Rval( Block_OMP, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
-                    call BURP_Set_Rval( Block_OER, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
-                    call BURP_Set_Rval( Block_FGE, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
+                    call BURP_Set_Rval( Block_OMA, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
+                    call BURP_Set_Rval( Block_OMP, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
+                    call BURP_Set_Rval( Block_OER, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
+                    call BURP_Set_Rval( Block_FGE, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
                     call BURP_Set_Rval( Block_FSO, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
                   END IF
 
@@ -1340,7 +1340,7 @@ contains
                     cycle ELEMS
                   end if
 
-                 
+
                   OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
                   OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
                   OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
@@ -1371,13 +1371,13 @@ contains
 
                   call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
 
-                  if(HIPCS) then  
+                  if(HIPCS) then
                     IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101)
                     if (IND_ELE_tth==-1) call handle_error(IND_ELE_tth, "brpr_updateBurp: element 12101 not found in BLOCK_OMA")
                     IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239)
                     if (IND_ELE_esh==-1) call handle_error(IND_ELE_esh, "brpr_updateBurp: element 12239 not found in BLOCK_OMA")
                     if(iele == 12001) then
-                      if (IND_ele_tth==-1) write(*,*) 'PB1 SYLVAIN TTH' 
+                      if (IND_ele_tth==-1) write(*,*) 'PB1 SYLVAIN TTH'
                       call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
                     end if
                     if(iele == 12192) then
@@ -1400,14 +1400,14 @@ contains
                     if(iele == 12192) call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
                   endif
 
-                  call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
+                  call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  )
 
                   if(HIPCS) then
                     if(iele == 12001) call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
                     if(iele == 12192) call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
                   endif
 
-                  call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
+                  call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
 
                   if(HIPCS) then
                     if(iele == 12001) call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
@@ -1447,21 +1447,21 @@ contains
                   elseif (iele == BUFR_NEES) then
                     IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=ILEMHBCOR)
                   end if
-                      
+
                   if (IND_ele > 0 .and. obs_columnActive_RB(obsdat,OBS_BCOR)) then
                        call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = BCOR)
                   end if
 
                   IND_obsClear =  BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=btClearElementId)
                   if ( IND_obsClear > 0 .and. obs_columnActive_RB(obsdat,OBS_BTCL) ) then
-                    Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear) 
+                    Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_obsClear,NVAL_IND =j,NT_IND = k,RVAL = obsClear)
                   end if
 
                   IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele)
                   if (IND_ele==-1)call handle_error(IND_ele, "brpr_updateBurp: element not found in Block_OBS_MUL_CP")
 
                   call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
-                  
+
                   if (HIPCS) then
                      if (iele == 12001) then
                         IND_ele = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=12101, IOSTAT=error)
@@ -1474,7 +1474,7 @@ contains
                         Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS)
                      end if
                   end if
-                  
+
                   IF (HIRES .and. KOBSN > 0 ) THEN
                     STATUS=obs_headElem_i(obsdat,OBS_ST1,OBSN )
                     STATUS_HIRES=ior(STATUS_HIRES,STATUS)
@@ -1491,7 +1491,7 @@ contains
                 STATUS=IBSET(STATUS,BIT_STATUS)
                 ind055200 = BURP_Find_Element(Block_FLG_CP, ELEMENT=055200)
                 if (ind055200==-1)call handle_error(ind055200, "brpr_updateBurp: element 55200 not found in Block_FLG_CP")
-                call BURP_Set_tblval( Block_FLG_CP, NELE_IND =ind055200,NVAL_IND =1,NT_IND = k ,TBLVAL = STATUS ) 
+                call BURP_Set_tblval( Block_FLG_CP, NELE_IND =ind055200,NVAL_IND =1,NT_IND = k ,TBLVAL = STATUS )
                 OBSN=OBSN +1
                 OBS_START=OBS_START +1
               end if
@@ -1535,45 +1535,45 @@ contains
 
             call BURP_Write_Block( CP_RPT, BLOCK_OBS_MUL_CP,&
                       ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OBS_MUL_CP") 
+            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OBS_MUL_CP")
             call BURP_Write_Block( CP_RPT, BLOCK_MAR_MUL_CP,&
                       ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_MAR_MUL_CP") 
+            call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_MAR_MUL_CP")
 
             do item=1,BN_ITEMS
 
               if ( BITEMLIST(item) == 'OMA') then
                 call BURP_Write_Block( CP_RPT, BLOCK_OMA,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMA") 
+                call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMA")
               end if
               if ( BITEMLIST(item) == 'OMP') then
                 call BURP_Write_Block( CP_RPT, BLOCK_OMP,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMP") 
+                call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OMP")
               end if
               if ( BITEMLIST(item) == 'OER') then
                 if (.not.LBLOCK_OER_CP) then
                    call BURP_Write_Block( CP_RPT, BLOCK_OER,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER") 
+                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER")
                 else
                    call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
                    call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
                         ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_CP") 
+                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_OER_CP")
                   end if
               end if
               if ( BITEMLIST(item) == 'FGE') then
                 if (.not.LBLOCK_FGE_CP) then
                    call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
-                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE") 
+                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE")
                 else
                    call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
                    call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
                         ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)
-                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_CP") 
+                   call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_FGE_CP")
                   end if
               end if
               if ( BITEMLIST(item) == 'FSO') then
@@ -1595,7 +1595,7 @@ contains
             call handle_error(error, "brpr_updateBurp: BURP_Write_Block CP_RPT BLOCK_GEN")
           end if
 
-          ! descriptor block (btyp = 0010 100000X XXXX) 
+          ! descriptor block (btyp = 0010 100000X XXXX)
 
           BTYP10des = 160
 
@@ -1643,7 +1643,7 @@ contains
         call BURP_Delete_Report(File_in,Rpt_in, IOSTAT=error)
         call handle_error(error, "brpr_updateBurp: BURP_Delete_Report")
         call BURP_Write_Report(File_in,CP_RPT,IOSTAT= error)
-        call handle_error(error, "brpr_updateBurp: BURP_Write_Report") 
+        call handle_error(error, "brpr_updateBurp: BURP_Write_Report")
 
       end do REPORTS
 
@@ -1693,7 +1693,7 @@ contains
       if (associated(tree)) call kdtree2_destroy(tree)
       if (allocated(PPPandVNM)) deallocate(PPPandVNM)
       if (allocated(bodyIndexList)) deallocate(bodyIndexList)
-      
+
     end subroutine cleanup
 
     !--------- handle_error -----
@@ -1805,13 +1805,13 @@ contains
         end if
       CASE( 'namburp_update')
         BN_ITEMS = MPC_missingValue_INT
-        bItemList(:) = '***' 
+        bItemList(:) = '***'
         READ(utl_flnml,NML=NAMBURP_UPDATE)
         if (BN_ITEMS /= MPC_missingValue_INT) then
           call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
         end if
         BN_ITEMS = 0
-        do itemIndex = 1, maxItems 
+        do itemIndex = 1, maxItems
           if (bItemList(itemIndex) == '***') exit
           BN_ITEMS = BN_ITEMS + 1
         end do
@@ -1834,7 +1834,7 @@ contains
 
       ! Locals:
       integer :: listIndex
-      
+
       if (numberElements /= MPC_missingValue_INT) then
         call utl_abort('brpacma_nml: check '//trim(nml_section)//' namelist section, you should remove '//trim(variable))
       end if
@@ -1845,7 +1845,7 @@ contains
       end do
 
     end subroutine getListAndSize
-    
+
   END SUBROUTINE BRPACMA_NML
 
 
@@ -1875,10 +1875,10 @@ contains
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN
     TYPE(BURP_BLOCK)       :: BLOCK_IN
-    
+
     CHARACTER(LEN=5)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
-    integer                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10FLG_uni,BTYP10obs_uni 
+    integer                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10FLG_uni,BTYP10obs_uni
     integer                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
 
     integer                :: NB_RPTS,REF_RPT,REF_BLK,COUNT, numHeader
@@ -1923,14 +1923,14 @@ contains
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
     integer                :: LISTE_INFO(31),LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements)
-    
+
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
     integer                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG,IND_SW
     integer                :: IND055200,IND4208,ind4197,IND5002,IND6002,ind_al,IND5001,IND6001
     integer                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS,IND_BCOR,IND_PHASE,IND_BCOR_TT,IND_BCOR_HU
     integer                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
-    integer                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2, IND_dataCloudFrac 
+    integer                :: IND_dataQcFlag0, IND_dataQcFlag1, IND_dataQcFlag2, IND_dataCloudFrac
 
     integer                :: vcord_type(10),SUM,vcoord_type
     REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
@@ -2049,7 +2049,7 @@ contains
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
-                          ! 'uni' level data are assumed not to have any accompanynig vertical 
+                          ! 'uni' level data are assumed not to have any accompanynig vertical
                           ! coordinate element in addition to having only one level.
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/) ! 0 must be at end.
         NELE_INFO=18
@@ -2058,7 +2058,7 @@ contains
         call BRPACMA_NML('namburp_filter_chm_sfc')
 
         FAMILYTYPE2='CH'
-        call BRPACMA_NML('namburp_filter_chm') 
+        call BRPACMA_NML('namburp_filter_chm')
       CASE default
         call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
@@ -2071,13 +2071,13 @@ contains
     else
       scanPosElementId = 5043
     end if
-    
+
     LISTE_INFO(1:31) = [ &
         1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
         2022,33060,33062,33039,10035,10036,08046,scanPosElementId,013209,clwFgElementId, &
         1033,2011,4197,siFgElementId,13208,5040,33078,33079,33080,020029, &
         25174 ]
-    
+
     NELE=NELEMS
     LISTE_ELE(1:NELE)=BLISTELEMENTS(1:NELE)
     if (trim(FAMILYTYPE) == 'GP') then
@@ -2199,7 +2199,7 @@ contains
           CASE DEFAULT
             write(*,*) 'brpr_readBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
             bit_alt=1
-        END SELECT 
+        END SELECT
       END IF
 
       if (ref_rpt < 0) Exit
@@ -2228,7 +2228,7 @@ contains
             write(*,*) 'brpr_readBurp: WARNING: Unknown RESUME record found, assume BGCKALT'
             stn_resume = '>>BGCKALT'
             bit_alt=1
-        END SELECT 
+        END SELECT
       else
         write(*,*) 'brpr_readBurp: WARNING: No file read has RESUME record, assume BGCKALT'
         stn_resume = '>>BGCKALT'
@@ -2255,12 +2255,12 @@ contains
     if ( count > 0 ) then
       ! LOOP ON REPORTS
       REPORTS: do kk = 1, count
-            
+
         call BURP_Get_Report(File_in, &
                       & REPORT    = Rpt_in, &
                       & REF       = address(kk), &
                       & IOSTAT    = error)
-        call handle_error(error, "brpr_readBurp: BURP_Get_Report") 
+        call handle_error(error, "brpr_readBurp: BURP_Get_Report")
         call burp_get_property(Rpt_in, &
                STNID = stnid ,TEMPS =hhmm_h,FLGS = status ,IDTYP =idtyp,LATI = lati &
                ,LONG = long ,DX = dx ,DY = dy,ELEV=elev,DRND =drnd,DATE =date_h &
@@ -2272,11 +2272,11 @@ contains
         ! Ensure the dataQcFlag arrays are not allocated before looping over blocks
         if (allocated(dataQcFlag2)) deallocate(dataQcFlag2)
         if (allocated(dataQcFlagLEV)) deallocate(dataQcFlagLEV)
-        
+
         ! Ensure the dataCloudFrac arrays are not allocated before looping over blocks
         if (allocated(dataCloudFrac)) deallocate(dataCloudFrac)
         if (allocated(dataCloudFracLEV)) deallocate(dataCloudFracLEV)
-        
+
         ref_blk = 0
 
         HIRES=.FALSE.
@@ -2376,7 +2376,7 @@ contains
                                          & NT_IND   = k)
                 HLON_SFC(k) =BURP_Get_Rval(Block_in, &
                                          & NELE_IND = IND_LON, &
-        
+
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
                 HTIME_SFC(k)=BURP_Get_Rval(Block_in, &
@@ -2398,7 +2398,7 @@ contains
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
               end do
-              
+
               IND_ele = -1
               if (iele == BUFR_NEZD) then
                 IND_ele  = BURP_Find_Element(Block_in, ELEMENT=ILEMZBCOR)
@@ -2413,7 +2413,7 @@ contains
               end if
 
             end do
-            
+
           end if
 
           if ( btyp10 == btyp10flg_uni .and. bkstp <= 4 ) then  ! FAMILYTYPE = SF, GP flag blocks
@@ -2433,7 +2433,7 @@ contains
                                          & NELE_IND = IND_QCFLAG, &
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
-                SUM = SUM +1                
+                SUM = SUM +1
               END DO
             end do
           end if
@@ -2446,7 +2446,7 @@ contains
             allocate(obsvalue(NELE,nvale,nte),VCOORD(nvale,nte))
             allocate(OBSERV(NELE,nvale))
             allocate(VCORD(nvale))
-                           
+
             obsvalue(:,:,:) = MPC_missingValue_R4
             OBSERV  (:,:)   = MPC_missingValue_R4
             VCOORD  (:,:)   = 0.
@@ -2455,7 +2455,7 @@ contains
             k=0
             IND_VCOORD=-1
             do while (vcord_type(k+1) /= -1 .and. IND_VCOORD == -1)
-               k=k+1 
+               k=k+1
                IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type(k))
             end do
             vcoord_type=0
@@ -2498,15 +2498,15 @@ contains
             if ( idtyp == 192 .or. idtyp == 164 .or. idtyp == 181 .or. idtyp == 182) then
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032)
-              if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then 
+              if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then
                 call  utl_abort('readBurp : Got two valid indices for IND_dataQcFlag2 in family' // trim(familyType))
-              elseif ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 < 0 ) then 
+              elseif ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 < 0 ) then
                 IND_dataQcFlag2 = IND_dataQcFlag0
-              elseif ( IND_dataQcFlag0 < 0 .and. IND_dataQcFlag1 > 0 ) then 
+              elseif ( IND_dataQcFlag0 < 0 .and. IND_dataQcFlag1 > 0 ) then
                 IND_dataQcFlag2 = IND_dataQcFlag1
               end if
             end if
-            
+
             ! Allocate arrays for dataQcFlag if they are found in the file
             if (IND_dataQcFlag2 > 0) then
               allocate(dataQcFlag2(nvale,nte))
@@ -2519,7 +2519,7 @@ contains
             IND_dataCloudFrac = -1
             if ( idtyp == 185) then
               IND_dataCloudFrac = BURP_Find_Element(Block_in, ELEMENT=020081)
-            end if 
+            end if
             ! Allocate arrays for dataCloudFrac if they are found in the file
             if (IND_dataCloudFrac > 0) then
               allocate(dataCloudFrac(nvale,nte))
@@ -2532,9 +2532,9 @@ contains
             allocate(EMIS(nvale,nte))
             allocate(SURF_EMIS(nvale))
             EMIS(:,:)       = MPC_missingValue_R4
-            
+
             OBSVALUE(:,:,:) = MPC_missingValue_R4
-            
+
             if (IND_BCOR > 0) then                              ! TOVS
                allocate(BCOR(nvale,nte))
                allocate(BiasCorrection(nele,nvale))
@@ -2545,10 +2545,10 @@ contains
                allocate(BiasCorrection2(nele,nvale))
                BCOR2(:,:,:) =  MPC_missingValue_R4
             end if
-           
+
 
             ! Get the observations and conventional data bias corrections for each element in LISTE_ELE
-              
+
             do IL = 1, NELE
 
               iele = LISTE_ELE(IL)
@@ -2572,9 +2572,9 @@ contains
                     & BCOR2(IL,j,k) =  BURP_Get_Rval(Block_in,NELE_IND=IND_BCOR_HU,NVAL_IND=j,NT_IND=k)
                 end do
               end do
-              
+
             end do
-            
+
             ! Get other needed elements including vccord, TOVS bias corrections and AI phase of flight
             do k=1,nte
               do j=1,nvale
@@ -2796,7 +2796,7 @@ contains
 
           end if
 
-          ! info block (btyp = 0001 100000X XXXX) 
+          ! info block (btyp = 0001 100000X XXXX)
           BTYP10inf = 96
 
           if ( (btyp10 == btyp10inf) .or. (btyp10 - btyp10inf == 1) ) then
@@ -2810,7 +2810,7 @@ contains
               info_elepos = BURP_Find_Element(Block_in, &
                                  & ELEMENT  = LISTE_INFO(kl) )
               if (  info_elepos >= 0 )then
-                
+
                 do k =1 , nte
                   RINFO(kl,k)= BURP_Get_rval(Block_in, &
                               &   NELE_IND = info_elepos, &
@@ -2818,7 +2818,7 @@ contains
                               &   NT_IND   = k, &
                               &   IOSTAT   = error)
                   call handle_error(error, "brpr_readBurp: BURP_Get_rval info_elepos")
-                  if  (RINFO(kl,k) == MPC_missingValue_R4)  THEN    
+                  if  (RINFO(kl,k) == MPC_missingValue_R4)  THEN
                     infot= BURP_Get_tblval(Block_in, &
                             &   NELE_IND = info_elepos, &
                             &   NVAL_IND = 1, &
@@ -2839,7 +2839,7 @@ contains
           end if
 
 
-          ! descriptor block (btyp = 0010 100000X XXXX) 
+          ! descriptor block (btyp = 0010 100000X XXXX)
           BTYP10des = 160
 
           if ( BTYP10 == BTYP10des ) then
@@ -3000,7 +3000,7 @@ contains
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type, &
                                    OBSERV_SFC,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC, &
-                                   dataQcFlagLEV_sfc,dataCloudFracLev_sfc, ROLAT,ROLON,& 
+                                   dataQcFlagLEV_sfc,dataCloudFracLev_sfc, ROLAT,ROLON,&
                                    BiasCorrection_opt=BCOR_SFC)
 
               IF ( NDATA_SF > 0) THEN
@@ -3153,7 +3153,7 @@ contains
 
               IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
-                OBSN=obs_numHeader(obsdat) 
+                OBSN=obs_numHeader(obsdat)
                 if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
                 if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
                 if (obs_columnActive_IH(obsdat,obs_hdt)) call obs_headSet_i(obsdat,OBS_HDT,OBSN,hhmm_h)
@@ -3167,7 +3167,7 @@ contains
                 END IF
               END IF
             END IF
-          
+
             IF ( allocated(obsvalue) ) THEN
               OBSERV(1:NELE,1:NVAL) = obsvalue(1:NELE,1:NVAL,k)
               if (allocated(BCOR2))  BiasCorrection2(1:NELE,1:NVAL) = BCOR2(1:NELE,1:NVAL,k)
@@ -3201,7 +3201,7 @@ contains
                                   qcflags,NELE,NVAL,LISTE_ELE,dataQcFlagLEV,dataCloudFracLEV, &
                                   ROLAT,ROLON, SURF_EMIS_opt=SURF_EMIS)
               end if
-              
+
               IF (NDATA > 0) THEN
 
                 IF (NDATA_SF == 0) THEN
@@ -3210,7 +3210,7 @@ contains
                   else
                     call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                   end if
-                 
+
 !==================================================================================
 !
 ! Ajoute qivals dans les argument de WRITE_QI
@@ -3219,10 +3219,10 @@ contains
 
                   if(trim(familytype) == 'AL')call write_al(obsdat, azimuth(k))
 
-                  OBSN=obs_numHeader(obsdat) 
+                  OBSN=obs_numHeader(obsdat)
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 END IF
-                OBSN=obs_numHeader(obsdat) 
+                OBSN=obs_numHeader(obsdat)
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA+NDATA_SF)
                 IF (OBSN   > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
@@ -3340,7 +3340,7 @@ contains
         end if
         if ( allocated(BCOR2) ) then
           deallocate (BCOR2,BiasCorrection2)
-        end if        
+        end if
 
         !---------SURFACE-----------------------------
         if ( allocated(obsvalue_sfc) ) then
@@ -3351,7 +3351,7 @@ contains
           DEallocate(  qcflag_sfc, qcflags_SFC)
         end if
         !--------SURFACE------------------------------
-        
+
         if (  allocated(lat) ) then
           deallocate (lat,lon,date,hhmm,glbflag)
         end if
@@ -3469,7 +3469,7 @@ contains
     INTEGER           :: IFLAG,IFLAG2,cloudFrac
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2, L_dataCloudFrac
-    
+
     L_EMISS = present( SURF_EMIS_opt )
     L_BCOR  = present( BiasCorrection_opt )
     L_dataQcFlag2 = any(dataQcFlagLEV(:) /= MPC_missingValue_INT)
@@ -3486,7 +3486,7 @@ contains
 
     NLV=0
 
-! Special test for GB-GPS 
+! Special test for GB-GPS
 ! Reports with missing ZTD cause problems with output of subsequent reports (missing OMP, OER, FLAG bits)
 ! Since July 2019, reports with missing ZTD are removed in the GB-GPS dbase files.
     if ( trim(FAMTYP) == trim('GP') )  then
@@ -3515,36 +3515,36 @@ contains
 
     SELECT CASE(FAMTYP)
       CASE ( 'UA' , 'SW' , 'AI')
-        VCO=2 ! PRESSURE COORD
+        VCO=obs_vcoPressure ! PRESSURE COORD
       CASE ( 'SF' , 'SC', 'PR', 'RO', 'GP', 'AL' )
-        VCO=1 ! HEIGHT COORD
+        VCO=obs_vcoHeight ! HEIGHT COORD
       CASE ( 'TO'  )
-        VCO=3 ! CHANNEL NUMBER
+        VCO=obs_vcoChannel ! CHANNEL NUMBER
       CASE ( 'CH'  ) ! CONSTITUENTS (consider different possibilities)
         IF (VCOORD_TYPE == 7006 .OR. VCOORD_TYPE == 7007) THEN
-           VCO=1
+           VCO=obs_vcoHeight
            IF (VCOORD_TYPE == 7006) ELEVFACT=1.0
         ELSE IF (VCOORD_TYPE == 7004 .OR. VCOORD_TYPE == 7204) THEN
-           VCO=2
+           VCO=obs_vcoPressure
         ELSE IF (VCOORD_TYPE == 2150) THEN
-           VCO=3
-        ELSE            
+           VCO=obs_vcoChannel
+        ELSE
            ! Vertical coordinate not provided or not recognized.
            IF (NVAL == 1) THEN
-              VCO=5 ! Initializes as surface point measurement
+              VCO=obs_vcoChemSfc ! Initializes as surface point measurement
               DO il = 1, NELE
                  if ( obsvalue(il,1) /= MPC_missingValue_R4) then
                     if (liste_ele(il) == 15198.OR.liste_ele(il) == 15009.OR. &
                         liste_ele(il) == 15020.OR.liste_ele(il) == 15021.OR. &
                         liste_ele(il) == 15024.OR.liste_ele(il) == 15200.OR. &
                         liste_ele(il) == 15001.OR.liste_ele(il) == 15005) then
-                        
-                        VCO=4  ! Assumes this is a total column measurement
+
+                        VCO=obs_vcoChemColumn  ! Assumes this is a total column measurement
                         exit
                     end if
                  end if
               END DO
-           ELSE   
+           ELSE
               call utl_abort('write_body: Invalid BURP vertical coordinate type.')
            END IF
         END IF
@@ -3819,14 +3819,14 @@ contains
       SELECT CASE( liste_info(il) )
         CASE( 1007)
           RID_SAT=INFOV
-          IF (RID_SAT == MPC_missingValue_R4 ) THEN 
+          IF (RID_SAT == MPC_missingValue_R4 ) THEN
             ID_SAT=0
           ELSE
             ID_SAT=NINT(RID_SAT)
           END IF
         CASE( 1033)
           RORIGIN_CENTRE=INFOV
-          IF (RORIGIN_CENTRE == MPC_missingValue_R4 ) THEN 
+          IF (RORIGIN_CENTRE == MPC_missingValue_R4 ) THEN
             ORIGIN_CENTRE=0
           ELSE
             ORIGIN_CENTRE=NINT(RORIGIN_CENTRE)
@@ -3948,7 +3948,7 @@ contains
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           END IF
-        CASE( 08046)          
+        CASE( 08046)
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT == MPC_missingValue_R4) THEN
@@ -3986,13 +3986,13 @@ contains
 
     ! CrIS FSR
     if (codtyp == 202 .and. INSTRUMENT == 620) then
-      INSTRUMENT = 2046 
+      INSTRUMENT = 2046
     end if
 
     if (  trim(FAMTYP) == trim('GO') ) then
       call utl_abort('writeInfo: unknown familyType : ' // trim(FAMTYP))
     END IF
-   
+
 
     !-------------------SPECIAL CASES--------------
 
@@ -4112,7 +4112,7 @@ contains
     type(struct_obs),  intent(inout) :: obsSpaceData ! obsSpacedata structure
     integer,           intent(in)    :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
-    
+
     ! Locals:
     type(BURP_FILE)        :: inputFile
     type(BURP_RPT)         :: inputReport,copyReport
@@ -4139,7 +4139,7 @@ contains
     integer                :: idatyp, val
     real                   :: valBurpMissing_r4, val_r4
     character(len=9)       :: station_id
-    
+
     write(*,*) '----------------------------------------------------------'
     write(*,*) '------- Begin brpr_addCloudParametersandEmissivity -------'
     write(*,*) '----------------------------------------------------------'
@@ -4151,11 +4151,11 @@ contains
     flag_passage3 = 0
     flag_passage4 = 0
     flag_passage5 = 0
-    
+
     opt_missing = 'MISSING'
     valBurpMissing_r4 = -7777.77
 
-    call BURP_Set_Options(                       &                
+    call BURP_Set_Options(                       &
          REAL_OPTNAME       = opt_missing,       &
          REAL_OPTNAME_VALUE = valBurpMissing_r4, &
          iostat             = error )
@@ -4200,14 +4200,14 @@ contains
       address(count) = ref_rpt
     end do
 
-    write(*,*) 
+    write(*,*)
     write(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',count
-    write(*,*) 
-    
+    write(*,*)
+
     if ( count > 0 ) then
 
       ! Create a new report
-      
+
       call BURP_New(copyReport, ALLOC_SPACE=20000000, iostat=error)
       call handle_error(error, "brpr_addCloudParametersandEmissivity: problem allocating copyReport")
 
@@ -4221,7 +4221,7 @@ contains
              REF       = address(reportIndex), &
              iostat    = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
-        
+
         call BURP_Get_Property(inputReport, IDTYP=idatyp, iostat = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property REPORTS0")
 
@@ -4256,7 +4256,7 @@ contains
              REF       = address(reportIndex), &
              iostat    = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
-        
+
         if (.not. reportsToUpdate(reportIndex)) cycle REPORTS
 
         call BURP_Get_Property(inputReport, IDTYP=idatyp, iostat = error)
@@ -4291,7 +4291,7 @@ contains
           ! 0100 1000110 0000 = 9312
           btyp10    = ishft(btyp,-5)
           btyp10obs = 291
-           
+
           if ( btyp10 == btyp10obs .and. bfam == 0 ) then
             allocate(goodprof(nte), btobs(nvale,nte))
 
@@ -4310,7 +4310,7 @@ contains
                 if ( btobs(valIndex,tIndex) > 0. ) goodprof(tIndex) = 1
               end do
             end do
-            
+
           end if
 
         end do BLOCKS1
@@ -4324,7 +4324,7 @@ contains
 
         ! add new informations
         ref_blk = 0
-        
+
         BLOCKS2: do
 
           if ( .not. allocated(goodprof) ) then
@@ -4348,8 +4348,8 @@ contains
                BTYP   = btyp,                &
                iostat = error)
           call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property #3")
-          
-          ! descriptor block (btyp = 0010 100000X XXXX) 
+
+          ! descriptor block (btyp = 0010 100000X XXXX)
           ! 0010 1000000 0000==5120 )
           !    if profile contains rejected observations (apart from blacklisted channels),
           !     set bit 6 in global flags.
@@ -4372,7 +4372,7 @@ contains
             end do
 
             do tIndex = 1, nte
-              if (goodprof(tIndex)/= 1) glbflag(tIndex) = ibset(glbflag(tIndex),6)            
+              if (goodprof(tIndex)/= 1) glbflag(tIndex) = ibset(glbflag(tIndex),6)
             end do
 
             do tIndex = 1, nte
@@ -4384,7 +4384,7 @@ contains
                    iostat   = error)
               call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Tblval 55200")
             end do
-              
+
             deallocate(glbflag)
 
           end if
@@ -4393,7 +4393,7 @@ contains
           if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
 
             write(*,*) 'brpr_addCloudParametersandEmissivity for IR data'
-            ! info block (btyp = 0001 100000X XXXX) 
+            ! info block (btyp = 0001 100000X XXXX)
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
@@ -4508,7 +4508,7 @@ contains
 
 
               end do
- 
+
             end if
 
             ! observation block (btyp = 0100 100011X XXXX)
@@ -4630,8 +4630,8 @@ contains
 
           end if ! hyper Spectral
 
-          if (tvs_isIdBurpInst(idatyp,'atms' ) .or. tvs_isIdBurpInst(idatyp,'amsua')) then 
-            ! info block (btyp = 0001 100000X XXXX) 
+          if (tvs_isIdBurpInst(idatyp,'atms' ) .or. tvs_isIdBurpInst(idatyp,'amsua')) then
+            ! info block (btyp = 0001 100000X XXXX)
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
@@ -4718,7 +4718,7 @@ contains
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
-                  end if               
+                  end if
 
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
                   call Insert_into_burp_i(val, ind008012, 1, tIndex)
@@ -4735,18 +4735,18 @@ contains
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
-                  
+
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
 
                 end if
 
               end do
- 
+
             end if
           end if ! tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')
 
-          if (tvs_isIdBurpInst(idatyp,'amsub') .or. tvs_isIdBurpInst(idatyp,'mhs')) then 
-            ! info block (btyp = 0001 100000X XXXX) 
+          if (tvs_isIdBurpInst(idatyp,'amsub') .or. tvs_isIdBurpInst(idatyp,'mhs')) then
+            ! info block (btyp = 0001 100000X XXXX)
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
@@ -4801,7 +4801,7 @@ contains
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
-                  end if               
+                  end if
 
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
                   call Insert_into_burp_i(val, ind008012, 1, tIndex)
@@ -4813,7 +4813,7 @@ contains
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
-                  
+
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
 
                 end if
@@ -4824,7 +4824,7 @@ contains
           end if ! tvs_isIdBurpInst(idatyp,'amsub') .or. tvs_isIdBurpInst(idatyp,'mhs')
 
           if (tvs_isIdBurpInst(idatyp,'ssmis' )) then
-            ! info block (btyp = 0001 100000X XXXX) 
+            ! info block (btyp = 0001 100000X XXXX)
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
             btyp10inf = 96
@@ -4853,7 +4853,7 @@ contains
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13039")
                 indtmp = indtmp + 1
               end if
-              
+
               ! SAT ZENITH ANGLE ELE 7024
               ind7024 = BURP_Find_Element(inputBlock, ELEMENT  = 7024)
               if (ind7024 < 0) then
@@ -4864,7 +4864,7 @@ contains
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 7024")
                 indtmp = indtmp + 1
               end if
-              
+
               ! SAT AZIMUTH ANGLE ELE 5021
               ind5021 = BURP_Find_Element(inputBlock, ELEMENT  = 5021)
               if (ind5021 < 0) then
@@ -4900,7 +4900,7 @@ contains
                 end if
               end if
 
-              ! SSMIS INTEGRATED WATER VAPOR 
+              ! SSMIS INTEGRATED WATER VAPOR
               ind13095 = BURP_Find_Element(inputBlock, ELEMENT=013095)
               if (ind13095 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4933,7 +4933,7 @@ contains
                   call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element siFG #2")
                   indtmp = indtmp + 1
                 end if
-              end if              
+              end if
 
               do tIndex = 1, nte
 
@@ -4965,7 +4965,7 @@ contains
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
                   end if
-                  
+
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_IWV, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13095, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
@@ -4996,7 +4996,7 @@ contains
                   call Insert_into_burp_r4(val_r4, ind5021, 1, tIndex, valueIsMissing=.true.)
                 end if
               end do
- 
+
             end if
           end if ! tvs_isIdBurpInst(idatyp,'ssmis')
 
@@ -5167,13 +5167,13 @@ contains
         if ( allocated(goodprof) ) then
           deallocate (goodprof,btobs)
         end if
-        ! Write new report into file        
+        ! Write new report into file
         call BURP_Delete_Report(inputFile, inputReport, iostat=error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Delete_Report")
         call BURP_Write_Report(inputFile, copyReport, iostat=error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Write_Report")
       end do REPORTS
-      
+
       deallocate(reportsToUpdate)
 
       if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
@@ -5198,8 +5198,8 @@ contains
           write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
         end if
       else if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-                (tvs_isIdBurpInst(idatyp,'amsua')) .or. & 
-                (tvs_isIdBurpInst(idatyp,'ssmis')) ) then 
+                (tvs_isIdBurpInst(idatyp,'amsua')) .or. &
+                (tvs_isIdBurpInst(idatyp,'ssmis')) ) then
         if ( flag_passage1 == 0 ) then
           write(*,*)
           write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
@@ -5265,7 +5265,7 @@ contains
 
       ! Locals:
       integer :: error
-      
+
       if (valueIsMissing) then
         call BURP_Set_Rval(inputBlock, &
              NELE_IND = pele, &
@@ -5318,7 +5318,7 @@ contains
              RVAL     = valBurpMissing_r4, &
              iostat   = error)
       end if
-      
+
       if (error/=burp_noerr) then
         write(*,*) "Insert_into_burp_i: ival,pele,pval,pt", ival, pele, pval, pt
         call handle_error(error, "brpr_addCloudParametersandEmissivity: Insert_into_burp_i")
@@ -5428,7 +5428,7 @@ contains
              REF       = address(reportIndex), &
              iostat    = error)
         call handle_error(error, "brpr_updateMissingObsFlags: BURP_Get_Report")
-        ! Find bad/missing TB. 
+        ! Find bad/missing TB.
 
         ref_blk = 0
 
@@ -5481,7 +5481,7 @@ contains
         call BURP_copy_Header(TO=copyReport, FROM=inputReport)
 
         call BURP_Init_Report_Write(inputFile, copyReport, iostat=error)
-        call handle_error(error, "brpr_updateMissingObsFlags: BURP_Init_Report_Write")        
+        call handle_error(error, "brpr_updateMissingObsFlags: BURP_Init_Report_Write")
 
         ! Second loop on blocks
 
@@ -5493,7 +5493,7 @@ contains
 
           if ( .not. allocated(goodTB) ) then
             write(*,*)
-            write(*,*) 'Resume report is position # ',reportIndex 
+            write(*,*) 'Resume report is position # ',reportIndex
             exit BLOCKS2
           end if
           ref_blk = BURP_Find_Block(inputReport, &
@@ -5561,7 +5561,7 @@ contains
           deallocate(goodTB)
           deallocate(btobs)
         end if
-        ! Write new report into file        
+        ! Write new report into file
         call BURP_Delete_Report(inputFile, inputReport, iostat=error)
         call handle_error(error, "brpr_updateMissingObsFlags: BURP_Delete_Report")
         call BURP_Write_Report(inputFile, copyReport, iostat=error)
@@ -5607,7 +5607,7 @@ contains
         call utl_abort(trim(errormessage))
       end if
     end subroutine handle_error
-    
+
   end subroutine brpr_updateMissingObsFlags
 
 
@@ -5639,11 +5639,11 @@ contains
     character(len=codtyp_name_length) :: instrumName
     integer                     :: instrumID, previousInstrumID
     integer                     :: icodele(3)
-    integer                     :: icodeleMrq(3) 
+    integer                     :: icodeleMrq(3)
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     logical                     :: isDerialt
-    logical                     :: isInstrumUsingCLW, isInstrumUsingHydrometeors 
+    logical                     :: isInstrumUsingCLW, isInstrumUsingHydrometeors
     logical                     :: beSilent
     integer                     :: nElem, elemIndex, burpIndex
 
@@ -5652,10 +5652,10 @@ contains
     write(*,*) '-----------------------------------------------'
     write(*,*) '- begin brpr_addElementsToBurp -'
     write(*,*) '-----------------------------------------------'
- 
+
     icodele(:)    = 0
     icodeleMrq(:) = 0
-    
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -5679,13 +5679,13 @@ contains
     icodeleMrq(1:nElem) =  200000 + icodele(1:nElem)
 
     ! Read the NAMADDTOBURP namelist (if it exists)
-    
+
     addBtClearToBurp = .false.
-    clwFgElementId = -1 
-    siFgElementId = -1 
+    clwFgElementId = -1
+    siFgElementId = -1
     btClearElementId = -1
     btClearMrqElementID = -200001
-    
+
     if ( familyType == "TO" ) then
       if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
         ! read the namelist
@@ -5730,7 +5730,7 @@ contains
          filename = inputFileName,   &
          mode     = file_acc_append, &
          iostat   = error )
-  
+
     if (error /= burp_noerr) then
       write(*,*) "cannot open BURP input file ", inputFileName
       call utl_abort('brpr_addElementsToBurp')
@@ -5748,9 +5748,9 @@ contains
     end if
 
     write(*,*) "nsize= ", nsize
-    write(*,*) 
+    write(*,*)
     write(*,*) 'number of reports with observations in input file = ', nb_rpts - 1
-    write(*,*) 
+    write(*,*)
 
     ! scan input burp file to get all reports address
     ! -----------------------------------------------
@@ -5772,13 +5772,13 @@ contains
       call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
       if (station_id == ">>DERIALT") isDerialt = .true.
       if (station_id(1:2) == '>>') cycle
-      
+
       if ( familyType == "TO" ) then
         if ( .not. beSilent ) then
           if ( count == 1 ) then
             write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
-            write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
-            write(*,*) 'brpr_addElementsToBurp: siFgElementId =', siFgElementId 
+            write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId
+            write(*,*) 'brpr_addElementsToBurp: siFgElementId =', siFgElementId
           end if
 
           instrumName = codtyp_get_name(idatyp)
@@ -5807,30 +5807,30 @@ contains
           call utl_abort('brpr_addElementsToBurp: siFgElementId missing in the namelist')
         end if
       end if
-      
+
     end do
 
     if ( count > 0 .and. isDerialt) then
       write(*,*) "brpr_addElementsToBurp: modifying file..."
-     
+
 
 
       ! create a new report
-      ! ------------------     
+      ! ------------------
       call burp_new(copyReport, alloc_space=nsize, iostat=error)
       call handle_error(error, "brpr_addElementsToBurp: burp_new problem allocating copyReport")
 
       ! loop on reports
       ! ---------------
       reports: do reportIndex = 1, count
-    
+
         call burp_get_report(inputFile,        &
              report    = inputReport,          &
              ref       = address(reportIndex), &
-             iostat    = error)      
+             iostat    = error)
 
         call burp_copy_header(to=copyReport,from=inputReport)
-        
+
         call burp_get_property(inputReport, stnid = station_id, idtyp = idatyp )
 
         call burp_init_report_write(inputFile, copyReport, iostat=error)
@@ -5841,7 +5841,7 @@ contains
         ! loop on blocks
         ! --------------------
         ref_blk = 0
-      
+
         blocks: do
           ! We skip the writing of the block in the resume record
           ! because writing it may lead to 'floating point exception'
@@ -5856,17 +5856,17 @@ contains
                iostat      = error)
 
           if (ref_blk < 0) exit blocks
-         
+
           call burp_get_property(inputBlock, &
                nele   = nbele,               &
                nval   = nvale,               &
                nt     = nte,                 &
                bfam   = bfam,                &
-               btyp   = btyp,                & 
+               btyp   = btyp,                &
                iostat = error)
           call handle_error(error, "brpr_addElementsToBurp: burp_get_property")
 
-          if ( isObsBlock(familyType,btyp) .and. bfam == 0 ) then 
+          if ( isObsBlock(familyType,btyp) .and. bfam == 0 ) then
 
             do elemIndex = 1, nElem
               burpIndex = burp_find_element(inputBlock, element=icodele(elemIndex), iostat=error)
@@ -5888,12 +5888,12 @@ contains
                 end do
               end if
             end do
-        
+
             ! Adding clear-sky radiance to data block for instrument in all-sky mode.
             if (addBtClearToBurp .and. &
                 (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                  tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
-              
+
               indele = burp_find_element(inputBlock, element=btClearElementId)
 
               if ( indele <= 0 ) then
@@ -5913,14 +5913,14 @@ contains
                   end do
                 end do
               end if
-          
+
             end if
 
             call burp_write_block(copyReport, block  = inputBlock,  &
                  convert_block =.true., encode_block=.true., iostat=error)
             call handle_error(error, "brpr_addElementsToBurp: burp_write_block #1")
 
-          else if ( isFlagBlock(familyType,btyp) .and. bfam == 0 ) then     !  MRQ block 
+          else if ( isFlagBlock(familyType,btyp) .and. bfam == 0 ) then     !  MRQ block
             do elemIndex = 1, nElem
               ind = burp_find_element(inputBlock, element=icodeleMrq(elemIndex), iostat=error)
               if ( ind <= 0 ) then
@@ -5941,7 +5941,7 @@ contains
                 end do
               end if
             end do
-        
+
             ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
             if (addBtClearToBurp .and. &
                 (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
@@ -5965,7 +5965,7 @@ contains
                   end do
                 end do
               end if
-          
+
             end if
 
             call burp_write_block(copyReport, block  = inputBlock,  &
@@ -5979,16 +5979,16 @@ contains
             call handle_error(error, "brpr_addElementsToBurp: burp_write_block #3")
 
           end if
-  
+
         end do blocks
-      
+
         ! write new report into file
         ! --------------------------
         call BURP_Delete_Report(inputFile, inputReport, iostat=error)
         call handle_error(error, "brpr_addElementsToBurp: burp_delete_report")
         call burp_write_report(inputFile,copyReport, iostat=error)
         call handle_error(error, "brpr_addElementsToBurp: burp_write_report")
-    
+
       end do reports
 
     end if
@@ -6035,7 +6035,7 @@ contains
         call utl_abort(trim(errorMessage))
       end if
     end subroutine handle_error
-    
+
   end subroutine brpr_addElementsToBurp
 
   !-----------------------------------------------------------------------
@@ -6145,9 +6145,9 @@ contains
       call burp_get_report(inputFile,          &
            report    = inputReport,            &
            ref       = addresses(reportIndex), &
-           iostat    = error) 
+           iostat    = error)
       call handle_error(error, "brpr_burpClean: burp_get_report")
-      
+
       call burp_get_property(inputReport, stnid=stnid)
       resumeReport = (stnid(1:2) == ">>")
 
@@ -6163,7 +6163,7 @@ contains
       ! get the flags block, check if obs missing, and list of element IDs
       foundFlags = .false.
       foundObs = .false.
-      refBlock = 0      
+      refBlock = 0
       blocks: do
 
         refBlock = burp_find_block(inputReport, &
@@ -6172,12 +6172,12 @@ contains
              iostat      = error)
         call handle_error(error, "brpr_burpClean: burp_find_block #1")
         if (refBlock < 0) exit blocks
-         
+
         call burp_get_property(inputBlock, &
              nele   = numElem,             &
              nval   = numLevels,           &
              nt     = numObsProfiles,      &
-             btyp   = btyp,                & 
+             btyp   = btyp,                &
              iostat = error)
         call handle_error(error, "brpr_burpClean: burp_get_property #1")
 
@@ -6187,11 +6187,11 @@ contains
         else
           checkBlock = .true.
         end if
-          
+
         if (isFlagBlock(familyType, btyp) .and. checkBlock) then
           foundFlags = .true.
           if (debug) write(*,*) 'Found a block with flags: ', reportIndex, familyType, btyp
-          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem
           if (allocated(flagValues)) deallocate(flagValues)
           allocate(flagValues(numElem,numLevels,numObsProfiles))
           if (allocated(elementIdsBlock)) deallocate(elementIdsBlock)
@@ -6210,7 +6210,7 @@ contains
         if (isObsBlock(familyType, btyp) .and. checkBlock) then
           foundObs = .true.
           if (debug) write(*,*) 'Found a block with obs: ', reportIndex, familyType, btyp
-          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
+          if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem
           if (allocated(obsValues)) deallocate(obsValues)
           allocate(obsValues(numElem,numLevels,numObsProfiles))
           do elemIndex = 1, numElem
@@ -6233,7 +6233,7 @@ contains
 
       else
 
-        if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem 
+        if (debug) write(*,*) 'numObsProfiles, numLevels, numElem = ', numObsProfiles, numLevels, numElem
         ! determine which observations to keep
         if (allocated(rejectObs)) deallocate(rejectObs)
         allocate(rejectObs(numLevels,numObsProfiles))
@@ -6277,10 +6277,10 @@ contains
         numRejectTotal = numRejectTotal + numReject
 
       end if
-        
+
       ! copy reduced blocks output report
       emptyReport = .false.
-      refBlock = 0      
+      refBlock = 0
       blocks2: do
 
         refBlock = burp_find_block(inputReport, &
@@ -6290,7 +6290,7 @@ contains
              iostat      = error)
         call handle_error(error, "brpr_burpClean: burp_find_block #2")
         if (refBlock < 0) exit blocks2
-         
+
         call burp_get_property(inputBlock2, &
              nele   = numElem2,             &
              nval   = numLevels2,           &
@@ -6306,7 +6306,7 @@ contains
         else
           checkBlock = .true.
         end if
-          
+
         if (checkBlock) then
 
           if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
@@ -6329,7 +6329,7 @@ contains
                     call handle_error(error, "brpr_burpClean: burp_get_tblval")
                     call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndexGood, nt_ind=obsProfIndex, tblval=intBurpValue, iostat=error)
-                    call handle_error(error, "brpr_burpClean: burp_set_tblval") 
+                    call handle_error(error, "brpr_burpClean: burp_set_tblval")
                     if (debug .and. levelIndex /= levelIndexGood) then
                       write(*,*) 'shuffling data: ', elemIndex, levelIndex, levelIndexGood, intBurpValue, reportIndex
                     end if
@@ -6368,7 +6368,7 @@ contains
                     call handle_error(error, "brpr_burpClean: burp_get_tblval #2")
                     call burp_set_tblval(inputBlock2, nele_ind=elemIndex,  &
                          nval_ind=levelIndex, nt_ind=obsProfIndexGood, tblval=intBurpValue, iostat=error)
-                    call handle_error(error, "brpr_burpClean: burp_set_tblval #2") 
+                    call handle_error(error, "brpr_burpClean: burp_set_tblval #2")
                     if (debug .and. obsProfIndex /= obsProfIndexGood) then
                       write(*,*) 'shuffling data: ', obsProfIndex, obsProfIndexGood, intBurpValue, reportIndex
                     end if
@@ -6398,7 +6398,7 @@ contains
         end if
 
       end do blocks2
-      
+
       ! delete existing report and write new report into file
       call burp_delete_report(inputFile, inputReport, iostat=error)
       call handle_error(error, "brpr_burpClean: burp_delete_report")
@@ -6463,7 +6463,7 @@ contains
         call utl_abort(trim(errorMessage))
       end if
     end subroutine handle_error
-   
+
   end subroutine brpr_burpClean
 
 
@@ -6472,7 +6472,7 @@ contains
     !:Purpose: Initial scan of file to get number of reports. Store address
     !          of each report in array addresses(numReports).
     !
-    implicit none 
+    implicit none
 
     ! Arguments:
     character(len=*),     intent(in)    :: fileName
@@ -6504,7 +6504,7 @@ contains
 
     if (allocated(addresses)) deallocate(addresses)
     allocate(addresses(numReports))
-  
+
     addresses(:) = 0
     refReport = 0
     numReports = 0
@@ -6527,7 +6527,7 @@ contains
       ! Locals:
       integer :: errors(2)
 
-      errors(:) = 0 
+      errors(:) = 0
       call burp_free(report, iostat=errors(1))
       call burp_free(burpFile, iostat=errors(2))
       !Should we abort here ?
@@ -6575,14 +6575,14 @@ contains
     ! determine if this file contains grouped data
     isGrouped = .false.
     reports: do reportIndex = 1, size(address)
-    
+
       call burp_get_report(burpFile,         &
            report    = report,          &
            ref       = address(reportIndex), &
-           iostat    = error)      
+           iostat    = error)
       call handle_error(error, "isGroupedData: burp_get_report error getting next burp report")
       ! loop on blocks
-      refBlock = 0      
+      refBlock = 0
       blocks: do
 
         refBlock = burp_find_block(report, &
@@ -6640,7 +6640,7 @@ contains
     end subroutine handle_error
 
   end function isGroupedData
-  
+
 
   function isFlagBlock(familyType, btyp) result(isFlag)
     implicit none
@@ -6676,7 +6676,7 @@ contains
       end select
       isFlag = (btyp10 == btyp10flg-offset .or. btyp10 == btyp10flg-offset-2)
     end if
-    
+
   end function isFlagBlock
 
 
@@ -6714,10 +6714,10 @@ contains
       end select
       isObs = (btyp10 == btyp10obs-offset .or. btyp10 == btyp10obs-offset-2)
     end if
-    
+
   end function isObsBlock
 
-  
+
   subroutine getElementIdsRead(familyType, elementIds)
     implicit none
 
@@ -6758,7 +6758,7 @@ contains
         allocate(elementIds(nelems_gps))
         elementIds(:) = liste_ele_gps(1:nelems_gps)
       end if
-      
+
     case('TO')
       call brpacma_nml('namburp_filter_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))

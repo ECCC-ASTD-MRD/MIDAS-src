@@ -15,7 +15,8 @@ module varQC_mod
   use rmatrix_mod ,only : rmat_lnondiagr
   use varNameList_mod
   use obsFamilyList_mod
-  
+  use obsFlags_mod
+
   implicit none
   save
   private
@@ -114,8 +115,8 @@ module varQC_mod
               ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) then
              LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated)
           else
-             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
-                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == 2) .and. &
+             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == obs_xtrInside) &
+                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == obs_xtrBelow) .and. &
                       (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) == BUFR_NEGZ)))
           end if
 
@@ -230,7 +231,7 @@ module varQC_mod
                       ityp == 12163) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
-                ! TOVS AMSU-A + AIRS + IASI + GEORAD !!!!! 
+                ! TOVS AMSU-A + AIRS + IASI + GEORAD !!!!!
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABT*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
@@ -324,7 +325,7 @@ module varQC_mod
                     (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body).ne.'RO')
       ! pas de qcvar pour  les radiances en mode matrice R non diagonale
       if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-        (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO') 
+        (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO')
 
       if (includeFlag) then
         index_header = obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body)
@@ -500,7 +501,7 @@ module varQC_mod
         ! loop over all body indices for this headerIndex
         call obs_set_current_body_list( lobsSpaceData, headerIndex )
 
-        BODY: do 
+        BODY: do
            bodyIndex = obs_getBodyIndex( lobsSpaceData )
            if ( bodyIndex < 0) exit BODY
            ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
@@ -513,17 +514,17 @@ module varQC_mod
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
            else
               llok = (obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .and.  &
-                      obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 0) .or.  &
-                     (obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == 2 .and.  &
+                      obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == obs_xtrInside) .or.  &
+                     (obs_bodyElem_i( lobsSpaceData, OBS_XTR, bodyIndex ) == obs_xtrBelow .and.  &
                       obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex ) == BUFR_NEGZ)
            end if
            if ( llok ) then
              zpost = obs_bodyElem_r( lobsSpaceData, OBS_QCV, bodyIndex )
              zlev  = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
-             if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == 2) then
+             if ( obs_bodyElem_i( lobsSpaceData, OBS_VCO, bodyIndex ) == obs_vcoPressure) then
                zlev = obs_bodyElem_r( lobsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
                CLUNITS = 'MB'
-             else if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == 1) then
+             else if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex) == obs_vcoHeight) then
                !
                ! VERTICAL COORDINATE IS HEIGHT
                !
@@ -539,7 +540,7 @@ module varQC_mod
                !
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = '  '
-             else 
+             else
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                CLUNITS = '  '
              end if
@@ -564,10 +565,10 @@ module varQC_mod
                  ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
                  do bodyIndex2=ISTART,bodyIndex
                    ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex2)
-                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 2) then
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == obs_vcoPressure) then
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)*MPC_MBAR_PER_PA_R8
                    end if
-                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 1) then
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == obs_vcoHeight) then
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
                    end if
                    if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS) .and. &
@@ -579,10 +580,10 @@ module varQC_mod
                  ISTART=obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
                  do bodyIndex2=ISTART,bodyIndex
                    ISTYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex2)
-                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 2) then
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == obs_vcoPressure) then
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)*MPC_MBAR_PER_PA_R8
                    end if
-                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == 1) then
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex2) == obs_vcoHeight) then
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
                    end if
                    if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS) .and.  &
@@ -650,14 +651,8 @@ module varQC_mod
                  ILEV = NINT(ZLEV)
                  if (ZPOST > ZCUT) then
                    LLELREJ = .TRUE.
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),9))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),17))
+                   call flg_setFlag(lobsSpaceData, bodyIndex, [flg_09rejBgck,flg_17rejVarQC])
+                   call flg_setFlag(lobsSpaceData, iother,    [flg_09rejBgck,flg_17rejVarQC])
                    if (ityp == BUFR_NEUU .or.  &
                        ityp == BUFR_NEVV) then
                      ICOUNT(1,JFAM) = ICOUNT(1,JFAM) + 1
@@ -779,11 +774,7 @@ module varQC_mod
                    CLDESC = CLITM(16)
                    ICOUNT(16,JFAM) = ICOUNT(16,JFAM) + 1
                  end if
-
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
+                 call flg_setFlag(lobsSpaceData, bodyIndex, [flg_09rejBgck,flg_17rejVarQC])
                  codtypname=codtyp_get_name(IDBURP)
                  stnId = obs_elem_c(lobsSpaceData,'STID',headerIndex)
                  obsONM = obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)

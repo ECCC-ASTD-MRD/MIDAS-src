@@ -10,6 +10,7 @@ module obsUtil_mod
   use codePrecision_mod
   use codtyp_mod
   use obsVariableTransforms_mod
+  use obsFlags_mod
   use utilities_mod
 
   implicit none
@@ -19,7 +20,7 @@ module obsUtil_mod
   ! Public procedures
   public :: obsu_setassflg, obsu_updateSourceVariablesFlag
   public :: obsu_computeVertCoordSurfObs, obsu_setGbgpsError, obsu_cvt_obs_instrum
-  
+
 contains
 
   !--------------------------------------------------------------------------
@@ -38,7 +39,7 @@ contains
     integer          :: headerIndex, bodyIndexStart, bodyIndexEnd, bodyIndex, bodyIndex2
     real(pre_obsReal)   :: level
 
-    body : do bodyIndex = 1, obs_numBody(obsSpaceData) 
+    body : do bodyIndex = 1, obs_numBody(obsSpaceData)
 
       if (ovt_isTransformedVariable(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex))) then
 
@@ -74,35 +75,35 @@ contains
           else
             call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
           end if
-          
+
           ! Find sourceBufrCode and sourceBufrCodeExtra and update their flag
           sourceBufrCodeExtra = ovt_getSourceBufrCode(transformBufrCode,&
                                                                       extra_opt=.true.)
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag )
             end if
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCodeExtra .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag ) 
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag )
             end if
           end do
-          
+
         else
-          
+
           ! Find sourceBufrCode and update its flag
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag ) 
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag )
             end if
           end do
 
         end if
-        
+
       end if
-      
+
     end do body
 
   end subroutine obsu_updateSourceVariablesFlag
@@ -125,10 +126,9 @@ contains
 
     ! Process all data
     BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
-
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) &
-        call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex, &
-                            ibset( obs_bodyElem_i(obsSpaceData, OBS_FLG,bodyIndex), 12 ))
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_12seenByAnl)
+      end if
     end do BODY
 
   end subroutine obsu_setassflg
@@ -244,7 +244,7 @@ contains
     real(pre_obsReal) :: ppp
 
     HEADER: do headerIndex = headerIndexStart, headerIndexEnd
-        
+
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex )
@@ -259,12 +259,12 @@ contains
             sfc_vco = surfvcord(varno, codtyp )
             if ( varno /= bufr_nepn) then
               ppp = elev + sfc_vco
-              call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, ppp )
-              call obs_bodySet_i(obsdat, OBS_VCO, bodyIndex, 1 )
+              call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, ppp)
+              call obs_bodySet_i(obsdat, OBS_VCO, bodyIndex, obs_vcoHeight)
             else
               ppp = 0.
-              call obs_bodySet_r(obsdat,OBS_PPP, bodyIndex, ppp )
-              call obs_bodySet_i(obsdat,OBS_VCO, bodyIndex, 1 )
+              call obs_bodySet_r(obsdat,OBS_PPP, bodyIndex, ppp)
+              call obs_bodySet_i(obsdat,OBS_VCO, bodyIndex, obs_vcoHeight)
             end if
         end select
 
@@ -292,12 +292,12 @@ contains
     integer  :: varno
 
     HEADER: do headerIndex = headerIndexStart, headerIndexEnd
- 
+
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       obsv = real(MPC_missingValue_R8, pre_obsReal)
-      
-      BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+
+      BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd
 
         varno = obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex )
 
@@ -334,9 +334,9 @@ contains
     !           complete common element, allowing for future expansion.
     !
     ! :Table of BURP satellite sensor indicator element #002048:
-    ! ==================  =============================== 
+    ! ==================  ===============================
     ! Satellite sensor    BURP satellite sensor indicator
-    ! ==================  =============================== 
+    ! ==================  ===============================
     !               HIRS                 0
     !                MSU                 1
     !                SSU                 2
@@ -348,7 +348,7 @@ contains
     !           SEAWINDS                 8
     !           Reserved                9-14
     !      Missing value                15
-    ! ==================  =============================== 
+    ! ==================  ===============================
     !
     implicit none
 

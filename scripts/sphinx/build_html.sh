@@ -295,6 +295,8 @@ cat >> index.rst << 'EOF'
 Additional information
 ======================
 
+* Observation flags: Information is :doc:`here on the definition of observation flags. <observation_flag_definitions>`
+
 * Namelists: Information is :doc:`here on which namelists are used for each program. <namelists_in_each_program>`
 
 * Namelists: Information is `here on the definition of all namelists. <namelists.html>`_

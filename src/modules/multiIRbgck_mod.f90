@@ -19,7 +19,8 @@ module multiIRbgck_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use columnData_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -573,7 +574,9 @@ contains
             btObs(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
 
             !  Flag check on observed BTs ***
-            if (.not.liasi .and. btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),2)) rejflag(channelIndex,9) = 1
+            if (.not.liasi .and. flg_flagIsOn(obsSpaceData,bodyIndex,flg_02erroneous)) then
+              rejflag(channelIndex,9) = 1
+            end if
             if (bad) rejflag(channelIndex,9) = 1
 
             !  Gross check on observed BTs ***
@@ -1112,7 +1115,7 @@ contains
         do bodyIndex= bodyStart, bodyEnd
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             nchannels =  nchannels + 1
-            if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),8)) rejflag(channelIndexes(nchannels),8) = 1
+            if (flg_flagIsOn(obsSpaceData,bodyIndex,flg_08rejBlackL)) rejflag(channelIndexes(nchannels),8) = 1
           end if
         end do
 
@@ -1131,7 +1134,8 @@ contains
         end do chn
 
         if  (.not.assim_all) then
-          call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex),6))
+          call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, &
+                             ibset(obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex),6))
         end if
         !  -- Addition of background check parameters to burp file
 
@@ -1156,8 +1160,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emi_sfc(channelIndex))
           do bitIndex = 0, bitflag
             if ( rejflag(channelIndex,bitIndex) == 1 ) then
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), bitIndex))
+              call flg_setFlag(obsSpaceData, bodyIndex, bitIndex + flg_offset)
             end if
           end do
         end do

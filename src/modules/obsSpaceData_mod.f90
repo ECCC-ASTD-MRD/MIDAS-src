@@ -573,8 +573,7 @@ module ObsColumnNames_mod
    integer, parameter :: NBDY_INT_BEG = 401
    integer, parameter, public :: OBS_VNM = NBDY_INT_BEG ! variable number
    integer, parameter, public :: OBS_FLG = OBS_VNM+1  ! flags
-   integer, parameter, public :: OBS_KFA = OBS_FLG+1  ! marker for forward interp problems
-   integer, parameter, public :: OBS_ASS = OBS_KFA+1  ! flag to indicate if assimilated
+   integer, parameter, public :: OBS_ASS = OBS_FLG+1  ! flag to indicate if assimilated
    integer, parameter, public :: OBS_HIND= OBS_ASS+1  ! corresponding header row index
    integer, parameter, public :: OBS_VCO = OBS_HIND+1 ! type of vertical coordinate
    integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of anal level above observ'n
@@ -592,7 +591,7 @@ module ObsColumnNames_mod
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
+      (/ 'VNM ','FLG ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
           'CLA '/)
 
    !
@@ -1624,7 +1623,7 @@ module ObsSpaceData_mod
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
    public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV
    !    integer-body column numbers
-   public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
+   public :: OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA
 
    !    real-body column numbers
@@ -1637,6 +1636,14 @@ module ObsSpaceData_mod
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
    integer, public, parameter :: obs_notAssimilated = 0 ! OBS_ASS value for non assimilated obs
+   integer, public, parameter :: obs_vcoHeight      = 1 ! OBS_VCO value for height level obs
+   integer, public, parameter :: obs_vcoPressure    = 2 ! OBS_VCO value for pressure level obs
+   integer, public, parameter :: obs_vcoChannel     = 3 ! OBS_VCO value for channel obs
+   integer, public, parameter :: obs_vcoChemColumn  = 4 ! OBS_VCO value for chemistry column integrated obs
+   integer, public, parameter :: obs_vcoChemSfc     = 5 ! OBS_VCO value for chemistry point surface obs
+   integer, public, parameter :: obs_xtrInside      = 0 ! OBS_XTR value for obs inside vertical domain
+   integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
+   integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
 
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
@@ -4154,7 +4161,7 @@ contains
       ! Locals:
       integer :: unitout_
       integer :: ipnt, idata, idata2, jdata, ivco
-      character(len=13) :: ccordtyp(4)
+      character(len=13) :: ccordtyp(6)
       integer :: obsVNM, obsFLG, obsASS
       real(pre_obsReal) :: obsPPP, obsVAR, obsOMP, obsOMA, obsOER, obsHPHT, obsOMPE
 
@@ -4167,7 +4174,9 @@ contains
       ccordtyp(1) = 'HEIGHT      :'
       ccordtyp(2) = 'PRESSURE    :'
       ccordtyp(3) = 'CHANNEL NUM :'
-      ccordtyp(4) = 'VCO UNDEFINED'
+      ccordtyp(4) = 'CHEM COLUMN :'
+      ccordtyp(5) = 'CHEM SFC    :'
+      ccordtyp(6) = 'UNKNOWN      '
       !
       ! 1. General information
       !
@@ -4193,7 +4202,7 @@ contains
         idata2 = jdata -ipnt + 1
         if ( obs_bodyElem_i( obsdat, OBS_ASS, jdata ) >= 0) then
           ivco = obs_bodyElem_i( obsdat, OBS_VCO, jdata )
-          if ( ivco < 1 .or. ivco > 3 ) ivco = 4
+          if ( ivco < 1 .or. ivco > 5 ) ivco = 6
           obsVNM = obs_bodyElem_i( obsdat, OBS_VNM , jdata )
           obsPPP = obs_bodyElem_r( obsdat, OBS_PPP , jdata )
           obsVAR = obs_bodyElem_r( obsdat, OBS_VAR , jdata )

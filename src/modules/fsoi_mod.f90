@@ -474,7 +474,7 @@ module fsoi_mod
       do bodyIndex = 1, obs_numbody(obsSpaceData)
 
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
           ! FSO for each family
           if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == familyList(familyIndex) ) then
             tfso(familyIndex) = tfso(familyIndex) + pfso_1

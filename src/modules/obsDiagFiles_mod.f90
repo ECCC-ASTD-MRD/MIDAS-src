@@ -337,7 +337,7 @@ module obsDiagFiles_mod
 
         select case(obsFamily)
           case ('UA', 'AI', 'SW')
-            if (vertCoordType == 2) vertCoordType = 7004
+            if (vertCoordType == obs_vcoPressure) vertCoordType = 7004
           case ('RO')
             vertCoordType = 7007
           case ('RA')

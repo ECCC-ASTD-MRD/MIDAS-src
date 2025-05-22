@@ -26,6 +26,7 @@ module obsErrors_mod
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
   use satWind_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -65,14 +66,14 @@ module obsErrors_mod
   character(len=15) :: instrumentNamesInflateErrAllskyTt(tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyHu(tvs_maxNumberOfSensors)
 
-  ! SST data 
+  ! SST data
   type SSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
     character(len=20) :: sensor     = '' ! sensor of satellite data: NOAA19, NOAA20,...
     character(len=20) :: sensorType = '' ! type of satellite data sensors: infrared, microwave,..
     integer           :: codeType   = MPC_missingValue_INT ! data codtype
-    real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
+    real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
   end type SSTdataParamsType
   integer, parameter :: maxNumberSSTDatasets = 15
@@ -92,22 +93,22 @@ module obsErrors_mod
   ! Associated below to routines beginning with the prefix 'chm'
   type :: struct_chm_std
      !
-     ! Structure containing information retrieved from auxiliary obs data file 
+     ! Structure containing information retrieved from auxiliary obs data file
      ! holding observation std dev information for constituent obs
      !
      !  Variable               Description
      !  --------               -----------
      !  n_stnid                Number of sub-families (identified via STNIDs)
      !  stnids                 Sub-families (STNIDs; * are wild cards)
-     !  element                BUFR element in data block 
-     !  source                 0: Set entirely from the auxiliary file being read. No 
+     !  element                BUFR element in data block
+     !  source                 0: Set entirely from the auxiliary file being read. No
      !                            initial values read from observation files
-     !                         1: Initial values in observation files 
+     !                         1: Initial values in observation files
      !                            (may be adjusted after input)
      !                         2: Initial values in observation files for variable number
      !                            of vertical levels (for error std deviations only)
      !  std_type               Index of setup approach (used in combination with source)
-     !                         For source value 0 or 1, 
+     !                         For source value 0 or 1,
      !                         0: std1 or observation file values (sigma)
      !                         1: max(std3,std2*ZVAL)  if source=0
      !                            max(std3,std2*sigma) otherwise
@@ -115,7 +116,7 @@ module obsErrors_mod
      !                            sqrt(std3**2+(std2*sigma)**2)) otherwise
      !                         3: min(std3,max(std2,std1_chm*ZVAL)) if source=0
      !                            min(std3,max(std2,std1_chm*sigma))  otherwise
-     !                         4: sqrt(std2**2+(std1*ZVAL)**2))  if source=0 
+     !                         4: sqrt(std2**2+(std1*ZVAL)**2))  if source=0
      !                            sqrt(std2**2+(std1*sigma)**2)) otherwise
      !  ibegin                 Position index of start of data for given
      !                         sub-family in the arrays std1,levels,lat
@@ -136,7 +137,7 @@ module obsErrors_mod
 
      ! Array to hold std dev's read from auxiliary obs data/info file
      type(struct_oss_obsdata), allocatable :: obsStdDev(:)
-     
+
   end type struct_chm_std
 
   type(struct_chm_std)  :: chm_std
@@ -184,7 +185,7 @@ contains
   subroutine oer_setInterchanCorr()
     !
     ! :Purpose: Setup of interchannel observation errors correlations
-    !    
+    !
     use rmatrix_mod
     IMPLICIT NONE
 
@@ -278,10 +279,10 @@ contains
     if (obs_famexist(obsSpaceData,'TO')) then
       call oer_readObsErrorsTOVS
       call oer_setInstrumIdArrInflateErrAllsky
-    else 
+    else
       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
     end if
-    
+
     !- 2.2 Conventional data
     if (obs_famExist(obsSpaceData, 'UA') .or. obs_famExist(obsSpaceData, 'AI') .or. obs_famExist(obsSpaceData, 'SW') .or. &
         obs_famExist(obsSpaceData, 'SF') .or. obs_famExist(obsSpaceData, 'GP') .or. obs_famExist(obsSpaceData, 'SC') .or. &
@@ -310,7 +311,7 @@ contains
     end if
 
     !- 2.5 SST
-    if (obs_famexist(obsSpaceData,'TM')) then    
+    if (obs_famexist(obsSpaceData,'TM')) then
       call oer_readObsErrorsSST
     else
       write(*,*) "oer_setObsErrors: No TM observations found."
@@ -350,7 +351,7 @@ contains
     integer, parameter :: bgckColumnIndex = 1
     integer, parameter :: analysisColumnIndex = 2
     integer,external  :: FNOM, FCLOS
-    integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM 
+    integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM
     integer :: INUMSAT, INUMSAT2, ISAT, IPLF
     integer :: IPLATFORM(tvs_maxNumberOfSensors), ISATID(tvs_maxNumberOfSensors)
     integer :: IINSTRUMENT(tvs_maxNumberOfSensors), NUMCHN(tvs_maxNumberOfSensors)
@@ -448,7 +449,7 @@ contains
         read(ILUTOV,*)
       end do
 
-      if (CPLATF == 'FY-3C') THEN 
+      if (CPLATF == 'FY-3C') THEN
          CPLATF = 'FY3-3'
          CINSTR = 'MWHS2'
       end if
@@ -458,7 +459,7 @@ contains
       if (IPLATFORM(JL) == -1) call utl_abort ('oer_readObsErrorsTOVS: Unknown platform!')
 
       IINSTRUMENT(JL) = tvs_getInstrumentId(CINSTR)
-      
+
       if (IINSTRUMENT(JL) == -1) call utl_abort ('oer_readObsErrorsTOVS: Unknown instrument!')
 
       do JI = 1, NUMCHNIN(JL)
@@ -522,7 +523,7 @@ contains
 
         IPLATFORM2 = tvs_getPlatformId(CPLATF)
         IINSTRUMENT2 = tvs_getInstrumentId(CINSTR)
-        if (IPLATFORM2 /= IPLATFORM(JL) .or. IINSTRUMENT2 /= IINSTRUMENT(JL)) & 
+        if (IPLATFORM2 /= IPLATFORM(JL) .or. IINSTRUMENT2 /= IINSTRUMENT(JL)) &
           call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
@@ -547,7 +548,7 @@ contains
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
           end if
 
-          if (ICHNIN2(JI) /= ICHNIN(JI,JL)) & 
+          if (ICHNIN2(JI) /= ICHNIN(JI,JL)) &
             call utl_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
 
         end do
@@ -627,7 +628,7 @@ contains
         write(*,'(A,I3)') 'oer_readObsErrorsTOVS: Observation errors not defined for sensor #', JL
         call utl_abort ('oer_readObsErrorsTOVS')
       end if
-      if (NUMCHN(JL) == 0) THEN 
+      if (NUMCHN(JL) == 0) THEN
         write(*,'(A,I3)') 'oer_readObsErrorsTOVS: Problem setting errors for sensor #', JL
         call utl_abort ('oer_readObsErrorsTOVS')
       end if
@@ -712,7 +713,7 @@ contains
         ich=iachar(ch)
 
         select case(ich)
-        case(9,32)    ! space or tab character         
+        case(9,32)    ! space or tab character
           if(isp==0) then
             k=k+1
             outstr(k:k)=' '
@@ -729,7 +730,7 @@ contains
       str=adjustl(outstr)
 
     end subroutine compact
-    
+
     !--------------------------------------------------------------------------
     ! split
     !--------------------------------------------------------------------------
@@ -740,7 +741,7 @@ contains
       ! Routine finds the first instance of a character from 'delims' in the
       ! the string 'str'. The characters before the found delimiter are
       ! output in 'before'. The characters after the found delimiter are
-      ! output in 'str'. 
+      ! output in 'str'.
       !
       implicit none
 
@@ -761,7 +762,7 @@ contains
       before=' '
       do i=1,lenstr
         ch=str(i:i)
-        
+
         ipos=index(delims,ch)
 
         if(ipos == 0) then ! character is not a delimiter
@@ -776,7 +777,7 @@ contains
 
         cha=str(i+1:i+1)  ! character is a space delimiter
         iposa=index(delims,cha)
-        if(iposa > 0) then   ! next character is a delimiter 
+        if(iposa > 0) then   ! next character is a delimiter
           str=str(i+2:)
           exit
         else
@@ -833,8 +834,8 @@ contains
     implicit none
 
     ! Locals:
-    integer :: sensorIndex 
-    
+    integer :: sensorIndex
+
     instrumentIdsInflateErrAllskyTt(:) = -1
     do sensorIndex = 1, tvs_nsensors
       instrumentIdsInflateErrAllskyTt(sensorIndex) = tvs_getInstrumentId(instrumentNamesInflateErrAllskyTt(sensorIndex))
@@ -869,15 +870,15 @@ contains
       write(*,*) 'oer_setInstrumIdArrInflateErrAllsky: Instrument IDs to inflate error for all-sky HU: ', &
                   instrumentIdsInflateErrAllskyHu(1:numInstrumInflateErrAllskyHu)
     end if
-    
+
   end subroutine oer_setInstrumIdArrInflateErrAllsky
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsCONV
   !--------------------------------------------------------------------------
   subroutine oer_readObsErrorsCONV()
-    ! 
-    ! :Purpose: read observation errors (modification of former readcovo subroutine) of conventional data 
+    !
+    ! :Purpose: read observation errors (modification of former readcovo subroutine) of conventional data
     !
     implicit none
 
@@ -899,7 +900,7 @@ contains
       write(*,*) 'oer_readObsErrorsCONV: reads observation errors in obserr'
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('oer_readObsErrorsCONV: NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort('oer_readObsErrorsCONV: NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     ! Read observation errors from file obserr for conventional data
@@ -998,7 +999,7 @@ contains
         if(trim(HTM_LIST(jcat)) == 'ebbt') tbl_h(jcat) = 1
         if(trim(HTM_LIST(jcat)) == 'co2')  tbl_h(jcat) = 4
         if(trim(TMG_LIST(jcat)) == 'sea')  tbl_t(jcat) = 1
-        if(trim(TMG_LIST(jcat)) == 'land') tbl_t(jcat) = 2 
+        if(trim(TMG_LIST(jcat)) == 'land') tbl_t(jcat) = 2
         if(trim(TMG_LIST(jcat)) == 'ice')  tbl_t(jcat) = 3
         if(trim(NSW_LIST(jcat)) == 'NH')   tbl_g(jcat) = 1
         if(trim(NSW_LIST(jcat)) == 'SH')   tbl_g(jcat) = 2
@@ -1039,7 +1040,7 @@ contains
       write(*,*) 'oer_readObsErrorsICE: reads observation errors in ',fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('oer_readObsErrorsICE: NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort('oer_readObsErrorsICE: NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     ! Read observation errors from file
@@ -1112,7 +1113,7 @@ contains
     ! Locals:
     integer :: ierr, indexDataset
     namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
-    
+
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = namSSTObsErrors, iostat = ierr)
@@ -1136,7 +1137,7 @@ contains
     else
        call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
     end if
-    
+
   end subroutine oer_readObsErrorsSST
 
   !--------------------------------------------------------------------------
@@ -1149,7 +1150,7 @@ contains
     external :: fnom, fclos
     integer                      :: fnom, fclos, ierr, nulstat
     logical                      :: fileExists
-    character(len=15), parameter :: fileName = 'obserr_hydro'    
+    character(len=15), parameter :: fileName = 'obserr_hydro'
     character(len=*) , parameter :: myName   = 'oer_readObsErrorsHydro'
 
     inquire(file = fileName, exist = fileExists)
@@ -1158,7 +1159,7 @@ contains
       write(*,*) myName//': reads observation errors in ', fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort(myName//': NO OBSERVATION STAT FILE FOUND!!')     
+      call utl_abort(myName//': NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     nulstat=0
@@ -1193,7 +1194,7 @@ contains
 
     ! Locals:
     integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
-    integer :: sensorIndex 
+    integer :: sensorIndex
     integer :: isat, channelNumber, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev, indexDataset, indexSensor
@@ -1223,7 +1224,7 @@ contains
       iplatf   = obs_headElem_i(obsSpaceData, OBS_SAT, headerIndex)
       instr    = obs_headElem_i(obsSpaceData, OBS_INS, headerIndex)
       cstnid   = obs_elem_c    (obsSpaceData, 'STID' , headerIndex)
-      idate    = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex) 
+      idate    = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
       itime    = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
 
       surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
@@ -1286,7 +1287,7 @@ contains
                   !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
                   if (trim(obserrorMode) == 'bgck' .or. useTovsUtil) then
                     if  (tovutil(channelNumber, sensorIndex) == 0) &
-                      call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 8))
+                      call flg_setFlag(obsSpaceData, bodyIndex, flg_08rejBlackL)
                   end if
                 end if
               end do
@@ -1339,13 +1340,13 @@ contains
 
                 zwb = log((zlev * MPC_MBAR_PER_PA_R8) / xstd_ua_ai_sw(jn, 1)) / log(xstd_ua_ai_sw(jn + 1, 1) / xstd_ua_ai_sw(jn, 1))
                 zwt = 1.0D0 - zwb
-                
+
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex,  &
                                     zwt * xstd_ua_ai_sw(jn, ielem) +  &
                                     zwb * xstd_ua_ai_sw(jn + 1, ielem))
 
               end if
-                   
+
             end if
 
                 !***********************************************************************
@@ -1357,16 +1358,16 @@ contains
             zlev=obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
             if (codeType == codtyp_get_codtyp('windsbufr')) then ! AMV
-          
+
               if ((ityp == BUFR_NEUU) .or. (ityp == BUFR_NEVV)) ielem = 11
-       
+
             else if (codeType == codtyp_get_codtyp('airep')) then ! AIREP
               if ((ityp == BUFR_NEUU) .or. (ityp == BUFR_NEVV)) then
                 ielem = 7
               else if (ityp == BUFR_NETT) then
                 ielem = 6
               end if
-              
+
             else if (codeType == codtyp_get_codtyp('amdar') .or. &
                      codeType == codtyp_get_codtyp('acars') .or. &
                      codeType == codtyp_get_codtyp('ads')) then
@@ -1389,7 +1390,7 @@ contains
               end do
 
               zwb = log((zlev * MPC_MBAR_PER_PA_R8) / xstd_ua_ai_sw(jn, 1)) / log(xstd_ua_ai_sw(jn + 1, 1) / xstd_ua_ai_sw(jn, 1))
-              zwt = 1.0D0 - zwb 
+              zwt = 1.0D0 - zwb
 
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex,  &
                                   zwt * xstd_ua_ai_sw(jn, ielem) +  &
@@ -1477,7 +1478,7 @@ contains
 
           !              ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
           !              AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
-          !              OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING) 
+          !              OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING)
           !
           else if (cfam == 'GP') then
 
@@ -1524,7 +1525,7 @@ contains
 
             ! TEMPORARILY, hard-code the observation error of AL winds to 2 m/s
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 2.0d0)
-              
+
                 !***********************************************************************
                 !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
                 !***********************************************************************
@@ -1557,7 +1558,7 @@ contains
               obs_err_stddev = chm_get_obs_err_stddev(cstnid, nlev, ityp, zlat, zlon, idate, itime, zval, zlev, ilev, ifirst)
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obs_err_stddev)
 
-            end if     
+            end if
 
                 !***********************************************************************
                 !               Sea Surface Temperature
@@ -1580,7 +1581,7 @@ contains
               end do dataset_loop
 
               if(unsupportedCodeType) then
-                write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found in dataset_loop!' 
+                write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found in dataset_loop!'
                 call utl_abort('oer_fillObsErrors: unsupported codeType!')
               end if
 
@@ -1592,7 +1593,7 @@ contains
                            cstnid, ', headerIndex: ', headerIndex,', bodyIndex: ', bodyIndex
                 call utl_abort('oer_fillObsErrors: Solar zenith value is missing!')
               end if
-              
+
               unsupportedSensor = .true.
               sensor_loop: do indexSensor = 1, numberSSTDatasets
                 if (cstnid == trim(SSTdataParams(indexSensor)%sensor)) then
@@ -1607,13 +1608,13 @@ contains
               end do sensor_loop
 
               if(unsupportedSensor) then
-                write(*,'(3a)') 'oer_fillObsErrors: unsupported satellite SST data sensor ', cstnid,' found in sensor_loop!' 
+                write(*,'(3a)') 'oer_fillObsErrors: unsupported satellite SST data sensor ', cstnid,' found in sensor_loop!'
                 call utl_abort('oer_fillObsErrors: unsupported satellite SST data sensor!')
               end if
 
             else
 
-              write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found!' 
+              write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found!'
               call utl_abort('oer_fillObsErrors: unsupported codeType!')
 
             end if
@@ -1661,7 +1662,7 @@ contains
             else
               call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if
-            
+
             !***********************************************************************
             !               Hydrology
             !***********************************************************************
@@ -1675,9 +1676,9 @@ contains
               write(*,*) 'Hydro observation std dev error: ', bodyIndex, obsValue, xstd_hydro(1), obsStdDevError
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsStdDevError)
             else
-              write(*,*) 'oer_fillObsErrors: unsupported codeType for hydro data found in the observations: ', codeType 
+              write(*,*) 'oer_fillObsErrors: unsupported codeType for hydro data found in the observations: ', codeType
               call utl_abort('oer_fillObsErrors: unsupported codeType')
-            end if  
+            end if
 
           else if (cfam == 'RA') then
 
@@ -1758,12 +1759,12 @@ contains
 
       if (cldPredUsed <= cldPredThresh1) then
         sigmaObsErrUsed = errThresh1
-      else if (cldPredUsed >  cldPredThresh1 .and. & 
+      else if (cldPredUsed >  cldPredThresh1 .and. &
                cldPredUsed <= cldPredThresh2) then
         sigmaObsErrUsed = errThresh1 + &
                           (errThresh2 - errThresh1) / &
                           (cldPredThresh2 - cldPredThresh1) * &
-                          (cldPredUsed - cldPredThresh1) 
+                          (cldPredUsed - cldPredThresh1)
       else
         sigmaObsErrUsed = errThresh2
       end if
@@ -1784,7 +1785,7 @@ contains
       integer,          intent(in)  :: bodyIndex
       ! Result:
       real(8) :: cldPredUsed ! cloud predictor. CLW/SI for all-sky temperature/humidity
-      
+
       ! Locals:
       integer :: platformId, satelliteId, instrumId
       integer :: sensorIndex, headerIndex
@@ -1799,7 +1800,7 @@ contains
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
-      
+
       call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
@@ -1821,7 +1822,7 @@ contains
           channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
 
           write(*,*) 'This observation should have been rejected ', &
-                     'for all-sky temperature in background check!' 
+                     'for all-sky temperature in background check!'
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
@@ -1841,16 +1842,16 @@ contains
 
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                              channelNumber, channelIndex)
-          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)              
-          
+          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
           write(*,*) 'This observation should have been rejected ', &
-                     'for all-sky humidity in background check!' 
+                     'for all-sky humidity in background check!'
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: siObs=', siObs, &
                     ', siFG=', siFG, ', channelNumber=', channelNumber_withOffset
           call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
-        end if        
+        end if
       end if
 
     end function computeCloudPredictor
@@ -1872,13 +1873,13 @@ contains
     integer,           intent(in)    :: bodyIndex
     integer,           intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
     logical, optional, intent(in)    :: beSilent_opt     ! prints extra info to listing if .true.
-    
+
     ! Locals:
     integer :: headerIndex
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
     integer :: sensorIndex, instrumId
-    logical :: surfTypeIsWater 
+    logical :: surfTypeIsWater
     real(8) :: clwObs
     real(8) :: clwFG
     real(8) :: siObs
@@ -1930,10 +1931,10 @@ contains
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
         write(*,*) 'oer_inflateErrAllsky: clwObs=', clwObs, &
-                          ', clwFG=', clwFG, ', OMP=', ompValue                          
+                          ', clwFG=', clwFG, ', OMP=', ompValue
       end if
 
-      ! error inflation for cloud placement 
+      ! error inflation for cloud placement
       deltaE1 = 0.0D0
       if (mwAllskyTtInflateByOmp .and. &
           ((clwObs - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) * &
@@ -1959,7 +1960,7 @@ contains
 
       siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
       siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
-  
+
       sigmaObsBeforeInflation = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
       ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
 
@@ -1971,10 +1972,10 @@ contains
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
         write(*,*) 'oer_inflateErrAllsky: siObs=', siObs, &
-                          ', siFG=', siFG, ', OMP=', ompValue                          
-      end if      
-  
-      ! error inflation for cloud placement 
+                          ', siFG=', siFG, ', OMP=', ompValue
+      end if
+
+      ! error inflation for cloud placement
       deltaE1 = 0.0D0
       if (mwAllskyHuInflateByOmp .and. &
           ((siObs - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) * &
@@ -1982,14 +1983,14 @@ contains
           abs(siObs - siFG) >= 1.0) then
         deltaE1 = abs(ompValue)
       end if
-      
+
       ! error inflation due to scattering-index difference
       deltaE2 = 0.0D0
       if (mwAllskyHuInflateBySiDiff) then
         deltaE2 = inflateErrAllskyHuCoeff(sensorIndex) * abs(siObs - siFG) * &
                   sigmaObsBeforeInflation
       end if
-      deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)      
+      deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
     else
       return
@@ -2001,7 +2002,7 @@ contains
     if (.not. beSilent) then
       write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, ', deltaE2=', deltaE2, &
                  ', sigmaObs=', sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
-    end if                             
+    end if
 
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
@@ -2022,7 +2023,7 @@ contains
     logical             :: inflateErrAllsky
 
     ! Locals:
-    integer :: instrumentIndex 
+    integer :: instrumentIndex
 
     inflateErrAllsky = .false.
     do instrumentIndex = 1, numInstrumInflateErrAllskyTt
@@ -2049,7 +2050,7 @@ contains
     logical             :: inflateErrAllsky
 
     ! Locals:
-    integer :: instrumentIndex 
+    integer :: instrumentIndex
 
     inflateErrAllsky = .false.
     do instrumentIndex = 1, numInstrumInflateErrAllskyHu
@@ -2066,11 +2067,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
     !
-    !:Purpose: Determine if the tovs instrument/channel combination is all-sky 
+    !:Purpose: Determine if the tovs instrument/channel combination is all-sky
     !          temperature/humidity.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
     integer,          intent(in)  :: bodyIndex
@@ -2097,7 +2098,7 @@ contains
     chanIsAllskyHu = .false.
     if (.not. tvs_mwAllskyAssim .or. &
         .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
-    
+
     instrumName = codtyp_get_name(codtyp)
 
     if (tvs_isInstrumAllskyTtAssim(instrumId)) then
@@ -2115,7 +2116,7 @@ contains
         chanIsAllskyHu = .true.
       end if
     end if
-    
+
     if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
 
   end subroutine oer_chanIsAllsky
@@ -2190,24 +2191,24 @@ contains
 
       ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
       if (ref_rpt <0) exit
-      
+
       call burp_get_property(report, STNID=stnid,ELEV=numLevels, IOSTAT=error)
 
       if (stnid(1:2) == ">>") cycle records_in
 
       blockIndex = 0
-      blockIndex = burp_find_block(report, block=blkoer, search_from=blockIndex, btyp=g_btyp_oer, bfam=10, convert=.false., iostat=error)    
+      blockIndex = burp_find_block(report, block=blkoer, search_from=blockIndex, btyp=g_btyp_oer, bfam=10, convert=.false., iostat=error)
 
-      call burp_get_property(blkoer, NVAL=numValues, IOSTAT=error) 
+      call burp_get_property(blkoer, NVAL=numValues, IOSTAT=error)
 
-      uuIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEUU, IOSTAT=error) 
-      vvIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEVV, IOSTAT=error) 
+      uuIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEUU, IOSTAT=error)
+      vvIndex  = burp_find_element(blkoer, ELEMENT=BUFR_NEVV, IOSTAT=error)
 
       if (uuIndex == -1) then
         write(*,*) 'readOerFromObsFileForSW: WARNING: wind element not found, skipping report'
         cycle records_in
       end if
-      
+
       do levelIndex = 1, numLevels
 
         obsIndex = obsIndex + 1
@@ -2267,7 +2268,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine oer_sw(columnTrlOnTrlLev,obsSpaceData)
     !
-    ! :Purpose: Calculate observation errors for AMVs according to the Met-Office 
+    ! :Purpose: Calculate observation errors for AMVs according to the Met-Office
     !           situation dependant approach.
     !
     implicit none
@@ -2278,7 +2279,7 @@ contains
 
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
-    integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
+    integer :: iass,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     integer :: nsats, isat
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
@@ -2300,7 +2301,7 @@ contains
       end if
       return
     end if
-    
+
     if(.not. new_oer_sw) return
 
     valeurs_defaut = .false.
@@ -2321,9 +2322,8 @@ contains
       ! Only process pressure level observations flagged to be assimilated
       iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
-      if(iass /= obs_assimilated .or. ivco /= 2) cycle BODY
+      if(iass /= obs_assimilated .or. ivco /= obs_vcoPressure) cycle BODY
 
-      ixtr = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
       ivnm = obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
       zvar = obs_bodyElem_r (obsSpaceData,OBS_VAR,bodyIndex)
       zlev = obs_bodyElem_r (obsSpaceData,OBS_PPP,bodyIndex)
@@ -2404,7 +2404,7 @@ contains
         ZOTR = col_ptr_uv(jlev)
         SP_WGH = exp(-0.5*((ZPC - zlev)**2)/(E_HEIGHT**2))*((ZPB - ZPT)/2)
         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
-        TO_WGH = TO_WGH + SP_WGH 
+        TO_WGH = TO_WGH + SP_WGH
         if(zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug) then
           write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
         end if
@@ -2413,7 +2413,7 @@ contains
 
       E_VHGT = sqrt(TO_DSP/TO_WGH)
       zoer = sqrt(E_VHGT**2 + E_DRIFT**2)
-       
+
       if(zlev > 20000. .and. zlev < 30000. .and. passe_once .and. print_debug) then
         write(*,'(a10,4f10.2)') 'stlchkb',zoer,E_VHGT,E_DRIFT,E_HEIGHT
         passe_once = .false.
@@ -2422,7 +2422,7 @@ contains
       call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,zoer)
 
       if(print_debug) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
-      
+
     end do BODY
 
     deallocate(QIvalue)
@@ -2441,7 +2441,7 @@ contains
     integer,          intent(in)     :: methode
     integer,          intent(in)     :: terrain
     integer,          intent(in)     :: htasmet
-    integer,          intent(out)    :: J_SAT 
+    integer,          intent(out)    :: J_SAT
     real(8),          intent(in)     :: zlat
     real(8),          intent(in)     :: zlev
     real(8),          intent(out)    :: E_HEIGHT
@@ -2503,7 +2503,7 @@ contains
     else
 
       E_HEIGHT = HGT_ERR(J_SAT,I_HGT)
-      
+
     end if
 
 !
@@ -2589,7 +2589,7 @@ contains
         ASSIM = .FALSE.
         NH = 0
         call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY: do 
+        BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
           IF (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
@@ -2612,7 +2612,7 @@ contains
           Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
           zAzm = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex) / MPC_DEGREES_PER_RADIAN_R8
           zMT  = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
-             !     
+             !
              !     *        Profile at the observation location:
              !
           zLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
@@ -2652,7 +2652,7 @@ contains
           end if
           zuu(ngpslev) = zuu(nwndlev)
           zvv(ngpslev) = zuu(nwndlev)
-             !     
+             !
              !     *        GPS profile structure:
              !
           call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zUU,zVV,zHeight,prf)
@@ -2665,7 +2665,7 @@ contains
              !     *        (start at the beginning of the list)
              !
           call obs_set_current_body_list(obsSpaceData, headerIndex)
-          BODY_2: do 
+          BODY_2: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY_2
             IF (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
@@ -2744,7 +2744,7 @@ contains
                 if (ZERR(NH1) < ZMIN) ZERR(NH1) = ZMIN
               end do
             else if (trim(gps_roError) == 'STATIC_2014') then
-              ! recipe used in EnKF from Josep by email on February 25 2014 
+              ! recipe used in EnKF from Josep by email on February 25 2014
               do NH1 = 1, NH
                 HNH1 = H(NH1)
                 select case (nint(hnh1))
@@ -2801,7 +2801,7 @@ contains
              !     *        (start at the beginning of the list)
              !
           call obs_set_current_body_list(obsSpaceData, headerIndex)
-          BODY_4: do 
+          BODY_4: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY_4
             IF (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
@@ -2984,7 +2984,7 @@ contains
         IF (ityp == BUFR_NEPS) then
           IF (zval  >  0.0D0) ZPSFC = zval
         end if
-          !         Set ZTDOER to constant value (if LLCZTDE); get value of ZTD, 
+          !         Set ZTDOER to constant value (if LLCZTDE); get value of ZTD,
           !         ZTD formal error (OBS_OER) and antenna height (OBS_PPP).
         IF (ityp == BUFR_NEZD) then
           IF (LLCZTDE) then
@@ -3014,7 +3014,7 @@ contains
            call obs_bodySet_r(obsSpaceData,OBS_HPHT,IZTDJ,ZSTDOMP)
 
        !      Replace formal ZTD error with real error for all ZTD to be assimilated.
-       !      Set Std(O-P) as function of ZWD for ZTD observation and store in OBS_HPHT. 
+       !      Set Std(O-P) as function of ZWD for ZTD observation and store in OBS_HPHT.
 
       if (ASSIM) then
         if (LLZTD) then
@@ -3040,13 +3040,13 @@ contains
               ZWD = ZZTD - ZHD
             end if
           end if
-             !              Std(O-P) for background check. Limit to 30 mm in case ZTD obs is bad (too high).             
+             !              Std(O-P) for background check. Limit to 30 mm in case ZTD obs is bad (too high).
           ZSTDOMP = (ZRCONST2 + ZRCOEFF2*ZWD)*0.001D0
           ZSTDOMP = MIN(ZZDERMAX, ZSTDOMP)
              !             Compute ZTD error as a function of ZWD using regression coeff (SD(O-P) vs ZWD).
              !             Take fraction ZOPEFAC of computed error and convert from mm to m.
              !             Ensure error is > ZZDERMIN and < ZZDERMAX
-          IF (.NOT. ERRSET) then 
+          IF (.NOT. ERRSET) then
             ZMINZDE = ZRCONST + ZRCOEFF*ZWD
             ZMINZDE = ZMINZDE * ZOPEFAC * 0.001D0
             IF (LLRZTDE) then
@@ -3150,7 +3150,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       call obs_set_current_body_list(obsSpaceData, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
         !
@@ -3180,7 +3180,7 @@ contains
     if (.not.present(columnTrlOnTrlLev_opt)) then
       call col_deallocate(columnTrlOnTrlLev)
     end if
- 
+
     if (.not. beSilent) write(*,*) myName//': done'
 
   end subroutine oer_setErrBackScatAnisIce
@@ -3246,7 +3246,7 @@ contains
     INQUIRE(FILE=trim(chemAuxObsDataFile),EXIST=LnewExists)
     IF (.not.LnewExists) then
       WRITE(*,*) '---------------------------------------------------------------'
-      WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: auxiliary file ' // trim(chemAuxObsDataFile) 
+      WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: auxiliary file ' // trim(chemAuxObsDataFile)
       WRITE(*,*) 'WARNING! not available. Default CH family stddev to be applied if needed.'
       WRITE(*,*) '---------------------------------------------------------------'
       return
@@ -3267,7 +3267,7 @@ contains
 
     ios=0
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:') 
+    do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:')
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     end do
 
@@ -3300,8 +3300,8 @@ contains
       ! disregard line of dashes
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
-      ! Read STNID (* as wildcard)    
-      read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
+      ! Read STNID (* as wildcard)
+      read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm)
 
       !   Read (1) BUFR element,
       !        (2) Flag indication if EOR provided from this auxiliary file or
@@ -3322,7 +3322,7 @@ contains
 
       if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
         write(*,'(10X,"Max array size exceeded: ",I6)') isize
-        CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
+        CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
       end if
 
       ! disregard line of dashes
@@ -3330,7 +3330,7 @@ contains
 
       ! disregard data section if not needed
       if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%source(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
-           cycle STNIDLOOP 
+           cycle STNIDLOOP
 
       if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
 
@@ -3371,7 +3371,7 @@ contains
 
       else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).gt.1) then
 
-        ! Value dependent on vertical level and latitude 
+        ! Value dependent on vertical level and latitude
 
         ! Read reference latitudes (must be in order of increasing size)
         read(nulstat,*,iostat=ios,err=10,end=10)                      &
@@ -3393,11 +3393,11 @@ contains
 
 10  if (ios.gt.0) then
       WRITE(*,*) 'File read error message number: ',ios
-      CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
+      CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
     end if
 
 11  CLOSE(UNIT=NULSTAT)
-    IERR=FCLOS(NULSTAT)    
+    IERR=FCLOS(NULSTAT)
 
   end subroutine chm_read_obs_err_stddev_file
 
@@ -3405,7 +3405,7 @@ contains
   ! chm_obs_err_stddev_index
   !--------------------------------------------------------------------------
   subroutine chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
-    ! 
+    !
     !:Purpose: To return the station ID and latitude indices corresponding to a
     !          measurement.
     !
@@ -3428,11 +3428,11 @@ contains
 
     !             Find stnid with same number of vertical levels and same BUFR element.
     !             Note: * in chm_std%stnids stands for a wildcard
-     
+
     ISTNID=0
     DO JN=1,chm_std%n_stnid
 
-       ! First compare STNID values allowing for * and blanks in 
+       ! First compare STNID values allowing for * and blanks in
        ! chm_std%stnids(JN) as wildcards
 
        IF (utl_stnid_equal(chm_std%stnids(JN),CSTNID)) THEN
@@ -3445,7 +3445,7 @@ contains
     END DO
 
     IF (ISTNID.EQ.0) THEN
-       write(*,*) 'chm_obs_err_stddev_index: Error std. dev. is unavailable for STNID ' // trim(CSTNID) // & 
+       write(*,*) 'chm_obs_err_stddev_index: Error std. dev. is unavailable for STNID ' // trim(CSTNID) // &
                   ' and NLEV = ' // trim(utl_str(NLEV)) // ' and VARNO = ' // trim(utl_str(VARNO))
        write(*,*)
        write(*,*) ' Contents of chm_std (n_stnid = ' // trim(utl_str(chm_std%n_stnid)) // '):'
@@ -3474,9 +3474,9 @@ contains
                 IF (lat .LE. chm_std%lat(ibegin+JINT)) exit
              END DO
           END IF
-                                           
-       END IF       
-    END IF         
+
+       END IF
+    END IF
 
   end subroutine chm_obs_err_stddev_index
 
@@ -3484,12 +3484,12 @@ contains
   ! chm_get_obs_err_stddev
   !--------------------------------------------------------------------------
   function chm_get_obs_err_stddev(cstnid,nlev,varno,zlat,zlon,idate,itime,zval,&
-                                  zlev,ilev,ifirst) result(obs_err_stddev) 
-    ! 
+                                  zlev,ilev,ifirst) result(obs_err_stddev)
+    !
     !:Purpose: To return the observational error std dev for a CH family
     !          measurement
     implicit none
-   
+
     ! Arguments:
     character(len=*), intent(in) :: CSTNID ! station ID
     integer,          intent(in) :: NLEV   ! number of levels
@@ -3503,7 +3503,7 @@ contains
     integer,          intent(in) :: ILEV   ! observation number in the profile
     logical,          intent(in) :: IFIRST ! true:  first call for a profile
     ! Result:
-    real(8)  :: obs_err_stddev 
+    real(8)  :: obs_err_stddev
 
     ! Locals:
     real(8) :: wgt,zwb,sigma
@@ -3512,17 +3512,17 @@ contains
 
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
-    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
-            
+    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
+
     ! Get weighting of error std. dev. if required
 
     if (chm_std%std_type(ISTNID).gt.2 .or. &
        (chm_std%source(ISTNID).eq.0 .and. chm_std%std_type(ISTNID).eq.0)) then
 
        IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
-                 
+
           ! Find nearest vertical level (no interpolation)
-                 
+
           zwb=1.E10
           ibegin=chm_std%ibegin(ISTNID)-1
           DO JN=1,chm_std%n_lvl(ISTNID)
@@ -3537,7 +3537,7 @@ contains
        END IF
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
-                
+
           ! Apply interpolation
 
           JLEV=JLEV+JINT-1
@@ -3550,18 +3550,18 @@ contains
                   (chm_std%lat(ibegin+JINT)-chm_std%lat(ibegin+JINT-1))
           END IF
        ELSE
-          wgt=chm_std%std1(JLEV)             
+          wgt=chm_std%std1(JLEV)
        END IF
-         
+
     end if
-             
+
     ! Set the error std. dev.
-                   
+
     IF (chm_std%source(ISTNID).EQ.0) THEN
-               
+
        ! Set error standard deviations from scratch using content of
        ! previously read content of the auxiliary file.
-                
+
        select case(chm_std%std_type(ISTNID))
        case(0)
           obs_err_stddev = wgt
@@ -3608,16 +3608,16 @@ contains
           call utl_abort('chm_get_obs_err_stddev: std_type = ' // trim(utl_str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
-       
+
     END IF
-    
+
   end function chm_get_obs_err_stddev
 
   !--------------------------------------------------------------------------
   ! chm_dealloc_obs_err_stddev
   !--------------------------------------------------------------------------
   subroutine chm_dealloc_obs_err_stddev
-    ! 
+    !
     !:Purpose: To deallocate temporary storage space used for observation errors
     !          for the CH family.
     !
@@ -3627,12 +3627,12 @@ contains
     integer :: istnid
 
     if (chm_std%n_stnid.eq.0) return
-    
+
     if (allocated(chm_std%obsStdDev)) then
        do istnid=1,chm_std%n_stnid
           if (chm_std%source(istnid).ge.1) call oss_obsdata_dealloc(chm_std%obsStdDev(istnid))
        end do
-       deallocate(chm_std%obsStdDev)       
+       deallocate(chm_std%obsStdDev)
     end if
 
     if (allocated(chm_std%stnids))   deallocate(chm_std%stnids)
@@ -3658,15 +3658,15 @@ contains
     !:Purpose: get character item value from SSTdataParams derived type
     !
     implicit none
-    
+
 
     ! Arguments:
     character(len=*), intent(in) :: item
     integer         , intent(in) :: itemIndex
     ! Result:
-    character(len=20) :: value 
+    character(len=20) :: value
 
-    select case(trim(item))      
+    select case(trim(item))
       case('dataType')
         value = SSTdataParams(itemIndex)%dataType
       case('instrument')
@@ -3694,10 +3694,10 @@ contains
     character(len=*),  intent(in) :: item
     integer, optional, intent(in) :: itemIndex_opt
     ! Result:
-    integer :: value 
+    integer :: value
 
     if (present(itemIndex_opt)) then
-      select case(trim(item))      
+      select case(trim(item))
         case('codeType')
           value = SSTdataParams(itemIndex_opt)%codeType
         case default
@@ -3730,9 +3730,9 @@ contains
     character(len=*), intent(in) :: item
     integer         , intent(in) :: itemIndex
     ! Result:
-    real(8) :: value 
+    real(8) :: value
 
-    select case(trim(item))      
+    select case(trim(item))
       case('dayError')
         value = SSTdataParams(itemIndex)%dayError
       case('nightError')

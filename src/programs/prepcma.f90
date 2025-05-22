@@ -104,6 +104,7 @@ program midas_prepcma
   use burpRead_mod
   use gridStateVectorFileIO_mod
   use codtyp_mod
+  use obsFlags_mod
   use rttov_const, only : inst_name, platform_name
 
   implicit none
@@ -655,8 +656,7 @@ contains
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           call obs_bodySet_i(obsSpaceData, obs_ass, bodyIndex, obs_notAssimilated)
           ! also set the 'rejected by selection process' flag (bit 11)
-          call obs_bodySet_i( obsSpaceData, obs_flg, bodyIndex,  &
-                              ibset( obs_bodyElem_i( obsSpaceData, obs_flg, bodyIndex ), 11) )
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
         end do
       end if
     end do

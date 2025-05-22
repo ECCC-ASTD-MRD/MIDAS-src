@@ -17,6 +17,7 @@ module burpFiles_mod
   use burp_module
   use obsUtil_mod
   use obsVariableTransforms_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -319,14 +320,10 @@ contains
       ! Set exponent quality flag to that of a 'Suspicious element'
 
       do bodyIndex = RLN, NLV + RLN -1
-        call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
-        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
-        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
-        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
+        call obs_bodySet_r(obsdat, OBS_VAR, bodyIndex, 0.0D0)
+        call flg_setFlag(obsdat, bodyIndex, [flg_02erroneous,flg_04doubtful,flg_09rejBgck])
       end do
 
-      ! write(*,*) 'NLV =',nlv,' Nexp=',nexp
-      ! call utl_abort('brpf_setScaleCH: Inconsistent number of exponents')
       deallocate(expnt)
       return
     end if

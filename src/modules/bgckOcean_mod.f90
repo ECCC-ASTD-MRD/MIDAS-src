@@ -19,6 +19,7 @@ module bgckOcean_mod
   use timeCoord_mod
   use message_mod
   use bMatrixDiff_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -271,16 +272,12 @@ module bgckOcean_mod
             ! update background check flags based on bgCheck
             ! (element flags + global header flags)
             if (obsFlag == 1) then
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 13))
+              call flg_setFlag(obsData, bodyIndex, flg_13ompLevel1)
             else if (obsFlag == 2) then
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 14))
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 16))
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
+              call flg_setFlag(obsData, bodyIndex, [flg_14ompLevel2,flg_16rejOmP,flg_09rejBgck])
               call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
             else if (obsFlag == 3) then
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 15))
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 16))
-              call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
+              call flg_setFlag(obsData, bodyIndex, [flg_15ompLevel3,flg_16rejOmP,flg_09rejBgck])
               call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
             end if
 
@@ -487,7 +484,7 @@ module bgckOcean_mod
           do bodyCount = 1, numberObs(swathIndex)
             numberObsRejected = numberObsRejected + 1
             ! update background check flag
-            call obs_bodySet_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex), ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex)), 10))
+            call flg_setFlag(obsData, bodyIndexList(bodyCount,swathIndex), flg_10rejIceGross)
           end do
 
           write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &

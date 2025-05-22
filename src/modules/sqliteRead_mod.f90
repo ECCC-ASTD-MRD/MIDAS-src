@@ -19,6 +19,7 @@ module sqliteRead_mod
   use obsFilter_mod
   use sqliteUtilities_mod
   use radialVelocity_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -236,14 +237,14 @@ module sqliteRead_mod
     numberElem         = MPC_missingValue_INT
 
     ! Set the type of vertical coordinate
-    vertCoordType  = 1
+    vertCoordType  = obs_vcoHeight
     select case(trim(familyType))
       case('RA','PR','AL','RO','SF','TM','SC','GL','HY','GP')
-        vertCoordType = 1
+        vertCoordType = obs_vcoHeight
       case('UA','AI','SW')
-        vertCoordType = 2
+        vertCoordType = obs_vcoPressure
       case('TO')
-        vertCoordType = 3
+        vertCoordType = obs_vcoChannel
       case default
         call utl_abort('sqlr_readSqlite: unknown family '//trim(familyType))
     end select
@@ -716,8 +717,7 @@ module sqliteRead_mod
 
       ! Activate the 'rejected by selection process' bit if observed value is missing
       if (obsValue == MPC_missingValue_R8) then
-        obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
-        call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+        call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
       end if
 
       ! In some cases we need to add extra row(s) to the BODY table
