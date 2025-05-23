@@ -41,7 +41,7 @@ module gridStateVectorFileIO_mod
   character(len=3) :: outputFormat ! output format written by 'gio_writeToFile' can only be 'XDF' or 'RSF'
 
   ! NEMO increment variables:
-  integer  , parameter :: dimNemovar = 13
+  integer, parameter :: dimNemovar = 13
   character(len=20) :: NEMOvarNameInc(dimNemovar) = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', &
                                                       'time_counter', 'z_inc_dateb ', 'z_inc_datef ', &
                                                       'time        ', 'bckint      ', 'bckins      ', &
@@ -2523,7 +2523,7 @@ module gridStateVectorFileIO_mod
           multFactor = 1.0d0 ! no conversion
         end if
 
-        if (multFactor /= 1.0d0) then
+        if ( .not. utl_isEqual(multFactor,1.0d0) ) then
           if (statevector%dataKind == 4) then
             field_r4_ptr(:,:, varLevIndex, stepIndex) = &
                  real(multFactor * field_r4_ptr(:,:, varLevIndex, stepIndex), 4)
