@@ -294,7 +294,7 @@ contains
               husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex))
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
-              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
+              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =real( hu_modified,4)
             end do ! lonIndex
           end do ! latIndex
         end do ! levIndex
@@ -416,7 +416,7 @@ contains
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
-              hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = hu_modified
+              hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(hu_modified,4)
 
             end do ! stepIndex
 
@@ -1055,12 +1055,12 @@ contains
     real(8), intent(out) :: qmax_dest(:,:,:)      ! Interpolated profiles (destination)
 
     ! Locals:
-    integer :: ji, jk, jo, ii, jj, ik, iorder
+    integer :: ji, jk, jo, ii, jj, ik, iorder, xi
     real(8) :: zpo(numLev_dest)
     integer :: il(numLev_dest)
     real(8) :: zpi(0:numLev_src+1)
     real(8) :: zqmin_src(0:numLev_src+1), zqmax_src(0:numLev_src+1)
-    real(8) :: zw1, zw2, zp, xi, zrt, zp1, zp2
+    real(8) :: zw1, zw2, zp, zrt, zp1, zp2
 
     zpi(0)=200000.d0
     zpi(numLev_src+1)=200000.d0
@@ -1097,8 +1097,8 @@ contains
           do jo = 1, numLev_dest
             zrt = zpo(jo)
             zp = zpi(ji)
-            xi = sign(1.0d0,iorder*(zrt-zp))
-            il(jo) = il(jo) + max(0.0d0,xi)
+            xi = int(sign(1.0d0,iorder*(zrt-zp)))
+            il(jo) = il(jo) + max(0, xi)
           end do
         end do
 
@@ -1447,12 +1447,12 @@ contains
     real(8), intent(out) :: qmax_dest(:,:)        ! Interpolated profiles (destination)
 
     ! Locals:
-    integer :: ji, jk, jo, ii, ik, iorder
+    integer :: ji, jk, jo, ii, ik, iorder, xi
     real(8) :: zpo(numLev_dest)
     integer :: il(numLev_dest)
     real(8) :: zpi(0:numLev_src+1)
     real(8) :: zqmin_src(0:numLev_src+1), zqmax_src(0:numLev_src+1)
-    real(8) :: zw1, zw2, zp, xi, zrt, zp1, zp2
+    real(8) :: zw1, zw2, zp, zrt, zp1, zp2
 
     zpi(0)=200000.d0
     zpi(numLev_src+1)=200000.d0
@@ -1486,8 +1486,8 @@ contains
         do jo = 1, numLev_dest
           zrt = zpo(jo)
           zp = zpi(ji)
-          xi = sign(1.0d0,iorder*(zrt-zp))
-          il(jo) = il(jo) + max(0.0d0,xi)
+          xi = int(sign(1.0d0,iorder*(zrt-zp)))
+          il(jo) = il(jo) + max(0, xi)
         end do
       end do
 
