@@ -200,7 +200,7 @@ contains
       call utl_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
     end if
     do elem = 1, numElem
-      if (list_altDiffMax(elem) /= MPC_missingValue_INT .and. value_altDiffMax(elem) /= MPC_missingValue_R8) then
+      if ( list_altDiffMax(elem) /= MPC_missingValue_INT .and. .not. utl_isEqual(value_altDiffMax(elem), MPC_missingValue_R8) ) then
         elemIndex = findElemIndex(list_altDiffMax(elem))
         if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
           altDiffMax(elemIndex) = value_altDiffMax(elem)
@@ -1977,7 +1977,7 @@ end subroutine filt_topoAISW
         stationAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
         ! Check if station height is far below column sfc altitude
         sfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
-        if (stationAltitude /= 0.0d0) then
+        if ( .not. utl_isEqual(stationAltitude, 0.0d0) ) then
           if (stationAltitude <  sfcAltitude - surfaceBufferZoneCH_Height) then
             ! Station elevation is much lower than the surface. Provides a
             ! warning in the event the station info needs to be checked or
@@ -2085,7 +2085,7 @@ end subroutine filt_topoAISW
         ! only done in this routine for accepting or rejecting the obs.
         ! This is also done separately in the obs operator for the local
         ! resetting of the obs levels.
-        if (stationAltitude /= 0.0d0 .and. stationAltitude < sfcAltitude) then
+        if (.not. utl_isEqual(stationAltitude, 0.0d0) .and. stationAltitude < sfcAltitude) then
           obsAltitude = obsAltitude - stationAltitude + sfcAltitude
         end if
         if (stationAltitude > 0.0d0 .and. obsAltitude < colSfcAltitude) then
@@ -2096,7 +2096,7 @@ end subroutine filt_topoAISW
           call flg_setFlag(obsSpaceData, bodyIndex, flg_18rejOro)
           countRej(listIndex)=countRej(listIndex)+1
           countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
-        else if (stationAltitude == 0.0d0 .and. &
+        else if ( utl_isEqual(stationAltitude, 0.0d0) .and. &
                  (obsAltitude < colSfcAltitude - surfaceBufferZoneCH_Height .or. &
                  (highestLvlBelowSfc .and. obsAltitude < colSfcAltitude))) then
           ! The station altitude was not provided.
@@ -2112,7 +2112,7 @@ end subroutine filt_topoAISW
           ! Accept the obs above the surface (and below the lid)
           countAcc(listIndex)=countAcc(listIndex)+1
           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
-          if (stationAltitude == 0.0d0 .and. obsAltitude < colSfcAltitude) then
+          if ( utl_isEqual(stationAltitude, 0.0d0) .and. obsAltitude < colSfcAltitude) then
             ! Identify as first (topmost) accepted level below the surface.
             ! (not relevant when the station height is provided)
             highestLvlBelowSfc = .true.
