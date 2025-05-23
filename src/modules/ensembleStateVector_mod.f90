@@ -3337,9 +3337,17 @@ CONTAINS
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, tim_nstepobsinc
             do memberIndex = 1, nEns
-              increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) =     &
-                  increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) * &
-                  analIncMask_ptr(lonIndex,latIndex,1)
+              ! TODO: simplify the floating point precision conversions
+              ! We should have:
+              !     increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) =     &
+              !         increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) * &
+              !         real(analIncMask_ptr(lonIndex,latIndex,1),4)
+
+              increment_ptr(memberIndex,stepIndex,lonIndex,latIndex) =                                 &
+                   real(                                                                               &
+                          real(increment_ptr(memberIndex,stepIndex,lonIndex,latIndex), pre_incrReal) * &
+                          analIncMask_ptr(lonIndex,latIndex,1)                                         &
+                       ,4)
             end do
           end do
         end do
