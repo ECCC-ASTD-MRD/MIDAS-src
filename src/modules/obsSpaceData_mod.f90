@@ -5032,15 +5032,14 @@ contains
             ! copy the data in sequential order
             bodyIndex_out = 0
             do procIndex = 1, mmpi_nprocs
-               do bodyIndex=1,numBody_mpimessage
-                  if(real_recv_2d(bodyIndex,procIndex) /= -99999.0d0) then
-                     bodyIndex_out = bodyIndex_out + 1
-                     obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
-                        real_recv_2d(bodyIndex,procIndex)
-                  endif
-               enddo
+              do bodyIndex=1,numBody_mpimessage
+                if( .not. utl_isEqual(real_recv_2d(bodyIndex,procIndex),-99999.0d0) ) then
+                  bodyIndex_out = bodyIndex_out + 1
+                  obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
+                       real_recv_2d(bodyIndex,procIndex)
+                endif
+              enddo
             enddo
-
          endif
 
       enddo ! activeIndex
