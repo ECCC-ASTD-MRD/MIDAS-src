@@ -2945,7 +2945,6 @@ contains
 
       ! print header's content
 
-9202  format(2x,'position within realBodies:',i6)
       obsRLN = obs_headElem_i(obsdata, OBS_RLN, kobs)
       obsONM = obs_headElem_i(obsdata, OBS_ONM, kobs)
       obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
