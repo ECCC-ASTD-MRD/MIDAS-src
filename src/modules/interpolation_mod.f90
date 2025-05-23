@@ -118,13 +118,13 @@ contains
     type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector output (with target grids)
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector with fields P0, TT and HU
     logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency checked
-    
+
     ! Locals:
     logical :: checkModelTop
     character(len=4), pointer :: varNamesToInterpolate(:)
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
-    
+
     call msg('int_interp_gsv', 'START', verb_opt=2)
 
     !
@@ -176,16 +176,16 @@ contains
 
     call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
     call gsv_deallocate(statevector_in_varsLevs_hInterp)
-    
+
     !- Vertical interpolation
-    
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
+
+    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
     else
       checkModelTop = .true.
     end if
-    
+
     call int_vInterp_gsv(statevector_in_hInterp,statevector_out,&
                          statevectorRef_opt=statevectorRef_opt, &
                          checkModelTop_opt=checkModelTop)
@@ -347,12 +347,12 @@ contains
     ! read the namelist
     call int_readNml()
 
-    if ( gsv_getDataKind(statevector_in) == 8 & 
-         .and. gsv_getDataKind(statevector_out) == 8 ) then 
+    if ( gsv_getDataKind(statevector_in) == 8 &
+         .and. gsv_getDataKind(statevector_out) == 8 ) then
       call vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
                           checkModelTop_opt)
     else if ( gsv_getDataKind(statevector_in) == 4 &
-         .and. gsv_getDataKind(statevector_out) == 4 ) then 
+         .and. gsv_getDataKind(statevector_out) == 4 ) then
       call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
                           checkModelTop_opt)
     else
@@ -393,7 +393,7 @@ contains
     real(8), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
-    
+
     call msg('vInterp_gsv_r8', 'START', verb_opt=4)
 
     vco_in  => gsv_getVco(statevector_in)
@@ -433,7 +433,7 @@ contains
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
+    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
     else
@@ -504,7 +504,7 @@ contains
           call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
                                              PTout_r8_opt=hLikeT_out, &
                                              PMout_r8_opt=hLikeM_out)
-          
+
           if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
             call czp_calcReturnPressure_gsv_nl(statevectorRef, &
                                                PTout_r8_opt=hLikeT_in, &
@@ -530,7 +530,7 @@ contains
           hLikeM_in(:,:,:,:)  = -1.d0 * hLikeM_in(:,:,:,:)
           hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
           hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
-          
+
         else if ( vcode_out==21001 ) then
           ! output grid GEM-H interpolation in height
           call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
@@ -557,7 +557,7 @@ contains
       end if hLikeCalcIf
 
       step_loop: do stepIndex = 1, statevector_out%numStep
-  
+
         ! copy over some time related and other parameters
         statevector_out%deet                      = statevector_in%deet
         statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
@@ -566,7 +566,7 @@ contains
         statevector_out%etiket                    = statevector_in%etiket
         statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
         statevector_out%hco_physics              => statevector_in%hco_physics
-  
+
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
         if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -739,7 +739,7 @@ contains
     end if
 
     ! DBGmad move to int_vInterp_gsv?
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
+    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
     else
@@ -839,7 +839,7 @@ contains
           hLikeM_in(:,:,:,:)  = -1.0 * hLikeM_in(:,:,:,:)
           hLikeT_out(:,:,:,:) = -1.0 * hLikeT_out(:,:,:,:)
           hLikeM_out(:,:,:,:) = -1.0 * hLikeM_out(:,:,:,:)
-          
+
           ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
           call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
@@ -866,7 +866,7 @@ contains
       end if hLikeCalcIf
 
       step_loop: do stepIndex = 1, statevector_out%numStep
-  
+
         ! copy over some time related and other parameters
         statevector_out%deet                      = statevector_in%deet
         statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
@@ -875,7 +875,7 @@ contains
         statevector_out%etiket                    = statevector_in%etiket
         statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
         statevector_out%hco_physics              => statevector_in%hco_physics
-  
+
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
         if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -993,7 +993,7 @@ contains
     integer :: varLevIndex, latIndex, lonIndex
     integer :: stepIndexIn1, stepIndexIn2, stepIndexOut, numStepIn, numStepOut
     integer :: lon1, lon2, lat1, lat2, k1, k2
-    integer :: dateStampIn, dateStampOut 
+    integer :: dateStampIn, dateStampOut
     real(8) :: weight1, weight2
     real(8) :: deltaHour, deltaHourInOut
     real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
@@ -1034,7 +1034,7 @@ contains
     call msg('int_tInterp_gsv', 'numStepIn='//str(numStepIn)&
          //', numStepOut='//str(numStepOut), mpiAll_opt=.false.)
 
-    ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
+    ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid).
     ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
     if ( numStepIn > 1 ) then
       call difdatr(statevector_in%dateStampList(1), statevector_in%dateStampList(2), deltaHour)
@@ -1047,8 +1047,8 @@ contains
       if ( numStepIn == 1 ) then
         stepIndexIn1 = 1
         stepIndexIn2 = 1
-        weight1 = 1.0d0 
-        weight2 = 0.0d0 
+        weight1 = 1.0d0
+        weight2 = 0.0d0
         deltaHourInOut = 0.0d0
       else
         ! find statevector_in%dateStamp on the left and right
@@ -1068,11 +1068,11 @@ contains
         dateStampIn = statevector_in%dateStampList(stepIndexIn1)
         dateStampOut = statevector_out%dateStampList(stepIndexOut)
         call difdatr(dateStampOut, dateStampIn, deltaHourInOut)
-        if ( deltaHourInOut < 0.0d0 ) then 
+        if ( deltaHourInOut < 0.0d0 ) then
           call utl_abort('int_tInterp_gsv: deltaHourInOut should be greater or equal to 0')
         end if
 
-        ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2) 
+        ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2)
         weight1 = 1.0d0 - deltaHourInOut / deltaHour
         weight2 = deltaHourInOut / deltaHour
       end if
@@ -1234,7 +1234,7 @@ contains
 
         pSfcIn_ptr = sfcPressureRef_opt
         pSfcOut_ptr = sfcPressureRef_opt
-      else 
+      else
         call msg('int_vInterp_col', 'Use Surface Pressure in the columns to compute the pressure level')
         columnInRef_ptr => column_in
         columnOutRef_ptr => column_out
@@ -1262,7 +1262,7 @@ contains
         call czp_calcReturnHeight_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
         call czp_calcReturnHeight_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
       end if
-        
+
       do columnIndex = 1, col_getNumCol(column_out)
 
         if ( varLevel == 'TH' ) then
@@ -1454,7 +1454,7 @@ contains
     ! do the standard interpolation
 
     ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
 
     if (trim(varName) == 'ZSFC') then
 
@@ -1534,7 +1534,7 @@ contains
     call int_readNml()
 
     ! do the standard interpolation
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
     ierr = ezsint(fieldOut_r4,fieldIn_r4)
 
     call msg('int_hInterpScalar_r4_2d', 'END', verb_opt=4)
@@ -1759,8 +1759,8 @@ contains
                                   real(stateVectorCloud%hco%lat2d_4(lonIndexCloud,latIndexCloud),8))
         end do
       end do
-      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
-      
+      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.)
+
       ! assign grid mask to value of mask at nearest cloud location
       do latIndexGrid = 1, njGrid
         do lonIndexGrid = 1, niGrid
@@ -1837,7 +1837,7 @@ contains
     end if
 
     if ( checkCloudToGridUnassigned ) then
-      call msg('int_sintCloudToGrid_gsv', & 
+      call msg('int_sintCloudToGrid_gsv', &
              new_line('')//'Total number of grid points:                                   '//str(niGrid*njGrid) &
            //new_line('')//'Number of grid points not covered by the cloud of points:      '//str(sum(nhole(:))) &
            //new_line('')//'Number of grid points filled by neighbours:                    '//str(sum(nfill(:))) &
@@ -1883,7 +1883,7 @@ contains
     integer :: ierr
 
     ! Locals:
-    integer :: nii, nji, nio, njo     
+    integer :: nii, nji, nio, njo
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint
@@ -1894,7 +1894,7 @@ contains
 
     ! do the standard interpolation
 
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
 
     nii = size(fieldIn_r8,1)
     nji = size(fieldIn_r8,2)
@@ -1969,7 +1969,7 @@ contains
     ! do the standard interpolation
 
     ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
 
     if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
@@ -2079,7 +2079,7 @@ contains
     call int_readNml()
 
     ! do the standard interpolation
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
     call msg('int_hInterpUV_r4_2d', 'END', verb_opt=4)
@@ -2118,7 +2118,7 @@ contains
 
     ! do the standard interpolation
 
-    call int_setezopt(interpDegree, extrapDegree_opt)   
+    call int_setezopt(interpDegree, extrapDegree_opt)
 
     nii = size(uuin,1)
     nji = size(uuin,2)
@@ -2216,7 +2216,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_cxgaig
   !--------------------------------------------------------------------------
-  subroutine int_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
+  subroutine int_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon)
     !
     ! :Purpose: Subroutine wrapper for rmnlib procedure cxgaig.
     !
@@ -2226,12 +2226,12 @@ contains
     integer,          intent(in) :: ig1
     integer,          intent(in) :: ig2
     integer,          intent(in) :: ig3
-    integer,          intent(in) :: ig4   
+    integer,          intent(in) :: ig4
     real(8),          intent(in) :: xlat0
     real(8),          intent(in) :: xlon0
     real(8),          intent(in) :: dlat
-    real(8),          intent(in) :: dlon 
-    character(len=*), intent(in) :: grtyp 
+    real(8),          intent(in) :: dlon
+    character(len=*), intent(in) :: grtyp
 
     ! Locals:
     real(4) :: xlat04, xlon04, dlat4, dlon4

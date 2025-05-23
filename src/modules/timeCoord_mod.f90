@@ -9,11 +9,11 @@ module timeCoord_mod
   use varNameList_mod
   use utilities_mod
   use message_mod
-  
+
   implicit none
   save
   private
-  
+
   ! Public module variables
   real(8), public, protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   integer, public, protected :: tim_nstepobs, tim_nstepobsinc
@@ -38,13 +38,13 @@ contains
     ! :Purpose: Read the namelist block NAMTIME.
     !
     ! :Namelist parameters:
-    !         :dstepobs:    time step (hrs) between successive trial fields 
+    !         :dstepobs:    time step (hrs) between successive trial fields
     !                       for use in OmP determation. Set to dwindowsize for
     !                       single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
-    !                       nstepobs = number of trial fields 
+    !                       nstepobs = number of trial fields
     !         :dstepobsinc: time step (hrs) between obs groupings in time. Set to
     !                       dwindowsize for use of a single obs group.
-    !                       nstepobsinc = number of obs time intervals 
+    !                       nstepobsinc = number of obs time intervals
     !         :dwindowsize: Time window size (hrs).
     !
     ! :Comment:
@@ -58,7 +58,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: firstCall = .true.
-    integer :: nulnam, fnom, fclos 
+    integer :: nulnam, fnom, fclos
 
     ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)
@@ -78,8 +78,8 @@ contains
 
     ! Set default values for namelist variables
     dstepobs       = 6.0d0
-    dstepobsinc    = 6.0d0      
-    dwindowsize    = 6.0d0     
+    dstepobsinc    = 6.0d0
+    dwindowsize    = 6.0d0
     referenceTime = 'middle'
     fullyUseExtremeTimeBins = .false.
 
@@ -105,13 +105,13 @@ contains
 
     if (dstepobs > dwindowsize) then
       if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobs>dwindowsize. Reset to dwindowsize value.'
-      tim_dstepobs = tim_windowsize 
+      tim_dstepobs = tim_windowsize
     end if
     if (dstepobsinc > dwindowsize) then
       if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
-      tim_dstepobsinc = tim_windowsize 
+      tim_dstepobsinc = tim_windowsize
     end if
-     
+
     if (tim_referenceTime == 'middle' .or. trim(tim_referenceTime) == 'end') then
 
       tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
@@ -189,8 +189,8 @@ contains
 
   subroutine tim_setup(fileNameForDate_opt)
     !
-    ! :Purpose: Setup of obs time window size and related trial field 
-    !           time step for OmP determination. 
+    ! :Purpose: Setup of obs time window size and related trial field
+    !           time step for OmP determination.
     !
     implicit none
 
@@ -222,7 +222,7 @@ contains
       ierr = newdate(datestamp, prntdate, prnttime, imode)
       write(*,*) 'tim_setup: printdate = ', prntdate
       write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp      
+      write(*,*) 'tim_setup: datestamp = ', datestamp
     else if (present(fileNameForDate_opt)) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
@@ -236,7 +236,7 @@ contains
     else
       write(*,*) 'tim_setup: =========================================================='
       write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
-      write(*,*) 'tim_setup: =========================================================='      
+      write(*,*) 'tim_setup: =========================================================='
     end if
 
     if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
@@ -245,7 +245,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
     if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
     if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
-    
+
     if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
       call utl_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
     end if
@@ -305,20 +305,20 @@ contains
       ! Determine variable to use for the date (default is P0)
       varNameForDate = 'P0'
       if (present(varNameForDate_opt)) then
-      
+
         varNameForDate = trim(varNameForDate_opt)
         write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable = ', varNameForDate
-      
+
       ! If P0 not present, look for another suitable variable in the file
       else if (.not. vnl_varNamePresentInFile(varNameForDate, fileName = trim(fileName))) then
-      
+
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varNameForDate = vnl_varNameList(varIndex)
           ! check if variable is in the file
           if (.not. vnl_varNamePresentInFile(varNameForDate, fileName = trim(fileName))) cycle
           foundVarNameInFile = .true.
-          exit      
+          exit
         end do
 
         if (.not. foundVarNameInFile) then
@@ -440,7 +440,7 @@ contains
     ! Arguments:
     integer, intent(in)  :: numStep                ! number of step obs
     integer, intent(in)  :: referenceDateStamp     ! Synoptic time
-    integer, intent(out) :: dateStampList(numStep) ! datestamp list 
+    integer, intent(out) :: dateStampList(numStep) ! datestamp list
 
     ! Locals:
     integer :: stepIndex
@@ -471,16 +471,16 @@ contains
         end do
 
       else if (trim(tim_referencetime) == 'start') then
-     
+
         dtstep = tim_windowsize / (real(numStep, 8))
-     
+
         do stepIndex = 1, numStep
           dldelt = (stepIndex - 1) * dtstep
           call incdatr(dateStampList(stepIndex), referenceDateStamp, dldelt)
         end do
 
       else if (trim(tim_referencetime) == 'end') then
-        
+
         if (numStep > 1) then
 
           call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
@@ -494,11 +494,11 @@ contains
         else
           call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize/2)
         end if
-      
+
       end if
-      
+
     end if ! datestamp is specified or not
-    
+
     call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
     imode = -3
     do stepIndex = 1, numStep
@@ -541,7 +541,7 @@ contains
     call difdatr(istobs, referenceDateStamp, dlhours)
 
     if (numStep > 1) then
-    
+
       ! FGAT: more than 1 trial field in time window
       if (tim_referenceTime == 'middle') then
         dddt = tim_windowsize / (real(numStep - 1, 8))
@@ -550,9 +550,9 @@ contains
       else if (tim_referenceTime == 'end') then
         dddt = tim_windowsize / (real(numStep - 1, 8))
       end if
-      
+
       dnstepobs = dlhours / dddt ! number of step obs from reference (e.g. synoptic)
-      
+
       if (tim_referenceTime == 'middle') then
         dnstepobs = dnstepobs + real((numStep + 1) / 2, 8)
       else if (trim(tim_referencetime) == 'start') then
@@ -560,7 +560,7 @@ contains
       else if (trim(tim_referencetime) == 'end') then
         dnstepobs = dnstepobs + real(numStep, 8)
       end if
-      
+
       if (dnstepobs < 0.5d0 .or. dnstepobs > (0.5d0 + real(numStep, 8))) dnstepobs = -1.0d0
 
     else
@@ -594,31 +594,31 @@ contains
     end if
 
   end subroutine tim_getStepObsIndex
-  
+
   !----------------------------------------------------------------------------------------
   ! tim_dateStampToDDMMYYYY
   !----------------------------------------------------------------------------------------
   subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
     !
-    ! :Purpose: to get day (DD), month (MM), number of days in this month 
+    ! :Purpose: to get day (DD), month (MM), number of days in this month
     !           and year (YYYY) from dateStamp
     !
     implicit none
-  
+
     ! Arguments:
     integer,           intent(in)    :: dateStamp
     integer,           intent(inout) :: prnttime, dd, mm, ndays, yyyy
     logical, optional, intent(in)    :: verbose_opt
-    
+
     ! Locals:
     character(len=8)            :: yyyymmdd
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    integer                     :: ndaysM(12)    
+    integer                     :: ndaysM(12)
     integer                     :: imode, ierr, newdate, prntdate
     logical                     :: verbose = .True.
 
     ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
-    
+
     imode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, prnttime, imode)
     write(yyyymmdd,'(i8)') prntdate
@@ -626,20 +626,20 @@ contains
     read (yyyymmdd(5:6), '(i2)') mm
     read (yyyymmdd(1:4), '(i4)') yyyy
 
-    ! leap year    
+    ! leap year
     if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
     ndays = ndaysM(mm)
-    
+
     if (present(verbose_opt)) verbose = verbose_opt
-    
+
     if(verbose) then
       write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', prntdate
       write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
-      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)'
       write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
       write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
-    end if     
-  
+    end if
+
   end subroutine tim_dateStampToYYYYMMDDHH
 
   !----------------------------------------------------------------------------------------
@@ -656,7 +656,7 @@ contains
 
     ! Locals:
     integer                 :: numDates, numWindowsPerDay, windowIndex
-    integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax 
+    integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax
     integer(8)              :: dateTimeMin, dateTimeMax, timeMin, timeMax, dateMin, dateMax
     integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
     integer                 :: ier, imode
@@ -744,7 +744,7 @@ contains
         validDate = 0
       end if
     end if checkNumDates
-    
+
   end subroutine tim_getValidDateTimeFromList
 
   !----------------------------------------------------------------------------------------
@@ -769,9 +769,9 @@ contains
     integer :: imode, ierr
     integer :: printableDate
     integer, external :: newdate
-    
+
     printableDate = year * 10000 + month * 100 + day
-    
+
     imode = 3
     ierr = newdate(currentDateStamp, printableDate, hour, imode)
 
@@ -785,15 +785,15 @@ contains
     ! :Purpose: to compute number of hours between current and reference date.
     !
     implicit none
-  
+
     integer, intent(in)  :: currentDateStamp ! current datestamp
     integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
     integer, intent(out) :: numberHours
 
     ! Locals:
     integer :: ierr, imode, refDateStamp, newdate
-    
-    write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate 
+
+    write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate
     imode = 3
     ierr = newdate(refDateStamp, referenceDate, 0, imode)
     write(*,*) 'tim_getHoursSinceReferenceDate: reference datestamp: ', refDateStamp
@@ -812,7 +812,7 @@ contains
     ! :Purpose: to compute number of seconds in integer(8) between current and reference date.
     !
     implicit none
-  
+
     integer, intent(in)  :: currentDateStamp ! current datestamp
     integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
     integer(8), intent(out) :: numberSeconds
@@ -820,8 +820,8 @@ contains
     ! Locals:
     integer :: ierr, imode, refDateStamp, newdate
     real(8) :: numberHours
-    
-    write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate 
+
+    write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate
     imode = 3
     ierr = newdate(refDateStamp, referenceDate, 0, imode)
     write(*,*) 'tim_getSecondsSinceReferenceDate: reference datestamp: ', refDateStamp
@@ -829,7 +829,7 @@ contains
     ! Difference (in hours) between current date and reference date
     call difdatr(currentDateStamp, refDateStamp, numberHours)
     write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
-    
+
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
   end subroutine tim_getSecondsSinceReferenceDate
