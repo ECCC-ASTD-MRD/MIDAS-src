@@ -97,7 +97,7 @@ contains
     TYPE(BURP_BLOCK)       :: Block_FLG_CP,BLOCK_OBS_MUL_CP,BLOCK_MAR_MUL_CP,BLOCK_OBS_SFC_CP,BLOCK_MAR_SFC_CP
     TYPE(BURP_BLOCK)       :: BLOCK_GEN, BLOCK_OBS_BND,BLOCK_MAR_BND,BLOCK_ORB
 
-    CHARACTER(LEN=5)       :: FAMILYTYPE2
+    CHARACTER(LEN=6)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
     integer                :: BTYP,BFAM,BTYP10,BTYP10FLG_uni,BTYP10obs_uni
     integer                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
@@ -122,7 +122,8 @@ contains
     integer                :: bit_alt,btyp_offset,btyp_offset_uni
     integer                :: BKNAT,BKTYP,BKSTP
     character(len = 5)     :: BURP_TYP
-    CHARACTER(LEN=9)       :: STNID,STN_RESUME,STID
+    CHARACTER(LEN=9)       :: STNID,STN_RESUME
+    CHARACTER(LEN=12)      :: STID ! 12 is the size returned by 'obs_elem_c'
     LOGICAL                :: HIRES,HIPCS
     integer                :: NDATA_SF
     integer                :: IFLAG
@@ -1876,7 +1877,7 @@ contains
     TYPE(BURP_RPT)         :: RPT_IN
     TYPE(BURP_BLOCK)       :: BLOCK_IN
 
-    CHARACTER(LEN=5)       :: FAMILYTYPE2
+    CHARACTER(LEN=6)       :: FAMILYTYPE2
     CHARACTER(LEN=9)       :: OPT_MISSING
     integer                :: BTYP,BFAM,BKSTP,BTYP10,BTYP10FLG_uni,BTYP10obs_uni
     integer                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG
