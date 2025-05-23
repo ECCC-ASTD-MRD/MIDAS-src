@@ -521,7 +521,7 @@ contains
     ! Locals:
     real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
     integer              :: numCol, numLev, numColRef, numLevRef
-    integer              :: icol
+    integer              :: icol, ilev
     real(8), parameter   :: missingValue = -1.0d0
     real(8)              :: emissDiffTmp
 
@@ -540,20 +540,25 @@ contains
       end if
     end if
 
-    do icol = 1, numCol
+    colLoop: do icol = 1, numCol
       if (present(columnRef_opt)) then
         ! Fill missing value if ref column also have missing value
-        if (any(emissPtrRef(:, icol) == missingValue)) then
+        do ilev = 1, size(emissPtrRef, 1)
+          if ( utl_isEqual(emissPtrRef(ilev, icol), missingValue) ) then
+            emissPtr(:, icol) = missingValue
+            cycle colLoop
+          end if
+        end do
+
+        ! Fill missing value if ref column have negative emissivity
+        if(any(emissPtrRef(:, icol) < 0.0d0)) then
           emissPtr(:, icol) = missingValue
-          ! Fill missing value if ref column have negative emissivity
-        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
-          emissPtr(:, icol) = missingValue
-          ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
+        ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
+        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then
           emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
         ! Limit simulated emissivity to one
-        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
+        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then
           emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
         end if
@@ -568,7 +573,7 @@ contains
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp * 1.01
         end if
       end if
-    end do
+    end do colLoop
 
   end subroutine sse_emissivityRttovLimits
 
