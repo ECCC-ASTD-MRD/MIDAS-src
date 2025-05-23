@@ -1203,17 +1203,21 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readUABcorStype: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
-          if ( ttBiasNight == uaMissingValue ) ttBiasNight = MPC_missingValue_R8
-          if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
-          if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
-          if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasNight, uaMissingValue) ) tdBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasDay,   uaMissingValue) ) tdBiasDay   = MPC_missingValue_R8
+          if ( .not. utl_isEqual(ttBiasNight, MPC_missingValue_R8) ) ttCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( .not. utl_isEqual(ttBiasDay,   MPC_missingValue_R8) ) ttCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( .not. utl_isEqual(tdBiasNight, MPC_missingValue_R8) ) tdCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( .not. utl_isEqual(tdBiasDay,   MPC_missingValue_R8) ) tdCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
-        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex,Index500mb)   /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex)   = .true.
-        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex+1,Index500mb) /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex+1) = .true.
+        if (  .not. utl_isEqual(ttCorrections(sondeTypeIndex,latBand,groupIndex,Index500mb)  , MPC_missingValue_R8) ) then
+          biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex)   = .true.
+        end if
+        if (  .not. utl_isEqual(ttCorrections(sondeTypeIndex,latBand,groupIndex+1,Index500mb), MPC_missingValue_R8) ) then
+          biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex+1) = .true.
+        end if
       end do
 
     end do main_loop
@@ -1316,14 +1320,14 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readUABcorStn: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
-          if ( ttBiasNight == uaMissingValue ) ttBiasNight = MPC_missingValue_R8
-          if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
-          if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
-          if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasNight, uaMissingValue) ) tdBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasDay,   uaMissingValue) ) tdBiasDay   = MPC_missingValue_R8
+          if ( .not. utl_isEqual(ttBiasNight, MPC_missingValue_R8) ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( .not. utl_isEqual(ttBiasDay,   MPC_missingValue_R8) ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( .not. utl_isEqual(tdBiasNight, MPC_missingValue_R8) ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( .not. utl_isEqual(tdBiasDay,   MPC_missingValue_R8) ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
       end do
 
