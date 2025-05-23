@@ -3433,7 +3433,7 @@ contains
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
-       realBodyColumn(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
+       realBodyColumn(bodyIndex) = real(obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex),4)
      end do
 
    end subroutine obs_extractObsRealBodyColumn_r4
