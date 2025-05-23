@@ -248,7 +248,7 @@ contains
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex )
-      elev = obs_headElem_r(obsdat, OBS_ALT, headerIndex )
+      elev = real(obs_headElem_r(obsdat, OBS_ALT, headerIndex), 4)
 
       BODY: do bodyIndex = bodyIndexStart, bodyIndexEnd
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
