@@ -1649,10 +1649,10 @@ module ObsSpaceData_mod
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
-                                        ! It is intended that these null values
-                                        ! be used with scratchRealHeader, etc.
+   ! It is intended that these null values
+   ! be used with scratchRealHeader, etc.
    real(pre_obsReal), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, pre_obsReal)
-   integer          , parameter :: NULL_COLUMN_VALUE_I = -9.99
+   integer          , parameter :: NULL_COLUMN_VALUE_I = -10
 
    ! This type is the goal of the ObsSpaceData and supporting modules.  An
    ! instance of this derived type contains all information pertaining to a set
