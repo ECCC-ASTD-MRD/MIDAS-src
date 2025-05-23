@@ -857,7 +857,7 @@ contains
 
                  IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
                  OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
-                 if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) cycle
+                 if (utl_isEqual(OBSVA, MPC_missingValue_R4) .and. iele /= ILEMU  .and. iele /= ILEMV ) cycle
 
                  if (OBSN > obs_numHeader(obsdat) ) then
                    write(*,*)  ' debordement  surface OBS_START=',OBS_START
@@ -1306,8 +1306,8 @@ contains
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
                   !if( idtyp == 168 ) print * , ' bobossmi avant vcoord obsva    stnid =',  VCOORD,OBSVA,stnid
 
-                  if (VCOORD == MPC_missingValue_R4 ) CYCLE ELEMS
-                  if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) CYCLE ELEMS
+                  if (utl_isEqual(VCOORD, MPC_missingValue_R4) ) CYCLE ELEMS
+                  if (utl_isEqual(OBSVA, MPC_missingValue_R4) .and. iele /= ILEMU  .and. iele /= ILEMV ) CYCLE ELEMS
 
                   if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
                   if (OBSN > obs_numHeader(obsdat))  cycle
@@ -1365,7 +1365,7 @@ contains
                   KOBSN= KOBSN + 1
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele)
                   if (IND_ELE_stat==-1)call handle_error(IND_ELE_stat, "brpr_updateBurp: element not found in BLOCK_OMA")
-                  if  ( OMA /= MPC_missingValue_R4 ) then
+                  if  ( .not. utl_isEqual(OMA, MPC_missingValue_R4) ) then
                     OMA=OMA*convfact
                   end if
 
@@ -1390,7 +1390,7 @@ contains
                   SUM=SUM +1
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP, ELEMENT=iele)
                   if (IND_ELE_stat==-1)call handle_error(IND_ELE_stat, "element not found in BLOCK_OMP")
-                  if  ( OMP /= MPC_missingValue_R4 ) then
+                  if  ( .not. utl_isEqual(OMP, MPC_missingValue_R4) ) then
                     OMP=OMP*convfact
                   end if
                   call BURP_Set_Rval(  Block_OMP,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMP)
@@ -2818,7 +2818,7 @@ contains
                               &   NT_IND   = k, &
                               &   IOSTAT   = error)
                   call handle_error(error, "brpr_readBurp: BURP_Get_rval info_elepos")
-                  if  (RINFO(kl,k) == MPC_missingValue_R4)  THEN
+                  if  ( utl_isEqual(RINFO(kl,k), MPC_missingValue_R4))  THEN
                     infot= BURP_Get_tblval(Block_in, &
                             &   NELE_IND = info_elepos, &
                             &   NVAL_IND = 1, &
@@ -3494,7 +3494,7 @@ contains
          varno = LISTE_ELE(il)
          DO j = 1, NVAL
             obsv = obsvalue(il,j)
-            if ( varno == 15031 .and.  obsv == MISG  ) then
+            if ( varno == 15031 .and. utl_isEqual(obsv, MISG)  ) then
                print * , 'write body: report rejected no ZTD'
                WRITE_BODY = NLV
                return
@@ -3533,7 +3533,7 @@ contains
            IF (NVAL == 1) THEN
               VCO=obs_vcoChemSfc ! Initializes as surface point measurement
               DO il = 1, NELE
-                 if ( obsvalue(il,1) /= MPC_missingValue_R4) then
+                 if ( .not. utl_isEqual(obsvalue(il,1), MPC_missingValue_R4) ) then
                     if (liste_ele(il) == 15198.OR.liste_ele(il) == 15009.OR. &
                         liste_ele(il) == 15020.OR.liste_ele(il) == 15021.OR. &
                         liste_ele(il) == 15024.OR.liste_ele(il) == 15200.OR. &
@@ -3557,7 +3557,7 @@ contains
         VCOORD=VERTCOORD(j)
         OBSV  =   obsvalue(il,j)
         if( L_EMISS )  then
-          if( SURF_EMIS_opt(j) /= MISG)  then
+          if( .not. utl_isEqual(SURF_EMIS_opt(j), real(MISG,4)) ) then
             REMIS =  SURF_EMIS_opt(j)*ZEMFACT
           else
             REMIS = MISG
@@ -3574,7 +3574,8 @@ contains
         end if
         IFLAG = INT(qCflag(il,j))
 
-        if ( obsv /= MPC_missingValue_R4 .and. VCOORD /= MPC_missingValue_R4   ) then
+        if ( .not. utl_isEqual(obsv, real(MPC_missingValue_R4, pre_obsReal)) .and. &
+             .not. utl_isEqual(VCOORD, MPC_missingValue_R4) ) then
           count = count  + 1
           NLV= NLV +1
           IFLAG = IBCLR(IFLAG,12)
@@ -3606,7 +3607,7 @@ contains
              call obs_bodySet_i(obsdat,OBS_CLA,count,cloudFrac)
           end if
 
-          if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
+          if ( .not. utl_isEqual(REMIS, real(MPC_missingValue_R8, pre_obsReal)) .and. FAMTYP == 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
             if ( FAMTYP == 'TO') then
@@ -3807,8 +3808,8 @@ contains
     RRO_QCFLAG = MPC_missingValue_R4
     RSOLAR_AZIMUTH = real(MPC_missingValue_R8,pre_obsReal)
     RSOLAR_ZENITH = real(MPC_missingValue_R8,pre_obsReal)
-    RZENITH = 90.
-    RAZIMUTH = 0.
+    RZENITH = 90._pre_obsReal
+    RAZIMUTH = 0._pre_obsReal
     cloudLiquidWaterObs = real(MPC_missingValue_R8,pre_obsReal)
     cloudLiquidWaterFG = real(MPC_missingValue_R8,pre_obsReal)
     scatteringIndexObs = real(MPC_missingValue_R8,pre_obsReal)
@@ -3819,56 +3820,56 @@ contains
       SELECT CASE( liste_info(il) )
         CASE( 1007)
           RID_SAT=INFOV
-          IF (RID_SAT == MPC_missingValue_R4 ) THEN
+          IF (utl_isEqual(RID_SAT, MPC_missingValue_R4) ) THEN
             ID_SAT=0
           ELSE
             ID_SAT=NINT(RID_SAT)
           END IF
         CASE( 1033)
           RORIGIN_CENTRE=INFOV
-          IF (RORIGIN_CENTRE == MPC_missingValue_R4 ) THEN
+          IF (utl_isEqual(RORIGIN_CENTRE, MPC_missingValue_R4) ) THEN
             ORIGIN_CENTRE=0
           ELSE
             ORIGIN_CENTRE=NINT(RORIGIN_CENTRE)
           END IF
         CASE( 2048)
           RSENSOR = INFOV
-          if (RSENSOR == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RSENSOR, MPC_missingValue_R4) ) THEN
             SENSOR = MPC_missingValue_INT
           ELSE
             SENSOR = NINT(RSENSOR)
           END IF
         CASE( 5040)
           RORBIT = INFOV
-          if (RORBIT == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RORBIT, MPC_missingValue_R4) ) THEN
             ORBIT = MPC_missingValue_INT
           ELSE
             ORBIT = NINT(RORBIT)
           END IF
         CASE( 33078)
           RQCFLAG1 = INFOV
-          if (RQCFLAG1 == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RQCFLAG1, MPC_missingValue_R4) ) THEN
             QCFLAG1 = MPC_missingValue_INT
           ELSE
             QCFLAG1 = NINT(RQCFLAG1)
           END IF
         CASE( 33079)
           RQCFLAG2 = INFOV
-          if (RQCFLAG2 == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RQCFLAG2, MPC_missingValue_R4) ) THEN
             QCFLAG2 = MPC_missingValue_INT
           ELSE
             QCFLAG2 = NINT(RQCFLAG2)
           END IF
         CASE( 020029)
           RRAINFLAG = INFOV
-          if (RRAINFLAG == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RRAINFLAG, MPC_missingValue_R4) ) THEN
             RAINFLAG = MPC_missingValue_INT
           ELSE
             RAINFLAG = NINT(RRAINFLAG)
           END IF
         CASE( 33080)
           RQCFLAG3 = INFOV
-          if (RQCFLAG3 == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RQCFLAG3, MPC_missingValue_R4) ) THEN
             QCFLAG3 = MPC_missingValue_INT
           ELSE
             QCFLAG3 = NINT(RQCFLAG3)
@@ -3876,40 +3877,40 @@ contains
 
         CASE( 2019)
           RINSTRUMENT = INFOV
-          if (RINSTRUMENT == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RINSTRUMENT, MPC_missingValue_R4) ) THEN
             INSTRUMENT = 0
           ELSE
             INSTRUMENT = NINT(RINSTRUMENT)
           END IF
         CASE( 5043, 5045) !5045 for CriS, 5043 for the other instruments.
           RFOV = INFOV
-          if (RFOV == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RFOV, MPC_missingValue_R4) ) THEN
             IFOV = 0
           ELSE
             IFOV = NINT(RFOV)
           END IF
         CASE( 7024)
           RZENITH = INFOV
-          if (RZENITH == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RZENITH, real(MPC_missingValue_R8, pre_obsReal))) THEN
             RZENITH = 90.
           END IF
         CASE( 7025)
           RSOLAR_ZENITH = INFOV
         CASE( 5021)
           RAZIMUTH=INFOV
-          if (RAZIMUTH == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RAZIMUTH, real(MPC_missingValue_R4, pre_obsReal)) ) THEN
             RAZIMUTH = 0.
           END IF
         CASE( 33060)
           RIGQISFLAGQUAL=INFOV
-          if (RIGQISFLAGQUAL == MPC_missingValue_R4 )  then
+          if (utl_isEqual(RIGQISFLAGQUAL, MPC_missingValue_R4) )  then
             IGQISFLAGQUAL=0
           ELSE
             IGQISFLAGQUAL=NINT ( RIGQISFLAGQUAL )
           END IF
         CASE( 33062)
           RIGQISQUALINDEXLOC=INFOV
-          if (RIGQISQUALINDEXLOC == MPC_missingValue_R4 )  then
+          if (utl_isEqual(RIGQISQUALINDEXLOC, MPC_missingValue_R4) )  then
             IGQISQUALINDEXLOC=0
           ELSE
             IGQISQUALINDEXLOC=NINT ( RIGQISQUALINDEXLOC )
@@ -3918,19 +3919,19 @@ contains
           RSOLAR_AZIMUTH=INFOV
         CASE( 8012)
           RLAND_SEA=INFOV
-          if (RLAND_SEA == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RLAND_SEA, MPC_missingValue_R4) ) THEN
             LAND_SEA=99
           ELSE
             LAND_SEA=NINT ( RLAND_SEA )
           END IF
         CASE( 13095)
           RIWV=INFOV
-          if (RIWV == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RIWV, MPC_missingValue_R4) ) THEN
             RIWV=0.
           END IF
         CASE( 13039)
           RTERRAIN_TYPE=INFOV
-          if (RTERRAIN_TYPE == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RTERRAIN_TYPE, MPC_missingValue_R4) ) THEN
             TERRAIN_TYPE=-1
           ELSE
             TERRAIN_TYPE=NINT ( RTERRAIN_TYPE )
@@ -3943,7 +3944,7 @@ contains
           RGEOID=INFOV
         CASE( 33039)
           RRO_QCFLAG=INFOV
-          if (RRO_QCFLAG == MPC_missingValue_R4 ) THEN
+          if (utl_isEqual(RRO_QCFLAG, MPC_missingValue_R4) ) THEN
             IRO_QCFLAG=MPC_missingValue_INT
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
@@ -3951,7 +3952,7 @@ contains
         CASE( 08046)
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
-             IF (RCONSTITUENT == MPC_missingValue_R4) THEN
+             IF (utl_isEqual(RCONSTITUENT, MPC_missingValue_R4)) THEN
                 call utl_abort('writeInfo: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
@@ -4712,12 +4713,12 @@ contains
                   ! siObs
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                           valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                             valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   end if
 
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
@@ -4795,12 +4796,12 @@ contains
                   ! siObs
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                           valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                             valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   end if
 
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
@@ -4958,12 +4959,12 @@ contains
                   ! siObs
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                           valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                             valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   end if
 
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_IWV, idata2),4)
@@ -5113,12 +5114,12 @@ contains
                   ! siObs
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIO, idata2),4)
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                           valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   ! siFG
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = real(obs_headElem_r(obsSpaceData, OBS_SIB, idata2),4)
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                                             valueIsMissing=(utl_isEqual(val_r4, mpc_missingValue_r4)))
                   end if
 
                   val = obs_headElem_i(obsSpaceData, OBS_STYP, idata2)
@@ -6246,12 +6247,12 @@ contains
 
               ! if at least one element in profile is 'good', then cannot reject
               if ( (.not.btest(flagValues(elemIndex,levelIndex,obsProfIndex),11)) .and.  &
-                   (obsValues(elemIndex,levelIndex,obsProfIndex) /= missingValue) ) then
+                   (.not.utl_isEqual(obsValues(elemIndex,levelIndex,obsProfIndex), missingValue)) ) then
                 if (debug) write(*,*) 'found a GOOD    observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),   &
                      obsValues(elemIndex,levelIndex,obsProfIndex)
                 rejectObs(levelIndex,obsProfIndex) = .false.
-              else if (obsValues(elemIndex,levelIndex,obsProfIndex) == missingValue) then
+              else if (utl_isEqual(obsValues(elemIndex,levelIndex,obsProfIndex), missingValue)) then
                 if (debug) write(*,*) 'found a MISSING observation: ', levelIndex, obsProfIndex,  &
                      elementIdsBlock(elemIndex), flagValues(elemIndex,levelIndex,obsProfIndex),  &
                      obsValues(elemIndex,levelIndex,obsProfIndex)
