@@ -657,6 +657,7 @@ contains
 
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
+      nrep_modified = 0
       write(*,*) 'brpf_obsSubUpdate: Skipped due to absence of data to update.'
       return
     end if
