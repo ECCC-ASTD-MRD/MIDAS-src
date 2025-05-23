@@ -877,18 +877,18 @@ contains
 
                    VNM=obs_bodyElem_i(obsdat,OBS_VNM ,LK)
                    if( VNM == iele ) then
-                     OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
-                     OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
-                     OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
-                     OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
-                     FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+                     OBS=real(obs_bodyElem_r(obsdat,OBS_VAR,LK),4)
+                     OMA=real(obs_bodyElem_r(obsdat,OBS_OMA ,LK),4)
+                     OMP=real(obs_bodyElem_r(obsdat,OBS_OMP ,LK),4)
+                     OER=real(obs_bodyElem_r(obsdat,OBS_OER ,LK),4)
+                     FGE=real(obs_bodyElem_r(obsdat,OBS_HPHT,LK),4)
                      if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
-                       FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                       FSO=real(obs_bodyElem_r(obsdat,OBS_FSO,LK),4)
                      else
                        FSO = MPC_missingValue_R4
                      end if
                      if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-                       BCOR = obs_bodyElem_r(obsdat,OBS_BCOR,LK)
+                       BCOR = real(obs_bodyElem_r(obsdat,OBS_BCOR,LK),4)
                      else
                        BCOR = MPC_missingValue_R4
                      end if
@@ -1342,23 +1342,23 @@ contains
                   end if
 
 
-                  OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
-                  OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
-                  OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
-                  OER=obs_bodyElem_r(obsdat,OBS_OER,LK)
-                  FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+                  OBS=real(obs_bodyElem_r(obsdat,OBS_VAR,LK)*real(convfact,8),4)
+                  OMA=real(obs_bodyElem_r(obsdat,OBS_OMA,LK),4)
+                  OMP=real(obs_bodyElem_r(obsdat,OBS_OMP,LK),4)
+                  OER=real(obs_bodyElem_r(obsdat,OBS_OER,LK),4)
+                  FGE=real(obs_bodyElem_r(obsdat,OBS_HPHT,LK),4)
                   if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
-                    FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                    FSO=real(obs_bodyElem_r(obsdat,OBS_FSO,LK),4)
                   else
                     FSO = MPC_missingValue_R4
                   end if
                   if ( obs_columnActive_RB(obsdat,OBS_BCOR) ) then
-                    BCOR = obs_bodyElem_r(obsdat,OBS_BCOR,LK)
+                    BCOR = real(obs_bodyElem_r(obsdat,OBS_BCOR,LK),4)
                   else
                     BCOR = MPC_missingValue_R4
                   end if
                   if ( obs_columnActive_RB(obsdat,OBS_BTCL) ) then
-                    obsClear = obs_bodyElem_r(obsdat,OBS_BTCL,LK)
+                    obsClear = real(obs_bodyElem_r(obsdat,OBS_BTCL,LK),4)
                   else
                     obsClear = MPC_missingValue_R4
                   end if
