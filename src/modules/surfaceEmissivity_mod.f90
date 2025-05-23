@@ -377,15 +377,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),         intent(in)      :: column                   ! column structure
-    real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
-    integer,                         intent(in)      :: profileCount             ! Profile count
-    integer,                         intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
-    integer,                         intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
+    type(struct_columnData), intent(in)    :: column                   ! column structure
+    real(8), allocatable,    intent(inout) :: emissivityFromTrl(:, :)  ! Extract emissivity
+    integer,                 intent(in)    :: profileCount             ! Profile count
+    integer,                 intent(in)    :: sensorHeaderIndexes(:)   ! Sensor header index
+    integer,                 intent(in)    :: headerEnd                ! end headerIndex for TOVS observations
 
     ! Locals:
     integer :: emissTrlNumChan
     integer :: profileIndex, headerIndex
+    real(8), pointer :: onecolumn(:)
 
     emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
 
@@ -393,7 +394,8 @@ contains
 
     do profileIndex = 1 , profileCount
       headerIndex = sensorHeaderIndexes(profileIndex)
-      emissivityFromTrl(headerIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
+      oneColumn => col_getColumn(column, headerIndex, 'EMMW')
+      emissivityFromTrl(headerIndex, :) = oneColumn(:)
     end do
   end subroutine sse_extractEmissivityCol
 
