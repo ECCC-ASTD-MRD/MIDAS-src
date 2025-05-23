@@ -1317,7 +1317,7 @@ contains
                   if ( STID /= stnid ) cycle
 
                   convfact=1.
-                  if (iele == 10194) convfact=1./ec_rg
+                  if (iele == 10194) convfact=real(1.d0/ec_rg,4)
 
                   if (INLV > 0) then
                     refPosition(1) = vcoord
