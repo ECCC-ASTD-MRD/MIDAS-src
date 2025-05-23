@@ -730,7 +730,7 @@ contains
           ier = newdate(dateStampOut, validDateMax, validTimeMax, imode)
           validTimeMax = 0
         else
-          validDateMax = dateMax
+          validDateMax = int(dateMax,4)
         end if
         write(*,*) 'tim_getValidDateTimeFromList: date from Min/Max = ', validDateMin, validDateMax
         write(*,*) 'tim_getValidDateTimeFromList: hour from Min/Max = ', validTimeMin, validTimeMax
