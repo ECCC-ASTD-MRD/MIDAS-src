@@ -932,7 +932,7 @@ contains
                       - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)) &
                    /(hLike_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
                       - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex))
-              zwt = 1.d0 - zwb
+              zwt = 1.0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
                                + zwt*field_in(lonIndex,latIndex,levIndex_in,stepIndex)
@@ -1464,7 +1464,7 @@ contains
       ! allocate real(4) buffers and copy to/from for interpolation
       allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
       allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
-      fieldIn_r4(:,:,1,1) = heightSfcIn(:,:)
+      fieldIn_r4(:,:,1,1) = real(heightSfcIn(:,:),4)
       ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
@@ -1494,7 +1494,7 @@ contains
       ! allocate real(4) buffers and copy to/from for interpolation
       allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
       allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
-      fieldIn_r4(:,:,1,1) = fieldIn_r8(:,:,levIndex,stepIndex)
+      fieldIn_r4(:,:,1,1) = real(fieldIn_r8(:,:,levIndex,stepIndex),4)
       ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
       fieldOut_r8(:,:,levIndex,stepIndex) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
@@ -1800,6 +1800,16 @@ contains
     ! fill in remaining grid points
     if (count(numFilledByAvg(:,:) > 0) > 0) then
 
+      ! TODO: We should simplify the floating point precision conversions by using
+      !       a 'real(4)' for 'extrapValue' which would simplify the lines
+      !
+      !    extrapValue = extrapValue + fieldGrid(lonIndexGrid,latIndexGrid)
+      !    extrapValue = extrapValue / real(count(numFilledByAvg(:,:) > 0),4)
+      !    fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
+      !
+      ! but to avoid affecting the results, we will use instead explicit
+      ! precision conversion
+
       ! compute spatial mean of assigned grid values
       extrapValue = 0.0d0
       do latIndexGrid = 1, njGrid
@@ -1818,7 +1828,7 @@ contains
 
           if (numFilledByAvg(lonIndexGrid,latIndexGrid) > 0) cycle
 
-          fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
+          fieldGrid(lonIndexGrid,latIndexGrid) = real(extrapValue,4)
 
           if (maskGrid(lonIndexGrid,latIndexGrid) == 1) then
             nextrap1 = nextrap1 + 1
@@ -1907,7 +1917,7 @@ contains
 
     do jk2 = 1,nji
       do jk1 = 1,nii
-        bufferi4(jk1,jk2) = fieldIn_r8(jk1,jk2)
+        bufferi4(jk1,jk2) = real(fieldIn_r8(jk1,jk2),4)
       end do
     end do
 
@@ -2011,8 +2021,8 @@ contains
         call gsv_getField(stateVectorOut, VVout8, 'VV')
         call gsv_getField(stateVectorIn,  UUin8,  'UU')
         call gsv_getField(stateVectorIn,  VVin8,  'VV')
-        UUin4(:,:,1,1) = UUin8(:,:,levIndex,stepIndex)
-        VVin4(:,:,1,1) = VVin8(:,:,levIndex,stepIndex)
+        UUin4(:,:,1,1) = real(UUin8(:,:,levIndex,stepIndex),4)
+        VVin4(:,:,1,1) = real(VVin8(:,:,levIndex,stepIndex),4)
         ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
         UUout8(:,:,levIndex,stepIndex) = UUout4(:,:,1,1)
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
@@ -2021,8 +2031,8 @@ contains
         call gsv_getField  (stateVectorOut, UUout8)
         call gsv_getFieldUV(stateVectorIn,  UVin8,  levIndex)
         call gsv_getFieldUV(stateVectorOut, UVout8, levIndex)
-        UUin4(:,:,1,1) = UUin8(:,:,levIndex,stepIndex)
-        VVin4(:,:,1,1) = UVin8(:,:,stepIndex)
+        UUin4(:,:,1,1) = real(UUin8(:,:,levIndex,stepIndex),4)
+        VVin4(:,:,1,1) = real(UVin8(:,:,stepIndex),4)
         ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
         UUout8(:,:,levIndex,stepIndex) = UUout4(:,:,1,1)
         UVout8(:,:,stepIndex)          = VVout4(:,:,1,1)
@@ -2031,8 +2041,8 @@ contains
         call gsv_getField  (stateVectorOut, VVout8)
         call gsv_getFieldUV(stateVectorIn,  UVin8,  levIndex)
         call gsv_getFieldUV(stateVectorOut, UVout8, levIndex)
-        UUin4(:,:,1,1) = UVin8(:,:,stepIndex)
-        VVin4(:,:,1,1) = VVin8(:,:,levIndex,stepIndex)
+        UUin4(:,:,1,1) = real(UVin8(:,:,stepIndex),4)
+        VVin4(:,:,1,1) = real(VVin8(:,:,levIndex,stepIndex),4)
         ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
         UVout8(:,:,stepIndex)          = UUout4(:,:,1,1)
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
@@ -2133,8 +2143,8 @@ contains
 
     do jk2 = 1,nji
       do jk1 = 1,nii
-        bufuuin4(jk1,jk2) = uuin(jk1,jk2)
-        bufvvin4(jk1,jk2) = vvin(jk1,jk2)
+        bufuuin4(jk1,jk2) = real(uuin(jk1,jk2),4)
+        bufvvin4(jk1,jk2) = real(vvin(jk1,jk2),4)
       end do
     end do
 
@@ -2197,10 +2207,10 @@ contains
     allocate(bufay4(ileny))
 
     do jk = 1,ilenx
-      bufax4(jk) = ax(jk)
+      bufax4(jk) = real(ax(jk),4)
     end do
     do jk = 1,ileny
-      bufay4(jk) = ay(jk)
+      bufay4(jk) = real(ay(jk),4)
     end do
 
     ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, &
@@ -2236,10 +2246,10 @@ contains
     ! Locals:
     real(4) :: xlat04, xlon04, dlat4, dlon4
 
-    xlat04 = xlat0
-    xlon04 = xlon0
-    dlat4 = dlat
-    dlon4 = dlon
+    xlat04 = real(xlat0,4)
+    xlon04 = real(xlon0,4)
+    dlat4  = real(dlat,4)
+    dlon4  = real(dlon,4)
 
     call cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat04, xlon04, dlat4, dlon4)
 

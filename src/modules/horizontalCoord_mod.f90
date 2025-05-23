@@ -527,7 +527,7 @@ contains
     !    hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
     !    hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R4
     ! but to avoid affecting the results, we will use instead explicit
-    ! prevision conversion
+    ! precision conversion
     hco%lat2d_4(:,:) = real( real(hco%lat2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
     hco%lon2d_4(:,:) = real( real(hco%lon2d_4(:,:),8) * MPC_RADIANS_PER_DEGREE_R8)
 
