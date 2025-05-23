@@ -1062,11 +1062,11 @@ CONTAINS
 
           corr = MPC_missingValue_R8
 
-          if ( ztd /= MPC_missingValue_R8 ) then
+          if ( .not. utl_isEqual(ztd, MPC_missingValue_R8) ) then
 
             ! Remove any previous bias correction
             if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
-                 .and. oldCorr /= MPC_missingValue_R8 ) then
+                 .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8) ) then
               ztd = ztd - oldCorr
               call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
             end if
@@ -1089,7 +1089,7 @@ CONTAINS
               end if
 
               ! Apply the bias correction and set the "bias corrected" bit in ZTD data flag ON
-              if ( corr /= MPC_missingValue_R8 ) then
+              if ( .not. utl_isEqual(corr, MPC_missingValue_R8) ) then
                 ztd = ztd + corr
                 nbCorrected = nbCorrected + 1
                 call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
@@ -1597,7 +1597,7 @@ CONTAINS
         oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
         corr        = MPC_missingValue_R8
         if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'ESin',esBodyIndex,pressure,es
-        if ( es /= MPC_missingValue_R8 ) then
+        if ( .not. utl_isEqual(es, MPC_missingValue_R8) ) then
           if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
                .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8) ) then
             es = es - oldCorr
