@@ -2694,7 +2694,7 @@ module gridStateVectorFileIO_mod
     logical :: iDoWriting, containsFullField
     integer :: ierr, ncid, stepIndex, imode, newdate
     integer :: ni, nj
-    integer :: levIndex, numLev, varIndex, varLevIndex
+    integer :: levIndex, numLev, varLevIndex
     integer :: yourid, youridy, youridx
     integer :: varLevIndexBeg, varLevIndexEnd
     character(len=4), pointer :: varNamesToRead(:)
@@ -2962,7 +2962,7 @@ module gridStateVectorFileIO_mod
                                      'gio_writeToFileNetCDF', 'nf90_put_var')
         else
           call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
-                         vnl_varNameList(varIndex)//' ('//trim(localVariableName(varIndexNEMO))//')')
+                          varName//' ('//trim(localVariableName(varIndexNEMO))//')')
         end if
 
       end if ! iDoWriting
