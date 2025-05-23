@@ -535,7 +535,7 @@ contains
 
           level3 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if (level3 == level_direction) then
+          if ( utl_isEqual(level3, level_direction) ) then
             bufrCode3 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
 
             if (bufrCode3 == uWindBufrCode) then
@@ -560,7 +560,7 @@ contains
           direction_missing = .true.
           level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if (level /= level_direction) cycle calcuv
+          if (.not. utl_isEqual(level, level_direction)) cycle calcuv
 
           bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
 
@@ -569,10 +569,10 @@ contains
             speed     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
             speedFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2)
 
-            if (direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0.) then
+            if (utl_isEqual(direction, 0.d0) .and. speed > 0. .or. direction > 360. .or. direction < 0.) then
               direction_missing = .true.
               speed_missing     = .true.
-            else if (direction == obs_missingValue_R .or. speed == obs_missingValue_R) then
+            else if (utl_isEqual(direction, obs_missingValue_R) .or. utl_isEqual(speed, obs_missingValue_R)) then
               direction_missing = .true.
               speed_missing     = .true.
             else
@@ -587,7 +587,7 @@ contains
 
             else
 
-              if (speed == 0.d0) direction = 0.d0
+              if (utl_isEqual(speed, 0.d0)) direction = 0.d0
               direction = direction + 180.
               if (direction > 360.) direction = direction - 360.
               direction = direction * mpc_radians_per_degree_r8
@@ -639,7 +639,7 @@ contains
 
         ! Eleminate entries where uWind is missing
         uWind = obs_bodyElem_r(obsSpaceData, OBS_VAR, uWindbodyIndex)
-        if (uWind == obs_missingValue_R) then
+        if (utl_isEqual(uWind, obs_missingValue_R)) then
           call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
@@ -649,11 +649,11 @@ contains
           bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
           level2    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if (bufrCode2 /= bufrCodeAssociated .or. level2 /= level) cycle
+          if (bufrCode2 /= bufrCodeAssociated .or. .not. utl_isEqual(level2, level)) cycle
 
           vWindBodyIndex = bodyIndex2
 
-          if (uWind == obs_missingValue_R) then
+          if (utl_isEqual(uWind, obs_missingValue_R)) then
             call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1)
           else
             uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, uWindbodyIndex)
@@ -668,7 +668,7 @@ contains
         end do body3
 
         ! Eleminate entries where vWind is missing
-        if (vWindBodyIndex < 0 .and. uWind /= obs_missingValue_R) then
+        if (vWindBodyIndex < 0 .and. .not. utl_isEqual(uWind, obs_missingValue_R)) then
           call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
@@ -724,14 +724,14 @@ contains
            body2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
              if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == vWindBufrCode .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
+                 utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), uWindLevel) ) then
 
               vWind = -obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
 
               ! Calculate angle
               speed = sqrt((uWind**2)+(vWind**2))
 
-              if (speed == 0.) then
+              if ( utl_isEqual(speed, 0.0_pre_obsReal) ) then
                 direction = 0.0d0
               else
                 direction = atan2(vWind,uWind)
@@ -749,7 +749,7 @@ contains
           body2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == directionBufrCode .and. &
-                obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
+                utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), uWindLevel)) then
               call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) - direction)
 
@@ -766,7 +766,7 @@ contains
               call flg_resetFlag(obsSpaceData, bodyIndex2)
             end if
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == speedBufrCode .and. &
-                obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
+                utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), uWindLevel)) then
               call obs_bodySet_r(obsSpaceData, residualTypeID,  bodyIndex2, &
                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) - speed)
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal))
@@ -825,11 +825,11 @@ contains
 
           level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if (level /= visLevel) cycle body2
+          if (.not. utl_isEqual(level, visLevel) ) cycle body2
 
           if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_logVis) cycle body2
 
-          if (visObs == obs_missingValue_R) then
+          if ( utl_isEqual(visObs, obs_missingValue_R) ) then
             logVisObs = visObs
           else
             ! vis -> log(vis)
@@ -894,7 +894,7 @@ contains
 
         level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-        if (level /= logVisLevel) cycle body2
+        if (.not. utl_isEqual(level, logVisLevel) ) cycle body2
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_vis) cycle body2
 
         ! log(vis) -> vis
@@ -963,11 +963,11 @@ contains
 
           level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if (level /= precipLevel) cycle body2
+          if (.not. utl_isEqual(level, precipLevel) ) cycle body2
 
           if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_logRadarPrecip) cycle body2
 
-          if (precipObs == obs_missingValue_R) then
+          if ( utl_isEqual(precipObs, obs_missingValue_R) ) then
             logPrecipObs = precipObs
           else
             ! precip -> log(precip)
@@ -1032,7 +1032,7 @@ contains
 
         level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-        if (level /= logPrecipLevel) cycle body2
+        if ( .not. utl_isEqual(level, logPrecipLevel) ) cycle body2
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_radarPrecip) cycle body2
 
         ! log(precip) -> precip
