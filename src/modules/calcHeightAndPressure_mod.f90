@@ -5885,14 +5885,14 @@ contains
     real(8)              :: gpscompressibility_P0_2
 
     ! Locals:
-    real(8), parameter   :: a0= 1.58123D-6
+    ! real(8), parameter   :: a0= 1.58123D-6 ! unused
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
     real(8), parameter   :: b0= 5.707D-6
     real(8), parameter   :: b1=-2.051D-8
     real(8), parameter   :: c0= 1.9898D-4
     real(8), parameter   :: c1=-2.376D-6
-    real(8), parameter   :: d = 1.83D-11
+    ! real(8), parameter   :: d = 1.83D-11 ! unused
     real(8), parameter   :: e =-0.765D-8
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_tc2,d_x2
