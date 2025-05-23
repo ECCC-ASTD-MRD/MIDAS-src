@@ -64,7 +64,7 @@ contains
           flagExtra = -999
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == transformBufrCodeExtra .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
+                 utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), level) ) then
               flagExtra = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex2)
             end if
           end do
@@ -81,11 +81,11 @@ contains
                                                                       extra_opt=.true.)
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
+                 utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), level) ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag )
             end if
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCodeExtra .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
+                 utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), level) ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, mergedFlag )
             end if
           end do
@@ -95,7 +95,7 @@ contains
           ! Find sourceBufrCode and update its flag
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == sourceBufrCode .and. &
-                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == level ) then
+                utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), level) ) then
               call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, flag )
             end if
           end do
@@ -313,7 +313,7 @@ contains
 
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
 
-        if ( varno == bufr_nezd .and. obsv /= real(MPC_missingValue_R8, pre_obsReal)) then
+        if ( varno == bufr_nezd .and. .not. utl_isEqual(obsv, real(MPC_missingValue_R8, pre_obsReal)) ) then
           call obs_bodySet_r(obsdat, OBS_OER, bodyIndex, obsv )
           exit BODY2
         end if
