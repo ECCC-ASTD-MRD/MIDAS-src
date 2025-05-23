@@ -4731,7 +4731,7 @@ contains
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
-        if (sigmaObs == MPC_missingValue_R8) cycle body
+        if ( utl_isEqual(sigmaObs, MPC_missingValue_R8) ) cycle body
 
         count = count + 1
         inobsch(bufrChannelNumber,sensorIndex) = inobsch(bufrChannelNumber,sensorIndex) + 1
@@ -5208,7 +5208,7 @@ contains
     ! Check inputs
     ! ------------
     do iprof = 1, nprofiles
-      if (profiles(iprof) % s2m % p /= cld_profiles(iprof) % ph(nlevels+1)) then
+      if ( .not. utl_isEqual(profiles(iprof) % s2m % p, cld_profiles(iprof) % ph(nlevels+1)) ) then
         errorstatus = errorstatus_fatal
         write( errMessage, '( "Surface pressure and lowest half level should be identical")' )
       end if
