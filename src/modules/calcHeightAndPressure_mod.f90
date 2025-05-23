@@ -1385,8 +1385,8 @@ contains
         implicit none
 
         ! Locals:
-        real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
-        real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
+        !real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
+        !real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
 
         call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
@@ -2257,11 +2257,11 @@ contains
 
         ! Locals:
         integer ::  stepIndex, latIndex, lonIndex, numStep
-        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+        integer ::  lev_M,lev_T,nlev_M,nlev_T
 
         real(4) ::  lat_4
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
-        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1
         real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
         real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
         real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
@@ -2647,11 +2647,11 @@ contains
 
         ! Locals:
         integer ::  stepIndex, latIndex, lonIndex, numStep
-        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+        integer ::  lev_M,lev_T,nlev_M,nlev_T
 
         real(4) ::  lat_4
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
-        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1
         real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
         real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
         real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
@@ -3728,7 +3728,7 @@ contains
       !---------------------------------------------------------
       subroutine calcHeight_col_ad_vcode2100x
         implicit none
-        real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
+        ! real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
 
         call msg('calcHeight_col_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
@@ -4260,9 +4260,9 @@ contains
         ! Locals:
         integer ::  colIndex
         integer ::  lev_M, lev_T, nlev_M, nlev_T
- 
+
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
-        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1
         real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
         real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
         real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
@@ -4543,9 +4543,9 @@ contains
         ! Locals:
         integer ::  colIndex
         integer ::  lev_M, lev_T, nlev_M, nlev_T
- 
+
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
-        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1
         real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
         real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
         real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
