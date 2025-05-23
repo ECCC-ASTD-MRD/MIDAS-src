@@ -787,7 +787,7 @@ module gridStateVectorFileIO_mod
                                    count = (/ni, nj,        1,               1/)))
       end if
 
-      field_r4_ptr(:,:, varLevIndex, 1) = fileField2D(:,:,1,1)
+      field_r4_ptr(:,:, varLevIndex, 1) = real(fileField2D(:,:,1,1),4)
 
     end do k_loop
 
@@ -2004,7 +2004,7 @@ module gridStateVectorFileIO_mod
               ! Apply inverse transform of unit conversion
               if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
                 factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                     vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+                     real(vnl_varMassFromVarName(trim(nomvar)),4) ! micrograms/kg -> vmr
               else
                 factor_r4 = 1.0 ! no conversion
               end if
@@ -2326,7 +2326,9 @@ module gridStateVectorFileIO_mod
                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
                    real(statevector%hco%xlat2), real(statevector%hco%xlon2))     ! IN
 
-      lon_4(:,:) = statevector%hco%lon2d_4(:,:)*mpc_degrees_per_radian_r8
+      ! TODO: simplify the floating point precision conversions
+      !     lon_4(:,:) = statevector%hco%lon2d_4(:,:)*mpc_degrees_per_radian_r4
+      lon_4(:,:) = real(real(statevector%hco%lon2d_4(:,:),8)*mpc_degrees_per_radian_r8,4)
       fstRecord%data = c_loc(lon_4)
       fstRecord%nomvar = '>>'
       fstRecord%ni = statevector%ni
@@ -2337,7 +2339,9 @@ module gridStateVectorFileIO_mod
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
-      lat_4(:,:) = statevector%hco%lat2d_4(:,:)*mpc_degrees_per_radian_r8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_4(:,:) = statevector%hco%lat2d_4(:,:)*mpc_degrees_per_radian_r4
+      lat_4(:,:) = real(real(statevector%hco%lat2d_4(:,:),8)*mpc_degrees_per_radian_r8,4)
       fstRecord%data = c_loc(lat_4)
       fstRecord%nomvar = '^^'
       fstRecord%ni = statevector%ni
