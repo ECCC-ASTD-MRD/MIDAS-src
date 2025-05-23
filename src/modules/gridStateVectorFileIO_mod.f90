@@ -649,7 +649,7 @@ module gridStateVectorFileIO_mod
     integer :: varLevIndex, ni, nj
     integer :: levIndex, varID
     character(len=4)  :: varName
-    character(len=10) :: varNameNetCDF
+    character(len=vnl_maxvarnamelengthNetCDF) :: varNameNetCDF
     real(8), allocatable :: fileField2D(:,:,:,:), netCDFTimes(:)
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp

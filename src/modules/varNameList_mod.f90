@@ -19,7 +19,7 @@ module varNameList_mod
   ! Public variables (parameters)
   public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmaxOther, vnl_numvarmax
   public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther, vnl_varNameList
-  public :: vnl_numvarmaxCloud, vnl_varNameListCloud
+  public :: vnl_numvarmaxCloud, vnl_varNameListCloud, vnl_maxvarnamelengthNetCDF
 
   ! Public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
@@ -43,6 +43,7 @@ module varNameList_mod
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
   integer, parameter          :: vnl_numvarmaxOther = VNLnumvarmaxOther
   integer, parameter          :: vnl_numvarmaxCloud = VNLnumvarmaxCloud
+  integer, parameter          :: vnl_maxvarnamelengthNetCDF = VNLmaxvarnamelengthNetCDF
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
