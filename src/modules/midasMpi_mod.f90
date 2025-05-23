@@ -1927,7 +1927,6 @@ contains
     integer, optional,   intent(in)  :: length_opt    ! size of the input array
 
     ! Locals:
-    integer, parameter :: procID = 0
     integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
@@ -1988,7 +1987,6 @@ contains
     integer, optional,   intent(in)  :: length_opt    ! size of the input array
 
     ! Locals:
-    integer, parameter :: procID = 0
     integer :: length
     integer :: allLengths(mmpi_nprocs)
     integer :: displacements(mmpi_nprocs)
