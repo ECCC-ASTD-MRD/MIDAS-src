@@ -52,7 +52,7 @@ contains
   subroutine ovt_initStructure
     !
     ! :Purpose: To set the transforms handled by this module
-    ! 
+    !
     implicit none
 
     ! Locals:
@@ -131,13 +131,13 @@ contains
     call filt_getBufrCodeAssimilated(bufrCodeAssimilated)
 
     do readBufrCodeIndex = 1, nBufrCodeRead
-    
+
       ! Check if a transform is neeeded
       if (filt_bufrCodeAssimilated(bufrCodeRead(readBufrCodeIndex)) .or. &
           bufrCodeRead(readBufrCodeIndex) == bufr_neff              .or. &
           bufrCodeRead(readBufrCodeIndex) == bufr_nefs) then
         cycle ! No transformation needed. Move on.
-              ! Note that this is where we decide that wind speed will be ignored, 
+              ! Note that this is where we decide that wind speed will be ignored,
               ! because we do all the appropriate wind manipulations when we encounter direction.
               ! This strategy allow to assimilate lonely speed observations, like SAR winds.
       end if
@@ -195,7 +195,7 @@ contains
     integer, intent(in) :: sourceBufrCode ! The input bufr code
     ! Result:
     logical :: skip                       ! The decision
-    
+
     ! Locals:
     integer :: bufrCodeIndex
 
@@ -218,7 +218,7 @@ contains
   !--------------------------------------------------------------------------
   function ovt_getDestinationBufrCode(sourceBufrCode,extra_opt) result(destinationBufrCode)
     !
-    ! :Purpose: To get the bufr code of the transformed/destination variable based on the 
+    ! :Purpose: To get the bufr code of the transformed/destination variable based on the
     !           bufr code of the source variable
     !
     implicit none
@@ -271,7 +271,7 @@ contains
   !--------------------------------------------------------------------------
   function ovt_getSourceBufrCode(destinationBufrCode,extra_opt) result(sourceBufrCode)
     !
-    ! :Purpose: To get the bufr code of the source variable based on the 
+    ! :Purpose: To get the bufr code of the source variable based on the
     !           bufr code of the destination/transformed variable
     !
     implicit none
@@ -439,7 +439,7 @@ contains
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsSpaceData    ! The observation database 
+    type (struct_obs), intent(inout) :: obsSpaceData    ! The observation database
     integer          , intent(in)    :: residualTypeID  ! The residual type ID (o-p or o-a)
 
     ! Local:
@@ -457,9 +457,9 @@ contains
         select case(trim(transform(transformIndex)%name))
         case ('windSpeedDirectionToUV')
           call ovt_UVtoWindSpeedDirection_residual(obsSpaceData, residualTypeID)
-        case ('visToLogVis') 
+        case ('visToLogVis')
           call ovt_visToLogVis_residual           (obsSpaceData, residualTypeID)
-        case ('precipToLogPrecip') 
+        case ('precipToLogPrecip')
           call ovt_precipToLogPrecip_residual     (obsSpaceData, residualTypeID)
         case default
           call utl_abort('ovt_transformResiduals: Unsupported function ' // trim(transform(transformIndex)%name))
@@ -467,7 +467,7 @@ contains
       end if
 
     end do
-    
+
   end subroutine ovt_transformResiduals
 
   !--------------------------------------------------------------------------
@@ -498,18 +498,18 @@ contains
 
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
-      
+
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
-      
+
       ! Find the wind direction report
-      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd
 
         direction = obs_missingValue_R
         speed     = obs_missingValue_R
         bufrCode  = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         direction_missing = .true.
-      
+
         if (bufrCode /= bufr_nedd .and. bufrCode /= bufr_neds) cycle body
 
         if (bufrCode == bufr_neds) then
@@ -523,7 +523,7 @@ contains
           uWindBufrCode = bufr_neuu
           vWindBufrCode = bufr_nevv
         end if
-      
+
         direction       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
         directionFlag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         level_direction = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
@@ -537,7 +537,7 @@ contains
 
           if (level3 == level_direction) then
             bufrCode3 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
-            
+
             if (bufrCode3 == uWindBufrCode) then
               uWind_present = .true.
               uWindbodyIndex = bodyIndex2
@@ -591,11 +591,11 @@ contains
               direction = direction + 180.
               if (direction > 360.) direction = direction - 360.
               direction = direction * mpc_radians_per_degree_r8
-            
+
               ! (speed,direction) -> (u,v)
               uWind = speed * sin(direction)
               vWind = speed * cos(direction)
-          
+
               combinedFlag = ior(directionFlag, speedFlag)
 
               call obs_bodySet_r(obsSpaceData, OBS_VAR, uWindbodyIndex, uWind)
@@ -620,7 +620,7 @@ contains
 
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
-    
+
       ! Search uWind component
       body2: do bodyIndex = bodyIndexStart, bodyIndexEnd
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
@@ -630,7 +630,7 @@ contains
           case (bufr_neuu)
             bufrCodeAssociated = bufr_nevv
           case (bufr_neus)
-            bufrCodeAssociated = bufr_nevs        
+            bufrCodeAssociated = bufr_nevs
           case default
             cycle body2
         end select
@@ -720,12 +720,12 @@ contains
           headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex) + headerIndexStart - 1
           uWindLevel            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex)
           uWind = - obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
-         
+
            body2: do bodyIndex2 = headerIndexStart, headerIndexEnd
-     
+
              if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == vWindBufrCode .and. &
                  obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
-               
+
               vWind = -obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
 
               ! Calculate angle
@@ -744,7 +744,7 @@ contains
             end if
 
           end do body2
-          
+
           ! insert resduals into obsSpaceData
           body2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
@@ -752,7 +752,7 @@ contains
                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
               call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) - direction)
-              
+
               if (obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) >  180.0d0)  &
                 call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) - real(360.0d0,pre_obsReal))
@@ -806,12 +806,12 @@ contains
 
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
-      
+
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
-      
+
       ! Find each visibily report
-      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd
 
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_vis) cycle body
 
@@ -876,7 +876,7 @@ contains
 
     ! Find each log of visibily assimilated observations
     body: do bodyIndex = 1, obs_numBody(obsSpaceData)
-      
+
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logVis) cycle
 
@@ -913,7 +913,7 @@ contains
         exit body2
 
       end do body2
-      
+
       if (.not. visFound) then
         call utl_abort('ovt_visToLogVis_residual: vis bodyIndex not found!')
       end if
@@ -944,12 +944,12 @@ contains
 
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
-      
+
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
-      
+
       ! Find each precipitation report
-      body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
+      body: do bodyIndex = bodyIndexStart, bodyIndexEnd
 
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_radarPrecip) cycle body
 
@@ -1014,7 +1014,7 @@ contains
 
     ! Find each log of precipitation assimilated observations
     body: do bodyIndex = 1, obs_numBody(obsSpaceData)
-      
+
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
            obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logRadarPrecip) cycle
 
@@ -1052,7 +1052,7 @@ contains
         exit body2
 
       end do body2
-      
+
       if (.not. precipFound) then
         call utl_abort('ovt_precipToLogPrecip_residual: precip bodyIndex not found!')
       end if
@@ -1066,7 +1066,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine  ovt_adjustHumGZ(obsSpaceData, headerIndexStart, headerIndexEnd)
     !
-    ! :Purpose: To apply a threshold on dew-point departure values and to 
+    ! :Purpose: To apply a threshold on dew-point departure values and to
     !           transform geopotential height values to geopotential
     !
     implicit none
@@ -1082,11 +1082,11 @@ contains
     real(pre_obsReal), parameter :: ESmax = 30.0
     real(pre_obsReal) :: gz, obsValue
 
-    do headerIndex = headerIndexStart, headerIndexEnd 
+    do headerIndex = headerIndexStart, headerIndexEnd
 
       bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
-      
+
       do bodyIndex = bodyIndexStart, bodyIndexEnd
 
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
@@ -1107,5 +1107,5 @@ contains
     end do
 
   end subroutine ovt_adjustHumGZ
-  
+
 end module obsVariableTransforms_mod
