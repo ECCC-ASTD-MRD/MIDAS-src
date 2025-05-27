@@ -545,15 +545,15 @@ contains
     end if
 
     if (trim(thinningTechnique) == 'grid-based') then
-      write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
+      write(*,*) 'Using grid-based thinning: delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
-        call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
+        call utl_abort('thn_thinTovs: Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
       end if
     else
       if (trim(thinningTechnique) == 'distance-dependent') then
-        write(*,*) 'Using distance-dependent thinning : minDist = ',minDist
+        write(*,*) 'Using distance-dependent thinning: minDist = ',minDist
         if (minDist < 0.0) then
-          call utl_abort('thn_thinTovs : Set a positive value for minDist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
+          call utl_abort('thn_thinTovs: Set a positive value for minDist in the namelist THIN_TOVS')
         end if
       else
         call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
@@ -3194,7 +3194,7 @@ contains
     real(4) :: normFormalErr, missingFormalErr, formalError, finalZtdScore, ztdScore
     real(8) :: obsLonInDegrees, obsLatInDegrees, obsStepIndex_r8
     character(len=12)  :: stnId
-    logical :: skipThisObs, thisStnIdNoaa
+    logical :: thisStnIdNoaa
     integer, allocatable :: quality(:), qualityMpi(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
     integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
@@ -3405,41 +3405,33 @@ contains
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
 
-      if ( qualityMpi(obsIndex1) /= nullValue ) then
+      if ( qualityMpi(obsIndex1) == nullValue ) cycle OBS_LOOP
 
-        headerIndex1 = headerIndexSorted(obsIndex1)
+      headerIndex1 = headerIndexSorted(obsIndex1)
 
-        ! Check if any of the obs already selected are close in space/time to this obs
-        ! If no, then keep (select) this obs
-        if( numSelected >= 1 ) then
-          skipThisObs = .false.
-          LOOP2: do obsIndex2 = 1, numSelected
-            headerIndex2 = headerIndexSelected(obsIndex2)
-            if ( abs(obsStepIndexMpi(headerIndex1) -  &
-                     obsStepIndexMpi(headerIndex2)) < deltemps  ) then
-              deltaLat = abs(obsLatBurpFileMpi(headerIndex1) -  &
-                             obsLatBurpFileMpi(headerIndex2))/100.
-              deltaLon = abs(obsLonBurpFileMpi(headerIndex1) -  &
-                             obsLonBurpFileMpi(headerIndex2))/100.
-              if (deltaLon > 180.) deltaLon = 360. - deltaLon
-              obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
-              obsLat2  = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
-              if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
-                skipThisObs = .true.
-                exit LOOP2
-              end if
-            end if
-          end do LOOP2
-        else
-          skipThisObs = .false.
+      ! Check if any of the obs already selected are close in space/time to this obs
+      ! If no, then keep (select) this obs
+      LOOP2: do obsIndex2 = 1, numSelected
+        headerIndex2 = headerIndexSelected(obsIndex2)
+        if ( abs(obsStepIndexMpi(headerIndex1) -  &
+                 obsStepIndexMpi(headerIndex2)) < deltemps  ) then
+          deltaLat = abs(obsLatBurpFileMpi(headerIndex1) -  &
+                         obsLatBurpFileMpi(headerIndex2))/100.
+          deltaLon = abs(obsLonBurpFileMpi(headerIndex1) -  &
+                         obsLonBurpFileMpi(headerIndex2))/100.
+          if (deltaLon > 180.) deltaLon = 360. - deltaLon
+          obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+          obsLat2  = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
+          if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+            ! Jump to the next obs
+            cycle OBS_LOOP
+          end if
         end if
+      end do LOOP2
 
-        if (.not. skipThisObs) then
-          numSelected = numSelected + 1
-          headerIndexSelected(numSelected) = headerIndex1
-        end if
-
-      end if
+      ! Keep this obs
+      numSelected = numSelected + 1
+      headerIndexSelected(numSelected) = headerIndex1
 
     end do OBS_LOOP
 
@@ -5395,7 +5387,6 @@ contains
     integer, allocatable :: headerIndexSelected(:) !, headerIndexSorted(:)
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2, numSelected,numHeaderMpi
     character(len=codtyp_name_length) :: instrumName
-    logical :: rejectThisObs
     logical, allocatable :: valid(:),validMpi(:),validMpi2(:),validMpi_lor(:)
     integer :: headerIndexBeg, headerIndexEnd
     integer, parameter :: mxscanamsua=30
@@ -5625,7 +5616,7 @@ contains
         ! headerIndex1 = headerIndexSorted(numHeaderMpi-obsIndex1+1)
         ! headerIndex1 = headerIndex(numHeaderMpi-obsIndex1+1)
 
-        ! ignore observations which do not belong to the family or occupy over-allocated elements in array.
+        ! Ignore obs which does not belong to the family or occupy over-allocated elements in array.
         if ( .not. validMpi(headerIndex1) ) cycle OBSLOOP
 
         ! Only consider observations in the current time bin
@@ -5645,29 +5636,25 @@ contains
         end if
 
         ! Calculates the distances between the current data and all those chosen previously
-        rejectThisObs = .false.
-
         OBSSELCTLOOP: do obsIndex2 = 1, numSelected
           headerIndex2 = headerIndexSelected(obsIndex2)
 
           obsLon2 = obsLonMpi(headerIndex2)
           obsLat2 = obsLatMpi(headerIndex2)
 
-          ! Divide by 1000.0 is required to obtain distance in kilometers.
-          distance = phf_calcDistance(obsLat2, obsLon2, obsLat1, obsLon1)/1000.0
+          ! Compute distance in meters
+          distance = phf_calcDistance(obsLat2, obsLon2, obsLat1, obsLon1)
 
-          if ( distance < mindist ) then
-            rejectThisObs = .true.
-            exit OBSSELCTLOOP
+          if ( distance < mindist*1000.0D0 ) then
+            ! Skip this obs
+            cycle OBSLOOP
           end if
 
         end do OBSSELCTLOOP
 
-        ! Accept the candidate observation if it succesfully passed through OBSSELCTLOOP.
-        if ( .not. rejectThisObs ) then
-          numSelected = numSelected + 1
-          headerIndexSelected(numSelected) = headerIndex1
-        end if
+        ! Accept the candidate obs since it succesfully passed through OBSSELCTLOOP.
+        numSelected = numSelected + 1
+        headerIndexSelected(numSelected) = headerIndex1
 
       end do OBSLOOP ! headerIndex1
 
