@@ -3539,7 +3539,7 @@ contains
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
     character(len=12)  :: stnId, stnidList(numStnIdMax)
-    logical :: obsAlreadySameStep, skipThisObs
+    logical :: noObsCloseInTime
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer,           allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
@@ -3798,65 +3798,47 @@ contains
           end do
           if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
 
-          ! We count the number of observations that are already
-          ! selected with the same parameters 'obsStepIndex' and 'obsLayerIndex'
-          ! than the observation considered here.
-          obsAlreadySameStep = .false.
+          ! Keep this obs if no already selected obs is close in time (jump to next)
+          noObsCloseInTime = .true.
           OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
             if ( abs( obsStepIndexMpi(headerIndex1) - &
                       obsStepIndexMpi(headerIndex2) ) < delTemps ) then
-              if ( (obsStepIndexMpi(headerIndex1)   == obsStepIndexMpi(headerIndex2))   .and. &
-                   (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
-                   (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
-                ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
-                cycle OBSLOOP1
-              end if
-              obsAlreadySameStep = .true.
+              noObsCloseInTime = .false.
               exit OBSLOOP2
             end if
           end do OBSLOOP2
-
-          if ( obsAlreadySameStep ) then
-            ! Calculates the distances between the current data and all those chosen
-            ! previously
-            skipThisObs = .false.
-            OBSLOOP3: do obsIndex2 = 1, numSelected
-              headerIndex2 = headerIndexSelected(obsIndex2)
-              if ( abs( obsStepIndexMpi(headerIndex1) - &
-                        obsStepIndexMpi(headerIndex2) ) < delTemps ) then
-                deltaLat = abs( obsLatBurpFileMpi(headerIndex1) - &
-                                obsLatBurpFileMpi(headerIndex2) ) / 100.
-                deltaLon = abs( obsLonBurpFileMpi(headerIndex1) - &
-                                obsLonBurpFileMpi(headerIndex2) ) / 100.
-                if(deltaLon > 180.) deltaLon = 360. - deltaLon
-                obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
-                obsLat2 = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
-                if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
-                  skipThisObs = .true.
-                  exit OBSLOOP3
-                end if
-              end if
-            end do OBSLOOP3
-
-            if ( .not. skipThisObs ) then
-
-              ! We select the data if all those chosen are beyond
-              ! of thinDistance. This evaluation is done in the loop
-              ! Previous 'check_list'.
-              numSelected = numSelected + 1
-              headerIndexSelected(numSelected) = headerIndex1
-
-            end if
-
-          else
-
-            ! We select the data if there is none chosen in the intervals
-            ! layer and step.
+          if (noObsCloseInTime) then
+            ! Keep this obs
             numSelected = numSelected + 1
             headerIndexSelected(numSelected) = headerIndex1
-
+            cycle OBSLOOP1
           end if
+
+          ! Do not keep this obs if an already selected obs is close in time and space
+          ! (jump to next)
+          OBSLOOP3: do obsIndex2 = 1, numSelected
+            headerIndex2 = headerIndexSelected(obsIndex2)
+            if ( abs( obsStepIndexMpi(headerIndex1) - &
+                      obsStepIndexMpi(headerIndex2) ) < delTemps ) then
+              deltaLat = abs( obsLatBurpFileMpi(headerIndex1) - &
+                              obsLatBurpFileMpi(headerIndex2) ) / 100.
+              deltaLon = abs( obsLonBurpFileMpi(headerIndex1) - &
+                              obsLonBurpFileMpi(headerIndex2) ) / 100.
+              if(deltaLon > 180.) deltaLon = 360. - deltaLon
+              obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+              obsLat2 = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
+              if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+                ! Do not keep this obs since it is near an already selected obs
+                cycle OBSLOOP1
+              end if
+            end if
+          end do OBSLOOP3
+
+          ! Keep this obs, since no already selected obs (that is close in time) is nearer
+          ! than thinDistance
+          numSelected = numSelected + 1
+          headerIndexSelected(numSelected) = headerIndex1
 
         end do OBSLOOP1
 
