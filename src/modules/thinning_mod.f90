@@ -3539,7 +3539,6 @@ contains
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
     character(len=12)  :: stnId, stnidList(numStnIdMax)
-    logical :: noObsCloseInTime
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer,           allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
@@ -3798,26 +3797,9 @@ contains
           end do
           if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
 
-          ! Keep this obs if no already selected obs is close in time (jump to next)
-          noObsCloseInTime = .true.
-          OBSLOOP2: do obsIndex2 = 1, numSelected
-            headerIndex2 = headerIndexSelected(obsIndex2)
-            if ( abs( obsStepIndexMpi(headerIndex1) - &
-                      obsStepIndexMpi(headerIndex2) ) < delTemps ) then
-              noObsCloseInTime = .false.
-              exit OBSLOOP2
-            end if
-          end do OBSLOOP2
-          if (noObsCloseInTime) then
-            ! Keep this obs
-            numSelected = numSelected + 1
-            headerIndexSelected(numSelected) = headerIndex1
-            cycle OBSLOOP1
-          end if
-
           ! Do not keep this obs if an already selected obs is close in time and space
           ! (jump to next)
-          OBSLOOP3: do obsIndex2 = 1, numSelected
+          OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
             if ( abs( obsStepIndexMpi(headerIndex1) - &
                       obsStepIndexMpi(headerIndex2) ) < delTemps ) then
@@ -3833,10 +3815,10 @@ contains
                 cycle OBSLOOP1
               end if
             end if
-          end do OBSLOOP3
+          end do OBSLOOP2
 
-          ! Keep this obs, since no already selected obs (that is close in time) is nearer
-          ! than thinDistance
+          ! Keep this obs, since no already selected obs that is close in time is
+          ! also nearer than thinDistance
           numSelected = numSelected + 1
           headerIndexSelected(numSelected) = headerIndex1
 
