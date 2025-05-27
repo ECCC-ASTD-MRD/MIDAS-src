@@ -3526,6 +3526,7 @@ contains
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
     integer :: satIndex
+    integer :: ierr, nsize
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
