@@ -36,7 +36,7 @@
   NLISTFLG(4)=12,
   NLISTFLG(5)=-5,
   list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
+  list_topoFilt(2) = 'UA'
   list_topoFilt(3) = 'AI'
   list_topoFilt(4) = 'SW'
   list_topoFilt(5) = 'PR'
@@ -163,7 +163,7 @@
    ILIST2_PAIR(3,10)=200,
    ILIST2_PAIR(3,11)=169,
    ILIST2_PAIR(3,12)=153,
-   ILIST2_PAIR(3,13)=97,	
+   ILIST2_PAIR(3,13)=97,
    DTW=1.5d0,
    DTL=4.0d0,
    PCO2MIN=56.73d0,
@@ -198,6 +198,9 @@
   itemUpdateBodyList(2)='BCOR'
   itemUpdateBodyList(3)='VAR'
   itemUpdateBodyList(4)='SEM'
+/
+  &NAMSQLCLEAN
+  vacuum = .true.
 /
   &NAMSQLInsert
 /

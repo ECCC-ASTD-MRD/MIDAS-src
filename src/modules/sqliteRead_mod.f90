@@ -1516,23 +1516,100 @@ module sqliteRead_mod
     character(len=*),    intent(in)    :: fileName
 
     ! Locals:
-    character(len = 128) :: query
-    type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
+    integer              :: ierr
+    character(len = 200) :: query
     type(fSQL_STATUS)    :: status
+    logical, save        :: firstCall = .true.
+
+    ! Namelist variables:
+    logical :: vacuum ! choose to physically remove deleted rows
+
+    namelist /namSqlClean/ vacuum
+
+    vacuum = .false.
+
+    if ( .not. utl_isNamelistPresent('namSqlClean','./flnml') ) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'namSqlClean is missing in the namelist. The default values will be taken'
+      end if
+    else
+      ! read in the namelist namwritediag
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml,nml=namSqlClean,iostat=ierr)
+      if (ierr /= 0) call utl_abort('sqlr_cleanSqlite: Error reading namelist')
+      call utl_tmg_stop(181)
+    end if
+    if (mmpi_myid == 0 .and. firstCall) then
+      write(*,nml = namSqlClean)
+      firstCall = .false.
+    end if
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
       write(*,*) 'sqlr_cleanSqlite: ERROR: ', fSQL_errmsg(status)
     end if
-    ! Mark for deletion all records with bit 11 (2048) set
-    query = ' delete from data where flag & 2048;'
-    call fSQL_prepare(db, query, statement, status)
-    if (fSQL_error(status) /= FSQL_OK) &
-      call sqlu_handleError(status, 'thinning fSQL_prepare : ')
-    call fSQL_begin(db)
-    call fSQL_exec_stmt(statement)
-    call fSQL_finalize(statement)
-    call fSQL_commit(db)
+
+    ! Delete all records in data table with bit 11 (2048) set
+    write(*,*) 'sqlr_cleanSqlite: delete data rows'
+    query = ' delete from data where flag & 2048 = 2048;'
+    call fSQL_do_many(db, query, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      call sqlu_handleError(status, 'thinning fSQL_do_many delete from data: ')
+    end if
+
+    ! Create indexes
+    write(*,*) 'sqlr_cleanSqlite: create indexes'
+    query = ' create index if not exists idx_header_id_obs on header(id_obs);' // &
+            ' create index if not exists idx_data_id_obs on data(id_obs);'
+    call fSQL_do_many(db, query, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      call sqlu_handleError(status, 'thinning fSQL_do_many create indexes: ')
+    end if
+
+    ! Delete all records in header table for which no records remain in data table
+    write(*,*) 'sqlr_cleanSqlite: delete header rows'
+    query = ' delete from header where not exists (select * from data where data.id_obs = header.id_obs);'
+    call fSQL_do_many(db, query, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      call sqlu_handleError(status, 'thinning fSQL_do_many delete from header: ')
+    end if
+
+    ! Check if avhrr table exists
+    if (sqlu_sqlTableExists(trim(fileName), 'avhrr')) then
+      write(*,*) 'sqlr_cleanSqlite: create index on avhrr table'
+      query = ' create index if not exists idx_avhrr_id_obs on avhrr(id_obs);'
+      call fSQL_do_many(db, query, status)
+      if (fSQL_error(status) /= FSQL_OK) then
+        call sqlu_handleError(status, 'thinning fSQL_do_many create index on avhrr: ')
+      end if
+
+      write(*,*) 'sqlr_cleanSqlite: delete header rows'
+      query = ' delete from avhrr where not exists (select * from data where data.id_obs = avhrr.id_obs);'
+      call fSQL_do_many(db, query, status)
+      if (fSQL_error(status) /= FSQL_OK) then
+        call sqlu_handleError(status, 'thinning fSQL_do_many delete from avhrr: ')
+      end if
+    end if
+
+    ! Drop indexes
+    write(*,*) 'sqlr_cleanSqlite: drop indexes'
+    query = ' drop index if exists idx_header_id_obs;' // &
+            ' drop index if exists idx_data_id_obs;' // &
+            ' drop index if exists idx_avhrr_id_obs;'
+    call fSQL_do_many(db, query, status)
+    if (fSQL_error(status) /= FSQL_OK) then
+      call sqlu_handleError(status, 'thinning fSQL_do_many drop indexes: ')
+    end if
+
+    if (vacuum) then
+      write(*,*) 'sqlr_cleanSqlite: vacuum the file'
+      query = ' vacuum;'
+      call fSQL_do_many(db, query, status)
+      if (fSQL_error(status) /= FSQL_OK) then
+        call sqlu_handleError(status, 'thinning fSQL_do_many vacuum: ')
+      end if
+    end if
+
     write(*,*) 'sqlr_cleanSqlite: closed database -->', trim(FileName)
     call fSQL_close(db, status)
 
