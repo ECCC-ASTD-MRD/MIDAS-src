@@ -38,7 +38,7 @@ contains
 
     ! Namelist variables
     character(len=20) :: SWQI(maxSat)
-    character(len=20) :: SWAddThn(maxSat)
+    character(len=20) :: SWAddThn(maxSat) ! the name of satellites to which additional thinning will be applied
 
     namelist /NAMSW/ SWQI, SWAddThn
 
