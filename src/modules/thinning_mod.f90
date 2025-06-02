@@ -4024,9 +4024,9 @@ contains
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
     if (allocated(SWAddThn)) then
-        deallocate(SWAddThn)
-        deallocate(validMpi3)
-        deallocate(headerIndexValid)
+      deallocate(SWAddThn)
+      deallocate(validMpi3)
+      deallocate(headerIndexValid)
     end if
     deallocate(QIvalue)
     deallocate(SWname)
