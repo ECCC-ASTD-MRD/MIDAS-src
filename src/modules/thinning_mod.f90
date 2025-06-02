@@ -3858,72 +3858,72 @@ contains
 
       STNIDLOOP2: do stnIdIndex = 1, numStnId
 
-        ! only for satellites in the list
-        if (utl_findloc(SWAddThn,stnidList(stnIdIndex)(2:)) == 0) then
+        ! only for satellites in the SWAddThn
+        if (utl_findloc(SWAddThn,stnidList(stnIdIndex)(2:)) /= 0) cycle STNIDLOOP2
 
-          write(*,*) 'thn_satWindsByDistance: applying additional thinning for: ', &
-                   trim(stnidList(stnIdIndex))
+        write(*,*) 'thn_satWindsByDistance: applying additional thinning for: ', &
+                 trim(stnidList(stnIdIndex))
 
-          LAYERLOOP2: do layerIndex = 1, numLayers
+        LAYERLOOP2: do layerIndex = 1, numLayers
 
-            ! do selection of obs for 1 satellite and layer at a time, on separate mpi tasks
-            mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mmpi_nprocs)
-            if (mmpi_myid /= mpiTaskId) cycle LAYERLOOP2
+          ! do selection of obs for 1 satellite and layer at a time, on separate mpi tasks
+          mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mmpi_nprocs)
+          if (mmpi_myid /= mpiTaskId) cycle LAYERLOOP2
 
-            OBSLOOP4: do obsIndex1 = 1, numSelected
+          OBSLOOP4: do obsIndex1 = 1, numSelected
 
-              headerIndex1 = headerIndexValid(obsIndex1)
+            headerIndex1 = headerIndexValid(obsIndex1)
+
+            ! only obs with current layer being considered
+            if (obsLayerIndexMpi(headerIndex1) /= layerIndex) cycle OBSLOOP4
+
+            ! only consider AMVs in the SWAddThn
+            do charIndex = 1, lenStnId
+              stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
+            end do
+            if (utl_findloc(SWAddThn,stnId(2:)) /= 0) cycle OBSLOOP4
+
+            ! We count the number of observations that are already selected
+            skipthisObs = .false.
+            OBSLOOP5: do obsIndex2 = 1, numSelected
+
+              headerIndex2 = headerIndexValid(obsIndex2)
 
               ! only obs with current layer being considered
-              if (obsLayerIndexMpi(headerIndex1) /= layerIndex) cycle OBSLOOP4
+              if (obsLayerIndexMpi(headerIndex2) /= layerIndex) cycle OBSLOOP5
 
-              ! only consider AMVs in the SWAddThn
+              ! only consider AMVs not in the SWAddThn
               do charIndex = 1, lenStnId
-                stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
+                stnId2(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex2))
               end do
-              if (utl_findloc(SWAddThn,stnId(2:)) /= 0) cycle OBSLOOP4
 
-              ! We count the number of observations that are already selected
-              skipthisObs = .false.
-              OBSLOOP5: do obsIndex2 = 1, numSelected
+              ! only consider satellites not in SWAddThn
+              if (utl_findloc(SWAddThn,stnId2(2:)) == 0) cycle OBSLOOP5
 
-                headerIndex2 = headerIndexValid(obsIndex2)
-
-                ! only obs with current layer being considered
-                if (obsLayerIndexMpi(headerIndex2) /= layerIndex) cycle OBSLOOP5
-
-                ! only consider AMVs not in the SWAddThn
-                do charIndex = 1, lenStnId
-                  stnId2(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex2))
-                end do
-
-                ! only consider satellites not in SWAddThn
-                if (utl_findloc(SWAddThn,stnId2(2:)) /= 0) cycle OBSLOOP5
-
-                ! Calculates the distances between the current data and all other relevant data
-                if ( abs(obsStepIndexMpi(headerIndex1) - &
-                         obsStepIndexMpi(headerIndex2) ) < delTemps ) then
-                  deltaLat = abs(obsLatBurpFileMpi(headerIndex1) - &
-                                 obsLatBurpFileMpi(headerIndex2))/100.
-                  deltaLon = abs(obsLonBurpFileMpi(headerIndex1) - &
-                                 obsLonBurpFileMpi(headerIndex2))/100.
-                  if(deltaLon > 180.) deltaLon = 360. - deltaLon
-                  obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
-                  obsLat2 = ((obsLatBurpfileMpi(headerIndex2) - 9000)/100.)
-                  if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
-                    skipThisObs = .true.                   
-                    exit OBSLOOP5
-                  end if
+              ! Calculates the distances between the current data and all other relevant data
+              if ( abs(obsStepIndexMpi(headerIndex1) - &
+                       obsStepIndexMpi(headerIndex2) ) < delTemps ) then
+                deltaLat = abs(obsLatBurpFileMpi(headerIndex1) - &
+                               obsLatBurpFileMpi(headerIndex2))/100.
+                deltaLon = abs(obsLonBurpFileMpi(headerIndex1) - &
+                               obsLonBurpFileMpi(headerIndex2))/100.
+                if(deltaLon > 180.) deltaLon = 360. - deltaLon
+                obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+                obsLat2 = ((obsLatBurpfileMpi(headerIndex2) - 9000)/100.)
+                if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+                  skipThisObs = .true.
+                  exit OBSLOOP5
                 end if
-              end do OBSLOOP5
-
-              if (skipthisObs) then
-                validMpi(headerIndex1) = .false.
               end if
+            end do OBSLOOP5
 
-            end do OBSLOOP4
-          end do LAYERLOOP2
-        end if
+            if (skipthisObs) then
+              validMpi(headerIndex1) = .false.
+            end if
+
+          end do OBSLOOP4
+        end do LAYERLOOP2
+
       end do STNIDLOOP2
 
       ! communicate values of validMpi computed on each mpi task (one more)
