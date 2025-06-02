@@ -491,7 +491,7 @@ contains
 
     if (fSQL_error(stat) == FSQL_OK) return
 
-    write(*,*) trim(message), fSQL_errmsg(stat)
+    write(*,*) trim(message), trim(fSQL_errmsg(stat))
     call utl_abort(trim(message))
 
   end subroutine sqlu_handleError
