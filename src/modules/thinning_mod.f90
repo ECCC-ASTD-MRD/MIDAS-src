@@ -3714,7 +3714,6 @@ contains
     ! Gather needed information from all MPI tasks
     allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(validMpi2(numHeaderMaxMpi*mmpi_nprocs))
-    allocate(validMpi3(numHeaderMaxMpi*mmpi_nprocs))
     allocate(qualityMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsLatBurpFileMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsLonBurpFileMpi(numHeaderMaxMpi*mmpi_nprocs))
@@ -3845,6 +3844,7 @@ contains
     ! additional thnning for selected satellites (e.g. GEO-POL)
     if (allocated(SWAddThn)) then
 
+      allocate(validMpi3(numHeaderMaxMpi*mmpi_nprocs))
       allocate(headerIndexValid(numHeaderMpi))
 
       numSelected = 0
@@ -3926,8 +3926,6 @@ contains
           end do LAYERLOOP2
         end if
       end do STNIDLOOP2
-
-      deallocate(headerIndexValid)
 
       ! communicate values of validMpi computed on each mpi task (one more)
       nsize = numHeaderMaxMpi * mmpi_nprocs
@@ -4019,7 +4017,6 @@ contains
     deallocate(stnIdInt)
     deallocate(validMpi)
     deallocate(validMpi2)
-    deallocate(validMpi3)
     deallocate(qualityMpi)
     deallocate(obsLatBurpFileMpi)
     deallocate(obsLonBurpFileMpi)
@@ -4029,7 +4026,11 @@ contains
     deallocate(stnIdIntMpi)
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
-    if (allocated(SWAddThn)) deallocate(SWAddThn)
+    if (allocated(SWAddThn)) then
+        deallocate(SWAddThn)
+        deallocate(validMpi3)
+        deallocate(headerIndexValid)
+    end if
     deallocate(QIvalue)
     deallocate(SWname)
 
