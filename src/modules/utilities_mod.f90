@@ -35,7 +35,6 @@ module utilities_mod
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus
   public :: utl_varPresentInNetcdfFile
-  public :: utl_isInArray
   ! module interfaces
   ! -----------------
 
@@ -97,10 +96,6 @@ module utilities_mod
     module procedure utl_isEqual_real4Arrays
     module procedure utl_isEqual_real8Arrays
   end interface utl_isEqual
-
-  interface utl_isInArray
-    module procedure utl_isInArray_char
-  end interface utl_isInArray
 
   ! For namelist reading
   character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
@@ -3406,33 +3401,5 @@ contains
     areTheyEqual = .true.
 
   end function utl_isEqual_real8Arrays
-
-  !--------------------------------------------------------------------------
-  ! utl_isInArray_char
-  !--------------------------------------------------------------------------
-  function utl_isInArray_char(invar,inarr) result(exists)
-    !
-    ! :Purpose: check out if the input character variable exists in the input array
-    !
-    character(len=*), intent(in) :: invar     ! the input character variable
-    character(len=*), intent(in) :: inarr(:)  ! the input array
-    ! Result:
-    logical :: exists
-    
-    ! Locals:
-    integer :: i
-
-    exists = .false.
-
-    if ( size(inarr) /= 0 ) then
-      loop_I: do i = 1, size(inarr)
-        if (trim(invar) == trim(inarr(i))) then
-          exists = .true.
-          exit loop_I
-        end if
-      end do loop_I
-    end if
-  
-  end function utl_isInArray_char
 
 end module utilities_mod

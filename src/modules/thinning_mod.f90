@@ -3859,7 +3859,7 @@ contains
       STNIDLOOP2: do stnIdIndex = 1, numStnId
 
         ! only for satellites in the list
-        if (utl_isInArray(stnidList(stnIdIndex)(2:),SWAddThn)) then
+        if (utl_findloc(SWAddThn,stnidList(stnIdIndex)(2:)) == 0) then
 
           write(*,*) 'thn_satWindsByDistance: applying additional thinning for: ', &
                    trim(stnidList(stnIdIndex))
@@ -3881,7 +3881,7 @@ contains
               do charIndex = 1, lenStnId
                 stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
               end do
-              if (.not. utl_isInArray(stnId(2:),SWAddThn)) cycle OBSLOOP4
+              if (utl_findloc(SWAddThn,stnId(2:)) /= 0) cycle OBSLOOP4
 
               ! We count the number of observations that are already selected
               skipthisObs = .false.
@@ -3898,7 +3898,7 @@ contains
                 end do
 
                 ! only consider satellites not in SWAddThn
-                if (utl_isInArray(stnId2(2:),SWAddThn)) cycle OBSLOOP5
+                if (utl_findloc(SWAddThn,stnId2(2:)) /= 0) cycle OBSLOOP5
 
                 ! Calculates the distances between the current data and all other relevant data
                 if ( abs(obsStepIndexMpi(headerIndex1) - &
