@@ -3840,7 +3840,7 @@ contains
     write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
-    ! additional thnning for selected satellites (e.g. GEO-POL)
+    ! additional thinning for selected satellites (e.g. GEO-POL)
     if (allocated(SWAddThn)) then
 
       allocate(validMpi3(numHeaderMaxMpi*mmpi_nprocs))
