@@ -24,7 +24,7 @@ module sqliteUtilities_mod
   integer, parameter :: lenSqlName = 60
 
 contains
-   
+
   !--------------------------------------------------------------------------
   ! sqlu_sqlColumnExists
   !--------------------------------------------------------------------------
@@ -49,7 +49,7 @@ contains
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
     logical, parameter          :: debug = .false.
     character(len=*), parameter :: myName = 'sqlu_sqlColumnExists'
-    
+
     ! open the SQLite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -121,7 +121,7 @@ contains
     tableExists = (trim(sqliteOutput) == trim(upperTableName))
 
     ! close the sqlite file
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end function sqlu_sqlTableExists
 
@@ -192,7 +192,7 @@ contains
     ! clean up and close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end subroutine sqlu_getSqlColumnNames
 
@@ -261,7 +261,7 @@ contains
     ! close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end subroutine sqlu_getColumnValuesNum
 
@@ -321,7 +321,7 @@ contains
     ! close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end subroutine sqlu_getColumnValuesChar
 
@@ -389,7 +389,7 @@ contains
     ! close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end subroutine sqlu_getColumnValuesDateStr
 
@@ -405,7 +405,7 @@ contains
 
     ! Arguments:
     type(struct_obs),  intent(inout) :: obsdat
-    character(len=*),  intent(in)    :: obsFamily    
+    character(len=*),  intent(in)    :: obsFamily
     integer         ,  intent(out)   :: idObs
     integer         ,  intent(out)   :: idData
     integer, optional, intent(in)    :: codeTypeList_opt(:)
@@ -489,7 +489,9 @@ contains
     type(FSQL_STATUS), intent(in) :: stat
     character(len=*),  intent(in) :: message
 
-    write(*,*) message, fSQL_errmsg(stat)
+    if (fSQL_error(stat) == FSQL_OK) return
+
+    write(*,*) trim(message), trim(fSQL_errmsg(stat))
     call utl_abort(trim(message))
 
   end subroutine sqlu_handleError

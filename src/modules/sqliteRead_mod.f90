@@ -1125,7 +1125,7 @@ module sqliteRead_mod
     write(*,*) 'sqlr_updateSqlite: update query --->  ', query
     call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
     call fSQL_prepare(db, query , stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
+    call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
     HEADER1: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1192,7 +1192,7 @@ module sqliteRead_mod
       write(*,*) 'sqlr_updateSqlite: update query --->  ', query
       call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
       call fSQL_prepare(db, query , stmt, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
+      call sqlu_handleError(stat, 'fSQL_prepare : ')
       call fSQL_begin(db)
 
       HEADER2: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1229,9 +1229,7 @@ module sqliteRead_mod
     end if
 
     call fSQL_commit(db, stat)
-    if (fSQL_error(stat)  /= FSQL_OK) then
-      call sqlu_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
-    end if
+    call sqlu_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
     write(*,*) 'sqlr_updateSqlite: End ===================  ', trim(familyType)
 
   end subroutine sqlr_updateSqlite
@@ -1265,7 +1263,7 @@ module sqliteRead_mod
     write(*,*) 'sqlr_addCloudParametersandEmissivity: Create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_do : ')
+    call sqlu_handleError(stat, 'fSQL_do : ')
 
     ! Insert values in the table
     query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) ' // &
@@ -1273,7 +1271,7 @@ module sqliteRead_mod
     write(*,*) 'sqlr_addCloudParametersandEmissivity: Insert query = ', trim(query)
 
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
+    call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1393,7 +1391,7 @@ module sqliteRead_mod
 
     call fSQL_begin(db)
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
+    call sqlu_handleError(stat, 'fSQL_prepare : ')
 
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1516,23 +1514,86 @@ module sqliteRead_mod
     character(len=*),    intent(in)    :: fileName
 
     ! Locals:
-    character(len = 128) :: query
-    type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
+    integer              :: ierr
+    character(len = 200) :: query
     type(fSQL_STATUS)    :: status
+    logical, save        :: firstCall = .true.
+
+    ! Namelist variables:
+    logical :: vacuum ! choose to physically remove deleted rows
+
+    namelist /namSqlClean/ vacuum
+
+    vacuum = .false.
+
+    if ( .not. utl_isNamelistPresent('namSqlClean','./flnml') ) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'namSqlClean is missing in the namelist. The default values will be taken'
+      end if
+    else
+      ! read in the namelist namwritediag
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml,nml=namSqlClean,iostat=ierr)
+      if (ierr /= 0) call utl_abort('sqlr_cleanSqlite: Error reading namelist')
+      call utl_tmg_stop(181)
+    end if
+    if (mmpi_myid == 0 .and. firstCall) then
+      write(*,nml = namSqlClean)
+      firstCall = .false.
+    end if
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
       write(*,*) 'sqlr_cleanSqlite: ERROR: ', fSQL_errmsg(status)
     end if
-    ! Mark for deletion all records with bit 11 (2048) set
-    query = ' delete from data where flag & 2048;'
-    call fSQL_prepare(db, query, statement, status)
-    if (fSQL_error(status) /= FSQL_OK) &
-      call sqlu_handleError(status, 'thinning fSQL_prepare : ')
-    call fSQL_begin(db)
-    call fSQL_exec_stmt(statement)
-    call fSQL_finalize(statement)
-    call fSQL_commit(db)
+
+    ! Delete all records in data table with bit 11 (2048) set
+    write(*,*) 'sqlr_cleanSqlite: delete data rows'
+    query = ' delete from data where flag & 2048 = 2048;'
+    call fSQL_do_many(db, query, status)
+    call sqlu_handleError(status, 'thinning fSQL_do_many delete from data: ')
+
+    ! Create indexes
+    write(*,*) 'sqlr_cleanSqlite: create indexes'
+    query = ' create index if not exists idx_header_id_obs on header(id_obs);' // &
+            ' create index if not exists idx_data_id_obs on data(id_obs);'
+    call fSQL_do_many(db, query, status)
+    call sqlu_handleError(status, 'thinning fSQL_do_many create indexes: ')
+
+    ! Delete all records in header table for which no records remain in data table
+    write(*,*) 'sqlr_cleanSqlite: delete header rows'
+    query = ' delete from header where not exists (select * from data where data.id_obs = header.id_obs);'
+    call fSQL_do_many(db, query, status)
+    call sqlu_handleError(status, 'thinning fSQL_do_many delete from header: ')
+
+    ! Check if avhrr table exists
+    if (sqlu_sqlTableExists(trim(fileName), 'avhrr')) then
+      write(*,*) 'sqlr_cleanSqlite: create index on avhrr table'
+      query = ' create index if not exists idx_avhrr_id_obs on avhrr(id_obs);'
+      call fSQL_do_many(db, query, status)
+      call sqlu_handleError(status, 'thinning fSQL_do_many create index on avhrr: ')
+
+      write(*,*) 'sqlr_cleanSqlite: delete header rows'
+      query = ' delete from avhrr where not exists (select * from data where data.id_obs = avhrr.id_obs);'
+      call fSQL_do_many(db, query, status)
+      call sqlu_handleError(status, 'thinning fSQL_do_many delete from avhrr: ')
+    end if
+
+    ! Drop indexes
+    write(*,*) 'sqlr_cleanSqlite: drop indexes'
+    query = ' drop index if exists idx_header_id_obs;' // &
+            ' drop index if exists idx_data_id_obs;' // &
+            ' drop index if exists idx_avhrr_id_obs;'
+    call fSQL_do_many(db, query, status)
+    call sqlu_handleError(status, 'thinning fSQL_do_many drop indexes: ')
+
+    if (vacuum) then
+      write(*,*) 'sqlr_cleanSqlite: vacuum the file'
+      query = ' vacuum;'
+      call fSQL_do_many(db, query, status)
+      call sqlu_handleError(status, 'thinning fSQL_do_many vacuum: ')
+    end if
+
     write(*,*) 'sqlr_cleanSqlite: closed database -->', trim(FileName)
     call fSQL_close(db, status)
 
@@ -1611,7 +1672,7 @@ module sqliteRead_mod
                   &an_error real, fg_error real, obs_error real);'
 
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
+    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
 
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1622,9 +1683,9 @@ module sqliteRead_mod
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
 
     numberInsertions = 0
 
@@ -1775,9 +1836,7 @@ module sqliteRead_mod
                   &an_error real, fg_error real, obs_error real);'
 
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) then
-      call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
-    end if
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
 
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1788,9 +1847,9 @@ module sqliteRead_mod
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
 
     call fSQL_commit(db)
     call fSQL_close(db, stat)

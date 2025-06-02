@@ -204,14 +204,14 @@ module obsDiagFiles_mod
     end if
 
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
+    call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
 
     ! If the analysis members in obs space are allocated, make table queries for trial members and analysis members
     if ( present( ensObs_opt ) ) then
       ! Create
       queryCreateEnsObs = 'create table ensobs (id_data integer, id_obs integer, id_member integer, obstrl real, obsanl real);'
       call fSQL_do_many(db, queryCreateEnsObs, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
+      call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
     end if
 
     if (addFSOdiag) then
@@ -229,9 +229,9 @@ module obsDiagFiles_mod
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
+    call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
+    call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
 
     if ( present( ensObs_opt ) ) then
       ! Insert
@@ -240,7 +240,7 @@ module obsDiagFiles_mod
 
       call fSQL_prepare(db, queryCreateEnsObs, stmtEnsObs, stat)
 
-      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
+      call sqlu_handleError(stat, 'diaf_writeSqlDiagFile: fSQL_prepare: ')
     end if
 
     numberInsertions = 0

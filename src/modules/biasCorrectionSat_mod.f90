@@ -857,7 +857,7 @@ contains
         else
           fileNameExtension = ' '
         end if
-	! Create sqlite files from genCoeff
+        ! Create sqlite files from genCoeff
         if (fromGenCoeff) then
           dirName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated'
         else
