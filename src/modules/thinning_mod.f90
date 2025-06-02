@@ -3836,8 +3836,7 @@ contains
     valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid)
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
     write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
@@ -3929,8 +3928,7 @@ contains
 
       ! communicate values of validMpi computed on each mpi task (one more)
       nsize = numHeaderMaxMpi * mmpi_nprocs
-      call rpn_comm_allReduce(validMpi, validMpi3, nsize, 'mpi_logical', &
-                              'mpi_lor','grid',ierr)
+      call mmpi_allReduce(validMpi, validMpi3, mmpi_lor)
 
       ! Update local copy of valid from global mpi version (one more)
       headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
@@ -3938,8 +3936,7 @@ contains
       valid(:) = validMpi3(headerIndexBeg:headerIndexEnd)
 
       countObs = count(valid)
-      call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                              'mpi_sum','grid',ierr)
+      call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
       write(*,*) 'thn_satWindsByDistance: number of obs after additional thinning = ', &
                  countObs, countObsOutMpi
 
