@@ -3542,7 +3542,7 @@ contains
     integer,           allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:), headerIndexValid(:)
-    logical,           allocatable :: valid(:), valid2(:), validMpi(:), validMpi2(:), validMpi3(:)
+    logical,           allocatable :: valid(:), validMpi(:), validMpi2(:), validMpi3(:)
     character(len=20), allocatable :: SWname(:), QIvalue(:), SWAddThn(:)
 
     write(*,*)
@@ -3576,7 +3576,6 @@ contains
 
     ! Allocations:
     allocate(valid(numHeaderMaxMpi))
-    allocate(valid2(numHeaderMaxMpi))
     allocate(quality(numHeaderMaxMpi))
     allocate(obsLatBurpFile(numHeaderMaxMpi))
     allocate(obsLonBurpFile(numHeaderMaxMpi))
@@ -4011,7 +4010,6 @@ contains
 
     ! Deallocations:
     deallocate(valid)
-    deallocate(valid2)
     deallocate(quality)
     deallocate(obsLatBurpFile)
     deallocate(obsLonBurpFile)
