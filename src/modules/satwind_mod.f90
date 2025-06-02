@@ -19,7 +19,7 @@ contains
   !--------------------------------------------------------------------------
   ! swd_readSwqi
   !--------------------------------------------------------------------------
-  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn)
+  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn_out)
     !
     !:Purpose: read NAMSW block in the namelist
     !
@@ -38,9 +38,9 @@ contains
 
     ! Namelist variables
     character(len=20) :: SWQI(maxSat)
-    character(len=20) :: SWAT(maxSat)
+    character(len=20) :: SWAddThn(maxSat)
 
-    namelist /NAMSW/ SWQI, SWAT
+    namelist /NAMSW/ SWQI, SWAddThn
 
     ! Defeault values for namelist variables
     SWQI(:)  = ''
@@ -71,7 +71,7 @@ contains
     SWQI(25) = 'METOP1-3:qi1'
     SWQI(26) = 'GEO-POL:qi1'
 
-    SWAT(:) = ''
+    SWAddThn(:) = ''
 
     ! Read the namelist for SatWinds observations
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
@@ -96,13 +96,13 @@ contains
       deallocate(SWQIArray)
     end do
 
-    if (present(SWAddThn)) then
-      nsats = getNumSats(maxSat,SWAT)
+    if (present(SWAddThn_out)) then
+      nsats = getNumSats(maxSat,SWAddThn)
       if ( nsats /= 0 ) then
-        if (allocated(SWAddThn)) deallocate(SWAddThn)
-        allocate(SWAddThn(nsats))
+        if (allocated(SWAddThn_out)) deallocate(SWAddThn_out)
+        allocate(SWAddThn_out(nsats))
         do isat = 1, nsats
-          SWAddThn(isat) = SWAT(isat)
+          SWAddThn_out(isat) = SWAddThn(isat)
         end do
       end if
     end if
