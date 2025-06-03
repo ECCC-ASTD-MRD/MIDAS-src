@@ -34,6 +34,7 @@ module thinning_mod
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
   public :: thn_thinSatSST, thn_preThinning
+  public :: thn_superObs
 
   integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
                                                    flg_16rejOmP, &
@@ -41,6 +42,12 @@ module thinning_mod
                                                    flg_08rejBlackL, &
                                                    flg_02erroneous, &
                                                    flg_11rejSelect]
+  integer, parameter :: rejectFlagsExcept11(5) = [flg_18rejOro, &
+                                                  flg_16rejOmP, &
+                                                  flg_09rejBgck, &
+                                                  flg_08rejBlackL, &
+                                                  flg_02erroneous]
+  integer, external         :: newdate
 contains
 
   !--------------------------------------------------------------------------
@@ -53,8 +60,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=2), intent(in)    :: obsFamily
+    type(struct_obs), intent(inout) :: obsdat      ! obsSpace data object
+    character(len=*), intent(in)    :: obsFamily   ! the obs family to be treated
 
     ! Locals:
     integer :: ierr
@@ -85,7 +92,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_surface)
       call utl_tmg_stop(181)
-   else
+    else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
@@ -830,7 +837,6 @@ contains
     logical, allocatable :: valid(:), validMpi(:)
     character(len=9), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
     integer :: listCodtypSelect(numListCodtypSelect)
-    integer, external :: newdate
 
     ! Check if any observations to be treated
     countObsIn = 0
@@ -3506,10 +3512,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: delTemps
-    integer,          intent(in)    :: deldist
+    type(struct_obs), intent(inout) :: obsdat     ! obsSpace data object
+    character(len=*), intent(in)    :: familyType ! the obs family to be treated
+    integer,          intent(in)    :: delTemps   ! min time steps between obs
+    integer,          intent(in)    :: deldist    ! min distance between obs
 
     ! Locals:
     integer, parameter :: numStnIdMax = 100
@@ -6015,12 +6021,11 @@ contains
     integer, parameter                :: maxNumSearch = 100
     integer                           :: numFoundSearch, resultIndex
     type(kdtree2_result)              :: searchResults(maxNumSearch)
-    real(kdkind)                      :: maxRadius = 100.d6
+    real(kdkind)                      :: maxRadiusSquared = 100.d6
     real(kdkind)                      :: refPosition(3)
     real(kdkind), allocatable         :: obsPosition3d(:,:)
     real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
     integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
-    integer, external  :: newdate
 
     numHeader = obs_numHeader(obsdat)
     call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
@@ -6089,13 +6094,14 @@ contains
 
       ! Find all obs within 10km
       refPosition(:) = obsPosition3dMpi(:,headerIndex1)
-      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch, &
-                             nalloc=maxNumSearch, results=searchResults)
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
+                             nfound=numFoundSearch, nalloc=maxNumSearch, &
+                             results=searchResults)
       if (numFoundSearch >= maxNumSearch) then
-        call utl_abort('thn_tovsFilt: the parameter maxNumSearch must be increased')
+        call utl_abort('thn_removeRarsDuplicates: the parameter maxNumSearch must be increased')
       end if
       if (numFoundSearch == 0) then
-        call utl_abort('thn_tovsFilt: no match found. This should not happen!!!')
+        call utl_abort('thn_removeRarsDuplicates: no match found. This should not happen!!!')
       end if
 
       ! Loop over all of these nearby locations
@@ -7965,5 +7971,245 @@ contains
     write(*,*)
 
   end subroutine thn_satelliteSSTByGridCell
+
+  !--------------------------------------------------------------------------
+  ! thn_superObs
+  !--------------------------------------------------------------------------
+  subroutine thn_superObs(obsDat, obsFamily, codtyp, elementID, channel_opt)
+    !
+    !:Purpose: Combine, usually by averaging, nearby observations to
+    !          produce superObs
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),  intent(inout) :: obsDat      ! obsSpace data object
+    character(len=*),  intent(in)    :: obsFamily   ! the obs family to be treated
+    integer,           intent(in)    :: codtyp      ! the code type to be treated
+    integer,           intent(in)    :: elementID   ! the element ID to be treated
+    integer, optional, intent(in)    :: channel_opt ! the channel number to be treated
+
+    ! Locals:
+    integer              :: headerIndex, headerIndex2, numHeader, numHeaderMaxMpi
+    integer              :: bodyIndex, bodyIndexSuperObs
+    integer              :: numGoodObs, numSuperObs, ierr
+    integer              :: obsDate, obsTime, refDateStamp
+    real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper
+    integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
+    real(8), allocatable :: obsValue(:), obsValueMpi(:)
+
+    type(kdtree2), pointer    :: tree
+    integer, parameter        :: maxNumSearch = 1000
+    integer                   :: numFoundSearch, resultIndex
+    type(kdtree2_result)      :: searchResults(maxNumSearch)
+    real(kdkind)              :: maxRadiusSquared
+    real(kdkind)              :: refPosition(3)
+    real(kdkind), allocatable :: obsPosition3d(:,:), obsPosition3dMpi(:,:)
+
+    ! Namelist variables
+    real(8)                   :: averagingRadius ! the radius used for combining obs (in km)
+    real(8)                   :: maxDeltaHours   ! the max time difference for combining obs
+    character(len=20)         :: averageType     ! the type of "averaging" to perform
+
+    namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType
+
+    if (trim(obsFamily) == 'TO' .and. .not.present(channel_opt)) then
+      call utl_abort('thn_superObs: For TO family, channel_opt must be present')
+    end if
+
+    ! namelist default values
+    averagingRadius = 0.0d0
+    maxDeltaHours = 0.0d0
+    averageType = 'average'
+
+    ! Read the namelist for super observations (if it exists)
+    if (utl_isNamelistPresent('thin_superObs', './flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = thin_superObs, iostat = ierr)
+      if (ierr /= 0) call utl_abort('thn_superObs: Error reading namelist')
+      if (mmpi_myid == 0) write(*, nml = thin_superObs)
+      call utl_tmg_stop(181)
+    else
+      ! No namelist supplied, therefore no superobing is done
+      return
+    end if
+
+    if (trim(averageType) /= 'average') then
+      call utl_abort('thn_superObs: Only averageType="average" is implemented')
+    end if
+
+    if (averagingRadius <= 0.0d0) then
+      write(*,*) 'thn_superObs: averagingRadius is non-positive, no superobing is done'
+      return
+    end if
+    maxRadiusSquared = (averagingRadius * 1000.d0)**2 ! convert from km to m2
+
+    numHeader = obs_numHeader(obsdat)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
+
+    allocate(obsPosition3d(3,numHeaderMaxMpi))
+    allocate(obsValue(numHeaderMaxMpi))
+    allocate(obsDateStamp(numHeaderMaxMpi))
+
+    allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsValueMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
+
+    obsPosition3d(:,:) = 0.0d0 ! (at the center of Earth)
+
+    ! Loop over all "good" obs locations (thinned and not thinned)
+    ! These will be made globally available as input to superobing
+    call obs_set_current_header_list(obsdat, trim(obsFamily))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+
+      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER0
+
+      ! Find bodyIndex for this headerIndex
+      numGoodObs = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY0: do
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY0
+
+        if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY0
+
+        if (trim(obsFamily) == 'TO') then
+          if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel_opt) cycle BODY0
+        end if
+
+        ! Consider all "good" obs, including those removed by thinning
+        if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, rejectFlagsExcept11)) then
+          numGoodObs = numGoodObs + 1
+        end if
+      end do BODY0
+
+      ! Check the number of observations for this headerIndex (should be 0 or 1)
+      if (numGoodObs == 0) then
+        cycle HEADER0
+      else if (numGoodObs > 1) then
+        call utl_abort('thn_superObs: Multiple observations for this headerIndex')
+      end if
+
+      ! Lat and Lon for each observation and 3D position
+      obsLonInRad = obs_headElem_r(obsdat, obs_lon, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
+      obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
+
+      ! Observed value
+      obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndex)
+
+      ! Datastamp of observation
+      obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
+      obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
+      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
+
+    end do HEADER0
+
+    call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
+    call mmpi_allGather(obsValue,      obsValueMpi)
+    call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
+
+    ! Create kdtree structure with all "good" obs locations (thinned and not thinned)
+    nullify(tree)
+    tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
+
+    ! Loop over obs locations kept after thinning
+    ! These are the locations where we will compute the superobs
+    call obs_set_current_header_list(obsdat, trim(obsFamily))
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+
+      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER1
+
+      ! Find bodyIndex for this headerIndex
+      numSuperObs = 0
+      bodyIndexSuperObs = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY1: do
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY1
+
+        if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
+
+        if (trim(obsFamily) == 'TO') then
+          if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel_opt) cycle BODY1
+        end if
+
+        ! Only consider obs left over after thinning
+        if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags)) then
+          bodyIndexSuperObs = bodyIndex
+          numSuperObs = numSuperObs + 1
+        end if
+      end do BODY1
+
+      ! Check the number of observations for this headerIndex (should be 0 or 1)
+      if (numSuperObs == 0) then
+        cycle HEADER1
+      else if (numSuperObs > 1) then
+        call utl_abort('thn_superObs: Multiple observations for this headerIndex')
+      end if
+
+      ! Lat and Lon for reference observation and 3D position
+      obsLonInRad = obs_headElem_r(obsdat, obs_lon, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
+      refPosition = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
+
+      ! Datastamp of reference observation
+      obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
+      obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
+      ierr = newdate(refDateStamp, obsDate, obsTime * 10000, 3)
+
+      ! Find all "good" obs within specified radius of the reference obs
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
+                             nfound=numFoundSearch, nalloc=maxNumSearch, &
+                             results=searchResults)
+      if (numFoundSearch >= maxNumSearch) then
+        call utl_abort('thn_superObs: the parameter maxNumSearch must be increased')
+      end if
+      if (numFoundSearch == 0) then
+        call utl_abort('thn_superObs: no match found. This should not happen!!!')
+      end if
+
+      ! Loop over all of the found nearby locations (includes ref position)
+      numSuperObs = 0
+      obsValueSuper = 0.0d0
+      HEADER2: do resultIndex = 1, numFoundSearch
+        headerIndex2 = searchResults(resultIndex)%idx
+
+        ! Check if time difference is too large between this obs and reference obs
+        call difdatr(refDateStamp,obsDateStampMpi(headerIndex2),refDeltaHours)
+        if (abs(refDeltaHours) > maxDeltaHours) then
+          cycle HEADER2
+        end if
+
+        ! Include this obs in this superobs
+        if (trim(averageType) == 'average') then
+          numSuperObs = numSuperObs + 1
+          obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
+        end if
+
+      end do HEADER2
+
+      if (numSuperObs > 0) then
+        obsValueSuper = obsValueSuper / real(numSuperObs,8)
+        call obs_bodySet_r(obsdat, obs_var, bodyIndexSuperObs, obsValueSuper)
+      else
+        call utl_abort('thn_superObs: numSuperObs not positive')
+      end if
+
+    end do HEADER1
+
+    deallocate(obsPosition3d)
+    deallocate(obsValue)
+    deallocate(obsDateStamp)
+
+    deallocate(obsPosition3dMpi)
+    deallocate(obsValueMpi)
+    deallocate(obsDateStampMpi)
+
+  end subroutine thn_superObs
 
 end module thinning_mod
