@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Reject and/or exclude obs from bcorr when obs and trial clouds mismatch (#1084 and !)
+ * Reject and/or exclude obs from bcorr when obs and trial clouds mismatch (#1084 and !994)
    * Activated using several variables in `nambgck` namelist for AMSUA[B]/ATMS. 
  * Additional thinning for LEO-GEO satwinds (#1051 and !987)
  * Improvement to the vertical RO interp, to vertical height registration, and refractivity eqn (#1016 and !963)
