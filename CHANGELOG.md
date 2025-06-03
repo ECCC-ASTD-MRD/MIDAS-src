@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Cosmetic adjustments to the GPS Module (gps_mod.f90) (#1066 and !983)
  * Improvement to the vertical RO interp, to vertical height registration, and refractivity eqn (#1016 and !963)
    * Activated with `NAMGPSRO` variables: `gpsroNCurv`, `gpsroCurvAnisot`, `gpsroNFlavour`
  * Introduction of an option for nearest neighbour interpolation for specific case (DFS) (#1050 and !968)
@@ -16,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Cosmetic adjustments to the GPS Module `gps_mod.f90` (#1066 and !983)
  * Delete rows from sqlite `header` and `avhrr` tables when no corresponding data rows exist (#1081 and !993)
  * Add improved method of using `obs_flg`, `obs_vco` and `obs_xtr` columns (#223 and !991)
  * Changes for genCoeff: more robust output of bcr files, new smaller system test (#1054 and !977)

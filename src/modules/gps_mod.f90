@@ -109,9 +109,9 @@ module gps_mod
     real(dp) :: Var
     real(dp) :: DVar(gps_ncvmx)
   end type gps_diff
- 
+
   ! Overloaded multidual operations =, +, -, *, /, **, sqrt, exp, log, cos, tan, acos, atan, erf
-  
+
   ! Assignment onto a diff multidual (of a double, and of a diff)
   interface assignment(=)
     module procedure gpsdiffasfd, gpsdiffasff
@@ -121,7 +121,7 @@ module gps_mod
   interface operator(+)
     module procedure gpsdiffsmfd, gpsdiffsmdf, gpsdiffsmfi, gpsdiffsmif, gpsdiffsmff
   end interface operator(+)
- 
+
   ! Subtraction involving diff multiduals (diff-double, double-diff, diff-int, int-diff, diff-diff)
   interface operator(-)
     module procedure gpsdiffsbfd, gpsdiffsbdf, gpsdiffsbfi, gpsdiffsbif, gpsdiffsbff
@@ -240,7 +240,7 @@ module gps_mod
     gd1%Var     = d2
     gd1%DVar(:) = 0._dp
   end subroutine gpsdiffasfd
-  
+
   !--------------------------------------------------------------------------
   ! gpsdiffasff
   !--------------------------------------------------------------------------
@@ -255,7 +255,7 @@ module gps_mod
     gd1%Var     = gd2%Var
     gd1%DVar(:) = gd2%DVar(:)
   end subroutine gpsdiffasff
-  
+
   !--------------------------------------------------------------------------
   ! gpsdiffsmfd
   !--------------------------------------------------------------------------
@@ -1686,7 +1686,7 @@ module gps_mod
     real(dp)                            :: mw, wa, wb
     type(gps_diff)                      :: p, t, q, cmp, x, mold, dw(ngpssize)
     type(gps_diff)                      :: tcwv1, tcwv2, gp, gm, dwp, dwm, k
-    
+
     mw = gps_p_mw
     wa = gps_p_wa
     wb = gps_p_wb
@@ -1843,15 +1843,15 @@ module gps_mod
       zqbar  = (zqmobs + prf%qst(ngpslev)) * 0.5_dp
       ! Mean (wet) refractivity of dz layer
       zrmean = 1.0e-06_dp*(k2p*((zpbar*zqbar)/(eps*ztbar)) + k3*((zpbar*zqbar)/(eps*ztbar**2)))
- 
+
       ! Make sure adjusted ZWD >= 0
       if ( (zsum%Var*zconw)-(zrmean%Var*dh) > 0._dp ) then
         zwd = (zsum*zconw) - (zrmean*dh)
       else
         zwd = (zsum*zconw)
       end if
- 
-      ! Compute ZTD as sum of ZHD and ZWD      
+
+      ! Compute ZTD as sum of ZHD and ZWD
       ZTDopv = zhd + zwd
     else   !  mode = 1: Compute ZTD using stored ZTD profile
       if ( jloc /= ngpslev ) then
@@ -1934,7 +1934,7 @@ module gps_mod
     ! :Purpose: GPSRO Bending angle operator
     !
     ! :Note: The operator is loosely based on Fjeldbo 1971,
-    !         but adds some elements from Healy 2001, Burrows et al 2014 and Aparicio et al 2018
+    !        but adds some elements from Healy 2001, Burrows et al 2014 and Aparicio et al 2018
     implicit none
 
     ! Arguments:
@@ -2355,7 +2355,7 @@ module gps_mod
   !--------------------------------------------------------------------------
   integer function gps_iprofile_from_index(headerIndex)
     ! :Purpose: Find an obs profile stored in RO buffer space
-    ! They are uniquely identified with the CMA index.
+    !           They are uniquely identified with the CMA index.
     implicit none
 
     ! Arguments:
@@ -2574,7 +2574,7 @@ module gps_mod
   !--------------------------------------------------------------------------
   integer function gps_iztd_from_index(headerIndex)
     ! :Purpose: Find a GPSGB obs in stored ZTD buffer space.
-    ! They are uniquely identified with the CMA header index.
+    !           They are uniquely identified with the CMA header index.
     implicit none
 
     ! Arguments:
