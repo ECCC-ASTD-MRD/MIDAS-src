@@ -34,7 +34,6 @@ module thinning_mod
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
   public :: thn_thinSatSST, thn_preThinning
-  public :: thn_superObs
 
   integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
                                                    flg_16rejOmP, &
@@ -516,7 +515,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: ierr
+    integer :: chanNumWithOffset, ierr
 
     ! Namelist variables:
     character(len=18) ::  thinningTechnique
@@ -568,25 +567,36 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
+
+    ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
+    do chanNumWithOffset = 28, 41
+      call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsua'), bufr_nbt3, &
+                        channel_opt=chanNumWithOffset)
+    end do
+
+    ! AMSU-B/MHS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
-    call msg_memUsage('thn_thinTovs')
 
-    write(*,*)
+    ! ATMS observations
+    call msg_memUsage('thn_thinTovs')
     if (trim(thinningTechnique) == 'grid-based') then
       call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
     else
       call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'))
     end if
-    write(*,*)
 
+    ! MWHS-2 observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
+
+    ! SSMIS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+
     call msg_memUsage('thn_thinTovs')
     call utl_tmg_stop(114)
 
@@ -7991,12 +8001,13 @@ contains
 
     ! Locals:
     integer              :: headerIndex, headerIndex2, numHeader, numHeaderMaxMpi
-    integer              :: bodyIndex, bodyIndexSuperObs
-    integer              :: numGoodObs, numSuperObs, ierr
-    integer              :: obsDate, obsTime, refDateStamp
+    integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
+    integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
+    integer              :: obsDate, obsTime, refDateStamp, ierr
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
+    logical, save        :: firstCall = .true.
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 1000
@@ -8007,31 +8018,34 @@ contains
     real(kdkind), allocatable :: obsPosition3d(:,:), obsPosition3dMpi(:,:)
 
     ! Namelist variables
-    real(8)                   :: averagingRadius ! the radius used for combining obs (in km)
-    real(8)                   :: maxDeltaHours   ! the max time difference for combining obs
-    character(len=20)         :: averageType     ! the type of "averaging" to perform
+    real(8), save           :: averagingRadius ! the radius used for combining obs (in km)
+    real(8), save           :: maxDeltaHours   ! the max time difference for combining obs
+    character(len=20), save :: averageType     ! the type of "averaging" to perform
 
     namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType
+
+    ! Return immediately if no namelist is present - no superobing is done
+    if (.not. utl_isNamelistPresent('thin_superObs', './flnml')) then
+      return
+    end if
 
     if (trim(obsFamily) == 'TO' .and. .not.present(channel_opt)) then
       call utl_abort('thn_superObs: For TO family, channel_opt must be present')
     end if
 
-    ! namelist default values
-    averagingRadius = 0.0d0
-    maxDeltaHours = 0.0d0
-    averageType = 'average'
+    if (firstCall) then
+      ! namelist default values
+      averagingRadius = -1.0d0
+      maxDeltaHours = -1.0d0
+      averageType = 'average'
 
-    ! Read the namelist for super observations (if it exists)
-    if (utl_isNamelistPresent('thin_superObs', './flnml')) then
+      ! Read the namelist for super observations
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_superObs, iostat = ierr)
       if (ierr /= 0) call utl_abort('thn_superObs: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_superObs)
       call utl_tmg_stop(181)
-    else
-      ! No namelist supplied, therefore no superobing is done
-      return
+      firstCall = .false.
     end if
 
     if (trim(averageType) /= 'average') then
@@ -8055,7 +8069,10 @@ contains
     allocate(obsValueMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
 
-    obsPosition3d(:,:) = 0.0d0 ! (at the center of Earth)
+    obsPosition3d(:,:)    = 0.0d0 ! (at the center of Earth)
+    obsPosition3dMpi(:,:) = 0.0d0
+    obsValue(:)    = 0.0d0
+    obsValueMpi(:) = 0.0d0
 
     ! Loop over all "good" obs locations (thinned and not thinned)
     ! These will be made globally available as input to superobing
@@ -8068,6 +8085,7 @@ contains
 
       ! Find bodyIndex for this headerIndex
       numGoodObs = 0
+      bodyIndexGoodObs = 0
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY0: do
         bodyIndex = obs_getBodyIndex(obsdat)
@@ -8082,6 +8100,7 @@ contains
         ! Consider all "good" obs, including those removed by thinning
         if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, rejectFlagsExcept11)) then
           numGoodObs = numGoodObs + 1
+          bodyIndexGoodObs = bodyIndex
         end if
       end do BODY0
 
@@ -8098,7 +8117,7 @@ contains
       obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
 
       ! Observed value
-      obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndex)
+      obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
 
       ! Datastamp of observation
       obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
@@ -8117,6 +8136,8 @@ contains
 
     ! Loop over obs locations kept after thinning
     ! These are the locations where we will compute the superobs
+    numThinObs = 0
+    numAverageObsMean = 0
     call obs_set_current_header_list(obsdat, trim(obsFamily))
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
@@ -8140,8 +8161,8 @@ contains
 
         ! Only consider obs left over after thinning
         if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags)) then
-          bodyIndexSuperObs = bodyIndex
           numSuperObs = numSuperObs + 1
+          bodyIndexSuperObs = bodyIndex
         end if
       end do BODY1
 
@@ -8174,7 +8195,7 @@ contains
       end if
 
       ! Loop over all of the found nearby locations (includes ref position)
-      numSuperObs = 0
+      numAverageObs = 0
       obsValueSuper = 0.0d0
       HEADER2: do resultIndex = 1, numFoundSearch
         headerIndex2 = searchResults(resultIndex)%idx
@@ -8187,20 +8208,38 @@ contains
 
         ! Include this obs in this superobs
         if (trim(averageType) == 'average') then
-          numSuperObs = numSuperObs + 1
+          numAverageObs = numAverageObs + 1
           obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
+          write(*,*) 'headerIndex, headerIndex2, obsValueMpi = ', &
+                      headerIndex, headerIndex2, obsValueMpi(headerIndex2)
         end if
 
       end do HEADER2
 
-      if (numSuperObs > 0) then
-        obsValueSuper = obsValueSuper / real(numSuperObs,8)
+      if (numAverageObs > 0) then
+        obsValueSuper = obsValueSuper / real(numAverageObs,8)
         call obs_bodySet_r(obsdat, obs_var, bodyIndexSuperObs, obsValueSuper)
       else
-        call utl_abort('thn_superObs: numSuperObs not positive')
+        call utl_abort('thn_superObs: numAverageObs not positive')
       end if
 
+      ! Accumulate diagnostic statistics
+      numThinObs = numThinObs + 1
+      numAverageObsMean = numAverageObsMean + numAverageObs
+
     end do HEADER1
+
+    ! Print some diagnostics
+    if (numThinObs > 0) then
+      numAverageObsMean = numAverageObsMean / numThinObs
+    else
+      numAverageObsMean = 0
+    end if
+    write(*,*) '----------------------------------------------'
+    write(*,*) 'thn_superObs: obsFamily, codtyp, elementID, channel = ', trim(obsFamily), codtyp, elementID, &
+                merge(channel_opt, -1, present(channel_opt))
+    write(*,*) 'thn_superObs: Number of locations where superObs computed (locally) = ', numThinObs
+    write(*,*) 'thn_superObs: Average number of obs used in superObs averaging = ', numAverageObsMean
 
     deallocate(obsPosition3d)
     deallocate(obsValue)
