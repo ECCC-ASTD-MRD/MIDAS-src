@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Cosmetic adjustments to the GPS Module `gps_mod.f90` (#1066 and !983)
  * Delete rows from sqlite `header` and `avhrr` tables when no corresponding data rows exist (#1081 and !993)
  * Add improved method of using `obs_flg`, `obs_vco` and `obs_xtr` columns (#223 and !991)
  * Changes for genCoeff: more robust output of bcr files, new smaller system test (#1054 and !977)

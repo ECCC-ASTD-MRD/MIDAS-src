@@ -11,6 +11,7 @@ module obsSpaceErrorStdDev_mod
   use bufr_mod
   use utilities_mod
   use earthConstants_mod
+  use physicsFunctions_mod
   use MathPhysConstants_mod
   use stateToColumn_mod
   use gridStateVector_mod
@@ -79,8 +80,8 @@ module obsSpaceErrorStdDev_mod
 
   type(struct_OmPStdDevCH)  :: OmPstdCH
   type(struct_hco), pointer :: hco_anl => null()
-  real(8) , allocatable :: ose_vRO_Jacobian(:,:,:)
-  logical, allocatable :: ose_vRO_lJac(:)
+  real(8) , allocatable :: ose_vRO_Jacobian2(:, :, :)
+  logical , allocatable :: ose_vRO_lJac2(:)
 
   contains
 
@@ -1323,7 +1324,7 @@ module obsSpaceErrorStdDev_mod
     type(struct_obs),        intent(inout) :: lobsSpaceData
 
     ! Locals:
-    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
+    INTEGER headerIndex, IDATYP, bodyIndex, iProfile, varNum
     INTEGER ISAT, JL
     REAL(8) zLat, Lat, sLat
     REAL(8) zLon, Lon
@@ -1357,7 +1358,7 @@ module obsSpaceErrorStdDev_mod
     NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
     NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
     LFIRST=.FALSE.
-    if ( .NOT.allocated(ose_vRO_Jacobian) ) then
+    if ( .NOT.allocated(ose_vRO_Jacobian2) ) then
       LFIRST = .TRUE.
       allocate(zPP (NGPSLEV))
       allocate(zDP (NGPSLEV))
@@ -1367,10 +1368,10 @@ module obsSpaceErrorStdDev_mod
       allocate(zUU (NGPSLEV))
       allocate(zVV (NGPSLEV))
 
-      allocate(ose_vRO_Jacobian(gps_numROProfiles,gps_RO_MAXPRFSIZE,2*NGPSLEV+1))
-      allocate(ose_vRO_lJac    (gps_numROProfiles))
-      ose_vRO_Jacobian = 0.d0
-      ose_vRO_lJac = .False.
+      allocate(ose_vRO_Jacobian2(gps_numROProfiles, gps_RO_MAXPRFSIZE, 2*NGPSLEV+1))
+      allocate(ose_vRO_lJac2    (gps_numROProfiles))
+      ose_vRO_Jacobian2 = 0.d0
+      ose_vRO_lJac2 = .False.
 
       allocate( H    (gps_RO_MAXPRFSIZE) )
       allocate( AZMV (gps_RO_MAXPRFSIZE) )
@@ -1384,14 +1385,14 @@ module obsSpaceErrorStdDev_mod
     call obs_set_current_header_list(lobsSpaceData,CDFAM)
     FIRSTHEADER=.TRUE.
     HEADER: do
-      index_header = obs_getHeaderIndex(lobsSpaceData)
-      if (index_header < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(lobsSpaceData)
+      if (headerIndex < 0) exit HEADER
 
       ! Process only refractivity data (codtyp 169)
 
-      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
       IF ( IDATYP == 169 ) THEN
-        iProfile = gps_iprofile_from_index(index_header)
+        iProfile = gps_iprofile_from_index(headerIndex)
         varNum = gps_vRO_IndexPrf(iProfile, 2)
         dR(:)  = gps_vRO_dR      (iProfile, :)
 
@@ -1399,11 +1400,11 @@ module obsSpaceErrorStdDev_mod
 
         ASSIM = .FALSE.
         NH = 0
-        call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+        call obs_set_current_body_list(lobsSpaceData, headerIndex)
         BODY: do
-          INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-          if (INDEX_BODY < 0) exit BODY
-          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+          bodyIndex = obs_getBodyIndex(lobsSpaceData)
+          if (bodyIndex < 0) exit BODY
+          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
             ASSIM = .TRUE.
             NH = NH + 1
           ENDIF
@@ -1412,27 +1413,27 @@ module obsSpaceErrorStdDev_mod
         ! If assimilations are requested, prepare and apply the observation operator
 
         IF (ASSIM) THEN
-          iProfile=gps_iprofile_from_index(INDEX_HEADER)
+          iProfile=gps_iprofile_from_index(headerIndex)
 
           ! Profile at the observation location:
 
-          if (.not.ose_vRO_lJac(iProfile)) then
+          if (.not.ose_vRO_lJac2(iProfile)) then
 
             ! Basic geometric variables of the profile:
 
-            zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-            zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-            ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
-            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
-            Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
-            zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
-            zMT  = col_getHeight(columnTrlOnAnlIncLev,NGPSLEV,INDEX_HEADER,'TH')
+            zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
+            zLon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+            ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,headerIndex)
+            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,headerIndex)
+            Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,headerIndex)
+            zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,headerIndex) / MPC_DEGREES_PER_RADIAN_R8
+            zMT  = col_getHeight(columnTrlOnAnlIncLev,NGPSLEV,headerIndex,'TH')
             Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
             Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
             !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
             sLat = sin(zLat)
-            zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
-            zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
+            zMT  = zMT * ec_rg / phf_gravitysrf(sLat)
+            zP0  = col_getElem(columnTrlOnAnlIncLev,1,headerIndex,'P0')
 
             ! approximation for dPdPs
             if (associated(dPdPs)) then
@@ -1445,16 +1446,16 @@ module obsSpaceErrorStdDev_mod
 
               ! Profile x
 
-              zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-              zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - MPC_K_C_DEGREE_OFFSET_R8
-              zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
-              zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+              zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,headerIndex,'TH')
+              zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
+              zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,headerIndex,'HU')
+              zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,headerIndex,'TH')
               zUU(JL) = 0.d0
               zVV(JL) = 0.d0
             ENDDO
             DO JL = 1, NWNDLEV
-              zUU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'UU')
-              zVV(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'VV')
+              zUU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,headerIndex,'UU')
+              zVV(JL) = col_getElem(columnTrlOnAnlIncLev,JL,headerIndex,'VV')
             ENDDO
             zUU(NGPSLEV) = zUU(NWNDLEV)
             zVV(NGPSLEV) = zUU(NWNDLEV)
@@ -1467,13 +1468,13 @@ module obsSpaceErrorStdDev_mod
             ! Prepare the vector of all the observations:
 
             NH1 = 0
-            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+            call obs_set_current_body_list(lobsSpaceData, headerIndex)
             BODY_2: do
-              INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-              if (INDEX_BODY < 0) exit BODY_2
-              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+              bodyIndex = obs_getBodyIndex(lobsSpaceData)
+              if (bodyIndex < 0) exit BODY_2
+              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
                 NH1      = NH1 + 1
-                H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
                 AZMV(NH1)= zAzm
               ENDIF
             ENDDO BODY_2
@@ -1481,14 +1482,14 @@ module obsSpaceErrorStdDev_mod
             ! Apply the observation operator:
 
             IF (varNum == bufr_nebd) THEN
-              CALL GPS_BNDOPV2(H(1:NH)-dR(1:NH), AZMV, NH, PRF, RSTV)
+              call gps_bndopv(H(1:NH)-dR(1:NH), AZMV, NH, PRF, RSTV)
             ELSE
-              CALL GPS_REFOPV (H(1:NH)-dR(1:NH),       NH, PRF, RSTV)
+              call gps_refopv(H(1:NH)-dR(1:NH),       NH, PRF, RSTV)
             ENDIF
             DO NH1=1,NH
-              ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+              ose_vRO_Jacobian2(iProfile, NH1, :) = RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
             ENDDO
-            ose_vRO_lJac(iProfile) = .True.
+            ose_vRO_lJac2(iProfile) = .True.
           endif
 
           ! Local error
@@ -1502,11 +1503,11 @@ module obsSpaceErrorStdDev_mod
           ! Perform the H(xb)DV operation:
 
           NH1 = 0
-          call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+          call obs_set_current_body_list(lobsSpaceData, headerIndex)
           BODY_3: do
-            INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-            if (INDEX_BODY < 0) exit BODY_3
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+            bodyIndex = obs_getBodyIndex(lobsSpaceData)
+            if (bodyIndex < 0) exit BODY_3
+            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) THEN
               NH1 = NH1 + 1
 
               ! Observation jacobian
@@ -1517,14 +1518,14 @@ module obsSpaceErrorStdDev_mod
 
               ZFGE = 0.d0
               DO JV = 1, 2*PRF%NGPSLEV+1
-                ZFGE = ZFGE + (ose_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
+                ZFGE = ZFGE + (ose_vRO_Jacobian2(iProfile, NH1, JV) * DV(JV))**2
               ENDDO
               ZFGE = SQRT(ZFGE)
-              ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+              ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
 
               ! FIRST GUESS ERROR VARIANCE
 
-              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,INDEX_BODY,ZFGE)
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,bodyIndex,ZFGE)
               IF (FIRSTHEADER) THEN
 11              FORMAT(A12,2I5,F12.2,3F16.8)
                 WRITE(*,11)'SETFGEDIFFGE',NH1,NH,H(NH1),RSTV(NH1)%VAR,ZFGE,ZERR
