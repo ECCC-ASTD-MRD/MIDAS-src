@@ -13,7 +13,7 @@ module horizontalCoord_mod
   use physicsFunctions_mod
   use netcdf
   use message_mod
-  
+
   implicit none
   save
   private
@@ -66,7 +66,7 @@ contains
                                varName_opt)
     !
     ! :Purpose: to initialize hco structure from a template file
-    !           
+    !
     implicit none
 
     ! Arguments:
@@ -81,14 +81,14 @@ contains
     ! Locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
-    real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat 
-    real(8) :: minDeltaLat, minDeltaLon, minGridSpacing 
+    real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat
+    real(8) :: minDeltaLat, minDeltaLon, minGridSpacing
     real(8) :: deltaLon1, deltaLon2, deltaLon3
     real(8) :: deltaLat1, deltaLat2, deltaLat3
     real(8), save :: maxGridSpacingPrevious = -1.0d0
     real(8), save :: minGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
-    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4    
+    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
     integer :: iu_template, numSubGrid, varIndex
     integer :: fnom, fstlir, fstouv, fstfrm, fclos
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
@@ -101,7 +101,7 @@ contains
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
     integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd
-    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute minGridSpacing in 3.2 
+    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute minGridSpacing in 3.2
     logical :: fileExist, global, rotated, foundVarNameInFile
     character(len=20) :: varName
     character(len=2 ) :: typvar
@@ -138,10 +138,10 @@ contains
     !- 1.1  Determine which variable to use for defining the grid
     !
     if (present(varName_opt)) then
-      
+
       ! User specified variable name
       varName = varName_opt
-      
+
     else
 
       ! First try to use P0
@@ -203,7 +203,7 @@ contains
     ip2    = -1
     ip3    = -1
     typvar = ' '
-  
+
     key = fstinf(iu_template,                                 & ! IN
                  ni, nj, nk,                                  & ! OUT
                  dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
@@ -241,7 +241,7 @@ contains
 
     allocate(lat_8(1:nj))
     allocate(lon_8(1:ni))
-  
+
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
 
@@ -266,7 +266,7 @@ contains
       ip3     = ig3
       typvar  = ''
       varName = '>>'
-    
+
       ier = utl_fstlir(lon_8,                                       & ! OUT
                        iu_template,                                 & ! IN
                        ni_t, nj_t, nlev_t,                          & ! OUT
@@ -276,7 +276,7 @@ contains
         call msg('hco_SetupFromFile', 'Unable to find >> grid descriptors')
         call utl_abort('hco_setupFromFile')
       end if
-    
+
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= ni .or. nj_t /= 1) then
         call msg('hco_SetupFromFile', 'Incompatible >> grid descriptors!')
@@ -320,7 +320,7 @@ contains
       ip3     = ig3
       typvar  = ''
       varName = '^^'
-    
+
       key = fstinf(iu_template,                                 & ! IN
                    ni_t, nj_t, nk,                              & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
@@ -356,14 +356,14 @@ contains
       !-  2.3.1 Find the latitudes and longitudes
       lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
       lat_8(:) = real(hco%lat2d_4(1,:),8)
-    
+
       !- 2.3.2 This grid type is not rotated
       rotated = .false.
       xlat1_4 =   0.0
       xlon1_4 = 180.0
       xlat2_4 =   0.0
       xlon2_4 = 180.0
-    
+
       !- 2.3.3 We know this is a global grid
       global = .true.
 
@@ -373,17 +373,17 @@ contains
       !-  2.4.1 Find the latitudes and longitudes
       lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
       lat_8(:) = real(hco%lat2d_4(1,:),8)
-    
+
       !- 2.4.2 This grid type is not rotated
       rotated = .false.
       xlat1_4 =   0.0
       xlon1_4 = 180.0
       xlat2_4 =   0.0
       xlon2_4 = 180.0
-    
+
       !- 2.4.3 We know this is a global grid
       global = .true.
-  
+
     else if (trim(grtyp) == 'U') then
       !- 2.5 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
 
@@ -402,7 +402,7 @@ contains
                    iu_template,                                 & ! IN
                    ni_t, nj_t, nlev_t,                          & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
-  
+
       if (ier < 0) then
         write(*,*)
         call msg('hco_SetupFromFile', 'Unable to find ^> grid descriptors')
@@ -459,7 +459,7 @@ contains
       xlon2_4 = 1.0
 
       grtypTicTac = 'L'
-    
+
       !- 2.6.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
       call global_or_lam(global,  & ! OUT
@@ -493,7 +493,7 @@ contains
     end if
     hco%ni                   = ni
     hco%nj                   = nj
-    hco%grtyp                = trim(grtyp) 
+    hco%grtyp                = trim(grtyp)
     hco%grtypTicTac          = trim(grtypTicTac)
     hco%ig1                  = ig1
     hco%ig2                  = ig2
@@ -535,7 +535,7 @@ contains
     deallocate(lat_8)
     deallocate(lon_8)
 
-    !- 3.1 Compute maxGridSpacing 
+    !- 3.1 Compute maxGridSpacing
 
     latIndexBeg = 1
     if (trim(grtyp) == 'U') then
@@ -555,7 +555,7 @@ contains
         deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
         if (deltaLat > maxDeltaLat) maxDeltaLat = deltaLat
 
-      end do      
+      end do
     end do
 
     maxDeltaLon = 0.0d0
@@ -565,12 +565,12 @@ contains
         deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
         deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
         deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
- 
-        if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+
+        if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8
         deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
-        if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+        if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8
         deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
-        if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+        if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8
         deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
 
         deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
@@ -594,7 +594,7 @@ contains
 
     hco%maxGridSpacing = maxGridSpacing
 
-    !- 3.2 Compute minGridSpacing 
+    !- 3.2 Compute minGridSpacing
 
     minDeltaLat = 1.0d6
     do lonIndex = 1, ni - 1
@@ -607,7 +607,7 @@ contains
         deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
         if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
 
-      end do      
+      end do
     end do
 
     minDeltaLon = 1.0d6
@@ -620,16 +620,16 @@ contains
           deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
           deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
 
-          if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+          if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8
           deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
-          if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+          if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8
           deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
-          if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+          if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8
           deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
 
           deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
           if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
-       
+
         end if
 
       end do
@@ -660,7 +660,7 @@ contains
   subroutine global_or_lam(global, lon, ni)
     !
     ! :Purpose: to decide if a given grid is global or lam from input longitude array
-    !           
+    !
     implicit none
 
     ! Arguments:
@@ -679,25 +679,25 @@ contains
     write(*,*) 'lon(ni)  = ',lon(ni)
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
-    
+
     if (next_lon - lon(1) > 360.0d0 .or. &
          next_lon - lon(1) < 3.0*dx) then
-      
+
       global = .true.
       if ( utl_isEqual(lon(1),lon(ni)) ) then
         write(*,*)
         write(*,*) ' *** Global Grid where i = ni (repetition) '
-      else  
+      else
         write(*,*)
         write(*,*) ' *** Global Grid where i /= ni '
       end if
 
     else
-      
+
       global = .false.
       write(*,*)
       write(*,*) ' *** Limited-Area Grid '
-      
+
     end if
 
   end subroutine global_or_lam
@@ -707,8 +707,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine hco_mpiBcast(hco)
     !
-    ! :Purpose: to broadcast hco strucure from MPI task 0 to other tasks 
-    !        
+    ! :Purpose: to broadcast hco strucure from MPI task 0 to other tasks
+    !
     implicit none
 
     ! Arguments:
@@ -716,9 +716,9 @@ contains
 
     ! Locals:
     integer, external :: ezqkdef
-    
+
     write(*,*) 'hco_mpiBcast: starting'
-    
+
     if (mmpi_myid > 0) then
       if(.not.associated(hco)) then
         allocate(hco)
@@ -726,7 +726,7 @@ contains
         call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
       end if
     end if
-    
+
     call mmpi_bcast(hco%gridname)
     call mmpi_bcast(hco%initialized)
     call mmpi_bcast(hco%ni)
@@ -765,7 +765,7 @@ contains
       end if
       call mmpi_bcast(hco%tictacU)
     end if
-    
+
     if (mmpi_myid > 0) then
       if (hco%grtyp == 'G' .or. hco%grtyp == 'B') then
         hco%EZscintID  = ezqkdef(hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0)
@@ -786,7 +786,7 @@ contains
   function hco_equal(hco1, hco2) result(equal)
     !
     ! :Purpose: to check if two given hco strucures are equal or not
-    !        
+    !
     implicit none
 
     ! Arguments:
@@ -815,7 +815,7 @@ contains
       write(*,*) 'hco_equal: grid spacing not equal'
       return
     end if
-    
+
     if(hco1%grtyp == 'G' .or. hco1%grtyp == 'B') then
       equal = equal .and. (hco1%ig2 == hco2%ig2)
       if (.not. equal) then
@@ -823,7 +823,7 @@ contains
         return
       end if
     end if
-    
+
     equal = equal .and. (hco1%rotated .eqv. hco2%rotated)
 
     equal = equal .and. utl_isEqual(hco1%xlat1, hco2%xlat1)
@@ -848,14 +848,14 @@ contains
       write(*,*) 'hco_equal: xlon2_yan: ', hco1%xlon2_yan, hco2%xlon2_yan
       return
     end if
-    
+
     equal = equal .and. utl_isEqual(hco1%lat(:), hco2%lat(:))
     equal = equal .and. utl_isEqual(hco1%lon(:), hco2%lon(:))
     if (.not. equal) then
       write(*,*) 'hco_equal: lat/lon not equal'
       return
     end if
-    
+
   end function hco_equal
 
   !--------------------------------------------------------------------------
@@ -892,14 +892,14 @@ contains
 
     ! Arguments:
     integer,  intent(in)  :: Ni
-    integer,  intent(in)  :: Nj   
+    integer,  intent(in)  :: Nj
     real(8) , intent(out) :: F_mask_8(Ni,Nj)
     real(8),  intent(in)  :: dx
     real(8),  intent(in)  :: dy
     real(4),  intent(in)  :: xg(ni)
     real(4),  intent(in)  :: yg(nj)
 
-    ! Locals: 
+    ! Locals:
     integer :: lonIndex,latIndex,np_subd
     real(8) :: poids(ni,nj),x_a_8,y_a_8,sp,sf,sp1,sf1
     real(4) :: area_4(ni,nj)
@@ -963,7 +963,7 @@ contains
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
           poids(lonIndex,latIndex) = min(1.d0, x_a_8)
         end if
- 
+
       end do
     end do
 
@@ -980,7 +980,7 @@ contains
   ! inter_curve_boundary_yy
   !--------------------------------------------------------------------------
   subroutine inter_curve_boundary_yy (x,y,xi,yi,np)
-    ! 
+    !
     ! :Purpose: compute the intersections between a line and the panel
     !         (yin or yang) boundary. The line passes through the panel
     !         center point (0, 0) and the cell center point (x, y).
@@ -990,10 +990,10 @@ contains
     ! Note: this routine has been taken and adjusted from a routine
     !       with the same name in the GEM model.
     !
-    ! :Arguments: input:  (x, y):   longitude, latitude of the cell 
+    ! :Arguments: input:  (x, y):   longitude, latitude of the cell
     !                              center point,
     !                     np:      workspace,
-    !            output: (xi, yi): longitude, latitude of the 
+    !            output: (xi, yi): longitude, latitude of the
     !                              intersection point.
     implicit none
 
@@ -1011,7 +1011,7 @@ contains
     integer :: i
 
     tol = 1.0d-16
-    pi  = MPC_PI_R8 
+    pi  = MPC_PI_R8
     xmin = -3.d0*pi/4.d0
     ymin = -pi/4.d0
     xb  = -0.5d0*pi
@@ -1063,15 +1063,15 @@ contains
   ! hco_weight
   !--------------------------------------------------------------------------
   subroutine hco_weight(hco, weight)
-    ! 
+    !
     !:Purpose: given the horizontal grid definition of the grid,
-    !          return appropriate weights for individual points (avoiding 
-    !          double counting in the overlap regions in the case of a Yin-Yang grid). 
+    !          return appropriate weights for individual points (avoiding
+    !          double counting in the overlap regions in the case of a Yin-Yang grid).
     !
     !:Author: Abdessamad Qaddouri and Peter Houtekamer
     !         October 2016
     !
-    !:Revision: imported code for the Yin-Yang grid on May 2021 from the EnKF library and 
+    !:Revision: imported code for the Yin-Yang grid on May 2021 from the EnKF library and
     !           combined with code for other grid types from the MIDAS library.
     !
     implicit none
@@ -1079,7 +1079,7 @@ contains
     ! Arguments:
     type(struct_hco), intent(in)  :: hco         ! structure with the specification of the horizontal grid
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
-    
+
     ! Locals:
     integer :: ierr, fnom, fclos
     integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
@@ -1158,7 +1158,7 @@ contains
       allocate (F_mask(ni,njWeight))
       allocate (xg(ni))
       allocate (yg(nj))
-         
+
       dx = hco%tictacU(sindx+10+1) -hco%tictacU(sindx+10)
       dy = hco%tictacU(sindx+10+ni+1)-hco%tictacU(sindx+10+ni)
       dx = MPC_RADIANS_PER_DEGREE_R8 * dx
@@ -1236,7 +1236,7 @@ contains
     !
     !:Purpose: Based on a Draft from Zerroukat (2013) - Evaluates weight
     !          for each cell, so that the overlap is computed once.
-    !    
+    !
     !:Author: Author Abdessamad Qaddouri -- Summer 2014
     !
     !:Note: this routine has been taken and adjusted from a routine
@@ -1255,7 +1255,7 @@ contains
     real(8) :: pi, xmin, xmax, ymin, ymax, xb1, xb2
     real(8) :: t1x, t2x, t1y, dcell, xi, yi, di, dp, df, d
 
-    pi   = MPC_PI_R8 
+    pi   = MPC_PI_R8
     xmin = -3.d0*pi/4.d0 ;  xmax = 3.d0*pi/4.d0
     ymin = -pi/4.d0       ;  ymax = pi/4.d0
     xb1  = -0.5d0*pi       ;  xb2  = 0.5d0*pi
@@ -1288,7 +1288,7 @@ contains
   subroutine hco_setupYgrid(hco, ni, nj)
     !
     ! :Purpose: to initialize hco structure for a Y grid
-    !           
+    !
     implicit none
 
     ! Arguments:
@@ -1305,13 +1305,13 @@ contains
       hco%grtypTicTac = 'L'
       if (allocated(hco%lat2d_4)) then
         deallocate(hco%lat2d_4)
-        deallocate(hco%lon2d_4) 
+        deallocate(hco%lon2d_4)
       end if
       allocate(hco%lat2d_4(ni, nj))
-      allocate(hco%lon2d_4(ni, nj)) 
+      allocate(hco%lon2d_4(ni, nj))
       hco%xlat1 = 0.d0
       hco%xlon1 = 0.d0
-      hco%xlat2 = 1.d0 
+      hco%xlat2 = 1.d0
       hco%xlon2 = 1.d0
     end if
 
