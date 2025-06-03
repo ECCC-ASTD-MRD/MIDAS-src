@@ -1138,9 +1138,9 @@ contains
        ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
        iProfile = gps_iprofile_from_index(headerIndex)
        if (varNum == bufr_nebd) then
-         call gps_bndopv2(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
+         call gps_bndopv(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
        else
-         call gps_refopv (h(1:nh)-dR(1:nh),       nh, prf, rstv)
+         call gps_refopv(h(1:nh)-dR(1:nh),       nh, prf, rstv)
        end if
        !
        ! Perform the (H(x)-Y)/S operation:
@@ -3589,9 +3589,9 @@ contains
           ! Apply the observation operator:
           ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
           if (varNum == bufr_nebd) then
-            call gps_bndopv2(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
+            call gps_bndopv(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
           else
-            call gps_refopv (h(1:nh)-dR(1:nh),       nh, prf, rstv)
+            call gps_refopv(h(1:nh)-dR(1:nh),       nh, prf, rstv)
           end if
           do nh1 = 1, nh
             oop_vRO_Jacobian4(iprofile, nh1, 1:4*ngpslev) = rstv(nh1)%dvar(1:4*ngpslev)

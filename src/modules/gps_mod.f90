@@ -22,7 +22,7 @@ module gps_mod
 
   ! Public variables
   ! RO
-  integer      , public, protected, allocatable :: gps_vRO_IndexPrf(:, :) ! index for each profile
+  integer      , public, protected, allocatable :: gps_vRO_IndexPrf(:, :) ! header index for each profile
   real(8)      , public, protected, allocatable :: gps_vRO_dR(:, :)       ! vertical asphericity shift for each datum
   integer      , public, protected :: gps_numROProfiles                   ! number of RO Profiles handled
   integer      , public, protected :: gps_level_RO
@@ -42,7 +42,7 @@ module gps_mod
   integer      , public, protected :: gps_roNFlavour
   real(8)      , public, protected :: gps_roYear
   ! ZTD
-  integer      , public, protected, allocatable :: gps_ZTD_Index (:)      ! index_header in CMA for each ZTD observation
+  integer      , public, protected, allocatable :: gps_ZTD_Index (:)      ! header index in CMA for each ZTD observation
   integer      , public, protected :: gps_gb_numZTD                       ! number of ZTD data to be assimilated
   real(8)      , public, protected :: gps_gb_dzMin
   real(8)      , public, protected :: gps_gb_dzMax
@@ -67,7 +67,7 @@ module gps_mod
   public :: gps_setNumROProfiles, gps_setROIndexPrf
   public :: gps_setupgb, gps_iztd_from_index
   public :: gps_setNumZTD, gps_setZTDIndex
-  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv2, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw, gps_pwopv
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw, gps_pwopv
 
   integer    , parameter :: gps_level_RO_Bnd       = 1
   integer    , parameter :: gps_level_RO_Ref       = 2
@@ -1928,9 +1928,9 @@ module gps_mod
   end subroutine gps_pw
 
   !--------------------------------------------------------------------------
-  ! gps_bndopv2
+  ! gps_bndopv
   !--------------------------------------------------------------------------
-  pure subroutine gps_bndopv2(impv, azmv, nval, prf, bstv)
+  pure subroutine gps_bndopv(impv, azmv, nval, prf, bstv)
     ! :Purpose: GPSRO Bending angle operator
     !
     ! :Note: The operator is loosely based on Fjeldbo 1971,
@@ -2088,7 +2088,7 @@ module gps_mod
       sum4 = sum4 + alpha_top
       bstv(levIndexObs) = sum4
     end do
-  end subroutine gps_bndopv2
+  end subroutine gps_bndopv
 
   !--------------------------------------------------------------------------
   ! Integral_I00_a
@@ -2331,42 +2331,43 @@ module gps_mod
   !--------------------------------------------------------------------------
   ! gps_setROIndexPrf
   !--------------------------------------------------------------------------
-  subroutine gps_setROIndexPrf(iProfile, index_header, varNum, iSat, iDsc, dR)
+  subroutine gps_setROIndexPrf(profileIndex, headerIndex, varNum, iSat, iDsc, dR)
     ! :Purpose: Fill RO buffer space of one profile
     implicit none
 
     ! Arguments:
-    integer(i4)        , intent(in)     :: iProfile        ! index within RO Profiles
-    integer(i4)        , intent(in)     :: index_header    ! index within all observations
+    integer(i4)        , intent(in)     :: profileIndex    ! index within RO Profiles
+    integer(i4)        , intent(in)     :: headerIndex     ! index within all observations
     integer(i4)        , intent(in)     :: varNum          ! observation variable kind (15036, ref; or 15037, bnd)
     integer(i4)        , intent(in)     :: iSat            ! satellite ID (receiver)
     integer(i4)        , intent(in)     :: iDsc            ! descendin/ascending profile
     real(dp)           , intent(in)     :: dR(:)           ! individual vertical shift associated to asphericity
 
-    gps_vRO_IndexPrf(iProfile, 1) = index_header
-    gps_vRO_IndexPrf(iProfile, 2) = varNum
-    gps_vRO_IndexPrf(iProfile, 3) = iSat
-    gps_vRO_IndexPrf(iProfile, 4) = iDsc
-    gps_vRO_dR(      iProfile, :) = dR(:)
+    gps_vRO_IndexPrf(profileIndex, 1) = headerIndex
+    gps_vRO_IndexPrf(profileIndex, 2) = varNum
+    gps_vRO_IndexPrf(profileIndex, 3) = iSat
+    gps_vRO_IndexPrf(profileIndex, 4) = iDsc
+    gps_vRO_dR(      profileIndex, :) = dR(:)
   end subroutine gps_setROIndexPrf
 
   !--------------------------------------------------------------------------
   ! gps_iprofile_from_index
   !--------------------------------------------------------------------------
-  integer function gps_iprofile_from_index(index)
-    ! :Purpose: Find an obs stored in RO buffer space
+  integer function gps_iprofile_from_index(headerIndex)
+    ! :Purpose: Find an obs profile stored in RO buffer space
+    ! They are uniquely identified with the CMA index.
     implicit none
 
     ! Arguments:
-    integer(i4)        , intent(in)     :: index
+    integer(i4)        , intent(in)     :: headerIndex
 
     ! Locals:
-    integer(i4)                         :: i
+    integer(i4)                         :: profileIndex
 
     gps_iprofile_from_index = -1
-    do i = 1, gps_numROProfiles
-      if (index == gps_vRO_IndexPrf(i, 1)) then
-        gps_iprofile_from_index = i
+    do profileIndex = 1, gps_numROProfiles
+      if (headerIndex == gps_vRO_IndexPrf(profileIndex, 1)) then
+        gps_iprofile_from_index = profileIndex
         return
       end if
     end do
@@ -2571,20 +2572,21 @@ module gps_mod
   !--------------------------------------------------------------------------
   ! gps_iztd_from_index
   !--------------------------------------------------------------------------
-  integer function gps_iztd_from_index(index)
-    ! :Purpose: Find an obs in stored ZTD buffer space
+  integer function gps_iztd_from_index(headerIndex)
+    ! :Purpose: Find a GPSGB obs in stored ZTD buffer space.
+    ! They are uniquely identified with the CMA header index.
     implicit none
 
     ! Arguments:
-    integer(i4)        , intent(in)     :: index
+    integer(i4)        , intent(in)     :: headerIndex
 
     ! Locals:
-    integer(i4)                         :: i
+    integer(i4)                         :: iObs
 
     gps_iztd_from_index = -1
-    do i = 1, size(gps_ZTD_Index)
-      if (index == gps_ZTD_Index(i)) then
-        gps_iztd_from_index = i
+    do iObs = 1, size(gps_ZTD_Index)
+      if (headerIndex == gps_ZTD_Index(iObs)) then
+        gps_iztd_from_index = iObs
         return
       end if
     end do

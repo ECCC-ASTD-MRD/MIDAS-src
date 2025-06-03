@@ -2686,9 +2686,9 @@ contains
              !     *        Apply the observation operator:
              !
           if (varNum == bufr_nebd) then
-            call gps_bndopv2(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
+            call gps_bndopv(h(1:nh)-dR(1:nh), azmv, nh, prf, rstv)
           else
-            call gps_refopv (h(1:nh)-dR(1:nh),       nh, prf, rstv)
+            call gps_refopv(h(1:nh)-dR(1:nh),       nh, prf, rstv)
           end if
              !
              !     *        Perform the (H(x)-Y)/R operation:
