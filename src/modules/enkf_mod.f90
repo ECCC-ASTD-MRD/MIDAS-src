@@ -836,6 +836,10 @@ contains
     real(8), allocatable, save :: eigenValues_CV(:), eigenVectors_CV(:,:)
     real(8), allocatable, save :: weightsTemp(:), weightsTemp2(:)
 
+    real(8)           :: eDim, dof, trace
+    character(len=50) :: outfilename
+    integer           :: fclos, funit
+
     logical, save :: firstCall = .true.
 
     hco_ens => ens_getHco(ensembleAnl)
@@ -1377,6 +1381,24 @@ contains
         tolerance = 1.0D-50
         call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
         call utl_tmg_stop(135)
+
+        ! output ensemble dimension, degrees of freedom, and trace of Pa
+        if (localSelectionOutput) then
+          eDim  = 0.0d0
+          dof   = 0.0d0
+          trace = 0.0d0
+          do memberIndex = 1, nEns
+            eDim  = eDim  + 1./sqrt((eigenValues_mean(memberIndex)+nEns-1))
+            dof   = dof   + 1./(1.+eigenValues_mean(memberIndex)+nEns-1)
+            trace = trace + 1./(eigenValues_mean(memberIndex)+nEns-1)
+          end do
+          eDim = eDim**2/trace
+          write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+          outfilename = './eob_glbi_'//trim(adjustl(outfilename))
+          call utl_open_asciifile(outfilename,funit)
+          write(funit,'(A,2(1X,ES10.4),1X,ES12.6)') 'edim', edim, dof, trace
+          ierr = fclos(funit)
+        end if
 
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
