@@ -19,7 +19,7 @@ contains
   !--------------------------------------------------------------------------
   ! swd_readSwqi
   !--------------------------------------------------------------------------
-  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn_out)
+  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn_opt)
     !
     !:Purpose: read NAMSW block in the namelist
     !
@@ -28,7 +28,7 @@ contains
     ! Arguments:
     character(len=*), allocatable,           intent(out) :: SWname(:)       ! the name of satellite
     character(len=*), allocatable,           intent(out) :: QIvalue(:)      ! Quality Indicator (QI) for AMV
-    character(len=*), allocatable, optional, intent(out) :: SWAddThn_out(:) ! the name of satellites for additional thinning
+    character(len=*), allocatable, optional, intent(out) :: SWAddThn_opt(:) ! the name of satellites for additional thinning
 
     ! Locals:
     integer :: ierr
@@ -96,13 +96,13 @@ contains
       deallocate(SWQIArray)
     end do
 
-    if (present(SWAddThn_out)) then
+    if (present(SWAddThn_opt)) then
       nsats = getNumSats(maxSat,SWAddThn)
       if ( nsats /= 0 ) then
-        if (allocated(SWAddThn_out)) deallocate(SWAddThn_out)
-        allocate(SWAddThn_out(nsats))
+        if (allocated(SWAddThn_opt)) deallocate(SWAddThn_opt)
+        allocate(SWAddThn_opt(nsats))
         do isat = 1, nsats
-          SWAddThn_out(isat) = SWAddThn(isat)
+          SWAddThn_opt(isat) = SWAddThn(isat)
         end do
       end if
     end if
