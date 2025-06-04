@@ -682,7 +682,7 @@ contains
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
     integer              :: obsSpaceColIndex, ierr, numRows, numColumns
     real(8)              :: obsPPP, matdata_r8(1,1)
-    character(len=4)     :: obsSpaceColumnName
+    character(len=lenSqlName) :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
     character(len=3000)  :: query
     logical              :: midasBodyTableExists
@@ -1574,8 +1574,8 @@ contains
     integer                      :: varNo
 
     ! Locals:
-    integer           :: matchIndex
-    character(len=10) :: varNoStr
+    integer                   :: matchIndex
+    character(len=lenSqlName) :: varNoStr
 
     matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
     if (matchIndex > 0) then
