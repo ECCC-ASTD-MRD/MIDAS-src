@@ -49,8 +49,8 @@ module obsDiagFiles_mod
     integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
     integer                :: tovsCodeTypeListSize, tovsCodeTypeList(10)
     integer                :: tovsFileNameListSize
-    character(len=20)      :: tovsFileNameList(30)
-    character(len=20)      :: fileName
+    character(len=codtyp_name_length) :: tovsFileNameList(30)
+    character(len=codtyp_name_length) :: fileName
 
     ! ensure all mpi tasks have same list of common obs family names
     call diaf_getObsFamilyListMpiGlobal(obsdat, obsFamilyListSize, obsFamilyList)
@@ -480,7 +480,7 @@ module obsDiagFiles_mod
     character(len=*), optional, intent(in) :: sfFileName_opt ! fileName acronym used for surface obs file
     integer,          optional, intent(in) :: codetype_opt
     ! Result:
-    character(len=20)          :: fileName
+    character(len=codtyp_name_length)      :: fileName
 
     if (obsFamily == 'TO') then
       if (.not. present(codetype_opt)) then
