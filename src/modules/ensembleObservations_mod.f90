@@ -1110,7 +1110,7 @@ CONTAINS
       hDistance           = sqrt(searchResults(localObsIndex)%dis)
       vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
       locFun(localObsindex) = lfn_Response(hDistance,hLocalize)
-      if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
+      if ( vLocalize > 0.0d0 .and. .not. utl_isEqual(vertLocation, MPC_missingValue_R8) ) then
          locFun(localObsIndex) = locFun(localObsindex) * lfn_Response(vDistance,vLocalize)
       endif
       sortIndex(localObsIndex) = localObsIndex
@@ -1139,7 +1139,7 @@ CONTAINS
       call eob_zeroOutput(eobOut)
     endif
 
-    if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
+    if ( vLocalize > 0.0d0 .and. .not. utl_isEqual(vertLocation, MPC_missingValue_R8) ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numObsFound      = 0
       numObsSelected   = 0
