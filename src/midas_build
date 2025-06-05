@@ -183,15 +183,13 @@ function printHeader {
         echo "| * ${__t}"
     done
     echo "| code version : ${__revstring}"
-    echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
+    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" != true ]; then
+        echo "| append version to build dir : (override 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR' from '${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}' to 'true'"
+        export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
+    fi
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
-    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
-    else
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld"
-    fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
