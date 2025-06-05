@@ -8003,14 +8003,15 @@ contains
     integer              :: headerIndex, headerIndex2, numHeader, numHeaderMaxMpi
     integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
-    integer              :: obsDate, obsTime, refDateStamp, ierr
-    real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper
+    integer              :: obsDate, obsTime, refDateStamp, imode, ierr
+    real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
     logical, save        :: firstCall = .true.
+    real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
 
     type(kdtree2), pointer    :: tree
-    integer, parameter        :: maxNumSearch = 1000
+    integer, parameter        :: maxNumSearch = 5000
     integer                   :: numFoundSearch, resultIndex
     type(kdtree2_result)      :: searchResults(maxNumSearch)
     real(kdkind)              :: maxRadiusSquared
@@ -8069,10 +8070,17 @@ contains
     allocate(obsValueMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
 
+    allocate(obsLonInDeg(numHeaderMaxMpi))
+    allocate(obsLatInDeg(numHeaderMaxMpi))
+    allocate(obsLonInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLatInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
+
     obsPosition3d(:,:)    = 0.0d0 ! (at the center of Earth)
     obsPosition3dMpi(:,:) = 0.0d0
     obsValue(:)    = 0.0d0
     obsValueMpi(:) = 0.0d0
+    obsLonInDeg(:) = 0.0
+    obsLatInDeg(:) = 0.0
 
     ! Loop over all "good" obs locations (thinned and not thinned)
     ! These will be made globally available as input to superobing
@@ -8116,6 +8124,10 @@ contains
       obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
       obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
 
+      ! For diagnostics
+      obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
+      obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+
       ! Observed value
       obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
 
@@ -8124,11 +8136,29 @@ contains
       obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
       ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
 
+      ! Print some diagnostics
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      write(200+mmpi_myid,*) obsFamily, codtyp, elementID,  &
+                             merge(channel_opt, -1, present(channel_opt)), &
+                             headerIndex, obsLonInDeg(headerIndex),  &
+                             obsLatInDeg(headerIndex), obsStepIndex_r8
+
+      if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
+        write(300+mmpi_myid,*) obsFamily, codtyp, elementID,  &
+                               merge(channel_opt, -1, present(channel_opt)), &
+                               headerIndex, obsLonInDeg(headerIndex),  &
+                               obsLatInDeg(headerIndex), obsStepIndex_r8
+      end if
+
     end do HEADER0
 
     call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
     call mmpi_allGather(obsValue,      obsValueMpi)
     call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
+
+    call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
+    call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
 
     ! Create kdtree structure with all "good" obs locations (thinned and not thinned)
     nullify(tree)
@@ -8210,8 +8240,18 @@ contains
         if (trim(averageType) == 'average') then
           numAverageObs = numAverageObs + 1
           obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
-          write(*,*) 'headerIndex, headerIndex2, obsValueMpi = ', &
-                      headerIndex, headerIndex2, obsValueMpi(headerIndex2)
+
+          ! Write some diagnostics
+          imode = -3 ! stamp to printable
+          ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
+          call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                                   obsDate, obsTime, tim_nstepobs)
+
+          write(100+mmpi_myid,*) obsFamily, codtyp, elementID, merge(channel_opt, -1, present(channel_opt)), &
+                                 headerIndex, headerIndex2, &
+                                 obsLonInRad*mpc_degrees_per_radian_r4 , obsLatInRad*mpc_degrees_per_radian_r4, &
+                                 obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
+                                 obsValueMpi(headerIndex2), obsStepIndex_r8
         end if
 
       end do HEADER2
@@ -8248,6 +8288,11 @@ contains
     deallocate(obsPosition3dMpi)
     deallocate(obsValueMpi)
     deallocate(obsDateStampMpi)
+
+    deallocate(obsLonInDeg)
+    deallocate(obsLatInDeg)
+    deallocate(obsLonInDegMpi)
+    deallocate(obsLatInDegMpi)
 
   end subroutine thn_superObs
 
