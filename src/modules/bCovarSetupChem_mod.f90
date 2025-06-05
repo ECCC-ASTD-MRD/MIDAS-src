@@ -1,18 +1,18 @@
 
-module bCovarSetupChem_mod 
+module bCovarSetupChem_mod
   ! MODULE bCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
   !
   !:Purpose:  Contains routines for the reading and preparation of
-  !           background-error covariance elements. Correlation matrices 
-  !           based on horizontally homogeneous/isotropic correlations.  
+  !           background-error covariance elements. Correlation matrices
+  !           based on horizontally homogeneous/isotropic correlations.
   !
   !:Comments:
   !
   !   1. Covariances uncoupled from weather variable.
   !
   !   2. Handles univariate and multivariate covariances.
-  !      See routines bcsc_readcorns2 and bcsc_sucorns2. 
-  ! 
+  !      See routines bcsc_readcorns2 and bcsc_sucorns2.
+  !
   !   3. For multiple univariate variables (or univarite blocks of one to
   !      multiple variables), one can alternatively have multiple sets of
   !      covariance matrices within this module instead of a single covariance
@@ -26,13 +26,13 @@ module bCovarSetupChem_mod
   !                     added)
   !    bcsc_getCovarCH: Provides covariances and related
   !    bcsc_getScaleFactor : Provides std dev scaling factor
-  !                     elements for background check and obs operators. 
+  !                     elements for background check and obs operators.
   !    bcsc_finalize    Deallocate internal module arrays.
   !    bcsc_StatsExistForVarName: Determine is Covar available for specified variable
   !    bcsc_getBgStddev: Interpolation background error std dev to obs location
   !    bcsc_retrieveBgStddev: Retrieve previously saved background stddev
   !                      profiles in bgStddev from the header index.
-  !    bcsc_addBgStddev: Add background stddev profiles (and inverse) to 
+  !    bcsc_addBgStddev: Add background stddev profiles (and inverse) to
   !                      bgStddev which can be retrieved later using a header index.
 
   use rpn_comm
@@ -58,26 +58,26 @@ module bCovarSetupChem_mod
   public :: bcsc_getScaleFactor
   public :: bcsc_StatsExistForVarName
   public :: bcsc_retrieveBgStddev,bcsc_addBgStddev,bcsc_getBgStddev
-  
+
   ! Public types
   public :: struct_bcsc_bgStats
 
   ! module shared variables
-  ! ----------------------- 
-  
+  ! -----------------------
+
   integer             :: nlev_M,nlev_T
-  integer             :: gstID         
-  real(8), allocatable   :: rlatr(:),rlongr(:)     
+  integer             :: gstID
+  real(8), allocatable   :: rlatr(:),rlongr(:)
   type(struct_vco),pointer :: vco_anl
-  
+
   character(len=15) :: bcsc_mode
-                            
+
   ! Background error covariance files
   character(len=11) :: bFileName = './bgchemcov'                  ! Input
   character(len=25) :: bFileNameOut = './bCovarSetupChem_out.fst' ! Optional output
 
   ! Background error covariance matrix elements.
-  ! One could add an additional dimension to corns  
+  ! One could add an additional dimension to corns
   ! for separate block-univariate correlation matrices.
   ! This would also permit merging of bmatrixhi_mod and bmatrixchem_mod
   ! into one module.
@@ -100,36 +100,36 @@ module bCovarSetupChem_mod
   character(len=4)    :: CrossCornsVarKindCH(vnl_numvarmax) ! not sure what this is for...
   character(len=20)   :: TransformVarKindCH                 ! name of variable transform to apply to chemistry variables
 
-  ! Square root of scaleFactor   
-  real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
-      
+  ! Square root of scaleFactor
+  real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels)
+
   real(8), parameter :: pSurfRef = 101000.D0 ! Reference surface pressure (hPa)
   real(8), parameter :: hSurfRef = 0.D0      ! Reference surface height (meters)
 
   ! module structures
   ! -----------------
-  
+
   type :: struct_bcsc_bgStats
 
-     !  Structure storing background error stats 
+     !  Structure storing background error stats
      !  and related elements
 
-     ! logical indicating if stats are available     
+     ! logical indicating if stats are available
      logical              :: initialized=.false.
-     
+
      integer              :: numvar3d   ! number of 3D fields
      integer              :: numvar2d   ! number of 2D fields
      integer              :: ni         ! number of latitudes
      integer              :: nj         ! number of longitudes
      integer              :: nlev       ! number of vertical levels
-     
-     ! Total number of elements over all verticallevels and 
+
+     ! Total number of elements over all verticallevels and
      ! variables (varNameList)
      integer              :: numVarLev
-     
+
      integer              :: ntrunc     ! spectral dimension
      character(len=4), allocatable :: varNameList(:) ! list of variable names
-                      
+
      integer, allocatable :: nsposit(:)  ! start positions of fields
      real(8), allocatable :: lat(:)      ! grid lat in radians
      real(8), allocatable :: lon(:)      ! grid lon in radians
@@ -138,23 +138,23 @@ module bCovarSetupChem_mod
 
      ! Phys. Space vertical correlation matrix
      real(8), allocatable :: corvert(:,:,:)
-     
+
      real(8), allocatable :: corverti(:,:,:) ! Inverse of 'corvert'
-     
+
      real(8), allocatable :: stddev(:,:,:)   ! error std dev
      real(8), allocatable :: hcorrlen(:,:)   ! horizontal correlation lengths
-  
+
   end type struct_bcsc_bgStats
 
   ! Assigned type variables
   ! -----------------------
-    
-  type(struct_bcsc_bgStats)  :: bgStats  
-  type(struct_oss_obsdata)   :: bgStddev ! Arrays for background error 
+
+  type(struct_bcsc_bgStats)  :: bgStats
+  type(struct_oss_obsdata)   :: bgStddev ! Arrays for background error
                                            ! std dev in obs space
 
   !*************************************************************************
-    
+
   contains
 
   !--------------------------------------------------------------------------
@@ -177,13 +177,13 @@ module bCovarSetupChem_mod
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
     real(8), pointer    :: vertCoordProfile_T(:)
-       
+
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt, &
                       stddevMode,IncludeAnlVarKindCH,getPhysSpaceHCorrel, &
                       CrossCornsVarKindCH,WritePhysSpaceStats, &
                       TransformVarKindCH,getPhysSpaceStats
 
-    write(*,*) 'Started bcsc_setupCH'  
+    write(*,*) 'Started bcsc_setupCH'
 
     nullify(vertCoordProfile_T)
 
@@ -196,8 +196,8 @@ module bCovarSetupChem_mod
         if (vnl_varKindFromVarname(vnl_varNameList(varIndex)) == 'CH') then
           varIndex2 = 1
           exit
-        end if 
-      end if      
+        end if
+      end if
     end do
     if (varIndex2 == 0) then
       ! Assume there is no need for Bchm
@@ -207,7 +207,7 @@ module bCovarSetupChem_mod
 
     bgStats%numvar3d = 0
     bgStats%numvar2d = 0
- 
+
     allocate(bgStats%varNameList(vnl_numvarmax))
     bgStats%varNameList(:) = ''
     allocate(bgStats%nsposit(vnl_numvarmax+1))
@@ -225,7 +225,7 @@ module bCovarSetupChem_mod
     end if
 
     ! Initialization of namelist NAMBCHM parameters
-    
+
     ntrunc=108
     rpor(:)=3000.D3
     rvloc(:)=4.0D0
@@ -235,13 +235,13 @@ module bCovarSetupChem_mod
     WritePhysSpaceStats = .false.
     getPhysSpaceHCorrel = .false.
     getPhysSpaceStats = .false.
-    stddevMode = 'GD3D'    
+    stddevMode = 'GD3D'
     IncludeAnlVarKindCH(:) = ''
     CrossCornsVarKindCH(:) = ''
     TransformVarKindCH = ''
-            
+
     ! Read namelist input
-    
+
     read(utl_flnml, nml=NAMBCHM, iostat=ierr)
     if(ierr /= 0) call utl_abort('bcsc_setupCH: Error reading namelist')
     if(mmpi_myid == 0) write(*,nml=NAMBCHM)
@@ -272,7 +272,7 @@ module bCovarSetupChem_mod
       end do
     end if
 
-    if (nChmVars == 0) then 
+    if (nChmVars == 0) then
       if(mmpi_myid == 0) then
         write(*,*) 'Size of BchmVars is zero. B matrix for CH family ', &
                    'not produced.'
@@ -282,7 +282,7 @@ module bCovarSetupChem_mod
       covarNeeded = .false.
       return
     end if
-    
+
     ! Set vertical dimensions
 
     vco_anl => vco_in
@@ -291,7 +291,7 @@ module bCovarSetupChem_mod
 
     ! Find the 3D variables (within NAMSTATE namelist)
 
-    do varIndex = 1, vnl_numvarmax3D    
+    do varIndex = 1, vnl_numvarmax3D
       if (gsv_varExist(varName=vnl_varNameList3D(varIndex)) .and. &
           any(trim(vnl_varNameList3D(varIndex))==BchmVars(1:nChmVars)) ) then
 
@@ -304,7 +304,7 @@ module bCovarSetupChem_mod
              vnl_varNameList3D(varIndex)
       end if
     end do
- 
+
     ! Find the 2D variables (within NAMSTATE namelist)
 
     do varIndex = 1, vnl_numvarmax2D
@@ -316,10 +316,10 @@ module bCovarSetupChem_mod
         bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d+1) = &
              bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d)+1
         bgStats%varNameList(bgStats%numvar2d) = vnl_varNameList2D(varIndex)
-      end if       
+      end if
     end do
 
-    if (bgStats%numvar3d+bgStats%numvar2d == 0) then    
+    if (bgStats%numvar3d+bgStats%numvar2d == 0) then
       if (mmpi_myid == 0) then
         write(*,*) 'B matrix for CH family not produced.'
         write(*,*) 'No chemical assimilation to be performed.'
@@ -338,38 +338,38 @@ module bCovarSetupChem_mod
              bgStats%numvar3d+bgStats%numvar2d)
       end if
     end if
-    
+
     bgStats%numVarLev = &
       bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d+1)-1
 
     ! Scalefactors must be > 0 until ensembles for constituents can be used.
-    
-    if (bgStats%numvar3d > 0) then    
+
+    if (bgStats%numvar3d > 0) then
       if (any(scaleFactor(1:bgStats%numvar3d,1:nLev_T) <= 0.0D0)) then
-        write(*,*) 'Scalefactors: ',scaleFactor(1:bgStats%numvar3d,1:nLev_T) 
+        write(*,*) 'Scalefactors: ',scaleFactor(1:bgStats%numvar3d,1:nLev_T)
         call utl_abort('bcsc_setupCH: Scalefactors values must be > 0 for now.')
       end if
     end if
-    if (bgStats%numvar2d > 0) then     
-      if (any(scaleFactor(1:bgStats%numvar2d,1) <= 0.0D0)) then 
-        write(*,*) 'Scalefactors: ',scaleFactor(1:bgStats%numvar3d,1:nLev_T) 
-        call utl_abort('bcsc_setupCH: Scalefactors values must be > 0 for now.') 
+    if (bgStats%numvar2d > 0) then
+      if (any(scaleFactor(1:bgStats%numvar2d,1) <= 0.0D0)) then
+        write(*,*) 'Scalefactors: ',scaleFactor(1:bgStats%numvar3d,1:nLev_T)
+        call utl_abort('bcsc_setupCH: Scalefactors values must be > 0 for now.')
       end if
     end if
-    
+
     ! Set scalefactor_stddev
 
     scaleFactor_stddev(1:bgStats%numvar3d+bgStats%numvar2d, &
       1:max(nLev_M,nLev_T))=0.0d0
-      
+
     where (scaleFactor(1:bgStats%numvar3d+bgStats%numvar2d, &
-                       1:max(nLev_M,nLev_T)) > 0.0d0) 
-      
+                       1:max(nLev_M,nLev_T)) > 0.0d0)
+
       scaleFactor_stddev(1:bgStats%numvar3d+bgStats%numvar2d, &
         1:max(nLev_M,nLev_T)) = sqrt(scaleFactor(1:bgStats%numvar3d &
                                 + bgStats%numvar2d,1:max(nLev_M,nLev_T)))
     end where
-    
+
     bgStats%ni = hco_in%ni
     bgStats%nj = hco_in%nj
     bgStats%ntrunc = ntrunc
@@ -377,16 +377,16 @@ module bCovarSetupChem_mod
       bgStats%numVarLev)
 
     if (allocated(bgStats%lat)) deallocate(bgStats%lat)
-    if (allocated(bgStats%lon)) deallocate(bgStats%lon)    
-    allocate(bgStats%lat(bgStats%nj))  
+    if (allocated(bgStats%lon)) deallocate(bgStats%lon)
+    allocate(bgStats%lat(bgStats%nj))
     allocate(bgStats%lon(bgStats%ni+1))
-    
+
     bgStats%lat(1:bgStats%nj) = hco_in%lat(1:bgStats%nj)
     bgStats%lon(1:bgStats%ni) = hco_in%lon(1:bgStats%ni)
     bgStats%lon(bgStats%ni+1) = 2*MPC_PI_R8
-    
+
     ! Assign sizes and transfer some fields
-    
+
     if ( bgStats%numvar3d > 0 ) then
       bgStats%nlev = nlev_T
     else if (bgStats%numvar2d > 0 ) then
@@ -394,15 +394,15 @@ module bCovarSetupChem_mod
     else
       bgStats%nlev = 0
     end if
-    
+
     allocate(stddev(bgStats%ni+1, bgStats%nj, bgStats%numVarLev))
-    allocate(rstddev(bgStats%numVarLev, 0:bgStats%ntrunc))    
-      
+    allocate(rstddev(bgStats%numVarLev, 0:bgStats%ntrunc))
+
     allocate(bgStats%corns(bgStats%numVarLev,bgStats%numVarLev, &
-      0:bgStats%ntrunc))  
+      0:bgStats%ntrunc))
     allocate(bgStats%stddev(bgStats%ni+1,bgStats%nj, &
       bgStats%numVarLev ))
-    if ( bgStats%nlev > 1 ) then 
+    if ( bgStats%nlev > 1 ) then
       allocate(bgStats%vlev(bgStats%nlev))
       if (getPhysSpaceStats .or. trim(bcsc_mode) == 'BackgroundCheck') then
         allocate(bgStats%corvert(bgStats%nlev,bgStats%nlev, &
@@ -413,7 +413,7 @@ module bCovarSetupChem_mod
           bgStats%numvar3d))
       end if
     end if
-    
+
     ! Get vertical levels
 
     if (bgStats%nlev > 1) then
@@ -431,19 +431,19 @@ module bCovarSetupChem_mod
       bgStats%vlev(1) = pSurfRef
     end if
 
-    ! Read covar stats, scale standard deviations,  and apply localization 
+    ! Read covar stats, scale standard deviations,  and apply localization
     ! to vertical correlation matrices in horizontal spectral space
-    
+
     call bcsc_rdstats
     bgStats%stddev(:,:,:)=stddev(:,:,:)
     if (allocated(stddev)) deallocate(stddev)
-    
+
     ! Generate or read correlation matrix square roots
-    
+
     call bcsc_sucorns2
-    
+
     if(mmpi_myid == 0) write(*,*) 'Completed bcsc_setupCH'
-    
+
     bgStats%initialized = .true.
     if (allocated(rstddev)) deallocate(rstddev)
 
@@ -493,17 +493,17 @@ module bCovarSetupChem_mod
     end if
 
     ! Read spectral space correlations
-    
+
     call bcsc_readcorns2
-    
+
     ! Read error standard deviations
-    
-    call bcsc_rdstddev 
+
+    call bcsc_rdstddev
 
     ! Scale error standard deviations (and save to file if requested)
-    
+
     call bcsc_scalestd
-    
+
   end subroutine bcsc_rdstats
 
   !--------------------------------------------------------------------------
@@ -518,7 +518,7 @@ module bCovarSetupChem_mod
     ! Locals:
     integer :: lonIndex, latIndex, varIndex, levelIndex, nlev, nulsig
     integer :: ierr, fnom, fstouv, fstfrm, fclos
-  
+
     if (WritePhysSpaceStats .and. mmpi_myid == 0) then
       nulsig = 0
       ierr = fnom(nulsig,bFileNameOut,'STD+RND',0)
@@ -554,14 +554,14 @@ module bCovarSetupChem_mod
       end if
 
     end do
-    
+
     if (WritePhysSpaceStats .and. mmpi_myid == 0) then
-      ierr = fstfrm(nulsig)  
+      ierr = fstfrm(nulsig)
       ierr = fclos(nulsig)
     end if
 
   end subroutine bcsc_scalestd
-  
+
   !--------------------------------------------------------------------------
   ! bcsc_readCorns2
   !--------------------------------------------------------------------------
@@ -615,11 +615,11 @@ module bCovarSetupChem_mod
       allocate(clnomvarCrosscorns(bgStats%numvar3d+bgStats%numvar2d))
       clnomvarCrosscorns(:)=''
     end if
-    
+
     ! Read auto-correlations matrices
-    
+
     do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
-   
+
       clnomvar = bgStats%varNameList(varIndex)
       jstart = bgStats%nsposit(varIndex)
       jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
@@ -629,17 +629,17 @@ module bCovarSetupChem_mod
       do jn = 0, bgStats%ntrunc
 
         ! Looking for FST record parameters.
-      
+
         idateo = -1
         cletiket = 'RSTDDEV'
         ip1 = -1
         ip2 = jn
         ip3 = -1
         cltypvar = 'X'
-          
+
         ierr = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1, &
                           ip2,ip3,cltypvar,clnomvar)
-          
+
         if (ierr < 0 .and. ip2 < 10 .and. all(CrossCornsVarKindCH(:) == '')) then
           write(*,*) 'bcsc_readcorns2: RSTDDEV ',ip2,jnum,clnomvar
           call utl_abort('bcsc_readcorns2: Problem with constituents ' // &
@@ -688,36 +688,36 @@ module bCovarSetupChem_mod
         rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
         bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn) = zcornssrc(1:jnum,1:jnum)
       end do
-       
+
       deallocate(zcornssrc)
       deallocate(zstdsrc)
 
     end do
 
     ! Read cross-correlation matrices
-    
-    if (any(CrossCornsVarKindCH(:) /= '')) then  
-     
+
+    if (any(CrossCornsVarKindCH(:) /= '')) then
+
       do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
-   
+
         if (all(CrossCornsVarKindCH(:) /= bgStats%varNameList(varIndex))) cycle
 
         clnomvar = bgStats%varNameList(varIndex)
         jstart = bgStats%nsposit(varIndex)
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
 
-        if (clnomvarCrosscorns(varIndex) == clnomvar) then 
+        if (clnomvarCrosscorns(varIndex) == clnomvar) then
           clnomvarCrosscorns(varIndex)=''
         end if
 
         do varIndex2 = 1, bgStats%numvar3d+bgStats%numvar2d
-        
+
           if (varIndex == varIndex2) cycle
-          
+
           cletiket='CORRNS '//bgStats%varNameList(varIndex2)
           ierr = fstinf(nulbgst,INI,INJ,INK,-1,cletiket,-1,-1,-1,'X',clnomvar)
           if (ierr < 0 ) cycle
-          
+
           jstart2 = bgStats%nsposit(varIndex2)
           jnum2 =  bgStats%nsposit(varIndex2+1)-bgStats%nsposit(varIndex2)
           allocate(zcornssrc(jnum,jnum2))
@@ -727,7 +727,7 @@ module bCovarSetupChem_mod
             end if
 
           do jn = 0, bgStats%ntrunc
- 
+
             ierr = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,-1,cletiket,-1, &
                               jn,-1,'X',clnomvar)
 
@@ -753,25 +753,25 @@ module bCovarSetupChem_mod
           end do
           deallocate(zcornssrc)
         end do
-      end do   
+      end do
     end if
-    
+
     if (any(CrossCornsVarKindCH(:) /= '')) then
       if (any(clnomvarCrosscorns(:) /= '')) then
         write(*,*) 'bcsc_readcorns2: Missing matrix for ', &
                    clnomvarCrosscorns(1:bgStats%numvar3d+bgStats%numvar2d)
-        call utl_abort('bcsc_readcorns2: Missing correlations matrix')      
+        call utl_abort('bcsc_readcorns2: Missing correlations matrix')
       end if
       deallocate(clnomvarCrosscorns)
     end if
-     
+
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
     ! Apply convolution to RSTDDEV correlation
 
     call bcsc_convol
-    
+
     do jn = 0, bgStats%ntrunc
 
       ! Re-build correlation matrix: factorization of corns with convoluted RSTDDEV
@@ -800,7 +800,7 @@ module bCovarSetupChem_mod
     real(8) :: zgr(bgStats%nj,bgStats%numVarLev)
     real(8) :: zrmu(bgStats%nj)
     integer :: nlev_MT,ini,inj,ink,nulcorns
-    real(8), allocatable :: wtemp(:,:,:)    
+    real(8), allocatable :: wtemp(:,:,:)
     real(8), allocatable :: hcorrel(:,:,:),hdist(:)
     logical :: lfound
     integer :: fnom, fstouv, fstfrm, fclos
@@ -824,14 +824,14 @@ module bCovarSetupChem_mod
 
     ! Transform to physical space
     call gst_zleginv(gstID,zgr,zsp,bgStats%numVarLev)
-    
+
     ! Truncate in horizontal extent with Gaussian window
-    
+
     varIndex=1
     do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex)) then
         dtlen = rpor(varIndex)
-        varIndex=varIndex+1 
+        varIndex=varIndex+1
       end if
       if (dtlen > 0.0d0) then
         dlc = 1.d0/dble(dtlen)
@@ -897,7 +897,7 @@ module bCovarSetupChem_mod
 
     ! Compute resultant physical space horizontal correlations and
     ! 1/e correlation length from correlation array if not available
-    
+
     if (allocated(hcorrel)) deallocate(hcorrel)
     allocate(hcorrel(bgStats%nj,bgStats%nlev, &
       bgStats%numvar3d+bgStats%numvar2d))
@@ -927,11 +927,11 @@ module bCovarSetupChem_mod
         lfound=.false.
         exit
       end if
-    end do 
+    end do
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
-    
+
     if (lfound) return
 
     do latIndex = 1, bgStats%nj
@@ -942,14 +942,14 @@ module bCovarSetupChem_mod
     wtemp(:,:,:)=0.0d0
     hcorrel(:,:,:)=0.0d0
     bgStats%hcorrlen(:,:)=0.0
-    
+
     do latIndex = mmpi_myid+1, bgStats%nJ, mmpi_nprocs
       do jn = 0, bgStats%ntrunc
         wtemp(jn,latIndex,1) = gst_getzleg(jn,latIndex,gstID)
       end do
     end do
-    
-    nsize=bgStats%nJ*(bgStats%ntrunc+1)    
+
+    nsize=bgStats%nJ*(bgStats%ntrunc+1)
     call rpn_comm_allreduce(wtemp(0:bgStats%ntrunc,1:bgStats%nJ,1), &
          zleg(0:bgStats%ntrunc,1:bgStats%nJ),nsize,"mpi_double_precision", &
          "mpi_sum","GRID",ierr)
@@ -958,12 +958,12 @@ module bCovarSetupChem_mod
     allocate(wtemp(bgStats%nj, bgStats%nlev, &
       bgStats%numvar3d+bgStats%numvar2d))
     wtemp(:,:,:)=0.0
-    
+
     varIndex = 1
     levelIndex = 1
     do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex+1)) then
-        varIndex = varIndex+1 
+        varIndex = varIndex+1
         levelIndex = 1
       end if
 
@@ -972,12 +972,12 @@ module bCovarSetupChem_mod
           wtemp(latIndex,levelIndex,varIndex) = wtemp(latIndex,levelIndex, &
                 varIndex)+rstddev(jk,jn)*rstddev(jk,jn)*  &
                 sqrt(2.0)*sqrt(2.0*jn+1.0)*zleg(jn,latIndex)
-        end do       
+        end do
       end do
       levelIndex = levelIndex+1
     end do
-    
-    nsize=bgStats%nj*bgStats%numVarLev   
+
+    nsize=bgStats%nj*bgStats%numVarLev
     call rpn_comm_allreduce(wtemp,hcorrel,nsize,"mpi_double_precision", &
                             "mpi_sum","GRID",ierr)
     deallocate(wtemp)
@@ -986,7 +986,7 @@ module bCovarSetupChem_mod
     levelIndex = 1
     do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex+1)) then
-        varIndex = varIndex+1 
+        varIndex = varIndex+1
         levelIndex = 1
       end if
       do latIndex=bgStats%nj-1,2,-1
@@ -999,11 +999,11 @@ module bCovarSetupChem_mod
         end if
       end do
       levelIndex = levelIndex+1
-    end do  
-    
+    end do
+
     if ( mmpi_myid == 0 ) then
-    
-      if (WritePhysSpaceStats) then 
+
+      if (WritePhysSpaceStats) then
         nulcorns = 0
         ierr = fnom(nulcorns,bFileNameOut,'STD+RND',0)
         ierr = fstouv(nulcorns,'RND')
@@ -1023,11 +1023,11 @@ module bCovarSetupChem_mod
                  bgStats%nj,1,0,0,0,'X',bgStats%varNameList(varIndex), &
                  'HDIST','X',0,0,0,0,5,.true.)
         end do
-      
-        ierr = fstfrm(nulcorns)  
+
+        ierr = fstfrm(nulcorns)
         ierr = fclos(nulcorns)
       end if
-      
+
       write(*,*)
       write(*,*) 'bcsc_convol: Horizontal correlations'
       write(*,*)
@@ -1097,42 +1097,42 @@ module bCovarSetupChem_mod
     ip1=-1
     ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                       idate(1),' ',ip1,ip2,ip3,' ','^^')
-                         
+
     if (ikey >= 0) then
       if (allocated(rlatr)) deallocate(rlatr)
       allocate(rlatr(inj))
-      rlatr(1:inj) = rcoord(1:inj) 
+      rlatr(1:inj) = rcoord(1:inj)
       rlatr(1:inj) = rlatr(1:inj)*MPC_RADIANS_PER_DEGREE_R8
-    else 
+    else
       ! Assume same as bgStats%lat
       if (allocated(rlatr)) deallocate(rlatr)
       allocate(rlatr(bgStats%nj))
       inj = bgStats%nj
-      rlatr(1:inj) = bgStats%lat(1:inj) 
-    end if    
+      rlatr(1:inj) = bgStats%lat(1:inj)
+    end if
 
     ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                       idate(1),' ',ip1,ip2,ip3,' ','>>')
-                         
+
     if (ikey >= 0) then
       if (allocated(rlongr)) deallocate(rlongr)
       allocate(rlongr(ini+1))
-      rlongr(1:ini) = rcoord(1:ini) 
+      rlongr(1:ini) = rcoord(1:ini)
       rlongr(1:ini) = rlongr(1:ini)*MPC_RADIANS_PER_DEGREE_R8
     else if (stddevMode /= 'SP2D') then
       ! Assume same as bgStats%lon
       if (allocated(rlongr)) deallocate(rlongr)
       allocate(rlongr(bgStats%ni+1))
       ini = bgStats%ni
-      rlongr(1:ini) = bgStats%lon(1:ini) 
-    end if 
+      rlongr(1:ini) = bgStats%lon(1:ini)
+    end if
     rlongr(ini+1) = 360.*MPC_RADIANS_PER_DEGREE_R8
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
-     
+
     ! Read specified input type for error std. dev.
-    
+
     if(stddevMode == 'GD3D') then
       call bcsc_rdstd3D
     elseif(stddevMode == 'GD2D') then
@@ -1142,7 +1142,7 @@ module bCovarSetupChem_mod
     else
       call utl_abort('bcsc_rdstddev: unknown stddevMode')
     end if
-    
+
   end subroutine bcsc_rdstddev
 
   !--------------------------------------------------------------------------
@@ -1166,7 +1166,7 @@ module bCovarSetupChem_mod
     character(len=12) :: cletiket
     integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
     integer :: nulbgst
-    
+
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
     if ( ierr == 0 ) then
@@ -1177,8 +1177,8 @@ module bCovarSetupChem_mod
     end if
 
     stddev(:,:,:) = 0.0d0
-    
-    ! Reading the Legendre poly representation of the 2D background 
+
+    ! Reading the Legendre poly representation of the 2D background
     ! error std. dev. field
 
     idate(1) = -1
@@ -1188,11 +1188,11 @@ module bCovarSetupChem_mod
 
     cletiket = 'SPSTDDEV'
     cltypvar = 'X'
-    
+
     do varIndex = 1,bgStats%numvar3d+bgStats%numvar2d
       clnomvar = bgStats%varNameList(varIndex)
       nlev_MT = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
-      
+
       firstn = -1
       do jn = 0, bgStats%ntrunc
         ip2 = jn
@@ -1217,14 +1217,14 @@ module bCovarSetupChem_mod
             write(*,*) 'JN, INI, nlev_MT, NOMVAR: ',jn,ini,nlev_MT,' ',clnomvar
             call utl_abort('bcsc_rdspstd: Constituents background stats ' // &
                            'levels inconsistency')
-          end if    
+          end if
         end if
-     
+
         do levelIndexo = 1, nlev_MT
           zsp(jn,levelIndexo) = zspbuf(levelIndexo)
         end do
       end do
-      
+
       if (mmpi_myid == 0 .and. firstn /= -1) then
         write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
                    ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
@@ -1238,7 +1238,7 @@ module bCovarSetupChem_mod
              zgr(1:bgStats%nj,1:nlev_MT)
       end do
 
-    end do 
+    end do
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
@@ -1268,7 +1268,7 @@ module bCovarSetupChem_mod
     real(8), allocatable  :: vlev(:),vlevout(:)
     integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
     integer :: nulbgst
-    
+
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
     if ( ierr == 0 ) then
@@ -1286,29 +1286,29 @@ module bCovarSetupChem_mod
     ip1      = -1
     ip2      = -1
     ip3      = -1
-    
+
     cletiket = 'STDDEV'
     cltypvar=' '
 
     ! Reading for 3D and 2D variables
-    
+
     do varIndex = 1,bgStats%numvar3d+bgStats%numvar2d
       clnomvar = bgStats%varNameList(varIndex)
       nlev_MT = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
- 
+
       ikey = fstinf(nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3, &
                     cltypvar,clnomvar)
       if (ikey < 0 .or. ini > 1 .or. ink /= nlev_MT) then
         write(*,*) 'bcsc_rdstd: ',varIndex,clnomvar,ikey,ini,ink,nlev_MT
-        call utl_abort(': bcsc_rdstd record not found or incorrect')          
+        call utl_abort(': bcsc_rdstd record not found or incorrect')
       end if
-      
+
       allocate(stddev3d(1,inj,ink))
       stddev3d(1,:,:) = 0.0D0
       allocate(vlev(ink),vlevout(nlev_MT))
       vlev(:) = 1.0D0
       vlevout(:) = 1.0D0
-      
+
       ikey = utl_fstlir(stddev3d(1,:,:), nulbgst, ini, inj, ink, &
                         idate(1), cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
 
@@ -1316,7 +1316,7 @@ module bCovarSetupChem_mod
         write(*,*) 'bcsc_rdstd: ',varIndex,clnomvar,nlev_MT,ikey
         call utl_abort(': bcsc_rdstd record not found')
       end if
-        
+
       ! Extend to 3D
       if (inj == bgStats%nj) then
         do in = 1, bgStats%ni+1
@@ -1331,7 +1331,7 @@ module bCovarSetupChem_mod
              nlev_MT, bgStats%lon, bgStats%lat, vlevout)
       end if
       deallocate(stddev3d, vlev, vlevout)
-       
+
     end do
 
     ierr = fstfrm(nulbgst)
@@ -1362,7 +1362,7 @@ module bCovarSetupChem_mod
     real(8) :: vlev(1),vlevout(1)
     integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
     integer :: nulbgst
-    
+
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
     if ( ierr == 0 ) then
@@ -1381,12 +1381,12 @@ module bCovarSetupChem_mod
     idate(1) = -1
     ip2      = -1
     ip3      = -1
-    
+
     cletiket = 'STDDEV3D'
     cltypvar=' '
 
     ! Reading for 3D and 2D variables
-    
+
     do varIndex = 1,bgStats%numvar3d+bgStats%numvar2d
       clnomvar = bgStats%varNameList(varIndex)
       nlev_MT = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
@@ -1401,17 +1401,17 @@ module bCovarSetupChem_mod
         else
           ip1 = vco_anl%ip1_T(levelIndexo)
         end if
-        
+
         ikey = fstinf(nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3, &
                       cltypvar,clnomvar)
         if (ikey < 0) then
             write(*,*) 'bcsc_rdstd3d: ',varIndex,clnomvar,ikey,levelIndexo
-            call utl_abort(': bcsc_RDSTD record not foun0d')          
+            call utl_abort(': bcsc_RDSTD record not foun0d')
         end if
-      
+
         allocate(stddev3d(ini+1, inj, 1))
         stddev3d(:,:,1) = 0.0D0
-        
+
         ikey = utl_fstlir(stddev3d(1:ini,:,1), nulbgst, ini, inj, ink, &
                           idate(1), cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
         if (ikey < 0) then
@@ -1419,7 +1419,7 @@ module bCovarSetupChem_mod
                      ikey,ip1
           call utl_abort(': bcsc_RDSTD3D record not found')
         end if
-        
+
         ! Move to stddev
         if (inj == bgStats%nj .and. ini == bgStats%ni) then
           stddev(1:bgStats%ni,:,bgStats%nsposit(varIndex)+(levelIndexo-1)) = &
@@ -1463,14 +1463,14 @@ module bCovarSetupChem_mod
 
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
-  
-    if ( bgStats%numvar3d > 0 ) then   
+
+    if ( bgStats%numvar3d > 0 ) then
       do varIndex = 1, bgStats%numvar3d
         ztlen = rvloc(varIndex) ! specify length scale (in units of ln(Pressure))
-        
+
         jstart = bgStats%nsposit(varIndex)
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
-       
+
         if(ztlen > 0.0d0) then
           ! calculate 5'th order function (from Gaspari and Cohn)
           do jk1 = 1, jnum
@@ -1487,14 +1487,14 @@ module bCovarSetupChem_mod
         end if
       end do
     end if
-    
-    ! Compute total vertical correlations and its inverse 
+
+    ! Compute total vertical correlations and its inverse
     ! (currently for each block matrix).
-    
+
     if (getPhysSpaceStats .or. trim(bcsc_mode) == 'BackgroundCheck') then
       call bcsc_corvertSetup
     end if
-    
+
     if (trim(bcsc_mode) == 'BackgroundCheck') return
 
     allocate(lfound_sqrt(bgStats%numvar3d+bgStats%numvar2d))
@@ -1514,11 +1514,11 @@ module bCovarSetupChem_mod
         jstart = bgStats%nsposit(varIndex)
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
       end if
-      
+
       if (.not.lfound_sqrt(varIndex)) then
-        
+
         ! compute square-root of corns for each total wavenumber
-    
+
         allocate(corns_temp(jnum,jnum,0:bgStats%ntrunc))
         allocate(eigenvec(jnum,jnum),result(jnum,jnum))
         corns_temp(:,:,:) = 0.0d0
@@ -1535,7 +1535,7 @@ module bCovarSetupChem_mod
                        ' returned by dsyev for wavenumber ',jn,varIndex
             call utl_abort('bcsc_sucorns2')
           end if
-     
+
           ! set selected number of eigenmodes to zero
           if(numModeZero > 0) then
             do jk1 = 1, numModeZero
@@ -1557,7 +1557,7 @@ module bCovarSetupChem_mod
            do jk1 = 1, jnum
              result(1:jnum,jk1) = eigenvec(1:jnum,jk1)*eigenvalsqrt(jk1)
            end do
-  
+
            ! (E * lambda^1/2) * E^T
            do jk1 = 1, jnum
            do jk2 = 1, jnum
@@ -1567,7 +1567,7 @@ module bCovarSetupChem_mod
            end do
 
          end do ! jn
-  
+
          nsize = jnum*jnum*(bgStats%ntrunc+1)
          call rpn_comm_allreduce(corns_temp, &
               bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
@@ -1575,17 +1575,17 @@ module bCovarSetupChem_mod
          deallocate(corns_temp,eigenvec,result)
 
       end if
-      
+
       if (any(CrossCornsVarKindCH(:) /= '')) exit
 
     end do
-   
+
     deallocate(lfound_sqrt)
     if(ReadWrite_sqrt) then
       ! Write computed sqrt to a separate file.
       call bcsc_writecorns(bgStats%ntrunc,'CORNS_SQRT',-1)
     end if
-    
+
   end subroutine bcsc_sucorns2
 
   !--------------------------------------------------------------------------
@@ -1597,7 +1597,7 @@ module bCovarSetupChem_mod
     !           inverse (bgStats%corverti; currently for each block matrix).
     !
     !
-    ! :Note: Currently assumes no (or neglects) cross-correlations 
+    ! :Note: Currently assumes no (or neglects) cross-correlations
     !
     implicit none
 
@@ -1614,23 +1614,23 @@ module bCovarSetupChem_mod
     character(len=12) :: cletiket
     integer :: fnom,fstouv,fstfrm,fclos
     logical, allocatable :: lfound(:)
-   
-    ! Compute total vertical correlations and its inverse 
+
+    ! Compute total vertical correlations and its inverse
     ! (currently for each block matrix).
 
     if (mmpi_myid == 0 .and. WritePhysSpaceStats) then
       iulcorvert = 0
       ierr = fnom(iulcorvert,bFileNameOut,'STD+RND',0)
       ierr = fstouv(iulcorvert,'RND')
-    end if 
-    
+    end if
+
     nvlev=-1
     numvartot=bgStats%numvar3d
     do varIndex = 1, numvartot
-   
+
       jstart = bgStats%nsposit(varIndex)
       jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
-       
+
       bgStats%corvert(1:jnum,1:jnum,varIndex) = 0.0d0
       do jn = 0, bgStats%ntrunc
         bgStats%corvert(1:jnum,1:jnum,varIndex) = &
@@ -1639,24 +1639,24 @@ module bCovarSetupChem_mod
              bgStats%nsposit(varIndex+1)-1,&
              bgStats%nsposit(varIndex):bgStats%nsposit(varIndex+1)-1,jn))
       end do
-       
-      ! Inverse (and possible vertical interpolation to model levels) 
+
+      ! Inverse (and possible vertical interpolation to model levels)
       ! not needed if not in analysis mode
-      
+
       if (trim(bcsc_mode) == 'BackgroundCheck') cycle
 
       if (varIndex == 1) then
         allocate(lfound(numvartot))
-        call bcsc_readcorns(lfound,0,'CORVERTI') 
+        call bcsc_readcorns(lfound,0,'CORVERTI')
       end if
-      
+
       if (.not.lfound(varIndex)) then
-      
+
         write(*,*) 'bcsc_corvertSetup: Calculating CORVERTI ', &
                    'for varIndex =',varIndex
 
         allocate(eigenvec(jnum,jnum),result(jnum,jnum))
-        eigenvec(1:jnum,1:jnum)=bgStats%corvert(1:jnum,1:jnum,varIndex)       
+        eigenvec(1:jnum,1:jnum)=bgStats%corvert(1:jnum,1:jnum,varIndex)
 
         ! CALCULATE EIGENVALUES AND EIGENVECTORS.
         ilwork = 4*jnum*2
@@ -1718,18 +1718,18 @@ module bCovarSetupChem_mod
         cletiket = 'C*C^-1'
         clnomvar = bgStats%varNameList(varIndex)
 
-        if (mmpi_myid == 0 .and. writePhysSpaceStats) then          
+        if (mmpi_myid == 0 .and. writePhysSpaceStats) then
           ierr = utl_fstecr(result(1:jnum,1:jnum),-32,iulcorvert,0,0,0,jnum,jnum, &
                  1,0,0,bgStats%ntrunc,'X',clnomvar,cletiket,'X',0,0,0,0,5,.true.)
         end if
         deallocate(eigenvec,result)
       end if
-      
+
     end do
-    
+
     if (mmpi_myid /= 0 .or. .not.WritePhysSpaceStats) return
-    
-    ierr = fstfrm(iulcorvert)  
+
+    ierr = fstfrm(iulcorvert)
     ierr = fclos(iulcorvert)
 
     jnum=nvlev
@@ -1745,7 +1745,7 @@ module bCovarSetupChem_mod
   ! bcsc_writecorns
   !--------------------------------------------------------------------------
   subroutine bcsc_writecorns(nmat,cletiket,nlev)
-  
+
     implicit none
 
     ! Arguments:
@@ -1760,7 +1760,7 @@ module bCovarSetupChem_mod
     integer :: idateo, ipak, idatyp
     character(len=4)  :: clnomvar
     integer :: fnom, fstouv, fstfrm, fclos
-    
+
     if(mmpi_myid==0) then
 
       write(*,*) 'bcsc_writecorns: ', trim(cletiket), ' being written to file ', &
@@ -1782,9 +1782,9 @@ module bCovarSetupChem_mod
       else
         numvartot=bgStats%numvar3d+bgStats%numvar2d
       end if
-      
+
       do varIndex = 1, numvartot
-   
+
         if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) then
           jstart=1
           jnum=bgStats%numVarLev
@@ -1795,7 +1795,7 @@ module bCovarSetupChem_mod
           if (nlev > 0) jnum=nlev
           clnomvar = bgStats%varNameList(varIndex)
         end if
-        
+
         if (nmat > 0 ) then
           do jn = 0, nmat
             ip2 = jn
@@ -1815,12 +1815,12 @@ module bCovarSetupChem_mod
                    ip1,ip2,ip3,'X',clnomvar,cletiket,'X',0,0,0,0,idatyp,.true.)
           end if
         end if
-        
+
         if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) exit
-        
+
       end do
-      
-      ierr = fstfrm(nulcorns)  
+
+      ierr = fstfrm(nulcorns)
       ierr = fclos(nulcorns)
     end if
 
@@ -1888,7 +1888,7 @@ module bCovarSetupChem_mod
         clnomvar = 'ZZ'
       else
         jstart = bgStats%nsposit(varIndex)
-        jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex) 
+        jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
         clnomvar = bgStats%varNameList(varIndex)
       end if
       allocate(zcornssrc(jnum,jnum))
@@ -1897,7 +1897,7 @@ module bCovarSetupChem_mod
         ip2 = jn
 
         ! Looking for FST record parameters..
- 
+
         icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket, &
                                ip1,ip2,ip3,cltypvar,clnomvar)
 
@@ -1921,7 +1921,7 @@ module bCovarSetupChem_mod
         else if (trim(cletiket) == 'CORVERT') then
           bgStats%corvert(1:jnum,1:jnum,varIndex)=zcornssrc(1:jnum,1:jnum)
         else
-          bgStats%corverti(1:jnum,1:jnum,varIndex)=zcornssrc(1:jnum,1:jnum)        
+          bgStats%corverti(1:jnum,1:jnum,varIndex)=zcornssrc(1:jnum,1:jnum)
         end if
       end do
       lfound(varIndex)=.true.
@@ -1976,7 +1976,7 @@ module bCovarSetupChem_mod
       if (allocated(bgStats%nsposit))  deallocate(bgStats%nsposit)
       if (allocated(bgStats%vlev))     deallocate(bgStats%vlev)
       if (allocated(bgStats%lat))      deallocate(bgStats%lat)
-      if (allocated(bgStats%lon))      deallocate(bgStats%lon)       
+      if (allocated(bgStats%lon))      deallocate(bgStats%lon)
       if (allocated(bgStats%stddev))   deallocate(bgStats%stddev)
       if (allocated(bgStats%corns))    deallocate(bgStats%corns)
       if (allocated(bgStats%hcorrlen)) deallocate(bgStats%hcorrlen)
@@ -2005,9 +2005,9 @@ module bCovarSetupChem_mod
       bgStatsOut%initialized=.false.
       call utl_abort('bcsc_getCovarCH: Covariances not set up.')
     end if
-        
+
     bgStatsOut=bgStats
-    
+
   end subroutine bcsc_getCovarCH
 
   !--------------------------------------------------------------------------
@@ -2015,13 +2015,13 @@ module bCovarSetupChem_mod
   !--------------------------------------------------------------------------
   subroutine bcsc_resetCorvert(nlev_T,vlev_T)
     !
-    ! :Purpose: Vertically interpolate error correlation matrix fields to 
+    ! :Purpose: Vertically interpolate error correlation matrix fields to
     !           generate approximate matrices/vectors in trial field vertical
-    !           levels via interpolation. No need to make matrix positive  
+    !           levels via interpolation. No need to make matrix positive
     !           definite for this approximation.
     !
     implicit none
-    
+
     ! Arguments:
     integer,          intent(in) :: nlev_T    ! Number of vertical levels for trial fields
     real(8), pointer, intent(in) :: vlev_T(:) ! Trial field vertical levels
@@ -2030,17 +2030,17 @@ module bCovarSetupChem_mod
     integer :: ilev1,ilev2,j,d1,d2
     real(8) :: dz
     real(8), allocatable :: wtemp(:,:,:)
-        
-    d2=0 
+
+    d2=0
     d1=nlev_T-bgStats%nlev
     if (d1 < 0) then
       d1=0
       d2=d1
     end if
-    
+
     allocate(wtemp(nlev_T, nlev_T,bgStats%numvar3d))
     wtemp(:,:,:)=0.0d0
-    
+
     ! Apply interpolation
 
     do ilev1 = 1, nlev_T
@@ -2054,15 +2054,15 @@ module bCovarSetupChem_mod
              bgStats%corvert(bgStats%nlev,1-d2:bgStats%nlev,1:bgStats%numvar3d)
         wtemp(1+ilev1-bgStats%nlev-d2:ilev1,ilev1,1:bgStats%numvar3d)= &
              bgStats%corvert(1-d2:bgStats%nlev,bgStats%nlev, 1:bgStats%numvar3d)
-      else 
+      else
         do ilev2=1,bgStats%nlev-1
           if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
               vlev_T(ilev1) < bgStats%vlev(ilev2+1)) exit
         end do
 
         dz=log(vlev_T(ilev1)/bgStats%vlev(ilev2)) &
-            /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2)) 
-                  
+            /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2))
+
         do j=1-max(ilev1-d1,1),nlev_T-min(d1+ilev1,nlev_T)
           wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)= &
                (bgStats%corvert(ilev2,ilev2+j,1:bgStats%numvar3d) &
@@ -2070,14 +2070,14 @@ module bCovarSetupChem_mod
                                             1:bgStats%numvar3d)*dz)
           wtemp(ilev1+j,ilev1,1:bgStats%numvar3d)= &
                wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)
-        end do               
+        end do
       end if
     end do
-    
+
     bgStats%corvert(1:nlev_T,1:nlev_T,:) = wtemp(:,:,:)
-    
+
     deallocate(wtemp)
-    
+
   end subroutine bcsc_resetCorvert
 
   !--------------------------------------------------------------------------
@@ -2085,7 +2085,7 @@ module bCovarSetupChem_mod
   !--------------------------------------------------------------------------
   subroutine bcsc_resetHcorrlen(nlev_T,vlev_T)
     !
-    ! :Purpose: To interpolate horizontal correlation length 
+    ! :Purpose: To interpolate horizontal correlation length
     !           to trial field vertical levels.
     !
     implicit none
@@ -2093,14 +2093,14 @@ module bCovarSetupChem_mod
     ! Arguments:
     integer, intent(in)  :: nlev_T      ! Number of target vertical levels
     real(8), intent(in)  :: vlev_T(:)   ! Target vertical levels
-    
+
     ! Locals:
     real(8) :: hcorrlen(nlev_T,bgStats%numvar3d) ! correlation lengths
     integer :: nlev,ilev1,ilev2
     real(8) :: dz
 
     nlev = bgStats%nlev
-    
+
     ! Apply interpolation
 
     do ilev1=1, nlev_T
@@ -2108,7 +2108,7 @@ module bCovarSetupChem_mod
         hcorrlen(ilev1,:)=bgStats%hcorrlen(1,1:bgStats%numvar3d)
       else if (bgStats%vlev(nlev) <= vlev_T(ilev1)) then
         hcorrlen(ilev1,:)=bgStats%hcorrlen(nlev,1:bgStats%numvar3d)
-      else  
+      else
         do ilev2=1,nlev-1
           if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
               vlev_T(ilev1) <  bgStats%vlev(ilev2+1)) exit
@@ -2120,9 +2120,9 @@ module bCovarSetupChem_mod
                           1:bgStats%numvar3d)*dz
       end if
     end do
-    
+
     bgStats%hcorrlen(1:nlev_T,1:bgStats%numvar3d) = hcorrlen(:,:)
-    
+
   end subroutine bcsc_resetHcorrlen
 
   !--------------------------------------------------------------------------
@@ -2147,7 +2147,7 @@ module bCovarSetupChem_mod
     else
       bcsc_StatsExistForVarName = .false.
     end if
-    
+
   end function bcsc_StatsExistForVarName
 
   !--------------------------------------------------------------------------
@@ -2166,7 +2166,7 @@ module bCovarSetupChem_mod
     real(8),           intent(in)  :: xlong    ! Target longitude
     real(8),           intent(out) :: stddevOut(:) ! Error std. dev.
     real(8), optional, intent(in)  :: vlev_opt(:) ! Target vertical levels
-    
+
     ! Locals:
     integer :: varIndex,latIndex,lonIndex,levIndex,nlev,startPosition
     real(8) :: work(maxsize,2),zc1,zc2,rlat1,rlat2,rlong1,rlong2,zd1,zd2
@@ -2176,7 +2176,7 @@ module bCovarSetupChem_mod
     integer, parameter :: itype=0
 
     if (.not.bgStats%initialized) return
-    
+
     ! Determine location and size of background error std. dev.
 
     do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
@@ -2192,16 +2192,16 @@ module bCovarSetupChem_mod
     end do
     if  (varIndex > bgStats%numvar3d+bgStats%numvar2d) &
       call utl_abort('bcsc_getbgStddev: Variable not found')
-    
+
     if (.not.present(vlev_opt) .and. nlev /= maxsize ) then
       write(*,*) 'nlev, maxsize: ',nlev,maxsize
       call utl_abort('bcsc_getbgStddev: Inconsistent size')
     end if
- 
-    ! Determine reference longitude index 
 
-    lonIndex = 2    
-    do while (xlong > bgStats%lon(lonIndex) .and. lonIndex < bgStats%ni+1) 
+    ! Determine reference longitude index
+
+    lonIndex = 2
+    do while (xlong > bgStats%lon(lonIndex) .and. lonIndex < bgStats%ni+1)
       lonIndex = lonIndex+1
     end do
 
@@ -2209,14 +2209,14 @@ module bCovarSetupChem_mod
 
     rlong2 = bgStats%lon(lonIndex)
     rlong1 = bgStats%lon(lonIndex-1)
-    
+
     zd2 = (xlong-rlong1)/(rlong2-rlong1)
     zd1 = 1.0-zd2
-     
+
     ! Determine reference latitude index
 
-    latIndex = 2 
-    do while (xlat > bgStats%lat(latIndex) .and. latIndex < bgStats%nj) 
+    latIndex = 2
+    do while (xlat > bgStats%lat(latIndex) .and. latIndex < bgStats%nj)
       latIndex = latIndex+1
     end do
 
@@ -2224,7 +2224,7 @@ module bCovarSetupChem_mod
 
     rlat2 = bgStats%lat(latIndex)
     rlat1 = bgStats%lat(latIndex-1)
-    
+
     zc2 = (xlat-rlat1)/(rlat2-rlat1)
     zc1 = 1.0-zc2
 
@@ -2235,32 +2235,32 @@ module bCovarSetupChem_mod
       zc1 = 0.0
       zc2 = 1.0
     end if
-        
+
     ! Apply interpolation
 
     if (itype == 0) then
-    
+
       ! Interpolation of variances and take square root
 
       work(1:nlev,1) = zc1*bgStats%stddev(lonIndex-1,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
                        zc2*bgStats%stddev(lonIndex-1,latIndex, &
                                      startPosition:startPosition-1+nlev)**2
-    
+
       work(1:nlev,2) = zc1*bgStats%stddev(lonIndex,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
                       zc2*bgStats%stddev(lonIndex,latIndex, &
-                                    startPosition:startPosition-1+nlev)**2 
-       
+                                    startPosition:startPosition-1+nlev)**2
+
       work(1:nlev,1) = zd1*work(1:nlev,1) + zd2*work(1:nlev,2)
-      
+
       if (nlev /= maxsize) then
         do ilev1=1, maxsize
           if (bgStats%vlev(1) >= vlev_opt(ilev1)) then
             stddevOut(ilev1)=sqrt(work(1,1))
           else if (bgStats%vlev(nlev) <= vlev_opt(ilev1)) then
             stddevOut(ilev1)=sqrt(work(nlev,1))
-          else  
+          else
             do ilev2=1,nlev-1
               if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
                   vlev_opt(ilev1) <  bgStats%vlev(ilev2+1)) exit
@@ -2272,16 +2272,16 @@ module bCovarSetupChem_mod
         end do
       else
         stddevOut(1:nlev) = sqrt(work(1:nlev,1))
-      end if 
-    
-    else 
+      end if
+
+    else
 
       ! Interpolation of std. dev. (to reduce execution time)
 
       work(1:nlev,1) = zc1*bgStats%stddev(lonIndex-1,latIndex-1, &
-                                     startPosition:startPosition-1+nlev)**2 + &      
+                                     startPosition:startPosition-1+nlev)**2 + &
                        zc2*bgStats%stddev(lonIndex-1,latIndex, &
-                                     startPosition:startPosition-1+nlev)**2 
+                                     startPosition:startPosition-1+nlev)**2
 
       work(1:nlev,2) = zc1*bgStats%stddev(lonIndex,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
@@ -2289,14 +2289,14 @@ module bCovarSetupChem_mod
                                      startPosition:startPosition-1+nlev)**2
 
       work(1:nlev,1) = zd1*work(1:nlev,1) + zd2*work(1:nlev,2)
-    
+
       if (nlev /= maxsize) then
         do ilev1=1, maxsize
           if (bgStats%vlev(1) >= vlev_opt(ilev1)) then
             stddevOut(ilev1)=work(1,1)
           else if (bgStats%vlev(nlev) <= vlev_opt(ilev1)) then
             stddevOut(ilev1)=work(nlev,1)
-          else  
+          else
             do ilev2=1,nlev-1
               if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
                   vlev_opt(ilev1) < bgStats%vlev(ilev2+1)) exit
@@ -2308,12 +2308,12 @@ module bCovarSetupChem_mod
         end do
       else
         stddevOut(1:nlev) = work(1:nlev,1)
-      end if 
-      
+      end if
+
     end if
-    
+
     stddev_max = maxval(bgStats%stddev(lonIndex-1:lonIndex, &
-                        latIndex-1:latIndex,  &                 
+                        latIndex-1:latIndex,  &
                         startPosition:startPosition-1+nlev))
     do levIndex = 1, nlev
       if (stddevOut(levIndex) < 0.0 .or. stddevOut(levIndex) > 1.1*stddev_max) then
@@ -2339,13 +2339,13 @@ module bCovarSetupChem_mod
     ! :Purpose: To add background stddev profiles (and inverse) to bgStddev
     !           which can be retrieved later using a header index.
     !
-    implicit none 
+    implicit none
 
     ! Arguments:
     integer, intent(in) :: headerIndex
     real(8), intent(in) :: stddevIn(:,:)
     integer, intent(in) :: obsdataMaxsize
-     
+
     if (.not.associated(bgStddev%data2d)) then
       call oss_obsdata_alloc(bgStddev, obsdataMaxsize, dim1= &
            size(stddevIn,dim=1), dim2_opt=size(stddevIn,dim=2))
@@ -2353,13 +2353,13 @@ module bCovarSetupChem_mod
     end if
 
     ! In this case nrep will count the number of filled reps in the data arrays
-    bgStddev%nrep = bgStddev%nrep+1 
+    bgStddev%nrep = bgStddev%nrep+1
 
     if (bgStddev%nrep > obsdataMaxsize) then
       call utl_abort('bcsc_addbgStddev: Reached max size of array ' // &
                      trim(utl_str(obsdataMaxsize)) )
     end if
-    
+
     ! Use the header number as the unique code for this obs data
     write(bgStddev%code(bgStddev%nrep),'(I22)') headerIndex
 
@@ -2392,7 +2392,7 @@ module bCovarSetupChem_mod
 
     ! Locals:
     character(len=22) :: code
-    
+
     if (bgStddev%dim1 /= dim1 .or. bgStddev%dim2 /= dim2) then
       call utl_abort("bcsc_retrievebgStddev: Inconsitent dimensions")
     end if
@@ -2400,7 +2400,7 @@ module bCovarSetupChem_mod
     write(code,'(I22)') headerIndex
 
     stddevOut = oss_obsdata_get_array2d(bgStddev,code)
-    
+
   end function bcsc_retrieveBgStddev
 
 end module bCovarSetupChem_mod
