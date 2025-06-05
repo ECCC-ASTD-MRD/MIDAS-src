@@ -1631,6 +1631,7 @@ module gridStateVectorFileIO_mod
     integer, allocatable :: levIndices(:)
     logical, allocatable :: interpolationToPhysicsGrid(:)
     character(len=256) :: fileNameTmp
+    character(len=:), pointer :: fileNamePtr
     character(len=4) :: nomvar
     logical :: success
 
@@ -2056,7 +2057,8 @@ module gridStateVectorFileIO_mod
       end if
 
       do thread = 0, (numThreadsForWriting-1)
-        fileNameTmp = fstFiles(thread)%get_name()
+        fileNamePtr => fstFiles(thread)%get_name()
+        fileNameTmp = trim(fileNamePtr)
         success = fstFiles(thread)%close()
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
