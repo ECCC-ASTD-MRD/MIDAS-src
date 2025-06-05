@@ -4,23 +4,23 @@ program midas_obsSelection
   !
   !          ---
   !
-  !:Algorithm: For background check of each observation type, several quality control tests 
+  !:Algorithm: For background check of each observation type, several quality control tests
   !            specific to that observation type are performed on each available observation
   !            to determine if the observation meets the standard to be assimilated later.
-  !            Observation flags are modified for rejected observations as well as for the 
-  !            assimilated observations of inferior quality.The thinning is performed afterwards 
-  !            to reduce the number of observation data for assimilation. This is to reduce the 
-  !            1) computational cost, and 2) observation error correlation during 
+  !            Observation flags are modified for rejected observations as well as for the
+  !            assimilated observations of inferior quality.The thinning is performed afterwards
+  !            to reduce the number of observation data for assimilation. This is to reduce the
+  !            1) computational cost, and 2) observation error correlation during
   !            assimilation stage. The background-checked thinned observations are written
   !            to new files, ready for assimilation.
   !
   !            --
   !
-  !            The computed bias correction values are applied to the observation before the 
+  !            The computed bias correction values are applied to the observation before the
   !            background check step for certain observation types (e.g. radiances). One of quality
   !            control tests during background check is the ``rogue check`` which is the allowed
-  !            distance of the observation from the background state. Innovation vector  
-  !            ``y-H(xb)`` is required to measure this distance. The innovations are 
+  !            distance of the observation from the background state. Innovation vector
+  !            ``y-H(xb)`` is required to measure this distance. The innovations are
   !            computed at the beginning of the program before the background check starts.
   !
   !            --
@@ -64,16 +64,16 @@ program midas_obsSelection
   !                 files: ``inn_setupObs``.
   !
   !               - Compute and update the stored surface type for some satellite
-  !                 radiance instruments. 
+  !                 radiance instruments.
   !
-  !               - Setup ``columnData`` module (read list of analysis variables 
-  !                 from namelist) and allocate column object for storing trial 
+  !               - Setup ``columnData`` module (read list of analysis variables
+  !                 from namelist) and allocate column object for storing trial
   !                 on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
   !                 object: ``oer_setObsErrors``
   !
-  !               - Setup ``gridStateVector`` module to initialize the gridstatevector 
+  !               - Setup ``gridStateVector`` module to initialize the gridstatevector
   !                 objects.
   !
   !               - Applying optional bias corrections to some observation types.
@@ -92,26 +92,26 @@ program midas_obsSelection
   !
   !               - Compute innovation from background state: ``inn_computeInnovation``.
   !
-  !               - Do background check for conventional observation: 
+  !               - Do background check for conventional observation:
   !                 ``bgck_bgCheck_conv``.
   !
-  !               - Update radiance bias correction in ``obsSpaceData`` and apply 
+  !               - Update radiance bias correction in ``obsSpaceData`` and apply
   !                 the bias corrections to the observations and innovations for
   !                 radiances: ``bcs_calcBias``, ``bcs_applyBiasCorrection``.
   !
   !               - Perform background check for multiple observation types.
-  !             
-  !               - If thinning was requested: 
   !
-  !                 - add some cloud parameters and set missing observation flags in 
-  !                   observation files (specific for radiances) and 
+  !               - If thinning was requested:
+  !
+  !                 - add some cloud parameters and set missing observation flags in
+  !                   observation files (specific for radiances) and
   !
   !                 - perform thinning for different observation types.
   !
   !               - Write the final background-checked bias corrected results (either
   !                 thinned or not thinned) into the observation file.
-  ! 
-  !               - If thinning was requested, remove observations which were flagged 
+  !
+  !               - If thinning was requested, remove observations which were flagged
   !                 not to be assimilated from the observation file.
   !
   !             --
@@ -124,59 +124,59 @@ program midas_obsSelection
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            ``obsSelection`` are listed in the following table:
-  ! 
+  !
   !=========================== ========================= =========================================
   ! Module                      Namelist                  Description of what is controlled
   !=========================== ========================= =========================================
   ! ``midas_obsSelection``      ``NAMOBSSELECTION``       whether thinning is performed or not.
-  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction 
+  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction
   !                                                       for conventional observations.
-  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias 
-  !                                                       correction for radiosondes conventional 
+  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias
+  !                                                       correction for radiosondes conventional
   !                                                       observations.
-  ! ``backgroundCheck_mod``     ``NAMBGCKCONV``           variables to perform background check 
+  ! ``backgroundCheck_mod``     ``NAMBGCKCONV``           variables to perform background check
   !                                                       for conventional observations.
-  ! ``SSTbias_mod``             ``NAMSSTBIASESTIMATE``    variables to perform bias estimation 
+  ! ``SSTbias_mod``             ``NAMSSTBIASESTIMATE``    variables to perform bias estimation
   !                                                       and bias correction for satellite SST.
-  ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction 
+  ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction
   !                                                       for satellite radiances.
-  ! ``multi_ir_bgck_mod``       ``NAMBGCKIR``             Variables to perform background check 
+  ! ``multi_ir_bgck_mod``       ``NAMBGCKIR``             Variables to perform background check
   !                                                       for hyperspectral infrared radiances.
-  ! ``bgckmicrowave_mod``       ``NAMBGCK``               Variables to perform background check 
+  ! ``bgckmicrowave_mod``       ``NAMBGCK``               Variables to perform background check
   !                                                       for microwave radiances.
-  ! ``bgckcsr_mod``             ``NAMCSR``                Variables To perform background check 
+  ! ``bgckcsr_mod``             ``NAMCSR``                Variables To perform background check
   !                                                       for CSR radiances.
-  ! ``bgckssmis_mod``           ``NAMBGCK``               Variables to perform background check 
+  ! ``bgckssmis_mod``           ``NAMBGCK``               Variables to perform background check
   !                                                       for SSMIS radiances.
-  ! ``bgckOcean_mod``           ``NAMOCEANBGCHECK``       Variables to perform background check 
+  ! ``bgckOcean_mod``           ``NAMOCEANBGCHECK``       Variables to perform background check
   !                                                       for ocean data.
-  ! ``bgckOcean_mod``           ``NAMICEBGCHECK``         Variables to perform background check 
+  ! ``bgckOcean_mod``           ``NAMICEBGCHECK``         Variables to perform background check
   !                                                       for SST data.
   ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
-  ! ``thinning_mod``            ``THIN_HYPER``            variables to perform thinning on 
+  ! ``thinning_mod``            ``THIN_HYPER``            variables to perform thinning on
   !                                                       hyperspectral infrared radiances.
-  ! ``thinning_mod``            ``THIN_TOVS``             variables to perform thinning on 
+  ! ``thinning_mod``            ``THIN_TOVS``             variables to perform thinning on
   !                                                       microwave radiances.
-  ! ``thinning_mod``            ``thin_csr``              variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_csr``              variables to perform thinning on
   !                                                       CSR radiances.
-  ! ``thinning_mod``            ``thin_raobs``            variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_raobs``            variables to perform thinning on
   !                                                       radiosonde observations.
-  ! ``thinning_mod``            ``thin_scat``             variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_scat``             variables to perform thinning on
   !                                                       scatterometer wind observations.
-  ! ``thinning_mod``            ``thin_aircraft``         variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_aircraft``         variables to perform thinning on
   !                                                       aircraft observations.
-  ! ``thinning_mod``            ``thin_surface``          variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_surface``          variables to perform thinning on
   !                                                       surface observations.
-  ! ``thinning_mod``            ``thin_gbgps``            variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_gbgps``            variables to perform thinning on
   !                                                       ground-based GPS observations.
-  ! ``thinning_mod``            ``thin_gpsro``            variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_gpsro``            variables to perform thinning on
   !                                                       GPS radio-occultation observations.
-  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on
   !                                                       aladin wind observations.
-  ! ``thinning_mod``            ``thin_CH``               variables to perform thinning on 
+  ! ``thinning_mod``            ``thin_CH``               variables to perform thinning on
   !                                                       observations of CH family
-  ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length, 
-  !                                                       temporal resolution of the background 
+  ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length,
+  !                                                       temporal resolution of the background
   !                                                       state.
   !=========================== ========================= =========================================
   !
@@ -205,12 +205,12 @@ program midas_obsSelection
   use bgckmicrowave_mod
   use bgckSSMIS_mod
   use bgckCSR_mod
-  use bgckOcean_mod 
+  use bgckOcean_mod
   use sstBias_mod
   use message_mod
   use oceanMask_mod
   use getGridPosition_mod
-  
+
   implicit none
 
   integer :: dateStampFromObs, headerIndex, ierr
@@ -230,7 +230,7 @@ program midas_obsSelection
   logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
   character(len=12) :: trialFileName
   character(len=10) :: midasMode
-    
+
   ! Namelist variables
   logical :: doBgck      !
   logical :: doBiasCorr  !
@@ -289,11 +289,11 @@ program midas_obsSelection
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
-  !     
+  !
   !- Initialize observation file names, but don't use datestamp
   !
   call obsf_setup(dateStampFromObs, midasMode)
-  
+
   !
   !- Check if trial fields are stored in separate files for each time step or not.
   !
@@ -307,8 +307,8 @@ program midas_obsSelection
     else
       trialFileName = 'none'
     end if
-  end if 
-   
+  end if
+
   !
   !- Initialize the Temporal grid and dateStamp from trial file
   !
@@ -342,7 +342,7 @@ program midas_obsSelection
     if(mmpi_myid == 0) write(*,*)
     if(mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for analysis grid')
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis') ! IN
-  
+
     if (hco_anl % global) then
       hco_core => hco_anl
     else
@@ -351,7 +351,7 @@ program midas_obsSelection
       call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
     end if
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile(vco_anl, './analysisgrid')
@@ -366,11 +366,11 @@ program midas_obsSelection
         call msg('midas_obsSelection', 'minGridSpacing has to be recomputed using ocean mask.')
         write(*,*)
       end if
-    
+
       call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid')
       call ocm_computeMinGridSpacing(oceanMask, hco_anl, minGridSpacing)
       call ocm_deallocate(oceanMask)
-      hco_anl%minGridSpacing = minGridSpacing      
+      hco_anl%minGridSpacing = minGridSpacing
       call msg('midas_obsSelection', 'Updated hco_anl%minGridSpacing: '//&
                                      str(hco_anl%minGridSpacing)//' m')
     end if
@@ -451,7 +451,7 @@ program midas_obsSelection
                                                 vco_anl, columnTrlOnAnlIncLev)
     end if
 
-    if (obs_famExist(obsSpaceData, 'AI')) call bcc_applyAIBcor(obsSpaceData)    
+    if (obs_famExist(obsSpaceData, 'AI')) call bcc_applyAIBcor(obsSpaceData)
     if (obs_famExist(obsSpaceData, 'GP')) call bcc_applyGPBcor(obsSpaceData)
     if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
   end if
@@ -464,7 +464,7 @@ program midas_obsSelection
     ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
     if (gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, &
                         real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
-      
+
       if (mmpi_myid == 0) then
         write(*,*)
         call msg('midas_obsSelection', 'Warning: trial grid is the ORCA025 grid.')
@@ -473,13 +473,13 @@ program midas_obsSelection
                  'hco_trl%minGridSpacing will be replaced by the value computed using ocean mask.')
         write(*,*)
       end if
-    
+
       if (.not. hco_equal(hco_anl, hco_trl)) then
         call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
-        call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
+        call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')
         call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName))
         call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
-        call ocm_deallocate(oceanMask)    
+        call ocm_deallocate(oceanMask)
         hco_trl%minGridSpacing = minGridSpacing
       else
         call msg('midas_obsSelection', 'Horizontal analysis and trial grids are equal.')
@@ -488,7 +488,7 @@ program midas_obsSelection
       call msg('midas_obsSelection', 'Updated hco_trl%minGridSpacing: '//&
                                      str(hco_trl%minGridSpacing)//' m')
     end if
-  
+
     allocHeightSfc = (vco_trl%Vcode /= 0)
 
     call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
@@ -520,7 +520,7 @@ program midas_obsSelection
     if (obs_famExist(obsSpaceData, 'TO')) then
 
       ! Satellite radiance bias correction
-      call bcs_calcBias(obsSpaceData, columnTrlOnTrlLev)        ! Fill in OBS_BCOR obsSpaceData column 
+      call bcs_calcBias(obsSpaceData, columnTrlOnTrlLev)        ! Fill in OBS_BCOR obsSpaceData column
                                                                 ! with computed bias correction
       call bcs_applyBiasCorrection(obsSpaceData, obs_var, 'TO') ! Apply bias correction to OBS
       call bcs_applyBiasCorrection(obsSpaceData, obs_omp, 'TO') ! Apply bias correction to O-F
@@ -551,7 +551,7 @@ program midas_obsSelection
 
       ! 2.3 Write obs files after background check, but before thinning
       call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt = .false.)
-    
+
       ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
       if (obs_famExist(obsSpaceData, 'TO')) then
         call obsf_updateMissingObsFlags(obsSpaceData)
@@ -578,7 +578,7 @@ program midas_obsSelection
     if (obs_famExist(obsSpaceData, 'TM')) then
       call thn_thinSurface(obsSpaceData, 'TM') ! SST thinning
       call thn_thinSatSST(obsSpaceData)        ! satellite SST thinning
-    end if      
+    end if
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
@@ -591,7 +591,7 @@ program midas_obsSelection
 
   end if
 
-  
+
   ! 3 Write the final results
 
   ! 3.1 Into the listings
@@ -608,7 +608,7 @@ program midas_obsSelection
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData)
-  
+
   if (doBiasCorr .or. doBgck) then
     ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
     if (obs_famExist(obsSpaceData, 'TO')) then
