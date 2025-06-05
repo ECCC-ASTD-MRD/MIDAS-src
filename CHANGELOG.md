@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Updating `rpn/libs` and `rpn/utils` to `20250604-beta` (#1071 and !995)
-   * major impact on the results when using RSF files as input
+   * Major impact on the results when using RSF files as input.  Any near-operational configuration is not affected though.
 
 ### Fixed
 
