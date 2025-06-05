@@ -73,10 +73,10 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo echo loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2 >> load_env.dot
     echo . r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2 >> load_env.dot
-    echo echo loading eccc/mrd/rpn/libs/20250129-alpha >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/libs/20250129-alpha >> load_env.dot
-    echo echo loading eccc/mrd/rpn/utils/20250129-alpha >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/utils/20250129-alpha >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20250604-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/libs/20250604-beta >> load_env.dot
+    echo echo loading eccc/mrd/rpn/utils/20250604-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/utils/20250604-beta >> load_env.dot
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1

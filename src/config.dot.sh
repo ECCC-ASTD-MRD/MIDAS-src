@@ -134,13 +134,13 @@ HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20250129-alpha"
-. r.load.dot eccc/mrd/rpn/libs/20250129-alpha
+echo "... loading eccc/mrd/rpn/libs/20250604-beta"
+. r.load.dot eccc/mrd/rpn/libs/20250604-beta
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}"
-. r.load.dot eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}
+echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
 
 echo "... loading eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}"
 . ssmuse-sh -x eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}
