@@ -99,16 +99,18 @@ for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; d
 done
 unset launch_arg
 
-if [[ "${env}" = main ]]; then
-    ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
+if [[ "${env}" = 3.9* ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
+elif [[ "${env}" = 3.9.5 ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
 elif [[ "${env}" = 4.0.0 ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
 elif [[ "${env}" = 4.0.* ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20240612-alpha eccc/mrd/rpn/utils/20240612-alpha"
-elif [[ "${env}" = 3.9.5 ]]; then
-    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
-elif [[ "${env}" = 3.9* ]]; then
-    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
+elif [[ "${env}" = 4.1.0 || "${env}" = 4.1.1 ]]; then
+    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
+elif [[ "${env}" = main || "${env}" = 4* ]]; then
+    ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
 else
     die "The argument '-env' accepts only '3.9.5, '3.9*', '4.0.*' or 'main' as values but received '${env}'"
 fi
