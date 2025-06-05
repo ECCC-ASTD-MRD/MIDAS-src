@@ -8003,12 +8003,13 @@ contains
     integer              :: headerIndex, headerIndex2, numHeader, numHeaderMaxMpi
     integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
-    integer              :: obsDate, obsTime, refDateStamp, imode, ierr
+    integer              :: obsDate, obsTime, imode, ierr
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
+    character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000
@@ -8065,10 +8066,12 @@ contains
     allocate(obsPosition3d(3,numHeaderMaxMpi))
     allocate(obsValue(numHeaderMaxMpi))
     allocate(obsDateStamp(numHeaderMaxMpi))
+    allocate(obsStnId(numHeaderMaxMpi))
 
     allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsValueMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsStnIdMpi(numHeaderMaxMpi*mmpi_nprocs))
 
     allocate(obsLonInDeg(numHeaderMaxMpi))
     allocate(obsLatInDeg(numHeaderMaxMpi))
@@ -8136,16 +8139,19 @@ contains
       obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
       ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
 
+      ! Station ID
+      obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
+
       ! Print some diagnostics
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      write(200+mmpi_myid,*) obsFamily, codtyp, elementID,  &
+      write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                              merge(channel_opt, -1, present(channel_opt)), &
                              headerIndex, obsLonInDeg(headerIndex),  &
                              obsLatInDeg(headerIndex), obsStepIndex_r8
 
       if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
-        write(300+mmpi_myid,*) obsFamily, codtyp, elementID,  &
+        write(300+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                                merge(channel_opt, -1, present(channel_opt)), &
                                headerIndex, obsLonInDeg(headerIndex),  &
                                obsLatInDeg(headerIndex), obsStepIndex_r8
@@ -8156,6 +8162,7 @@ contains
     call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
     call mmpi_allGather(obsValue,      obsValueMpi)
     call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
+    call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId))
 
     call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
     call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
@@ -8204,14 +8211,7 @@ contains
       end if
 
       ! Lat and Lon for reference observation and 3D position
-      obsLonInRad = obs_headElem_r(obsdat, obs_lon, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
-      refPosition = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
-
-      ! Datastamp of reference observation
-      obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
-      obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
-      ierr = newdate(refDateStamp, obsDate, obsTime * 10000, 3)
+      refPosition = obsPosition3d(:,headerIndex)
 
       ! Find all "good" obs within specified radius of the reference obs
       call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
@@ -8231,8 +8231,13 @@ contains
         headerIndex2 = searchResults(resultIndex)%idx
 
         ! Check if time difference is too large between this obs and reference obs
-        call difdatr(refDateStamp,obsDateStampMpi(headerIndex2),refDeltaHours)
+        call difdatr(obsDateStamp(headerIndex),obsDateStampMpi(headerIndex2),refDeltaHours)
         if (abs(refDeltaHours) > maxDeltaHours) then
+          cycle HEADER2
+        end if
+
+        ! Check if the stnId is the same, i.e. from the same satellite platform
+        if (trim(obsStnId(headerIndex)) /= trim(obsStnIdMpi(headerIndex2))) then
           cycle HEADER2
         end if
 
@@ -8249,9 +8254,9 @@ contains
 
           write(100+mmpi_myid,*) obsFamily, codtyp, elementID, merge(channel_opt, -1, present(channel_opt)), &
                                  headerIndex, headerIndex2, &
-                                 obsLonInRad*mpc_degrees_per_radian_r4 , obsLatInRad*mpc_degrees_per_radian_r4, &
+                                 obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
                                  obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
-                                 obsValueMpi(headerIndex2), obsStepIndex_r8
+                                 obsValueMpi(headerIndex2), obsStepIndex_r8, trim(obsStnIdMpi(headerIndex2))
         end if
 
       end do HEADER2
@@ -8284,10 +8289,12 @@ contains
     deallocate(obsPosition3d)
     deallocate(obsValue)
     deallocate(obsDateStamp)
+    deallocate(obsStnId)
 
     deallocate(obsPosition3dMpi)
     deallocate(obsValueMpi)
     deallocate(obsDateStampMpi)
+    deallocate(obsStnIdMpi)
 
     deallocate(obsLonInDeg)
     deallocate(obsLatInDeg)

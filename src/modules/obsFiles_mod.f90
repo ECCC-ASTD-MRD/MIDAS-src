@@ -782,20 +782,20 @@ contains
     ! Communicate filenames across all mpi tasks
     allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
     baseFileNameListAllMpi(:,:) = ''
-    call mmpi_allgather_string(baseFileNameList, baseFileNameListAllMpi, &
-                               maxNumObsfiles, maxLengthFilename)
+    call mmpi_allGather(baseFileNamelist, baseFileNameListAllMpi, &
+                        maxLengthFilename, maxNumObsfiles)
 
     ! Communicate familyTypes across all mpi tasks
     allocate(familyTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeListAllMpi(:,:) = ''
-    call mmpi_allgather_string(obsf_familyType, familyTypeListAllMpi, &
-                               maxNumObsfiles, familyTypeLen)
+    call mmpi_allGather(obsf_familyType, familyTypeListAllMpi, &
+                        familyTypeLen, maxNumObsfiles)
 
     ! Communicate fileTypes across all mpi tasks
     allocate(fileTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     fileTypeListAllMpi(:,:) = ''
-    call mmpi_allgather_string(fileTypeList, fileTypeListAllMpi, &
-                               maxNumObsfiles, fileTypeLen)
+    call mmpi_allGather(fileTypeList, fileTypeListAllMpi, &
+                        fileTypeLen, maxNumObsfiles)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameMpiUniqueList(:) = ''

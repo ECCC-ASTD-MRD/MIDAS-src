@@ -34,11 +34,12 @@ module midasMpi_mod
   ! Since, we are only considering a single grid, we can assume here that there is only one world
   type(mpi_comm), public, parameter :: mmpi_comm_GRID = MPI_COMM_WORLD
   ! MPI types
-  type(mpi_datatype), public, parameter :: mmpi_logical  = MPI_LOGICAL
-  type(mpi_datatype), public, parameter :: mmpi_integer  = MPI_INTEGER
-  type(mpi_datatype), public, parameter :: mmpi_integer8 = MPI_INTEGER8
-  type(mpi_datatype), public, parameter :: mmpi_real4    = MPI_REAL4
-  type(mpi_datatype), public, parameter :: mmpi_real8    = MPI_REAL8
+  type(mpi_datatype), public, parameter :: mmpi_character = MPI_CHARACTER
+  type(mpi_datatype), public, parameter :: mmpi_logical   = MPI_LOGICAL
+  type(mpi_datatype), public, parameter :: mmpi_integer   = MPI_INTEGER
+  type(mpi_datatype), public, parameter :: mmpi_integer8  = MPI_INTEGER8
+  type(mpi_datatype), public, parameter :: mmpi_real4     = MPI_REAL4
+  type(mpi_datatype), public, parameter :: mmpi_real8     = MPI_REAL8
   ! MPI operations
   type(mpi_op), public, parameter :: mmpi_sum  = MPI_SUM
   type(mpi_op), public, parameter :: mmpi_max  = MPI_MAX
@@ -48,7 +49,7 @@ module midasMpi_mod
 
   ! Public procedures
   public :: mmpi_initialize,mmpi_getptopo
-  public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
+  public :: mmpi_allreduce_sumreal8scalar
   public :: mmpi_allreduce_sumR8_1d, mmpi_allreduce_sumR8_2d
   public :: mmpi_reduce_sumR8_1d, mmpi_reduce_sumR8_2d, mmpi_reduce_sumR8_3d
   public :: mmpi_setup_latbands, mmpi_setup_lonbands
@@ -85,6 +86,7 @@ module midasMpi_mod
 
   ! general interface for mpi_allGather
   interface mmpi_allGather
+    module procedure mmpi_allGather_character
     module procedure mmpi_allGather_logical
     module procedure mmpi_allGather_integer
     module procedure mmpi_allGather_real4
@@ -665,48 +667,6 @@ contains
   end subroutine mmpi_reduce_sumR8_3d
 
   !--------------------------------------------------------------------------
-  ! mmpi_allgather_string
-  !--------------------------------------------------------------------------
-  subroutine mmpi_allgather_string(str_list, str_list_all, nlist, nchar)
-    !
-    ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
-    !
-    implicit none
-
-    ! Arguments:
-    integer,              intent(in)  :: nlist
-    integer,              intent(in)  :: nchar
-    character(len=nchar), intent(in)  :: str_list(nlist)
-    character(len=nchar), intent(out) :: str_list_all(nlist,mmpi_nprocs)
-
-    ! Locals:
-    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,mmpi_nprocs)
-    integer :: ierr,ilist,ichar,iproc
-
-    ! Convert strings to integer sequences
-    do ilist=1,nlist
-       do ichar=1,nchar
-          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
-       end do
-    end do
-
-    ! Perform allgather with converted integer sequences
-    call mpi_allgather(num_list,     nlist*nchar, mmpi_integer, &
-                       num_list_all, nlist*nchar, mmpi_integer, mmpi_comm_GRID, ierr)
-    call handleMpiError(ierr, 'mmpi_allgather_string')
-
-    ! Convert integer sequences to stnid character strings
-    do iproc=1,mmpi_nprocs
-       do ilist=1,nlist
-          do ichar=1,nchar
-             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
-          end do
-       end do
-    end do
-
-  end subroutine mmpi_allgather_string
-
-  !--------------------------------------------------------------------------
   ! mmpi_setup_latbands
   !--------------------------------------------------------------------------
   subroutine mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
@@ -1045,7 +1005,7 @@ contains
 
     procID = handleProcID(procID_opt)
 
-    call mpi_bcast(charData, len(charData), MPI_CHARACTER, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(charData, len(charData), mmpi_character, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_character')
 
@@ -1332,6 +1292,36 @@ contains
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
   end subroutine mmpi_allGather_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allGather_character
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allGather_character(sending, receiving, stringLength, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_allGather' for a character string scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), contiguous, intent(in)  :: sending(..)      ! string data sent to all MPI ranks
+    character(len=*), contiguous, intent(out) :: receiving(..,:)  ! string array which stores the data received
+    integer,                      intent(in)  :: stringLength     ! length of each character string
+    integer,        optional,     intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,     intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr, length
+    type(mpi_comm) :: communicator
+
+    length = handleLength(sending, length_opt)
+    communicator = handleCommunicator(communicator_opt)
+
+    call mpi_allGather(sending,   length*stringLength, mmpi_character,  &
+                       receiving, length*stringLength, mmpi_character, communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allGather_character')
+
+  end subroutine mmpi_allGather_character
 
   !--------------------------------------------------------------------------
   ! mmpi_allGather_integer
