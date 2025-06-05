@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Additional thinning for LEO-GEO satwinds (#1051 and !987)
  * Improvement to the vertical RO interp, to vertical height registration, and refractivity eqn (#1016 and !963)
    * Activated with `NAMGPSRO` variables: `gpsroNCurv`, `gpsroCurvAnisot`, `gpsroNFlavour`
  * Introduction of an option for nearest neighbour interpolation for specific case (DFS) (#1050 and !968)

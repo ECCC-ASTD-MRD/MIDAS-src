@@ -19,15 +19,16 @@ contains
   !--------------------------------------------------------------------------
   ! swd_readSwqi
   !--------------------------------------------------------------------------
-  subroutine swd_readSwqi(SWname,QIvalue)
+  subroutine swd_readSwqi(SWname,QIvalue,SWAddThn_opt)
     !
     !:Purpose: read NAMSW block in the namelist
     !
     implicit none
 
     ! Arguments:
-    character(len=*), allocatable, intent(out) :: SWname(:)  ! the name of satellite
-    character(len=*), allocatable, intent(out) :: QIvalue(:) ! Quality Indicator (QI) for AMV
+    character(len=*), allocatable,           intent(out) :: SWname(:)       ! the name of satellite
+    character(len=*), allocatable,           intent(out) :: QIvalue(:)      ! Quality Indicator (QI) for AMV
+    character(len=*), allocatable, optional, intent(out) :: SWAddThn_opt(:) ! the name of satellites for additional thinning
 
     ! Locals:
     integer :: ierr
@@ -36,9 +37,10 @@ contains
     character(len=20), allocatable :: SWQIArray(:)
 
     ! Namelist variables
-    character(len=20) :: SWQI(maxSat)
+    character(len=20) :: SWQI(maxSat)     ! the name of satellites to which QI will be applied
+    character(len=20) :: SWAddThn(maxSat) ! the name of satellites to which additional thinning will be applied
 
-    namelist /NAMSW/ SWQI
+    namelist /NAMSW/ SWQI, SWAddThn
 
     ! Defeault values for namelist variables
     SWQI(:)  = ''
@@ -69,6 +71,8 @@ contains
     SWQI(25) = 'METOP1-3:qi1'
     SWQI(26) = 'GEO-POL:qi1'
 
+    SWAddThn(:) = ''
+
     ! Read the namelist for SatWinds observations
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
@@ -85,13 +89,23 @@ contains
     nsats = getNumSats(maxSat,SWQI)
     allocate(SWname(nsats))
     allocate(QIvalue(nsats))
-    !call SplitString(nsats,SWQI,SWname,QIvalue)
     do isat = 1, nsats
       call utl_splitString(SWQI(isat),':',SWQIArray)
       SWname(isat) = SWQIArray(1)
       QIvalue(isat) = SWQIArray(2)
       deallocate(SWQIArray)
     end do
+
+    if (present(SWAddThn_opt)) then
+      nsats = getNumSats(maxSat,SWAddThn)
+      if ( nsats /= 0 ) then
+        if (allocated(SWAddThn_opt)) deallocate(SWAddThn_opt)
+        allocate(SWAddThn_opt(nsats))
+        do isat = 1, nsats
+          SWAddThn_opt(isat) = SWAddThn(isat)
+        end do
+      end if
+    end if
 
   end subroutine swd_readSwqi
 

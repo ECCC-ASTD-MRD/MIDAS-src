@@ -3526,11 +3526,13 @@ contains
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
     integer :: satIndex
+    integer :: ierr, nsize
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
-    character(len=12)  :: stnId, stnidList(numStnIdMax)
+    character(len=12)  :: stnId, stnId2, stnidList(numStnIdMax)
+    logical :: obsAlreadySameStep, skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer,           allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
@@ -3539,9 +3541,9 @@ contains
     integer,           allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
     integer,           allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer,           allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
-    integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    logical,           allocatable :: valid(:), validMpi(:), validMpi2(:)
-    character(len=20), allocatable :: SWname(:), QIvalue(:)
+    integer,           allocatable :: headerIndexSorted(:), headerIndexSelected(:), headerIndexValid(:)
+    logical,           allocatable :: valid(:), validMpi(:), validMpi2(:), validMpi3(:)
+    character(len=20), allocatable :: SWname(:), QIvalue(:), SWAddThn(:)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
@@ -3598,8 +3600,10 @@ contains
     bgckCount = 0
     missingCount = 0
 
-    ! get QI information
-    call swd_readSwqi(SWname,QIvalue)
+    ! get QI and deweighting information
+    call swd_readSwqi(SWname,QIvalue,SWAddThn)
+
+    if (allocated(SWAddThn)) write(*,*) 'thn_satWindsByDistance: SWAddThn is allocated'
 
     ! First pass through observations
     numStnId = 0
@@ -3836,6 +3840,108 @@ contains
     write(*,*) 'thn_satWindsByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
+    ! additional thinning for selected satellites (e.g. GEO-POL)
+    if (allocated(SWAddThn)) then
+
+      allocate(validMpi3(numHeaderMaxMpi*mmpi_nprocs))
+      allocate(headerIndexValid(numHeaderMpi))
+
+      numSelected = 0
+      do obsIndex1 = 1, numHeaderMpi
+        if (validMpi2(obsIndex1)) then
+          numSelected = numSelected + 1        
+          headerIndexValid(numSelected) = obsIndex1
+        end if
+      end do
+
+      write(*,*) 'thn_satWindsByDistance: the number of data is ', numSelected, ' of ', numHeaderMpi
+
+      STNIDLOOP2: do stnIdIndex = 1, numStnId
+
+        ! only for satellites in the SWAddThn
+        if (utl_findloc(SWAddThn,stnidList(stnIdIndex)(2:)) == 0) cycle STNIDLOOP2
+
+        write(*,*) 'thn_satWindsByDistance: applying additional thinning for: ', &
+                 trim(stnidList(stnIdIndex))
+
+        LAYERLOOP2: do layerIndex = 1, numLayers
+
+          ! do selection of obs for 1 satellite and layer at a time, on separate mpi tasks
+          mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mmpi_nprocs)
+          if (mmpi_myid /= mpiTaskId) cycle LAYERLOOP2
+
+          OBSLOOP4: do obsIndex1 = 1, numSelected
+
+            headerIndex1 = headerIndexValid(obsIndex1)
+
+            ! only obs with current layer being considered
+            if (obsLayerIndexMpi(headerIndex1) /= layerIndex) cycle OBSLOOP4
+
+            ! only consider AMVs in the SWAddThn
+            do charIndex = 1, lenStnId
+              stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
+            end do
+            if (utl_findloc(SWAddThn,stnId(2:)) == 0) cycle OBSLOOP4
+
+            ! We count the number of observations that are already selected
+            skipthisObs = .false.
+            OBSLOOP5: do obsIndex2 = 1, numSelected
+
+              headerIndex2 = headerIndexValid(obsIndex2)
+
+              ! only obs with current layer being considered
+              if (obsLayerIndexMpi(headerIndex2) /= layerIndex) cycle OBSLOOP5
+
+              ! only consider AMVs not in the SWAddThn
+              do charIndex = 1, lenStnId
+                stnId2(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex2))
+              end do
+
+              ! only consider satellites not in SWAddThn
+              if (utl_findloc(SWAddThn,stnId2(2:)) /= 0) cycle OBSLOOP5
+
+              ! Calculates the distances between the current data and all other relevant data
+              if ( abs(obsStepIndexMpi(headerIndex1) - &
+                       obsStepIndexMpi(headerIndex2) ) < delTemps ) then
+                deltaLat = abs(obsLatBurpFileMpi(headerIndex1) - &
+                               obsLatBurpFileMpi(headerIndex2))/100.
+                deltaLon = abs(obsLonBurpFileMpi(headerIndex1) - &
+                               obsLonBurpFileMpi(headerIndex2))/100.
+                if(deltaLon > 180.) deltaLon = 360. - deltaLon
+                obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+                obsLat2 = ((obsLatBurpfileMpi(headerIndex2) - 9000)/100.)
+                if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+                  skipThisObs = .true.
+                  exit OBSLOOP5
+                end if
+              end if
+            end do OBSLOOP5
+
+            if (skipthisObs) then
+              validMpi(headerIndex1) = .false.
+            end if
+
+          end do OBSLOOP4
+        end do LAYERLOOP2
+
+      end do STNIDLOOP2
+
+      ! communicate values of validMpi computed on each mpi task (one more)
+      nsize = numHeaderMaxMpi * mmpi_nprocs
+      call mmpi_allReduce(validMpi, validMpi3, mmpi_lor)
+
+      ! Update local copy of valid from global mpi version (one more)
+      headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+      headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+      valid(:) = validMpi3(headerIndexBeg:headerIndexEnd)
+
+      countObs = count(valid)
+      call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
+      write(*,*) 'thn_satWindsByDistance: number of obs after additional thinning = ', &
+                 countObs, countObsOutMpi
+
+    end if
+
     ! modify the obs flags and count number of obs kept for each stnId
     call obs_set_current_header_list(obsdat,trim(familyType))
     HEADER3: do
@@ -3917,6 +4023,13 @@ contains
     deallocate(stnIdIntMpi)
     deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
+    if (allocated(SWAddThn)) then
+      deallocate(SWAddThn)
+      deallocate(validMpi3)
+      deallocate(headerIndexValid)
+    end if
+    deallocate(QIvalue)
+    deallocate(SWname)
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Finished'
