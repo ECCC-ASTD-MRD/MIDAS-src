@@ -32,7 +32,7 @@ MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
 MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
 ###########################################################
-##  SSM Packaging configuration 
+##  SSM Packaging configuration
 ##
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
@@ -124,7 +124,7 @@ else
 fi
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools. 
+#  Set up dependent librarys and tools.
 #---------------------------------------------------------------
 echo "... loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2"
 . r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
@@ -199,7 +199,7 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 
 ## check makedepf90 install
 if ! which makedepf90
-then 
+then
     echo "<!> makedepf90 unavailable on the system."
     __status=false
 fi
