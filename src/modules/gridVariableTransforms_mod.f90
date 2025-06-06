@@ -2477,7 +2477,7 @@ CONTAINS
             ! The excess is the amount of ice outside the range [0,1]
             ! Iterations are done until all that excess is redistributed
             ! over the lake.
-            EXCESSLOOP: do while (excess /= 0.0d0)
+            EXCESSLOOP: do while (.not. utl_isEqual(excess, 0.0d0))
 
               excess = 0.0d0
               do lakeIndex = 1, gridptCount
