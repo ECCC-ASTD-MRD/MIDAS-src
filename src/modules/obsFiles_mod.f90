@@ -230,7 +230,6 @@ contains
     character(len=fileTypeLen) :: obsFileType
     character(len=10) :: sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
-    character(len=*), parameter :: myWarning = myName //' WARNING: '
 
     ! Namelist variables:
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
