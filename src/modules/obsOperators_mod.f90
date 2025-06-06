@@ -2355,6 +2355,7 @@ contains
       integer :: headerIndex, bodyIndex, iProfile
       logical :: ASSIM
       integer :: NH, NH1
+      real(8), pointer :: columnPtr(:)
 
       ! Initializations
       NGPSLEV = col_getNumLev(columnAnlInc,'TH')
@@ -2397,11 +2398,13 @@ contains
 
                ! Local vector state
                do JL = 1, NGPSLEV
-                  DX (        JL) = col_getElem(columnAnlInc,JL,headerIndex,'TT')
-                  DX (NGPSLEV+JL) = col_getElem(columnAnlInc,JL,headerIndex,'HU')
+                 DX (        JL) = col_getElem(columnAnlInc,JL,headerIndex,'TT')
+                 DX (NGPSLEV+JL) = col_getElem(columnAnlInc,JL,headerIndex,'HU')
                end do
-               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
-               DX (3*NGPSLEV+1:4*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
+               columnPtr => col_getColumn(columnAnlInc,headerIndex,'Z_T')
+               DX (2*NGPSLEV+1:3*NGPSLEV) = columnPtr(:)
+               columnPtr => col_getColumn(columnAnlInc,headerIndex,'P_T')
+               DX (3*NGPSLEV+1:4*NGPSLEV) = columnPtr(:)
 
                ! Perform the (H(xb)DX-Y') operation
                ! Loop over all body indices for this headerIndex:
@@ -2448,6 +2451,7 @@ contains
       integer :: JL, NFLEV, iztd, icount
       logical :: ASSIM
       character(len=12) :: cstnid
+      real(8), pointer :: columnPtr(:)
 
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
@@ -2490,8 +2494,10 @@ contains
                DX (JL)        = col_getElem(columnAnlInc,JL,headerIndex,'TT')
                DX (NFLEV+JL)  = col_getElem(columnAnlInc,JL,headerIndex,'HU')
             end do
-            DX (2*NFLEV+1:3*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
-            DX (3*NFLEV+1:4*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
+            columnPtr => col_getColumn(columnAnlInc,headerIndex,'Z_T')
+            DX (2*NFLEV+1:3*NFLEV) = columnPtr(:)
+            columnPtr => col_getColumn(columnAnlInc,headerIndex,'P_T')
+            DX (3*NFLEV+1:4*NFLEV) = columnPtr(:)
 
             ! Evaluate H'(xb)*dX
             ZHX = 0.D0
