@@ -2084,7 +2084,7 @@ contains
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex, codtyp
     integer :: sensorIndex, instrumId
-    character(len=9) :: instrumName
+    character(len=codtyp_name_length) :: instrumName
 
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
@@ -2288,7 +2288,7 @@ contains
     real(8) :: SP_WGH,TO_WGH,TO_DSP,E_VHGT,E_DRIFT,E_HEIGHT
     character(len=4) :: varName
     character(len=4) :: varLevel
-    character(len=9) :: cstnid
+    character(len=12) :: cstnid
     character(len=20), allocatable :: SWname(:), QIvalue(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
