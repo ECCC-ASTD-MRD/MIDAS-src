@@ -136,7 +136,7 @@ module windRotation_mod
         write(*,*)
         write(*,*) 'uvr_sugrdpar: Warning: This grid is not rotated !!!'
       end if
-      uvr%grd_rot_8(1,1,subGridIndex) = 1.0d0       
+      uvr%grd_rot_8(1,1,subGridIndex) = 1.0d0
       uvr%grd_rot_8(1,2,subGridIndex) = 0.0d0
       uvr%grd_rot_8(1,3,subGridIndex) = 0.0d0
       uvr%grd_rot_8(2,1,subGridIndex) = 0.0d0
@@ -163,7 +163,7 @@ module windRotation_mod
 
       !- 2.2 Compute c = norm(-r1) & d = norm(r4)
       c_8 = sqrt ( xyz1_8(1)**2 + xyz1_8(2)**2 + xyz1_8(3)**2 )
-    
+
       d_8 = sqrt ( ( ( (a_8*xyz1_8(1)) - xyz2_8(1) ) / b_8 )**2 + &
                  ( ( (  a_8*xyz1_8(2)) - xyz2_8(2) ) / b_8 )**2 + &
                  ( ( (  a_8*xyz1_8(3)) - xyz2_8(3) ) / b_8 )**2  )
@@ -215,12 +215,12 @@ module windRotation_mod
   subroutine vllacar( F_xyz_8, F_lon, F_lat )
     !
     ! :Purpose:    Compute parameters of rotated grid
-    ! 
+    !
     implicit none
 
     ! Arguments:
     real(8), intent(out) :: F_xyz_8(msize) ! output
-    real(8), intent(in)  :: F_lon          ! Input in degrees  
+    real(8), intent(in)  :: F_lon          ! Input in degrees
     real(8), intent(in)  :: F_lat          ! Input in degrees
 
     F_xyz_8(1) = cos(MPC_RADIANS_PER_DEGREE_R8*F_lat) * cos(MPC_RADIANS_PER_DEGREE_R8*F_lon)
@@ -237,7 +237,7 @@ module windRotation_mod
 
     ! Arguments:
     integer, intent(in)  :: kdimi1                ! first  dimension of the first  matrix
-    integer, intent(in)  :: kdimj1                ! second dimension of the first  matrix 
+    integer, intent(in)  :: kdimj1                ! second dimension of the first  matrix
     integer, intent(in)  :: kdimj2                ! second dimension of the second matrix
     real(8), intent(out) :: pmat3(kdimi1,kdimj2)  ! output
     real(8), intent(in)  :: pmat1(kdimi1,kdimj1)  ! input matrix one
@@ -255,7 +255,7 @@ module windRotation_mod
         end do
       end do
     end do
- 
+
   end subroutine mxma8x
 
   subroutine uvr_rotateWind_nl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
@@ -273,7 +273,7 @@ module windRotation_mod
     real(8),                   intent(in)    :: Lat          ! Latitude in radians
     real(8),                   intent(in)    :: Lon          ! Longitude in radians
     real(8),                   intent(in)    :: LatRot       ! Rotated latitude in radians
-    real(8),                   intent(in)    :: LonRot       ! Rotated longitude in radians 
+    real(8),                   intent(in)    :: LonRot       ! Rotated longitude in radians
     character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
     ! Locals:
@@ -294,13 +294,13 @@ module windRotation_mod
     sinlat  = sin(Lat)
     coslon  = cos(Lon)
     sinlon  = sin(Lon)
-    
-    if ( trim(mode) == 'ToMetWind' ) then 
+
+    if ( trim(mode) == 'ToMetWind' ) then
 
       xyz(1) = -uwind*sinlonr - vwind*coslonr*sinlatr
       xyz(2) =  uwind*coslonr - vwind*sinlonr*sinlatr
       xyz(3) =                  vwind*coslatr
-    
+
       uvcart(:) = 0.0d0
       do index2 = 1, msize
         do index1 = 1, msize
@@ -315,10 +315,10 @@ module windRotation_mod
       vwind     = sign( ezCoeff_D, uvcart(3)*coslat - ezCoeff_C*sinlat )
 
     else if ( trim(mode) == 'ToRotWind' ) then
-      write(*,*) 
+      write(*,*)
       call utl_abort('uvr_rotateWind_nl: mode ToRotWind is not available yet')
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'uvr_rotateWind_nl: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
       call utl_abort('uvr_rotateWind_nl')
@@ -329,7 +329,7 @@ module windRotation_mod
   subroutine uvr_rotateWind_tl( uvr, subGridIndex, uwind, vwind, Lat_in, Lon_in, LatRot_in, LonRot_in, mode )
     !
     ! :Purpose: Go from tangential wind components from one sphere to another
-    !           (same origin!). Fast version used by Variational analysis. 
+    !           (same origin!). Fast version used by Variational analysis.
     !
     implicit none
 
@@ -341,7 +341,7 @@ module windRotation_mod
     real(8),                   intent(in)    :: Lat_in       ! Latitude in radians
     real(8),                   intent(in)    :: Lon_in       ! Longitude in radians
     real(8),                   intent(in)    :: LatRot_in    ! Rotated latitude in radians
-    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians 
+    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians
     character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
     ! Locals:
@@ -383,12 +383,12 @@ module windRotation_mod
       call utl_abort('uvr_rotateWind_tl: cannot be used for points on the equator')
     end if
 
-    if ( trim(mode) == 'ToMetWind' ) then 
+    if ( trim(mode) == 'ToMetWind' ) then
 
       xyz(1) = -uwind*sinlonr - vwind*coslonr*sinlatr
       xyz(2) =  uwind*coslonr - vwind*sinlonr*sinlatr
       xyz(3) =                  vwind*coslatr
-    
+
       uvcart(:) = 0.0d0
       do index2 = 1, msize
         do index1 = 1, msize
@@ -401,10 +401,10 @@ module windRotation_mod
       vwind = -uvcart(1)*rsinlat*coslon - uvcart(2)*rsinlat*sinlon
 
     else if ( trim(mode) == 'ToRotWind' ) then
-      write(*,*) 
+      write(*,*)
       call utl_abort('uvr_rotateWind_tl: mode ToRotWind is not available yet')
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'uvr_rotateWind_tl: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
       call utl_abort('uvr_rotateWind_tl')
@@ -415,7 +415,7 @@ module windRotation_mod
   subroutine uvr_rotateWind_ad( uvr, subGridIndex, uwind, vwind, Lat_in, Lon_in, LatRot_in, LonRot_in, mode )
     !
     ! :Purpose: Adjoint of : Go from tangential wind components from one sphere to another
-    !           (same origin!). Fast version used by Variational analysis. 
+    !           (same origin!). Fast version used by Variational analysis.
     !
     implicit none
 
@@ -427,7 +427,7 @@ module windRotation_mod
     real(8),                   intent(in)    :: Lat_in       ! Latitude in radians
     real(8),                   intent(in)    :: Lon_in       ! Longitude in radians
     real(8),                   intent(in)    :: LatRot_in    ! Rotated latitude in radians
-    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians 
+    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians
     character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
     ! Locals:
@@ -469,7 +469,7 @@ module windRotation_mod
       call utl_abort('uvr_rotateWind_ad: cannot be used for points on the equator')
     end if
 
-    if ( trim(mode) == 'ToMetWind' ) then 
+    if ( trim(mode) == 'ToMetWind' ) then
 
       uvcart(1) = -uwind*sinlon - vwind*rsinlat*coslon
       uvcart(2) =  uwind*coslon - vwind*rsinlat*sinlon
@@ -486,10 +486,10 @@ module windRotation_mod
       vwind = -xyz(1)*coslonr*sinlatr - xyz(2)*sinlonr*sinlatr + xyz(3)*coslatr
 
     else if ( trim(mode) == 'ToRotWind' ) then
-      write(*,*) 
+      write(*,*)
       call utl_abort('uvr_rotateWind_ad: mode ToRotWind is not available yet')
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'uvr_rotateWind_ad: Unknown transform name: ', trim(mode)
       write(*,*) '                   mode = ToMetWind or ToRotWind'
       call utl_abort('uvr_rotateWind_ad')
@@ -510,7 +510,7 @@ module windRotation_mod
     real(8),                   intent(in)  :: LatIn        ! Input latitude in radians
     real(8),                   intent(in)  :: LonIn        ! Input longitude in radians
     real(8),                   intent(out) :: LatOut       ! Output latitude in radians
-    real(8),                   intent(out) :: LonOut       ! Output longitude in radians 
+    real(8),                   intent(out) :: LonOut       ! Output longitude in radians
     character(*),              intent(in)  :: mode         ! ToLatLonRot or ToLatLon
 
     ! Locals:
@@ -532,12 +532,12 @@ module windRotation_mod
       call mxv( CartOut,              & ! OUT
                 uvr%grd_rot_8(:,:,subGridIndex), CartIn,    & ! IN
                 msize, msize)           ! IN
-    else if ( trim(mode) == 'ToLatLon' ) then 
+    else if ( trim(mode) == 'ToLatLon' ) then
       call mxv( CartOut,              & ! OUT
                 uvr%grd_rotinv_8(:,:,subGridIndex), CartIn, & ! IN
                 msize, msize)           ! IN
     else
-      write(*,*) 
+      write(*,*)
       write(*,*) 'uvr_rotateLatLon: Unknown transform name: ', trim(mode)
       write(*,*) '                  mode = ToLatLonRot or ToLatLon'
       call utl_abort('uvr_rotateLatLon')
@@ -554,19 +554,19 @@ module windRotation_mod
 
   subroutine carall( plon, plat, pcart )
     !
-    ! :Purpose: Returns (lat,lon) (degrees) of an input Cartesian position vector 
+    ! :Purpose: Returns (lat,lon) (degrees) of an input Cartesian position vector
     !           on the unit sphere.
     !
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: plat         ! output latitude 
+    real(8), intent(out) :: plat         ! output latitude
     real(8), intent(out) :: plon         ! output longitude
     real(8), intent(in)  :: pcart(msize) ! input Cartesian vector
 
     plat = asin(pcart(3))
     plat = plat * MPC_DEGREES_PER_RADIAN_R8
-    
+
     if ( pcart(1) == 0.d0 ) then
        if ( pcart(2) == 0.d0 ) then  ! point is located at the pole
           plon = 0.0d0  ! can be any longitude... set it to zero simply.
