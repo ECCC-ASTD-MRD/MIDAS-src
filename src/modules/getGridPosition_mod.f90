@@ -645,34 +645,34 @@ contains
     ! The last 2 columns (ni-1 and ni) are repetitions of the first 2 columns (i=1 and 2)
     ! Check that is true
     do yIndex = 1, nj
-      if(latitude(1,yIndex) /= latitude(ni-1,yIndex) .or. &
-         latitude(2,yIndex) /= latitude(ni,  yIndex) .or. &
-         longitude(1,yIndex) /= longitude(ni-1,yIndex) .or. &
-         longitude(2,yIndex) /= longitude(ni,  yIndex)) then
+      if(.not. utl_isEqual(latitude(1,yIndex), latitude(ni-1,yIndex))   .or. &
+         .not. utl_isEqual(latitude(2,yIndex), latitude(ni,  yIndex))   .or. &
+         .not. utl_isEqual(longitude(1,yIndex), longitude(ni-1,yIndex)) .or. &
+         .not. utl_isEqual(longitude(2,yIndex), longitude(ni,  yIndex))) then
         gridIsOrca = .false.
         write(*,*) '1. Not an orca grid',latitude(1,yIndex),latitude(ni-1,yIndex),latitude(2,yIndex),latitude(ni,  yIndex),longitude(1,yIndex),longitude(ni-1,yIndex),longitude(2,yIndex),longitude(ni,  yIndex)
         return
       end if
     end do
-    
+
     ! The last line (j=nj) is a repetition in reverse order of the line (j=nj-2)
     ! Check that is true (does not work at (ni/2 + 1) for orca025 lats as with the letkf ocean unit test)
     do xIndex = 2, ni
-      if(longitude(xIndex,nj) /= longitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(longitude(xIndex,nj), longitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '2. Not an orca grid',xIndex,longitude(xIndex,nj),longitude(ni-xIndex+2,nj-2)
         return
       end if
     end do
     do xIndex = 2, ni/2
-      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(latitude(xIndex,nj), latitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
         return
       end if
     end do
     do xIndex = ni/2 + 2, ni
-      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(latitude(xIndex,nj), latitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
         return
