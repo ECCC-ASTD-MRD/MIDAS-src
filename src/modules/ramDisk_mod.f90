@@ -47,7 +47,7 @@ contains
     if (status.eq.1) then
       write(*,*) 'ram_setup: The environment variable MIDAS_RAMDISKDIR has not been detected!'
       write(*,*) '           Assume all files in current working directory'
-      ram_disk_dir_exists = .false.  
+      ram_disk_dir_exists = .false.
       ram_disk_dir = 'DOES_NOT_EXIST'
     else
       write(*,*)
@@ -65,7 +65,7 @@ contains
   !--------------------------------------------------------------------------
   function ram_fullWorkingPath(fileName, noAbort_opt, copyToRamDisk_opt) result(fullWorkingPath)
     !
-    !:Purpose: Given a filename, return the full path by either adding the 
+    !:Purpose: Given a filename, return the full path by either adding the
     !          current working directory or the ram disk directory. By default,
     !          will copy the file to the ram disk directory, if it exists.
     !
@@ -177,7 +177,7 @@ contains
   !--------------------------------------------------------------------------
   function ram_remove(fullWorkingPath) result(returnCode)
     !
-    !:Purpose:  Given the full path+filename, remove the file only if 
+    !:Purpose:  Given the full path+filename, remove the file only if
     !           it is located on the ram disk (to free up memory)
     !
     implicit none
@@ -310,7 +310,7 @@ contains
     else
       fullWorkingPath = ' '
     end if
-    
+
   end function ram_getRamDiskDir
 
 end module ramDisk_mod
