@@ -3399,7 +3399,7 @@ contains
       CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
     end if
 
-11  CLOSE(UNIT=NULSTAT)
+    CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)
 
   end subroutine chm_read_obs_err_stddev_file
