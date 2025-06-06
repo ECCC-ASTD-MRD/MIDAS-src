@@ -43,7 +43,6 @@ module bMatrix1DVar_mod
   integer                       :: bmat1D_numExcludeVarScaling
   character(len=4), allocatable :: bmat1D_excludeVarScaling(:)
 
-  type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
   integer             :: numVarLev
   integer             :: cvDim_mpilocal
