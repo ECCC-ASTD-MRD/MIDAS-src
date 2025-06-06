@@ -91,7 +91,7 @@ contains
                                     lat_deg_r4, lon_deg_r4, subGridIndex)
       !$omp end critical
 
-    end if    
+    end if
 
     if ( subGridIndex /= 3 ) then
       ! when only returning 1 position, copy values to pos2
@@ -109,7 +109,7 @@ contains
     !
     ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yang grid.
     !           It returns locations from both the Yin and Yang
-    !           subgrids when in the overlap region, depending on the logical 
+    !           subgrids when in the overlap region, depending on the logical
     !           variable `useSingleValueOverlap`.
     !
     implicit none
@@ -137,7 +137,7 @@ contains
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
     ! this controls which approach to use for interpolation within the YIN-YAN overlap
-    logical :: useSingleValueOverlap = .true.  
+    logical :: useSingleValueOverlap = .true.
 
     ierr = ezget_subGridids(gdid, EZscintIDvec)
     ! get ni nj of subGrid, assume same for both YIN and YANG
@@ -331,7 +331,7 @@ contains
                                                            grid_lat_rad(xIndex, yIndex))
         end do
       end do
-      tree => kdtree2_create(positionArray, sort = .true., rearrange = .true.) 
+      tree => kdtree2_create(positionArray, sort = .true., rearrange = .true.)
       write(*,*) 'gpos_xyfll_unstructGrid: done creating kdtree'
       call msg_memUsage('gpos_xyfll_unstructGrid')
 
