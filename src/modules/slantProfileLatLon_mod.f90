@@ -6,6 +6,7 @@ module slantProfileLatLon_mod
   !           ColumnData.
   !
   use midasMpi_mod
+  use codePrecision_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -173,7 +174,7 @@ contains
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
 
-    if ( azimuthAngle /= obs_missingValue_R) then
+    if ( .not. utl_isEqual(real(azimuthAngle, pre_obsReal), obs_missingValue_R) ) then
 
       zenithAngle = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
@@ -279,35 +280,35 @@ contains
     end if
 
     ! Find the lower-left grid point next to the observation
-    if ( xpos_r4 == real(niP1) ) then
+    if ( utl_isEqual(xpos_r4, real(niP1)) ) then
       lonIndex = floor(xpos_r4) - 1
     else
       lonIndex = floor(xpos_r4)
     end if
-    if ( xpos2_r4 == real(niP1) ) then
+    if ( utl_isEqual(xpos2_r4, real(niP1)) ) then
       lonIndex2 = floor(xpos2_r4) - 1
     else
       lonIndex2 = floor(xpos2_r4)
     end if
 
-    if ( ypos_r4 == real(hco%nj) ) then
+    if ( utl_isEqual(ypos_r4, real(hco%nj)) ) then
       latIndex = floor(ypos_r4) - 1
     else
       latIndex = floor(ypos_r4)
     end if
-    if ( ypos2_r4 == real(hco%nj) ) then
+    if ( utl_isEqual(ypos2_r4, real(hco%nj)) ) then
       latIndex2 = floor(ypos2_r4) - 1
     else
       latIndex2 = floor(ypos2_r4)
     end if
 
     if ( hco%grtyp == 'U' ) then
-      if ( ypos_r4 == real(hco%nj/2) ) then
+      if ( utl_isEqual(ypos_r4, real(hco%nj/2)) ) then
         latIndex = floor(ypos_r4) - 1
       else
         latIndex = floor(ypos_r4)
       end if
-      if ( ypos2_r4 == real(hco%nj/2) ) then
+      if ( utl_isEqual(ypos2_r4, real(hco%nj/2)) ) then
         latIndex2 = floor(ypos2_r4) - 1
       else
         latIndex2 = floor(ypos2_r4)
