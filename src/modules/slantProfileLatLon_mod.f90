@@ -30,13 +30,13 @@ module slantProfileLatLon_mod
   real(4) :: toleranceHeightDiff  ! threshold of height diff (in m) for convergence of slant path
   integer :: maxNumIteration      ! maximum number of iterations for determining slant path
 
-contains 
+contains
 
   subroutine slp_calcLatLonTovs(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, &
        latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S)
     !
-    ! :Purpose: call the computation of lat/lon on the slant path for radiance 
-    !           observations, iteratively. To replace the vertical columns with 
+    ! :Purpose: call the computation of lat/lon on the slant path for radiance
+    !           observations, iteratively. To replace the vertical columns with
     !           line-of-sight slanted columns.
     !
     implicit none
@@ -121,7 +121,7 @@ contains
       integer :: numIteration
       real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4
 
-      ! find the interpolated height 
+      ! find the interpolated height
       call heightBilinearInterp(lat, lon, hco, heightField2D, heightInterp_r4)
 
       doIteration = .true.
@@ -132,7 +132,7 @@ contains
 
         call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
 
-        ! find the interpolated height 
+        ! find the interpolated height
         call heightBilinearInterp(latSlant, lonSlant, hco, heightField2D, heightIntersect_r4)
 
         heightDiff_r4 = abs(heightInterp_r4-heightIntersect_r4)
@@ -149,7 +149,7 @@ contains
 
   subroutine findIntersectLatlon(obsSpaceData, headerIndex, height_r4, azimuthAngle, latSlant, lonSlant)
     !
-    !:Purpose: Computation of lat/lon of the intersection between model level 
+    !:Purpose: Computation of lat/lon of the intersection between model level
     !          and the slant line-of-sight for radiance observations.
     !
     implicit none
@@ -160,7 +160,7 @@ contains
     integer,          intent(in)  :: headerIndex
     real(8),          intent(in)  :: azimuthAngle
     real(8),          intent(out) :: latSlant
-    real(8),          intent(out) :: lonSlant 
+    real(8),          intent(out) :: lonSlant
 
     ! Locals:
     real(8) :: lat, lon, geometricHeight
@@ -200,7 +200,7 @@ contains
       ! distance along line of sight
       distAlongPath = geometricHeight / cos(zenithAngle_rad)
 
-      slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:) 
+      slantPathCordGlb(:) = obsCordGlb(:) + distAlongPath * unitSatGlb(:)
 
       latSlant = atan(slantPathCordGlb(3)/sqrt(slantPathCordGlb(1)**2+slantPathCordGlb(2)**2))
       lonSlant = atan2(slantPathCordGlb(2),slantPathCordGlb(1))
@@ -439,14 +439,14 @@ contains
                               latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S )
     !
     ! :Purpose: call the computation of lat/lon on the slant path for GPSRO
-    !           observations, iteratively. To replace the vertical columns with 
+    !           observations, iteratively. To replace the vertical columns with
     !           slanted columns.
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
-    type(struct_hco), intent(in)    :: hco 
+    type(struct_hco), intent(in)    :: hco
     integer,          intent(in)    :: headerIndex
     real(4),          intent(in)    :: height3D_T_r4(:,:,:)
     real(4),          intent(in)    :: height3D_M_r4(:,:,:)
@@ -464,7 +464,7 @@ contains
     real(4), allocatable :: H_M(:,:), H_T(:,:)
     integer :: nObs, iObs
     integer :: levIndex, nlev_M, nlev_T
-    
+
     nlev_M = size(height3D_M_r4,3)
     nlev_T = size(height3D_T_r4,3)
 
@@ -542,19 +542,19 @@ contains
     deallocate(Lon_Obs, Lat_Obs, Hgt_Obs)
 
   end subroutine slp_calcLatLonRO
- 
+
   subroutine slp_calcLatLonRadar(obsSpaceData, hco, headerIndex, height3D_T_r4, height3D_M_r4, &
        latSlantLev_T, lonSlantLev_T, latSlantLev_M, lonSlantLev_M, latSlantLev_S, lonSlantLev_S)
     !
-    ! :Purpose: call the computation of lat/lon on the slant path for radar 
-    !           observations, iteratively. To replace the vertical columns with 
+    ! :Purpose: call the computation of lat/lon on the slant path for radar
+    !           observations, iteratively. To replace the vertical columns with
     !           radar beam columns .
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
-    type(struct_hco), intent(in)  :: hco 
+    type(struct_hco), intent(in)  :: hco
     integer,          intent(in)  :: headerIndex
     real(4),          intent(in)  :: height3D_T_r4(:,:,:)
     real(4),          intent(in)  :: height3D_M_r4(:,:,:)
@@ -583,10 +583,10 @@ contains
     radarAltitude  = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
     beamRangeStart = obs_headElem_r(obsSpaceData, OBS_RANS, headerIndex)
     beamRangeEnd   = obs_headElem_r(obsSpaceData, OBS_RANE, headerIndex)
-    
+
     ! put the last antennaLat/antennaLon at the surface of thermo level
     latSlantLev_T(nlev_T) = antennaLat
-    lonSlantLev_T(nlev_T) = antennaLon 
+    lonSlantLev_T(nlev_T) = antennaLon
     ! Loop through rest of thermo level
     do lev_T = 1, nlev_T-1
       call findIntersectLatlonRadar(antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude, & !in
@@ -595,13 +595,13 @@ contains
       latSlantLev_T(lev_T) = latSlant
       lonSlantLev_T(lev_T) = lonSlant
     end do
-    
+
     ! put the last antennaLat/beamlon at the surface of momentum levels
     latSlantLev_M(nlev_M) = antennaLat
-    lonSlantLev_M(nlev_M) = antennaLon 
+    lonSlantLev_M(nlev_M) = antennaLon
     ! loop through rest of momentum levels
     do lev_M = 1, nlev_M-1
-      ! find the intersection 
+      ! find the intersection
       call findIntersectLatlonRadar(antennaLat, antennaLon , beamElevation, beamAzimuth, radarAltitude, & !in
                                     beamRangeStart, beamRangeEnd, hco, height3D_M_r4(:,:,lev_M),        & !in
                                     latSlant, lonSlant)                                                   !out
@@ -610,7 +610,7 @@ contains
     end do
 
     latSlantLev_S = antennaLat
-    lonSlantLev_S = antennaLon 
+    lonSlantLev_S = antennaLon
 
   end subroutine slp_calcLatLonRadar
 
@@ -618,13 +618,13 @@ contains
                                       beamRangeStart, beamRangeEnd, hco, field2d_height,                 & !in
                                       latSlant, lonSlant)                                                  !out
     !
-    ! :Purpose: Computation of lat lon  of the intersection 
+    ! :Purpose: Computation of lat lon  of the intersection
     !             of radar beam with the levels model
     !
-    ! :NOTE: Bisection method  
+    ! :NOTE: Bisection method
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_hco), intent(in)  :: hco
     real(8),          intent(in)  :: antennaLat
@@ -646,10 +646,10 @@ contains
 
     lower_bound = beamRangeStart ! m max useable range for weather radars
     upper_bound = beamRangeEnd   ! m minimum range
-    tolerance = 1       ! tolerance of the bisection method 
+    tolerance = 1       ! tolerance of the bisection method
     iteration = 0
     maximum_iteration = 30
-    ! bisection method 
+    ! bisection method
     mid=0.
     do while ((abs((upper_bound - lower_bound)/2.)>tolerance).or.(iteration>maximum_iteration))
       mid = (upper_bound + lower_bound)/2
@@ -658,17 +658,17 @@ contains
                                     latSlant, lonSlant, beamHeight, beamDistance)         !out
       call heightBilinearInterp(latSlant, lonSlant, hco, field2d_height, heightInterp_r4)
       difference_heights = beamHeight - heightInterp_r4
-      if (difference_heights>0.) then 
+      if (difference_heights>0.) then
         upper_bound = mid
       else
         lower_bound = mid
-      end if 
+      end if
       iteration = iteration+1
     end do
-   
+
     if (lonSlant <  0.0d0          ) lonSlant = lonSlant + 2.0d0*MPC_PI_R8
     if (lonSlant >= 2.0d0*MPC_PI_R8) lonSlant = lonSlant - 2.0d0*MPC_PI_R8
-  
+
   end subroutine findIntersectLatlonRadar
 
 end module slantProfileLatLon_mod
