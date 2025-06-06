@@ -76,7 +76,7 @@ module sqliteRead_mod
     call fSQL_prepare(db, querySqlite , stmt, stat)
     write(*,*) 'sqlr_readSqlite_avhrr: obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
-      obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
+      obsIdo = int(obs_headPrimaryKey(obsdat, headerIndex))
       call fSQL_bind_param(stmt, param_index = 1, int_var = obsIdo)
       call fSQL_exec_stmt(stmt)
       call fSQL_get_many(stmt, nrows = numberAvhrrRows , ncols = numberAvhrrColumns , mode = FSQL_REAL)
@@ -1280,7 +1280,7 @@ module sqliteRead_mod
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
       if (obsIdf /= fileNumber) cycle HEADER
-      obsIdo   = obs_headPrimaryKey(obsdat, headerIndex)
+      obsIdo   = int(obs_headPrimaryKey(obsdat, headerIndex))
       ETOP = real(obs_headElem_r(obsdat, OBS_ETOP, headerIndex), 4)
       VTOP = real(obs_headElem_r(obsdat, OBS_VTOP, headerIndex), 4)
       ECF  = real(obs_headElem_r(obsdat, OBS_ECF,  headerIndex), 4)
