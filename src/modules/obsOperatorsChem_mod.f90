@@ -877,7 +877,7 @@ module obsOperatorsChem_mod
            obsoper%modlevindexTop(level)=1
          else
            do levelIndex=startIndex,obsoper%nmodlev
-             if (obsoper%vlayertop(level) == obsoper%pp(levelIndex)) then
+             if ( utl_isEqual(obsoper%vlayertop(level), obsoper%pp(levelIndex)) ) then
                 obsoper%modlevindexTop(level)=levelIndex
                 exit
              else if (obsoper%vlayertop(level) < obsoper%pp(levelIndex)) then
@@ -900,7 +900,7 @@ module obsOperatorsChem_mod
            obsoper%modlevindexTop(level)=obsoper%nmodlev
          else
            do levelIndex=startIndex,1,-1
-             if (obsoper%vlayerbottom(level) == obsoper%pp(levelIndex)) then
+             if ( utl_isEqual(obsoper%vlayerbottom(level),obsoper%pp(levelIndex))) then
                 obsoper%modlevindexBot(level)=levelIndex
                 exit
              else if (obsoper%vlayerbottom(level) > obsoper%pp(levelIndex)) then
@@ -2736,7 +2736,7 @@ module obsOperatorsChem_mod
         ! filt_topoChemistry. For cases with accepted levels below the surface,
         ! levels can also be reset to the surface as needed after the call to
         ! phf_convertZtoPressure
-        if (stationAltitude /= 0.0d0) then
+        if (.not. utl_isEqual(stationAltitude, 0.0d0)) then
           ! Ground station altitude is available.
           if (stationAltitude >= sfcAltitude - surfaceBufferZoneCH_Height .and. &
               stationAltitude < sfcAltitude) then
