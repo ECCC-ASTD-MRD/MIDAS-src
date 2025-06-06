@@ -564,8 +564,8 @@ contains
     lowerRightCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMax, yIndexMin), grid_lon_rad(xIndexMax, yIndexMin), &
            lat_rad_r8, lon_rad_r8)**2
 
-    xpos_r4 = real(xIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared - &
-                                 lowerRightCornerDistSquared) / (2.0 * (gridSpacingSquared))
+    xpos_r4 = real(real(xIndexMin,8) + (lowerLeftCornerDistSquared + gridSpacingSquared - &
+                                        lowerRightCornerDistSquared) / (2.0 * (gridSpacingSquared)), 4)
 
     gridSpacingSquared = phf_calcDistance(grid_lat_rad(xIndexMin, yIndexMin), grid_lon_rad(xIndexMin, yIndexMin), &
            grid_lat_rad(xIndexMin, yIndexMax), grid_lon_rad(xIndexMin, yIndexMax))**2
@@ -573,8 +573,8 @@ contains
     upperLeftCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMin, yIndexMax), grid_lon_rad(xIndexMin, yIndexMax), &
            lat_rad_r8, lon_rad_r8)**2
 
-    ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - &
-                                 upperLeftCornerDistSquared) / (2.0 * (gridSpacingSquared))
+    ypos_r4 = real(real(yIndexMin,8) + (lowerLeftCornerDistSquared + gridSpacingSquared  - &
+                                        upperLeftCornerDistSquared) / (2.0 * (gridSpacingSquared)), 4)
 
     if ( abs(ypos_r4 - yIndexMin) > 2.0 .or. abs(xpos_r4 - xIndexMin) > 4.3 ) then
       write(*,*) 'xpos_r4 = ',xpos_r4
