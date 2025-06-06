@@ -1845,7 +1845,7 @@ contains
 
       ! Locals:
       type(struct_vco), pointer :: vco_anl
-      integer :: jlev,columnIndex,nlev_T,status
+      integer :: jlev,columnIndex,nlev_T
       real(8) :: zhu,one
 
       if ( .not.col_varExist(columnTrlOnAnlIncLev,'TT') .or. .not.col_varExist(columnTrlOnAnlIncLev,'HU') ) return
@@ -1886,9 +1886,8 @@ contains
       ! Locals:
       integer levIndexBot,levIndexTop
       integer headerIndex,INDEX_FAMILY,layerIndex
-      integer J,bodyIndex,bufrCode,nlev_T
-      real(8) ZDADPS
-      real(8) ZWB,ZWT,ZLTV
+      integer bodyIndex,bufrCode
+      real(8) ZDADPS,ZWB,ZWT
       real(8) ZLEV,ZPT,ZPB
       real(8) delPT,delPB
       real(8) anlIncValueBot,anlIncValueTop,trlValueBot,trlValueTop
@@ -1976,10 +1975,10 @@ contains
       ! Locals:
       integer :: levIndexBot,levIndexTop
       integer :: headerIndex,layerIndex
-      integer :: J, bodyIndex, bufrCode, INDEX_FAMILY, nlev, nLev_T
+      integer :: bodyIndex, bufrCode, INDEX_FAMILY, nlev, nLev_T
       real(8) :: coeffA, coeffB
-      real(8) :: ZWB, ZWT, ZLTV, trlVirtTemp
-      real(8) :: ZPT, ZPB, ZDELPS, ZDELTV, deltaT, obsHeight
+      real(8) :: ZLTV, trlVirtTemp
+      real(8) :: ZDELPS, ZDELTV, deltaT, obsHeight
       real(8) :: anlIncValue
       real(8) :: delP
       real(8) :: anlIncUwind, anlIncVwind, trlUwind, trlVwind, squareSum, trlWindSpeed, anlIncWindSpeed
@@ -2166,8 +2165,6 @@ contains
 
       ! Locals:
       integer          :: headerIndex, bodyIndex, bufrCode
-      integer          :: idate, imonth
-      integer          :: trackCellNum
       real(8)          :: anlIncValue, scaling
       character(len=4) :: varName
 
@@ -2233,12 +2230,10 @@ contains
       implicit none
 
       ! Locals:
-      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, layerIndex, familyIndex
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
+      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
       real(8) :: levelAltLow, levelAltHigh, HDX, Azimuth, obsAltitude
-      real(8) :: uuLow, uuHigh, vvLow, vvHigh, vInterpWeightHigh, vInterpWeightLow
-      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
-      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      real(8) :: vInterpWeightHigh, vInterpWeightLow
+      real(8), pointer :: du_column(:), dv_column(:)
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 
@@ -2450,7 +2445,7 @@ contains
       real(8) :: ZHX
       real(8) :: DX(gps_ncvmx)
       integer :: headerIndex, bodyIndex
-      integer :: JL, NFLEV, status, iztd, icount
+      integer :: JL, NFLEV, iztd, icount
       logical :: ASSIM
       character(len=12) :: cstnid
 
@@ -2626,8 +2621,8 @@ contains
       integer levIndexBot,levIndexTop,bufrCode
       real(8) ZRES
       real(8) ZWB,ZWT
-      real(8) ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
-      integer headerIndex,layerIndex,nlev_T
+      real(8) ZLEV,ZPT,ZPB,ZDADPS
+      integer headerIndex,layerIndex
       integer bodyIndex,INDEX_FAMILY
       real(8) trlValueTop,trlValueBot
       real(8), pointer :: all_column(:),tt_column(:),hu_column(:),p_column(:)
@@ -2727,15 +2722,13 @@ contains
       ! Locals:
       integer :: levIndexBot,levIndexTop
       real(8) :: ZRES
-      real(8) :: ZWB, ZWT,coeffA,coeffB,ZATV,trlVirtTemp
-      real(8) :: obsHeight, ZPT, ZPB, ZDADPS, ZDELPS, ZDELTV, deltaT
-      real(8) :: trlValueBot
-      real(8) :: trlUwind, trlVwind, sumSquare, trlWindSpeed, anlIncWindSpeed
+      real(8) :: coeffA,coeffB,ZATV,trlVirtTemp
+      real(8) :: obsHeight, ZDELPS, ZDELTV, deltaT
+      real(8) :: sumSquare, trlWindSpeed, anlIncWindSpeed
       integer :: headerIndex, layerIndex, nlev, nlev_T
       integer :: bodyIndex, bufrCode, INDEX_FAMILY
       real(8), pointer :: all_column(:), tt_column(:), hu_column(:), ps_column(:), p_column(:)
       real(8), pointer :: du_column(:), dv_column(:)
-      real(8) :: dPdPsfc
       integer, parameter :: numFamily=5
       character(len=2) :: list_family(numFamily)
       character(len=4) :: varLevel
@@ -3204,11 +3197,9 @@ contains
 
       ! Locals:
       integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
       real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude, HDX
-      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
       real(8) :: vInterpWeightLow, vInterpWeightHigh
-      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      real(8), pointer :: du_column(:), dv_column(:)
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 
