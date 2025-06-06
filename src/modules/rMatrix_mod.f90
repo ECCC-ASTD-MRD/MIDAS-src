@@ -573,19 +573,19 @@ contains
       end if
 
       ! Exclude observations with elevation greater than rmat_estElevMax
-      if (rmat_estElevMax /= mpc_missingvalue_r8 .and. &
+      if (.not. utl_isEqual(rmat_estElevMax, mpc_missingvalue_r8) .and. &
           obs_headElem_r(obsspacedata, OBS_ELEV, headerIndex) > rmat_estElevMax) then
         cycle HEADER1
       end if
 
       ! Max latitude criteria
-      if (rmat_estLatMax /= mpc_missingvalue_r8 .and. &
+      if (.not. utl_isEqual(rmat_estLatMax, mpc_missingvalue_r8) .and. &
           obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 > rmat_estLatMax) then
         cycle HEADER1
       end if
 
       ! Min latitude criteria
-      if (rmat_estLatMin /= mpc_missingvalue_r8 .and. &
+      if (.not. utl_isEqual(rmat_estLatMin, mpc_missingvalue_r8) .and. &
           obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 < rmat_estLatMin) then
         cycle HEADER1
       end if
@@ -723,7 +723,7 @@ contains
 
       do ichan = 1, numchan
         do jchan = 1, numchan
-          if (obsErrStdev(sensorIndex, ichan) == 0.0d0 .or. obsErrStdev(sensorIndex, jchan) == 0.0d0) then
+          if ( utl_isEqual(obsErrStdev(sensorIndex, ichan), 0.0d0) .or. utl_isEqual(obsErrStdev(sensorIndex, jchan), 0.0d0) ) then
             RCorr(sensorIndex)%Rmat(ichan, jchan) = 0.0d0
           else
             RCorr(sensorIndex)%Rmat(ichan, jchan) = estR(sensorIndex)%Rmat(ichan, jchan) / &
