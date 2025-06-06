@@ -719,7 +719,7 @@ module obsOperatorsChem_mod
            'File read error message number: ' // trim(utl_str(ios)))
     end if
 
- 11 CLOSE(UNIT=nulstat)
+    CLOSE(UNIT=nulstat)
     ierr=fclos(nulstat)
 
   end subroutine oopc_readLevels
@@ -1118,7 +1118,7 @@ module obsOperatorsChem_mod
                      'File read error message number: ' // trim(utl_str(ios)))
     end if
 
- 11 CLOSE(UNIT=nulstat)
+    CLOSE(UNIT=nulstat)
     ierr=fclos(nulstat)
 
   end subroutine oopc_readAvgkernAuxfile
