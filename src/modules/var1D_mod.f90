@@ -14,6 +14,7 @@ module var1D_mod
   use verticalCoord_mod
   use codeprecision_mod
   use mathphysconstants_mod
+  use utilities_mod
 
   implicit none
   save
@@ -105,7 +106,7 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_yGrid
-    integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
+    integer :: varIndex, columnIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
     real(8), allocatable :: localColumn(:)
@@ -113,6 +114,7 @@ contains
     integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax
     real(8) :: lat, lon
     integer :: varDim, tag
+    logical :: allMissing
 
     call mmpi_barrier
     allocate( obsOffset(0:mmpi_nprocs-1) )
@@ -170,7 +172,7 @@ contains
           tag = 2 * taskIndex
           call mmpi_recv(lat, tag  , taskIndex)
           call mmpi_recv(lon, tag+1, taskIndex)
-          if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(lat, MPC_missingValue_R8) .and. .not. utl_isEqual(lon, MPC_missingValue_R8)) then
             globalObsIndex = obsIndex + obsOffset(taskIndex)
             hco_yGrid%lat2d_4(1, globalObsIndex) = real(lat,4)
             hco_yGrid%lon2d_4(1, globalObsIndex) = real(lon,4)
@@ -214,7 +216,15 @@ contains
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
             call mmpi_recv(localColumn, tag, taskIndex, varDim)
-            if (all( localColumn /=  MPC_missingValue_R8)) then
+            allMissing = .true.
+            do columnIndex = 1, varDim
+              if ( .not. utl_isEqual(localColumn(columnIndex),  MPC_missingValue_R8) ) then
+                allMissing = .false.
+                exit
+              end if
+            end do
+
+            if ( .not. allMissing ) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
               myField(1, globalObsIndex, :) = localColumn(:)
             end if
