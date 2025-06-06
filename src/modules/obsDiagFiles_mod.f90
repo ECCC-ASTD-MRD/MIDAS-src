@@ -259,19 +259,19 @@ module obsDiagFiles_mod
       obsRln    = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
       obsNlv    = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
       idStation = obs_elem_c    (obsdat, 'STID' , headerIndex)
-      altitude  = obs_headElem_r(obsdat, OBS_ALT, headerIndex)
-      lon       = obs_headElem_r(obsdat, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      lat       = obs_headElem_r(obsdat, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      altitude  = real(obs_headElem_r(obsdat, OBS_ALT, headerIndex), 4)
+      lon       = real(obs_headElem_r(obsdat, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lat       = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
       if (lon > 180.) lon = lon - 360.
       date      = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      time      = obs_headElem_i(obsdat, OBS_ETM, headerIndex) * 100.
+      time      = obs_headElem_i(obsdat, OBS_ETM, headerIndex) * 100
 
       ! check if at least one observation will be written, if not skip this header
       if (onlyAssimObs) then
         writeHeader = .false.
         BODYCHECK: do bodyIndex = obsRln, obsNlv + obsRln -1
-          OMP = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex)
-          FGE = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
+          OMP = real(obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex), 4)
+          FGE = real(obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex), 4)
           ASS = obs_bodyElem_i(obsdat, OBS_ASS , bodyIndex)
           if ((ASS == obs_assimilated) .and.                      &
               (.not. utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) .and.  &
@@ -296,15 +296,15 @@ module obsDiagFiles_mod
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex)
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex)
-        obsValue      = obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex)
-        OMA           = obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex)
-        OMP           = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex)
-        OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex)
-        FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
-        PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex)
         ASS           = obs_bodyElem_i(obsdat, OBS_ASS , bodyIndex)
-        latData       = obs_bodyElem_r(obsdat, OBS_LATD, bodyIndex)
-        lonData       = obs_bodyElem_r(obsdat, OBS_LOND, bodyIndex)
+        obsValue      = real(obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex), 4)
+        OMA           = real(obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex), 4)
+        OMP           = real(obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex), 4)
+        OER           = real(obs_bodyElem_r(obsdat, OBS_OER , bodyIndex), 4)
+        FGE           = real(obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex), 4)
+        PPP           = real(obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex), 4)
+        latData       = real(obs_bodyElem_r(obsdat, OBS_LATD, bodyIndex), 4)
+        lonData       = real(obs_bodyElem_r(obsdat, OBS_LOND, bodyIndex), 4)
 
         ! skip obs if it was not assimilated
         if (onlyAssimObs) then
@@ -314,23 +314,23 @@ module obsDiagFiles_mod
         end if
 
         if (obs_columnActive_RB(obsdat, OBS_SIGI)) then
-          ensInnovStdDev = obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex)
+          ensInnovStdDev = real(obs_bodyElem_r(obsdat, OBS_SIGI, bodyIndex), 4)
         else
           ensInnovStdDev = obs_missingValue_R
         end if
         if (obs_columnActive_RB(obsdat, OBS_SIGO)) then
-          ensObsErrStdDev = obs_bodyElem_r(obsdat, OBS_SIGO, bodyIndex)
+          ensObsErrStdDev = real(obs_bodyElem_r(obsdat, OBS_SIGO, bodyIndex), 4)
         else
           ensObsErrStdDev = obs_missingValue_R
         end if
         if (obs_columnActive_RB(obsdat, OBS_ZHA)) then
-          zhad = obs_bodyElem_r(obsdat, OBS_ZHA, bodyIndex)
+          zhad = real(obs_bodyElem_r(obsdat, OBS_ZHA, bodyIndex), 4)
         else
           zhad = obs_missingValue_R
         end if
         if (addFSOdiag) then
           if (obs_columnActive_RB(obsdat, OBS_FSO)) then
-            fso = obs_bodyElem_r(obsdat, OBS_FSO, bodyIndex)
+            fso = real(obs_bodyElem_r(obsdat, OBS_FSO, bodyIndex), 4)
           else
             fso = obs_missingValue_R
           end if
@@ -408,13 +408,17 @@ module obsDiagFiles_mod
         if (utl_isEqual(real(latData, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 16)
         else
-          latData = latData * MPC_DEGREES_PER_RADIAN_R8
+          ! TODO: simplify the floating point precision conversions
+          !  latData = latData * MPC_DEGREES_PER_RADIAN_R4
+          latData = real(real(latData,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
           call fSQL_bind_param(stmtData, param_index = 16, real_var = latData)
         end if
         if (utl_isEqual(real(lonData, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 17)
         else
-          lonData = lonData * MPC_DEGREES_PER_RADIAN_R8
+          ! TODO: simplify the floating point precision conversions
+          ! lonData = lonData * MPC_DEGREES_PER_RADIAN_R4
+          lonData = real( real(lonData,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
           call fSQL_bind_param(stmtData, param_index = 17, real_var = lonData)
         end if
         if (addFSOdiag) then
@@ -437,7 +441,9 @@ module obsDiagFiles_mod
           do memberIndex = ensObs_opt%firstMember, ensObs_opt%numMembers
             ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex)
             if (ensObs_opt%meanRemoved) then
-              ENSOBSTRL = ENSOBSTRL + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back
+              ! TODO: simplify the floating point precision conversions
+              !    ENSOBSTRL = ENSOBSTRL + real(ensObs_opt%meanYb(bodyIndex),4) ! Yb_r4 has mean removed, so add back
+              ENSOBSTRL = real( real(ENSOBSTRL,8) + ensObs_opt%meanYb(bodyIndex), 4) ! Yb_r4 has mean removed, so add back
             end if
             call fSQL_bind_param(stmtEnsObs, param_index = 1, int_var  = idData)
             call fSQL_bind_param(stmtEnsObs, param_index = 2, int_var  = idObs)
