@@ -1131,8 +1131,8 @@ contains
             trim(SSTdataParams(indexDataset)%sensor)     == ""                   .and. &
             trim(SSTdataParams(indexDataset)%sensorType) == ""                   .and. &
                  SSTdataParams(indexDataset)%codeType    == MPC_missingValue_INT .and. &
-                 SSTdataParams(indexDataset)%dayError    == MPC_missingValue_R8  .and. &
-                 SSTdataParams(indexDataset)%nightError  == MPC_missingValue_R8 ) exit
+                 utl_isEqual(SSTdataParams(indexDataset)%dayError  , MPC_missingValue_R8)  .and. &
+                 utl_isEqual(SSTdataParams(indexDataset)%nightError, MPC_missingValue_R8) ) exit
         numberSSTDatasets = numberSSTDatasets + 1
       end do
     else
@@ -1589,7 +1589,7 @@ contains
             else if (codeType == codtyp_get_codtyp('satob')) then
 
               solarZenith = obs_headElem_r(obsSpaceData, obs_sun, headerIndex)
-              if (solarZenith == MPC_missingValue_R8) then
+              if (utl_isEqual(solarZenith, MPC_missingValue_R8)) then
                 write(*,*) 'oer_fillObsErrors: Solar zenith value is missing for satellite SST data ', &
                            cstnid, ', headerIndex: ', headerIndex,', bodyIndex: ', bodyIndex
                 call utl_abort('oer_fillObsErrors: Solar zenith value is missing!')
@@ -2996,7 +2996,7 @@ contains
           end if
           zlev   = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
           ZTDERR = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
-          IF (ZTDERR  /=  1.0D0) LLFER = .TRUE.
+          IF (.not. utl_isEqual(ZTDERR, 1.0D0)) LLFER = .TRUE.
           IZTDJ = bodyIndex
           IF (zval  >  0.0D0) then
             ZZTD = zval
