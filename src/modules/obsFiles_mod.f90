@@ -137,10 +137,10 @@ contains
     ! Locals:
     integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
     integer :: numHeaderBefore, numBodyBefore, numHeaderRead, numBodyRead
-    character(len=fileTypeLen)       :: obsFileType
-    character(len=maxLengthFilename) :: fileName
-    character(len=256)               :: fileNamefull
-    character(len=familyTypeLen)     :: obsFamilyType
+    character(len=fileTypeLen)        :: obsFileType
+    character(len=maxLengthFilename)  :: fileName
+    character(len=ram_fullPathLength) :: fileNamefull
+    character(len=familyTypeLen)      :: obsFamilyType
     logical :: fileExists
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
@@ -475,12 +475,12 @@ contains
     character(len=2) :: familyName(maxNumObsfiles)
     character(len=4) :: myIdxStr, myIdyStr
     character(len=256):: obsDirectory
-    character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than
-                                                                ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
-    character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
-    character(len=fileTypeLen)       :: fileTypeList(maxNumObsfiles)
-    character(len=fileTypeLen)       :: obsFileType
-    character(len=256)               :: fileNamefull
+    character(len=maxLengthFilename)  :: fileName, baseFileName  ! the length should be more than
+                                                                 ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
+    character(len=maxLengthFilename)  :: baseFileNameList(maxNumObsfiles)
+    character(len=fileTypeLen)        :: fileTypeList(maxNumObsfiles)
+    character(len=fileTypeLen)        :: obsFileType
+    character(len=ram_fullPathLength) :: fileNamefull
     logical :: fileExists
     integer :: fileIndex
 

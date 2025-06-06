@@ -15,7 +15,11 @@ module ramDisk_mod
   public :: ram_setup, ram_fullWorkingPath, ram_remove, ram_getRamDiskDir
   public :: ram_removeRamDiskFromName, ram_fileIsOnRamDisk
 
-  character(len=256) :: ram_disk_dir
+  ! Public constants:
+  integer, public, parameter :: ram_fileNameLength = 256
+  integer, public, parameter :: ram_fullPathLength = 512
+
+  character(len=ram_fileNameLength) :: ram_disk_dir
 
   logical :: ram_disk_dir_exists
   logical :: initialized = .false.
@@ -72,11 +76,11 @@ contains
     logical, optional, intent(in) :: copyToRamDisk_opt
     character(len=*) , intent(in) :: fileName
     ! Result:
-    character(len=512) :: fullWorkingPath
+    character(len=ram_fullPathLength) :: fullWorkingPath
 
     ! Locals:
+    character(len=ram_fileNameLength) :: fileName2, subDirectory
     logical            :: fileExists, noAbort, copyToRamDisk
-    character(len=256) :: fileName2, subDirectory
     integer            :: status
 
     if ( .not. initialized ) then
@@ -260,7 +264,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: fileName
     ! Result:
-    character(len=256)           :: fileNameWithoutRamDisk
+    character(len=ram_fileNameLength) :: fileNameWithoutRamDisk
 
     if ( .not. initialized ) then
       call ram_setup()
@@ -295,7 +299,7 @@ contains
     implicit none
 
     ! Result:
-    character(len=512) :: fullWorkingPath ! Ram disk path returned
+    character(len=ram_fullPathLength) :: fullWorkingPath ! Ram disk path returned
 
     if ( initialized ) then
       if ( ram_disk_dir_exists ) then
