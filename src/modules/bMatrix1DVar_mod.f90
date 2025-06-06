@@ -308,7 +308,7 @@ contains
       scaleFactorHITG = 0.0d0
     end if
 
-    if ( sum(scaleFactorHI(1:vco_maxNumLevels)) == 0.0d0 ) then
+    if ( utl_isEqual(sum(scaleFactorHI(1:vco_maxNumLevels)), 0.0d0) ) then
       if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
       return
@@ -874,7 +874,7 @@ contains
       end if
 
       ! Apply background error correlation scale factor between TG and other variables
-      if (scaleFactorEnsTGCorrelation /= 1.0d0) then
+      if (.not. utl_isEqual(scaleFactorEnsTGCorrelation, 1.0d0)) then
         do varLevIndex1 = 1, numVarLev
           do varLevIndex2 = 1, numVarLev
             if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
@@ -1044,7 +1044,7 @@ contains
         longitude = MPC_missingValue_R8
       end if
       if (mmpi_myId == 0) then
-        if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
+        if (.not. utl_isEqual(latitude, MPC_missingValue_R8) .and. .not. utl_isEqual(longitude, MPC_missingValue_R8)) then
           outBmatrix(dumpedIndex, :, :) = bEns(columnIndex, :, :)
           outLats(dumpedIndex) = latitude
           outLons(dumpedIndex) = longitude
@@ -1053,7 +1053,7 @@ contains
           tag = 3 * taskIndex
           call mmpi_recv(latitude,  tag  , taskIndex)
           call mmpi_recv(longitude, tag+1, taskIndex)
-          if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(latitude, MPC_missingValue_R8) .and. .not. utl_isEqual(longitude, MPC_missingValue_R8)) then
             call mmpi_recv(tempoBmatrix(:,:), tag+2, taskIndex)
             globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
             outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
@@ -1127,7 +1127,7 @@ contains
     bMatSqrtSeaTmp(:,:,:) = bMatSqrtSea(:,:,:)
 
     ! Inflate Emissivity Error if specified
-    if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
+    if (.not. utl_isEqual(inflateEmissErr, MPC_missingValue_R8) .and. col_varExist(column, 'EMMW')) then
 
       ! Get number of levels in the surface emssivity analysis variable
       nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
@@ -1277,7 +1277,7 @@ contains
     bMatSqrtEnsTmp(:,:,:) = bMatSqrtEns(:,:,:)
 
     ! Inflate emissivity error if specified
-    if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
+    if (.not. utl_isEqual(inflateEmissErr, MPC_missingValue_R8) .and. col_varExist(column, 'EMMW')) then
 
       ! Get number of levels in the surface emssivity analysis variable
       nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
