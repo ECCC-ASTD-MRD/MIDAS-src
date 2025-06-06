@@ -377,13 +377,22 @@ contains
     type(struct_oti), pointer, intent(inout) :: oti
     integer,                   intent(in)    :: headerIndex
     ! Result:
-    logical                   :: allZero
+    logical :: allZero
+
+    ! Locals
+    integer :: bodyIndex
 
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
     end if
 
-    allZero = all(oti%timeInterpWeight(headerIndex, :) == 0.0d0)
+    allZero = .true.
+    do bodyIndex = 1, size(oti%timeInterpWeight,2)
+      if ( .not. utl_isEqual(oti%timeInterpWeight(headerIndex, bodyIndex), 0.0d0) ) then
+        allZero = .false.
+        return
+      end if
+    end do
 
   end function oti_timeInterpWeightAllZero
 
