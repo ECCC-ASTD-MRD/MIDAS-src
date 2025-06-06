@@ -3554,8 +3554,8 @@ module obsOperatorsChem_mod
     character(len=*), intent(in)    :: skipType ! Skipping processing of specific target layers depending on case
 
     ! Locals:
-    integer :: obslevIndex,tropo_mode
-    real(8) :: vlayertop_ref,vlayerbottom_ref,modlevindexBot_ref,checkID
+    integer :: obslevIndex,tropo_mode,modlevindexBot_ref
+    real(8) :: vlayertop_ref,vlayerbottom_ref,checkID
 
     ! Conduct initial setup for vertical integration (or avegaging) components
 
