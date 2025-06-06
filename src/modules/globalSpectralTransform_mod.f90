@@ -1173,7 +1173,7 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
+      pgd_in_r4(:,:,:) = real(pgd_in(:,:,:), 4)
       call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
                         pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
@@ -1344,7 +1344,7 @@ contains
 
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mmpi_npex.gt.1) then
-      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
+      pgd_in_r4(:,:,:) = real(pgd_in(:,:,:), 4)
       call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
                         pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW)
       pgd_out(:,:,:) = pgd_out_r4(:,:,:)
