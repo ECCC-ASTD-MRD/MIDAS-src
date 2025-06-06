@@ -884,6 +884,9 @@ module sqliteRead_mod
     character(len=*)   , intent(in)    :: familyType ! Observation Family Type
     integer            , intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
 
+    ! Constants:
+    integer, parameter          :: columnNameLen = 21 ! length of longest column name which is 'truth_based_sim_emiss'
+
     ! Locals:
     type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
     type(fSQL_status)           :: stat ! type error status
@@ -894,7 +897,7 @@ module sqliteRead_mod
     integer                     :: headerIndex, bodyIndex
     character(len = 4)          :: item
     integer                     :: updateBodyList(20), updateHeaderList(20), ierr
-    character(len = 20)         :: columnName
+    character(len = columnNameLen) :: columnName
     character(len = 512)        :: query
     character(len = 356)        :: itemCharBody, columnNameCharBody, itemCharHeader, columnNameCharHeader
     logical                     :: back, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
