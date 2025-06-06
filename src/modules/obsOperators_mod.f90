@@ -35,9 +35,9 @@ module obsOperators_mod
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
   ! Jacobian caches
-  real(8) , allocatable :: oop_vRO_Jacobian4(:, :, :)
-  logical , allocatable :: oop_vRO_lJac4(:)
-  real(8) , allocatable :: oop_vZTD_Jacobian(:,:)
+  real(8),  allocatable :: oop_vRO_Jacobian4(:,:,:)
+  logical,  allocatable :: oop_vRO_lJac4(:)
+  real(8),  allocatable :: oop_vZTD_Jacobian(:,:)
 
 contains
 
@@ -2181,7 +2181,7 @@ contains
         ! Process all data within the domain of the model
         scaling = oop_iceScaling(obsSpaceData, bodyIndex)
 
-        if (scaling == 0.0d0) cycle BODY
+        if (utl_isEqual(scaling, 0.0d0)) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
@@ -2421,7 +2421,7 @@ contains
                      ! Evaluate H(xb)DX
                      ZMHXL = 0.d0
                      do JV = 1, 4*NGPSLEV
-                        ZMHXL = ZMHXL + oop_vRO_Jacobian4(iProfile, NH1, JV) * DX(JV)
+                       ZMHXL = ZMHXL + oop_vRO_Jacobian4(iProfile, NH1, JV) * DX(JV)
                      end do
 
                      ! Store in CMA
@@ -2948,7 +2948,7 @@ contains
 
         scaling = oop_iceScaling(obsSpaceData, bodyIndex)
 
-        if (scaling == 0.0d0) cycle BODY
+        if (utl_isEqual(scaling, 0.0d0)) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
