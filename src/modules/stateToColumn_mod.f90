@@ -481,7 +481,7 @@ contains
       header_loop1: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if (oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0) then
+        if ( utl_isEqual(oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex), 0.0d0) ) then
           cycle header_loop1
         end if
 
@@ -643,7 +643,7 @@ contains
       header_loop2: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if (oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0) then
+        if ( utl_isEqual(oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex), 0.0d0) ) then
           cycle header_loop2
         end if
 
@@ -2624,13 +2624,13 @@ contains
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
-      if ( xpos == real(statevector%ni + extraLongitude,8) ) then
+      if ( utl_isEqual(xpos, real(statevector%ni + extraLongitude,8)) ) then
         lonIndex = floor(xpos) - 1
       else
         lonIndex = floor(xpos)
       end if
 
-      if ( ypos == real(statevector%nj,8) ) then
+      if ( utl_isEqual(ypos, real(statevector%nj,8)) ) then
         ILA = floor(ypos) - 1
       else
         ILA = floor(ypos)
@@ -2700,17 +2700,17 @@ contains
       call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, &
                                     headerIndex, varLevIndex, stepIndex, procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == bilinearFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, bilinearFootprint) ) then
 
       call s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                    procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == lakeFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, lakeFootprint) ) then
 
       call s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, nearestNeighbourFootprint) ) then
 
       call s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                     procIndex, numGridpt)
@@ -3003,10 +3003,10 @@ contains
     end if
 
     if ( stateVector%hco%grtyp == 'U' ) then
-      if ( ypos_r4 == real(stateVector%nj/2) ) then
+      if ( utl_isEqual(ypos_r4, real(stateVector%nj/2,4)) ) then
         latIndex = floor(ypos_r4) - 1
       end if
-      if ( ypos2_r4 == real(stateVector%nj/2) ) then
+      if ( utl_isEqual(ypos2_r4, real(stateVector%nj/2,4)) ) then
         latIndex2 = floor(ypos2_r4) - 1
       end if
     end if
