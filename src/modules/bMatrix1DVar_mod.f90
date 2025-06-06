@@ -529,7 +529,7 @@ contains
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
-    character(len=2) :: varLevel
+    character(len=4) :: varLevel
     integer :: numVarLevHi, nLonLatPosLandHi, nLonLatPosSeaHi
     type(struct_vco), target :: vco_1DvarHi
     real(8), allocatable :: bMatLandHi(:,:,:), bMatSeaHi(:,:,:)
