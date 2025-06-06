@@ -2476,14 +2476,15 @@ module obsOperatorsChem_mod
 
           ! Account for integration via weighted summation
           zwork(:)=0.0d0
-          do obslevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
-            zwork(obslevIndex)=  &
-              sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex)* &
-              avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
+          obslevIndex = 1
+          do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
+            zwork(modlevIndex)=  &
+                 sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),modlevIndex) * &
+                       avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
           end do
           obsoper%zh(1,:) = 0.0d0
           obsoper%zh(1,obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) = &
-            zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
+                 zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
         end if
       end if
 
