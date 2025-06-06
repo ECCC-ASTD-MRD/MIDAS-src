@@ -607,11 +607,11 @@ contains
 
         call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_T')
         call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_T')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
         call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_M')
         call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_M')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
       end if ! inputStateVectorType
 
@@ -3592,8 +3592,11 @@ contains
     lat_r4 = real(latLev_T(nlev_T),4)
     lon_r4 = real(lonLev_T(nlev_T),4)
 
-    lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-    lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+    !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+    lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+    lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
     ierr = gpos_getPositionXY( hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
@@ -3612,8 +3615,11 @@ contains
       lat_r4 = real(latLev_M(nlev_M),4)
       lon_r4 = real(lonLev_M(nlev_M),4)
 
-      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+      !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+      lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       ierr = gpos_getPositionXY( hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
@@ -3633,8 +3639,11 @@ contains
       lat_r4 = real(latLev_S_opt,4)
       lon_r4 = real(lonLev_S_opt,4)
 
-      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+      !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+      lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       ierr = gpos_getPositionXY( hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
