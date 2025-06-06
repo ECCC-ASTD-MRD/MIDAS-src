@@ -128,7 +128,7 @@ module windRotation_mod
     zxlon2_8 = grd_xlon2
     zxlat2_8 = grd_xlat2
 
-    if ( zxlon1_8 == zxlon2_8 .and. zxlat1_8 == zxlat2_8 ) then
+    if ( utl_isEqual(zxlon1_8, zxlon2_8) .and. utl_isEqual(zxlat1_8, zxlat2_8) ) then
       !
       !- 1. Non rotated grid (for test case only)
       !
@@ -371,14 +371,14 @@ module windRotation_mod
       lonRot = lonRot_in
     end if
 
-    coslatr = cos(LatRot)
-    sinlatr = sin(LatRot)
-    coslonr = cos(LonRot)
-    sinlonr = sin(LonRot)
-    coslon  = cos(Lon)
-    sinlon  = sin(Lon)
-    if ( Lat /= 0.0d0 ) then
-      rsinlat = 1.0d0/sin(Lat)
+    coslatr = cos(latRot)
+    sinlatr = sin(latRot)
+    coslonr = cos(lonRot)
+    sinlonr = sin(lonRot)
+    coslon  = cos(lon)
+    sinlon  = sin(lon)
+    if ( .not. utl_isEqual(lat, 0.0d0) ) then
+      rsinlat = 1.0d0/sin(lat)
     else
       call utl_abort('uvr_rotateWind_tl: cannot be used for points on the equator')
     end if
@@ -463,8 +463,8 @@ module windRotation_mod
     sinlonr = sin(LonRot)
     coslon  = cos(Lon)
     sinlon  = sin(Lon)
-    if ( Lat /= 0.0d0 ) then
-      rsinlat = 1.0d0/sin(Lat)
+    if ( .not. utl_isEqual(lat,0.0d0) ) then
+      rsinlat = 1.0d0/sin(lat)
     else
       call utl_abort('uvr_rotateWind_ad: cannot be used for points on the equator')
     end if
@@ -567,8 +567,8 @@ module windRotation_mod
     plat = asin(pcart(3))
     plat = plat * MPC_DEGREES_PER_RADIAN_R8
 
-    if ( pcart(1) == 0.d0 ) then
-       if ( pcart(2) == 0.d0 ) then  ! point is located at the pole
+    if ( utl_isEqual(pcart(1), 0.d0) ) then
+       if (  utl_isEqual(pcart(2), 0.d0) ) then  ! point is located at the pole
           plon = 0.0d0  ! can be any longitude... set it to zero simply.
        else if ( pcart(2) > 0.0d0 ) then
           plon = 90.0d0
