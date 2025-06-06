@@ -7,6 +7,7 @@ module obsDiagFiles_mod
   !
   use midasMpi_mod
   use fSQLite
+  use codePrecision_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use utilities_mod
@@ -272,9 +273,9 @@ module obsDiagFiles_mod
           OMP = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex)
           FGE = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
           ASS = obs_bodyElem_i(obsdat, OBS_ASS , bodyIndex)
-          if ((ASS == obs_assimilated) .and.     &
-              (OMP /= obs_missingValue_R) .and.  &
-              (FGE /= obs_missingValue_R)) writeHeader = .true.
+          if ((ASS == obs_assimilated) .and.                      &
+              (.not. utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) .and.  &
+              (.not. utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) ) writeHeader = .true.
         end do BODYCHECK
         if (.not. writeHeader) cycle HEADER
       end if
@@ -308,8 +309,8 @@ module obsDiagFiles_mod
         ! skip obs if it was not assimilated
         if (onlyAssimObs) then
           if ((ASS /= obs_assimilated) .or.     &
-              (OMP == obs_missingValue_R) .or.  &
-              (FGE == obs_missingValue_R)) cycle BODY
+              ( utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) .or.  &
+              ( utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R))) cycle BODY
         end if
 
         if (obs_columnActive_RB(obsdat, OBS_SIGI)) then
@@ -367,57 +368,57 @@ module obsDiagFiles_mod
         end if
         call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
         call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
-        if (OMA == obs_missingValue_R) then
+        if ( utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R) ) then
           call fSQL_bind_param(stmtData, param_index = 8)
           call fSQL_bind_param(stmtData, param_index = 9)
         else
           call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
           call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
         end if
-        if (OMP == obs_missingValue_R) then
+        if ( utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R) ) then
           call fSQL_bind_param(stmtData, param_index = 10)
         else
           call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
         end if
-        if (FGE == obs_missingValue_R) then
+        if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 11)
         else
           call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
         end if
-        if (OER == obs_missingValue_R) then
+        if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 12)
         else
           call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)
         end if
-        if (ensInnovStdDev == obs_missingValue_R) then
+        if (utl_isEqual(real(ensInnovStdDev, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 13)
         else
           call fSQL_bind_param(stmtData, param_index = 13, real_var = ensInnovStdDev)
         end if
-        if (ensObsErrStdDev == obs_missingValue_R) then
+        if (utl_isEqual(real(ensObsErrStdDev, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 14)
         else
           call fSQL_bind_param(stmtData, param_index = 14, real_var = ensObsErrStdDev)
         end if
-        if (zhad == obs_missingValue_R) then
+        if (utl_isEqual(real(zhad, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 15)
         else
           call fSQL_bind_param(stmtData, param_index = 15, real_var = zhad)
         end if
-        if (latData == obs_missingValue_R) then
+        if (utl_isEqual(real(latData, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 16)
         else
           latData = latData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 16, real_var = latData)
         end if
-        if (lonData == obs_missingValue_R) then
+        if (utl_isEqual(real(lonData, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 17)
         else
           lonData = lonData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 17, real_var = lonData)
         end if
         if (addFSOdiag) then
-          if (fso == obs_missingValue_R) then
+          if (utl_isEqual(real(fso, pre_obsReal), obs_missingValue_R)) then
             call fSQL_bind_param(stmtData, param_index = 18)
           else
             call fSQL_bind_param(stmtData, param_index = 18, real_var = fso)
