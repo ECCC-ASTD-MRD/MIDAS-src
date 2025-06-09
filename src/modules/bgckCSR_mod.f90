@@ -19,7 +19,8 @@ module bgckCSR_mod
   ! Public functions/subroutines
   public :: csrbg_bgCheckCSR
 
-  real, parameter :: csrbg_realMissing=-99.
+  real,    parameter :: csrbg_realMissing=-99. ! This should be corresponding to the same value as 'NULL_COLUMN_VALUE_R' in 'ObsSpaceData_mod' but it is not!
+  integer, parameter :: csrbg_intMissing=-10   ! This corresponds to the same value as 'NULL_COLUMN_VALUE_I' in 'ObsSpaceData_mod'
   real, parameter :: csrbg_ompThreshold = 4.2
   integer, parameter :: maxNumsat  = 20     ! nb max de satellites
   integer, parameter :: maxNumchan = 15     ! nb max de canaux
@@ -314,7 +315,7 @@ contains
 
     do channelIndex=1, numObsToProcess*actualNumChannel
       if (.not. utl_isEqual(obsTb(channelIndex),csrbg_realMissing) ) isTbPresent(channelIndex) = .true.
-      if (cloudAmount(channelIndex) /= csrbg_realMissing .and. &
+      if ( cloudAmount(channelIndex) /= csrbg_intMissing .and. &
           cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
         isClearSky(channelIndex) = .true.
       end if
