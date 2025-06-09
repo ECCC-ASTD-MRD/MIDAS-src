@@ -425,7 +425,7 @@ contains
           meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
           meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
 
-          if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+          if ( .not. utl_isEqual(meanCovarianceSquare(bin,k),0.d0) ) then
             ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
             localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
                  t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
@@ -438,7 +438,7 @@ contains
             localizationFunctions(2,bin,k) = 0.d0
           end if
           ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
-          if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+          if ( .not. utl_isEqual(meanCorrelSquare(bin,k),0.d0) ) then
             localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
                  (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
           else
@@ -890,7 +890,7 @@ contains
             meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
             meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
 
-            if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+            if ( .not. utl_isEqual(meanCovarianceSquare(bin,k),0.d0) ) then
               ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
               localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
                    t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
@@ -903,7 +903,7 @@ contains
               localizationFunctions(2,bin,k) = 0.d0
             end if
             ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
-            if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+            if ( .not. utl_isEqual(meanCorrelSquare(bin,k),0.d0) ) then
               localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
                    (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
             else
