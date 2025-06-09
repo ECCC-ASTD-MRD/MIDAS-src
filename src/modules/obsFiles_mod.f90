@@ -868,7 +868,7 @@ contains
 
     if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_fileName(1) )
 
-    call mmpi_bcast(obsFileType, procID)
+    call mmpi_bcast(obsFileType, len(obsFileType), procID_opt=procID)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType

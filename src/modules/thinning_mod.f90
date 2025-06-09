@@ -1088,13 +1088,13 @@ contains
     allocate(obsStepIndexMpi(countObsInMpi))
     allocate(obsStnidMpi(countObsInMpi))
 
-    call intArrayToMpi(obsLon, obsLonMpi)
-    call intArrayToMpi(obsLat, obsLatMpi)
-    call intArrayToMpi(obsCodtypIndex, obsCodtypIndexMpi)
-    call intArrayToMpi(obsStepIndex, obsStepIndexMpi)
-    call intArrayToMpi(obsDelT, obsDelTMpi)
-    call logicalArrayToMpi(valid, validMpi)
-    call stringArrayToMpi(obsStnid, obsStnidMpi)
+    call mmpi_allgatherv(obsLon, obsLonMpi)
+    call mmpi_allgatherv(obsLat, obsLatMpi)
+    call mmpi_allgatherv(obsCodtypIndex, obsCodtypIndexMpi)
+    call mmpi_allgatherv(obsStepIndex, obsStepIndexMpi)
+    call mmpi_allgatherv(obsDelT, obsDelTMpi)
+    call mmpi_allgatherv(valid, validMpi)
+    call mmpi_allgatherv(obsStnid, obsStnidMpi, len(obsStnid(1)))
 
     ! Apply the thinning algorithm
     do obsIndex = 1, countObsInMpi
@@ -1793,21 +1793,21 @@ contains
     allocate(oMinusBMpi(numVars,numLevStnMpi))
     allocate(stnIdMpi(numStationMpi))
 
-    call intArrayToMpi(obsLevOffset, obsLevOffsetMpi, is_obsLevOffset_opt=.true.)
-    call intArrayToMpi(obsHeadDate, obsHeadDateMpi)
-    call intArrayToMpi(obsLaunchTime, obsLaunchTimeMpi)
-    call intArrayToMpi(stationFlags, stationFlagsMpi)
-    call realArrayToMpi(obsLat, obsLatMpi)
-    call realArrayToMpi(obsLon, obsLonMpi)
+    call obsLevOffsetToMpi(obsLevOffset, obsLevOffsetMpi)
+    call mmpi_allgatherv(obsHeadDate, obsHeadDateMpi)
+    call mmpi_allgatherv(obsLaunchTime, obsLaunchTimeMpi)
+    call mmpi_allgatherv(stationFlags, stationFlagsMpi)
+    call mmpi_allgatherv(obsLat, obsLatMpi)
+    call mmpi_allgatherv(obsLon, obsLonMpi)
     do varIndex = 1, numTraj
-      call intArrayToMpi(trajFlags(varIndex,:), trajFlagsMpi(varIndex,:))
+      call mmpi_allgatherv(trajFlags(varIndex,:), trajFlagsMpi(varIndex,:))
     end do
     do varIndex = 1, numVars
-      call intArrayToMpi(obsFlags(varIndex,:), obsFlagsMpi(varIndex,:))
-      call realArrayToMpi(obsValues(varIndex,:), obsValuesMpi(varIndex,:))
-      call realArrayToMpi(oMinusB(varIndex,:), oMinusBMpi(varIndex,:))
+      call mmpi_allgatherv(obsFlags(varIndex,:), obsFlagsMpi(varIndex,:))
+      call mmpi_allgatherv(obsValues(varIndex,:), obsValuesMpi(varIndex,:))
+      call mmpi_allgatherv(oMinusB(varIndex,:), oMinusBMpi(varIndex,:))
     end do
-    call stringArrayToMpi(stnId,stnIdMpi)
+    call mmpi_allgatherv(stnId, stnIdMpi, len(stnId(1)))
 
     ! set stnIdMpi to 'NOT_VALID' for rejected duplicate stations
     call raobs_check_duplicated_stations( stnIdMpi, obsLevOffsetMpi, obsLatMpi, obsLonMpi, &
@@ -1832,7 +1832,7 @@ contains
     allocate(procIndexes(numStation))
     allocate(procIndexesMpi(numStationMpi))
     procIndexes(:) = mmpi_myid
-    call intArrayToMpi(procIndexes, procIndexesMpi)
+    call mmpi_allgatherv(procIndexes, procIndexesMpi)
     levStnIndex = 0
     do stationIndexMpi = 1, numStationMpi
       if (procIndexesMpi(stationIndexMpi) == mmpi_myid) then
@@ -1981,137 +1981,47 @@ contains
   !---------------------------------------------------------------------
 
   !--------------------------------------------------------------------------
-  ! stringArrayToMpi
+  ! obsLevOffsetToMpi
   !--------------------------------------------------------------------------
-  subroutine stringArrayToMpi(array, arrayMpi)
-    !
-    ! :Purpose: Do the equivalent of mpi_allgatherv for a string array
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in)  :: array(:)
-    character(len=*), intent(out) :: arrayMpi(:)
-
-    ! Locals:
-    integer :: arrayIndex, charIndex, lenString
-    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs)
-    integer, allocatable :: stringInt(:), stringIntMpi(:)
-
-    nsize = size(array)
-    call mmpi_allGather(nsize, allnsize)
-    nsizeMpi = sum(allnsize(:))
-
-    allocate(stringInt(nsize))
-    allocate(stringIntMpi(nsizeMpi))
-
-    lenString = len(array(1))
-    do charIndex = 1, lenString
-      do arrayIndex = 1, nsize
-        stringInt(arrayIndex) = iachar(array(arrayIndex)(charIndex:charIndex))
-      end do
-
-      call intArrayToMpi(stringInt, stringIntMpi)
-
-      do arrayIndex = 1, nsizeMpi
-        arrayMpi(arrayIndex)(charIndex:charIndex) = achar(stringIntMpi(arrayIndex))
-      end do
-    end do
-
-    deallocate(stringInt)
-    deallocate(stringIntMpi)
-
-  end subroutine stringArrayToMpi
-
-  !--------------------------------------------------------------------------
-  ! intArrayToMpi
-  !--------------------------------------------------------------------------
-  subroutine intArrayToMpi(array, arrayMpi, is_obsLevOffset_opt)
+  subroutine obsLevOffsetToMpi(array, arrayMpi)
     !
     ! :Purpose: Do the equivalent of mpi_allgatherv for an integer array,
-    !           but with special treatment if array of obsLevOffset.
+    !           with special treatment for obsLevOffset.
     !
     implicit none
 
     ! Arguments:
     integer,           intent(in)  :: array(:)
     integer,           intent(out) :: arrayMpi(:)
-    logical, optional, intent(in)  :: is_obsLevOffset_opt
 
     ! Locals:
     integer :: arrayIndex
     integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
-    logical :: is_obsLevOffset
     integer, allocatable :: numLevels(:), numLevelsMpi(:)
 
-    if (present(is_obsLevOffset_opt)) then
-      is_obsLevOffset = is_obsLevOffset_opt
-    else
-      is_obsLevOffset = .false.
-    end if
+    nsize = size(array)-1
+    call mmpi_gathervDisplacements(nsize, allnsize, displs)
+    nsizeMpi = sum(allnsize(:))
 
-    if (is_obsLevOffset) then
-      ! special treatment is requirement for the variable "obsLevOffset"
-      nsize = size(array)-1
-      call mmpi_gathervDisplacements(nsize, allnsize, displs)
-      nsizeMpi = sum(allnsize(:))
+    allocate(numLevels(nsize))
+    allocate(numLevelsMpi(nsizeMpi))
 
-      allocate(numLevels(nsize))
-      allocate(numLevelsMpi(nsizeMpi))
-      do arrayIndex = 1, nsize
-        numLevels(arrayIndex) = array(arrayIndex+1) - array(arrayIndex)
-      end do
-      call mmpi_gatherv(numLevels, numLevelsMpi, allnsize, displs, nsize)
+    do arrayIndex = 1, nsize
+      numLevels(arrayIndex) = array(arrayIndex+1) - array(arrayIndex)
+    end do
 
-      call mmpi_bcast(numLevelsMpi, nsizeMpi)
-      arrayMpi(1) = 0
-      do arrayIndex = 1, nsizeMpi
-        arrayMpi(arrayIndex+1) = arrayMpi(arrayIndex) + numLevelsMpi(arrayIndex)
-      end do
-      deallocate(numLevels)
-      deallocate(numLevelsMpi)
-    else
-      call mmpi_gatherv(array, arrayMpi)
-      call mmpi_bcast(arrayMpi)
-    end if
+    call mmpi_gatherv(numLevels, numLevelsMpi, allnsize, displs, nsize)
+    call mmpi_bcast(numLevelsMpi, nsizeMpi)
 
-  end subroutine intArrayToMpi
+    arrayMpi(1) = 0
+    do arrayIndex = 1, nsizeMpi
+      arrayMpi(arrayIndex+1) = arrayMpi(arrayIndex) + numLevelsMpi(arrayIndex)
+    end do
 
-  !--------------------------------------------------------------------------
-  ! realArrayToMpi
-  !--------------------------------------------------------------------------
-  subroutine realArrayToMpi(array, arrayMpi)
-    !
-    ! :Purpose: Do the equivalent of mpi_allgatherv for a real array,
-    !
-    implicit none
+    deallocate(numLevels)
+    deallocate(numLevelsMpi)
 
-    ! Arguments:
-    real(4), intent(in)  :: array(:)
-    real(4), intent(out) :: arrayMpi(:)
-
-    call mmpi_gatherv(array, arrayMpi)
-    call mmpi_bcast(arrayMpi)
-
-  end subroutine realArrayToMpi
-
-  !--------------------------------------------------------------------------
-  ! logicalArrayToMpi
-  !--------------------------------------------------------------------------
-  subroutine logicalArrayToMpi(array, arrayMpi)
-    !
-    ! :Purpose: Do the equivalent of mpi_allgatherv for a logical array,
-    !
-    implicit none
-
-    ! Arguments:
-    logical, intent(in)  :: array(:)
-    logical, intent(out) :: arrayMpi(:)
-
-    call mmpi_gatherv(array, arrayMpi)
-    call mmpi_bcast(arrayMpi)
-
-  end subroutine logicalArrayToMpi
+  end subroutine obsLevOffsetToMpi
 
   !--------------------------------------------------------------------------
   ! raobs_check_duplicated_stations
@@ -8162,7 +8072,7 @@ contains
     call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
     call mmpi_allGather(obsValue,      obsValueMpi)
     call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
-    call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId))
+    call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId(1)))
 
     call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
     call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
