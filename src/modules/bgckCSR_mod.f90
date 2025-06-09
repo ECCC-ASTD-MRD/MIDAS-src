@@ -313,7 +313,7 @@ contains
     nonCorrectedData = .false.
 
     do channelIndex=1, numObsToProcess*actualNumChannel
-      if (obsTb(channelIndex) /= csrbg_realMissing) isTbPresent(channelIndex) = .true.
+      if (.not. utl_isEqual(obsTb(channelIndex),csrbg_realMissing) ) isTbPresent(channelIndex) = .true.
       if (cloudAmount(channelIndex) /= csrbg_realMissing .and. &
           cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
         isClearSky(channelIndex) = .true.
