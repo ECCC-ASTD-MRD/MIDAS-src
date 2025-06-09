@@ -1936,9 +1936,6 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
 
-    ! Locals:
-    integer, parameter :: ndim=1
-
     ! Check for the presence of CH observations
     availableOMPE = '    '
     if ( .not.obs_famExist(obsSpaceData,'CH',localMPI_opt=.true.) ) return
