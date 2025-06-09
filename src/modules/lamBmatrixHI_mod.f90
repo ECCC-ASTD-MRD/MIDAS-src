@@ -1204,7 +1204,7 @@ contains
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
               do i = myLonBeg, myLonEnd
-                field_r4(i,j,k) = gd(i,j,kgd)
+                field_r4(i,j,k) = real(gd(i,j,kgd),4)
               end do
             end do
           end do
