@@ -2305,7 +2305,7 @@ module obsSpaceErrorStdDev_mod
     integer, parameter :: minCount = 5
     real(8), parameter :: stdScale = 2.0
     real(8), parameter :: minVal = 1.0d-20
-    real(4) :: rseries(maxCount)
+    real(8) :: rseries(maxCount)
     integer :: ip(maxCount)
 
     ! Loop over all obs types
