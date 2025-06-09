@@ -793,7 +793,7 @@ contains
 
     ! Locals:
     integer              :: timeStep, myLatBegIgnore, myLatEndIgnore
-    real(8), allocatable :: xout_transpose(:,:)
+    real(8), allocatable :: xout_transpose(:,:), xout_diffused(:,:), xout_transpose_diffused(:,:)
 
     ! compute Csqrt
 
@@ -811,25 +811,32 @@ contains
       myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
       xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
     end if
-    write(*,*) 'min/maxval xout=', minval(xout),maxval(xout)
+    write(*,*) 'diff_Csqrt: min/maxval xout=', minval(xout),maxval(xout)
 
+    allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
     if ( diff(diffID)%useImplicit ) then
-      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
-      do timeStep = 1, diff(diffID)%numt
-        call diffusion1x_implicit( diffID, xout, xout )
+      allocate(xout_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xout_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
 
-        call transposeLatToLonBands( diffID, xout, xout_transpose )
-        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
+      do timeStep = 1, diff(diffID)%numt
+        call diffusion1x_implicit  ( diffID, xout,           xout_diffused )
+        call transposeLatToLonBands( diffID, xout_diffused,  xout_transpose_diffused )
+        call diffusion1y_implicit  ( diffID, xout_transpose_diffused, xout_transpose )
         call transposeLonToLatBands( diffID, xout_transpose, xout )
       end do
+
       deallocate(xout_transpose)
+      deallocate(xout_transpose_diffused)
     else
-      call diffusion_explicit ( diffID, xout, xout )
+      call diffusion_explicit ( diffID, xout, xout_diffused )
+      xout(:,:) = xout_diffused(:,:)
     end if
 
     xout(:,:) = xout(:,:) *  &
                 diff(diffID)%Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                      diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+
+    deallocate(xout_diffused)
 
   end subroutine diff_Csqrt
 
@@ -845,7 +852,7 @@ contains
 
     ! Locals:
     integer              :: timeStep
-    real(8), allocatable :: xout_transpose(:,:)
+    real(8), allocatable :: xout_transpose(:,:), xout_diffused(:,:), xout_transpose_diffused(:,:)
 
     ! compute Csqrtadj
 
@@ -854,23 +861,30 @@ contains
                                                 diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     xout(:,:) = xout(:,:) * diff(diffID)%Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                               diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
-    if ( diff(diffID)%useImplicit ) then
-      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
-      do timeStep = 1, diff(diffID)%numt
-        call transposeLatToLonBands( diffID, xout, xout_transpose )
-        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
-        call transposeLonToLatBands( diffID, xout_transpose, xout )
 
-        call diffusion1x_implicit( diffID, xout, xout )
+    allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
+
+    if ( diff(diffID)%useImplicit ) then
+      allocate(xout_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xout_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      do timeStep = 1, diff(diffID)%numt
+        call transposeLatToLonBands( diffID, xout,           xout_transpose )
+        call diffusion1y_implicit  ( diffID, xout_transpose, xout_transpose_diffused )
+        call transposeLonToLatBands( diffID, xout_transpose_diffused, xout_diffused  )
+        call diffusion1x_implicit  ( diffID, xout_diffused,  xout )
       end do
       deallocate(xout_transpose)
+      deallocate(xout_transpose_diffused)
     else
-      call diffusion_explicit( diffID, xout, xout )
+      call diffusion_explicit( diffID, xout, xout_diffused )
+      xout(:,:) = xout_diffused(:,:)
     end if
+
+    deallocate(xout_diffused)
 
     xout(:,:) = xout(:,:) * &
                 diff(diffID)%Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                     diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+                                   diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrtadj
 
@@ -1016,6 +1030,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    ! We need first to copy 'xin' in 'xout'
+    xout(:,:) = xin(:,:)
+
     do iterIndex = 1, diff(diffID)%numIterImp
 
       !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
@@ -1081,6 +1098,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    ! We need first to copy 'xin' in 'xout'
+    xout(:,:) = xin(:,:)
+
     do iterIndex = 1, diff(diffID)%numIterImp
 
       !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,dp)
@@ -1110,7 +1130,7 @@ contains
     end do
 
     do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
-      xout( lonIndex, 1 )                    = xin ( lonIndex, 1 )
+      xout( lonIndex, 1 )                = xin ( lonIndex, 1 )
       xout( lonIndex, diff (diffID)%nj ) = xin ( lonIndex, diff (diffID)%nj )
     end do
 
