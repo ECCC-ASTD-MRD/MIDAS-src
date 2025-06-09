@@ -764,9 +764,9 @@ contains
     character(len=4)   :: cmyidx, cmyidy
     integer            :: tovsCodeTypeListSize, tovsCodeTypeList(ninst)
     integer            :: tovsFileNameListSize
-    character(len=20)  :: tovsFileNameList(30)
-    character(len=256) :: fileName
-    character(len=256) :: dirName
+    character(len=codtyp_name_length) :: tovsFileNameList(30)
+    character(len=codtyp_name_length) :: fileName
+    character(len=256) :: dirName, fullFileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
     logical :: fromGenCoeff
 
@@ -872,10 +872,10 @@ contains
           end if
         end if
         ! Construct full path of sqlite files from genCoeff
-        fileName = trim(dirName) // '/bcr' // trim(tovsFileNameList(fileIndex)) // '_' // trim(fileNameExtension)
+        fullFileName = trim(dirName) // '/bcr' // trim(tovsFileNameList(fileIndex)) // '_' // trim(fileNameExtension)
 
-        call fSQL_open(db(fileIndex), fileName, stat)
-        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)
+        call fSQL_open(db(fileIndex), fullFileName, stat)
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fullFileName), fSQL_error(stat), len_trim(fullFileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')
 
         ! Create the tables
@@ -3952,7 +3952,7 @@ contains
     ! Arguments:
     integer, intent(in) :: codeType
     ! Result:
-    character(len=20)   :: fileName
+    character(len=codtyp_name_length) :: fileName
 
     if (codtyp_get_name(codeType) == 'radianceclear') then
       fileName  = 'csr'
