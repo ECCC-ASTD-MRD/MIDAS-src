@@ -358,7 +358,7 @@ module backgroundCheck_mod
           do i_oth = bodyIndex_start, bodyIndex
             obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
             zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEVV .and. zslev == zlev ) then
+            if ( obsVarno == BUFR_NEVV .and. utl_isEqual(zslev,zlev) ) then
               bodyIndex_v = i_oth
               found_v = .true.
             end if
@@ -372,7 +372,7 @@ module backgroundCheck_mod
           do i_oth = bodyIndex_start, bodyIndex
             obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
             zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEUU .and. zslev == zlev ) then
+            if ( obsVarno == BUFR_NEUU .and. utl_isEqual(zslev,zlev) ) then
               bodyIndex_u = i_oth
               found_u = .true.
             end if
