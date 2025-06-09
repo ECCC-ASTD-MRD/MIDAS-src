@@ -199,7 +199,7 @@ contains
     end if
 
     do channelIndex=1, ssbg_maxNumChan
-      Remapped_SSMI_Ta(channelIndex) = AP(channelIndex) + BP(channelIndex)*(tbx(channelIndex)+CP(channelIndex))
+      Remapped_SSMI_Ta(channelIndex) = real(AP(channelIndex) + BP(channelIndex)*(tbx(channelIndex)+CP(channelIndex)),4)
     end do
 
   end subroutine f16tdr_remapping
@@ -236,8 +236,10 @@ contains
 
     ! All channel antenna gain correction. Note the cross-polarization effects on antenna gain correction.
     do channelIndex=1, 24
-      CP(channelIndex) = 1.0/( AP(channelIndex)*(1.0 - BP(channelIndex)) )
-      DP(channelIndex) = CP(channelIndex) * BP(channelIndex)
+      CP(channelIndex) = real(1.d0/( AP(channelIndex)*(1.d0 - BP(channelIndex)) ), 4)
+      ! TODO: simplify the floating point precision conversions
+      !     DP(channelIndex) = CP(channelIndex) * real(BP(channelIndex),4)
+      DP(channelIndex) = real( real(CP(channelIndex),8) * BP(channelIndex), 4)
       Tb(channelIndex) = CP(channelIndex)*Ta(channelIndex)
     end do
 
@@ -1565,11 +1567,14 @@ contains
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
-      obsLatitude(1)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-      obsLongitude(1) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
-      obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R8
+      obsLatitude(1)  = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+      obsLongitude(1) = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
+      ! TODO: simplify the floating point precision conversions
+      !     obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R4
+      !     obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R4
+      obsLongitude(1) = real( real(obsLongitude(1),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
       if( obsLongitude(1) > 180. ) obsLongitude(1) = obsLongitude(1) - 360.
-      obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R8
+      obsLatitude(1)  = real( real(obsLatitude(1),8) *MPC_DEGREES_PER_RADIAN_R8, 4)
       call wentz_sfctype_ssmis(1, obsLatitude, obsLongitude, landSeaQualifier)
       call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
       call obs_headSet_r(obsSpaceData, OBS_SZA, headerIndex,satZenithAngle)
@@ -1789,18 +1794,21 @@ contains
     ! Lecture dans obsspacedata
 
     burpFileSatId                 = obs_elem_c    ( obsSpaceData, 'STID'  , headerIndex )
-    rclw(headerCompt)             = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
     ukRainObs(headerCompt)        = obs_headElem_i( obsSpaceData, OBS_RAIN, headerIndex )
     landSeaQualifier(headerCompt) = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex )
     terrainType(headerCompt)      = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex )
+    rclw(headerCompt)             = real(obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex),4)
     ! If terrain type is missing, set it to -1 for the QC programs
     if (terrainType(headerCompt) ==  99) terrainType(headerCompt) = -1
-    obsLatitude(headerCompt)      = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-    obsLongitude(headerCompt)     = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
-    satZenithAngle(headerCompt)   = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
+    obsLatitude(headerCompt)      = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLongitude(headerCompt)     = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
+    satZenithAngle(headerCompt)   = real(obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex),4)
     ! Convert lat/lon to degrees
-    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !     obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R4
+    !     obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R4
+    obsLatitude(headerCompt)  = real(real(obsLatitude (headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
+    obsLongitude(headerCompt) = real(real(obsLongitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
     if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
 
     ! To read body elements
@@ -1810,9 +1818,9 @@ contains
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       if (.not. utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex), real(ssbg_rmisg,8)) ) then
-        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex ) - obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex )
+        obsTb(currentChannelNumber) = real(obs_bodyElem_r(obsSpaceData,  OBS_VAR, bodyIndex) - obs_bodyElem_r(obsSpaceData,  OBS_BCOR, bodyIndex), 4)
       else
-        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+        obsTb(currentChannelNumber) = real(obs_bodyElem_r(obsSpaceData,  OBS_VAR, bodyIndex),4)
       end if
     end do BODY
 
@@ -2324,15 +2332,15 @@ contains
 
     ! Lecture dans obsspacedata
     burpFileSatId             = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
-    obsLatitude(headerCompt)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-    obsLongitude(headerCompt) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
+    obsLatitude(headerCompt)  = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLongitude(headerCompt) = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
 
     bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      ompTb(currentChannelNumber)    = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
+      ompTb(currentChannelNumber)    = real(obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex),4)
       obsFlags(currentChannelNumber) = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
     end do BODY
 
@@ -2340,9 +2348,12 @@ contains
       obsChannels(channelIndex) = channelIndex+tvs_channelOffset(sensorIndex)
     end do
 
+    ! TODO: simplify the floating point precision conversions
+    !    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R4
+    !    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R4
     ! Convert lat/lon to degrees
-    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    obsLatitude(headerCompt)  = real( real( obsLatitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8,4)
+    obsLongitude(headerCompt) = real( real(obsLongitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8,4)
     if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
 
     !--------------------------------------------------------------------
@@ -2460,7 +2471,9 @@ contains
     HEADER0: do obsChanIndex = 1, numObsToProcess*actualNumChannel
 
       channelNumber = obsChannels(obsChanIndex)
-      productRogueSTD = rogueFac(channelNumber) * oer_toverrst(channelNumber,sensorIndex)
+      ! TODO: simplify the floating point precision conversions
+      !    productRogueSTD = rogueFac(channelNumber) * real(oer_toverrst(channelNumber,sensorIndex),4)
+      productRogueSTD = real( real(rogueFac(channelNumber),8) * oer_toverrst(channelNumber,sensorIndex), 4)
 
       if ( .not. flg_flagIsOn(obsFlags(obsChanIndex),flg_07rejVarious) ) then
 
@@ -2516,7 +2529,9 @@ contains
 
       ! AMSU-A like ch. 1-4
       if ( sum(flagsInovQc(chanIndex1:chanIndex4)) /= 4 ) then
-        productRogueSTD = factorCh1 * oer_toverrst(1,sensorIndex)
+        ! TODO: simplify the floating point precision conversions
+        !     productRogueSTD = factorCh1 * real(oer_toverrst(1,sensorIndex),4)
+        productRogueSTD = real( real(factorCh1,8) * oer_toverrst(1,sensorIndex), 4)
         if ( abs(ompTb(chanIndex1)) >= productRogueSTD ) then
           do chanIndex = chanIndex1, chanIndex4
             channelNumber = obsChannels(chanIndex)
