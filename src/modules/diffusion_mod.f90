@@ -97,7 +97,7 @@ contains
     real(8), allocatable :: kappa(:,:)
     real(8), allocatable :: W(:,:)
     real(8), allocatable :: m(:,:)
-    real(8), allocatable :: xin(:,:), xin_transpose(:,:)
+    real(8), allocatable :: xin(:,:), xin_transpose(:,:), xin_diffused(:,:), xin_transpose_diffused(:,:)
     real(8), allocatable :: lambdaLocal(:,:)    ! auxiliary variable to MPI_ALLREDUCE of diff%Lambda
     real(4), allocatable :: lambdaLocal_r4(:,:) ! auxiliary variable to save diff%Lambda in fst file
 
@@ -456,6 +456,10 @@ contains
       lambdaLocal(:,:)    = 0.0d0
       lambdaLocal_r4(:,:) = 0.0d0
 
+      allocate(xin_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xin_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xin_diffused          (myLonBeg : myLonEnd, myLatBeg : myLatEnd))
+
       SAMPLE: do sampleIndex = 1, numberSamples
 
         if (modulo(sampleIndex, 100) == 0) write(*,*) 'diff_setup: Computing sample: ', sampleIndex
@@ -468,18 +472,16 @@ contains
 
         if (useImplicit) then
 
-          allocate(xin_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
           do timeStep = 1, diff(diffID)%numt
-            call diffusion1x_implicit( diffID, xin, xin )
-            call transposeLatToLonBands( diffID, xin, xin_transpose )
-            call diffusion1y_implicit( diffID, xin_transpose, xin_transpose )
-            call transposeLonToLatBands(diffID, xin_transpose, xin)
+            call diffusion1x_implicit  (diffID, xin,                    xin_diffused)
+            call transposeLatToLonBands(diffID, xin_diffused,           xin_transpose)
+            call diffusion1y_implicit  (diffID, xin_transpose,          xin_transpose_diffused)
+            call transposeLonToLatBands(diffID, xin_transpose_diffused, xin_diffused)
           end do
-          deallocate(xin_transpose)
 
         else
 
-          call diffusion_explicit(diffID, xin, xin)
+          call diffusion_explicit(diffID, xin, xin_diffused)
 
         end if
 
@@ -487,12 +489,16 @@ contains
           do lonIndex = myLonBeg, myLonEnd
 
             diff(diffID)%Lambda(lonIndex, latIndex) = diff(diffID)%Lambda(lonIndex, latIndex) + &
-                                                      xin(lonIndex, latIndex) * xin(lonIndex, latIndex)
+                                                      xin_diffused(lonIndex, latIndex) * xin_diffused(lonIndex, latIndex)
 
           end do
         end do
 
       end do SAMPLE
+
+      deallocate(xin_transpose)
+      deallocate(xin_diffused)
+      deallocate(xin_transpose_diffused)
 
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
