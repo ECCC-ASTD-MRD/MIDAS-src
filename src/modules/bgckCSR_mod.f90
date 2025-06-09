@@ -263,22 +263,22 @@ contains
     !
     ! Header elements
     !
-    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
-    satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
-    obsDate(headerCompt)               = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
-    obsHour(headerCompt)               = obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex )
+    burpFileSatId                      =      obs_elem_c    ( obsSpaceData, 'STID' , headerIndex)
+    obsDate(headerCompt)               =      obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex)
+    obsHour(headerCompt)               =      obs_headElem_i( obsSpaceData, OBS_ETM, headerIndex)
+    satZenithAngle(headerCompt)        = real(obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex),4)
     !
     ! Body elements
     !
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - & 
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - &
                              tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
-      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
-      cloudAmount(currentChannelNumber)    = obs_bodyElem_i( obsSpaceData, OBS_CLA, bodyIndex)
+      obsFlags(currentChannelNumber)       =      obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex)
+      cloudAmount(currentChannelNumber)    =      obs_bodyElem_i( obsSpaceData, OBS_CLA, bodyIndex)
+      obsTb(currentChannelNumber)          = real(obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex),4)
+      ompTb(currentChannelNumber)          = real(obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex),4)
 
     end do BODY
 
@@ -336,7 +336,7 @@ contains
       if ( .not. oer_tovutil(obsChannels(channelIndex), sensorIndex) == 0) then
         isToAssim(channelIndex) = .true.
       end if
-      errorThreshold = oer_toverrst(obsChannels(channelIndex), sensorIndex)*csrbg_ompThreshold
+      errorThreshold = real(oer_toverrst(obsChannels(channelIndex), sensorIndex)*csrbg_ompThreshold,4)
       if (abs(ompTb(channelIndex)) > errorThreshold) ompOutOfRange(channelIndex) = .true.
     end do
 
