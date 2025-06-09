@@ -4117,13 +4117,16 @@ contains
     logical :: readGlaceMask
 
     ! lat/lon
-    obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
-    obsLon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
+    obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLon = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
 
     ! Convert lat/lon to degrees
-    obsLon = obsLon * MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !    obsLon = obsLon * MPC_DEGREES_PER_RADIAN_R4
+    !    obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R4
+    obsLon = real( real(obsLon,8) * MPC_DEGREES_PER_RADIAN_R8,4)
     if (obsLon > 180.) obsLon = obsLon - 360.
-    obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
+    obsLat = real( real(obsLat,8) * MPC_DEGREES_PER_RADIAN_R8,4)
 
     ! STEP 1: READ MT, GL and MG from the FST FILE
     readGlaceMask = .true.
@@ -4406,13 +4409,16 @@ contains
     integer, external :: fstouv, fstfrm
     integer :: idum1, idum2, idum3
 
-    obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
-    obsLon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
+    obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLon = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
 
     ! Convert lat/lon to degrees
-    obsLon = obsLon * MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !    obsLon = obsLon * MPC_DEGREES_PER_RADIAN_R4
+    !    obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R4
+    obsLon = real( real(obsLon,8) * MPC_DEGREES_PER_RADIAN_R8,4)
     if (obsLon > 180.) obsLon = obsLon - 360.
-    obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
+    obsLat = real( real(obsLat,8) * MPC_DEGREES_PER_RADIAN_R8,4)
 
     ! Allocate space for arrays holding values on mesh grid pts.
     allocate(latmesh(mxlat*mxlon))
