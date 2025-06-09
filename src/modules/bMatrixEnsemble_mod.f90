@@ -2199,7 +2199,9 @@ CONTAINS
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
         if (gsv_getDataKind(statevector_out) == 4) then
-          increment_out_r4(:,:,lev2,stepIndex2) = increment_out_r4(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
+          ! TODO: simplify the floating point precision conversions
+          !  increment_out_r4(:,:,lev2,stepIndex2) = increment_out_r4(:,:,lev2,stepIndex2) + real(increment_out2(stepIndex2,:,:),4)
+          increment_out_r4(:,:,lev2,stepIndex2) = real(real(increment_out_r4(:,:,lev2,stepIndex2),8) + increment_out2(stepIndex2,:,:), 4)
         else
           increment_out_r8(:,:,lev2,stepIndex2) = increment_out_r8(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
         end if
