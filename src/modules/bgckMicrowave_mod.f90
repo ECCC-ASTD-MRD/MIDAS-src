@@ -1881,7 +1881,6 @@ contains
 
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 30
-    real(8), parameter :: cloudyClwThreshold = 0.3d0
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
@@ -3529,7 +3528,6 @@ contains
     integer,              intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
 
     ! Locals:
-    integer, parameter :: maxScanAngleAMSU = 96
     integer, parameter :: ilsmOpt = 1    ! OPTION for values of MG (land/sea mask) and LG (ice)
                                          !  at each observation point using values on 5x5 mesh
                                          !  centered at each point.
@@ -3814,7 +3812,6 @@ contains
     logical,               intent(in)    :: lastHeader         ! active if last header
 
     ! Locals:
-    integer, parameter :: maxScanAngleAMSU = 98
     integer, parameter :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice)
                                         !   at each observation point using values on 5x5 mesh
                                         !   centered at each point.
@@ -4092,7 +4089,7 @@ contains
     integer,          intent(in)    :: headerIndex  ! current header Index
 
     ! Locals:
-    integer, parameter :: MXLON = 5, MXLAT = 5, MXELM = 40
+    integer, parameter :: MXLON = 5, MXLAT = 5
     real(4), parameter :: DLAT = 0.4, DLON = 0.6
     real(4), allocatable, save  :: GL(:)   ! Modele Glace de Mer (GL)
     real(4), allocatable, save  :: MG(:)   ! Modele Masque Terre-Mer (MG)
