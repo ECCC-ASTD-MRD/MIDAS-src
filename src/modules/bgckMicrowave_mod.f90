@@ -452,7 +452,7 @@ contains
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     if (mwbg_resetQc) return
     testIndex = 10
@@ -505,7 +505,7 @@ contains
     integer :: numFilteringTest, indexFilteringTest, testIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 1
 
@@ -565,7 +565,7 @@ contains
     ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 2
 
@@ -613,7 +613,7 @@ contains
     ! Locals:
     integer :: testIndex, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex)
     terrainTypeIndice = obs_headElem_i(obsSpaceData, OBS_TTYP, headerIndex)
@@ -665,7 +665,7 @@ contains
     ! Locals:
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     satScanPosition = obs_headElem_i(obsSpaceData, OBS_FOV , headerIndex)
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex)
@@ -712,7 +712,7 @@ contains
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: satZenithAngle
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 5
 
@@ -767,7 +767,7 @@ contains
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: APPROXIM, ANGDif, satZenithAngle
     real(8) :: ZANGL
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 6
 
@@ -826,7 +826,7 @@ contains
     ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 7
 
@@ -877,7 +877,7 @@ contains
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     if (mwbg_resetQc) return
     testIndex = 9
@@ -929,7 +929,7 @@ contains
     integer :: testIndex, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: obsTb
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 11
     GROSSERROR = .FALSE.
@@ -989,7 +989,7 @@ contains
     real(8) :: clwUsedForQC, clwObsFGaveraged, clwDiff
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical :: surfTypeIsWater, cldPredMissing, obsTooCloudy
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 12
 
@@ -1130,7 +1130,7 @@ contains
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: drynessIndex
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical, save :: firstCall = .true.
 
     testIndex = 12
@@ -1219,7 +1219,7 @@ contains
     integer :: testIndex, INDXCAN, landQualifierIndice, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: ZSEUILSCAT, scatIndexOverWaterObs
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 13
     ZSEUILSCAT = 9.0
@@ -1288,7 +1288,7 @@ contains
     real(8) :: ZSEUILSCATICE, ZSEUILSCATL, ZSEUILSCATW
     real(8) :: scatwUsedForQcThresh, scatwObsFGaveraged, scatwUsedForQC
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, scatIndexDiff
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical :: FULLREJCT, surfTypeIsSea, cldPredMissing, obsTooCloudy
     logical, save :: firstCall = .true.
 
@@ -1462,7 +1462,7 @@ contains
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: ompTb
     logical :: SFCREJCT, surfTypeIsWater
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 14
 
@@ -1567,7 +1567,7 @@ contains
     real(8) :: sigmaObsErrUsed, scatwObsFGaveraged
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     real(8) :: ompTb
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical :: CH2OMPREJCT, ch2OmpRejectInAllsky, channelIsAllsky, surfTypeIsWater
     logical, save :: firstCall = .true.
 
@@ -1704,7 +1704,7 @@ contains
     integer :: obsChanNum, obsChanNumWithOffset
     integer :: terrainTypeIndice
     logical :: SFCREJCT
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     testIndex = 15
 
@@ -1782,7 +1782,7 @@ contains
     real(8) :: BTcloudy, simulatedCloudEffect, observedCloudEffect
     real(8) :: obsTb, btClear, ompTb
     logical :: surfTypeIsWater, rejectLowPeakingChannels
-    character(len=9) :: stnId
+    character(len=12) :: stnId
 
     integer, dimension(2), parameter :: lowPeakingChannelsList = (/ 31, 32 /)
 
@@ -2933,7 +2933,7 @@ contains
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical :: ibit
     logical, save :: firstCall = .true.
 
@@ -2994,7 +2994,7 @@ contains
     ! Locals:
     integer :: testIndex, INDXTOPO, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical, save :: firstCall = .true.
 
     testIndex = 2
@@ -3061,7 +3061,7 @@ contains
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical :: ibit
     logical, save :: firstCall = .true.
 
@@ -3140,7 +3140,7 @@ contains
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     logical :: SFCREJCT, CH2OMPREJCT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical :: ibit
     logical, save :: firstCall = .true.
 
@@ -3334,7 +3334,7 @@ contains
     real(8) :: sigmaObsErrUsed, scatwObsFGaveraged
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, ompTb
     logical :: CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical, save :: firstCall = .true.
 
     testIndex = 4
@@ -3476,7 +3476,7 @@ contains
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
-    character(len=9) :: stnId
+    character(len=12) :: stnId
     logical, save :: firstCall = .true.
 
     testIndex = 5
