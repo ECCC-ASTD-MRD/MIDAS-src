@@ -265,7 +265,7 @@ contains
     do latIndex = 1, nj - 1
       do lonIndex = 1, ni - 1
 
-        if ((diff (diffID)%mhalfy (lonIndex, latIndex) == 1.0d0) .and. (diff(diffID)%mhalfx(lonIndex, latIndex) == 1.0d0)) then
+        if ( utl_isEqual(diff(diffID)%mhalfy(lonIndex, latIndex),1.0d0) .and. utl_isEqual(diff(diffID)%mhalfx(lonIndex,latIndex), 1.0d0) ) then
 
           currentLonSpacing = cos(latr( latIndex)) * diff(diffID)%dlon
           currentLatSpacing =                        diff(diffID)%dlat
@@ -283,7 +283,7 @@ contains
     mindxy = min( mindxy, diff(diffID)%dlat )
     write(*,*) 'diff_setup: minimim grid spacing: mindxy = ', mindxy
 
-    if ( corr_len == -1 ) then
+    if ( utl_isEqual(corr_len, -1.0) ) then
 
       write(*,*) 'diff_setup: Correlation length scale 2D field will be read from the file: ', correlationLengthFileName
       call gsv_allocate(statevector, 1, hco, vco, dateStamp_opt=-1, dataKind_opt=4, &
