@@ -167,7 +167,7 @@ CONTAINS
       endif
     enddo
 
-    if ( sum(scaleFactor(1:vco_maxNumLevels)) == 0.0d0 ) then
+    if ( utl_isEqual(sum(scaleFactor(1:vco_maxNumLevels)),0.0d0) ) then
       if ( mmpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return
@@ -713,7 +713,7 @@ CONTAINS
         zfact = corvert(jk1+numVarLev,jk1+numVarLev)
         do jlat = 1, nj_l
           zcoriolis = abs(2.d0*ec_Omega*gst_getrmu(jlat,gstID))
-          if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
+          if( zfact>0.0d0 .and. .not. utl_isEqual(zcoriolis,0.0d0) ) then
             zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
           else
             zfact2 = 0.0d0
@@ -735,7 +735,7 @@ CONTAINS
           zfact = zfact+PtoT(nlev_T+1,jk1,klatPtoT)*zpsips(jk1)
         enddo
         zcoriolis = abs(2.d0*ec_Omega*gst_getrmu(jlat,gstID))
-        if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
+        if( zfact>0.0d0 .and. .not. utl_isEqual(zcoriolis,0.0d0) ) then
           zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
         else
           zfact2 = 0.0d0
