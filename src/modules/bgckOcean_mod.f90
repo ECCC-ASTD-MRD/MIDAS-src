@@ -232,7 +232,7 @@ module bgckOcean_mod
           OER = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
           codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
 
-          if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(FGE, MPC_missingValue_R8) .and. .not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs = numberObs + 1
             if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
@@ -441,7 +441,7 @@ module bgckOcean_mod
 
           OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
 
-          if (OmP /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs(swathIndex) = numberObs(swathIndex) + 1
             rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
