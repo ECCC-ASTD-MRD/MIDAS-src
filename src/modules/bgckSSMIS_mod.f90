@@ -20,7 +20,6 @@ module bgckSSMIS_mod
   public :: ssbg_computeSsmisSurfaceType
   public :: ssbg_bgCheckSSMIS
 
-  real    :: ssbg_clwQcThreshold
   logical :: ssbg_debug
 
   real,    parameter :: ssbg_realMissing=-99.
@@ -161,7 +160,7 @@ contains
     real,    intent(out) :: Remapped_SSMI_Ta(ssbg_maxNumChan) ! Remapped SSMI antenna temperature
 
     ! Locals:
-    integer, parameter :: f16_id = 1
+    ! integer, parameter :: f16_id = 1
     integer, parameter :: f17_id = 2
     integer, parameter :: f18_id = 3
     integer(2)         :: channelIndex
