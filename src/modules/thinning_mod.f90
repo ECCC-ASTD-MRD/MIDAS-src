@@ -47,7 +47,7 @@ module thinning_mod
                                                   flg_09rejBgck, &
                                                   flg_08rejBlackL, &
                                                   flg_02erroneous]
-  integer, external         :: newdate
+  integer, external :: newdate
 contains
 
   !--------------------------------------------------------------------------
@@ -572,14 +572,11 @@ contains
     ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
-    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsua'), bufr_nbt3)
 
     ! AMSU-B/MHS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
-    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsub'), bufr_nbt3)
-    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mhs'), bufr_nbt3)
 
     ! ATMS observations
     call msg_memUsage('thn_thinTovs')
@@ -588,16 +585,36 @@ contains
     else
       call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'))
     end if
-    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('atms'), bufr_nbt3)
 
     ! MWHS-2 observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
-    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mwhs2'), bufr_nbt3)
 
     ! SSMIS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+
+    ! Do super-obing if it is activated through the namelist
+
+    ! AMSU-A observations
+    call msg_memUsage('thn_thinTovs')
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsua'), bufr_nbt3)
+
+    ! AMSU-B/MHS observations
+    call msg_memUsage('thn_thinTovs')
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsub'), bufr_nbt3)
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mhs'), bufr_nbt3)
+
+    ! ATMS observations
+    call msg_memUsage('thn_thinTovs')
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('atms'), bufr_nbt3)
+
+    ! MWHS-2 observations
+    call msg_memUsage('thn_thinTovs')
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mwhs2'), bufr_nbt3)
+
+    ! SSMIS observations
+    call msg_memUsage('thn_thinTovs')
     call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('ssmis'), bufr_nbt3)
 
     call msg_memUsage('thn_thinTovs')
@@ -7924,11 +7941,12 @@ contains
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
     character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
+    logical, parameter    :: writeDiagnostics = .true.
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000
     integer                   :: numFoundSearch, resultIndex
-    type(kdtree2_result)      :: searchResults(maxNumSearch)
+    type(kdtree2_result), allocatable :: searchResults(:)
     real(kdkind)              :: maxRadiusSquared
     real(kdkind)              :: refPosition(3)
     real(kdkind), allocatable :: obsPosition3d(:,:), obsPosition3dMpi(:,:)
@@ -7945,20 +7963,47 @@ contains
       return
     end if
 
+    ! First check if any obs will likely be treated in this call
+    numGoodObs = 0
+    call obs_set_current_header_list(obsdat, trim(obsFamily))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+
+      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER0
+
+      ! Find bodyIndex for this headerIndex
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY0: do
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY0
+        if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY0
+        ! Consider all "good" obs, including those removed by thinning
+        if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, rejectFlagsExcept11)) then
+          numGoodObs = numGoodObs + 1
+        end if
+      end do BODY0
+    end do HEADER0
+    if (numGoodObs == 0) then
+      write(*,*) 'thn_superObs: no observations with this codtyp/elementID'
+      return
+    end if
+
     ! Get the list of channels for this codtyp/elementID
-    call getChannels(obsdat, channels, codtyp, elementID)
-    numChannels = size(channels)
+    allocate(channels(tvs_maxNumberOfChannels))
+    call getChannels(obsdat, channels, numChannels, codtyp, elementID)
     if (numChannels > 0) then
       if (mmpi_myid == 0) then
         write(*,*) 'thin_superObs: will compute superobs for codtyp, elementID = ', codtyp, elementID
         write(*,*) 'thin_superObs: number of channels to be processed: ', numChannels
         if (numChannels < 30) then
-          write(*,*) 'thin_superObs: channel list = ', channels(:)
+          write(*,*) 'thin_superObs: channel list = ', channels(1:numChannels)
         else
           write(*,*) 'thin_superObs: channel list is very long, first 30 = ', channels(1:30)
         end if
       end if
     else
+      deallocate(channels)
       return
     end if
 
@@ -8000,10 +8045,12 @@ contains
     allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsStnIdMpi(numHeaderMaxMpi*mmpi_nprocs))
 
-    allocate(obsLonInDeg(numHeaderMaxMpi))
-    allocate(obsLatInDeg(numHeaderMaxMpi))
-    allocate(obsLonInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
-    allocate(obsLatInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
+    if (writeDiagnostics) then
+      allocate(obsLonInDeg(numHeaderMaxMpi))
+      allocate(obsLatInDeg(numHeaderMaxMpi))
+      allocate(obsLonInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
+      allocate(obsLatInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
+    end if
 
     CHANNEL_LOOP: do channelIndex = 1, numChannels
       channel = channels(channelIndex)
@@ -8013,30 +8060,32 @@ contains
       obsPosition3dMpi(:,:) = 0.0d0
       obsValue(:)    = 0.0d0
       obsValueMpi(:) = 0.0d0
-      obsLonInDeg(:) = 0.0
-      obsLatInDeg(:) = 0.0
+      if (writeDiagnostics) then
+        obsLonInDeg(:) = 0.0
+        obsLatInDeg(:) = 0.0
+      end if
 
       ! Loop over all "good" obs locations (thinned and not thinned)
       ! These will be made globally available as input to superobing
       call obs_set_current_header_list(obsdat, trim(obsFamily))
-      HEADER0: do
+      HEADER1: do
         headerIndex = obs_getHeaderIndex(obsdat)
-        if (headerIndex < 0) exit HEADER0
+        if (headerIndex < 0) exit HEADER1
 
-        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER0
+        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER1
 
         ! Find bodyIndex for this headerIndex
         numGoodObs = 0
         bodyIndexGoodObs = 0
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY0: do
+        BODY1: do
           bodyIndex = obs_getBodyIndex(obsdat)
-          if (bodyIndex < 0) exit BODY0
+          if (bodyIndex < 0) exit BODY1
 
-          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY0
+          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
 
           if (trim(obsFamily) == 'TO') then
-            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY0
+            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY1
           end if
 
           ! Consider all "good" obs, including those removed by thinning
@@ -8044,11 +8093,11 @@ contains
             numGoodObs = numGoodObs + 1
             bodyIndexGoodObs = bodyIndex
           end if
-        end do BODY0
+        end do BODY1
 
         ! Check the number of observations for this headerIndex (should be 0 or 1)
         if (numGoodObs == 0) then
-          cycle HEADER0
+          cycle HEADER1
         else if (numGoodObs > 1) then
           call utl_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
@@ -8059,8 +8108,10 @@ contains
         obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
 
         ! For diagnostics
-        obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
-        obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+        if (writeDiagnostics) then
+          obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
+          obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+        end if
 
         ! Observed value
         obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
@@ -8074,27 +8125,31 @@ contains
         obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
 
         ! Print some diagnostics
-        call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                 obsDate, obsTime, tim_nstepobs)
-        write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
-                               channel, headerIndex, obsLonInDeg(headerIndex),  &
-                               obsLatInDeg(headerIndex), obsStepIndex_r8
-
-        if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
-          write(300+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
+        if (writeDiagnostics) then
+          call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                                   obsDate, obsTime, tim_nstepobs)
+          write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                                  channel, headerIndex, obsLonInDeg(headerIndex),  &
                                  obsLatInDeg(headerIndex), obsStepIndex_r8
+
+          if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
+            write(300+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
+                                   channel, headerIndex, obsLonInDeg(headerIndex),  &
+                                   obsLatInDeg(headerIndex), obsStepIndex_r8
+          end if
         end if
 
-      end do HEADER0
+      end do HEADER1
 
       call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
       call mmpi_allGather(obsValue,      obsValueMpi)
       call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
       call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId(1)))
 
-      call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
-      call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
+      if (writeDiagnostics) then
+        call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
+        call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
+      end if
 
       ! Create kdtree structure with all "good" obs locations (thinned and not thinned)
       nullify(tree)
@@ -8105,24 +8160,24 @@ contains
       numThinObs = 0
       numAverageObsMean = 0
       call obs_set_current_header_list(obsdat, trim(obsFamily))
-      HEADER1: do
+      HEADER2: do
         headerIndex = obs_getHeaderIndex(obsdat)
-        if (headerIndex < 0) exit HEADER1
+        if (headerIndex < 0) exit HEADER2
 
-        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER1
+        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER2
 
         ! Find bodyIndex for this headerIndex
         numSuperObs = 0
         bodyIndexSuperObs = 0
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY1: do
+        BODY2: do
           bodyIndex = obs_getBodyIndex(obsdat)
-          if (bodyIndex < 0) exit BODY1
+          if (bodyIndex < 0) exit BODY2
 
-          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
+          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY2
 
           if (trim(obsFamily) == 'TO') then
-            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY1
+            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY2
           end if
 
           ! Only consider obs left over after thinning
@@ -8130,11 +8185,11 @@ contains
             numSuperObs = numSuperObs + 1
             bodyIndexSuperObs = bodyIndex
           end if
-        end do BODY1
+        end do BODY2
 
         ! Check the number of observations for this headerIndex (should be 0 or 1)
         if (numSuperObs == 0) then
-          cycle HEADER1
+          cycle HEADER2
         else if (numSuperObs > 1) then
           call utl_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
@@ -8143,6 +8198,9 @@ contains
         refPosition = obsPosition3d(:,headerIndex)
 
         ! Find all "good" obs within specified radius of the reference obs
+        if (.not. allocated(searchResults)) then
+          allocate(searchResults(maxNumSearch))
+        end if
         call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
                                nfound=numFoundSearch, nalloc=maxNumSearch, &
                                results=searchResults)
@@ -8156,18 +8214,18 @@ contains
         ! Loop over all of the found nearby locations (includes ref position)
         numAverageObs = 0
         obsValueSuper = 0.0d0
-        HEADER2: do resultIndex = 1, numFoundSearch
+        HEADER3: do resultIndex = 1, numFoundSearch
           headerIndex2 = searchResults(resultIndex)%idx
 
           ! Check if time difference is too large between this obs and reference obs
           call difdatr(obsDateStamp(headerIndex),obsDateStampMpi(headerIndex2),refDeltaHours)
           if (abs(refDeltaHours) > maxDeltaHours) then
-            cycle HEADER2
+            cycle HEADER3
           end if
 
           ! Check if the stnId is the same, i.e. from the same satellite platform
           if (trim(obsStnId(headerIndex)) /= trim(obsStnIdMpi(headerIndex2))) then
-            cycle HEADER2
+            cycle HEADER3
           end if
 
           ! Include this obs in this superobs
@@ -8176,19 +8234,20 @@ contains
             obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
 
             ! Write some diagnostics
-            imode = -3 ! stamp to printable
-            ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
-            call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                   obsDate, obsTime, tim_nstepobs)
-
-            write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
-                                   headerIndex, headerIndex2, &
-                                   obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
-                                   obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
-                                   obsValueMpi(headerIndex2), obsStepIndex_r8, trim(obsStnIdMpi(headerIndex2))
+            if (writeDiagnostics) then
+              imode = -3 ! stamp to printable
+              ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
+              call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                                       obsDate, obsTime, tim_nstepobs)
+              write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
+                                     headerIndex, headerIndex2, &
+                                     obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
+                                     obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
+                                     obsValueMpi(headerIndex2), obsStepIndex_r8, trim(obsStnIdMpi(headerIndex2))
+            end if
           end if
 
-        end do HEADER2
+        end do HEADER3
 
         if (numAverageObs > 0) then
           obsValueSuper = obsValueSuper / real(numAverageObs,8)
@@ -8201,7 +8260,7 @@ contains
         numThinObs = numThinObs + 1
         numAverageObsMean = numAverageObsMean + numAverageObs
 
-      end do HEADER1
+      end do HEADER2
 
       ! Print some diagnostics
       if (numThinObs > 0) then
@@ -8217,6 +8276,9 @@ contains
 
     end do CHANNEL_LOOP
 
+    deallocate(channels)
+    deallocate(searchResults)
+
     deallocate(obsPosition3d)
     deallocate(obsValue)
     deallocate(obsDateStamp)
@@ -8227,17 +8289,19 @@ contains
     deallocate(obsDateStampMpi)
     deallocate(obsStnIdMpi)
 
-    deallocate(obsLonInDeg)
-    deallocate(obsLatInDeg)
-    deallocate(obsLonInDegMpi)
-    deallocate(obsLatInDegMpi)
+    if (writeDiagnostics) then
+      deallocate(obsLonInDeg)
+      deallocate(obsLatInDeg)
+      deallocate(obsLonInDegMpi)
+      deallocate(obsLatInDegMpi)
+    end if
 
   end subroutine thn_superObs
 
   !--------------------------------------------------------------------------
   ! getChannels
   !--------------------------------------------------------------------------
-  subroutine getChannels(obsdat, channels_out, codtyp, elementID)
+  subroutine getChannels(obsdat, channels, numChannels, codtyp, elementID)
     !
     ! :Purpose: Get list of channels for a specific codtyp and element ID
     !
@@ -8245,14 +8309,15 @@ contains
 
     ! Arguments:
     type(struct_obs),     intent(inout) :: obsdat
-    integer, allocatable, intent(out)   :: channels_out(:)
+    integer,              intent(out)   :: channels(:)
+    integer,              intent(out)   :: numChannels
     integer,              intent(in)    :: codtyp
     integer,              intent(in)    :: elementID
 
     ! Locals:
     integer              :: bodyIndex, numBody, numBodyMaxMpi, numBodyMpi, headerIndex
-    integer              :: channelIndex, numChannels
-    integer, allocatable :: channels(:), allChannels(:), allChannelsMpi(:)
+    integer              :: channelIndex
+    integer, allocatable :: allChannels(:), allChannelsMpi(:)
     logical              :: isUnique
 
     numBody = obs_numBody(obsdat)
@@ -8277,7 +8342,6 @@ contains
     call mmpi_allGather(allChannels, allChannelsMpi)
 
     ! Generate unique sorted list
-    allocate(channels(tvs_maxNumberOfChannels))
     channels(:) = -1
     numChannels = 0
     BODYLOOP2: do bodyIndex = 1, numBodyMpi
@@ -8298,11 +8362,6 @@ contains
 
     end do BODYLOOP2
 
-    ! Allocate array and copy just the list of found channels
-    allocate(channels_out(numChannels))
-    channels_out(:) = channels(1:numChannels)
-
-    deallocate(channels)
     deallocate(allChannels)
     deallocate(allChannelsMpi)
 
