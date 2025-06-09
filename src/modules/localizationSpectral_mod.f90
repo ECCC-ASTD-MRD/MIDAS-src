@@ -464,7 +464,7 @@ CONTAINS
       end do
 
       do totwvnb = 0, lsp%ntrunc
-         if (SumWeight(totwvnb) /= 0.d0) then
+         if ( .not. utl_isEqual(sumWeight(totwvnb), 0.d0) ) then
             lsp%LhorizSqrt(totwvnb,:) = lsp%LhorizSqrt(totwvnb,:) / SumWeight(totwvnb)
          else
             lsp%LhorizSqrt(totwvnb,:) = 0.d0
@@ -481,7 +481,7 @@ CONTAINS
             sum = sum + real(totwvnb,8) * lsp%LhorizSqrt(totwvnb,k)
          end do
          do totwvnb = 0, lsp%ntrunc
-            if ( sum /= 0.0d0 ) then
+            if (  .not. utl_isEqual(sum, 0.0d0) ) then
                lsp%LhorizSqrt(totwvnb,k) = lsp%LhorizSqrt(totwvnb,k) / sum
             else
                lsp%LhorizSqrt(totwvnb,k) = 0.d0
