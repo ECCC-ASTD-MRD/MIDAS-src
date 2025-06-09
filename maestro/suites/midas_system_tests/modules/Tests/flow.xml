@@ -19,7 +19,7 @@
   <SUBMITS sub_name="adjointTest"/>
   <SUBMITS sub_name="dfs"/>
   <SUBMITS sub_name="energyNorm"/>
-  
+
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
     <FAMILY  name="EnVar">
@@ -182,7 +182,7 @@
     <FAMILY  name="radiosonde">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>    
+    </FAMILY>
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
       <SUBMITS sub_name="UnitTest"/>
@@ -197,7 +197,7 @@
     <FAMILY  name="BgckAtms_obsDB">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY> 
+    </FAMILY>
     <SUBMITS sub_name="BgckAmsua"/>
     <FAMILY  name="BgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
@@ -206,7 +206,7 @@
     <SUBMITS sub_name="BgckAmsua_obsDB"/>
     <FAMILY  name="BgckAmsua_obsDB">
       <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>    
+      <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="BgckAmsub"/>
     <FAMILY  name="BgckAmsub">
@@ -232,7 +232,7 @@
     <FAMILY  name="BgckCsr">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>    
+    </FAMILY>
     <SUBMITS sub_name="BgckRadvel"/>
     <FAMILY  name="BgckRadvel">
       <SUBMITS sub_name="UnitTest"/>
@@ -249,12 +249,12 @@
       <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="conv_ro_bending"/>
-    <FAMILY  name="conv_ro_bending">   
+    <FAMILY  name="conv_ro_bending">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="convWBcor"/>
-    <FAMILY  name="convWBcor">   
+    <FAMILY  name="convWBcor">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -310,6 +310,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="TOVS_superobs"/>
+      <FAMILY  name="TOVS_superobs">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="TOVS_distDep"/>
       <FAMILY  name="TOVS_distDep">
         <SUBMITS sub_name="UnitTest"/>
@@ -354,7 +359,7 @@
       <FAMILY  name="thin_AL">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
-      </FAMILY>    
+      </FAMILY>
       <SUBMITS sub_name="SST"/>
       <FAMILY  name="SST">
         <SUBMITS sub_name="UnitTest"/>
@@ -384,12 +389,12 @@
     <FAMILY  name="o-p_sst">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>   
+    </FAMILY>
     <SUBMITS sub_name="o-p_diagsql"/>
     <FAMILY  name="o-p_diagsql">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY> 
+    </FAMILY>
     <SUBMITS sub_name="o-p_sfc"/>
     <FAMILY  name="o-p_sfc">
       <SUBMITS sub_name="UnitTest"/>
@@ -684,7 +689,7 @@
         <MODULE  name="UnitTest"/>
       </FAMILY>
   </FAMILY>
- 
+
   <FAMILY  name="SST">
     <SUBMITS sub_name="SSTtrial"/>
     <FAMILY  name="SSTtrial">
@@ -702,7 +707,7 @@
       <MODULE  name="UnitTest"/>
     </FAMILY>
   </FAMILY>
-  
+
   <FAMILY  name="adjointTest">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
@@ -719,7 +724,7 @@
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
    </FAMILY>
- </FAMILY> 
+ </FAMILY>
 
   <FAMILY  name="energyNorm">
     <SUBMITS sub_name="analmean"/>
