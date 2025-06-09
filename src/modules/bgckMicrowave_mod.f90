@@ -2592,9 +2592,9 @@ contains
     real(8) :: dif285t23, dif285t31, epsilon
     real(8) :: dif285t23FG, dif285t31FG
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
-    real(8) :: scatIndexOverWaterObs, landQualifierIndice
+    real(8) :: scatIndexOverWaterObs
     real(8) :: obsLat, obsLon, satZenithAngle
-    integer :: codtyp, ier
+    integer :: codtyp, ier, landQualifierIndice
 
     data epsilon / 1.E-30 /
 
