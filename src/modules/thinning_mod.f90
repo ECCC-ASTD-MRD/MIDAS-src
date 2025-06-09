@@ -25,6 +25,7 @@ module thinning_mod
   use kdTree2_mod
   use satWind_mod
   use obsFlags_mod
+  use tovs_mod
 
   implicit none
   private
@@ -515,7 +516,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: chanNumWithOffset, ierr
+    integer :: ierr
 
     ! Namelist variables:
     character(len=18) ::  thinningTechnique
@@ -571,15 +572,14 @@ contains
     ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
-    do chanNumWithOffset = 28, 41
-      call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsua'), bufr_nbt3, &
-                        channel_opt=chanNumWithOffset)
-    end do
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsua'), bufr_nbt3)
 
     ! AMSU-B/MHS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('amsub'), bufr_nbt3)
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mhs'), bufr_nbt3)
 
     ! ATMS observations
     call msg_memUsage('thn_thinTovs')
@@ -588,14 +588,17 @@ contains
     else
       call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'))
     end if
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('atms'), bufr_nbt3)
 
     ! MWHS-2 observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('mwhs2'), bufr_nbt3)
 
     ! SSMIS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+    call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('ssmis'), bufr_nbt3)
 
     call msg_memUsage('thn_thinTovs')
     call utl_tmg_stop(114)
@@ -7895,7 +7898,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_superObs
   !--------------------------------------------------------------------------
-  subroutine thn_superObs(obsDat, obsFamily, codtyp, elementID, channel_opt)
+  subroutine thn_superObs(obsDat, obsFamily, codtyp, elementID)
     !
     !:Purpose: Combine, usually by averaging, nearby observations to
     !          produce superObs
@@ -7903,19 +7906,20 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsDat      ! obsSpace data object
-    character(len=*),  intent(in)    :: obsFamily   ! the obs family to be treated
-    integer,           intent(in)    :: codtyp      ! the code type to be treated
-    integer,           intent(in)    :: elementID   ! the element ID to be treated
-    integer, optional, intent(in)    :: channel_opt ! the channel number to be treated
+    type(struct_obs),  intent(inout) :: obsDat          ! obsSpace data object
+    character(len=*),  intent(in)    :: obsFamily       ! the obs family to be treated
+    integer,           intent(in)    :: codtyp          ! the code type to be treated
+    integer,           intent(in)    :: elementID       ! the element ID to be treated
 
     ! Locals:
     integer              :: headerIndex, headerIndex2, numHeader, numHeaderMaxMpi
     integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
+    integer              :: channel, channelIndex, numChannels
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
     integer              :: obsDate, obsTime, imode, ierr
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
+    integer, allocatable :: channels(:)
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
@@ -7941,8 +7945,21 @@ contains
       return
     end if
 
-    if (trim(obsFamily) == 'TO' .and. .not.present(channel_opt)) then
-      call utl_abort('thn_superObs: For TO family, channel_opt must be present')
+    ! Get the list of channels for this codtyp/elementID
+    call getChannels(obsdat, channels, codtyp, elementID)
+    numChannels = size(channels)
+    if (numChannels > 0) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'thin_superObs: will compute superobs for codtyp, elementID = ', codtyp, elementID
+        write(*,*) 'thin_superObs: number of channels to be processed: ', numChannels
+        if (numChannels < 30) then
+          write(*,*) 'thin_superObs: channel list = ', channels(:)
+        else
+          write(*,*) 'thin_superObs: channel list is very long, first 30 = ', channels(1:30)
+        end if
+      end if
+    else
+      return
     end if
 
     if (firstCall) then
@@ -7988,213 +8005,217 @@ contains
     allocate(obsLonInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsLatInDegMpi(numHeaderMaxMpi*mmpi_nprocs))
 
-    obsPosition3d(:,:)    = 0.0d0 ! (at the center of Earth)
-    obsPosition3dMpi(:,:) = 0.0d0
-    obsValue(:)    = 0.0d0
-    obsValueMpi(:) = 0.0d0
-    obsLonInDeg(:) = 0.0
-    obsLatInDeg(:) = 0.0
+    CHANNEL_LOOP: do channelIndex = 1, numChannels
+      channel = channels(channelIndex)
 
-    ! Loop over all "good" obs locations (thinned and not thinned)
-    ! These will be made globally available as input to superobing
-    call obs_set_current_header_list(obsdat, trim(obsFamily))
-    HEADER0: do
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER0
+      ! Initialize some arrays
+      obsPosition3d(:,:)    = 0.0d0 ! (at the center of Earth)
+      obsPosition3dMpi(:,:) = 0.0d0
+      obsValue(:)    = 0.0d0
+      obsValueMpi(:) = 0.0d0
+      obsLonInDeg(:) = 0.0
+      obsLatInDeg(:) = 0.0
 
-      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER0
+      ! Loop over all "good" obs locations (thinned and not thinned)
+      ! These will be made globally available as input to superobing
+      call obs_set_current_header_list(obsdat, trim(obsFamily))
+      HEADER0: do
+        headerIndex = obs_getHeaderIndex(obsdat)
+        if (headerIndex < 0) exit HEADER0
 
-      ! Find bodyIndex for this headerIndex
-      numGoodObs = 0
-      bodyIndexGoodObs = 0
-      call obs_set_current_body_list(obsdat, headerIndex)
-      BODY0: do
-        bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY0
+        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER0
 
-        if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY0
+        ! Find bodyIndex for this headerIndex
+        numGoodObs = 0
+        bodyIndexGoodObs = 0
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY0: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY0
 
-        if (trim(obsFamily) == 'TO') then
-          if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel_opt) cycle BODY0
+          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY0
+
+          if (trim(obsFamily) == 'TO') then
+            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY0
+          end if
+
+          ! Consider all "good" obs, including those removed by thinning
+          if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, rejectFlagsExcept11)) then
+            numGoodObs = numGoodObs + 1
+            bodyIndexGoodObs = bodyIndex
+          end if
+        end do BODY0
+
+        ! Check the number of observations for this headerIndex (should be 0 or 1)
+        if (numGoodObs == 0) then
+          cycle HEADER0
+        else if (numGoodObs > 1) then
+          call utl_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
 
-        ! Consider all "good" obs, including those removed by thinning
-        if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, rejectFlagsExcept11)) then
-          numGoodObs = numGoodObs + 1
-          bodyIndexGoodObs = bodyIndex
-        end if
-      end do BODY0
+        ! Lat and Lon for each observation and 3D position
+        obsLonInRad = obs_headElem_r(obsdat, obs_lon, headerIndex)
+        obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
+        obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
 
-      ! Check the number of observations for this headerIndex (should be 0 or 1)
-      if (numGoodObs == 0) then
-        cycle HEADER0
-      else if (numGoodObs > 1) then
-        call utl_abort('thn_superObs: Multiple observations for this headerIndex')
-      end if
+        ! For diagnostics
+        obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
+        obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
 
-      ! Lat and Lon for each observation and 3D position
-      obsLonInRad = obs_headElem_r(obsdat, obs_lon, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, obs_lat, headerIndex)
-      obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
+        ! Observed value
+        obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
 
-      ! For diagnostics
-      obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
-      obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+        ! Datastamp of observation
+        obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
+        obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
+        ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
 
-      ! Observed value
-      obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
+        ! Station ID
+        obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
 
-      ! Datastamp of observation
-      obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
-      obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
-      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
-
-      ! Station ID
-      obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
-
-      ! Print some diagnostics
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
-      write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
-                             merge(channel_opt, -1, present(channel_opt)), &
-                             headerIndex, obsLonInDeg(headerIndex),  &
-                             obsLatInDeg(headerIndex), obsStepIndex_r8
-
-      if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
-        write(300+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
-                               merge(channel_opt, -1, present(channel_opt)), &
-                               headerIndex, obsLonInDeg(headerIndex),  &
+        ! Print some diagnostics
+        call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                                 obsDate, obsTime, tim_nstepobs)
+        write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
+                               channel, headerIndex, obsLonInDeg(headerIndex),  &
                                obsLatInDeg(headerIndex), obsStepIndex_r8
-      end if
 
-    end do HEADER0
-
-    call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
-    call mmpi_allGather(obsValue,      obsValueMpi)
-    call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
-    call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId(1)))
-
-    call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
-    call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
-
-    ! Create kdtree structure with all "good" obs locations (thinned and not thinned)
-    nullify(tree)
-    tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
-
-    ! Loop over obs locations kept after thinning
-    ! These are the locations where we will compute the superobs
-    numThinObs = 0
-    numAverageObsMean = 0
-    call obs_set_current_header_list(obsdat, trim(obsFamily))
-    HEADER1: do
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER1
-
-      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER1
-
-      ! Find bodyIndex for this headerIndex
-      numSuperObs = 0
-      bodyIndexSuperObs = 0
-      call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do
-        bodyIndex = obs_getBodyIndex(obsdat)
-        if (bodyIndex < 0) exit BODY1
-
-        if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
-
-        if (trim(obsFamily) == 'TO') then
-          if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel_opt) cycle BODY1
+        if (.not. flg_flagIsOn('OR',obsdat, bodyIndexGoodObs, fullSetOfRejectFlags)) then
+          write(300+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
+                                 channel, headerIndex, obsLonInDeg(headerIndex),  &
+                                 obsLatInDeg(headerIndex), obsStepIndex_r8
         end if
 
-        ! Only consider obs left over after thinning
-        if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags)) then
-          numSuperObs = numSuperObs + 1
-          bodyIndexSuperObs = bodyIndex
+      end do HEADER0
+
+      call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
+      call mmpi_allGather(obsValue,      obsValueMpi)
+      call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
+      call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId(1)))
+
+      call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)
+      call mmpi_allGather(obsLatInDeg,   obsLatInDegMpi)
+
+      ! Create kdtree structure with all "good" obs locations (thinned and not thinned)
+      nullify(tree)
+      tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
+
+      ! Loop over obs locations kept after thinning
+      ! These are the locations where we will compute the superobs
+      numThinObs = 0
+      numAverageObsMean = 0
+      call obs_set_current_header_list(obsdat, trim(obsFamily))
+      HEADER1: do
+        headerIndex = obs_getHeaderIndex(obsdat)
+        if (headerIndex < 0) exit HEADER1
+
+        if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle HEADER1
+
+        ! Find bodyIndex for this headerIndex
+        numSuperObs = 0
+        bodyIndexSuperObs = 0
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY1
+
+          if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
+
+          if (trim(obsFamily) == 'TO') then
+            if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY1
+          end if
+
+          ! Only consider obs left over after thinning
+          if (.not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags)) then
+            numSuperObs = numSuperObs + 1
+            bodyIndexSuperObs = bodyIndex
+          end if
+        end do BODY1
+
+        ! Check the number of observations for this headerIndex (should be 0 or 1)
+        if (numSuperObs == 0) then
+          cycle HEADER1
+        else if (numSuperObs > 1) then
+          call utl_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
-      end do BODY1
 
-      ! Check the number of observations for this headerIndex (should be 0 or 1)
-      if (numSuperObs == 0) then
-        cycle HEADER1
-      else if (numSuperObs > 1) then
-        call utl_abort('thn_superObs: Multiple observations for this headerIndex')
-      end if
+        ! Lat and Lon for reference observation and 3D position
+        refPosition = obsPosition3d(:,headerIndex)
 
-      ! Lat and Lon for reference observation and 3D position
-      refPosition = obsPosition3d(:,headerIndex)
-
-      ! Find all "good" obs within specified radius of the reference obs
-      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
-                             nfound=numFoundSearch, nalloc=maxNumSearch, &
-                             results=searchResults)
-      if (numFoundSearch >= maxNumSearch) then
-        call utl_abort('thn_superObs: the parameter maxNumSearch must be increased')
-      end if
-      if (numFoundSearch == 0) then
-        call utl_abort('thn_superObs: no match found. This should not happen!!!')
-      end if
-
-      ! Loop over all of the found nearby locations (includes ref position)
-      numAverageObs = 0
-      obsValueSuper = 0.0d0
-      HEADER2: do resultIndex = 1, numFoundSearch
-        headerIndex2 = searchResults(resultIndex)%idx
-
-        ! Check if time difference is too large between this obs and reference obs
-        call difdatr(obsDateStamp(headerIndex),obsDateStampMpi(headerIndex2),refDeltaHours)
-        if (abs(refDeltaHours) > maxDeltaHours) then
-          cycle HEADER2
+        ! Find all "good" obs within specified radius of the reference obs
+        call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
+                               nfound=numFoundSearch, nalloc=maxNumSearch, &
+                               results=searchResults)
+        if (numFoundSearch >= maxNumSearch) then
+          call utl_abort('thn_superObs: the parameter maxNumSearch must be increased')
+        end if
+        if (numFoundSearch == 0) then
+          call utl_abort('thn_superObs: no match found. This should not happen!!!')
         end if
 
-        ! Check if the stnId is the same, i.e. from the same satellite platform
-        if (trim(obsStnId(headerIndex)) /= trim(obsStnIdMpi(headerIndex2))) then
-          cycle HEADER2
-        end if
+        ! Loop over all of the found nearby locations (includes ref position)
+        numAverageObs = 0
+        obsValueSuper = 0.0d0
+        HEADER2: do resultIndex = 1, numFoundSearch
+          headerIndex2 = searchResults(resultIndex)%idx
 
-        ! Include this obs in this superobs
-        if (trim(averageType) == 'average') then
-          numAverageObs = numAverageObs + 1
-          obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
+          ! Check if time difference is too large between this obs and reference obs
+          call difdatr(obsDateStamp(headerIndex),obsDateStampMpi(headerIndex2),refDeltaHours)
+          if (abs(refDeltaHours) > maxDeltaHours) then
+            cycle HEADER2
+          end if
 
-          ! Write some diagnostics
-          imode = -3 ! stamp to printable
-          ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
-          call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+          ! Check if the stnId is the same, i.e. from the same satellite platform
+          if (trim(obsStnId(headerIndex)) /= trim(obsStnIdMpi(headerIndex2))) then
+            cycle HEADER2
+          end if
+
+          ! Include this obs in this superobs
+          if (trim(averageType) == 'average') then
+            numAverageObs = numAverageObs + 1
+            obsValueSuper = obsValueSuper + obsValueMpi(headerIndex2)
+
+            ! Write some diagnostics
+            imode = -3 ! stamp to printable
+            ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
+            call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                    obsDate, obsTime, tim_nstepobs)
 
-          write(100+mmpi_myid,*) obsFamily, codtyp, elementID, merge(channel_opt, -1, present(channel_opt)), &
-                                 headerIndex, headerIndex2, &
-                                 obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
-                                 obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
-                                 obsValueMpi(headerIndex2), obsStepIndex_r8, trim(obsStnIdMpi(headerIndex2))
+            write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
+                                   headerIndex, headerIndex2, &
+                                   obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
+                                   obsLonInDegMpi(headerIndex2), obsLatInDegMpi(headerIndex2), &
+                                   obsValueMpi(headerIndex2), obsStepIndex_r8, trim(obsStnIdMpi(headerIndex2))
+          end if
+
+        end do HEADER2
+
+        if (numAverageObs > 0) then
+          obsValueSuper = obsValueSuper / real(numAverageObs,8)
+          call obs_bodySet_r(obsdat, obs_var, bodyIndexSuperObs, obsValueSuper)
+        else
+          call utl_abort('thn_superObs: numAverageObs not positive')
         end if
 
-      end do HEADER2
+        ! Accumulate diagnostic statistics
+        numThinObs = numThinObs + 1
+        numAverageObsMean = numAverageObsMean + numAverageObs
 
-      if (numAverageObs > 0) then
-        obsValueSuper = obsValueSuper / real(numAverageObs,8)
-        call obs_bodySet_r(obsdat, obs_var, bodyIndexSuperObs, obsValueSuper)
+      end do HEADER1
+
+      ! Print some diagnostics
+      if (numThinObs > 0) then
+        numAverageObsMean = numAverageObsMean / numThinObs
       else
-        call utl_abort('thn_superObs: numAverageObs not positive')
+        numAverageObsMean = 0
       end if
+      write(*,*) '----------------------------------------------'
+      write(*,*) 'thn_superObs: obsFamily, codtyp, elementID, channel = ', &
+                 trim(obsFamily), codtyp, elementID, channel
+      write(*,*) 'thn_superObs: Number of locations where superObs computed (locally) = ', numThinObs
+      write(*,*) 'thn_superObs: Average number of obs used in superObs averaging = ', numAverageObsMean
 
-      ! Accumulate diagnostic statistics
-      numThinObs = numThinObs + 1
-      numAverageObsMean = numAverageObsMean + numAverageObs
-
-    end do HEADER1
-
-    ! Print some diagnostics
-    if (numThinObs > 0) then
-      numAverageObsMean = numAverageObsMean / numThinObs
-    else
-      numAverageObsMean = 0
-    end if
-    write(*,*) '----------------------------------------------'
-    write(*,*) 'thn_superObs: obsFamily, codtyp, elementID, channel = ', trim(obsFamily), codtyp, elementID, &
-                merge(channel_opt, -1, present(channel_opt))
-    write(*,*) 'thn_superObs: Number of locations where superObs computed (locally) = ', numThinObs
-    write(*,*) 'thn_superObs: Average number of obs used in superObs averaging = ', numAverageObsMean
+    end do CHANNEL_LOOP
 
     deallocate(obsPosition3d)
     deallocate(obsValue)
@@ -8212,5 +8233,79 @@ contains
     deallocate(obsLatInDegMpi)
 
   end subroutine thn_superObs
+
+  !--------------------------------------------------------------------------
+  ! getChannels
+  !--------------------------------------------------------------------------
+  subroutine getChannels(obsdat, channels_out, codtyp, elementID)
+    !
+    ! :Purpose: Get list of channels for a specific codtyp and element ID
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),     intent(inout) :: obsdat
+    integer, allocatable, intent(out)   :: channels_out(:)
+    integer,              intent(in)    :: codtyp
+    integer,              intent(in)    :: elementID
+
+    ! Locals:
+    integer              :: bodyIndex, numBody, numBodyMaxMpi, numBodyMpi, headerIndex
+    integer              :: channelIndex, numChannels
+    integer, allocatable :: channels(:), allChannels(:), allChannelsMpi(:)
+    logical              :: isUnique
+
+    numBody = obs_numBody(obsdat)
+    call mmpi_allReduce(numBody, numBodyMaxMpi, mmpi_max)
+    numBodyMpi = numBodyMaxMpi * mmpi_nprocs
+
+    ! Get local list of channels
+    allocate(allChannels(numBodyMaxMpi))
+    allocate(allChannelsMpi(numBodyMpi))
+    allChannels(:) = -1
+    BODYLOOP: do bodyIndex = 1, numBody
+
+      ! Only get channel number for obs with selected codtyp and elementID
+      headerIndex  = obs_bodyElem_i(obsdat, obs_hind, bodyIndex  )
+      if (codtyp /= obs_headElem_i(obsdat, obs_ity, headerIndex)) cycle BODYLOOP
+      if (elementID /= obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)) cycle BODYLOOP
+
+      allChannels(bodyIndex) = nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex))
+    end do BODYLOOP
+
+    ! Make the list global on all MPI ranks
+    call mmpi_allGather(allChannels, allChannelsMpi)
+
+    ! Generate unique sorted list
+    allocate(channels(tvs_maxNumberOfChannels))
+    channels(:) = -1
+    numChannels = 0
+    BODYLOOP2: do bodyIndex = 1, numBodyMpi
+      if (allChannelsMpi(bodyIndex) < 0) cycle BODYLOOP2
+
+      isUnique = .true.
+      do channelIndex = 1, numChannels
+        if (allChannelsMpi(bodyIndex) == channels(channelIndex)) then
+          isUnique = .false.
+          exit
+        end if
+      end do
+
+      if (isUnique) then
+        numChannels = numChannels + 1
+        channels(numChannels) = allChannelsMpi(bodyIndex)
+      end if
+
+    end do BODYLOOP2
+
+    ! Allocate array and copy just the list of found channels
+    allocate(channels_out(numChannels))
+    channels_out(:) = channels(1:numChannels)
+
+    deallocate(channels)
+    deallocate(allChannels)
+    deallocate(allChannelsMpi)
+
+  end subroutine getChannels
 
 end module thinning_mod
