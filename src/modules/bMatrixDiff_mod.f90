@@ -569,7 +569,7 @@ CONTAINS
           jlev2 = jlev-ilev1+1
           do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              field_r4(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+              field_r4(jlon,jlat,jlev2) = real(gd(jlon,jlat,jlev),4)
             end do
           end do
         end do
