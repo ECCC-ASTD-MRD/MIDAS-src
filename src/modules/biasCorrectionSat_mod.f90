@@ -76,7 +76,6 @@ module biasCorrectionSat_mod
   type(struct_vco),       pointer :: vco_mask => null()
   type(struct_hco),       pointer :: hco_mask => null()
   type(struct_columnData) :: column_mask
-  logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 16
@@ -95,7 +94,6 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  integer               :: nobs
   integer, external     :: fnom, fclos
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
