@@ -444,7 +444,9 @@ module bgckOcean_mod
           if (.not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs(swathIndex) = numberObs(swathIndex) + 1
-            rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
+            ! TODO: simplify the floating point precision conversions
+            !   rmsDiff(swathIndex) = rmsDiff(swathIndex) + real(OmP,4)**2
+            rmsDiff(swathIndex) = real(real(rmsDiff(swathIndex),8) + (OmP)**2, 4)
             if (numberObs(swathIndex) <= maxPerSwath) then
               bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
             else
