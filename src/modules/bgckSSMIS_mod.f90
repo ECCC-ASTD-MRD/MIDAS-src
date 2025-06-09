@@ -737,9 +737,6 @@ contains
 
     end do HEADER
 
-    120  format(' obsIndex ',2x,i3,2x,' clw ',f4.2,2x,' CLW threshold = ',f4.2,2x,' cloudObs ',l2)
-    130  format(' obsIndex ',2x,i3,2x,' iwv ',f4.2,2x,' IWV threshold = ',f4.2,2x,' iwvReject ',l2)
-
   end subroutine cld_filter_fweng
 
   !--------------------------------------------------------------------------
