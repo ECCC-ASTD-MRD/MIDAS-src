@@ -122,7 +122,7 @@ CONTAINS
       call utl_tmg_stop(181)
     end if
 
-    if (sum(scaleFactor(:)) == 0.0d0) then
+    if ( utl_isEqual(sum(scaleFactor(:)),0.0d0) ) then
       if(mmpi_myid == 0) call msg('bdiff_setup', 'scaleFactor=0, skipping rest of setup')
       cvdim_out = 0
       call utl_tmg_stop(65)
