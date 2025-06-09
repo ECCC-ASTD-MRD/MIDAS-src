@@ -2723,6 +2723,7 @@ CONTAINS
     integer :: horizWaveBandIndex
     integer :: vertWaveBandIndex
 
+    nullify(loc)
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (locIndex < 1 .or. locIndex > (bEns(instanceIndex)%nHorizWaveBand*bEns(instanceIndex)%nVertWaveBand)) then
