@@ -538,7 +538,7 @@ contains
     call determ_sea_ice(ocean, Ta, sType, seaIce, latitude)
 
     ! Calculate CLW Over Ocean
-    if ( (sType == ocean) .and. (seaIce /= 100.0) ) then
+    if ( (sType == ocean) .and. (.not. utl_isEqual(seaIce, 100.0)) ) then
       ALG1 = ssbg_rmisg
       ALG2 = ssbg_rmisg
       ALG3 = ssbg_rmisg
@@ -582,7 +582,7 @@ contains
       if ( CLW > clwLimit ) CLW = ssbg_rmisg
 
       ! Force negative CLW values to zero.
-      if ( CLW < 0.0 .and. CLW /= ssbg_rmisg ) CLW = 0.0
+      if ( CLW < 0.0 .and. .not. utl_isEqual(CLW, ssbg_rmisg) ) CLW = 0.0
 
     else
       ! Sea Ice (>70%) detected from s/r determ_sea_ice but sType was 0 = waterobs (on call)
@@ -684,7 +684,7 @@ contains
           ! Missing value for IWV means possible precipitation
           ! and so CLW will not be computed
           call compute_iwv_101(Tb,iwv)
-          if ( iwv == ssbg_rmisg ) precipObs(obsIndex) = .true.
+          if ( utl_isEqual(iwv, ssbg_rmisg) ) precipObs(obsIndex) = .true.
         else if ( trim(algOption) == 'nsun' ) then
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
@@ -712,14 +712,14 @@ contains
         ! Also, reject obs if CLW is missing (undetermined)
         ! Set waterObs flag to false if deter_clw returns "seaIce" value (-500)
         if ( (clw > ssbg_clwThresh) .or. precipObs(obsIndex) ) cloudObs(obsIndex) = .true.
-        if ( clw == ssbg_rmisg )  cloudObs(obsIndex) = .true.
-        if ( clw == -500.0 ) then
+        if ( utl_isEqual(clw, ssbg_rmisg) )  cloudObs(obsIndex) = .true.
+        if ( utl_isEqual(clw,-500.0) ) then
            waterObs(obsIndex) = .false.
            clw = ssbg_rmisg
         end if
         ! Reject obs with IWV value more than threshold and set IWV to missing.
         ! First, set IWV values below zero to 0.0.
-        if ( iwv < 0.0 .and. iwv /= ssbg_rmisg ) iwv = 0.0
+        if ( iwv < 0.0 .and. .not. utl_isEqual(iwv, ssbg_rmisg) ) iwv = 0.0
         if ( iwv > iwvThresh ) then
           if ( .not. cloudObs(obsIndex) ) iwvReject(obsIndex) = .true.
           iwv = ssbg_rmisg
@@ -1504,10 +1504,10 @@ contains
 
     ! Define the land/sea qualifier for each point based on wentz surface values.
     do obsIndex = 1, numObsToProcess
-      if ( wenTyp(obsIndex) == 0. .or. wenTyp(obsIndex) == 6. ) then
+      if ( utl_isEqual(wenTyp(obsIndex),0.) .or. utl_isEqual(wenTyp(obsIndex),6.) ) then
         ! wentz = land/coast --> land
         landSeaQualifier(obsIndex) = 0
-      else if ( wenTyp(obsIndex) == 4. .or. wenTyp(obsIndex) == 5. ) then
+      else if ( utl_isEqual(wenTyp(obsIndex),4.) .or. utl_isEqual(wenTyp(obsIndex),5.) ) then
         ! wentz = sea/sea-ice --> sea
         landSeaQualifier(obsIndex) = 1
       else
@@ -1809,7 +1809,7 @@ contains
 
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      if (obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex ) /= ssbg_rmisg) then
+      if (.not. utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex), real(ssbg_rmisg,8)) ) then
         obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex ) - obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex )
       else
         obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
@@ -1930,11 +1930,14 @@ contains
     ! Compute the AMSU-B Dryness Index for all points
     !--------------------------------------------------------------------
 
-    where ( (ztb_amsub3 /= ssbg_realMissing) .and. (ztb_amsub5 /= ssbg_realMissing) )
-      amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
-    elsewhere
-      amsubDrynessIndex = ssbg_realMissing
-    end where
+    do obsIndex = 1, numObsToProcess
+      if ( .not. utl_isEqual(ztb_amsub3(obsIndex),ssbg_realMissing) .and. &
+           .not. utl_isEqual(ztb_amsub5(obsIndex),ssbg_realMissing) ) then
+        amsubDrynessIndex(obsIndex) = ztb_amsub3(obsIndex) - ztb_amsub5(obsIndex)
+      else
+        amsubDrynessIndex(obsIndex) = ssbg_realMissing
+      end if
+    end do
 
     !--------------------------------------------------------------------
     ! Review all the checks previously made to determine which obs are to be accepted
@@ -1973,11 +1976,11 @@ contains
           !        Check BSI and DI for AMSU-B 3-4
           !         Bennartz Scattering Index
           !         Land point
-          if ( scatL(obsIndex) > 0.0  .and. scatL(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
+          if ( scatL(obsIndex) > 0.0  .and. .not. utl_isEqual(scatL(obsIndex),ssbg_realMissing) )   obsToReject(10:11) = .true.
           !         Sea-ice point
-          if ( scatW(obsIndex) > 40.0 .and. scatW(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
+          if ( scatW(obsIndex) > 40.0 .and. .not. utl_isEqual(scatW(obsIndex),ssbg_realMissing) )   obsToReject(10:11) = .true.
           !         Missing scattering index
-          if ( scatW(obsIndex) == ssbg_realMissing .and. scatL(obsIndex) == ssbg_realMissing ) obsToReject(10:11) = .true.
+          if ( utl_isEqual(scatW(obsIndex),ssbg_realMissing) .and. utl_isEqual(scatL(obsIndex),ssbg_realMissing) ) obsToReject(10:11) = .true.
           if ( any(obsToReject(10:11))) then
             numLandScatObs = numLandScatObs + 1
           end if
@@ -2023,7 +2026,7 @@ contains
           !        Check BSI for AMSU B channels 2-5 for all water obs
           !        Bennartz Scattering Index ( AMSU-B 2-5)
           !        Open water point
-          if ( scatW(obsIndex) > 15.0 .and. scatW(obsIndex) /= ssbg_realMissing ) then
+          if ( scatW(obsIndex) > 15.0 .and. .not. utl_isEqual(scatW(obsIndex),ssbg_realMissing) ) then
             obsToReject(8:11) = .true.
             numSeaScatObs = numSeaScatObs + 1
             if ( precipObs(obsIndex) ) numScatPrecipObs = numScatPrecipObs + 1
@@ -2051,7 +2054,7 @@ contains
     !-------------------------------------------------------------------------------
     call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
     call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainType(1))
-    if (scatW(1) /= ssbg_realMissing) then
+    if (.not. utl_isEqual(scatW(1),ssbg_realMissing)) then
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
     else
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
@@ -2620,7 +2623,7 @@ contains
       topoHeight = modelInterpTer(obsIndex)           ! model topography height [m]
 
       if (ssbg_debug) then
-        if (topoHeight == maxval(modelInterpTer) .and. topoHeight > minval(topoLimit)) then
+        if (utl_isEqual(topoHeight, maxval(modelInterpTer)) .and. topoHeight > minval(topoLimit)) then
           write(*,*) 'check_topo: ****** Max height point! topoHeight = ', topoHeight
           debugSupp = .true.
         end if
