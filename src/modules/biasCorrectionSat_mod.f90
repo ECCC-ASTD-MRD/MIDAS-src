@@ -2161,7 +2161,7 @@ contains
     ! Locals:
     real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)
     real(8)            :: coeff(maxsat,tvs_maxChannelNumber,maxpred)
-    character(len=2) :: ptypes(maxsat,tvs_maxChannelNumber,maxpred)
+    character(len=2)   :: ptypes(maxsat,tvs_maxChannelNumber,maxpred)
     integer            :: npred(maxsat,tvs_maxChannelNumber)           ! number of predictors
     integer            :: ndata(maxsat,tvs_maxChannelNumber)
     ! LOCAL for reading background coeff file
@@ -2174,7 +2174,7 @@ contains
     character(len=10)  :: tmp_SatName, tmp_InstName
     ! write out files
     integer            :: iuncoef2, ierr, numPred
-    character(len=80):: filename2
+    character(len=80)  :: filename2
     logical            :: updateCoeff_opt2
     !   sats(nsat)            = satellite names
     !   chans(nsat, nchan(i))  = channel numbers of each channel of each satellite i
@@ -2243,8 +2243,8 @@ contains
     !
     !- 2.update coeff and fovbias
     !
-    coeff_an(:,:,:) = coeff(:,:,:)
-    fovbias_an(:,:,:) = fovbias(:,:,:)
+    coeff_an  (:,:,:) = real(coeff  (:,:,:),4)
+    fovbias_an(:,:,:) = real(fovbias(:,:,:),4)
 
     do iSat = 1, nsat  !backgroud sat
       do iSensor = 1, tvs_nSensors
@@ -2260,13 +2260,13 @@ contains
 
             ! part 1 for coeffIncr
             do iFov = 1, nfov
-              fovbias_an(iSat, jChan, iFov) = fovbias(iSat, jChan, iFov) + bias(iSensor)%chans(jchannel)%coeffIncr_fov(iFov)
+              fovbias_an(iSat, jChan, iFov) = real(fovbias(iSat, jChan, iFov) + bias(iSensor)%chans(jchannel)%coeffIncr_fov(iFov),4)
             end do ! iFov
 
             ! part 2 for coeffIncr_fov
             totPred  = bias(iSensor)%chans(jchannel)%NumActivePredictors
             do iPred = 1, totPred
-              coeff_an(iSat, jChan, iPred) = coeff(iSat, jChan, iPred) + bias(iSensor)%chans(jchannel)%coeffIncr(iPred)
+              coeff_an(iSat, jChan, iPred) = real(coeff(iSat, jChan, iPred) + bias(iSensor)%chans(jchannel)%coeffIncr(iPred),4)
             end do ! iPred
 
           end do ! jChannel
