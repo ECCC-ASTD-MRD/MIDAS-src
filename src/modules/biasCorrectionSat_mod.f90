@@ -1600,7 +1600,6 @@ contains
       real(8) :: topPressure, bottomPressure, conversionFactor
       real(8) :: topProfile, bottomProfile
       real(8), pointer :: profile(:)
-      real(8),allocatable :: weight(:)
 
       if (present(conversionFactor_opt)) then
         conversionFactor = conversionFactor_opt
