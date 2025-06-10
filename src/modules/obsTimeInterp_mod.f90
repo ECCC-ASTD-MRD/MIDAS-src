@@ -379,20 +379,11 @@ contains
     ! Result:
     logical :: allZero
 
-    ! Locals
-    integer :: stepIndex
-
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
     end if
 
-    allZero = .true.
-    do stepIndex = 1, size(oti%timeInterpWeight,2)
-      if ( .not. utl_isEqual(oti%timeInterpWeight(headerIndex, stepIndex), 0.0d0) ) then
-        allZero = .false.
-        return
-      end if
-    end do
+    allZero = all( utl_isEqual(oti%timeInterpWeight(headerIndex, :), 0.0d0) )
 
   end function oti_timeInterpWeightAllZero
 

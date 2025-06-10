@@ -106,7 +106,7 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_yGrid
-    integer :: varIndex, columnIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
+    integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
     real(8), allocatable :: localColumn(:)
@@ -114,7 +114,6 @@ contains
     integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax
     real(8) :: lat, lon
     integer :: varDim, tag
-    logical :: allMissing
 
     call mmpi_barrier
     allocate( obsOffset(0:mmpi_nprocs-1) )
@@ -216,15 +215,7 @@ contains
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
             call mmpi_recv(localColumn, tag, taskIndex, varDim)
-            allMissing = .true.
-            do columnIndex = 1, varDim
-              if ( .not. utl_isEqual(localColumn(columnIndex),  MPC_missingValue_R8) ) then
-                allMissing = .false.
-                exit
-              end if
-            end do
-
-            if ( .not. allMissing ) then
+            if ( .not. any( utl_isEqual(localColumn, MPC_missingValue_R8) ) ) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
               myField(1, globalObsIndex, :) = localColumn(:)
             end if

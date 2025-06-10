@@ -1342,7 +1342,7 @@ contains
 
       else if (col_getNumLev(column_out, 'DP') > 0) then
         call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
-        if ( .not. utl_isEqual(vcoOut_ptr%depths(:), vcoIn_ptr%depths(:)) ) then
+        if ( .not. all(utl_isEqual(vcoOut_ptr%depths(:), vcoIn_ptr%depths(:))) ) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels

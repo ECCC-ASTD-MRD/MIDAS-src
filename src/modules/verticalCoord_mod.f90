@@ -51,7 +51,7 @@ module verticalCoord_mod
   end type struct_vco
 
 contains
-  
+
   !--------------------------------------------------------------------------
   ! vco_allocateIp1
   !--------------------------------------------------------------------------
@@ -1173,7 +1173,7 @@ contains
         equal = .false.
         return
       end if
-      if (  .not. utl_isEqual(coefA1, coefA2) ) then
+      if (  .not. all(utl_isEqual(coefA1, coefA2)) ) then
         equal = .false.
         return
       end if
@@ -1183,7 +1183,7 @@ contains
       nullify(coefB2)
       stat = vgd_get(vco1%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB1)
       stat = vgd_get(vco2%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB2)
-      if (  .not. utl_isEqual(coefB1, coefB2) ) then
+      if (  .not. all(utl_isEqual(coefB1, coefB2)) ) then
         equal = .false.
         return
       end if
