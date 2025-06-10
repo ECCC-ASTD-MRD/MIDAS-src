@@ -380,15 +380,15 @@ contains
     logical :: allZero
 
     ! Locals
-    integer :: bodyIndex
+    integer :: stepIndex
 
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
     end if
 
     allZero = .true.
-    do bodyIndex = 1, size(oti%timeInterpWeight,2)
-      if ( .not. utl_isEqual(oti%timeInterpWeight(headerIndex, bodyIndex), 0.0d0) ) then
+    do stepIndex = 1, size(oti%timeInterpWeight,2)
+      if ( .not. utl_isEqual(oti%timeInterpWeight(headerIndex, stepIndex), 0.0d0) ) then
         allZero = .false.
         return
       end if
