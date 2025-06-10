@@ -7941,7 +7941,7 @@ contains
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
     character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
-    logical, parameter    :: writeDiagnostics = .true.
+    logical, parameter    :: writeDiagnostics = .false.
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000

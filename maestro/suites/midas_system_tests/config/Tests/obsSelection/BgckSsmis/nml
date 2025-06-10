@@ -1,17 +1,22 @@
  &NAMCT0
    NCONF  = 121,
-/ 
+/
 &NAMBGCK
   debug = .false.,
   RESETQC = .false.,
 /
  &namObsSelection
   doThinning    = .true.
-  doPreThinning = .true.
+  doPreThinning = .false.
 /
  &THIN_TOVS
    delta   = 150
    deltrad = 30
+/
+ &THIN_SUPEROBS
+   averagingRadius = 50.0d0
+   maxDeltaHours = 0.1d0
+   averageType = 'average'
 /
  &THIN_PRETHIN
    preThinPercent = 10
