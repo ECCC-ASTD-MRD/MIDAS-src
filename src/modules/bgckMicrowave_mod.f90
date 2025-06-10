@@ -101,15 +101,15 @@ module bgckMicrowave_mod
 
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
-  real(4)            :: clwQcThreshold                !
-  real(4)            :: cloudyClwThresholdBcorr       !
-  real(4)            :: clwDiffThreshBcorr            !
-  real(4)            :: siDiffThreshBcorr             !
-  real(4)            :: clwDiffThreshQc               !
-  real(4)            :: siDiffThreshQc                !  
+  real(4)            :: clwQcThreshold                ! CLW threshold for all-sky TT QC
+  real(4)            :: cloudyClwThresholdBcorr       ! CLW threshold to exclude cloudy obs from bcorr for all-sky TT
+  real(4)            :: clwDiffThreshBcorr            ! Threshold to exclude obs from all-sky TT bcorr when CLW from obs and FG differ
+  real(4)            :: siDiffThreshBcorr             ! Threshold to exclude obs from all-sky HU bcorr when SI from obs and FG differ
+  real(4)            :: clwDiffThreshQc               ! Threshold to reject obs in all-sky TT when CLW from obs and FG differ
+  real(4)            :: siDiffThreshQc                ! Threshold to reject obs in all-sky HU when SI from obs and FG differ
   real(4)            :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
-  real(4)            :: cloudySiThresholdBcorr        !
+  real(4)            :: cloudySiThresholdBcorr        ! SI threshold to exclude cloudy obs from bcorr for all-sky HU
   real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
   real(4)            :: mwhs2RogueFactor(mwbg_maxNumChan) ! rogue factors for mwhs2
   real(4)            :: atmsCh17OmpThreshRogueCheck   ! threshold for atms ch.17 omp in rogue check test
@@ -128,8 +128,10 @@ module bgckMicrowave_mod
   logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
   logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
-  logical            :: useClwDiffForAllskyBcorr, useClwDiffForAllskyQc
-  logical            :: useSiDiffForAllskyBcorr, useSiDiffForAllskyQc
+  logical            :: useClwDiffForAllskyBcorr      ! Use clwDiffThreshBcorr to exclude obs from all-sky TT bcorr when CLW from obs and FG differ 
+  logical            :: useClwDiffForAllskyQc         ! Use clwDiffThreshQc to reject obs in all-sky TT when CLW from obs and FG differ 
+  logical            :: useSiDiffForAllskyBcorr       ! Use siDiffThreshBcorr to exclude obs from all-sky HU bcorr when SI from obs and FG differ 
+  logical            :: useSiDiffForAllskyQc          ! Use siDiffThreshQc to reject obs in all-sky HU when SI from obs and FG differ 
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
   namelist /nambgck/instName, clwQcThreshold, &
