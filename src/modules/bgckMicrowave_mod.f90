@@ -1039,16 +1039,13 @@ contains
         BODY3: do bodyIndex = bodyIndexBeg, bodyIndexEnd
           obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
-          obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
           INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = ibset(obsFlags, 9)
-            obsFlags = ibset(obsFlags, 7)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-            call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           end if
         end do BODY3
 
