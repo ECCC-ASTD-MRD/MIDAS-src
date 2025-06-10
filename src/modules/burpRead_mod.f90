@@ -2819,7 +2819,7 @@ contains
                               &   NT_IND   = k, &
                               &   IOSTAT   = error)
                   call handle_error(error, "brpr_readBurp: BURP_Get_rval info_elepos")
-                  if  ( utl_isEqual(RINFO(kl,k), MPC_missingValue_R4))  THEN
+                  if  (utl_isEqual(RINFO(kl,k), MPC_missingValue_R4))  THEN
                     infot= BURP_Get_tblval(Block_in, &
                             &   NELE_IND = info_elepos, &
                             &   NVAL_IND = 1, &
