@@ -797,7 +797,7 @@ module calcStatsGlb_mod
     if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
 
-     if (vertModesLengthScale(2) == -1.d0) then
+     if ( utl_isEqual(vertModesLengthScale(2),-1.d0) ) then
       vertModesLengthScale(2) = vertModesLengthScale(1)
      end if
 
@@ -1351,8 +1351,8 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         do jk2 = 1, numVarLevEns
-          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
-            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          if(.not. (utl_isEqual(rstddev(jk1,jn),0.0d0) .or. utl_isEqual(rstddev(jk2,jn),0.0d0)) ) then
+            corns(jk1,jk2,jn) = corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
             corns(jk1,jk2,jn) = 0.0d0
           end if
@@ -1492,8 +1492,8 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         do jk2 = 1, numVarLevEns
-          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
-            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          if(.not. (utl_isEqual(rstddev(jk1,jn),0.0d0) .or. utl_isEqual(rstddev(jk2,jn),0.0d0)) ) then
+            corns(jk1,jk2,jn) = corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
             corns(jk1,jk2,jn) = 0.0d0
           end if
@@ -3328,7 +3328,7 @@ module calcStatsGlb_mod
              b = b - temp*rjn*(rjn+1.d0)
           end if
        end do
-       if (a > 0.d0 .and. b /= 0.d0) then
+       if (a > 0.d0 .and. .not. utl_isEqual(b,0.d0)) then
           HorizScale(jk) = ec_ra * sqrt(-2.0d0*a/b)
        else
           HorizScale(jk) = 0.d0
