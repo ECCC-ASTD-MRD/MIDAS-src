@@ -1384,10 +1384,6 @@ contains
       subroutine calcHeight_gsv_ad_vcode2100x
         implicit none
 
-        ! Locals:
-        !real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
-        !real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
-
         call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
         ! Do nothing since height increments are always zero with an height-based coordinate
@@ -3728,7 +3724,6 @@ contains
       !---------------------------------------------------------
       subroutine calcHeight_col_ad_vcode2100x
         implicit none
-        ! real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
 
         call msg('calcHeight_col_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
