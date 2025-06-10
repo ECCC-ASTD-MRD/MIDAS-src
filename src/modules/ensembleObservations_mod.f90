@@ -1881,7 +1881,7 @@ CONTAINS
       ensObs%meanYb(obsIndex) = real(sum(ensObs%Yb_r4(:,obsIndex)) / ensObs%numMembers, 8)
       ! TODO: simplify the floating point precision conversions
       !   ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - real(ensObs%meanYb(obsIndex),4)
-      ensObs%Yb_r4(:,obsIndex) = real( real(ensObs%Yb_r4(:,obsIndex),8) - ensObs%meanYb(obsIndex) )
+      ensObs%Yb_r4(:,obsIndex) = real( real(ensObs%Yb_r4(:,obsIndex),8) - ensObs%meanYb(obsIndex) ,4)
     end do
 
     ensObs%meanRemoved = .true.
