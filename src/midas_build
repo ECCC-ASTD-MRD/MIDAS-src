@@ -211,7 +211,7 @@ if [ -n "${__abs_exist_list}" ]; then
     echo "Checking src/programs/programs.mk for absolute targets"
     for __abs in ${__abs_exist_list}; do
         ## external programs are not expected in programs/programs.mk
-        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then 
+        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
             typeset __search=$(grep "^ *${__abs}.Abs *:" programs/programs.mk)
             if [ -z "${__search}" ]; then
                 echo "<!> ${__abs}.Abs target not in src/programs/programs.mk"
@@ -411,7 +411,7 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "MIDAS_COMPILE_KEEP_LISTING=false"
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
-    rm -rf ${__listing_frontend} 
+    rm -rf ${__listing_frontend}
 fi
 
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
