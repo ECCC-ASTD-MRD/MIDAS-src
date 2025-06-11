@@ -51,7 +51,7 @@ module verticalCoord_mod
   end type struct_vco
 
 contains
-  
+
   !--------------------------------------------------------------------------
   ! vco_allocateIp1
   !--------------------------------------------------------------------------
@@ -79,14 +79,14 @@ contains
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
   subroutine vco_SetupFromFile(vco, templateFile, etiket_opt, beSilent_opt)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with information from 
+    !
+    ! :Purpose: Initialize vertical coordinate object with information from
     !           a standard file.
     !
     implicit none
 
     ! Arguments:
-    type(struct_vco),pointer,   intent(inout) :: vco          ! Vertical coordinate object 
+    type(struct_vco),pointer,   intent(inout) :: vco          ! Vertical coordinate object
     character(len=*),           intent(in)    :: templateFile ! Template file
     character(len=*), optional, intent(in)    :: etiket_opt   ! Optional argument etiket
     logical,          optional, intent(in)    :: beSilent_opt ! Optional argument beSilent
@@ -116,7 +116,7 @@ contains
     end if
 
     allocate(vco)
-    call convip(vco%ip1_seaLevel, 0.0, 0, 2, blk_s, .false.) 
+    call convip(vco%ip1_seaLevel, 0.0, 0, 2, blk_s, .false.)
 
     if (present(etiket_opt)) then
       etiket = etiket_opt
@@ -194,7 +194,7 @@ contains
         end if
 
         ! check for record with surface data (and that are not ocean variables)
-        call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
+        call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
         if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == vco%ip1_seaLevel .or. Ip1Kind == 3) then
           sfcFieldFound = .true.
           exit record_loop
@@ -236,14 +236,14 @@ contains
   ! vco_setupAtmFromFile
   !--------------------------------------------------------------------------
   subroutine vco_setupAtmFromFile(vco, templatefile, etiket, beSilent)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with information from 
+    !
+    ! :Purpose: Initialize vertical coordinate object with information from
     !           a standard file. Use vgrid descriptor for atmospheric fields.
     !
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
+    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object
     character(len=*),          intent(in)    :: templatefile ! Template file
     character(len=*),          intent(in)    :: etiket
     logical,                   intent(in)    :: beSilent
@@ -278,7 +278,7 @@ contains
       call utl_abort('vco_setupAtmFromFile: !! record exists, but not able to create descriptor object')
     end if
 
-    ! Print out vertical structure 
+    ! Print out vertical structure
     if (mmpi_myid == 0 .and. .not. beSilent) then
       flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
@@ -331,7 +331,7 @@ contains
       end do
     end if
     if (vco%nlev_T == 0 .and. .not. beSilent) then
-      write(*,*) 
+      write(*,*)
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid thermodynamic variable in the template file!'
     else if (vco%nlev_T > vco_maxNumLevels) then
       write(*,*)
@@ -367,7 +367,7 @@ contains
       end do
     end if
     if (vco%nlev_M == 0 .and. .not. beSilent) then
-      write(*,*) 
+      write(*,*)
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid momentum variable in the template file!'
     else if (vco%nlev_M > vco_maxNumLevels) then
       write(*,*)
@@ -390,7 +390,7 @@ contains
       end do
       if (mmpi_myid == 0 .and. .not. beSilent) then
         if (vco%nlev_Other(varListIndex) == 0) then
-          write(*,*) 
+          write(*,*)
           write(*,*) 'vco_setupAtmFromFile: Found no levels in template file for OTHER type variable ', nomvar_Other
         else
           write(*,*) 'vco_setupAtmFromFile: Found ', vco%nlev_Other(varListIndex),  &
@@ -406,7 +406,7 @@ contains
     if (mmpi_myid == 0 .and. .not.beSilent) then
       write(*,*) 'vco_setupAtmFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     end if
-    
+
     call vco_allocateIp1(vco)
 
     ! Match up ip1 values from file and vgrid for momentum levels
@@ -477,14 +477,14 @@ contains
   ! vco_setupOceanFromFile
   !--------------------------------------------------------------------------
   subroutine vco_setupOceanFromFile(vco, templateFile, etiket, beSilent)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with information from 
+    !
+    ! :Purpose: Initialize vertical coordinate object with information from
     !           a standard file. For Ocean fields on depth levels.
     !
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
+    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object
     character(len=*),          intent(in)    :: templateFile ! Template file
     character(len=*),          intent(in)    :: etiket
     logical,                   intent(in)    :: beSilent
@@ -590,14 +590,14 @@ contains
   ! vco_setupOceanFromNetCdfFile
   !--------------------------------------------------------------------------
   subroutine vco_setupOceanFromNetCdfFile(vco, templateFile, beSilent)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with information from 
+    !
+    ! :Purpose: Initialize vertical coordinate object with information from
     !           a NetCDF file. Only used for Ocean fields on depth levels.
     !
     implicit none
 
     ! arguments:
-    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
+    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object
     character(len=*),          intent(in)    :: templateFile ! Template file
     logical,                   intent(in)    :: beSilent
 
@@ -608,7 +608,7 @@ contains
     character(len=nf90_max_name) :: dimName
     character(len=20) :: varName
     character(len=10) :: blk_S, depthVariable
-    
+
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file', trim(templateFile)
 
@@ -636,17 +636,17 @@ contains
       if (utl_varPresentInNetcdfFile('tos', trim(templateFile))) then
         if (.not. beSilent) &
           write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
-      else if (utl_varPresentInNetcdfFile('sss', trim(templateFile))) then     
+      else if (utl_varPresentInNetcdfFile('sss', trim(templateFile))) then
         if (.not. beSilent) &
           write(*,*) 'vco_setupOceanFromNetCdfFile: SSS found in file: ', trim(templateFile)
       else
-        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST/SSS found in file: '//trim(templateFile)) 
+        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST/SSS found in file: '//trim(templateFile))
       end if
 
       if (.not. beSilent) &
       write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: vertical coordinate object '//&
                  'is not required for SST/SSS.'
-      
+
       vco%nLev_depth = 1
       allocate(vco%depths(vco%nLev_depth))
       allocate(vco%ip1_depth(vco%nLev_depth))
@@ -655,7 +655,7 @@ contains
       vco%depths(1) = 0
 
       ! Set ip1 value for 0m depth
-      call convip(ip1Value, real(vco%depths(1), 4), 0, 2, blk_s, .false.) 
+      call convip(ip1Value, real(vco%depths(1), 4), 0, 2, blk_s, .false.)
       vco%ip1_depth(1) = ip1Value
 
       if (.not. beSilent) then
@@ -664,14 +664,14 @@ contains
                      levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
         end do
       end if
- 
+
     else
 
       ! Open the template file
       write(*,*) 'vco_setupOceanFromNetCdfFile: reading depth variable ', &
-                 trim(depthVariable),' from file: ', trim(templateFile) 
+                 trim(depthVariable),' from file: ', trim(templateFile)
       call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
-    
+
       ! Get the number of levels, i.e. length of depthVariable dimension
       call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(depthVariable), varID))
       call utl_checkNetCDFstatus(nf90_inquire_variable(ncid, varID, varName, &
@@ -687,7 +687,7 @@ contains
         end if
 
       enddo
-      
+
       if (vco%nLev_depth < 0) then
         call utl_abort('vco_setupOceanFromNetCdfFile: not able to find depth variable dimension in NetCDF file')
       end if
@@ -704,7 +704,7 @@ contains
 
       ! Set ip1 values from depths
       do levIndex = 1, vco%nLev_depth
-        call convip(ip1Value, real(vco%depths(levIndex),4), 0, 2, blk_s, .false.) 
+        call convip(ip1Value, real(vco%depths(levIndex),4), 0, 2, blk_s, .false.)
         vco%ip1_depth(levIndex) = ip1Value
       end do
 
@@ -725,21 +725,21 @@ contains
     end if NODEPTHT
 
     write(*,*) 'vco_setupOceanFromNetCdfFile: completed'
-    
+
   end subroutine vco_setupOceanFromNetCdfFile
 
   !--------------------------------------------------------------------------
   ! vco_setupSfcFromFile
   !--------------------------------------------------------------------------
   subroutine vco_setupSfcFromFile(vco, beSilent)
-    ! 
-    ! :Purpose: Initialize vertical coordinate object with information from 
+    !
+    ! :Purpose: Initialize vertical coordinate object with information from
     !           a standard file. For surface only fields.
     !
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
+    type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object
     logical,                   intent(in)    :: beSilent
 
     if (.not. beSilent) write(*,*) 'vco_setupSfcFromFile: found surface fields'
@@ -787,9 +787,9 @@ contains
   ! vco_getNumLev
   !--------------------------------------------------------------------------
   function vco_getNumLev(vco,varLevel,varName_opt) result(nlev)
-    ! 
+    !
     ! :Purpose: get number of vertical levels
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -828,9 +828,9 @@ contains
   ! vco_getVcode
   !--------------------------------------------------------------------------
   function vco_getVcode(vco) result(Vcode)
-    ! 
+    !
     ! :Purpose: get the Vcode from the vgrid descriptor
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -868,7 +868,7 @@ contains
     if (mmpi_myid > 0) then
       if (.not.associated(vco)) then
         allocate(vco)
-      else 
+      else
         call utl_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
       end if
     end if
@@ -930,7 +930,7 @@ contains
       call mmpi_bcast(vgdtable_dim1)
       call mmpi_bcast(vgdtable_dim2)
       call mmpi_bcast(vgdtable_dim3)
-      if (mmpi_myid > 0) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
+      if (mmpi_myid > 0) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3))
       call mmpi_bcast(vgdtable, size(vgdtable))
       ! others
       call mmpi_bcast(vgddate)
@@ -942,7 +942,7 @@ contains
       call mmpi_bcast(vgdip1)
       call mmpi_bcast(vgdip2)
       call mmpi_bcast(vgdip3)
-      
+
       if (mmpi_myid > 0) then
         ierr = vgd_new(vco%vgrid,vgdtable)
         ierr = vgd_put(vco%vgrid,'DATE',vgddate)
@@ -955,8 +955,8 @@ contains
         ierr = vgd_put(vco%vgrid,'IP_2',vgdip2)
         ierr = vgd_put(vco%vgrid,'IP_3',vgdip3)
       end if
-      
-      deallocate(vgdtable) 
+
+      deallocate(vgdtable)
 
     end if
 
@@ -972,7 +972,7 @@ contains
     ! :Purpose: Compare two vertical grid object and provide a logical result if they are equal or not
     !
     implicit none
-  
+
     ! Arguments:
     type(struct_vco), pointer, intent(in) :: vco1 ! vertical coordinate object one
     type(struct_vco), pointer, intent(in) :: vco2 ! vertical coordinate object two
@@ -1050,7 +1050,7 @@ contains
     ! :Purpose: This function determines if vco_template is a subset of vco_full.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_vco), pointer, intent(in)  :: vco_full     ! vertical coordinate object full
     type(struct_vco), pointer, intent(in)  :: vco_template ! vertical coordinate object template
@@ -1113,7 +1113,7 @@ contains
   !--------------------------------------------------------------------------
   function hybridCoefEqualOrNot(vco1, vco2) result(equal)
     !
-    ! :Purpose: To compare two vertical coordinate hybrid coefficient object 
+    ! :Purpose: To compare two vertical coordinate hybrid coefficient object
     !
     implicit none
 
@@ -1173,7 +1173,7 @@ contains
         equal = .false.
         return
       end if
-      if (  .not. utl_isEqual(coefA1, coefA2) ) then
+      if (  .not. all(utl_isEqual(coefA1, coefA2)) ) then
         equal = .false.
         return
       end if
@@ -1183,7 +1183,7 @@ contains
       nullify(coefB2)
       stat = vgd_get(vco1%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB1)
       stat = vgd_get(vco2%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB2)
-      if (  .not. utl_isEqual(coefB1, coefB2) ) then
+      if (  .not. all(utl_isEqual(coefB1, coefB2)) ) then
         equal = .false.
         return
       end if
@@ -1202,7 +1202,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine vco_levelMatchingList(THmatchingList, MMmatchingList, vco1, vco2)
     !
-    ! :Purpose: This subroutine returns arrays of array indices of the levels (ip1s) in vco2 
+    ! :Purpose: This subroutine returns arrays of array indices of the levels (ip1s) in vco2
     !           corresponding with the levels (ip1s) in vco1
     !
     implicit none
@@ -1230,7 +1230,7 @@ contains
         end if
       end do
     end do
-    
+
     !
     !- Do thermo levels...
     !
@@ -1239,7 +1239,7 @@ contains
       do levIndex2 = 1, vco2%nlev_T
         if ( (vco2%ip1_T(levIndex2) == vco1%ip1_T(levIndex1)) .or. &
              (vco2%ip1_T(levIndex2) == vco2%ip1_T_2m .and.        &
-              vco1%ip1_T(levIndex1) == vco1%ip1_T_2m) ) then 
+              vco1%ip1_T(levIndex1) == vco1%ip1_T_2m) ) then
           THmatchingList(levIndex1) = levIndex2
           exit
         end if
@@ -1264,7 +1264,7 @@ contains
     character(len=10) :: blk_s
 
     if      (vco%Vcode == 5002) then
-      vco%ip1_T_2m  = vco%ip1_sfc 
+      vco%ip1_T_2m  = vco%ip1_sfc
       vco%ip1_M_10m = vco%ip1_sfc
     else if (vco%Vcode == 5005 .or. vco%Vcode == 5100 .or. vco%Vcode == 21001) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)

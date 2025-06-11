@@ -481,7 +481,7 @@ contains
       header_loop1: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if (oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex) == 0.0d0) then
+        if ( utl_isEqual(oti_getTimeInterpWeight(interpInfo%oti,headerIndex,stepIndex), 0.0d0) ) then
           cycle header_loop1
         end if
 
@@ -607,11 +607,11 @@ contains
 
         call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_T')
         call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_T')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
         call gsv_getField(stateVector_Tiles_ptr,height3D_r8_ptr1,'Z_M')
         call gsv_getField(stateVector_Tiles_1Step,height3D_r4_ptr2,'Z_M')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
       end if ! inputStateVectorType
 
@@ -643,7 +643,7 @@ contains
       header_loop2: do headerIndex = headerIndexBeg, headerIndexEnd
 
         ! if obs inside window, but zero weight for current stepIndex then skip it
-        if (oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex) == 0.0d0) then
+        if ( utl_isEqual(oti_getTimeInterpWeight(interpInfo%oti, headerIndex, stepIndex), 0.0d0) ) then
           cycle header_loop2
         end if
 
@@ -2624,13 +2624,13 @@ contains
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
-      if ( xpos == real(statevector%ni + extraLongitude,8) ) then
+      if ( utl_isEqual(xpos, real(statevector%ni + extraLongitude,8)) ) then
         lonIndex = floor(xpos) - 1
       else
         lonIndex = floor(xpos)
       end if
 
-      if ( ypos == real(statevector%nj,8) ) then
+      if ( utl_isEqual(ypos, real(statevector%nj,8)) ) then
         ILA = floor(ypos) - 1
       else
         ILA = floor(ypos)
@@ -2700,17 +2700,17 @@ contains
       call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, &
                                     headerIndex, varLevIndex, stepIndex, procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == bilinearFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, bilinearFootprint) ) then
 
       call s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                    procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == lakeFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, lakeFootprint) ) then
 
       call s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                procIndex, numGridpt)
 
-    else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+    else if ( utl_isEqual(footprintRadius_r4, nearestNeighbourFootprint) ) then
 
       call s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
                                     procIndex, numGridpt)
@@ -3003,10 +3003,10 @@ contains
     end if
 
     if ( stateVector%hco%grtyp == 'U' ) then
-      if ( ypos_r4 == real(stateVector%nj/2) ) then
+      if ( utl_isEqual(ypos_r4, real(stateVector%nj/2,4)) ) then
         latIndex = floor(ypos_r4) - 1
       end if
-      if ( ypos2_r4 == real(stateVector%nj/2) ) then
+      if ( utl_isEqual(ypos2_r4, real(stateVector%nj/2,4)) ) then
         latIndex2 = floor(ypos2_r4) - 1
       end if
     end if
@@ -3592,8 +3592,11 @@ contains
     lat_r4 = real(latLev_T(nlev_T),4)
     lon_r4 = real(lonLev_T(nlev_T),4)
 
-    lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-    lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+    !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+    lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+    lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
     ierr = gpos_getPositionXY( hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                               lat_deg_r4, lon_deg_r4, subGridIndex )
@@ -3612,8 +3615,11 @@ contains
       lat_r4 = real(latLev_M(nlev_M),4)
       lon_r4 = real(lonLev_M(nlev_M),4)
 
-      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+      !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+      lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       ierr = gpos_getPositionXY( hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )
@@ -3633,8 +3639,11 @@ contains
       lat_r4 = real(latLev_S_opt,4)
       lon_r4 = real(lonLev_S_opt,4)
 
-      lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
-      lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4
+      !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
+      lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       ierr = gpos_getPositionXY( hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
                                 lat_deg_r4, lon_deg_r4, subGridIndex )

@@ -23,7 +23,7 @@ module bgckSSMIS_mod
   real    :: ssbg_clwQcThreshold
   logical :: ssbg_debug
 
-  real,    parameter :: ssbg_realMissing=-99. 
+  real,    parameter :: ssbg_realMissing=-99.
   integer, parameter :: ssbg_intMissing=-1
   real,    parameter :: ssbg_rmisg=-999.0
   real,    parameter :: ssbg_clwThresh=0.02
@@ -76,7 +76,7 @@ contains
 
     ssbg_debug = debug
 
-  end subroutine ssbg_init 
+  end subroutine ssbg_init
 
   !--------------------------------------------------------------------
   ! ssmis_tb2ta
@@ -207,7 +207,7 @@ contains
 
   !--------------------------------------------------------------------------
   ! ssmi_ta2tb_fweng
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine ssmi_ta2tb_fweng(Ta, Tb)
     ! :Purpose: To convert antenna temperature(Ta) to brightness temperature(Tb).
 
@@ -254,7 +254,7 @@ contains
 
   !--------------------------------------------------------------------------
   ! ssmi_ta2tb_fwengtz
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine ssmi_ta2tb_fwentz(Ta, Tb)
     ! :Purpose: Convert antenna temperatures to brightness temperatures.
 
@@ -333,8 +333,8 @@ contains
   end subroutine ssmi_ta2tb_fwentz
 
   !--------------------------------------------------------------------------
-  ! compute_iwv_101 
-  !--------------------------------------------------------------------------  
+  ! compute_iwv_101
+  !--------------------------------------------------------------------------
   subroutine compute_iwv_101(Tb, iwv)
     ! :Purpose: Compute integrated water vapor from SSMI brightness temperatures.
 
@@ -398,7 +398,7 @@ contains
 
   !--------------------------------------------------------------------------
   ! determ_tpw
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine determ_tpw(Tb, sType, seaIce, TPW)
     ! :Purpose: To calculate total precipitable water (in mm).
 
@@ -442,7 +442,7 @@ contains
 
   !--------------------------------------------------------------------------
   !  determ_sea_ice
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine determ_sea_ice(ocean, Ta, sType, seaIce, latitude)
     ! :Purpose: To calculate sea ice cover (in %).
 
@@ -488,7 +488,7 @@ contains
 
   !--------------------------------------------------------------------------
   !  determ_clw
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine determ_clw(algOption, Ta, Tb, sType, CLW, IWV, latitude)
     ! :Purpose: To calculate cloud liquid water for a single data point (in kg/m**2).
 
@@ -596,7 +596,7 @@ contains
 
   !--------------------------------------------------------------------------
   !  cld_filter_fweng
-  !--------------------------------------------------------------------------  
+  !--------------------------------------------------------------------------
   subroutine cld_filter_fweng(numObsToProcess, obsTb, algOption, waterObs, grossRej,  &
             &                 cloudObs, iwvReject, precipObs, rclw, riwv, iSatId,   &
             &                 obsLatitude, numSeaIceObs)
@@ -689,8 +689,7 @@ contains
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
         else
-          write(*,*) ' cld_filter_fweng: Invalid algorithm option !! '
-          call abort()
+          call utl_abort('cld_filter_fweng: Invalid algorithm option !!')
         end if
 
         ! Call CLW retrieval algorithm subroutine.
@@ -757,7 +756,7 @@ contains
     integer, intent(in)    :: secondDim                        ! Second dimension
     real,    intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D real array
     real,    intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D real array
-    
+
     ! Locals:
     integer                :: firstDimIndex
     integer                :: productDimIndex
@@ -766,7 +765,7 @@ contains
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     do secondDimIndex=1,secondDim
       do firstDimIndex=1,firstDim
-        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex 
+        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex
         twoDimArray(firstDimIndex,secondDimIndex) = oneDimArray(productDimIndex)
       end do
     end do
@@ -787,16 +786,16 @@ contains
     integer, intent(in)    :: secondDim                        ! Second dimension
     integer, intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D integer array
     integer, intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D integer array
-    
+
     ! Locals:
     integer :: firstDimIndex
-    integer :: productDimIndex 
-    integer :: secondDimIndex 
+    integer :: productDimIndex
+    integer :: secondDimIndex
 
     ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
     do secondDimIndex=1,secondDim
       do firstDimIndex=1,firstDim
-        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex 
+        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex
         twoDimArray(firstDimIndex,secondDimIndex) = oneDimArray(productDimIndex)
       end do
     end do
@@ -811,9 +810,9 @@ contains
     !           - scattering index (over land and ocean).
     !           The two channels used are: 89Ghz, 150Ghz.
     !
-    !           REFERENCES: Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
-    !                       1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
-    !                       Swedish Meteorologicali and Hydrological Institute, 
+    !           REFERENCES: Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson,
+    !                       1999: Precipitation Analysis from AMSU, Nowcasting SAF,
+    !                       Swedish Meteorologicali and Hydrological Institute,
     !                       Visiting Scientist Report, November 1999.
     !
     implicit none
@@ -853,7 +852,7 @@ contains
           ier(obsIndex) = 1
       else
           ier(obsIndex) = 0
-      end if 
+      end if
     end do
 
     !____3) Compute parameters:**    ----------------------*
@@ -949,7 +948,7 @@ contains
     nObsLon = size(obsLongitude)
     if (nObsLat /= nObsLon) then
       call utl_abort ('ssbg_readGeophysicFieldsAndInterpolate: OBSERVATION obsLatitude and obsLongitude should have SAME LENGTH')
-    else 
+    else
       dataNum = nObsLat
     end if
 
@@ -1322,14 +1321,14 @@ contains
     ! surrounding it.
 
     ier  = ezSetOpt('INTERP_DEGREE','LINEAR')
- 
+
     call utl_reAllocate(mgIntrp, numObsToProcess)
     call utl_reAllocate(lgIntrp, numObsToProcess)
 
     mgIntrp(:) = 0.0
     lgIntrp(:) = 0.0
     do obsIndex = 1, numObsToProcess
- 
+
       latMesh = obsLatBox(:,obsIndex)
       lonMesh = obsLonBox(:,obsIndex)
 
@@ -1358,9 +1357,9 @@ contains
 
       if (lgintrp(obsIndex) < LGthresh ) then
         iMask = -1
-      else 
+      else
         iMask = 0
-      end if 
+      end if
 
       if ( iMask == 0 ) then  ! if ice or snow
         terrainType(obsIndex) = 1 - landSeaQualifier(obsIndex)
@@ -1387,7 +1386,7 @@ contains
   end subroutine land_ice_mask_ssmis
 
   !--------------------------------------------------------------------------
-  ! wentz_sfctype_ssmis  
+  ! wentz_sfctype_ssmis
   !--------------------------------------------------------------------------
   subroutine wentz_sfctype_ssmis(numObsToProcess, obsLatitude, obsLongitude, landSeaQualifier)
     ! :Purpose: Determine for each observation point the wentz surface value
@@ -1559,7 +1558,7 @@ contains
         exit HEADER0
       end if
     end do HEADER0
-    
+
     if ( .not. ssmisDataPresent ) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_computeSsmisSurfaceType since no SSMIS DATA is found'
       return
@@ -1583,7 +1582,7 @@ contains
     write(*,*) 'ssbg_computeSsmisSurfaceType: Finished'
 
   end subroutine ssbg_computeSsmisSurfaceType
-  
+
   !--------------------------------------------------------------------------
   ! ssbg_grossValueCheck
   !--------------------------------------------------------------------------
@@ -1606,7 +1605,7 @@ contains
     integer :: obsIndex
 
     call utl_reAllocate(grossRej, numObsToProcess)
-    
+
     grossRej(1:numObsToProcess) = .true.
     loIndex = 1
     do obsIndex = 1, numObsToProcess
@@ -1654,7 +1653,7 @@ contains
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex            ! Current header index
     logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
-    
+
     ! Locals:
     ! arrays to get from obsspacedata
     character(len=9)           :: burpFileSatId
@@ -1753,11 +1752,11 @@ contains
     headerCompt = 1
     numObsToProcess = 1
 
-    ! Allocate intent out arrays 
+    ! Allocate intent out arrays
 
     call utl_reAllocate(obsToReject, numObsToProcess*actualNumChannel)
 
-    ! Allocate Fortran working arrays 
+    ! Allocate Fortran working arrays
 
     call utl_reAllocate(amsubDrynessIndex, numObsToProcess)
     call utl_reAllocate(cloudObs, numObsToProcess)
@@ -1789,7 +1788,7 @@ contains
     !initialization
     obsTb(:) = ssbg_realMissing
     riwv(:) = ssbg_realMissing
-    
+
     ! Lecture dans obsspacedata
 
     burpFileSatId                 = obs_elem_c    ( obsSpaceData, 'STID'  , headerIndex )
@@ -1840,7 +1839,7 @@ contains
       numUkBadObs = 0
       numCloudsinObs = 0
       numWaterObs = 0
-    end if 
+    end if
     waterObs(:) = .false.
 
     ! Record the total number of obs pts read for each satellite.
@@ -1927,7 +1926,7 @@ contains
     ! -- SSMIS channel  8 is used for AMSU-B like channel 2 (both at 150 GHz)
     !---------------------------------------------------------------------------------
 
-    call bennartz(ier, numObsToProcess, ztb91, ztb150, satZenithAngle, landSeaQualifier, & 
+    call bennartz(ier, numObsToProcess, ztb91, ztb150, satZenithAngle, landSeaQualifier, &
                  scatL, scatW)
 
     !--------------------------------------------------------------------
@@ -1937,7 +1936,7 @@ contains
     where ( (ztb_amsub3 /= ssbg_realMissing) .and. (ztb_amsub5 /= ssbg_realMissing) )
       amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
     elsewhere
-      amsubDrynessIndex = ssbg_realMissing 
+      amsubDrynessIndex = ssbg_realMissing
     end where
 
     !--------------------------------------------------------------------
@@ -1954,38 +1953,38 @@ contains
 
     obsToReject(:) = .false.
     HEADER1: do obsIndex = 1, numObsToProcess
-      
-      !      Reject all channels if UKMet rain flag or gross Tb error detected   
+
+      !      Reject all channels if UKMet rain flag or gross Tb error detected
       if ( rainDetectionUKMethod(obsIndex) .or. grossRej(obsIndex) ) then
-        !      "BAD" Observations       
+        !      "BAD" Observations
         obsToReject(:) = .true.
         numTotFilteredObs = numTotFilteredObs + 1
 
       else     ! if ( ukBadObs(obsIndex) .or. grossRej(obsIndex) )
-        !      "GOOD" Observations       
-        !-----------------------------------------------------------------------------------       
-        !      OVER LAND OR SEA-ICE, 
+        !      "GOOD" Observations
+        !-----------------------------------------------------------------------------------
+        !      OVER LAND OR SEA-ICE,
         !         -- reject lower tropospheric channels and imager channels
         !         -- check Bennartz SI and DI for AMSU-B like channels
-        !----------------------------------------------------------------------------------- 
+        !-----------------------------------------------------------------------------------
         !        -- CLW/PRECIP not determined over land
-        !        -- surface emissivity effects lower tropospheric channels     
+        !        -- surface emissivity effects lower tropospheric channels
         if  ( .not. waterObs(obsIndex) ) then
           obsToReject(1:ipc) = .true.    ! AMSU-A 3-5(6)
           obsToReject(12:18) = .true.    ! SSMI-like imager 1-7
           obsToReject(8:9) = .true.      ! AMSU-B 2,5
           !        Check BSI and DI for AMSU-B 3-4
           !         Bennartz Scattering Index
-          !         Land point           
+          !         Land point
           if ( scatL(obsIndex) > 0.0  .and. scatL(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
-          !         Sea-ice point 
+          !         Sea-ice point
           if ( scatW(obsIndex) > 40.0 .and. scatW(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
           !         Missing scattering index
           if ( scatW(obsIndex) == ssbg_realMissing .and. scatL(obsIndex) == ssbg_realMissing ) obsToReject(10:11) = .true.
           if ( any(obsToReject(10:11))) then
             numLandScatObs = numLandScatObs + 1
           end if
-          !         Dryness index           
+          !         Dryness index
           if ( amsubDrynessIndex(obsIndex) > 0.0 ) then
             obsToReject(11) = .true.
           end if
@@ -1998,12 +1997,12 @@ contains
           if ( amsubDrynessIndex(obsIndex) > -10.0 ) numDryIndexObs = numDryIndexObs + 1
           numTotFilteredObs = numTotFilteredObs + 1
         end if
-        !-----------------------------------------------------------------------------------         
-        !      OVER WATER, 
-        !        -- reject tropospheric channels and imager channels if cloudy, 
+        !-----------------------------------------------------------------------------------
+        !      OVER WATER,
+        !        -- reject tropospheric channels and imager channels if cloudy,
         !           precip, or excessive IWV
         !        -- check Bennartz SI for AMSU-B like channels
-        !-----------------------------------------------------------------------------------    
+        !-----------------------------------------------------------------------------------
         if  ( waterObs(obsIndex) ) then
           if (cloudObs(obsIndex) .or. iwvReject(obsIndex))  then
             if ( iwvReject(obsIndex) ) then
@@ -2049,7 +2048,7 @@ contains
         numPrecipObs = numPrecipObs + 1
       end if
     end do HEADER1
-      
+
     !-------------------------------------------------------------------------------
     ! Update ObsspaceData with the computed values of: ZLQ, ZTT, IWV and scatW
     !-------------------------------------------------------------------------------
@@ -2091,12 +2090,12 @@ contains
       write(*,*) '*******************************************************************'
     end if
 
-  end subroutine ssbg_satqcSsmis 
+  end subroutine ssbg_satqcSsmis
 
   !--------------------------------------------------------------------------
   ! ssbg_updateObsSpaceAfterSatQc
   !--------------------------------------------------------------------------
-  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject) 
+  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject)
     !
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     !
@@ -2156,7 +2155,7 @@ contains
     ! Allocate Header elements
     call utl_reAllocate(obsGlobalFlag, numObsToProcess)
     call utl_reAllocate(satScanPosition, numObsToProcess)
-    
+
     ! Allocation
     call utl_reAllocate(obsFlags, numObsToProcess*actualNumChannel)
 
@@ -2172,34 +2171,34 @@ contains
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
       obsFlags(currentChannelNumber) = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
     end do BODY2
-    
-    !------------------------------------------------------------------ 
+
+    !------------------------------------------------------------------
     ! 1 - Mark global flags if any obsToReject
-    !------------------------------------------------------------------ 
+    !------------------------------------------------------------------
     do obsIndex = 1, numObsToProcess
       if ( any(obsToReject) ) obsGlobalFlag(obsIndex) = ibset(obsGlobalFlag(obsIndex), 6)
-    end do 
+    end do
 
-    !------------------------------------------------------------------ 
+    !------------------------------------------------------------------
     ! 2 - Mark obs flags for each value of obsToReject
-    !------------------------------------------------------------------ 
+    !------------------------------------------------------------------
     dataIndex = 0
     do obsIndex = 1, numObsToProcess
       do channelIndex = 1, actualNumChannel
-        dataIndex = dataIndex+1 
+        dataIndex = dataIndex+1
         if (resetQc) obsFlags(dataIndex) = 0
         if (obsToReject(dataIndex)) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),7)
-      end do 
+      end do
     end do
 
     !-----------------------------------------------------------------
     !    Subtract 270 from FOV values (element 005043).
     !-----------------------------------------------------------------
-    
+
     do obsIndex = 1, numObsToProcess
       if (satScanPosition(obsIndex) > 270) satScanPosition(obsIndex) = satScanPosition(obsIndex) - 270
     end do
- 
+
     ! write elements in obsspace
     call obs_headSet_i(obsSpaceData, OBS_FOV, headerIndex, satScanPosition(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalFlag(1))
@@ -2212,7 +2211,7 @@ contains
       call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags(currentChannelNumber))
     end do BODY
 
-  end subroutine ssbg_updateObsSpaceAfterSatQc 
+  end subroutine ssbg_updateObsSpaceAfterSatQc
 
   !--------------------------------------------------------------------------
   ! ssbg_inovqcSsmis
@@ -2248,7 +2247,7 @@ contains
     integer              :: actualNumChannel         ! actual Num channel
     integer              :: bodyIndex
     integer              :: bodyIndexBeg
-    integer              :: bodyIndexEnd 
+    integer              :: bodyIndexEnd
     integer              :: codtyp                   ! code type
     integer              :: channelIndex
     integer              :: currentChannelNumber
@@ -2946,4 +2945,3 @@ contains
   end subroutine ssbg_bgCheckSSMIS
 
 end module bgckSSMIS_mod
-

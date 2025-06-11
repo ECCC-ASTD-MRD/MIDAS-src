@@ -658,7 +658,7 @@ contains
       cq = cos(cb/lst%nj)
 
       lst%lapxy(ila) = fac * (cp + cq - 2.d0)
-      if (lst%lapxy(ila) /= 0.d0) then
+      if ( .not. utl_isEqual(lst%lapxy(ila), 0.d0) ) then
          lst%ilapxy(ila) = 1.d0 / lst%lapxy(ila)
       else
          lst%ilapxy(ila) = 0.d0

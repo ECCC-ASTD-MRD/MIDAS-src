@@ -454,7 +454,7 @@ contains
                              //trim(variableName)//' analysis variable.')
             end if
 
-            if (maxLcorr == 0.0d0) then
+            if (utl_isEqual(maxLcorr, 0.0d0)) then
 
               do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
                 do stepIndex = 1, stateVectorTrlErrorStd%numStep
@@ -465,7 +465,7 @@ contains
 
                   GRIDPT_LOOP: do gridpt = 1, gridptCount
 
-                    if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
+                    if ( utl_isEqual(interpWeight(gridpt), 0.0d0) ) cycle GRIDPT_LOOP
 
                     lonIndex = obsLonIndex(gridpt)
                     latIndex = obsLatIndex(gridpt)
@@ -691,7 +691,7 @@ contains
 
               GRIDPT_LOOP: do gridpt = 1, gridptCount
 
-                if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
+                if ( utl_isEqual(interpWeight(gridpt), 0.0d0) ) cycle GRIDPT_LOOP
 
                 lonIndex = obsLonIndex(gridpt)
                 latIndex = obsLatIndex(gridpt)
@@ -1017,7 +1017,7 @@ contains
                 scaling = 1.0d0
               end if
 
-              if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
+              if (utl_isEqual(scaling, 0.0d0)) cycle INFLUENTOBSCYCLE
               VARLEVCYCLE: do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
@@ -1026,7 +1026,7 @@ contains
 
                 GRIDPTCYCLE: do gridpt = 1, gridptCount
 
-                  if (interpWeight(gridpt) == 0.0d0) cycle GRIDPTCYCLE
+                  if ( utl_isEqual(interpWeight(gridpt), 0.0d0) ) cycle GRIDPTCYCLE
 
                   xStateIndex = obsLonIndex(gridpt)
                   yStateIndex = obsLatIndex(gridpt)
@@ -1100,7 +1100,7 @@ contains
                 scaling = 1.0d0
               end if
 
-              if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
+              if (utl_isEqual(scaling, 0.0d0)) cycle INFLUENTOBSCYCLE2
 
               VARLEVCYCLE2: do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
 
@@ -1110,7 +1110,7 @@ contains
 
                 GRIDPTCYCLE2: do gridpt = 1, gridptCount
 
-                  if (interpWeight(gridpt) == 0.0d0) cycle GRIDPTCYCLE2
+                  if ( utl_isEqual(interpWeight(gridpt), 0.0d0) ) cycle GRIDPTCYCLE2
 
                   xStateIndex = obsLonIndex(gridpt)
                   yStateIndex= obsLatIndex(gridpt)

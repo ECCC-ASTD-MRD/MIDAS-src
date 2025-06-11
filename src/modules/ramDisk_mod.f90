@@ -15,7 +15,11 @@ module ramDisk_mod
   public :: ram_setup, ram_fullWorkingPath, ram_remove, ram_getRamDiskDir
   public :: ram_removeRamDiskFromName, ram_fileIsOnRamDisk
 
-  character(len=256) :: ram_disk_dir
+  ! Public constants:
+  integer, public, parameter :: ram_fileNameLength = 256
+  integer, public, parameter :: ram_fullPathLength = 512
+
+  character(len=ram_fileNameLength) :: ram_disk_dir
 
   logical :: ram_disk_dir_exists
   logical :: initialized = .false.
@@ -43,7 +47,7 @@ contains
     if (status.eq.1) then
       write(*,*) 'ram_setup: The environment variable MIDAS_RAMDISKDIR has not been detected!'
       write(*,*) '           Assume all files in current working directory'
-      ram_disk_dir_exists = .false.  
+      ram_disk_dir_exists = .false.
       ram_disk_dir = 'DOES_NOT_EXIST'
     else
       write(*,*)
@@ -61,7 +65,7 @@ contains
   !--------------------------------------------------------------------------
   function ram_fullWorkingPath(fileName, noAbort_opt, copyToRamDisk_opt) result(fullWorkingPath)
     !
-    !:Purpose: Given a filename, return the full path by either adding the 
+    !:Purpose: Given a filename, return the full path by either adding the
     !          current working directory or the ram disk directory. By default,
     !          will copy the file to the ram disk directory, if it exists.
     !
@@ -72,11 +76,11 @@ contains
     logical, optional, intent(in) :: copyToRamDisk_opt
     character(len=*) , intent(in) :: fileName
     ! Result:
-    character(len=512) :: fullWorkingPath
+    character(len=ram_fullPathLength) :: fullWorkingPath
 
     ! Locals:
+    character(len=ram_fileNameLength) :: fileName2, subDirectory
     logical            :: fileExists, noAbort, copyToRamDisk
-    character(len=256) :: fileName2, subDirectory
     integer            :: status
 
     if ( .not. initialized ) then
@@ -173,7 +177,7 @@ contains
   !--------------------------------------------------------------------------
   function ram_remove(fullWorkingPath) result(returnCode)
     !
-    !:Purpose:  Given the full path+filename, remove the file only if 
+    !:Purpose:  Given the full path+filename, remove the file only if
     !           it is located on the ram disk (to free up memory)
     !
     implicit none
@@ -260,7 +264,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: fileName
     ! Result:
-    character(len=256)           :: fileNameWithoutRamDisk
+    character(len=ram_fileNameLength) :: fileNameWithoutRamDisk
 
     if ( .not. initialized ) then
       call ram_setup()
@@ -295,7 +299,7 @@ contains
     implicit none
 
     ! Result:
-    character(len=512) :: fullWorkingPath ! Ram disk path returned
+    character(len=ram_fullPathLength) :: fullWorkingPath ! Ram disk path returned
 
     if ( initialized ) then
       if ( ram_disk_dir_exists ) then
@@ -306,7 +310,7 @@ contains
     else
       fullWorkingPath = ' '
     end if
-    
+
   end function ram_getRamDiskDir
 
 end module ramDisk_mod

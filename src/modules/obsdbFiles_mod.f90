@@ -682,7 +682,7 @@ contains
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
     integer              :: obsSpaceColIndex, ierr, numRows, numColumns
     real(8)              :: obsPPP, matdata_r8(1,1)
-    character(len=4)     :: obsSpaceColumnName
+    character(len=lenSqlName) :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
     character(len=3000)  :: query
     logical              :: midasBodyTableExists
@@ -1267,8 +1267,7 @@ contains
         end if
 
         ! check if obs value is null/missing
-        if ( bodyValues(bodyTableIndex,bodyColumnIndexObsValueList(obsValueIndex)) == &
-             MPC_missingValue_R8 ) then
+        if ( utl_isEqual(bodyValues(bodyTableIndex,bodyColumnIndexObsValueList(obsValueIndex)), MPC_missingValue_R8) ) then
           cycle obsValueIndex_loop
         end if
 
@@ -1463,7 +1462,7 @@ contains
         if (obs_columnActive_RB(obsdat, OBS_SEM)) then
           do bodyIndex = bodyIndexStart, bodyIndexEnd
             surfEmiss = obs_bodyElem_r(obsdat, OBS_SEM, bodyIndex)
-            if (surfEmiss /= MPC_missingValue_R8) then
+            if ( .not. utl_isEqual(surfEmiss, MPC_missingValue_R8) ) then
               surfEmiss = surfEmiss * 0.01D0
             end if
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss)
@@ -1575,8 +1574,8 @@ contains
     integer                      :: varNo
 
     ! Locals:
-    integer           :: matchIndex
-    character(len=10) :: varNoStr
+    integer                   :: matchIndex
+    character(len=lenSqlName) :: varNoStr
 
     matchIndex = utl_findloc(varNoList(sqlColIndex,:), trim(sqlName))
     if (matchIndex > 0) then
@@ -1828,7 +1827,7 @@ contains
         if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
           updateValue_r = obs_headElem_r(obsdat, obsSpaceColIndexSource, headIndex)
 
-          if ( updateValue_r == obs_missingValue_R ) then
+          if ( utl_isEqual(updateValue_r, obs_missingValue_R) ) then
             call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex)  ! sql null values
           else
             call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex, REAL8_VAR=updateValue_r)
@@ -1980,7 +1979,7 @@ contains
 
         BODY1: do bodyIndex = bodyIndexBegin, bodyIndexEnd
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue == obs_missingValue_R ) cycle BODY1
+          if ( utl_isEqual(obsValue, obs_missingValue_R) ) cycle BODY1
           maxNumBody = maxNumBody + 1
         end do BODY1
       end do HEADER1
@@ -2015,7 +2014,7 @@ contains
 
           ! do not try to update if the observed value is missing
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue == obs_missingValue_R ) cycle BODY
+          if (  utl_isEqual(obsValue, obs_missingValue_R) ) cycle BODY
 
           midasKey = midasKey + 1
           call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=midasKey)
@@ -2085,7 +2084,7 @@ contains
 
         ! do not try to update if the observed value is missing
         obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-        if ( obsValue == obs_missingValue_R ) cycle BODY2
+        if ( utl_isEqual(obsValue, obs_missingValue_R) ) cycle BODY2
 
         obsIdd = obs_bodyPrimaryKey(obsdat, bodyIndex)
         call fSQL_bind_param(stmt, PARAM_INDEX=1, INT8_VAR=obsIdd)
@@ -2104,7 +2103,7 @@ contains
               updateValue_r =updateValue_r * 100.0D0
             end if
 
-            if ( updateValue_r == obs_missingValue_R ) then
+            if (  utl_isEqual(updateValue_r, obs_missingValue_R) ) then
               call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex)  ! sql null values
             else
               call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex, REAL8_VAR=updateValue_r)

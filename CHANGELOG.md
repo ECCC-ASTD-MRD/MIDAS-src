@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix a first set of warnings when compiling with `gfortran -Wall -Wextra` (#1072 and !996)
  * Correct the temporal thinning AMV observations (#1075 and !982)
    * Results affected by rejecting more AMV obs with obsSelection
  * The code now conforms to Fortran 2018 standard (#1068 and !975)

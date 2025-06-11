@@ -719,7 +719,7 @@ module obsOperatorsChem_mod
            'File read error message number: ' // trim(utl_str(ios)))
     end if
 
- 11 CLOSE(UNIT=nulstat)
+    CLOSE(UNIT=nulstat)
     ierr=fclos(nulstat)
 
   end subroutine oopc_readLevels
@@ -877,7 +877,7 @@ module obsOperatorsChem_mod
            obsoper%modlevindexTop(level)=1
          else
            do levelIndex=startIndex,obsoper%nmodlev
-             if (obsoper%vlayertop(level) == obsoper%pp(levelIndex)) then
+             if ( utl_isEqual(obsoper%vlayertop(level), obsoper%pp(levelIndex)) ) then
                 obsoper%modlevindexTop(level)=levelIndex
                 exit
              else if (obsoper%vlayertop(level) < obsoper%pp(levelIndex)) then
@@ -900,7 +900,7 @@ module obsOperatorsChem_mod
            obsoper%modlevindexTop(level)=obsoper%nmodlev
          else
            do levelIndex=startIndex,1,-1
-             if (obsoper%vlayerbottom(level) == obsoper%pp(levelIndex)) then
+             if ( utl_isEqual(obsoper%vlayerbottom(level),obsoper%pp(levelIndex))) then
                 obsoper%modlevindexBot(level)=levelIndex
                 exit
              else if (obsoper%vlayerbottom(level) > obsoper%pp(levelIndex)) then
@@ -1118,7 +1118,7 @@ module obsOperatorsChem_mod
                      'File read error message number: ' // trim(utl_str(ios)))
     end if
 
- 11 CLOSE(UNIT=nulstat)
+    CLOSE(UNIT=nulstat)
     ierr=fclos(nulstat)
 
   end subroutine oopc_readAvgkernAuxfile
@@ -2476,14 +2476,15 @@ module obsOperatorsChem_mod
 
           ! Account for integration via weighted summation
           zwork(:)=0.0d0
-          do obslevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
-            zwork(obslevIndex)=  &
-              sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex)* &
-              avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
+          obslevIndex = 1
+          do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
+            zwork(modlevIndex)=  &
+                 sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),modlevIndex) * &
+                       avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
           end do
           obsoper%zh(1,:) = 0.0d0
           obsoper%zh(1,obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) = &
-            zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
+                 zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
         end if
       end if
 
@@ -2736,7 +2737,7 @@ module obsOperatorsChem_mod
         ! filt_topoChemistry. For cases with accepted levels below the surface,
         ! levels can also be reset to the surface as needed after the call to
         ! phf_convertZtoPressure
-        if (stationAltitude /= 0.0d0) then
+        if (.not. utl_isEqual(stationAltitude, 0.0d0)) then
           ! Ground station altitude is available.
           if (stationAltitude >= sfcAltitude - surfaceBufferZoneCH_Height .and. &
               stationAltitude < sfcAltitude) then
@@ -3554,8 +3555,8 @@ module obsOperatorsChem_mod
     character(len=*), intent(in)    :: skipType ! Skipping processing of specific target layers depending on case
 
     ! Locals:
-    integer :: obslevIndex,tropo_mode
-    real(8) :: vlayertop_ref,vlayerbottom_ref,modlevindexBot_ref,checkID
+    integer :: obslevIndex,tropo_mode,modlevindexBot_ref
+    real(8) :: vlayertop_ref,vlayerbottom_ref,checkID
 
     ! Conduct initial setup for vertical integration (or avegaging) components
 

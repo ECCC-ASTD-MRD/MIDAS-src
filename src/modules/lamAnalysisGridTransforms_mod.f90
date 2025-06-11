@@ -884,17 +884,21 @@ contains
     !
     if ( ni > 1 ) then
       istart = ni_core - 2  ! I-limit where backward derivatives will be evaluated
-      con = 1.0 / ( glmf%rdlon * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3)
+      ! TODO: simplify the floating point precision conversions
+      !   con = 1.0 / ( real(glmf%rdlon,4) * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3 )
+      con = real(1.d0 / ( glmf%rdlon * real(MPC_DEGREES_PER_RADIAN_R4,8) * 111.d+3 ), 4)
       do j = 1, nj
         a0           = 0.50 * ( gd(istart,j,k)  + gd(1,j,k)       )
         a1           = 0.50 * ( gd(istart,j,k)  - gd(1,j,k)       )
-        deriv_istart = con   * ( gd(istart,j,k)  - gd(istart-1,j,k))
-        deriv_i0     = con   * ( gd(2,j,k)       - gd(1,j,k)       )
-        b1           = 0.50 * ( deriv_istart  - deriv_i0       )
-        b2           = 0.250* ( deriv_istart  + deriv_i0       )
-        del          = real(ni_ext_per-istart,8)
+        deriv_istart = con  * ( gd(istart,j,k)  - gd(istart-1,j,k))
+        deriv_i0     = con  * ( gd(2,j,k)       - gd(1,j,k)       )
+        b1           = 0.50 * ( deriv_istart    - deriv_i0        )
+        b2           = 0.25 * ( deriv_istart    + deriv_i0        )
+        del          = real(ni_ext_per-istart,4)
         do i = istart, ni
-          xp = MPC_PI_R4 * real(i-istart,8) / del
+          ! TODO: simplify the floating point precision conversions
+          !    xp = MPC_PI_R4 * real(i-istart,4)/del
+          xp = real(real(MPC_PI_R4,8) * real(i-istart,8)/real(del,8), 4)
           gd(i,j,k) = a0 + a1*cos(xp) + b1*sin(xp) + b2*sin(2.0*xp)
         end do
       end do
@@ -904,17 +908,21 @@ contains
     !
     if ( nj > 1 ) then
       jstart = nj_core - 2
-      con = 1.0 / (glmf%rdlat * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3)
+      ! TODO: simplify the floating point precision conversions
+      !   con = 1.0 / ( real(glmf%rdlat,4) * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3 )
+      con = real(1.d0 / ( glmf%rdlat * real(MPC_DEGREES_PER_RADIAN_R4,8) * 111.d+3 ), 4)
       do i = 1, ni
         a0           = 0.50 * ( gd(i,jstart,k) + gd(i,1,k)       )
         a1           = 0.50 * ( gd(i,jstart,k) - gd(i,1,k)       )
-        deriv_jstart = con   * ( gd(i,jstart,k) - gd(i,jstart-1,k))
-        deriv_j0     = con   * ( gd(i,2,k)      - gd(i,1,k)       )
-        b1           = 0.50 * ( deriv_jstart - deriv_j0     )
-        b2           = 0.250* ( deriv_jstart + deriv_j0     )
-        del          = real(nj_ext_per-jstart,8)
+        deriv_jstart = con  * ( gd(i,jstart,k) - gd(i,jstart-1,k))
+        deriv_j0     = con  * ( gd(i,2,k)      - gd(i,1,k)       )
+        b1           = 0.50 * ( deriv_jstart   - deriv_j0        )
+        b2           = 0.25 * ( deriv_jstart   + deriv_j0        )
+        del          = real(nj_ext_per-jstart,4)
         do j = jstart , nj
-          yp = MPC_PI_R4 * real(j-jstart,8) / del
+          ! TODO: simplify the floating point precision conversions
+          !    yp = MPC_PI_R4*real(j-jstart,4)/del
+          yp = real(real(MPC_PI_R4,8) * real(j-jstart,8)/real(del,8), 4)
           gd(i,j,k) = a0 + a1*cos(yp) + b1*sin(yp) + b2*sin(2.0*yp)
         end do
       end do

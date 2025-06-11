@@ -91,7 +91,7 @@ contains
                                     lat_deg_r4, lon_deg_r4, subGridIndex)
       !$omp end critical
 
-    end if    
+    end if
 
     if ( subGridIndex /= 3 ) then
       ! when only returning 1 position, copy values to pos2
@@ -109,7 +109,7 @@ contains
     !
     ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yang grid.
     !           It returns locations from both the Yin and Yang
-    !           subgrids when in the overlap region, depending on the logical 
+    !           subgrids when in the overlap region, depending on the logical
     !           variable `useSingleValueOverlap`.
     !
     implicit none
@@ -137,7 +137,7 @@ contains
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
     ! this controls which approach to use for interpolation within the YIN-YAN overlap
-    logical :: useSingleValueOverlap = .true.  
+    logical :: useSingleValueOverlap = .true.
 
     ierr = ezget_subGridids(gdid, EZscintIDvec)
     ! get ni nj of subGrid, assume same for both YIN and YANG
@@ -331,7 +331,7 @@ contains
                                                            grid_lat_rad(xIndex, yIndex))
         end do
       end do
-      tree => kdtree2_create(positionArray, sort = .true., rearrange = .true.) 
+      tree => kdtree2_create(positionArray, sort = .true., rearrange = .true.)
       write(*,*) 'gpos_xyfll_unstructGrid: done creating kdtree'
       call msg_memUsage('gpos_xyfll_unstructGrid')
 
@@ -564,8 +564,8 @@ contains
     lowerRightCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMax, yIndexMin), grid_lon_rad(xIndexMax, yIndexMin), &
            lat_rad_r8, lon_rad_r8)**2
 
-    xpos_r4 = real(xIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared - &
-                                 lowerRightCornerDistSquared) / (2.0 * (gridSpacingSquared))
+    xpos_r4 = real(real(xIndexMin,8) + (lowerLeftCornerDistSquared + gridSpacingSquared - &
+                                        lowerRightCornerDistSquared) / (2.0 * (gridSpacingSquared)), 4)
 
     gridSpacingSquared = phf_calcDistance(grid_lat_rad(xIndexMin, yIndexMin), grid_lon_rad(xIndexMin, yIndexMin), &
            grid_lat_rad(xIndexMin, yIndexMax), grid_lon_rad(xIndexMin, yIndexMax))**2
@@ -573,8 +573,8 @@ contains
     upperLeftCornerDistSquared = phf_calcDistance(grid_lat_rad(xIndexMin, yIndexMax), grid_lon_rad(xIndexMin, yIndexMax), &
            lat_rad_r8, lon_rad_r8)**2
 
-    ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - &
-                                 upperLeftCornerDistSquared) / (2.0 * (gridSpacingSquared))
+    ypos_r4 = real(real(yIndexMin,8) + (lowerLeftCornerDistSquared + gridSpacingSquared  - &
+                                        upperLeftCornerDistSquared) / (2.0 * (gridSpacingSquared)), 4)
 
     if ( abs(ypos_r4 - yIndexMin) > 2.0 .or. abs(xpos_r4 - xIndexMin) > 4.3 ) then
       write(*,*) 'xpos_r4 = ',xpos_r4
@@ -645,34 +645,34 @@ contains
     ! The last 2 columns (ni-1 and ni) are repetitions of the first 2 columns (i=1 and 2)
     ! Check that is true
     do yIndex = 1, nj
-      if(latitude(1,yIndex) /= latitude(ni-1,yIndex) .or. &
-         latitude(2,yIndex) /= latitude(ni,  yIndex) .or. &
-         longitude(1,yIndex) /= longitude(ni-1,yIndex) .or. &
-         longitude(2,yIndex) /= longitude(ni,  yIndex)) then
+      if(.not. utl_isEqual(latitude(1,yIndex), latitude(ni-1,yIndex))   .or. &
+         .not. utl_isEqual(latitude(2,yIndex), latitude(ni,  yIndex))   .or. &
+         .not. utl_isEqual(longitude(1,yIndex), longitude(ni-1,yIndex)) .or. &
+         .not. utl_isEqual(longitude(2,yIndex), longitude(ni,  yIndex))) then
         gridIsOrca = .false.
         write(*,*) '1. Not an orca grid',latitude(1,yIndex),latitude(ni-1,yIndex),latitude(2,yIndex),latitude(ni,  yIndex),longitude(1,yIndex),longitude(ni-1,yIndex),longitude(2,yIndex),longitude(ni,  yIndex)
         return
       end if
     end do
-    
+
     ! The last line (j=nj) is a repetition in reverse order of the line (j=nj-2)
     ! Check that is true (does not work at (ni/2 + 1) for orca025 lats as with the letkf ocean unit test)
     do xIndex = 2, ni
-      if(longitude(xIndex,nj) /= longitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(longitude(xIndex,nj), longitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '2. Not an orca grid',xIndex,longitude(xIndex,nj),longitude(ni-xIndex+2,nj-2)
         return
       end if
     end do
     do xIndex = 2, ni/2
-      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(latitude(xIndex,nj), latitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
         return
       end if
     end do
     do xIndex = ni/2 + 2, ni
-      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+      if( .not. utl_isEqual(latitude(xIndex,nj), latitude(ni-xIndex+2,nj-2)) ) then
         gridIsOrca = .false.
         write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
         return

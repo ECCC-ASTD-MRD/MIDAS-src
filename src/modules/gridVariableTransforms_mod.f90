@@ -778,7 +778,7 @@ CONTAINS
     real(4)          :: huMinValue
 
     if (present(huMinValue_opt)) then
-      huMinValue = huMinValue_opt
+      huMinValue = real(huMinValue_opt,4)
     else
       huMinValue = MPC_MINIMUM_HU_R4
     end if
@@ -855,10 +855,14 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+              ! TODO: simplify the floating point precision conversions
+              !     hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =                &
+              !                    lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+              !          max( real(hu_trial(lonIndex,latIndex,levIndex,stepIndex),4),MPC_MINIMUM_HU_R4)
+
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                   lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
-                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
-                        MPC_MINIMUM_HU_R8)
+                   real( real(lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8) *  &
+                           max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8), 4)
             end do
           end do
         end do
@@ -924,10 +928,13 @@ CONTAINS
         do levIndex = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                   hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) / &
-                   max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
-                        MPC_MINIMUM_HU_R8)
+              ! TODO: simplify the floating point precision conversions
+              !     lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =               &
+              !                   hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) / &
+              !          max(real(hu_trial(lonIndex,latIndex,levIndex,stepIndex,4)),MPC_MINIMUM_HU_R4)
+              lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =                   &
+                   real(real(hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8) / &
+                          max(hu_trial(lonIndex,latIndex,levIndex,stepIndex),MPC_MINIMUM_HU_R8), 4)
             end do
           end do
         end do
@@ -2209,7 +2216,7 @@ CONTAINS
           else
             isWaterValue(lonIndex, latIndex) = .False.
           end if
-          updatedField(lonIndex,latIndex) = field_ptr(lonIndex, latIndex, 1, 1)
+          updatedField(lonIndex,latIndex) = real(field_ptr(lonIndex,latIndex,1,1), 4)
         end do
       end do
       updatedIsWaterValue(:,:) = isWaterValue(:,:)
@@ -2258,7 +2265,9 @@ CONTAINS
               if (in(m) >= 1 .and. in(m) <= stateVector%hco%ni .and. &
                   jn(m) >= latIndexBeg .and. jn(m) <= latIndexEnd    ) then
                 if (isWaterValue(in(m), jn(m))) then
-                  updatedValueSum = updatedValueSum + field_ptr(in(m), jn(m), 1, 1)
+                  ! TODO: simplify the floating point precision conversions
+                  ! updatedValueSum = updatedValueSum + real(field_ptr(in(m), jn(m),1,1),4)
+                  updatedValueSum = real( real(updatedValueSum,8) + field_ptr(in(m),jn(m),1,1), 4)
                   ngp = ngp + 1
                 end if
               end if
@@ -2477,7 +2486,7 @@ CONTAINS
             ! The excess is the amount of ice outside the range [0,1]
             ! Iterations are done until all that excess is redistributed
             ! over the lake.
-            EXCESSLOOP: do while (excess /= 0.0d0)
+            EXCESSLOOP: do while (.not. utl_isEqual(excess, 0.0d0))
 
               excess = 0.0d0
               do lakeIndex = 1, gridptCount

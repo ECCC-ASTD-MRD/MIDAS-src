@@ -831,7 +831,7 @@ contains
     character(len=*), intent(in) :: varName   ! Variable name
     integer, intent(in) :: iyear  ! Year for required scaling factor
     ! Result:
-    integer :: scaleFactor        ! Units scaling factor
+    real(8) :: scaleFactor        ! Units scaling factor
 
     ! Locals:
     integer, parameter :: numSpecies=5

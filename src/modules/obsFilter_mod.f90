@@ -200,7 +200,7 @@ contains
       call utl_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
     end if
     do elem = 1, numElem
-      if (list_altDiffMax(elem) /= MPC_missingValue_INT .and. value_altDiffMax(elem) /= MPC_missingValue_R8) then
+      if ( list_altDiffMax(elem) /= MPC_missingValue_INT .and. .not. utl_isEqual(value_altDiffMax(elem), MPC_missingValue_R8) ) then
         elemIndex = findElemIndex(list_altDiffMax(elem))
         if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
           altDiffMax(elemIndex) = value_altDiffMax(elem)
@@ -449,6 +449,7 @@ contains
       write(*,223) 'REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
       write(*,*) '*****************************************************'
       write(*,*) ' '
+223    format(2x,a29,16(2x,f10.0))
     end if
 
     ! Loop over the families of interest
@@ -513,7 +514,6 @@ contains
          write(*,*) ' '
        end if
 222    format(2x,a29,16(2x,i10))
-223    format(2x,a29,16(2x,f10.0))
 
     end do FAMILY
 
@@ -564,6 +564,7 @@ contains
       write(*,223) ' REJECTION SBL (PASCAL)    ',(surfaceBufferZone_Pres,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
+223 format(2x,a29,16(2x,f6.0))
     end if
 
     ! set counters to zero
@@ -720,7 +721,6 @@ contains
       write(*,*) ' '
     end if
 222 format(2x,a29,16(2x,i5))
-223 format(2x,a29,16(2x,f6.0))
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
@@ -764,6 +764,7 @@ contains
       write(*,223) 'REJECTION BOUNDARY(HPA)  ', (surfaceBufferZone_Pres,elemIndex=1,numElem)
       write(*,*) '****************************************************'
       write(*,*) ' '
+223 format(2x,a29,16(2x,f5.0))
     end if
 
     ! set counters to zero
@@ -803,6 +804,7 @@ contains
       write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
       write(*,*) '*****************************************************************'
       write(*,*) ' '
+222 format(2x,a29,16(2x,i5))
     end if
 
     countAssim=0
@@ -811,9 +813,6 @@ contains
     end do
     if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     if ( .not.beSilent ) write(*,*) ' '
-
-222 format(2x,a29,16(2x,i5))
-223 format(2x,a29,16(2x,f5.0))
 
 end subroutine filt_topoAISW
 
@@ -851,6 +850,7 @@ end subroutine filt_topoAISW
       write(*,223) ' REJECTION SBL (METRE) ',(surfaceBufferZone_Height,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
+223 format(2x,a29,16(2x,f6.0))
     end if
 
     ! set counters to zero
@@ -933,7 +933,6 @@ end subroutine filt_topoAISW
       write(*,*) ' '
     end if
 222 format(2x,a29,16(2x,i5))
-223 format(2x,a29,16(2x,f6.0))
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
@@ -978,6 +977,7 @@ end subroutine filt_topoAISW
       write(*,223) ' REJECTION SBL (METRE) ',(surfaceBufferZone_Height,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
+223 format(2x,a29,16(2x,f6.0))
     end if
 
     ! set counter to zero
@@ -1052,7 +1052,6 @@ end subroutine filt_topoAISW
       write(*,*) ' '
     end if
 222 format(2x,a29,16(2x,i5))
-223 format(2x,a29,16(2x,f6.0))
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
@@ -1094,6 +1093,7 @@ end subroutine filt_topoAISW
       write(*,223) 'MINIMUM SFC PRESSURE (PA) ', minSfcPressure
       write(*,* ) '****************************************************'
       write(*,* ) ' '
+223 format(2x,a29,1(2x,f7.0))
     end if
 
     ! set counters to zero
@@ -1137,7 +1137,6 @@ end subroutine filt_topoAISW
       write(*,*) ' '
     end if
 222 format(2x,a29,1(4x,i5))
-223 format(2x,a29,1(2x,f7.0))
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
@@ -1248,6 +1247,7 @@ end subroutine filt_topoAISW
                         obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                         WRITE(*,225) 'Rej sfc wind lnd',headerIndex,ITYP,stnid, &
                              IDBURP, obsLAT, obsLON, obsPPP
+225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
                       END IF
                    END IF
                 END DO
@@ -1262,11 +1262,8 @@ end subroutine filt_topoAISW
          WRITE(*,222)'REJECTED             ',(IKOUNTREJ(J),J=1,JPINEL)
          WRITE(*,* ) '*****************************************************'
          WRITE(*,* ) ' '
-       END IF
 222    FORMAT(2x,a29,10(2x,i5))
-223    FORMAT(2x,a29,10(2x,f5.0))
-224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
-225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
+       END IF
        !
     END DO ! family
     !
@@ -1980,7 +1977,7 @@ end subroutine filt_topoAISW
         stationAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
         ! Check if station height is far below column sfc altitude
         sfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
-        if (stationAltitude /= 0.0d0) then
+        if ( .not. utl_isEqual(stationAltitude, 0.0d0) ) then
           if (stationAltitude <  sfcAltitude - surfaceBufferZoneCH_Height) then
             ! Station elevation is much lower than the surface. Provides a
             ! warning in the event the station info needs to be checked or
@@ -2088,7 +2085,7 @@ end subroutine filt_topoAISW
         ! only done in this routine for accepting or rejecting the obs.
         ! This is also done separately in the obs operator for the local
         ! resetting of the obs levels.
-        if (stationAltitude /= 0.0d0 .and. stationAltitude < sfcAltitude) then
+        if (.not. utl_isEqual(stationAltitude, 0.0d0) .and. stationAltitude < sfcAltitude) then
           obsAltitude = obsAltitude - stationAltitude + sfcAltitude
         end if
         if (stationAltitude > 0.0d0 .and. obsAltitude < colSfcAltitude) then
@@ -2099,7 +2096,7 @@ end subroutine filt_topoAISW
           call flg_setFlag(obsSpaceData, bodyIndex, flg_18rejOro)
           countRej(listIndex)=countRej(listIndex)+1
           countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
-        else if (stationAltitude == 0.0d0 .and. &
+        else if ( utl_isEqual(stationAltitude, 0.0d0) .and. &
                  (obsAltitude < colSfcAltitude - surfaceBufferZoneCH_Height .or. &
                  (highestLvlBelowSfc .and. obsAltitude < colSfcAltitude))) then
           ! The station altitude was not provided.
@@ -2115,7 +2112,7 @@ end subroutine filt_topoAISW
           ! Accept the obs above the surface (and below the lid)
           countAcc(listIndex)=countAcc(listIndex)+1
           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
-          if (stationAltitude == 0.0d0 .and. obsAltitude < colSfcAltitude) then
+          if ( utl_isEqual(stationAltitude, 0.0d0) .and. obsAltitude < colSfcAltitude) then
             ! Identify as first (topmost) accepted level below the surface.
             ! (not relevant when the station height is provided)
             highestLvlBelowSfc = .true.

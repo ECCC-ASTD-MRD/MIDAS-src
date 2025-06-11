@@ -1110,7 +1110,7 @@ CONTAINS
       hDistance           = sqrt(searchResults(localObsIndex)%dis)
       vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
       locFun(localObsindex) = lfn_Response(hDistance,hLocalize)
-      if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
+      if ( vLocalize > 0.0d0 .and. .not. utl_isEqual(vertLocation, MPC_missingValue_R8) ) then
          locFun(localObsIndex) = locFun(localObsindex) * lfn_Response(vDistance,vLocalize)
       endif
       sortIndex(localObsIndex) = localObsIndex
@@ -1139,7 +1139,7 @@ CONTAINS
       call eob_zeroOutput(eobOut)
     endif
 
-    if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
+    if ( vLocalize > 0.0d0 .and. .not. utl_isEqual(vertLocation, MPC_missingValue_R8) ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numObsFound      = 0
       numObsSelected   = 0
@@ -1759,7 +1759,9 @@ CONTAINS
     call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
 
     ! now compute HX = Y - (Y-HX)
-    ensObs%Yb_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Yb_r4(memberIndex,:)
+    ! TODO: simplify the floating point precision conversions
+    !    ensObs%Yb_r4(memberIndex,:) = real(ensObs%obsValue(:),4) - ensObs%Yb_r4(memberIndex,:)
+    ensObs%Yb_r4(memberIndex,:) = real( ensObs%obsValue(:) - real(ensObs%Yb_r4(memberIndex,:),8), 4)
 
   end subroutine eob_setYb
 
@@ -1782,7 +1784,9 @@ CONTAINS
     call obs_extractObsRealBodyColumn_r4(ensObs%Ya_r4(memberIndex,:), ensObs%obsSpaceData, obsColumnName)
 
     ! now compute HX = Y - (Y-HX)
-    ensObs%Ya_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Ya_r4(memberIndex,:)
+    ! TODO: simplify the floating point precision conversions
+    !    ensObs%Ya_r4(memberIndex,:) = real(ensObs%obsValue(:),4) - ensObs%Ya_r4(memberIndex,:)
+    ensObs%Ya_r4(memberIndex,:) = real( ensObs%obsValue(:) - real(ensObs%Ya_r4(memberIndex,:),8), 4)
 
   end subroutine eob_setYa
 
@@ -1874,8 +1878,10 @@ CONTAINS
     integer :: obsIndex
 
     do obsIndex = 1, ensObs%numObs
-      ensObs%meanYb(obsIndex) = sum(ensObs%Yb_r4(:,obsIndex)) / ensObs%numMembers
-      ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - ensObs%meanYb(obsIndex)
+      ensObs%meanYb(obsIndex) = real(sum(ensObs%Yb_r4(:,obsIndex)) / ensObs%numMembers, 8)
+      ! TODO: simplify the floating point precision conversions
+      !   ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - real(ensObs%meanYb(obsIndex),4)
+      ensObs%Yb_r4(:,obsIndex) = real( real(ensObs%Yb_r4(:,obsIndex),8) - ensObs%meanYb(obsIndex) ,4)
     end do
 
     ensObs%meanRemoved = .true.
@@ -1908,9 +1914,12 @@ CONTAINS
     allocate(ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs))
 
     do obsIndex = 1, ensObs%numObs
-      sigObs = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex)
+      sigObs = real(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex), 4)
       do memberIndex = 1, ensObs%numMembers
-        ensObs%randPert_r4(memberIndex,obsIndex) = sigObs * rng_gaussian()
+        ! TODO: simplify the floating point precision conversions
+        !    ensObs%randPert_r4(memberIndex,obsIndex) = sigObs * real(rng_gaussian(),4)
+        ! or rng_gaussian() could also provide a 'real(4)' directly.
+        ensObs%randPert_r4(memberIndex,obsIndex) = real( real(sigObs,8) * rng_gaussian(), 4)
       end do
 
       meanRandPert = sum(ensObs%randPert_r4(:,obsIndex)) / real(ensObs%numMembers,4)
@@ -1996,11 +2005,11 @@ CONTAINS
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle
-        sigo = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, bodyIndex)
-        sigb = obs_bodyElem_r(ensObs%obsSpaceData, OBS_HPHT, bodyIndex)
+        sigo = real(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, bodyIndex), 4)
+        sigb = real(obs_bodyElem_r(ensObs%obsSpaceData, OBS_HPHT, bodyIndex), 4)
         ! cut off at reject_limit standard deviations
         sig = reject_limit*(sigo**2 + sigb**2)**0.5
-        omp = abs(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OMP, bodyIndex))
+        omp = real(abs(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OMP, bodyIndex)), 4)
         if (omp > sig) then
           call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           call flg_setFlag(ensObs%obsSpaceData, bodyIndex, flg_09rejBgck)

@@ -3525,14 +3525,13 @@ contains
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
-    integer :: satIndex
-    integer :: ierr, nsize
+    integer :: satIndex, nsize
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
     character(len=12)  :: stnId, stnId2, stnidList(numStnIdMax)
-    logical :: obsAlreadySameStep, skipThisObs
+    logical :: skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer,           allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
@@ -3849,7 +3848,7 @@ contains
       numSelected = 0
       do obsIndex1 = 1, numHeaderMpi
         if (validMpi2(obsIndex1)) then
-          numSelected = numSelected + 1        
+          numSelected = numSelected + 1
           headerIndexValid(numSelected) = obsIndex1
         end if
       end do

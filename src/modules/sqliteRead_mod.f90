@@ -76,7 +76,7 @@ module sqliteRead_mod
     call fSQL_prepare(db, querySqlite , stmt, stat)
     write(*,*) 'sqlr_readSqlite_avhrr: obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
-      obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
+      obsIdo = int(obs_headPrimaryKey(obsdat, headerIndex))
       call fSQL_bind_param(stmt, param_index = 1, int_var = obsIdo)
       call fSQL_exec_stmt(stmt)
       call fSQL_get_many(stmt, nrows = numberAvhrrRows , ncols = numberAvhrrColumns , mode = FSQL_REAL)
@@ -329,7 +329,7 @@ module sqliteRead_mod
     end select
     call utl_tmg_stop(181)
 
-    if (numberElem /= MPC_missingValue_R4) then
+    if ( numberElem /= MPC_missingValue_INT ) then
       call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
     end if
     numberElem = count(transfer(listElem, 'a', len(listElem)) == ',') + 1
@@ -674,7 +674,7 @@ module sqliteRead_mod
             call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarno)
           case('OBSVALUE')
             obsValue = bodyValues(rowIndex,columnIndex)
-            if (trim(familyType) == 'TO' .and. obsValue == MPC_missingValue_R8) then
+            if (trim(familyType) == 'TO' .and. utl_isEqual(obsValue, obs_missingValue_R)) then
               ! Is this really needed???
               obsValue = real(MPC_missingValue_R8,pre_obsReal)
             end if
@@ -716,7 +716,7 @@ module sqliteRead_mod
       if (beamRangeFound) call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, beamHeight)
 
       ! Activate the 'rejected by selection process' bit if observed value is missing
-      if (obsValue == MPC_missingValue_R8) then
+      if (utl_isEqual(obsValue, obs_missingValue_R)) then
         call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
       end if
 
@@ -884,6 +884,9 @@ module sqliteRead_mod
     character(len=*)   , intent(in)    :: familyType ! Observation Family Type
     integer            , intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
 
+    ! Constants:
+    integer, parameter          :: columnNameLen = 21 ! length of longest column name which is 'truth_based_sim_emiss'
+
     ! Locals:
     type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
     type(fSQL_status)           :: stat ! type error status
@@ -894,7 +897,7 @@ module sqliteRead_mod
     integer                     :: headerIndex, bodyIndex
     character(len = 4)          :: item
     integer                     :: updateBodyList(20), updateHeaderList(20), ierr
-    character(len = 20)         :: columnName
+    character(len = columnNameLen) :: columnName
     character(len = 512)        :: query
     character(len = 356)        :: itemCharBody, columnNameCharBody, itemCharHeader, columnNameCharHeader
     logical                     :: back, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
@@ -1038,9 +1041,9 @@ module sqliteRead_mod
           obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
 
           BODYCHCK: do bodyIndex = obsRln, obsNlv + obsRln - 1
-            columnValue = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
+            columnValue = real(obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex), 4)
 
-            if (columnValue /= obs_missingValue_R) then
+            if (.not. utl_isEqual(real(columnValue, pre_obsReal), obs_missingValue_R)) then
               nonEmptyBodyColumn = .true.
               exit HEADERCHCK
             end if
@@ -1095,9 +1098,9 @@ module sqliteRead_mod
           obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
           if (obsIdf /= fileNumber) cycle HEADERCHCK2
 
-          columnValue = obs_headelem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
+          columnValue = real(obs_headelem_r(obsdat, updateHeaderList(itemIndex), headerIndex), 4)
 
-          if (columnValue /= obs_missingValue_R) then
+          if (.not. utl_isEqual(real(columnValue, pre_obsReal), obs_missingValue_R)) then
             nonEmptyHeaderColumn = .true.
             exit HEADERCHCK2
           end if
@@ -1146,10 +1149,10 @@ module sqliteRead_mod
 
         do itemIndex = 1, numberUpdateBodyItems
 
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if (obsValue /= obs_missingValue_R) then
-            romp = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
-            if (romp == obs_missingValue_R) then
+          obsValue = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex), 4)
+          if (.not. utl_isEqual(real(obsValue, pre_obsReal), obs_missingValue_R)) then
+            romp = real(obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex), 4)
+            if (utl_isEqual(real(romp, pre_obsReal), obs_missingValue_R)) then
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
@@ -1211,8 +1214,8 @@ module sqliteRead_mod
         end if
 
         do itemIndex = 1, numberUpdateHeaderItems
-          romp = obs_headElem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
-          if (romp == obs_missingValue_R) then
+          romp = real(obs_headElem_r(obsdat, updateHeaderList(itemIndex), headerIndex), 4)
+          if (utl_isEqual(real(romp, pre_obsReal), obs_missingValue_R)) then
             call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex) ! sql null values
           else
             call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex, real_var = romp)
@@ -1277,18 +1280,18 @@ module sqliteRead_mod
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
       if (obsIdf /= fileNumber) cycle HEADER
-      obsIdo   = obs_headPrimaryKey(obsdat, headerIndex)
-      ETOP = obs_headElem_r(obsdat, OBS_ETOP, headerIndex)
-      VTOP = obs_headElem_r(obsdat, OBS_VTOP, headerIndex)
-      ECF  = obs_headElem_r(obsdat, OBS_ECF,  headerIndex)
-      VCF  = obs_headElem_r(obsdat, OBS_VCF,  headerIndex)
-      HE   = obs_headElem_r(obsdat, OBS_HE,   headerIndex)
-      ZTSR = obs_headElem_r(obsdat, OBS_ZTSR, headerIndex)
-      NCO2 = obs_headElem_i(obsdat, OBS_NCO2, headerIndex)
-      ZTM  = obs_headElem_r(obsdat, OBS_ZTM,  headerIndex)
-      ZTGM = obs_headElem_r(obsdat, OBS_ZTGM, headerIndex)
-      ZLQM = obs_headElem_r(obsdat, OBS_ZLQM, headerIndex)
-      ZPS  = obs_headElem_r(obsdat, OBS_ZPS,  headerIndex)
+      obsIdo   = int(obs_headPrimaryKey(obsdat, headerIndex))
+      ETOP = real(obs_headElem_r(obsdat, OBS_ETOP, headerIndex), 4)
+      VTOP = real(obs_headElem_r(obsdat, OBS_VTOP, headerIndex), 4)
+      ECF  = real(obs_headElem_r(obsdat, OBS_ECF,  headerIndex), 4)
+      VCF  = real(obs_headElem_r(obsdat, OBS_VCF,  headerIndex), 4)
+      HE   = real(obs_headElem_r(obsdat, OBS_HE,   headerIndex), 4)
+      ZTSR = real(obs_headElem_r(obsdat, OBS_ZTSR, headerIndex), 4)
+      ZTM  = real(obs_headElem_r(obsdat, OBS_ZTM,  headerIndex), 4)
+      ZTGM = real(obs_headElem_r(obsdat, OBS_ZTGM, headerIndex), 4)
+      ZLQM = real(obs_headElem_r(obsdat, OBS_ZLQM, headerIndex), 4)
+      ZPS  = real(obs_headElem_r(obsdat, OBS_ZPS,  headerIndex), 4)
+      NCO2 =      obs_headElem_i(obsdat, OBS_NCO2, headerIndex)
 
       call fSQL_bind_param(stmt, param_index = 1, int_var  = obsIdo)
       call fSQL_bind_param(stmt, param_index = 2, real_var = ETOP)
@@ -1408,12 +1411,12 @@ module sqliteRead_mod
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex)
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex)
-        obsValue      = obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex)
-        OMA           = obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex)
-        OMP           = obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex)
-        OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex)
-        FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
-        PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex)
+        obsValue      = real(obs_bodyElem_r(obsdat, OBS_VAR , bodyIndex), 4)
+        OMA           = real(obs_bodyElem_r(obsdat, OBS_OMA , bodyIndex), 4)
+        OMP           = real(obs_bodyElem_r(obsdat, OBS_OMP , bodyIndex), 4)
+        OER           = real(obs_bodyElem_r(obsdat, OBS_OER , bodyIndex), 4)
+        FGE           = real(obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex), 4)
+        PPP           = real(obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex), 4)
 
         llok = .false.
         do insertItem = 1, numberInsertItems
@@ -1426,28 +1429,28 @@ module sqliteRead_mod
               call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
               call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
               call fSQL_bind_param(stmt, param_index = 3, real_var = PPP)
-              if (obsValue == obs_missingValue_R) then          ! sql null values
+              if (utl_isEqual(real(obsValue, pre_obsReal), obs_missingValue_R)) then          ! sql null values
                 call fSQL_bind_param(stmt, param_index = 4)
               else
                 call fSQL_bind_param(stmt, param_index = 4, real_var = obsValue)
               end if
               call fSQL_bind_param(stmt, param_index = 5, int_var  = obsFlag)
-              if (OMA == obs_missingValue_R) then
+              if (utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 6)
               else
                 call fSQL_bind_param(stmt, param_index = 6, real_var = OMA)
               end if
-              if (OMP == obs_missingValue_R) then
+              if (utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 7)
               else
                 call fSQL_bind_param(stmt, param_index = 7, real_var = OMP)
               end if
-              if (FGE == obs_missingValue_R) then
+              if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 8)
               else
                 call fSQL_bind_param(stmt, param_index = 8, real_var = FGE)
               end if
-              if (OER == obs_missingValue_R) then
+              if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 9)
               else
                 call fSQL_bind_param(stmt, param_index = 9, real_var = OER)
@@ -1457,28 +1460,28 @@ module sqliteRead_mod
               call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
               call fSQL_bind_param(stmt, param_index = 3, real_var = PPP)
               call fSQL_bind_param(stmt, param_index = 4, int_var  = vertCoordType)
-              if (obsValue == obs_missingValue_R) then
+              if (utl_isEqual(real(obsValue, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 5)
               else
                 call fSQL_bind_param(stmt, param_index = 5, real_var = obsValue)
               end if
               call fSQL_bind_param(stmt, param_index = 6, int_var  = obsFlag)
-              if (OMA == obs_missingValue_R) then
+              if (utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 7)
               else
                 call fSQL_bind_param(stmt, param_index = 7, real_var = OMA)
               end if
-              if (OMP == obs_missingValue_R) then
+              if (utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 8)
               else
                 call fSQL_bind_param(stmt, param_index = 8, real_var = OMP)
               end if
-              if (FGE == obs_missingValue_R) then
+              if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 9)
               else
                 call fSQL_bind_param(stmt, param_index = 9, real_var = FGE)
               end if
-              if (OER == obs_missingValue_R) then
+              if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
                 call fSQL_bind_param(stmt, param_index = 10)
               else
                 call fSQL_bind_param(stmt, param_index = 10, real_var = OER)
@@ -1699,12 +1702,12 @@ module sqliteRead_mod
       obsRln    = obs_headElem_i(obsData, OBS_RLN, headerIndex)
       obsNlv    = obs_headElem_i(obsData, OBS_NLV, headerIndex)
       idStation = obs_elem_c    (obsData, 'STID' , headerIndex)
-      altitude  = obs_headElem_r(obsData, OBS_ALT, headerIndex)
-      lon       = obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      lat       = obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      altitude  = real(obs_headElem_r(obsData, OBS_ALT, headerIndex), 4)
+      lon       = real(obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
+      lat       = real(obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
       if (lon > 180.) lon = lon - 360.
       date      = obs_headElem_i(obsData, OBS_DAT, headerIndex)
-      time      = obs_headElem_i(obsData, OBS_ETM, headerIndex) * 100.
+      time      = obs_headElem_i(obsData, OBS_ETM, headerIndex) * 100
 
       idObs = idObs + 1
       call fSQL_bind_param(stmtHeader, param_index = 1, int_var  = idObs)
@@ -1722,12 +1725,12 @@ module sqliteRead_mod
 
         obsVarno      = obs_bodyElem_i(obsData, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsData, OBS_FLG , bodyIndex)
-        obsValue      = obs_bodyElem_r(obsData, OBS_VAR , bodyIndex)
-        OMA           = obs_bodyElem_r(obsData, OBS_OMA , bodyIndex)
-        OMP           = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
-        OER           = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
-        FGE           = obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex)
-        PPP           = obs_bodyElem_r(obsData, OBS_PPP , bodyIndex)
+        obsValue      = real(obs_bodyElem_r(obsData, OBS_VAR , bodyIndex), 4)
+        OMA           = real(obs_bodyElem_r(obsData, OBS_OMA , bodyIndex), 4)
+        OMP           = real(obs_bodyElem_r(obsData, OBS_OMP , bodyIndex), 4)
+        OER           = real(obs_bodyElem_r(obsData, OBS_OER , bodyIndex), 4)
+        FGE           = real(obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex), 4)
+        PPP           = real(obs_bodyElem_r(obsData, OBS_PPP , bodyIndex), 4)
         ASS           = obs_bodyElem_i(obsData, OBS_ASS , bodyIndex)
 
         ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error
@@ -1739,24 +1742,24 @@ module sqliteRead_mod
         call fSQL_bind_param(stmtData, param_index = 5)
         call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
         call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
-        if (OMA == obs_missingValue_R) then
+        if (utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 8)
           call fSQL_bind_param(stmtData, param_index = 9)
         else
           call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
           call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
         end if
-        if (OMP == obs_missingValue_R) then
+        if (utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 10)
         else
           call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
         end if
-        if (FGE == obs_missingValue_R) then
+        if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 11)
         else
           call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
         end if
-        if (OER == obs_missingValue_R) then
+        if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
           call fSQL_bind_param(stmtData, param_index = 12)
         else
           call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)

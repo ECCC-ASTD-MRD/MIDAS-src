@@ -194,12 +194,12 @@ CONTAINS
 
     uaCorrection = MPC_missingValue_R8
 
-    if ( timeOfDayX == 0.0d0 ) then
+    if ( utl_isEqual(timeOfDayX, 0.0d0) ) then
       uaCorrection = corrNight
-    else if ( timeOfDayX == 1.0d0 ) then
+    else if ( utl_isEqual(timeOfDayX, 1.0d0) ) then
       uaCorrection = corrDay
     else
-      if ( corrNight /= MPC_missingValue_R8 .and. corrDay /= MPC_missingValue_R8 ) then
+      if ( .not. (utl_isEqual(corrNight, MPC_missingValue_R8) .or. utl_isEqual(corrDay, MPC_missingValue_R8) ) ) then
         uaCorrection = timeOfDayX*corrDay + (1.0d0-timeOfDayX)*corrNight
       end if
     end if
@@ -351,14 +351,14 @@ CONTAINS
         corrDay   = corrProfileStnDay(levelIndex)
         sourceCorr = "stn"
         corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
-        if ( corr == MPC_missingValue_R8 ) then
+        if ( utl_isEqual(corr, MPC_missingValue_R8) ) then
           sourceCorr = "none"
           if ( profileExistsStype ) then
             corrNight = corrProfileStypeNight(levelIndex)
             corrDay   = corrProfileStypeDay(levelIndex)
             sourceCorr = "stype"
             corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
-            if ( corr == MPC_missingValue_R8 ) sourceCorr = "none"
+            if ( utl_isEqual(corr, MPC_missingValue_R8) ) sourceCorr = "none"
           end if
         end if
       else
@@ -367,7 +367,7 @@ CONTAINS
           corrDay   = corrProfileStypeDay(levelIndex)
           sourceCorr = "stype"
           corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
-          if ( corr == MPC_missingValue_R8 ) sourceCorr = "none"
+          if ( utl_isEqual(corr, MPC_missingValue_R8) ) sourceCorr = "none"
         end if
       end if
       doInterp = .false.
@@ -392,23 +392,23 @@ CONTAINS
           end if
         end do
         sourceCorr = "stn"
-        if ( timeOfDayX == 0.0d0 ) then
+        if ( utl_isEqual(timeOfDayX, 0.0d0) ) then
           corrBelow = corrBelowNight
           corrAbove = corrAboveNight
-        else if ( timeOfDayX == 1.0d0 ) then
+        else if ( utl_isEqual(timeOfDayX, 1.0d0) ) then
           corrBelow = corrBelowDay
           corrAbove = corrAboveDay
         else
-          if ( corrBelowNight /= MPC_missingValue_R8 .and. corrBelowDay /= MPC_missingValue_R8 ) then
+          if ( .not. (utl_isEqual(corrBelowNight, MPC_missingValue_R8) .or. utl_isEqual(corrBelowDay, MPC_missingValue_R8)) ) then
             corrBelow = timeOfDayX*corrBelowDay + (1.0d0-timeOfDayX)*corrBelowNight
           end if
-          if ( corrAboveNight /= MPC_missingValue_R8 .and. corrAboveDay /= MPC_missingValue_R8 ) then
+          if ( .not. (utl_isEqual(corrAboveNight, MPC_missingValue_R8) .or. utl_isEqual(corrAboveDay, MPC_missingValue_R8)) ) then
             corrAbove = timeOfDayX*corrAboveDay + (1.0d0-timeOfDayX)*corrAboveNight
           end if
         end if
       end if
 
-      if ( corrAbove == MPC_missingValue_R8 .or. corrBelow == MPC_missingValue_R8 ) then
+      if ( utl_isEqual(corrAbove, MPC_missingValue_R8) .or. utl_isEqual(corrBelow, MPC_missingValue_R8) ) then
         if ( profileExistsStype ) then
           do level = 1, nMandLevs-1
             if ( obsPressure <= mandLevs(level) .and. obsPressure > mandLevs(level+1) ) then
@@ -422,17 +422,17 @@ CONTAINS
             end if
           end do
           sourceCorr = "stype"
-          if ( timeOfDayX == 0.0d0 ) then
+          if ( utl_isEqual(timeOfDayX, 0.0d0) ) then
             corrBelow = corrBelowNight
             corrAbove = corrAboveNight
-          else if ( timeOfDayX == 1.0d0 ) then
+          else if ( utl_isEqual(timeOfDayX, 1.0d0) ) then
             corrBelow = corrBelowDay
             corrAbove = corrAboveDay
           else
-            if ( corrBelowNight /= MPC_missingValue_R8 .and. corrBelowDay /= MPC_missingValue_R8 ) then
+            if ( .not. (utl_isEqual(corrBelowNight, MPC_missingValue_R8) .or. utl_isEqual(corrBelowDay, MPC_missingValue_R8)) ) then
               corrBelow = timeOfDayX*corrBelowDay + (1.0d0-timeOfDayX)*corrBelowNight
             end if
-            if ( corrAboveNight /= MPC_missingValue_R8 .and. corrAboveDay /= MPC_missingValue_R8 ) then
+            if ( .not. (utl_isEqual(corrAboveNight, MPC_missingValue_R8) .or. utl_isEqual(corrAboveDay, MPC_missingValue_R8)) ) then
               corrAbove = timeOfDayX*corrAboveDay + (1.0d0-timeOfDayX)*corrAboveNight
             end if
           end if
@@ -441,11 +441,11 @@ CONTAINS
       deltaPressure = log10(pressureBelow)-log10(pressureAbove)
       weight1 = (log10(pressureBelow) - log10(obsPressure)) / deltaPressure
       weight2 = (log10(obsPressure) - log10(pressureAbove)) / deltaPressure
-      if ( corrAbove /= MPC_missingValue_R8 .and. corrBelow /= MPC_missingValue_R8 ) then
+      if ( .not. (utl_isEqual(corrAbove, MPC_missingValue_R8) .or. utl_isEqual(corrBelow, MPC_missingValue_R8)) ) then
         corr = weight1*corrAbove + weight2*corrBelow
-      else if ( corrAbove /= MPC_missingValue_R8 .and. max(weight1,weight2) == weight1 ) then
+      else if ( .not. utl_isEqual(corrAbove, MPC_missingValue_R8) .and. utl_isEqual(max(weight1,weight2), weight1) ) then
         corr = corrAbove
-      else if ( corrBelow /= MPC_missingValue_R8 .and. max(weight1,weight2) == weight2 ) then
+      else if ( .not. utl_isEqual(corrBelow, MPC_missingValue_R8) .and. utl_isEqual(max(weight1,weight2), weight2) ) then
         corr = corrBelow
       else
         corr = MPC_missingValue_R8
@@ -754,7 +754,7 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readAIBiases: error 2 while reading airplanes bias correction file ' // biasEstimateFile )
           end if
-          if ( biasEstimate == aiMissingValue ) then
+          if ( utl_isEqual(biasEstimate, aiMissingValue) ) then
             correctionValue = MPC_missingValue_R8
           else
             correctionValue = -1.0D0*biasEstimate
@@ -829,10 +829,10 @@ CONTAINS
           oldCorr = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
           corr = MPC_missingValue_R8
 
-          if ( tt /= MPC_missingValue_R8 ) then
+          if ( .not. utl_isEqual(tt, MPC_missingValue_R8) ) then
 
             if (flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
-                .and. oldCorr /= MPC_missingValue_R8) then
+                .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8)) then
               if ( btest(headerFlag, 15) ) then
                 tt = tt - oldCorr
               else
@@ -882,7 +882,9 @@ CONTAINS
               end select
 
               if ( levelIndex /= 0 ) then
-                if ( AIttCorrections(1,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) corr = AIttCorrections(1,phaseIndex,levelIndex)
+                if ( .not. utl_isEqual(AIttCorrections(1,phaseIndex,levelIndex), MPC_missingValue_R8) ) then
+                  corr = AIttCorrections(1,phaseIndex,levelIndex)
+                end if
                 countBulkCorrections = countBulkCorrections + 1
               end if
 
@@ -912,7 +914,7 @@ CONTAINS
                 if ( phase == phaseAscent  ) phaseIndex = phaseAscentIndex
                 if ( phase == phaseDescent ) phaseIndex = phaseDescentIndex
                 if ( levelIndex /= 0 .and. phaseIndex /= 0 ) then
-                  if ( AIttCorrections(stationNumber,phaseIndex,levelIndex) /= MPC_missingValue_R8 ) then
+                  if ( .not. utl_isEqual(AIttCorrections(stationNumber,phaseIndex,levelIndex), MPC_missingValue_R8) ) then
                     corr = AIttCorrections(stationNumber,phaseIndex,levelIndex)
                     countTailCorrections = countTailCorrections + 1
                     countBulkCorrections = countBulkCorrections - 1
@@ -999,7 +1001,7 @@ CONTAINS
        if ( ierr /= 0 ) then
           call utl_abort('bcc_readGPBiases: error 2 while reading GB-GPS bias correction file ' // biasEstimateFile )
        end if
-       if ( biasEstimate /= gpMissingValue ) ztdCorrections(stationIndex) = -1.0D0*(biasEstimate/1000.0D0)  ! mm to m
+       if ( .not. utl_isEqual(biasEstimate, gpMissingValue) ) ztdCorrections(stationIndex) = -1.0D0*(biasEstimate/1000.0D0)  ! mm to m
        gpsStations(stationIndex) = stationId
     end do
     ierr = fclos(nulcoeff)
@@ -1060,11 +1062,11 @@ CONTAINS
 
           corr = MPC_missingValue_R8
 
-          if ( ztd /= MPC_missingValue_R8 ) then
+          if ( .not. utl_isEqual(ztd, MPC_missingValue_R8) ) then
 
             ! Remove any previous bias correction
             if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
-                 .and. oldCorr /= MPC_missingValue_R8 ) then
+                 .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8) ) then
               ztd = ztd - oldCorr
               call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
             end if
@@ -1087,7 +1089,7 @@ CONTAINS
               end if
 
               ! Apply the bias correction and set the "bias corrected" bit in ZTD data flag ON
-              if ( corr /= MPC_missingValue_R8 ) then
+              if ( .not. utl_isEqual(corr, MPC_missingValue_R8) ) then
                 ztd = ztd + corr
                 nbCorrected = nbCorrected + 1
                 call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
@@ -1203,17 +1205,21 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readUABcorStype: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
-          if ( ttBiasNight == uaMissingValue ) ttBiasNight = MPC_missingValue_R8
-          if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
-          if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
-          if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasNight, uaMissingValue) ) tdBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasDay,   uaMissingValue) ) tdBiasDay   = MPC_missingValue_R8
+          if ( .not. utl_isEqual(ttBiasNight, MPC_missingValue_R8) ) ttCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( .not. utl_isEqual(ttBiasDay,   MPC_missingValue_R8) ) ttCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( .not. utl_isEqual(tdBiasNight, MPC_missingValue_R8) ) tdCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( .not. utl_isEqual(tdBiasDay,   MPC_missingValue_R8) ) tdCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
-        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex,Index500mb)   /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex)   = .true.
-        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex+1,Index500mb) /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex+1) = .true.
+        if (  .not. utl_isEqual(ttCorrections(sondeTypeIndex,latBand,groupIndex,Index500mb)  , MPC_missingValue_R8) ) then
+          biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex)   = .true.
+        end if
+        if (  .not. utl_isEqual(ttCorrections(sondeTypeIndex,latBand,groupIndex+1,Index500mb), MPC_missingValue_R8) ) then
+          biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex+1) = .true.
+        end if
       end do
 
     end do main_loop
@@ -1316,14 +1322,14 @@ CONTAINS
           if ( ierr /= 0 ) then
             call utl_abort('bcc_readUABcorStn: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
-          if ( ttBiasNight == uaMissingValue ) ttBiasNight = MPC_missingValue_R8
-          if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
-          if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
-          if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasNight, uaMissingValue) ) tdBiasNight = MPC_missingValue_R8
+          if ( utl_isEqual(tdBiasDay,   uaMissingValue) ) tdBiasDay   = MPC_missingValue_R8
+          if ( .not. utl_isEqual(ttBiasNight, MPC_missingValue_R8) ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( .not. utl_isEqual(ttBiasDay,   MPC_missingValue_R8) ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( .not. utl_isEqual(tdBiasNight, MPC_missingValue_R8) ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( .not. utl_isEqual(tdBiasDay,   MPC_missingValue_R8) ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
       end do
 
@@ -1484,9 +1490,9 @@ CONTAINS
         ! Time-of-day x-value
         call bcc_GetSolarElevation(lat,lon,date,time,solarElev)
         call bcc_GetTimeOfDay(solarElev,timeOfDayX)
-        if ( timeOfDayX == 0.0 ) then
+        if ( utl_isEqual(timeOfDayX, 0.d0) ) then
           countNight = countNight+1
-        else if ( timeOfDayX == 1.0 ) then
+        else if ( utl_isEqual(timeOfDayX, 1.d0) ) then
           countDay = countDay+1
         else
           countDawnDusk = countDawnDusk+1
@@ -1538,10 +1544,10 @@ CONTAINS
         pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
         oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
         corr        = MPC_missingValue_R8
-        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTin',ttBodyIndex,pressure,tt
-        if ( tt /= MPC_missingValue_R8 ) then
+        if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'TTin',ttBodyIndex,pressure,tt
+        if ( .not. utl_isEqual(tt, MPC_missingValue_R8) ) then
           if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
-               .and. oldCorr /= MPC_missingValue_R8 ) then
+               .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8) ) then
             tt = tt - oldCorr
             call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
           end if
@@ -1562,9 +1568,9 @@ CONTAINS
               else if ( sourceCorr == 'stype' ) then
                  countTTCorrByStype = countTTCorrByStype + 1
               end if
-              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTT, source, groupIndex = ',corr, sourceCorr, groupIndex
+              if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'corrTT, source, groupIndex = ',corr, sourceCorr, groupIndex
             end if
-            if ( corr /= MPC_missingValue_R8 ) then
+            if ( .not. utl_isEqual(corr, MPC_missingValue_R8) ) then
               tt = tt + corr
               call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
               countTTCorrections = countTTCorrections + 1
@@ -1575,7 +1581,7 @@ CONTAINS
             end if
           end if
         end if
-        if ( debug .and. pressure == 500.0d0 ) then
+        if ( debug .and. utl_isEqual(pressure, 500.0d0) ) then
           write(*,*) 'TTout, corr, flag = ', tt, corr, obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         end if
         call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
@@ -1590,10 +1596,10 @@ CONTAINS
         pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
         oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
         corr        = MPC_missingValue_R8
-        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESin',esBodyIndex,pressure,es
-        if ( es /= MPC_missingValue_R8 ) then
+        if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'ESin',esBodyIndex,pressure,es
+        if ( .not. utl_isEqual(es, MPC_missingValue_R8) ) then
           if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
-               .and. oldCorr /= MPC_missingValue_R8 ) then
+               .and. .not. utl_isEqual(oldCorr, MPC_missingValue_R8) ) then
             es = es - oldCorr
             call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
           end if
@@ -1603,15 +1609,15 @@ CONTAINS
               corr = MPC_missingValue_R8
             else
               call bcc_GetUACorrection('TD',stnIndex,sondeTypeIndex,sondeType,groupIndex,timeOfDayX,latBand,pressure,corr,sourceCorr)
-              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTD, source, groupIndex = ',corr, sourceCorr, groupIndex
+              if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'corrTD, source, groupIndex = ',corr, sourceCorr, groupIndex
             end if
-            if ( corr /= MPC_missingValue_R8 ) then
+            if ( .not. utl_isEqual(corr, MPC_missingValue_R8) ) then
               td = (ttOriginal - es) + corr
               es = tt - td
               if ( es < 0.0 ) es =  0.0d0
               if ( es > 30.0) es = 30.0d0
               corr =  es - esOriginal
-              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ES corr =',corr
+              if ( debug .and. utl_isEqual(pressure, 500.0d0) ) write(*,*) 'ES corr =',corr
               call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
               countESCorrections = countESCorrections + 1
             else
@@ -1621,7 +1627,7 @@ CONTAINS
             end if
           end if
         end if
-        if ( debug .and. pressure == 500.0d0 ) then
+        if ( debug .and. utl_isEqual(pressure, 500.0d0) ) then
           write(*,*) 'ESout, corr, flag = ', es, corr, obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         end if
         call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )

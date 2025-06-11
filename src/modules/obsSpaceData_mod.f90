@@ -1649,10 +1649,10 @@ module ObsSpaceData_mod
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
 
-                                        ! It is intended that these null values
-                                        ! be used with scratchRealHeader, etc.
+   ! It is intended that these null values
+   ! be used with scratchRealHeader, etc.
    real(pre_obsReal), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, pre_obsReal)
-   integer          , parameter :: NULL_COLUMN_VALUE_I = -9.99
+   integer          , parameter :: NULL_COLUMN_VALUE_I = -10
 
    ! This type is the goal of the ObsSpaceData and supporting modules.  An
    ! instance of this derived type contains all information pertaining to a set
@@ -2945,7 +2945,6 @@ contains
 
       ! print header's content
 
-9202  format(2x,'position within realBodies:',i6)
       obsRLN = obs_headElem_i(obsdata, OBS_RLN, kobs)
       obsONM = obs_headElem_i(obsdata, OBS_ONM, kobs)
       obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
@@ -3433,7 +3432,7 @@ contains
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
-       realBodyColumn(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
+       realBodyColumn(bodyIndex) = real(obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex),4)
      end do
 
    end subroutine obs_extractObsRealBodyColumn_r4
@@ -5032,15 +5031,14 @@ contains
             ! copy the data in sequential order
             bodyIndex_out = 0
             do procIndex = 1, mmpi_nprocs
-               do bodyIndex=1,numBody_mpimessage
-                  if(real_recv_2d(bodyIndex,procIndex) /= -99999.0d0) then
-                     bodyIndex_out = bodyIndex_out + 1
-                     obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
-                        real_recv_2d(bodyIndex,procIndex)
-                  endif
-               enddo
+              do bodyIndex=1,numBody_mpimessage
+                if( .not. utl_isEqual(real_recv_2d(bodyIndex,procIndex),-99999.0d0) ) then
+                  bodyIndex_out = bodyIndex_out + 1
+                  obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
+                       real_recv_2d(bodyIndex,procIndex)
+                endif
+              enddo
             enddo
-
          endif
 
       enddo ! activeIndex

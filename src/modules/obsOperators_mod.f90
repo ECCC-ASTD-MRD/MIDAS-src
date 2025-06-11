@@ -35,9 +35,9 @@ module obsOperators_mod
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
   ! Jacobian caches
-  real(8) , allocatable :: oop_vRO_Jacobian4(:, :, :)
-  logical , allocatable :: oop_vRO_lJac4(:)
-  real(8) , allocatable :: oop_vZTD_Jacobian(:,:)
+  real(8),  allocatable :: oop_vRO_Jacobian4(:,:,:)
+  logical,  allocatable :: oop_vRO_lJac4(:)
+  real(8),  allocatable :: oop_vZTD_Jacobian(:,:)
 
 contains
 
@@ -1845,7 +1845,7 @@ contains
 
       ! Locals:
       type(struct_vco), pointer :: vco_anl
-      integer :: jlev,columnIndex,nlev_T,status
+      integer :: jlev,columnIndex,nlev_T
       real(8) :: zhu,one
 
       if ( .not.col_varExist(columnTrlOnAnlIncLev,'TT') .or. .not.col_varExist(columnTrlOnAnlIncLev,'HU') ) return
@@ -1886,9 +1886,8 @@ contains
       ! Locals:
       integer levIndexBot,levIndexTop
       integer headerIndex,INDEX_FAMILY,layerIndex
-      integer J,bodyIndex,bufrCode,nlev_T
-      real(8) ZDADPS
-      real(8) ZWB,ZWT,ZLTV
+      integer bodyIndex,bufrCode
+      real(8) ZDADPS,ZWB,ZWT
       real(8) ZLEV,ZPT,ZPB
       real(8) delPT,delPB
       real(8) anlIncValueBot,anlIncValueTop,trlValueBot,trlValueTop
@@ -1976,10 +1975,10 @@ contains
       ! Locals:
       integer :: levIndexBot,levIndexTop
       integer :: headerIndex,layerIndex
-      integer :: J, bodyIndex, bufrCode, INDEX_FAMILY, nlev, nLev_T
+      integer :: bodyIndex, bufrCode, INDEX_FAMILY, nlev, nLev_T
       real(8) :: coeffA, coeffB
-      real(8) :: ZWB, ZWT, ZLTV, trlVirtTemp
-      real(8) :: ZPT, ZPB, ZDELPS, ZDELTV, deltaT, obsHeight
+      real(8) :: ZLTV, trlVirtTemp
+      real(8) :: ZDELPS, ZDELTV, deltaT, obsHeight
       real(8) :: anlIncValue
       real(8) :: delP
       real(8) :: anlIncUwind, anlIncVwind, trlUwind, trlVwind, squareSum, trlWindSpeed, anlIncWindSpeed
@@ -2166,8 +2165,6 @@ contains
 
       ! Locals:
       integer          :: headerIndex, bodyIndex, bufrCode
-      integer          :: idate, imonth
-      integer          :: trackCellNum
       real(8)          :: anlIncValue, scaling
       character(len=4) :: varName
 
@@ -2181,7 +2178,7 @@ contains
         ! Process all data within the domain of the model
         scaling = oop_iceScaling(obsSpaceData, bodyIndex)
 
-        if (scaling == 0.0d0) cycle BODY
+        if (utl_isEqual(scaling, 0.0d0)) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
@@ -2233,12 +2230,10 @@ contains
       implicit none
 
       ! Locals:
-      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, layerIndex, familyIndex
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
+      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
       real(8) :: levelAltLow, levelAltHigh, HDX, Azimuth, obsAltitude
-      real(8) :: uuLow, uuHigh, vvLow, vvHigh, vInterpWeightHigh, vInterpWeightLow
-      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
-      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      real(8) :: vInterpWeightHigh, vInterpWeightLow
+      real(8), pointer :: du_column(:), dv_column(:)
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 
@@ -2360,6 +2355,7 @@ contains
       integer :: headerIndex, bodyIndex, iProfile
       logical :: ASSIM
       integer :: NH, NH1
+      real(8), pointer :: columnPtr(:)
 
       ! Initializations
       NGPSLEV = col_getNumLev(columnAnlInc,'TH')
@@ -2402,11 +2398,13 @@ contains
 
                ! Local vector state
                do JL = 1, NGPSLEV
-                  DX (        JL) = col_getElem(columnAnlInc,JL,headerIndex,'TT')
-                  DX (NGPSLEV+JL) = col_getElem(columnAnlInc,JL,headerIndex,'HU')
+                 DX (        JL) = col_getElem(columnAnlInc,JL,headerIndex,'TT')
+                 DX (NGPSLEV+JL) = col_getElem(columnAnlInc,JL,headerIndex,'HU')
                end do
-               DX (2*NGPSLEV+1:3*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
-               DX (3*NGPSLEV+1:4*NGPSLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
+               columnPtr => col_getColumn(columnAnlInc,headerIndex,'Z_T')
+               DX (2*NGPSLEV+1:3*NGPSLEV) = columnPtr(:)
+               columnPtr => col_getColumn(columnAnlInc,headerIndex,'P_T')
+               DX (3*NGPSLEV+1:4*NGPSLEV) = columnPtr(:)
 
                ! Perform the (H(xb)DX-Y') operation
                ! Loop over all body indices for this headerIndex:
@@ -2421,7 +2419,7 @@ contains
                      ! Evaluate H(xb)DX
                      ZMHXL = 0.d0
                      do JV = 1, 4*NGPSLEV
-                        ZMHXL = ZMHXL + oop_vRO_Jacobian4(iProfile, NH1, JV) * DX(JV)
+                       ZMHXL = ZMHXL + oop_vRO_Jacobian4(iProfile, NH1, JV) * DX(JV)
                      end do
 
                      ! Store in CMA
@@ -2450,9 +2448,10 @@ contains
       real(8) :: ZHX
       real(8) :: DX(gps_ncvmx)
       integer :: headerIndex, bodyIndex
-      integer :: JL, NFLEV, status, iztd, icount
+      integer :: JL, NFLEV, iztd, icount
       logical :: ASSIM
       character(len=12) :: cstnid
+      real(8), pointer :: columnPtr(:)
 
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
@@ -2495,8 +2494,10 @@ contains
                DX (JL)        = col_getElem(columnAnlInc,JL,headerIndex,'TT')
                DX (NFLEV+JL)  = col_getElem(columnAnlInc,JL,headerIndex,'HU')
             end do
-            DX (2*NFLEV+1:3*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'Z_T')
-            DX (3*NFLEV+1:4*NFLEV) = col_getColumn(columnAnlInc,headerIndex,'P_T')
+            columnPtr => col_getColumn(columnAnlInc,headerIndex,'Z_T')
+            DX (2*NFLEV+1:3*NFLEV) = columnPtr(:)
+            columnPtr => col_getColumn(columnAnlInc,headerIndex,'P_T')
+            DX (3*NFLEV+1:4*NFLEV) = columnPtr(:)
 
             ! Evaluate H'(xb)*dX
             ZHX = 0.D0
@@ -2626,8 +2627,8 @@ contains
       integer levIndexBot,levIndexTop,bufrCode
       real(8) ZRES
       real(8) ZWB,ZWT
-      real(8) ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
-      integer headerIndex,layerIndex,nlev_T
+      real(8) ZLEV,ZPT,ZPB,ZDADPS
+      integer headerIndex,layerIndex
       integer bodyIndex,INDEX_FAMILY
       real(8) trlValueTop,trlValueBot
       real(8), pointer :: all_column(:),tt_column(:),hu_column(:),p_column(:)
@@ -2727,15 +2728,13 @@ contains
       ! Locals:
       integer :: levIndexBot,levIndexTop
       real(8) :: ZRES
-      real(8) :: ZWB, ZWT,coeffA,coeffB,ZATV,trlVirtTemp
-      real(8) :: obsHeight, ZPT, ZPB, ZDADPS, ZDELPS, ZDELTV, deltaT
-      real(8) :: trlValueBot
-      real(8) :: trlUwind, trlVwind, sumSquare, trlWindSpeed, anlIncWindSpeed
+      real(8) :: coeffA,coeffB,ZATV,trlVirtTemp
+      real(8) :: obsHeight, ZDELPS, ZDELTV, deltaT
+      real(8) :: sumSquare, trlWindSpeed, anlIncWindSpeed
       integer :: headerIndex, layerIndex, nlev, nlev_T
       integer :: bodyIndex, bufrCode, INDEX_FAMILY
       real(8), pointer :: all_column(:), tt_column(:), hu_column(:), ps_column(:), p_column(:)
       real(8), pointer :: du_column(:), dv_column(:)
-      real(8) :: dPdPsfc
       integer, parameter :: numFamily=5
       character(len=2) :: list_family(numFamily)
       character(len=4) :: varLevel
@@ -2948,7 +2947,7 @@ contains
 
         scaling = oop_iceScaling(obsSpaceData, bodyIndex)
 
-        if (scaling == 0.0d0) cycle BODY
+        if (utl_isEqual(scaling, 0.0d0)) cycle BODY
 
         if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
           residual = scaling*obs_bodyElem_r( obsSpaceData, OBS_WORK, bodyIndex )
@@ -3204,11 +3203,9 @@ contains
 
       ! Locals:
       integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
       real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude, HDX
-      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
       real(8) :: vInterpWeightLow, vInterpWeightHigh
-      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      real(8), pointer :: du_column(:), dv_column(:)
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 

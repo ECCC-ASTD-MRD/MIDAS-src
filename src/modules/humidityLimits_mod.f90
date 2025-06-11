@@ -35,7 +35,7 @@ module humidityLimits_mod
     module procedure qlim_saturationLimit_gsv
     module procedure qlim_saturationLimit_ens
   end interface qlim_saturationLimit
-  
+
   ! interface for qlim_rttovLimit
   interface qlim_rttovLimit
     module procedure qlim_rttovLimit_gsv
@@ -53,7 +53,7 @@ module humidityLimits_mod
   interface qlim_setMin
     module procedure qlim_setMin_ens
   end interface qlim_setMin
-  
+
 contains
 
   !--------------------------------------------------------------------------
@@ -294,7 +294,7 @@ contains
               husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex))
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
-              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
+              hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =real( hu_modified,4)
             end do ! lonIndex
           end do ! latIndex
         end do ! levIndex
@@ -416,7 +416,7 @@ contains
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
-              hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = hu_modified
+              hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(hu_modified,4)
 
             end do ! stepIndex
 
@@ -512,7 +512,7 @@ contains
       !- Compute pressure (4D)
       !
       allocate(pressure4D_T_r8(lon1:lon2,lat1:lat2,numLev_T,numStep))
-      
+
       if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
         !
         !- For GEM-P coordinate
@@ -637,7 +637,7 @@ contains
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
       deallocate(press_rttov)
-      
+
       deallocate(pressure4D_T_r8)
 
     end if
@@ -1055,12 +1055,12 @@ contains
     real(8), intent(out) :: qmax_dest(:,:,:)      ! Interpolated profiles (destination)
 
     ! Locals:
-    integer :: ji, jk, jo, ii, jj, ik, iorder
+    integer :: ji, jk, jo, ii, jj, ik, iorder, xi
     real(8) :: zpo(numLev_dest)
     integer :: il(numLev_dest)
     real(8) :: zpi(0:numLev_src+1)
     real(8) :: zqmin_src(0:numLev_src+1), zqmax_src(0:numLev_src+1)
-    real(8) :: zw1, zw2, zp, xi, zrt, zp1, zp2
+    real(8) :: zw1, zw2, zp, zrt, zp1, zp2
 
     zpi(0)=200000.d0
     zpi(numLev_src+1)=200000.d0
@@ -1097,8 +1097,8 @@ contains
           do jo = 1, numLev_dest
             zrt = zpo(jo)
             zp = zpi(ji)
-            xi = sign(1.0d0,iorder*(zrt-zp))
-            il(jo) = il(jo) + max(0.0d0,xi)
+            xi = int(sign(1.0d0,iorder*(zrt-zp)))
+            il(jo) = il(jo) + max(0, xi)
           end do
         end do
 
@@ -1174,7 +1174,7 @@ contains
     end do ! latIndex
 
   end subroutine qlim_setMin_ens
-  
+
   !-----------------------------------------------------------------------
   ! qlim_getMinValueCloud
   !----------------------------------------------------------------------
@@ -1260,7 +1260,7 @@ contains
     type(struct_ens), intent(in) :: ensemble   ! ensemble to be examined
     ! Result:
     logical                      :: cloudExist ! indicate if any cloud variable exists in ensemble
-    
+
     ! Locals:
     integer :: varNameIndex
 
@@ -1287,7 +1287,7 @@ contains
     type(struct_gsv), intent(in) :: stateVector ! state vector to be examined
     ! Result:
     logical                      :: cloudExist  ! indicate if any clound variable exists in state
-    
+
     ! Locals:
     integer :: varNameIndex
 
@@ -1312,7 +1312,7 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(inout) :: column  ! column object that will be modified
-    
+
     ! Locals:
     integer              :: numLev_rttov, numCol, numLev_T
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
@@ -1345,7 +1345,7 @@ contains
     call qlim_lintv_minmax_col(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
                                numCol, numLev_T, pressTColPtr, qmin2D_rttov, qmax2D_rttov)
 
-    !$OMP PARALLEL DO PRIVATE (levIndex, columnIndex, hu, hu_modified) 
+    !$OMP PARALLEL DO PRIVATE (levIndex, columnIndex, hu, hu_modified)
     do columnIndex = 1, numCol
       do levIndex = 1, numLev_T
         hu = huColPtr(levIndex, columnIndex)
@@ -1353,7 +1353,7 @@ contains
         ! limit the humidity according to the rttov limits
         hu_modified = max(hu, qmin2D_rttov(columnIndex, levIndex))
         hu_modified = min(hu_modified, qmax2D_rttov(columnIndex, levIndex))
-          
+
         huColPtr(levIndex, columnIndex) = hu_modified
       end do ! levIndex
     end do ! columnIndex
@@ -1388,7 +1388,7 @@ contains
     integer :: fnom, fclos
     integer :: nulfile, ierr, levIndex
     logical, save :: firstTime = .true.
-    
+
     ! Open the file
     nulfile = 0
     ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
@@ -1447,12 +1447,12 @@ contains
     real(8), intent(out) :: qmax_dest(:,:)        ! Interpolated profiles (destination)
 
     ! Locals:
-    integer :: ji, jk, jo, ii, ik, iorder
+    integer :: ji, jk, jo, ii, ik, iorder, xi
     real(8) :: zpo(numLev_dest)
     integer :: il(numLev_dest)
     real(8) :: zpi(0:numLev_src+1)
     real(8) :: zqmin_src(0:numLev_src+1), zqmax_src(0:numLev_src+1)
-    real(8) :: zw1, zw2, zp, xi, zrt, zp1, zp2
+    real(8) :: zw1, zw2, zp, zrt, zp1, zp2
 
     zpi(0)=200000.d0
     zpi(numLev_src+1)=200000.d0
@@ -1486,8 +1486,8 @@ contains
         do jo = 1, numLev_dest
           zrt = zpo(jo)
           zp = zpi(ji)
-          xi = sign(1.0d0,iorder*(zrt-zp))
-          il(jo) = il(jo) + max(0.0d0,xi)
+          xi = int(sign(1.0d0,iorder*(zrt-zp)))
+          il(jo) = il(jo) + max(0, xi)
         end do
       end do
 

@@ -1,9 +1,9 @@
-module surfaceEmissivity_mod 
+module surfaceEmissivity_mod
   ! MODULE surfaceEmissivity_mod  (prefix='sse ' category='7. Low-level data objects')
   !
-  !:Purpose: Manipulate surface emissivity for idealized assimilation of 
+  !:Purpose: Manipulate surface emissivity for idealized assimilation of
   !          surface sensitive AMSU-A channels.
-  ! 
+  !
   use obsSpaceData_mod
   use rttov_types, only : rttov_emissivity, rttov_chanprof
   use rttov_const, only : surftype_land, surftype_seaice
@@ -38,7 +38,7 @@ contains
 
     ! Arguments:
     type(struct_obs),        intent(in)    :: obsSpaceData            ! ObsSpacedata object
-    type(rttov_emissivity),  intent(inout) :: updatedEmissivity(:)    ! Update emissivity 
+    type(rttov_emissivity),  intent(inout) :: updatedEmissivity(:)    ! Update emissivity
     integer,                 intent(in)    :: bodyIndexFromBtIndex(:) ! Provides the bodyIndex in ObsSpaceData based on btIndex
     type(rttov_chanprof),    intent(in)    :: chanprof(:)             ! Profile and channel index object
     integer,                 intent(in)    :: sensorHeaderIndexes(:)  ! Sensor obsSpaceDate header Indexes
@@ -54,7 +54,7 @@ contains
 
     btCount = size(updatedEmissivity)
     profileCount = size(sensorHeaderIndexes)
-    
+
     do profileIndex = 1, profileCount !loop on profiles
 
       headerIndex = sensorHeaderIndexes(profileIndex)
@@ -100,7 +100,7 @@ contains
     ierr = fnom(iunit, fileName, 'SEQ+FMT', 0)
     if (ierr /= 0) call utl_abort('sse_readEmissError: Error reading surface emissivity error stdev. file')
 
-    ! Read temporary strings 
+    ! Read temporary strings
     read(iunit, *) tmpStr
     read(iunit, '(A)') tmpStr
     read(iunit, '(A)') tmpStr
@@ -119,7 +119,7 @@ contains
       read(iunit,*) chanList(chanIndex), emissStdErr(chanIndex)
     end do
     read(iunit, '(A)') tmpStr
-  
+
     ierr = fclos(iunit)
     if (ierr /= 0) call utl_abort ('sse_readEmissError')
   end subroutine sse_readEmissError
@@ -145,7 +145,7 @@ contains
     integer, external    :: fnom,fclos
     real(8)              :: tmpCor
     integer, allocatable :: foundChanIndex(:)
- 
+
     iunit = 0
     ierr = fnom(iunit, trim(infile), 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) then
@@ -154,9 +154,9 @@ contains
     end if
 
     write(*,*) 'sse_readCEmissMatrixByFileName: Reading ' // trim(infile)
-    
+
     read(iunit,*) nchan
-  
+
     allocate(foundChanIndex(nchan))
     allocate(corrMat(nchan, nchan))
     allocate(chanList(nchan))
@@ -165,7 +165,7 @@ contains
     do chanIndex1 = 1, nchan
       corrMat(chanIndex1, chanIndex1) = 1.d0
     end do
-    
+
     count = 0
     foundChanIndex(:) = -1
     do chanIndex1 = 1, nchan
@@ -212,13 +212,13 @@ contains
     integer, intent(in)  :: chanList(nchan)   ! Channel list in correlation matrix
     real(8), intent(in)  :: Cmat(nchan,nchan) ! Emissivity error correlation matrix
     real(8), intent(out) :: obsOut(nsubset)   ! Error Perturbation
-    
+
     ! Locals:
     real(8)               :: alpha, beta, variance
     real(8), allocatable  :: emissErrMat(:,:)
     integer               :: foundChanIndex(nsubset)
     integer               :: chanIndex1, chanIndex2
-  
+
     allocate(emissErrMat(nsubset, nsubset))
 
     foundChanIndex(:) = -1
@@ -226,7 +226,7 @@ contains
       chanLoop: do chanIndex2 = 1, nchan
         if (list_sub(chanIndex1) == chanList(chanIndex2)) then
           foundChanIndex(chanIndex1) = chanIndex2
-          exit chanLoop 
+          exit chanLoop
         end if
       end do chanLoop
     end do
@@ -262,20 +262,20 @@ contains
   !--------------------------------------------------------------------------
   !  sse_setupEmissivityfromState
   !--------------------------------------------------------------------------
-  subroutine sse_setupEmissivityfromState(emissivity_inout, obsSpaceData, bodyIndexFromBtIndex, & 
+  subroutine sse_setupEmissivityfromState(emissivity_inout, obsSpaceData, bodyIndexFromBtIndex, &
                                    chanprof, sensorHeaderIndexes, &
                                    nSensor, sensorList, instrumentName, tovsMaxChanneNum, &
                                    tovsChannelOffset, tovsIChan, surftype, &
                                    columProfTl_opt, columProfAd_opt, emissivityProfDt_opt)
     !
     !:Purpose: Setup emissivity for the rttov direct, tangent linear and adjoint computation when emissivity is included
-    !          as an analysis variable.  When profType = 'dt', the background surface surface emissivity state is updated 
-    !          in 'emissivity_inout' using 'emissivityProfDt_opt' as input. When profType = 'tl', the tangent linear surface 
-    !          emissivity is updated in 'emissivity_inout' from 'columProfTl_opt' as input. When profType = 'ad', the adjoint surface 
+    !          as an analysis variable.  When profType = 'dt', the background surface surface emissivity state is updated
+    !          in 'emissivity_inout' using 'emissivityProfDt_opt' as input. When profType = 'tl', the tangent linear surface
+    !          emissivity is updated in 'emissivity_inout' from 'columProfTl_opt' as input. When profType = 'ad', the adjoint surface
     !          emissivity is updated in 'columProfAd_opt' from 'emissivity_inout' as input.
     !
     implicit none
-  
+
     ! Arguments:
     type(rttov_emissivity), pointer,           intent(inout) :: emissivity_inout(:)         ! Updated Surface emissivity object
     type(struct_obs),                          intent(in)    :: obsSpaceData                ! ObsSpaceData object
@@ -290,7 +290,7 @@ contains
     integer,                                   intent(in)    :: tovsIChan(:,:)              ! List of channels per instrument (tvs_ichan)
     integer,                                   intent(in)    :: surftype(:)                 ! Surface type of the profile (land/sea)
     type(struct_columnData), target, optional, intent(inout) :: columProfAd_opt             ! Column object for rttov adjoint computation
-    type(struct_columnData), target, optional, intent(in)    :: columProfTl_opt             ! Column object for rttov tangent computation 
+    type(struct_columnData), target, optional, intent(in)    :: columProfTl_opt             ! Column object for rttov tangent computation
     real(8), optional, target,                 intent(in)    :: emissivityProfDt_opt(:,:)   ! Column object for rttov direct computation
 
     ! Locals:
@@ -314,21 +314,21 @@ contains
     numSourceFile = 0
 
     ! Setup for the tangent linear computation for surface emissivity
-    if (present(columProfTl_opt)) then 
+    if (present(columProfTl_opt)) then
       column => columProfTl_opt
       profType = 'tl'
       numSourceFile = numSourceFile + 1
     end if
 
     ! Setup for the adjoint computation for surface emissivity
-    if (present(columProfAd_opt)) then 
+    if (present(columProfAd_opt)) then
       column => columProfAd_opt
       profType = 'ad'
       numSourceFile = numSourceFile + 1
     end if
 
     ! Extracting surface emissivity from background trial
-    if (present(emissivityProfDt_opt)) then 
+    if (present(emissivityProfDt_opt)) then
       emissivityTovsIndex => emissivityProfDt_opt
       profType = 'dt'
       numSourceFile = numSourceFile + 1
@@ -364,7 +364,7 @@ contains
         end if
       end if
     end do
-  
+
   end subroutine sse_setupEmissivityfromState
 
   !--------------------------------------------------------------------------
@@ -377,23 +377,25 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),         intent(in)      :: column                   ! column structure
-    real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
-    integer,                         intent(in)      :: profileCount             ! Profile count
-    integer,                         intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
-    integer,                         intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
-    
+    type(struct_columnData), intent(in)    :: column                   ! column structure
+    real(8), allocatable,    intent(inout) :: emissivityFromTrl(:, :)  ! Extract emissivity
+    integer,                 intent(in)    :: profileCount             ! Profile count
+    integer,                 intent(in)    :: sensorHeaderIndexes(:)   ! Sensor header index
+    integer,                 intent(in)    :: headerEnd                ! end headerIndex for TOVS observations
+
     ! Locals:
     integer :: emissTrlNumChan
     integer :: profileIndex, headerIndex
-  
+    real(8), pointer :: onecolumn(:)
+
     emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
-   
+
     if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(headerEnd, emissTrlNumChan))
 
-    do profileIndex = 1 , profileCount 
+    do profileIndex = 1 , profileCount
       headerIndex = sensorHeaderIndexes(profileIndex)
-      emissivityFromTrl(headerIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
+      oneColumn => col_getColumn(column, headerIndex, 'EMMW')
+      emissivityFromTrl(headerIndex, :) = oneColumn(:)
     end do
   end subroutine sse_extractEmissivityCol
 
@@ -405,8 +407,8 @@ contains
                                            sensorList, tovsMaxChanneNum, tovsChannelOffset, &
                                            tovsIChan)
     !
-    !:Purpose: Get channel number/index from obs_ppp for TO observations. 
-    !          Based on tvs_getChannelNumIndexFromPPP subroutine in tovsNL_mod module. 
+    !:Purpose: Get channel number/index from obs_ppp for TO observations.
+    !          Based on tvs_getChannelNumIndexFromPPP subroutine in tovsNL_mod module.
     !
     implicit none
 
@@ -436,11 +438,11 @@ contains
   !--------------------------------------------------------------------------
   !  sse_updateBEnsMatEmissFromBHi
   !--------------------------------------------------------------------------
-  subroutine sse_updateBEnsMatEmissFromBHi(BmatHiLand, BmatHiSea, BmatEns, latLandHi, latSeaHi, obsSpaceData, & 
+  subroutine sse_updateBEnsMatEmissFromBHi(BmatHiLand, BmatHiSea, BmatEns, latLandHi, latSeaHi, obsSpaceData, &
                                            validHeaderIndex, validHeaderCount, bmat1D_includeAnlVar, column)
     !
-    !:Purpose: Extract surface emissivity elements in the static B-Matrix and 
-    !          copy to the ensemble B-Matrix. It assumes that surface emissivity 
+    !:Purpose: Extract surface emissivity elements in the static B-Matrix and
+    !          copy to the ensemble B-Matrix. It assumes that surface emissivity
     !          errors have zero correlation with other analysis variables.
     !
     implicit none
@@ -461,8 +463,8 @@ contains
     real(8) :: latitude
     integer :: terrainType, landSea, surfaceType
     integer :: nlevEmiss, latitudeBandIndex(1)
-    
-    if (.not. any(bmat1D_includeAnlVar(:) == 'EMMW')) then 
+
+    if (.not. any(bmat1D_includeAnlVar(:) == 'EMMW')) then
       call utl_abort('sse_updateBEnsMatEmissFromBHi: bmat1D_includeAnlVar does not include EMMW')
     end if
 
@@ -470,16 +472,16 @@ contains
     nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
 
     ! Determine the start varIndex for surface emissivity in the B-Matrix.
-    emissVarIndex = 0 
+    emissVarIndex = 0
     do varIndex = 1, size(bmat1D_includeAnlVar)
       emissVarIndex = emissVarIndex + &
           col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
     end do
-    
+
     ! Copy emissivity errors from static to ensemble B-Matrix
     do columnIndex = 1, validHeaderCount
       headerIndex = validHeaderIndex(columnIndex)
-      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian
 
       terrainType = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
       landSea = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
@@ -509,7 +511,7 @@ contains
   subroutine sse_emissivityRttovLimits(column, columnRef_opt)
     !
     !:Purpose: Restrict simulated background surface emissivity within physical
-    !          values, between 0 and 1. Fill column%all(:,:) with missing emissivity 
+    !          values, between 0 and 1. Fill column%all(:,:) with missing emissivity
     !          values based on a reference column object, if present.
     !
     implicit none
@@ -521,7 +523,7 @@ contains
     ! Locals:
     real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
     integer              :: numCol, numLev, numColRef, numLevRef
-    integer              :: icol
+    integer              :: icol, ilev
     real(8), parameter   :: missingValue = -1.0d0
     real(8)              :: emissDiffTmp
 
@@ -540,36 +542,41 @@ contains
       end if
     end if
 
-    do icol = 1, numCol
+    colLoop: do icol = 1, numCol
       if (present(columnRef_opt)) then
         ! Fill missing value if ref column also have missing value
-        if (any(emissPtrRef(:, icol) == missingValue)) then
+        do ilev = 1, size(emissPtrRef, 1)
+          if ( utl_isEqual(emissPtrRef(ilev, icol), missingValue) ) then
+            emissPtr(:, icol) = missingValue
+            cycle colLoop
+          end if
+        end do
+
+        ! Fill missing value if ref column have negative emissivity
+        if(any(emissPtrRef(:, icol) < 0.0d0)) then
           emissPtr(:, icol) = missingValue
-          ! Fill missing value if ref column have negative emissivity
-        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
-          emissPtr(:, icol) = missingValue
-          ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
+        ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
+        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then
           emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
         ! Limit simulated emissivity to one
-        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
+        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then
           emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
         end if
       else
         ! Limit simulated emissivity to one
-        if(any(emissPtr(:, icol) < 0.0d0)) then 
+        if(any(emissPtr(:, icol) < 0.0d0)) then
           emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp * 1.01
         ! Limit simulated emissivity to zero
-        else if(any(emissPtr(:, icol) > 1.0d0)) then 
+        else if(any(emissPtr(:, icol) > 1.0d0)) then
           emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
           emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp * 1.01
         end if
       end if
-    end do
+    end do colLoop
 
   end subroutine sse_emissivityRttovLimits
 
-end module surfaceEmissivity_mod 
+end module surfaceEmissivity_mod

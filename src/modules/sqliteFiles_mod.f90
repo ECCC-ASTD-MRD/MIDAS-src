@@ -93,8 +93,6 @@ module sqliteFiles_mod
     integer :: headerIndexBegin, headerIndexEnd, headerIndex
     integer :: numBody, numHeader
     character(len=*), parameter :: my_name = 'sqlf_readFile'
-    character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
-    character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
     real(pre_obsReal)           :: missingValue
 
     write(*,*)' '
@@ -153,7 +151,6 @@ module sqliteFiles_mod
 
     ! Locals:
     character(len=*), parameter :: myName = 'sqlf_updateFile'
-    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
     call utl_tmg_start(13,'----UpdateSqliteFile')

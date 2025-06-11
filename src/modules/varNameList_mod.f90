@@ -19,7 +19,7 @@ module varNameList_mod
   ! Public variables (parameters)
   public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmaxOther, vnl_numvarmax
   public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther, vnl_varNameList
-  public :: vnl_numvarmaxCloud, vnl_varNameListCloud
+  public :: vnl_numvarmaxCloud, vnl_varNameListCloud, vnl_maxvarnamelengthNetCDF
 
   ! Public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
@@ -43,6 +43,7 @@ module varNameList_mod
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
   integer, parameter          :: vnl_numvarmaxOther = VNLnumvarmaxOther
   integer, parameter          :: vnl_numvarmaxCloud = VNLnumvarmaxCloud
+  integer, parameter          :: vnl_maxvarnamelengthNetCDF = VNLmaxvarnamelengthNetCDF
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -131,7 +132,7 @@ module varNameList_mod
       character(len=*), intent(in) :: varName
       ! Result:
       integer                      :: listIndex
-      
+
       ! Locals:
       integer                      :: jvar
 
@@ -168,7 +169,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar = 1, vnl_numvarmax2D
-        if( varName == vnl_varNameList2d(jvar) ) then 
+        if( varName == vnl_varNameList2d(jvar) ) then
           listIndex=jvar
           exit
         end if
@@ -199,7 +200,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar = 1, vnl_numvarmaxOther
-        if( varName == vnl_varNameListOther(jvar) ) then 
+        if( varName == vnl_varNameListOther(jvar) ) then
           listIndex=jvar
           exit
         end if
@@ -231,7 +232,7 @@ module varNameList_mod
 
       listIndex=-1
       do jvar=1,vnl_numvarmax
-        if(varName == vnl_varNameList(jvar)) then 
+        if(varName == vnl_varNameList(jvar)) then
           listIndex=jvar
           exit
         end if
@@ -251,18 +252,18 @@ module varNameList_mod
       ! :Purpose: Check if the supplied variable name is known by MIDAS.
       !
       implicit none
-      
+
       ! Arguments:
       character(len=*), intent(in) :: varName
       ! Result:
       logical                      :: isValid
-      
+
       ! Local::
       integer                      :: varIndex
 
       isValid = .false.
       do varIndex = 1, vnl_numvarmax
-        if(varName == vnl_varNameList(varIndex)) then 
+        if(varName == vnl_varNameList(varIndex)) then
           isValid = .true.
           exit
         end if
@@ -394,7 +395,7 @@ module varNameList_mod
     function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
       !
       ! :Purpose: Identifies varNumber from varName for use in assimilating
-      !           obs in the CH family.   
+      !           obs in the CH family.
       !           Here, for weather variables, there is a 1-1 association between
       !           a variable name and an observation unit.
       !           So one must provide the name directly associated to a single
@@ -444,7 +445,7 @@ module varNameList_mod
       case('DZ')
         varNumber=BUFR_NEDZ
       case('UV')
-        varNumber=BUFR_NEFS 
+        varNumber=BUFR_NEFS
       case('HU')
         if (present(varKind_opt)) then
            if (varKind_opt == 'CH') then
@@ -511,7 +512,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     function vnl_varLevelFromVarname(varName) result(varLevel)
       !
-      ! :Purpose: To get variable level list from variable name 
+      ! :Purpose: To get variable level list from variable name
       !
       implicit none
 
@@ -564,7 +565,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     function vnl_varLevelFromVarnum(varNumber) result(varLevel)
       !
-      ! :Purpose: To get variable level list from the variable number 
+      ! :Purpose: To get variable level list from the variable number
       !
       implicit none
 
@@ -590,7 +591,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     function vnl_varKindFromVarname(varName) result(varKind)
       !
-      ! :Purpose: To get variable kind list from the variable number 
+      ! :Purpose: To get variable kind list from the variable number
       !
       implicit none
 
@@ -598,7 +599,7 @@ module varNameList_mod
       character(len=*), intent(in) :: varName
       ! Result:
       character(len=2) :: varKind
-      
+
       varKind = varKindList(vnl_varListIndex(varName))
 
     end function vnl_varKindFromVarname
@@ -608,13 +609,13 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     subroutine vnl_varNamesFromExistList(varNames, varExistList)
       !
-      ! :Purpose: To get variable names from the variable existList 
+      ! :Purpose: To get variable names from the variable existList
       !
 
       implicit none
 
       ! Arguments:
-      logical,                   intent(in)  :: varExistList(:) ! a logical switch for the current variable 
+      logical,                   intent(in)  :: varExistList(:) ! a logical switch for the current variable
       character(len=4), pointer, intent(out) :: varNames(:)     ! variable names
 
       ! Local:
@@ -639,13 +640,13 @@ module varNameList_mod
       end do
 
     end subroutine vnl_varNamesFromExistList
- 
+
    !--------------------------------------------------------------------------
    ! vnl_varMassFromVarNum
    !--------------------------------------------------------------------------
     function vnl_varMassFromVarNum(varNumber) result(varMass)
       !
-      ! :Purpose: Identifies constituent molar mass from varNum for use in conversions for the CH family.   
+      ! :Purpose: Identifies constituent molar mass from varNum for use in conversions for the CH family.
       !
       implicit none
 
@@ -684,7 +685,7 @@ module varNameList_mod
         call utl_abort('vnl_varMassFromVarNum: Constituent id number ' // &
                        utl_str(varNumber) // ' not recognized' )
       end if
-      
+
     end function vnl_varMassFromVarNum
 
    !--------------------------------------------------------------------------
@@ -692,7 +693,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
     function vnl_varMassFromVarName(varName) result(varMass)
       !
-      ! :Purpose: Identifies constituent molar mass from varName for use in conversions for the CH family.   
+      ! :Purpose: Identifies constituent molar mass from varName for use in conversions for the CH family.
       !
       implicit none
 
@@ -731,7 +732,7 @@ module varNameList_mod
         call utl_abort('vnl_varMassFromVarName: Molar mass not found for varName ' // &
                        trim(varName) )
       end if
-      
+
     end function vnl_varMassFromVarName
 
     !--------------------------------------------------------------------------
@@ -766,15 +767,15 @@ module varNameList_mod
       ! :Purpose: determine if varName is cloud variable.
       !
       implicit none
-  
+
       ! Arguments:
       character(len=*), intent(in) :: varName
       ! Result:
       logical                      :: isCloud
-  
+
       ! Locals:
       integer :: varNameIndex
-  
+
       isCloud = .false.
       do varNameIndex = 1, vnl_numvarmaxCloud
         if (trim(varName) == trim(vnl_varNameListCloud(varNameIndex))) then
@@ -782,7 +783,7 @@ module varNameList_mod
           return
         end if
       end do
-  
+
     end function vnl_isCloudVar
 
     !--------------------------------------------------------------------------
@@ -897,9 +898,9 @@ module varNameList_mod
 
         ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
         ierr = fstouv(unit, 'RND+OLD')
-      
+
         key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
-  
+
         if (key > 0)  then
           found = .true.
         else
@@ -920,7 +921,7 @@ module varNameList_mod
         else
 
           call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
-          ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)      
+          ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)
           if (ierr == nf90_noerr) then
             found = .true.
           else
@@ -946,29 +947,29 @@ module varNameList_mod
       ! :Purpose: Return the equivalent variable name used for netCDF files
       !           in use by the NEMO ocean model.
       implicit none
-  
+
       ! Arguments:
       character(len=*), intent(in) :: varName  ! input MIDAS variable name
-      character(len=*), intent(in) :: fileName ! NEMO trial file   
-          
+      character(len=*), intent(in) :: fileName ! NEMO trial file
+
       ! Result:
       character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF ! variable name used in NEMO netCDF
 
       select case(trim(varName))
-      
+
       case('SSH')
-        
+
         if (utl_varPresentInNetcdfFile('zos', trim(fileName))) then
           varNameNetCDF = 'zos'
         else if (utl_varPresentInNetcdfFile('sshn', trim(fileName))) then
           varNameNetCDF = 'sshn'
-        else        
+        else
           call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
-        end if   
+        end if
 
-      case('TM') 
-   
+      case('TM')
+
         if (utl_varPresentInNetcdfFile('toce', trim(fileName))) then
           varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field, trial
         else if (utl_varPresentInNetcdfFile('tos', trim(fileName))) then
@@ -990,14 +991,14 @@ module varNameList_mod
           call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
-   
+
       case('UUW')
 
         if (utl_varPresentInNetcdfFile('uo', trim(fileName))) then
           varNameNetCDF = 'uo'
         else if (utl_varPresentInNetcdfFile('un', trim(fileName))) then
           varNameNetCDF = 'un'
-        else 
+        else
           call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
@@ -1008,7 +1009,7 @@ module varNameList_mod
           varNameNetCDF = 'vo'
         else if (utl_varPresentInNetcdfFile('vn', trim(fileName))) then
           varNameNetCDF = 'vn'
-        else 
+        else
           call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
@@ -1021,14 +1022,14 @@ module varNameList_mod
           call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
-         
+
       case default
 
         varNameNetCDF = 'notFound'
         write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName: '//trim(varName)
 
       end select
-      
+
       write(*,*) 'vnl_varNameNetCDF: ', trim(varName),' is ', trim(varNameNetCDF), ' in netCDF file.'
 
     end function vnl_varNameNetCDF

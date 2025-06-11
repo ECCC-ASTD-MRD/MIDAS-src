@@ -41,7 +41,7 @@ module gridStateVectorFileIO_mod
   character(len=3) :: outputFormat ! output format written by 'gio_writeToFile' can only be 'XDF' or 'RSF'
 
   ! NEMO increment variables:
-  integer  , parameter :: dimNemovar = 13
+  integer, parameter :: dimNemovar = 13
   character(len=20) :: NEMOvarNameInc(dimNemovar) = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', &
                                                       'time_counter', 'z_inc_dateb ', 'z_inc_datef ', &
                                                       'time        ', 'bckint      ', 'bckins      ', &
@@ -649,7 +649,7 @@ module gridStateVectorFileIO_mod
     integer :: varLevIndex, ni, nj
     integer :: levIndex, varID
     character(len=4)  :: varName
-    character(len=10) :: varNameNetCDF
+    character(len=vnl_maxvarnamelengthNetCDF) :: varNameNetCDF
     real(8), allocatable :: fileField2D(:,:,:,:), netCDFTimes(:)
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp
@@ -787,7 +787,7 @@ module gridStateVectorFileIO_mod
                                    count = (/ni, nj,        1,               1/)))
       end if
 
-      field_r4_ptr(:,:, varLevIndex, 1) = fileField2D(:,:,1,1)
+      field_r4_ptr(:,:, varLevIndex, 1) = real(fileField2D(:,:,1,1),4)
 
     end do k_loop
 
@@ -1631,6 +1631,7 @@ module gridStateVectorFileIO_mod
     integer, allocatable :: levIndices(:)
     logical, allocatable :: interpolationToPhysicsGrid(:)
     character(len=256) :: fileNameTmp
+    character(len=:), pointer :: fileNamePtr
     character(len=4) :: nomvar
     logical :: success
 
@@ -2004,7 +2005,7 @@ module gridStateVectorFileIO_mod
               ! Apply inverse transform of unit conversion
               if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
                 factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                     vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+                     real(vnl_varMassFromVarName(trim(nomvar)),4) ! micrograms/kg -> vmr
               else
                 factor_r4 = 1.0 ! no conversion
               end if
@@ -2056,7 +2057,8 @@ module gridStateVectorFileIO_mod
       end if
 
       do thread = 0, (numThreadsForWriting-1)
-        fileNameTmp = fstFiles(thread)%get_name()
+        fileNamePtr => fstFiles(thread)%get_name()
+        fileNameTmp = trim(fileNamePtr)
         success = fstFiles(thread)%close()
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
@@ -2326,7 +2328,9 @@ module gridStateVectorFileIO_mod
                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
                    real(statevector%hco%xlat2), real(statevector%hco%xlon2))     ! IN
 
-      lon_4(:,:) = statevector%hco%lon2d_4(:,:)*mpc_degrees_per_radian_r8
+      ! TODO: simplify the floating point precision conversions
+      !     lon_4(:,:) = statevector%hco%lon2d_4(:,:)*mpc_degrees_per_radian_r4
+      lon_4(:,:) = real(real(statevector%hco%lon2d_4(:,:),8)*mpc_degrees_per_radian_r8,4)
       fstRecord%data = c_loc(lon_4)
       fstRecord%nomvar = '>>'
       fstRecord%ni = statevector%ni
@@ -2337,7 +2341,9 @@ module gridStateVectorFileIO_mod
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
-      lat_4(:,:) = statevector%hco%lat2d_4(:,:)*mpc_degrees_per_radian_r8
+      ! TODO: simplify the floating point precision conversions
+      !     lat_4(:,:) = statevector%hco%lat2d_4(:,:)*mpc_degrees_per_radian_r4
+      lat_4(:,:) = real(real(statevector%hco%lat2d_4(:,:),8)*mpc_degrees_per_radian_r8,4)
       fstRecord%data = c_loc(lat_4)
       fstRecord%nomvar = '^^'
       fstRecord%ni = statevector%ni
@@ -2523,7 +2529,7 @@ module gridStateVectorFileIO_mod
           multFactor = 1.0d0 ! no conversion
         end if
 
-        if (multFactor /= 1.0d0) then
+        if ( .not. utl_isEqual(multFactor,1.0d0) ) then
           if (statevector%dataKind == 4) then
             field_r4_ptr(:,:, varLevIndex, stepIndex) = &
                  real(multFactor * field_r4_ptr(:,:, varLevIndex, stepIndex), 4)
@@ -2694,7 +2700,7 @@ module gridStateVectorFileIO_mod
     logical :: iDoWriting, containsFullField
     integer :: ierr, ncid, stepIndex, imode, newdate
     integer :: ni, nj
-    integer :: levIndex, numLev, varIndex, varLevIndex
+    integer :: levIndex, numLev, varLevIndex
     integer :: yourid, youridy, youridx
     integer :: varLevIndexBeg, varLevIndexEnd
     character(len=4), pointer :: varNamesToRead(:)
@@ -2962,7 +2968,7 @@ module gridStateVectorFileIO_mod
                                      'gio_writeToFileNetCDF', 'nf90_put_var')
         else
           call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
-                         vnl_varNameList(varIndex)//' ('//trim(localVariableName(varIndexNEMO))//')')
+                          varName//' ('//trim(localVariableName(varIndexNEMO))//')')
         end if
 
       end if ! iDoWriting

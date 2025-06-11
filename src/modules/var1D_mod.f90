@@ -14,6 +14,7 @@ module var1D_mod
   use verticalCoord_mod
   use codeprecision_mod
   use mathphysconstants_mod
+  use utilities_mod
 
   implicit none
   save
@@ -156,8 +157,8 @@ contains
       end if
       if (mmpi_myId == 0) then
         if ( obsIndex <= var1D_validHeaderCount ) then
-          hco_yGrid%lat2d_4(1, obsIndex) = lat
-          hco_yGrid%lon2d_4(1, obsIndex) = lon
+          hco_yGrid%lat2d_4(1, obsIndex) = real(lat,4)
+          hco_yGrid%lon2d_4(1, obsIndex) = real(lon,4)
         end if
       else
         tag = 2 * mmpi_myID
@@ -170,10 +171,10 @@ contains
           tag = 2 * taskIndex
           call mmpi_recv(lat, tag  , taskIndex)
           call mmpi_recv(lon, tag+1, taskIndex)
-          if (lat /= MPC_missingValue_R8 .and. lon /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(lat, MPC_missingValue_R8) .and. .not. utl_isEqual(lon, MPC_missingValue_R8)) then
             globalObsIndex = obsIndex + obsOffset(taskIndex)
-            hco_yGrid%lat2d_4(1, globalObsIndex) = lat
-            hco_yGrid%lon2d_4(1, globalObsIndex) = lon
+            hco_yGrid%lat2d_4(1, globalObsIndex) = real(lat,4)
+            hco_yGrid%lon2d_4(1, globalObsIndex) = real(lon,4)
           end if
         end do
       end if
@@ -214,7 +215,7 @@ contains
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
             call mmpi_recv(localColumn, tag, taskIndex, varDim)
-            if (all( localColumn /=  MPC_missingValue_R8)) then
+            if ( .not. any( utl_isEqual(localColumn, MPC_missingValue_R8) ) ) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
               myField(1, globalObsIndex, :) = localColumn(:)
             end if
