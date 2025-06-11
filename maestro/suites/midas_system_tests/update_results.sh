@@ -16,7 +16,7 @@ which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 ${toplevel}/set_resources_def.sh
 
 if [ -z "${version}" ]; then
-    version=$(${toplevel}/midas.version.sh)
+    version=$(${toplevel}/midas.version)
 fi
 
 if [ "${version}" = 'unknown revision' ]; then

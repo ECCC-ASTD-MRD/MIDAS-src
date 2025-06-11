@@ -1,7 +1,7 @@
 #! /bin/sh
 
 __toplevel=$(git rev-parse --show-toplevel)
-__revstring=$(${__toplevel}/midas.version.sh)
+__revstring=$(${__toplevel}/midas.version)
 __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
 __status=true
 

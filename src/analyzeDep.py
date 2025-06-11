@@ -130,7 +130,7 @@ if not buildDir:
     cfgFile='config.dot.sh'
     envLeafBldDir='EC_ARCH'
     print(f'... sourcing {cfgFile}, use explicit --path to make it faster')
-    version=subprocess.check_output('../midas.version.sh').strip().decode(encoding)
+    version=subprocess.check_output('../midas.version').strip().decode(encoding)
     relCompDir='../compiledir/'
     if not os.path.isdir(relCompDir):
         print(f'{relCompDir} does not exist.  Dependency files not accessible')

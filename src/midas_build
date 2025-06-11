@@ -45,7 +45,7 @@ __date=$(date +%Y%m%d%H%M%S)
 __dateLong=$(date)
 __dateStampBeg=$(date +%s)
 __toplevel=$(git rev-parse --show-toplevel)
-__revstring=$(${__toplevel}/midas.version.sh)
+__revstring=$(${__toplevel}/midas.version)
 
 ##=========================================================
 ##  sourcing user configuration

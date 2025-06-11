@@ -130,7 +130,7 @@ fi
 
 echo "MIDAS_toplevel=${__toplevel}" > abs.dot
 echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${__toplevel}/compiledir}/midas_abs" >> abs.dot
-echo "MIDAS_version=\$(cd ${__toplevel}; ./midas.version.sh)" >> abs.dot
+echo "MIDAS_version=\$(cd ${__toplevel}; ./midas.version)" >> abs.dot
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
     mkdir -p ${ABS_DIR}

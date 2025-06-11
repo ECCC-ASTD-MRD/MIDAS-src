@@ -199,7 +199,7 @@ produced first thing when `make` (or `midas_build`) is called for any target
 (or even just through [autocompletion attempt](#auto-completion)).
 Most probably they are already there in the build directory (at least on the
 frontend):
-`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
+`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
 (`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `../compiledir`).
 If they aren't, you can either launch `midas_build` or faster:
 ```sh
@@ -337,7 +337,7 @@ Some frequently used phony targets are:
   Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with 
   version number:  
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
-  `../midas.version.sh` script.
+  `../midas.version` script.
 * `clean` : remove the build directory for the current version 
 * `cleanabs` : remove programs in the current build directory
 * `cleanobj` : remove objects in the current build directory
@@ -352,7 +352,7 @@ Omitting the target defaults to `all`.
 
 
 ### The install target
-Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy the target absolutes **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
+Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy the target absolutes **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version` script.
 
 
 A complete install is then 

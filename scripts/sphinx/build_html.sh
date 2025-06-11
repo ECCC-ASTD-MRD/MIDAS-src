@@ -208,7 +208,7 @@ EOF
 
 done
 
-revision=$(${toplevel}/midas.version.sh)
+revision=$(${toplevel}/midas.version)
 
 # GENERATE THE MAIN PAGE
 

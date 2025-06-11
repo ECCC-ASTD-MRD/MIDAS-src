@@ -63,7 +63,7 @@ else
 fi
 
 toplevel=$(git rev-parse --show-toplevel)
-MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version.sh)}
+MIDAS_REVISION=${MIDAS_REVISION:-$(${toplevel}/midas.version)}
 
 ## If MIDAS_SOURCE is not yet defined then we use the path to the GitLab project
 if [ -z "${MIDAS_SOURCE}" ]; then

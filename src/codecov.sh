@@ -14,7 +14,7 @@ typeset -r defautCovDir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
 typeset -r toplevelCmd=$"git rev-parse --show-toplevel"
 typeset -r toplevel=$(eval ${toplevelCmd})
 typeset -r defautSrcDir=${toplevel}/src
-typeset -r revstring=$(${toplevel}/midas.version.sh)
+typeset -r revstring=$(${toplevel}/midas.version)
 typeset -r defaultWebDir=~/public_html/midas/codecoverage-${revstring}
 
 set +u

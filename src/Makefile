@@ -75,7 +75,7 @@ endif
 
 FILE_CFG := $(SRC_ROOT)/config.dot.sh
 
-VERSION_SCRIPT := $(SRC_ROOT)/../midas.version.sh
+VERSION_SCRIPT := $(SRC_ROOT)/../midas.version
 
 ## 	those can be used in both (**no absolute** path here)
 DIR_MOD_RELATIVE := modules
