@@ -351,8 +351,7 @@ echo "Building dependency tree"
 echo "Sourcing config"
 cd ${toplevel}/src
 source ./config.dot.sh
-GITDESC=$(git describe --abbrev=7 --dirty=_M)
-OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
+OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${revision}/${ARCH}/
 make depend
 
 cat > ${ORIG_PWD}/namelists_in_each_program.rst << 'EOF'
