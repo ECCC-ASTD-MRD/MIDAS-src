@@ -596,7 +596,7 @@ module var1DIdealize_mod
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           count = count + 1
-          channelNumber = obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex)
+          channelNumber = int(obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex))
 
           ! Match tvs_channelnumber with the channel index in emissivity error std file
           matchChanIndex = FINDLOC(emissChanList, channelNumber, dim=1)
@@ -709,7 +709,7 @@ module var1DIdealize_mod
       bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
       BODYCHCK: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        columnValue = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
+        columnValue = real(obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex),4)
 
         if (.not. utl_isEqual(columnValue, MPC_missingValue_R4)) then
           nonEmptyBodyColumn = .true.
