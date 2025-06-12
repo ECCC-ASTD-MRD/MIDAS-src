@@ -258,7 +258,9 @@ contains
     else if (lat.gt.(0.5D0*dpie-r0)) then
       ilat = nlatband
     else
-      lat = lat+0.5D0*dpie-r0
+      ! TODO: simplify the floating point precision conversions
+      !     lat = lat+0.5*MPC_PI_R8-real(r0,4)
+      lat = real( real(lat,8)+0.5*dpie-r0, 4)
       ilat = 1+ceiling(lat/(r0*(2**0.5)))
     end if
     ilat = min(max(ilat,1),nlatband)
