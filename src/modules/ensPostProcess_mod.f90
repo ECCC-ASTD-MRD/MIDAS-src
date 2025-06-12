@@ -1608,7 +1608,7 @@ contains
       end do
       status = fclos(nulFile)
     else
-      if (any(weightRecenter(1:vco_getNumLev(vco_ens, 'MM')) == -1.d0)) then
+      if (any( utl_isEqual(weightRecenter(1:vco_getNumLev(vco_ens, 'MM')),-1.d0) ) ) then
         write(*,*) ''
         write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens, 'MM')
         write(*,*) 'Provided values : '
