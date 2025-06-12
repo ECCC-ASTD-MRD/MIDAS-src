@@ -1193,8 +1193,11 @@ module calcStatsGlb_mod
       do levIndex = 1, nLevEns_M
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) +  &
-                 tan(theta(levIndex,latIndex))*psi_ptr(lonIndex,latIndex,levIndex)
+            ! TODO: We should simplify the floating point precision conversions by using
+            !                 chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) +  &
+            !                                 real(tan(theta(levIndex,latIndex)),4)*psi_ptr(lonIndex,latIndex,levIndex)
+            chi_ptr(lonIndex,latIndex,levIndex) = real( real(chi_ptr(lonIndex,latIndex,levIndex),8) +  &
+                 tan(theta(levIndex,latIndex))*real(psi_ptr(lonIndex,latIndex,levIndex),8), 4)
           end do
         end do
       end do
@@ -1250,12 +1253,16 @@ module calcStatsGlb_mod
         do lonIndex = myLonBeg, myLonEnd
           do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
-              ttb_ptr(lonIndex,latIndex,jk1) = ttb_ptr(lonIndex,latIndex,jk1) + PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
+              ! TODO: We should simplify the floating point precision conversions by using
+              !     ttb_ptr(lonIndex,latIndex,jk1) = ttb_ptr(lonIndex,latIndex,jk1) + real(PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2),4)
+              ttb_ptr(lonIndex,latIndex,jk1) = real( real(ttb_ptr(lonIndex,latIndex,jk1),8) + PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2), 4)
             end do
             tt_ptr(lonIndex,latIndex,jk1) = tt_ptr(lonIndex,latIndex,jk1) - ttb_ptr(lonIndex,latIndex,jk1)
           end do
           do jk2 = 1, nlevptot
-            psb_ptr(lonIndex,latIndex,1) = psb_ptr(lonIndex,latIndex,1) + PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
+            ! TODO: We should simplify the floating point precision conversions by using
+            !   psb_ptr(lonIndex,latIndex,1) = psb_ptr(lonIndex,latIndex,1) + real(PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2),4)
+            psb_ptr(lonIndex,latIndex,1) = real( real(psb_ptr(lonIndex,latIndex,1),8) + PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2), 4)
           end do
           ps_ptr(lonIndex,latIndex,1) = ps_ptr(lonIndex,latIndex,1) - psb_ptr(lonIndex,latIndex,1)
         end do
@@ -2544,8 +2551,11 @@ module calcStatsGlb_mod
         dmean_mpiglobal = dmean_mpiglobal/(dble(ni)*dble(nj))
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
+            ! TODO: We should simplify the floating point precision conversions by using
+            !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =   &
+            !         ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) - real(dmean_mpiglobal,4)
             ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =   &
-                 ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) - dmean_mpiglobal
+                 real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) - dmean_mpiglobal, 4)
           end do
         end do
       end do
@@ -2833,7 +2843,9 @@ module calcStatsGlb_mod
             dfact=0.0d0
           end if
           do ensIndex = 1, nens
-            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*dfact
+            ! TODO: We should simplify the floating point precision conversions by declaring 'dfact' as a 'real(4)'
+            !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*dfact
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =  real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8)*dfact ,4)
           end do
         end do
       end do
@@ -2866,7 +2878,9 @@ module calcStatsGlb_mod
       do levIndex = 1, nlev
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*stddev3d(lonIndex,latIndex,levIndex)
+            ! TODO: We should simplify the floating point precision conversions by using
+            ! ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*real(stddev3d(lonIndex,latIndex,levIndex),4)
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = real ( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8)*stddev3d(lonIndex,latIndex,levIndex), 4)
           end do
         end do
       end do
@@ -3044,8 +3058,11 @@ module calcStatsGlb_mod
         do ensIndex = 1, nens
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
-              ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=     &
-                ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-gd2d(lonIndex,latIndex)
+              ! TODO: We should simplify the floating point precision conversions by using
+              !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
+              !         ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-real(gd2d(lonIndex,latIndex),4)
+              ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
+                   real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) -gd2d(lonIndex,latIndex), 4)
             end do
           end do
         end do
