@@ -5,6 +5,7 @@ module sqliteFiles_mod
   !:Purpose:  To store the filenames of the sqlite observation files and call
   !           subroutines in readSqlite to read and update sqlite files.
   !
+  use rpn_comm
   use mathPhysConstants_mod
   use sqliteRead_mod
   use obsSpaceData_mod

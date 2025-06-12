@@ -32,7 +32,7 @@ MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
 MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
 ###########################################################
-##  SSM Packaging configuration 
+##  SSM Packaging configuration
 ##
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
@@ -124,26 +124,26 @@ else
 fi
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools. 
+#  Set up dependent librarys and tools.
 #---------------------------------------------------------------
-echo "... loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2"
-. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
+echo "... loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2"
+. r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20250129-alpha"
-. r.load.dot eccc/mrd/rpn/libs/20250129-alpha
+echo "... loading eccc/mrd/rpn/libs/20250604-beta"
+. r.load.dot eccc/mrd/rpn/libs/20250604-beta
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}"
-. r.load.dot eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}
+echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
 
-echo "... loading eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}"
-. ssmuse-sh -x eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}"
+. ssmuse-sh -x eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
@@ -199,7 +199,7 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 
 ## check makedepf90 install
 if ! which makedepf90
-then 
+then
     echo "<!> makedepf90 unavailable on the system."
     __status=false
 fi

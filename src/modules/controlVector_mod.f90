@@ -4,6 +4,7 @@ module controlVector_mod
   !
   !:Purpose: The control vector and related information.  
   !
+  use rpn_comm
   use utilities_mod
 
   implicit none

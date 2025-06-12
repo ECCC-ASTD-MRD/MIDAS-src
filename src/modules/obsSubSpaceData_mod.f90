@@ -10,31 +10,32 @@ module obsSubSpaceData_mod
 
   ! Public routines:
   !
-  !       - "oss_obsdata_get_*" to get arrays or elements from input 
+  !       - "oss_obsdata_get_*" to get arrays or elements from input
   !         'struc_oss_obsdata' structure.
-  !         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"           
-  ! 
-  !       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d 
+  !         Requires companion availabity of "oss_obsdata_alloc" and "oss_obsdata_dealloc"
+  !
+  !       - "oss_obsdata_add_data1d" to add data value(s) to obsdata%data1d
   !         with associated identifier code.
   !
-  !       - "oss_obsdata_MPIallgather" gathers previously saved obsdata 
+  !       - "oss_obsdata_MPIallgather" gathers previously saved obsdata
   !         from all processors.
   !
   !       - "oss_obsdata_code_len" to pass on oss_code_len value
   !
-  !       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
+  !       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno)
   !          or (stnid,varno,multi/uni-level) combinations to be used in searches.
   !
-  !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
+  !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,
   !          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
   !
+  use rpn_comm
   use codePrecision_mod
-  use utilities_mod    
+  use utilities_mod
   use MathPhysConstants_mod
   use midasMpi_mod
   use bufr_mod
-  use obsSpaceData_mod  ! for use in oss_get_comboIdList 
-   
+  use obsSpaceData_mod  ! for use in oss_get_comboIdList
+
   implicit none
   private
 
@@ -54,7 +55,7 @@ module obsSubSpaceData_mod
                                                    ! Minimum required size:
                                                    ! 22 (lat/long and time coord) + 9 (stnid) = 31
   integer, parameter :: oss_code_sublen=22         ! Length of lat/long and time coord
-  integer, parameter :: oss_code_latlen=5          ! Length of lat segment 
+  integer, parameter :: oss_code_latlen=5          ! Length of lat segment
 
   ! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
   interface oss_obsdata_get_header_code
@@ -68,9 +69,9 @@ module obsSubSpaceData_mod
   type :: struct_oss_obsdata
 
      !  Structure storing information associated to observations such
-     !  as BURP file reports (irep) either retrieved from BURP files 
-     !  themselves or from other sources.  
-     !     
+     !  as BURP file reports (irep) either retrieved from BURP files
+     !  themselves or from other sources.
+     !
      !  Variable               Description
      !  --------               -----------
      !  ndim                   number of dimensions of the data arrays
@@ -85,11 +86,11 @@ module obsSubSpaceData_mod
      !
      !  Follow-up to be made: modify dim1 and dim2 as pointer arrays dependent on irep
      !
-     
+
      real(8), pointer :: data1d(:,:),data2d(:,:,:)
      character(len=oss_code_len), pointer :: code(:)
      integer :: ndim,nrep,dim1,dim2,irep
-  
+
   end type struct_oss_obsdata
 
 contains
@@ -100,10 +101,10 @@ contains
     ! :Purpose: Allocates memory for structure struct_oss_obsdata to hold obs data file information.
     !           If dim2 is specified, then the data array associated with each observation/report
     !           will be 2D array. will be a 1D array if dim2 is not specified.
-    ! 
+    !
     ! :Arguments:
     !      :obsdata: data structure to allocate
-    !      :nrep: max number of associated observations/reports for data 
+    !      :nrep: max number of associated observations/reports for data
     !      :dim1: first dimension length of the array associated to each observation/report
     !      :dim2: second dimension length of the array associated to each observation/report (optional)
     !
@@ -112,9 +113,9 @@ contains
     ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
     integer                 , intent(in)    :: nrep
-    integer                 , intent(in)    :: dim1 
+    integer                 , intent(in)    :: dim1
     integer       , optional, intent(in)    :: dim2_opt
-    
+
     obsdata%nrep = nrep
     obsdata%dim1 = dim1
 
@@ -134,7 +135,7 @@ contains
 
     ! code is a character string assigned to each observation/report to uniquely identify it
     allocate(obsdata%code(nrep))
-    
+
     ! obsdata%irep is a counter used to keep tract of position in the
     ! data arrays when extracting values via oss_obsdata_get_array*.
     ! The value is initialized to one, pointing to the very first element.
@@ -151,7 +152,7 @@ contains
 
     ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
-    
+
     if (associated(obsdata%data1d)) deallocate(obsdata%data1d)
     if (associated(obsdata%data2d)) deallocate(obsdata%data2d)
     if (associated(obsdata%code))   deallocate(obsdata%code)
@@ -160,11 +161,11 @@ contains
 
 
   function oss_obsdata_get_element( obsdata, code, idim1, stat_opt ) result(element)
-    ! 
+    !
     ! :Purpose: Returns element of array from obsdata 1D data array. The returned element is the
     !           one with the specified identifying code.
     !
-    ! :Arguments: 
+    ! :Arguments:
     !           :obsdata: struct_oss_obsdata instance
     !           :code:    unique identifying code
     !           :idim1:   position of element in the dim1 axis
@@ -180,7 +181,7 @@ contains
     integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: element
-    
+
     ! find obsdata%irep for current observation
     call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if (present(stat_opt)) then
@@ -192,7 +193,7 @@ contains
 
     ! get element from data array at current position
     element = obsdata%data1d(idim1,obsdata%irep)
-    
+
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
        obsdata%irep = 1
@@ -204,7 +205,7 @@ contains
 
 
   function oss_obsdata_get_array1d(obsdata,code,stat_opt) result(array)
-    ! 
+    !
     ! :Purpose: Returns 1D data array from obsdata. The returned array is the one with the specified
     !           identifying code.
     ! :Arguments:
@@ -221,7 +222,7 @@ contains
     integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: array(obsdata%dim1)
-    
+
     ! find obsdata%irep for current observation
     call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if ( present( stat_opt ) ) then
@@ -230,10 +231,10 @@ contains
         return
       end if
     end if
-    
+
     ! get element from data array at current position
     array = obsdata%data1d(:,obsdata%irep)
-    
+
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
        obsdata%irep = 1
@@ -249,7 +250,7 @@ contains
     ! :Purpose: Extract 1D data array from structure according to input (lat,long,date,time,stnid)
     !
     ! :Arguments:
-    !           :obsdata: Structure from which data elements are to be found  
+    !           :obsdata: Structure from which data elements are to be found
     !           :lon:     longitude real (radians)
     !           :lat:     latitude real (radians)
     !           :date:    date in YYYYMMDD
@@ -257,7 +258,7 @@ contains
     !           :stnid:   station ID
     !           :array:   Identified 1D array
     !           :stat:    search success (0 - found; 1 = no data; 2 = not found)
-    !    
+    !
     implicit none
 
     ! Arguments:
@@ -273,22 +274,22 @@ contains
 
     ! Locals:
     character(len=oss_code_len) :: code
-    
+
     ! Set desired identifier code
-    code=oss_obsdata_get_header_code(lon,lat,date,time,stnid) 
-  
+    code=oss_obsdata_get_header_code(lon,lat,date,time,stnid)
+
     ! Get array corresponding to code.
     array=oss_obsdata_get_array1d(obsdata,code,stat_opt=stat_opt)
-    
+
   end function oss_obsdata_get_data1d
 
 
   function oss_obsdata_get_array2d( obsdata, code, stat_opt ) result(array)
-    ! 
+    !
     ! :Purpose: Returns 2D data array from obsdata. The returned array is the one with the specified
     !           identifying code.
     !
-    ! :Arguments: 
+    ! :Arguments:
     !           :obsdata: struct_oss_obsdata instance
     !           :code:    unique identifying code
     !           :array:   retrieved array from obsdata%data2d of dimension (obsdata%dim1,obsdata%dim2)
@@ -302,7 +303,7 @@ contains
     integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: array(obsdata%dim1,obsdata%dim2)
-    
+
     ! find obsdata%irep for current observation
     call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if (present(stat_opt)) then
@@ -311,10 +312,10 @@ contains
           return
        end if
     end if
-    
+
     ! get elements from data array at current position
     array = obsdata%data2d(:,:,obsdata%irep)
-    
+
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
        obsdata%irep = 1
@@ -326,11 +327,11 @@ contains
 
 
   subroutine obsdata_set_index( obsdata, code, stat_opt )
-    ! 
+    !
     ! :Purpose: Sets the position variable (irep) in struct_oss_obsdata to reference the record
     !           that matches the input identifying code.
     !
-    ! :Arguments: 
+    ! :Arguments:
     !           :obsdata:      struct_oss_obsdata instance
     !           :index:        obs index
     !           :code:         code for comparison to those in obsdata
@@ -353,7 +354,7 @@ contains
     ! Locals:
     integer :: i
     integer :: ref_lat
-    
+
     if ( obsdata%nrep <= 0 ) then
       if ( present( stat_opt ) ) then
         stat_opt = 1
@@ -366,33 +367,33 @@ contains
     end if
 
     i=0
-    
+
     ! Search for matching identifier code
     do while (trim(obsdata%code(obsdata%irep)) /= trim(code))
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep > obsdata%nrep) obsdata%irep=1
        if (i > obsdata%nrep) then
           if (len_trim(code) >= oss_code_sublen) then
-       
+
              ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=oss_code_sublen.
 
              ! Upper loop search did not find a match. For valid data near the poles over
              ! the global analysis grid, the lat could have been moved to the nearest analysis grid
              ! latitude. The following is to account for this, assuming this is the only exception
-             ! for points near the poles. 
+             ! for points near the poles.
              !
-             ! This is done as a second search step so as not to slow down the normally sufficient 
+             ! This is done as a second search step so as not to slow down the normally sufficient
              ! search performed above.
 
              i=0
              read(code(1:oss_code_latlen),*) ref_lat
-             
+
              ! Search for matching identifier code
              do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep)),code,ref_lat))
                 obsdata%irep=obsdata%irep+1
                 if (obsdata%irep > obsdata%nrep) obsdata%irep=1
                 if (i > obsdata%nrep) exit
-                i=i+1       
+                i=i+1
              end do
              if (i > obsdata%nrep) then
                 if (present(stat_opt)) then
@@ -411,19 +412,19 @@ contains
              end if
           end if
           exit
-       end if 
-       i=i+1       
+       end if
+       i=i+1
     end do
-         
+
     if (present(stat_opt)) stat_opt = 0
 
   end subroutine obsdata_set_index
-             
+
 
   function obsdata_extra_code_test( test_code, ref_code, ref_lat ) result(found)
-    ! 
+    !
     ! :Purpose: Test matching of code values accounting for rare differences
-    !           in stored lat (and lon) value(s) when codes are stored as strings in the form  
+    !           in stored lat (and lon) value(s) when codes are stored as strings in the form
     !           LAT--LON--YYYYMMDDHHMM* (ie. with >= oss_code_sublen characters).
     !
     ! :Caveat: The current version assumes the only source of difference would stem from
@@ -433,11 +434,11 @@ contains
     !          away from a pole.
     !
     ! :Arguments:
-    !           :test_code: code for comparison to ref_code  
-    !           :ref_lat:   latitude  (x100) part of reference code   
+    !           :test_code: code for comparison to ref_code
+    !           :ref_lat:   latitude  (x100) part of reference code
     !           :ref_code:  reference code
-    !           :found:     logical indicating if a match has been found.  
-    ! 
+    !           :found:     logical indicating if a match has been found.
+    !
     implicit none
 
     ! Arguments:
@@ -451,11 +452,11 @@ contains
     integer, parameter :: lat_lim1=-8900    ! Lat*100
     integer, parameter :: lat_lim2=8900
     integer :: lat
-          
+
     if (test_code(6:len_trim(test_code)) /= ref_code(oss_code_latlen+1:len_trim(ref_code))) then
       found=.false.
       return
-    else 
+    else
       read(test_code(1:oss_code_latlen),*) lat
       if ((lat < lat_lim1 .and. ref_lat < lat_lim1 .and. lat < ref_lat ).or. &
           (lat > lat_lim2 .and. ref_lat > lat_lim2 .and. lat > ref_lat ) ) then
@@ -468,12 +469,12 @@ contains
     end if
 
   end function obsdata_extra_code_test
-    
+
 
   function obsdata_get_header_code_i( ilon, ilat, date, time, stnid ) result(code)
-    ! 
+    !
     ! :Purpose: Generates a string code to identify an obervation by the header information in
-    !           a BURP report. The BURP header information is saved as a string in the form  
+    !           a BURP report. The BURP header information is saved as a string in the form
     !           LAT--LON--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
     !           setting the unique identifier 'code' in struct_oss_obsdata. Can be called under
     !           the interface oss_obsdata_get_header_code.
@@ -485,7 +486,7 @@ contains
     !           :time:  time in HHMM
     !           :stnid: station ID
     !           :code:  unique code
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -504,7 +505,7 @@ contains
     else
       write(code(6:10),'(I5.5)') 36000 + ilon
     end if
-    
+
     write(code(11:18),'(I8.8)') date
     write(code(19:22),'(I4.4)') time
 
@@ -514,9 +515,9 @@ contains
 
 
   function obsdata_get_header_code_r( lon, lat, date, time, stnid ) result(code)
-    ! 
+    !
     ! :Purpose: Generates a string code to identify an obervation by the header information in
-    !           a BURP report. The BURP header information is saved as a string in the form  
+    !           a BURP report. The BURP header information is saved as a string in the form
     !           LAT--LON--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
     !           setting the unique identifier 'code' in struct_oss_obsdata. Can be called under
     !           the interface oss_obsdata_get_header_code.
@@ -528,7 +529,7 @@ contains
     !           :time:  time in HHMM
     !           :stnid: station ID
     !           :code:  unique code
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -542,7 +543,7 @@ contains
 
     ! Locals:
     integer :: ilon, ilat
-    
+
     ilon = nint(100*(lon/MPC_RADIANS_PER_DEGREE_R8))
     ilat = nint(100*(90. + lat/MPC_RADIANS_PER_DEGREE_R8))
 
@@ -562,19 +563,19 @@ contains
     !           code          identifying code based on (lat,long,date,hhmm) if not also stnid
     !           maxsize       max allowed size for obsdata
     !           dim1          value() dimension (optional)
-    !           obsdata       Updated obsdata 
-    ! 
+    !           obsdata       Updated obsdata
+    !
     ! :Comments:
     !
     !          - Retrieval of values from obsdata%data1d to be done via oss_obsdata_get_element (or oss_obsdata_get_array1d).
-    !          - If obsdata allocation is required for all processors (such as for use later with obsdata_MPIGather), 
-    !            allocation and/or initialization of arrays needs to be done at a corresponding appropriate location 
-    !            outside the obs operations such as in oss_setup to ensure allocation is done for all processors, 
-    !            including those without associated data. This is to ensure that rpn_comm_allgather will work 
+    !          - If obsdata allocation is required for all processors (such as for use later with obsdata_MPIGather),
+    !            allocation and/or initialization of arrays needs to be done at a corresponding appropriate location
+    !            outside the obs operations such as in oss_setup to ensure allocation is done for all processors,
+    !            including those without associated data. This is to ensure that rpn_comm_allgather will work
     !            in routine obsdata_MPIGather.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
     real(8)                 , intent(in)    :: val(:)
@@ -583,7 +584,7 @@ contains
     integer       , optional, intent(in)    :: dim1_opt
 
     if (.not.associated(obsdata%data1d)) then
-      if (present(dim1_opt)) then 
+      if (present(dim1_opt)) then
          call oss_obsdata_alloc(obsdata,maxsize,dim1=dim1_opt)
       else
          call oss_obsdata_alloc(obsdata,maxsize,dim1=1)
@@ -593,29 +594,29 @@ contains
 
     if (obsdata%dim1 > size(val)) &
          call utl_abort('obsdata_add_data1d: Insufficient data values provided. ' // trim(utl_str(size(val))) )
-     
+
     ! nrep counts the number data values/profiles in the data arrays
-    obsdata%nrep = obsdata%nrep+1 
+    obsdata%nrep = obsdata%nrep+1
 
     if (obsdata%nrep > maxsize) &
          call utl_abort('obsdata_add_data1d: Reach max size of array ' // trim(utl_str(maxsize)) )
-  
+
     ! Save unique code
     obsdata%code(obsdata%nrep)=trim(code)
-    
+
     ! Save value(s)
     obsdata%data1d(1:obsdata%dim1,obsdata%nrep) = val(1:obsdata%dim1)
-    
+
   end subroutine oss_obsdata_add_data1d
 
-    
-  subroutine oss_obsdata_MPIallgather(obsdata) 
+
+  subroutine oss_obsdata_MPIallgather(obsdata)
     !
     ! :Purpose: Gathers previously saved obsdata from all processors.
     !
     ! :Arguments:
     !           :obsdata: Local struct_oss_obsdata to become global
-    ! 
+    !
     ! :Comments:
     !
     !           - Assumes obsdata%dim1 (and obsdata%dim2) the same over all processors.
@@ -632,10 +633,10 @@ contains
     integer :: i,ierr,nproc,nrep_total,nrep_max,irep,array_size
 
     write(*,*) 'Begin oss_obsdata_MPIallgather'
-      
+
     ! Identify number of processors.
     call rpn_comm_size("GRID",nproc,ierr)
-      
+
     ! Get number of reports on each processor
 
     allocate(nrep(nproc))
@@ -650,7 +651,7 @@ contains
        write(*,*) 'Exit oss_obsdata_MPIallgather: no reports'
        return
     end if
-        
+
     nrep_max = maxval(nrep)
 
     ! Get values from all processors into global arrays
@@ -670,15 +671,15 @@ contains
 
        data1d_local(:,:)=0.0D0
        if (obsdata%nrep > 0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
-       
+
        array_size = nrep_max*obsdata%dim1
 
        call rpn_comm_allgather(data1d_local,array_size,pre_obsMpiReal,data1d_global,array_size,pre_obsMpiReal,"GRID",ierr)
-    else 
-       
+    else
+
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
        allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,nproc))
-       
+
        data2d_local(:,:,:)=0.0D0
        if (obsdata%nrep > 0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
 
@@ -687,21 +688,21 @@ contains
        call rpn_comm_allgather(data2d_local,array_size,pre_obsMpiReal,data2d_global,array_size,pre_obsMpiReal,"GRID",ierr)
 
     end if
-  
+
     deallocate(code_local)
-    if (obsdata%ndim == 1) then 
+    if (obsdata%ndim == 1) then
         deallocate(data1d_local)
     else
         deallocate(data2d_local)
-    end if 
+    end if
 
     ! Concatenate values from all processors
-         
-    irep = 0
-    call oss_obsdata_dealloc(obsdata)    
 
-    if (obsdata%ndim == 1) then      
-       
+    irep = 0
+    call oss_obsdata_dealloc(obsdata)
+
+    if (obsdata%ndim == 1) then
+
        call oss_obsdata_alloc(obsdata,nrep_total,obsdata%dim1)
 
        do i=1,nproc
@@ -720,28 +721,28 @@ contains
           if (nrep(i) > 0) then
              obsdata%code(irep+1:irep+nrep(i)) = code_global(1:nrep(i),i)
              obsdata%data2d(1:obsdata%dim1,1:obsdata%dim2,irep+1:irep+nrep(i)) = &
-                         data2d_global(1:obsdata%dim1,1:obsdata%dim2,1:nrep(i),i)  
+                         data2d_global(1:obsdata%dim1,1:obsdata%dim2,1:nrep(i),i)
              irep = irep+nrep(i)
           end if
        end do
- 
-    end if  
-     
+
+    end if
+
     deallocate(nrep,code_global)
-    if (obsdata%ndim == 1) then 
+    if (obsdata%ndim == 1) then
         deallocate(data1d_global)
     else
         deallocate(data2d_global)
-    end if 
-    
+    end if
+
     write(*,*) 'Exit oss_obsdata_MPIallgather'
- 
+
   end subroutine oss_obsdata_MPIallgather
 
 
   subroutine oss_get_comboIdlist( obsSpaceData, stnid_list, varno_list, unilev_list, num_elements, nset )
-    ! 
-    ! :Purpose: Uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
+    !
+    ! :Purpose: Uses the subroutine oss_comboIdlist to compile a unique list of stnid,
     !           (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
     !
     ! :Arguments:
@@ -772,20 +773,20 @@ contains
     logical :: all_combos
 
     call oss_comboIdlist(all_combos_opt=all_combos)
-    
+
     if (all_combos) then
-    
+
        ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
-       ! over all processors. The prescribed starting stnid selections can have wild card 
+       ! over all processors. The prescribed starting stnid selections can have wild card
        ! characters (via *, see routine oss_comboIdlist).
 
        call obs_set_current_header_list(obsSpaceData,'CH')
        HEADER: do
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER
-         
+
           ! Body info that we only need for first point in the profile
-          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
           if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
@@ -793,7 +794,7 @@ contains
              write(*,*) 'oss_get_comboIdlist: Currently unaccounted VCO = ',vco
              cycle HEADER
           end if
-          
+
           ! Identify varno and nlev_obs (exclude BUFR_SCALE_EXPONENT elements)
           nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
           call obs_set_current_body_list(obsSpaceData,headerIndex)
@@ -809,39 +810,39 @@ contains
 
           ! Adds to running list of unique pairs if unique
           call oss_comboIdlist(stnid_add_opt=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add_opt=varno, unilev_add_opt=(nlev_obs.eq.1.and.vco.ge.4))
-                       
+
        end do HEADER
-       
-       ! Get a common sequence of search pairs over all processors. 
-       
+
+       ! Get a common sequence of search pairs over all processors.
+
        call oss_comboIdlist(gather_mpi_opt=.true.)
-       
+
     end if
-    
+
     ! Get list of unique pairs
     call oss_comboIdlist(stnid_list_opt=stnid_list, varno_list_opt=varno_list, unilev_list_opt=unilev_list, num_elements_opt=num_elements, nset_opt=nset)
 
   end subroutine oss_get_comboIdlist
 
 !-----------------------------------------------------------------------------------
-  
+
   subroutine oss_comboIdList( stnid_add_opt, varno_add_opt, unilev_add_opt, stnid_list_opt, &
                               varno_list_opt, unilev_list_opt, &
                               num_elements_opt, initialize_opt, nset_opt, gather_mpi_opt, all_combos_opt )
-    ! 
-    ! :Purpose: Provide list of fixed or accumulated stnid, (stnid,varno) or 
+    !
+    ! :Purpose: Provide list of fixed or accumulated stnid, (stnid,varno) or
     !           (stnid,varno,multi/uni-level) combinations to be used in searches.
     !
     !           Can be used for both single processor and  MPI mode, where 'gather_mpi' must be set
     !           to .true. at some point for use with MPI.
     !            Called from osd_chem_diagnmostics in file obspacediag_mod.ftn90.
-    !  
+    !
     ! :Arguments:
     !           :stnid_add_opt:    stnid to add to stnid_list if part of unique set
     !           :varno_add_opt:    varno to add to varno_list if part of unique set
     !           :unilev_add_opt:   unilev logical to add to unilev_list if part of unique set
     !           :initialize_opt:   Initialize internal arrays and counters
-    !           :gather_mpi_opt:   Gather all local MPI process and recompile unique lists  
+    !           :gather_mpi_opt:   Gather all local MPI process and recompile unique lists
     !           :nset_opt:         Integer indicating grouping of diagnostics. Input variable
     !                              if initialize=.true., output variable otherwise.
     !                              Values indicate
@@ -858,7 +859,7 @@ contains
     !           :num_elements_opt: Number of unique elements in *_list arrrays
     !
     implicit none
-    
+
     integer, parameter :: nmax=100, stnid_len=9
 
     ! Arguments:
@@ -890,7 +891,7 @@ contains
     init=.false.
     if (present(initialize_opt)) init = initialize_opt
 
-    
+
     ! Initialize internal arrays and counters
     if (init) then
        stnid_unique(:) = ''
@@ -899,12 +900,12 @@ contains
        num_unique = 0
        if (present(nset_opt)) iset = nset_opt
        if (present(all_combos_opt)) lall_combos = all_combos_opt
-    end if      
+    end if
 
 
     ! Add new elements to internal arrays if not there already
     if (present(stnid_add_opt)) then
-      
+
        if (iset >= 2 .and. (.not. present(varno_add_opt))) call utl_abort('oss_comboIdlist: varno_add must be present to add element for nset>=2.')
        if (iset >= 3 .and. (.not. present(unilev_add_opt))) call utl_abort('oss_comboIdlist: unilev_add must be present to add element for nset>=3.')
 
@@ -924,7 +925,7 @@ contains
           if (iset >= 2) varno_unique(num_unique) = varno_add_opt
           if (iset >= 3) unilev_unique(num_unique) = unilev_add_opt
        end if
-    end if        
+    end if
 
     ! Gather unique arrays from each local mpi process and compile global unique arrays
     if (present(gather_mpi_opt)) then
@@ -936,24 +937,24 @@ contains
           allocate(stnid_unique_all(nmax,nproc))
           if (iset >= 2) allocate(varno_unique_all(nmax,nproc))
           if (iset >= 3) allocate(unilev_unique_all(nmax,nproc))
-          
+
           num_unique_all(:) = 0
           stnid_unique_all(:,:) = ''
           if (iset >= 2) varno_unique_all(:,:) = 0
           if (iset >= 3) unilev_unique_all(:,:) = .false.
-          
+
           if(mmpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
           call rpn_comm_allgather(num_unique,1,"MPI_INTEGER",num_unique_all,1,"MPI_INTEGER","GRID",ierr)
           call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
           if (iset >= 2) call rpn_comm_allgather(varno_unique,nmax,"MPI_INTEGER",varno_unique_all,nmax,"MPI_INTEGER","GRID",ierr)
           if (iset >= 3) call rpn_comm_allgather(unilev_unique,nmax,"MPI_LOGICAL",unilev_unique_all,nmax,"MPI_LOGICAL","GRID",ierr)
-          
+
           stnid_unique(:) = ''
           if (iset >= 2) varno_unique(:) = 0
           if (iset >= 3) unilev_unique(:) = .false.
           num_unique = 0
-          
+
           ! Amalgamate unique lists
           do iproc=1,nproc
              do j=1,num_unique_all(iproc)
@@ -966,7 +967,7 @@ contains
                    if (iset >= 3) same = same .and. unilev_unique_all(j,iproc).eqv.unilev_unique(i)
                    if (same) exit
                 end do
-              
+
                 if (.not.same) then
                    num_unique=num_unique+1
                    if (num_unique > nmax) call utl_abort("oss_comboIDlist: Max allowed dimension exceeded.")
@@ -994,19 +995,19 @@ contains
        if (present(nset_opt)) nset_opt = iset
        if (present(all_combos_opt)) all_combos_opt = lall_combos
     end if
-    
-    
-  end subroutine oss_comboIdList
-  
 
-  integer function oss_obsdata_code_len()  
+
+  end subroutine oss_comboIdList
+
+
+  integer function oss_obsdata_code_len()
     !
     ! :Purpose: Pass on oss_code_len value.
     !
     implicit none
-    
+
     oss_obsdata_code_len=oss_code_len
-    
+
    end function oss_obsdata_code_len
 
 end module obsSubSpaceData_mod

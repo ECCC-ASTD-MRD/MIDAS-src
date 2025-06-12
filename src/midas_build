@@ -183,15 +183,13 @@ function printHeader {
         echo "| * ${__t}"
     done
     echo "| code version : ${__revstring}"
-    echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
+    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" != true ]; then
+        echo "| append version to build dir : (override 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR' from '${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}' to 'true'"
+        export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
+    fi
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
-    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
-    else
-        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld"
-    fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
@@ -260,7 +258,7 @@ if [ -n "${__abs_exist_list}" ]; then
     echo "Checking src/programs/programs.mk for absolute targets"
     for __abs in ${__abs_exist_list}; do
         ## external programs are not expected in programs/programs.mk
-        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then 
+        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
             typeset __search=$(grep "^ *${__abs}.Abs *:" programs/programs.mk)
             if [ -z "${__search}" ]; then
                 echo "<!> ${__abs}.Abs target not in src/programs/programs.mk"
@@ -489,7 +487,7 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "MIDAS_COMPILE_KEEP_LISTING=false"
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
-    rm -rf ${__listing_frontend} 
+    rm -rf ${__listing_frontend}
 fi
 
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o

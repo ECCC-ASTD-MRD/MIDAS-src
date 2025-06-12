@@ -6,6 +6,7 @@ MODULE advection_mod
   !           semi-lagrangian trajectories) for both gridStateVector and
   !           ensemble of gridStateVectors
   !
+  use rpn_comm
   use ramDisk_mod
   use midasMpi_mod
   use message_mod

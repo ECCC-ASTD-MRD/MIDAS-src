@@ -6,10 +6,11 @@ module stateToColumn_mod
   !           horizontal-temporal interpolation between a gridStateVector object
   !           and a columnData object.
   !
+  use mpi, only : mpi_status_size ! this is the mpi library module
+  use rpn_comm
+  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
-  use mpi, only : mpi_status_size ! this is the mpi library module
-  use midasMpi_mod
   use message_mod
   use codePrecision_mod
   use gridStateVector_mod

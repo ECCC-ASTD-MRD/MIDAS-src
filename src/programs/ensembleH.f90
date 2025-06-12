@@ -106,8 +106,9 @@ program midas_ensembleH
   !                                          the background state.
   !===================== ================== ===============================================================
   !
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use message_mod
   use fileNames_mod
   use gridStateVector_mod

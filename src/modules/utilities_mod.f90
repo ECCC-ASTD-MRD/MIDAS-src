@@ -4,6 +4,7 @@ module utilities_mod
   !
   !:Purpose: A place to collect numerous simple utility routines.
   !
+  use rpn_comm
   use clibInterfaces_mod
   use randomNumber_mod
   use netcdf

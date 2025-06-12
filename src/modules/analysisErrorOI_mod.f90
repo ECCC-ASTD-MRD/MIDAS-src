@@ -7,6 +7,7 @@ module analysisErrorOI_mod
   !           where it is assumed that only a subset of the
   !           total number of observations influence the analysis at a given grid point.
   !
+  use rpn_comm
   use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

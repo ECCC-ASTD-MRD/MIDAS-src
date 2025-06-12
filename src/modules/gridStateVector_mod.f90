@@ -5,6 +5,7 @@ module gridStateVector_mod
   !:Purpose: The grid-point state vector and related information.
   !
   use mpi, only : mpi_status_size ! this is the mpi library module
+  use rpn_comm
   use codePrecision_mod
   use midasMpi_mod
   use earthConstants_mod

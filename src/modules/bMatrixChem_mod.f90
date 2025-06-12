@@ -32,6 +32,7 @@ module bMatrixChem_mod
   !    bchm_expand*   MPI manipulations of contol vector(s)
   !    bchm_reduce*   MPI manipulations related to contol vector(s)
   !
+  use rpn_comm
   use midasMpi_mod
   use message_mod
   use gridStateVector_mod

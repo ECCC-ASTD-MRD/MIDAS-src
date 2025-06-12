@@ -5,6 +5,7 @@ module obsFilter_mod
   !:Purpose:  Various types of filters that are applied to the observations
   !           mostly to reject them so that they will not be assimilated.
   !
+  use rpn_comm
   use codePrecision_mod
   use midasMpi_mod
   use earthConstants_mod

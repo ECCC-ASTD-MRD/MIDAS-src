@@ -5,7 +5,8 @@ module gridStateVectorFileIO_mod
   !:Purpose: The grid-point state vector I/O methods for reading from and writing to
   !          files.
   !
-  use mpi
+  use mpi ! this is the mpi library module
+  use rpn_comm
   use midasMpi_mod
   use gridStateVector_mod
   use interpolation_mod

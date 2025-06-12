@@ -5,8 +5,9 @@ module ensembleStateVector_mod
   !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
-  use ramDisk_mod
+  use rpn_comm
   use midasMpi_mod
+  use ramDisk_mod
   use message_mod
   use fileNames_mod
   use gridStateVector_mod

@@ -65,10 +65,11 @@ program midas_sstTrial
   !
   !            --
   !
+  use rpn_comm
+  use midasMpi_mod
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod

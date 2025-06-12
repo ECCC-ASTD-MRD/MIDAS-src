@@ -156,8 +156,9 @@ program midas_letkf
   !                                         the background state and the analysis
   !======================== ============== ==============================================================
   !
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use mathPhysConstants_mod
   use fileNames_mod
   use ensembleObservations_mod

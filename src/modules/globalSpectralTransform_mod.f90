@@ -5,8 +5,9 @@ module globalSpectralTransform_mod
   !:Purpose:  To perform global spectral transform (spherical harmonic transform
   !           with grid-point field on a standard global Gaussian grid). 
   !
+  use mpi ! this is the mpi library module
+  use rpn_comm
   use codePrecision_mod
-  use mpi
   use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod

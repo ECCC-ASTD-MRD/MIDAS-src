@@ -1464,6 +1464,7 @@ module ObsSpaceData_mod
   !          * ``bodyIndex``, etc. is necessarily a row index
   !          * ``HeaderIndex``, etc. is necessarily a row index
   !
+   use rpn_comm
    use codePrecision_mod
    use message_mod
    use ObsColumnNames_mod
@@ -3959,7 +3960,7 @@ contains
       integer :: headerIndex_mpiglobal,headerIndex_mpilocal
       integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
-      integer :: my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy
+      integer :: my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy, ierr
 
       write(*,*) '-------- Start obs_mpiDistributeIndices ---------'
 
@@ -3969,7 +3970,7 @@ contains
          return
       end if
 
-      call rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
+      ierr = rpn_comm_mype(my_mpi_id, my_mpi_idx_dummy, my_mpi_idy_dummy)
 
       ! Count number of headers and bodies for each processor
       numHeader_mpiLocal=0

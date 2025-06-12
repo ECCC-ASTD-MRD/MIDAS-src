@@ -5,8 +5,9 @@ module rMatrix_mod
   !:Purpose:  Module to handle non-diagonal observation-error covariance
   !           matrices for assimilation of radiances.
   !
-  use rttovInterfaces_mod
+  use rpn_comm
   use midasMpi_mod
+  use rttovInterfaces_mod
   use rttov_const, only: errorstatus_success
   use utilities_mod
   use obsSpaceData_mod
