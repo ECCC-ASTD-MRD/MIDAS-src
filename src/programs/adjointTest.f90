@@ -1166,7 +1166,7 @@ contains
       write(fun, '(G23.16)') innerProduct2_global
       write(fun, '(G23.16)') innerProduct2_global-innerProduct1_global
       write(*,*)
-      if ( innerProduct2_global + innerProduct1_global /= 0.d0 ) then
+      if ( .not. utl_isEqual(innerProduct2_global + innerProduct1_global, 0.d0) ) then
         write(fun, '(G23.16,A1)') 100.d0 * (abs(innerProduct2_global-innerProduct1_global) &
                                           /(0.5d0*(innerProduct2_global+innerProduct1_global)) ), &
                                   '%'
