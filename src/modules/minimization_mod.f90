@@ -1114,7 +1114,7 @@ CONTAINS
   ! 2. Perform the test
   !    ----------------
 
-  if(dl_gnorm0 == 0.d0)then
+  if( utl_isEqual(dl_gnorm0, 0.d0) )then
      write(*,FMT=9101)
      return
   end if
