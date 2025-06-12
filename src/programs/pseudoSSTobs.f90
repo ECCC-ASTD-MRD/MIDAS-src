@@ -1,52 +1,52 @@
 program midas_pseudoSSTobs
   !
-  !:Purpose: Main program to produce pseudo SST observations 
+  !:Purpose: Main program to produce pseudo SST observations
   !          in ice-covered areas. Pseudo SST observations are needed
   !          to prevent the propagation of analysis increments to
   !          the ice-covered areas, that may result in undesirable sea-ice melting.
   !
   !          ---
   !
-  !:Algorithm: Pseudo SST observations are assigned to the ice-covered 
+  !:Algorithm: Pseudo SST observations are assigned to the ice-covered
   !            water points.
   !            First, a global sea-ice analysis is read.
   !            The sea-ice analysis file contains a mandatory sea-water
   !            fraction field.
-  !            The grid and land-ocean mask are read 
+  !            The grid and land-ocean mask are read
   !            from the ``analysisgrid`` file.
   !
   !            --
   !
-  !            Second, the number of ice-covered water points, including 
+  !            Second, the number of ice-covered water points, including
   !            concerned inland water points, are computed.
   !            If the number of ice-covered water points is zero,
   !            an empty observation SQLite file is created.
   !            If not, the computation of pseudo observations starts.
   !
   !            --
-  !              
-  !            First, the index array of ice-covered water points are 
-  !            randomly shuffled to prevent the insertion of pseudo 
+  !
+  !            First, the index array of ice-covered water points are
+  !            randomly shuffled to prevent the insertion of pseudo
   !            observations at the same locations
   !            that would lead to spatial correlation of observations.
   !            Second, the pseudo observations of sea surface temperature :math:`T`
-  !            are inserted at every ice-covered inland water point :math:`k`, 
+  !            are inserted at every ice-covered inland water point :math:`k`,
   !            where the value of observations is computed as follows:
   !            :math:`T(k)=(1 - w(k)) * T_{fw} + w(k) * T_{s}`,
   !            where :math:`w(k)` is the sea-water fraction at the point :math:`k`,
   !            :math:`T_{fw}` is the temperature of fresh water below the ice,
   !            :math:`T_{s}` is a temperature of the sea water below the ice.
-  !            The pseudo observations are inserted into every :math:`N`-th point 
-  !            of sea water ice-covered points, 
+  !            The pseudo observations are inserted into every :math:`N`-th point
+  !            of sea water ice-covered points,
   !            where the value of observation is defined as
   !            :math:`T_{s}`.
-  !             
+  !
   !            --
-  !  
-  !            The computed observation values along with the corresponding 
-  !            coordinates are put into ``obsSpaceData``. 
+  !
+  !            The computed observation values along with the corresponding
+  !            coordinates are put into ``obsSpaceData``.
   !            Finally, output SQLite files are created.
-  !       
+  !
   !            --
   !
   !=========================================================== ======================================================
@@ -85,10 +85,10 @@ program midas_pseudoSSTobs
   !          * The use of ``pseudoSSTobs`` program is controlled by the namelist block
   !            ``&pseudoSSTobs`` read by the ``pseudoSSTobs`` program.
   !
-  !          * ``iceFractionThreshold`` the sea-ice fraction threshold to define 
+  !          * ``iceFractionThreshold`` the sea-ice fraction threshold to define
   !                                      the presence of ice at each particular point
   !
-  !          * ``outputSST`` the value of :math:`T_{s}` in K; 
+  !          * ``outputSST`` the value of :math:`T_{s}` in K;
   !
   !          * ``outputFreshWaterST`` the value of :math:`T_{fw}` in K;
   !
@@ -98,7 +98,7 @@ program midas_pseudoSSTobs
   !          * ``outputFileName`` controls the output file names
   !
   !          * ``etiket`` etiket to put into the table "resume" of output SQLite file
-  ! 
+  !
   !          *  ``seaWaterThreshold`` a threshold to distinguish sea and fresh water
   !
   !          --
@@ -131,15 +131,15 @@ program midas_pseudoSSTobs
   ! namelist variables
   real(8)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
   real(8)                     :: outputSST               ! output SST value for pseudo observations
-  real(8)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.  
-  integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
+  real(8)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.
+  integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points
   character(len=100)          :: outputFileName          ! name of the file containing the generated observations
   real(8)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
   logical                     :: useSalinity             ! to use or not NEMO salinity field to compute freezing point temperature
 
   namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
                           outputFileName, seaWaterThreshold, useSalinity
-  
+
   istamp = exdb('pseudoSSTobs','DEBUT','NON')
 
   call ver_printNameAndVersion('pseudoSSTobs','Generation of pseudo SST observations')
@@ -159,7 +159,7 @@ program midas_pseudoSSTobs
 
   !- RAM disk usage
   call ram_setup()
- 
+
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
@@ -187,10 +187,10 @@ program midas_pseudoSSTobs
     ! :Purpose:  Control of the preprocessing of pseudo SST obs
     !
     implicit none
-    
-    ! Locals:	
+
+    ! Locals:
     character(len=*), parameter :: gridFile = './analysisgrid'
-    
+
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
     write(*,*) '-- Starting subroutine pseudoSSTobs_setup --'
@@ -223,7 +223,7 @@ program midas_pseudoSSTobs
       write(*,*) 'pseudoSSTobs_setup:          seaiceThinning value is put to 1.'
       seaiceThinning = 1
     else
-      write(*,*) 'pseudoSSTobs_setup: pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'    
+      write(*,*) 'pseudoSSTobs_setup: pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'
     end if
     write(*,*) 'pseudoSSTobs_setup: output file name: ', outputFileName
     !
@@ -233,7 +233,7 @@ program midas_pseudoSSTobs
     if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile(vco_anl, & ! OUT
@@ -246,7 +246,7 @@ program midas_pseudoSSTobs
     call obs_class_initialize('VAR')
 
     if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: done.'
-    
+
   end subroutine pseudoSSTobs_setup
 
 end program midas_pseudoSSTobs
