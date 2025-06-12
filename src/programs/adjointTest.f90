@@ -865,7 +865,7 @@ contains
     type(struct_adv)  :: adv_analInc
     character(len=32)   :: directionAnlInc
     real(8) :: delT_hour
-    real(8), allocatable :: advectFactor(:)
+    real(8) :: advectFactor(vco_anl%nLev_M)
     real(8), pointer     :: field4d_x_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
     real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_Ly_r8(:,:,:,:)
     integer :: numStepAdvect, numStepReferenceFlow
@@ -882,7 +882,7 @@ contains
     delT_hour = 1.0d0 !tim_dstepobsinc
     numStepAdvect             = tim_nstepobsinc
     numStepReferenceFlow      = 7
-    advectFactor = 0.75D0
+    advectFactor(:) = 0.75D0
 
     call adv_setup( adv_analInc,                                             & ! OUT
                     directionAnlInc, hco_anl, vco_anl,                       & ! IN
