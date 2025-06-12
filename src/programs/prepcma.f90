@@ -536,8 +536,8 @@ contains
         end do body_loop
         if (allRejected) cycle header_loop
 
-        lat_r4 = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
-        lon_r4 = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
+        lat_r4 = real(obs_headElem_r(obsSpaceData, obs_lat, headerIndex),4)
+        lon_r4 = real(obs_headElem_r(obsSpaceData, obs_lon, headerIndex),4)
         call reg_locatestn(lsc%r0_rad, lat_r4, lon_r4, &
                            lsc%nlatband, nlonblock, &
                            nblockoffset, iblock)
