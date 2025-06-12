@@ -32,7 +32,7 @@ monitor_build:
   stage: build
   script:
     - cd tools/monitor
-    - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+    - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
   only:
     - main
     - v_3.7
@@ -46,7 +46,7 @@ monitor_tests:
    stage: test
    script:
      - cd tools/monitor
-     - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
+     - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
    only:
      - main
      - v_3.7
@@ -61,7 +61,7 @@ monitor_tests:
 ##    stage: build
 ##    script:
 ##      - cd tools/splitobs
-##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
 ##    tags:
 ##      - hpcr-u2
 
@@ -71,7 +71,7 @@ splitobs_burp_tests:
        ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
    script:
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_burp_${CI_BUILD_ID}
      - ./unittest burp
      - rm -rf ${WORKDIR}
@@ -86,7 +86,7 @@ splitobs_rdb_tests:
        ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
    script:
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_rdb_${CI_BUILD_ID}
      - ./unittest rdb
      - rm -rf ${WORKDIR}
@@ -135,7 +135,7 @@ findTrials_tests:
 clean_midas_abs:
    stage: clean
    script:
-     - version=$(./midas.version.sh)
+     - version=$(./midas.version)
      - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
      - echo Moving programs for version ${version} in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
      - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
@@ -170,11 +170,11 @@ doc_sphinx:
 ssm:
   stage: deploy
   script:
-    - version=$(./midas.version.sh) ## This version number contains the 'v_'
+    - version=$(./midas.version) ## This version number contains the 'v_'
     - ./set_resources_def.sh
     - . maestro/suites/midas_system_tests/set_machine_list.dot
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
-    - VERSION=$(./midas.version.sh | cut -c3-)
+    - VERSION=$(./midas.version | cut -c3-)
     - cd ssm
     - ./build_packages --midas-abs ${MIDAS_ABS_ARCHIVE}/${version} --packages ${SSM_PACKAGES}/${VERSION}
     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:

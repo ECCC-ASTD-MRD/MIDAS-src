@@ -1,7 +1,7 @@
 #! /bin/sh
 
 __toplevel=$(git rev-parse --show-toplevel)
-__revstring=$(${__toplevel}/midas.version.sh)
+__revstring=$(${__toplevel}/midas.version)
 __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
 __status=true
 
@@ -25,7 +25,7 @@ MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
 MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
 ###########################################################
-##  SSM Packaging configuration 
+##  SSM Packaging configuration
 ##
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
@@ -134,7 +134,7 @@ check_ec_atomic_profile_version () {
 
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools. 
+#  Set up dependent librarys and tools.
 #---------------------------------------------------------------
 echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2"
 . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
@@ -206,7 +206,7 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 
 ## check makedepf90 install
 if ! which makedepf90
-then 
+then
     echo "<!> makedepf90 unavailable on the system."
     __status=false
 fi

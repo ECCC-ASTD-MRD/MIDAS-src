@@ -2,13 +2,13 @@
 
 The present `README` **assumes you are in the `src` directory** (the directory in which is this `README`), meaning onward `./` points to the `src` directory.
 
-The former compilation solution is still functionning, although there is a 
+The former compilation solution is still functionning, although there is a
 change in the [environment variable naming convention](#new-environment-variable-convention).
 
 
 ## Using midas_build - for most use cases
 
-Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/), 
+Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/),
 we provide a fully automated build wrapper script that should be used in most use cases:
 **`midas_build`**.  It builds MIDAS executables using multicore compilation and does some
 error checking.
@@ -22,10 +22,10 @@ You can either modify and export them in your shell or add them to your profile.
 
 Their default values (in parentheses), **should be good for most users**.
 
-* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)` : 
+* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)` :
   directory where build directories and the executables directory will be.
-  Each git version will have its build directory 
-  `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables 
+  Each git version will have its build directory
+  `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables
   **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
   version included in the absolute name.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
@@ -40,30 +40,30 @@ Their default values (in parentheses), **should be good for most users**.
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
-* `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on 
+* `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on
   successful compilation (and linking if applicable)
-* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore 
-  compilation is done directly on headnode, this should only be used on a 
-  dedicated node obtained through `jobsubi` 
+* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore
+  compilation is done directly on headnode, this should only be used on a
+  dedicated node obtained through `jobsubi`
   (see [this section](#calling-make-in-parallel) for instructions.)
 * `MIDAS_COMPILE_COMPF_GLOBAL ()` : additional user-specified compilation options
 * `MIDAS_COMPILE_JOBNAME (midasCompilation)` : name for the job submission
   and the prefix for listings
-* `MIDAS_COMPILE_NCORES (8)` : numbers of cores to be used on each machine to 
+* `MIDAS_COMPILE_NCORES (8)` : numbers of cores to be used on each machine to
   compile (more than 8 provide no significant improvement).
 * `MIDAS_COMPILE_VERBOSE (2)` : verbosity level
 
-Notice that we are **uniformizing the MIDAS compilation environment variable 
-naming convention**, please consult 
-[this section](#new-environment-variable-convention) if you used to define 
-compilation variable in your profile.  
+Notice that we are **uniformizing the MIDAS compilation environment variable
+naming convention**, please consult
+[this section](#new-environment-variable-convention) if you used to define
+compilation variable in your profile.
 
 
 ### Building all
 
 Simply execute **`./midas_build`** from a frontend machine.
 
-Successful compilation, linking and installing will be confirmed with the 
+Successful compilation, linking and installing will be confirmed with the
 display
 ```
 +------------------------------+
@@ -74,15 +74,15 @@ display
 +------------------------------+
 ```
 
-It will 
-1. build MIDAS executables using the number of cores specified 
-2. install (copy) the absolutes in the directory 
-   `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format 
+It will
+1. build MIDAS executables using the number of cores specified
+2. install (copy) the absolutes in the directory
+   `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format
    `midas-${program}_${ORDENV_PLAT}-${VERSION}.Abs`
-3. if `MIDAS_COMPILE_CLEAN=true`, will delete the build directory if the 
-   compilation was successful 
+3. if `MIDAS_COMPILE_CLEAN=true`, will delete the build directory if the
+   compilation was successful
    (directory `midas_bld-${VERSION}`)
-4. if `MIDAS_COMPILE_KEEP_LISTING=false`, will delete the listings if the 
+4. if `MIDAS_COMPILE_KEEP_LISTING=false`, will delete the listings if the
    compilation was successful
 
 
@@ -90,7 +90,7 @@ Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
 ### Using midas_build for specific targets
-`midas_build` is a wrapper around `make`; it defaults to compiling, 
+`midas_build` is a wrapper around `make`; it defaults to compiling,
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
 ```
@@ -120,8 +120,8 @@ If there is no absolute in the target list, **there won't be this display**.
 #### `splitobs` an *external* program
 
 The program `splitobs` is built by default with the other programs as described
-in the [section Building all](#building-all).  It can also be built as a specific 
-program in the same manner as described in the 
+in the [section Building all](#building-all).  It can also be built as a specific
+program in the same manner as described in the
 [previous section](#using-midas_build-for-specific-targets).
 
 However, under the hood, the sources and compilation are dealt with in a totally
@@ -129,7 +129,7 @@ independant manner and can be found in [`../tools/splitobs`](./tools/splitobs).
 
 ### Auto-completion
 
-`midas_build` comes with a bash auto-completion feature, such that argument 
+`midas_build` comes with a bash auto-completion feature, such that argument
 passing can be auto-completed by pressing `<TAB>`:
 ```
 $ ./midas_build <TAB><TAB>
@@ -149,14 +149,14 @@ To use it directly (in the present shell):
 (in any case, it will be automatically loaded on next shells)
 
 ```
-This will create a file `~/.bash_completion` and a directory 
+This will create a file `~/.bash_completion` and a directory
 `~/.bash_completion.d` in your home.
-For it to be functionnal in the present shell, you'll have to source 
+For it to be functionnal in the present shell, you'll have to source
 `~/.bash_completion.d` (it will be automatic in future shells).
 
 ### New environment variable convention
-In the spirit of uniformizing environment variable convention across our 
-different tools, we decided to change some variable names used in the previous 
+In the spirit of uniformizing environment variable convention across our
+different tools, we decided to change some variable names used in the previous
 compilation strategy.
 All environment variables now **start** with the prefix `MIDAS_`.
 These former variables have been renamed:
@@ -169,15 +169,15 @@ and you should remove them.
 
 ## Adding a new program or changing external dependencies
 
-Internal dependencies (the `use` statements in the programs and modules) are 
-dealt with automatically (consult the section 
+Internal dependencies (the `use` statements in the programs and modules) are
+dealt with automatically (consult the section
 [Automatic dependencies](#automatic-dependencies)).
 
 External dependencies however, that are needed at link time by the programs,
-need to be specified by the contributor in the file 
+need to be specified by the contributor in the file
 [`./programs/programs.mk`](programs/programs.mk).
 
-So **when a new program is added** or when **external libraries change for an 
+So **when a new program is added** or when **external libraries change for an
 existing program**, edit the [`./programs/programs.mk`](programs/programs.mk)
 file and list all external libraries (previously in `compile_setup_${PGM}.sh`)
 as prerequisite of the absolute target, such as:
@@ -195,11 +195,11 @@ You are refered to the section [Automatic dependencies](#automatic-dependencies)
 for a general discussion on the dependency tree processing.
 
 First you will need to have the dependency files (`dep.{obj,abs}.inc`) which are
-produced first thing when `make` (or `midas_build`) is called for any target 
+produced first thing when `make` (or `midas_build`) is called for any target
 (or even just through [autocompletion attempt](#auto-completion)).
 Most probably they are already there in the build directory (at least on the
 frontend):
-`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
+`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
 (`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `../compiledir`).
 If they aren't, you can either launch `midas_build` or faster:
 ```sh
@@ -208,12 +208,12 @@ source config.dot.sh && make depend
 
 The script [`analyzeDep.py`](analyzeDep.py) can be used to analyze the
 dependency tree to determine which absolutes are concerned by the
-introduction of new dependencies in a given module; those absolutes outputed are 
+introduction of new dependencies in a given module; those absolutes outputed are
 the ones for which you need to add the new external dependencies in their
 respective sections of `./programs/programs.mk`.
 
 For example, say you add an external `newlib` through a `use` statement in
-`varqc_mod.f90`, then you will call `./analyzeDep.py` to find which 
+`varqc_mod.f90`, then you will call `./analyzeDep.py` to find which
 programs will need it at link time:
 ```bash
 $ source config.dot.sh
@@ -223,12 +223,12 @@ The following absolutes depends on innovation:
   * var.Abs
   * var1D.Abs
 ```
-You would then add `newlib` to `oMinusF.Abs`, `var.Abs` and `var1D.Abs` 
+You would then add `newlib` to `oMinusF.Abs`, `var.Abs` and `var1D.Abs`
 sections of `./programs/programs.mk`.
 
 ### Addressing circular dependency issues
 A circular dependency happens when a module uses another module
-which also use the first one (or use a module that use the first one and so 
+which also use the first one (or use a module that use the first one and so
 forth).
 One can detect these by analysing the `use` statements and the
 [dependency tree](#automatic-dependencies).  but it can get tricky.
@@ -242,11 +242,11 @@ make[1]: Circular earthconstants_mod.o <- mathphysconstants_mod.o dependency dro
 Still to help debugging or finding the proper hierarchy of `use` statements, it
 can be useful to know the order of compilation that will result from the
 dependency tree.
-[`analyzeDep.py`](analyzeDep.py) can help you with that; calling it with `-c` 
-will return, in order, all modules that will need to be compiled *prior* to 
+[`analyzeDep.py`](analyzeDep.py) can help you with that; calling it with `-c`
+will return, in order, all modules that will need to be compiled *prior* to
 compile a given target object (module or program).
 
-For instance, if we want to compile `innovation_mod.o`, 
+For instance, if we want to compile `innovation_mod.o`,
 ```bash
 $ source config.dot.sh
 $ ./analyzeDep.py -c innovation
@@ -278,7 +278,7 @@ Consult `./analyzeDep.py -h` for more information.
 
 If you want to have a more fine grained control, you can call `make` directly,
 but for **most users,** `midas_build` **should do just fine**.
-I invite you to read its man pages (short and straight to the point).  
+I invite you to read its man pages (short and straight to the point).
 
 You'll first need to source the compilation environment (if you want to modify
 environment variable values, do it in your profile or through explicit `export`
@@ -286,12 +286,12 @@ in the shell - don't modify `config.dot.sh`):
 ```
 $ source ./config.dot.sh
 ```
-Otherwise, only a few targets will be available: `clean`, `cleanabs`, 
+Otherwise, only a few targets will be available: `clean`, `cleanabs`,
 `cleanall`, `cleaninst`, `cleandep`, `cleanobj`  and `help`.
 
 You can call `make` to build any target; target may be an object file, a
-specific program or a label (or *phony* target such as `all`, `objects` or other 
-label that are not a file *per se*), you can always use autocompletion by 
+specific program or a label (or *phony* target such as `all`, `objects` or other
+label that are not a file *per se*), you can always use autocompletion by
 pressing `<TAB>`:
 ```
 $ make <TAB><TAB>
@@ -307,7 +307,7 @@ all                             localizationfunction_mod.o
 $ make var<TAB>
 var.Abs            var.o              varnamelist_mod.o  varqc_mod.o
 ```
-If `<TAB>` does not work (or just show you `help` and `clean`), it is probably 
+If `<TAB>` does not work (or just show you `help` and `clean`), it is probably
 because did not `source ./config.dot.sh`.
 
 When you ask `make` to build a target, it will determine everything that needs
@@ -319,10 +319,10 @@ Preprocessing clib_interfaces_mod.f90 inplace
 Preprocessing rttov_interfaces_mod.f90 inplace
 Generating object dependencies > dep.obj.inc
 Generating executables dependencies > dep.abs.inc
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/clib_interfaces_mod.f90 -o clib_interfaces_mod.o > /dev/null 
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/utilities_mod.f90 -o utilities_mod.o > /dev/null 
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/clib_interfaces_mod.f90 -o clib_interfaces_mod.o > /dev/null
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/modules/utilities_mod.f90 -o utilities_mod.o > /dev/null
 ...
-s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/programs/var.f90 -o var.o > /dev/null 
+s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4 -c .../midas/src/programs/var.f90 -o var.o > /dev/null
 s.f90 -openmp -mpi -mkl -check noarg_temp_created -no-wrap-margin -O 4\
     -lf90sqlite ... obsfilter_mod.o -o var.Abs
 ```
@@ -331,14 +331,14 @@ The option `--dry-run` (or `-n`) only prints what it would be doing without actu
 
 Some frequently used phony targets are:
 * `help` : print a short synopsis and important targets
-* `all` : compile all programs on current architecture 
+* `all` : compile all programs on current architecture
 * `info` : print information about compilation setup
-* `install` : install all compiled programs   
-  Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with 
-  version number:  
+* `install` : install all compiled programs
+  Copy them in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs/` and rename them with
+  version number:
   `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the
-  `../midas.version.sh` script.
-* `clean` : remove the build directory for the current version 
+  `../midas.version` script.
+* `clean` : remove the build directory for the current version
 * `cleanabs` : remove programs in the current build directory
 * `cleanobj` : remove objects in the current build directory
 * `cleandep` : remove dependencies files in the current build directory
@@ -352,17 +352,17 @@ Omitting the target defaults to `all`.
 
 
 ### The install target
-Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy the target absolutes **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version.sh` script.
+Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy the target absolutes **on the present architecture** to the binaries directory at `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}` is obtained by the `../midas.version` script.
 
 
-A complete install is then 
+A complete install is then
 ```
 (source ./config.dot.sh && make && make install)
 ```
 
 Note that when `make` is called to compile and link an absolute (`*.Abs`),
 it will first **remove the corresponding installed program** in the `midas_abs`
-directory.  This is to address issue #513; always do `make install` after 
+directory.  This is to address issue #513; always do `make install` after
 calling `make` on a program **before** launching the test maestro suite.
 
 
@@ -374,7 +374,7 @@ make -j ${MIDAS_COMPILE_NCORES} [-O] [<target>]
 ```
 The `-O` ensure outputs are collected together rather that interspersed with output from other jobs (more in `man make` on that).
 
-Careful to not overload the head node.  
+Careful to not overload the head node.
 One can specify a load average maximum when calling `make` in parallel using `-l`, for instance
 ```
 $ make -j 10 -l 8.5
@@ -386,7 +386,7 @@ $ r.load /fs/ssm/main/opt/jobsubi/jobsubi-0.3
 $ jobsubi --show-request  -r ncores=${nCores} ppp4
 ...
 $ cd ${YOUR_MIDAS_PROJECT}/src
-$ make -j ${nCores} -O  
+$ make -j ${nCores} -O
 ```
 (`nCores=8` is enough.)
 
@@ -417,8 +417,8 @@ s.f90 ... -c .../midas/src/programs/var.f90 -o var.o
 s.f90 ... -o var.Abs
 ```
 
-One solution to that is to first recompile the modified object (here 
-`varqc_mod.o`) 
+One solution to that is to first recompile the modified object (here
+`varqc_mod.o`)
 ```
 $ make varqc_mod.o
 ...
@@ -429,7 +429,7 @@ $ make -n | grep '^\-o'
 ```
 and `touch`  **the other intermediate targets** (using `make --touch`) , making
 them newer that the dependencies.
-Now because we are compiling out of the source tree, using `make --touch` 
+Now because we are compiling out of the source tree, using `make --touch`
 directly will work, but would also create empty spurious files (#444)
 in the `src` directory.
 So you should instead use `make touch-objects`, that will mark **every objects**
@@ -446,7 +446,7 @@ Now we see that only the linking will be done.
 $ make
 ...
 ```
-You should be **very careful** with the `touch-%` targets as they override 
+You should be **very careful** with the `touch-%` targets as they override
 `make` in determining what should be compiled.
 
 
@@ -459,9 +459,9 @@ It is thought a better practice to find out about these dependencies automatical
 
 When `make` is called on a `clean` (or `cleandep`) state, it will determine all objects dependencies using `makedepf90` and include it dynamically in the `Makefile` and then launch the build.
 
-Making only the dependencies: 
+Making only the dependencies:
 ```
-$ make depend 
+$ make depend
 $ tree ../compiledir
 ../compiledir
 └── midas_bld-v_3.5.2-133-g111551f_M
@@ -475,8 +475,8 @@ $ tree ../compiledir
 ```
 And this is what it looks like inside of `dep.obj.inc`:
 ```make
-obstimeinterp_mod.o : obstimeinterp_mod.f90 obsspacedata_mod.o timecoord_mod.o utilities_mod.o mpivar_mod.o mpi_mod.o 
-thinning_mod.o : thinning_mod.f90 utilities_mod.o obsspacedata_mod.o bufr_mod.o codeprecision_mod.o 
+obstimeinterp_mod.o : obstimeinterp_mod.f90 obsspacedata_mod.o timecoord_mod.o utilities_mod.o mpivar_mod.o mpi_mod.o
+thinning_mod.o : thinning_mod.f90 utilities_mod.o obsspacedata_mod.o bufr_mod.o codeprecision_mod.o
 increment_mod.o : increment_mod.f90 varnamelist_mod.o bmatrix_mod.o gridVariableTransforms_mod.o utilities_mod.o humiditylimits_mod.o verticalcoord_mod.o horizontalcoord_mod.o gridstatevector_mod.o timecoord_mod.o mpivar_mod.o mpi_mod.o
 ...
 bgckAtms.o : bgckAtms.f90 bgckmicrowave_mod.o
@@ -490,12 +490,12 @@ We parse (with a simple python script, [`recursiveDep.py`](./recursiveDep.py)) t
 ## SSM packaging
 
 To publish the absolutes in a SSM domain, one have to
-1. make sure to keep the build directory by exporting 
-   `MIDAS_COMPILE_CLEAN=false` in your shell and build: 
+1. make sure to keep the build directory by exporting
+   `MIDAS_COMPILE_CLEAN=false` in your shell and build:
    ```
    (export MIDAS_COMPILE_CLEAN=false ; ./midas_build)
    ```
-2. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the 
+2. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the
    shell (making sure you have write privilege to `${MIDAS_SSM_TARGET}`)
 3. for **each architecture**
    ```
@@ -512,7 +512,7 @@ To publish the absolutes in a SSM domain, one have to
 
 * automated `doc` building and `diagrams`, etc.
 
-But most of all... taking into account your input.  
+But most of all... taking into account your input.
 Don't hesitate to contact-me for your input or for some guidance: @mad001
 
 

@@ -22,10 +22,10 @@
 ##		  without actually doing it, use `make ${TARGET} -n`.
 ##		  (see also https://www.gnu.org/software/make/manual/html_node/Instead-of-Execution.html)
 ##
-##		* To build a single target (object, absolute or dependency file) 
+##		* To build a single target (object, absolute or dependency file)
 ##		  ```
 ##		  source ./config.dot.sh
-##		  make spectralfilter_mod.o 
+##		  make spectralfilter_mod.o
 ##		  ```
 ##	@SEQUENCE
 ##		1. preprocessing of ftn90 files
@@ -33,26 +33,26 @@
 ##		3. object compilation
 ##		4. linking
 ##
-##  @REFERENCES 
+##  @REFERENCES
 ##      * `./README.md`
 ##
 ##	@AUTHORS
 ##		- Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
 ## 		- Ervig Lapalm (@erv000), prior compilation solution
-##		- Philippe Blain (@phb001), technical consulting and 
+##		- Philippe Blain (@phb001), technical consulting and
 ##			documentation proofreading
-##	
+##
 ##
 ##	@DEV_NOTES
 ##		* inline comments starting with `#>` are interpreted for `make help`
 ##		  (search for `help:`)
 ##		* prior to launching this make, `./config.dot.sh`
-##		  has to be sourced (except for help and clean* targets) 
+##		  has to be sourced (except for help and clean* targets)
 ##		  (this exports `${COMPF}` `${GPP_OPTS}` and `${FOPTMIZ}`)
 ##
 ##
 ##	@TODO
-##		- [?] consider Busby 2017 2-pass approach 
+##		- [?] consider Busby 2017 2-pass approach
 ##				(A Note on Compiling Fortran)
 ##
 ###############################################################################
@@ -65,7 +65,7 @@
 
 ##-----------------------------------------------
 ## 	default target declaration
-.DEFAULT_GOAL := all 
+.DEFAULT_GOAL := all
 
 
 ## will be redefined by target.mk
@@ -75,7 +75,7 @@ endif
 
 FILE_CFG := $(SRC_ROOT)/config.dot.sh
 
-VERSION_SCRIPT := $(SRC_ROOT)/../midas.version.sh
+VERSION_SCRIPT := $(SRC_ROOT)/../midas.version
 
 ## 	those can be used in both (**no absolute** path here)
 DIR_MOD_RELATIVE := modules
@@ -92,7 +92,7 @@ ifdef MIDAS_COMPILE_VERBOSE
     ifeq ($(MIDAS_COMPILE_VERBOSE), 2)
         export Verbose=1 ## for s.f90
     endif
-endif 
+endif
 
 ##  remove all default recipes
 .SUFFIXES:
@@ -119,14 +119,14 @@ MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= |
 endif
 
 ##  global cleaning target
-## 	(independent of environment: available anytime) 
+## 	(independent of environment: available anytime)
 .PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst cleaninst
 
 
-clean:	#> delete current build directory (keep installed programs) 
+clean:	#> delete current build directory (keep installed programs)
 	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)
 
-cleanall:	#> delete ALL build directories (keep installed programs) 
+cleanall:	#> delete ALL build directories (keep installed programs)
 	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*
@@ -136,7 +136,7 @@ cleaninst:	#> delete ALL installed programs
 	@read -p "<!> Delete ALL installed programs? (<ctr+c> to cancel, <enter> to continue) " && \
 		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(MIDAS_ABS_LEAFDIR)
 
-## specific cleaning target 
+## specific cleaning target
 cleanabs:  #> delete all absolutes in current build directory
 	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
 
@@ -144,7 +144,7 @@ cleanobj:  #> delete all objects in current build directory
 	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
 
 cleandep:	#> delete all dependency files in current build directory
-	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90}
 
 cleanlst:	#> delete all listings
 	rm -f  $(MIDAS_COMPILE_JOBNAME).*.{out,o}
@@ -156,9 +156,9 @@ help:	#> print this help
 	@echo "USAGE:"
 	@echo '    - Cleaning targets (always available):'
 	@echo "       make clean|cleanabs|cleanall|cleandep|cleanlst|cleanobj"
-	@echo 
+	@echo
 	@echo '    - For all targets but `clean*` or `help`:'
-	@echo "       (source $(FILE_CFG) &&\\" 
+	@echo "       (source $(FILE_CFG) &&\\"
 	@echo '       make [-j $${NCORES} -O] [OPTIONS] [TARGETS] [MIDAS_COMPILE_VERBOSE=(1|2)])'
 	@echo ''
 	@echo '    - Complete install on current architecture:'
@@ -255,7 +255,7 @@ else
 ##
 ##	(only processed when make called from within the build directory
 ##	see ./target.mk)
-##	
+##
 ##  <!> I can see potential problems with line
 ##      `ifneq (,$(filter src%,$(notdir $(CURDIR))))`
 ##      It means that make, called from anywhere except from `src` would
@@ -270,7 +270,7 @@ DIR_PGM = $(SRC_ROOT)/$(DIR_PGM_RELATIVE)
 
 VPATH = $(SRC_ROOT) $(DIR_MOD) $(DIR_PGM)
 
-##	Common external libraries       
+##	Common external libraries
 ##		(see also `./programs/programs.mk`)
 ##
 MPILIB := rpn_comm
@@ -279,7 +279,7 @@ LIBRMN := rmn-ompi
 
 
 ##-----------------------------------------------
-##	Modules	
+##	Modules
 ##
 ## 	1. gathering of all module and program sources
 ##
@@ -287,12 +287,12 @@ SRC_F90 := $(wildcard $(DIR_MOD)/*.f90)
 SRC_FTN := $(wildcard $(DIR_MOD)/*.ftn90)
 SRC_PGM := $(wildcard $(DIR_PGM)/*.f90)
 SRC_FTN_F90 := $(notdir $(subst .ftn90,.f90,$(SRC_FTN)))
-SRC_ALL := $(SRC_F90) $(SRC_FTN_F90)  $(SRC_PGM) 
+SRC_ALL := $(SRC_F90) $(SRC_FTN_F90)  $(SRC_PGM)
 OBJ := $(notdir $(subst .f90,.o,$(SRC_ALL)))
 
 PGM := $(notdir $(subst .f90,,$(SRC_PGM)))
 ##-- program dependencies in programs/programs.mk
-ABS := $(addsuffix .Abs,$(PGM)) 
+ABS := $(addsuffix .Abs,$(PGM))
 
 DEP_OBJ	= 	dep.obj.inc
 DEP_ABS	= 	dep.abs.inc
@@ -328,11 +328,11 @@ _D_options=$(filter -D%,$(COMPF))
 	> $@ \
 	2> /dev/null
 
-%.o:	#> compile an object 
+%.o:	#> compile an object
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
 
-%.Abs: 	#> compile and link a program 
+%.Abs: 	#> compile and link a program
 	@echo removing installed target if it exist
 	rm -rf $(addprefix $(ABS_INSTALL_PRFX),\
 		$(subst .Abs,$(ABS_INSTALL_SUFX).Abs,$@))
@@ -342,16 +342,16 @@ _D_options=$(filter -D%,$(COMPF))
 
 ## 	include specific environment variables and specific rules
 ##		(must be included after the generic rule
-##		all prerequisite rules are merged 
+##		all prerequisite rules are merged
 ##  	but **only the last recipe** is used
-##		so for a specific rule, it must be included in 
+##		so for a specific rule, it must be included in
 ##		the following .mk file)
 -include $(SRC_ROOT)/programs/programs.mk
 
 ## 	adding dependencies prerequisite
 ##	(on a different recipe than with the rule for proper usage of
 ##	 $^ and $<)
-%.o: $(DEP_OBJ) 
+%.o: $(DEP_OBJ)
 %.Abs: $(DEP_ABS)
 
 ##  External splitobs program compilation
@@ -367,7 +367,7 @@ splitobs.Abs:	#> compile and install external splitobs program
 .INTERMEDIATE:  version_mod.pp.f90
 
 version_mod.pp.f90: version_mod.f90
-	sed "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|$(VERSION)|g" $^ > $@ 
+	sed "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|$(VERSION)|g" $^ > $@
 version_mod.o: version_mod.pp.f90
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
@@ -387,12 +387,12 @@ endif
 endif
 
 ##-----------------------------------------------
-## 	automatic generation of dependencies using `makedepf90` 
+## 	automatic generation of dependencies using `makedepf90`
 ##		(in some cases, `makedepf90` will fail at analysing the dependencies and
 ## 		stall for a long time, a timer insure this stays under control)
 
 $(DEP_OBJ): $(SRC_ALL) $(SRC_ROOT)/programs/programs.mk
-	$(V) echo "Generating object dependencies > $@"	
+	$(V) echo "Generating object dependencies > $@"
 	$(V) echo $(notdir $(shell timeout $(MIDAS_MAKEDEP_TIMEOUT) makedepf90 $(SRC_ALL))) | \
 		sed  's/\([^ ]* :\)/\n\1/g' > $@
 	$(if $(findstring $(.SHELLSTATUS),0),,$(error Error : makedepf90 timeout: problem with dependency analysis))
@@ -410,11 +410,11 @@ $(DEP_ABS): $(DEP_OBJ)
 ##-----------------------------------------------
 ##	Phony global targets
 ##
-.PHONY: all absolutes objects info install depend 
+.PHONY: all absolutes objects info install depend
 
-all: splitobs absolutes	#> compile and link all programs 
+all: splitobs absolutes	#> compile and link all programs
 
-absolutes: $(ABS) 
+absolutes: $(ABS)
 
 objects: $(OBJ) #> compile all objects
 
@@ -425,7 +425,7 @@ TOUCH_TARGET := $(addprefix touch-,$(OBJ) $(ABS) $(DEP_OBJ) $(DEP_ABS)) \
 
 .PHONY: $(TOUCH_TARGET)
 $(TOUCH_TARGET) :
-	make --touch $(subst touch-,,$@) -f $(SRC_ROOT)/Makefile 
+	make --touch $(subst touch-,,$@) -f $(SRC_ROOT)/Makefile
 
 touch-%:	#> mark a specific file as up-to-date
 touch-objects :	#> mark all objects as up-to-date
@@ -447,8 +447,8 @@ info:	#> print build configuration
 	@echo build directory: $(CURDIR)
 	@echo install directory: $(ABS_INSTALL_DIR)
 	@echo COMPF=$(COMPF)
-	@echo FOPTMIZ=$(FOPTMIZ) 
-	@echo GPP_OPTS=$(GPP_OPTS) 
+	@echo FOPTMIZ=$(FOPTMIZ)
+	@echo GPP_OPTS=$(GPP_OPTS)
 	@echo '============================================'
 	@echo
 
