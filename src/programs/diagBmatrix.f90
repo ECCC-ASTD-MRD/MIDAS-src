@@ -372,7 +372,7 @@ program midas_diagBmatrix
 
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
 
-          if (centralValue /= 0.d0) then
+          if (.not. utl_isEqual(centralValue, 0.d0)) then
             call gsv_scale(statevector,1.d0/centralValue)
           else
             call utl_abort('midas-diagBmatrix: central value equals 0!')
