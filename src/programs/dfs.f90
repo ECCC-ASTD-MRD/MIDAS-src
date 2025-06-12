@@ -283,7 +283,7 @@ program midas_dfs
 
   ! Longitudes in ObsSpaceData are positives
   do obsIndex = 1, nObsMax
-    if (lonList(obsindex) == MPC_missingValue_R8) cycle
+    if ( utl_isEqual(lonList(obsindex),MPC_missingValue_R8) ) cycle
     if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
   end do
 
@@ -301,11 +301,11 @@ program midas_dfs
     call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
 
-  selectSpecificObservationsFromList = .not. all( latList(:) == MPC_missingValue_R8   .and. &
-                                                  lonList(:) == MPC_missingValue_R8   .and. &
-                                                  dayList(:) == MPC_missingValue_INT  .and. &
-                                                  timeList(:) == MPC_missingValue_INT .and. &
-                                                  satZenList(:) == MPC_missingValue_R8 )
+  selectSpecificObservationsFromList = .not. all( utl_isEqual(latList(:),   MPC_missingValue_R8) .and. &
+                                                  utl_isEqual(lonList(:),   MPC_missingValue_R8) .and. &
+                                                  utl_isEqual(satZenList(:),MPC_missingValue_R8) .and. &
+                                                              dayList(:) == MPC_missingValue_INT .and. &
+                                                             timeList(:) == MPC_missingValue_INT)
   call dfs_setup('VAR') ! obsColumnMode
 
   ! Reading trials
@@ -1187,21 +1187,21 @@ contains
           definedConditions = 0
           satisfiedConditions = 0
 
-          if (latList(obsindex) /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(latList(obsindex),MPC_missingValue_R8) ) then
             definedConditions =  definedConditions + 1
 
             if (abs(latList(obsIndex)-latitude(1)) < epsilon) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
 
-          if (lonList(obsindex) /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(lonList(obsindex),MPC_missingValue_R8) ) then
             definedConditions =  definedConditions + 1
 
             if (abs(lonList(obsIndex)-longitude(1)) < epsilon) &
                 satisfiedConditions = satisfiedConditions + 1
           end if
 
-          if (satZenList(obsindex) /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(satZenList(obsindex),MPC_missingValue_R8) ) then
             definedConditions =  definedConditions + 1
 
             if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
