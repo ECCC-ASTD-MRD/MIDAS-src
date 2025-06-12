@@ -1881,8 +1881,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: work2d(:,:)
-    real(4) :: work
-    integer   :: ier, fstecr, totwvnb
+    real(4) :: work(1)
+    integer :: ier, fstecr, totwvnb
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -1948,8 +1948,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:)
-    real(4)   :: work
-    integer   :: ier, fstecr
+    real(4) :: work(1)
+    integer :: ier, fstecr
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2009,7 +2009,7 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:)
-    real(4)   :: work
+    real(4)   :: work(1)
     integer   :: ier, fstecr
     integer   :: var, k, kgdim
     integer :: dateo, npak, ni, nj, nk
@@ -2082,8 +2082,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:,:)
-    real(4)   :: work
-    integer   :: ier, fstecr, var
+    real(4) :: work(1)
+    integer :: ier, fstecr, var
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2145,7 +2145,7 @@ contains
 
     ! Locals:
     integer :: ier, fstecr, fstecr_s
-    real(8) :: work
+    real(4) :: work(1)
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     character(len=1)  :: grtyp
