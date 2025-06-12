@@ -2136,19 +2136,29 @@ contains
                   ! Index of the modulated ensemble member corresponding to original
                   ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                   memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
+                  ! TODO: simplify the floating point precision conversions
+                  !    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                  !         meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                  !         real(weightsMean(memberIndexInModEns,1,lonIndex,latIndex),4) * pert_r4
 
                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                       meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                       weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
+                       real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +  &
+                             weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * real(pert_r4,8), 4)
                 end do
               end do
             else
               do memberIndex = 1, enkfNML%nEns
-                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                     weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                ! TODO: simplify the floating point precision conversions
+                !      meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                !           meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                !           real(weightsMean(memberIndex,1,lonIndex,latIndex),4) *  &
+                !           (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                !            meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =                          &
+                     real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +       &
+                                weightsMean(memberIndex,1,lonIndex,latIndex) *                     &
+                                real(memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -   &
+                                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8), 4)
               end do
             end if
 
@@ -2212,9 +2222,11 @@ contains
             end if
 
             ! Add analysis member perturbation to mean analysis
+            ! TODO: simplify the floating point precision conversions
+            !      memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
+            !           meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + real(memberAnlPert(:),4)
             memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
-                 meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
-
+                 real( real(meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) + memberAnlPert(:), 4)
 
           end do ! stepIndex
         end do ! varLevIndex
@@ -2363,7 +2375,7 @@ contains
       do levIndex = 1, nLev_depth
         write(*,*) 'setting vertLocation for levIndex =', levIndex, &
                    ', depth = ', stateVectorMeanTrl%vco%depths(levIndex)
-        vertLocation_r4(:,:,levIndex) = stateVectorMeanTrl%vco%depths(levIndex)
+        vertLocation_r4(:,:,levIndex) = real(stateVectorMeanTrl%vco%depths(levIndex),4)
       end do
 
     end if
