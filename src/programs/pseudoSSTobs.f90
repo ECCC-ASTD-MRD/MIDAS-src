@@ -127,8 +127,6 @@ program midas_pseudoSSTobs
 
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
-  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES'
-  character(len=48),parameter :: varMode        = 'analysis'
 
   ! namelist variables
   real(8)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
