@@ -981,9 +981,9 @@ contains
                  minpavhrr(3) < etop .and. &
                  abs(minpavhrr(2)- minpavhrr(3)) < 25.d0 .and. &
                  cldflag_avhrr(iloc(2)) /= -1 .and. cldflag_avhrr(iloc(3)) /= -1) then
-              
-              if (ecf == 0.d0 .and. cldflag == 1) then
-                ! cas predetermine nuageux mais ramene a clair 
+
+              if ( utl_isEqual(ecf,0.d0) .and. cldflag == 1) then
+                ! cas predetermine nuageux mais ramene a clair
                 ecf = 0.01d0 * min(100.d0,cfrac_avhrr)
                 ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
                 etop = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
@@ -2873,7 +2873,7 @@ contains
         m  = n - k1 + 1
         d1 = vnorm(l,j1,n)
         d2 = vnorm(l,j2,n)
-        if (d1 == d2) then
+        if ( utl_isEqual(d1,d2) ) then
           da(m) = d1
         else
           call lineq(V(j1), V(j2), d1, d2, slope, intercept, ierr) 
@@ -2936,8 +2936,8 @@ contains
     integer, intent(out) :: ierr ! error code (0=ok)
      
     ierr = 0
-    
-    if ( (x2 - x1) == 0.d0) then 
+
+    if ( utl_isEqual(x2 - x1, 0.d0) ) then
       ierr = -1
       return
     end if
