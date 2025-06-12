@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 '''
 Analyze the dependency tree of modules and programs.
-Allow direct recursive prerequisite analysis to determine the order of 
+Allow direct recursive prerequisite analysis to determine the order of
 compilation (`-c`)
-or reverse recursive target dependency to determine which program will be 
+or reverse recursive target dependency to determine which program will be
 impacted by a change in the module (`-a`).
 
 Usage:
@@ -17,7 +17,7 @@ Arguments:
 Options:
     -h, --help      show this help and exit
     -v              toggle verbose mode
-    -a              reverse lookup : list which programs are impacted by a new 
+    -a              reverse lookup : list which programs are impacted by a new
                         external dependency in the module OBJECT
     -c              direct lookup : show compilation order to build OBJECT
     --path=<str>    explicit path to build directory
@@ -45,31 +45,31 @@ def recurseModDependsOnMod( module, depFile='dep.obj.inc', uniqDep=None,
     '''
     if verbose: print(f'-- searching for {module}')
     if uniqDep == None: uniqDep=set()
-    patternLook4Mod = f'^.*:.*{module}_mod.o.*$' 
+    patternLook4Mod = f'^.*:.*{module}_mod.o.*$'
     patternMod = r'_mod.o'
     with open(depFile) as fun:
         for line in fun.readlines():
             #-- check for module in dependencies
             if re.match(patternLook4Mod, line, re.IGNORECASE):
                 #-- extract dependant target
-                depObject = re.findall( patternDepTarget, line, 
+                depObject = re.findall( patternDepTarget, line,
                                         re.IGNORECASE)[0]
                 if verbose : print(depObject)
                 #-- is it a module?
-                if re.match(r'.*'+patternMod, depObject, re.IGNORECASE): 
+                if re.match(r'.*'+patternMod, depObject, re.IGNORECASE):
                     depObject = re.sub(patternMod,'', depObject)
                     if depObject in uniqDep : continue
                     uniqDep.add(depObject)
-                    uniqDep.union(recurseModDependsOnMod(  
+                    uniqDep.union(recurseModDependsOnMod(
                                         depObject, depFile=depFile,
                                         uniqDep=uniqDep, verbose=verbose))
     if verbose: print(f'-- end {module}')
-        
+
     return uniqDep
 
 def findAbsDependsOnMod(module, depFile='dep.abs.inc', verbose=False):
     if verbose: print(f'-- searching for absolute depending on {module}')
-    patternLook4Mod = f'^.*:.*{module}_mod.o.*$' 
+    patternLook4Mod = f'^.*:.*{module}_mod.o.*$'
     absList = list()
     with open(depFile) as fun:
         for line in fun.readlines():
@@ -115,11 +115,11 @@ def recurseCompilationOrder(module, depFile='dep.obj.inc', order=None,
 
 
 ###| command arguments reading |#####################################
-try:                                                                            
-    opt = docopt(__doc__, sys.argv[1:])                                         
-except DocoptExit as inst:                                                      
-    print('Invalid command!')                                                   
-    print(inst)                                                                 
+try:
+    opt = docopt(__doc__, sys.argv[1:])
+except DocoptExit as inst:
+    print('Invalid command!')
+    print(inst)
     sys.exit(1)
 
 module = opt['OBJECT'].lower()
@@ -130,13 +130,13 @@ if not buildDir:
     cfgFile='config.dot.sh'
     envLeafBldDir='EC_ARCH'
     print(f'... sourcing {cfgFile}, use explicit --path to make it faster')
-    version=subprocess.check_output('../midas.version.sh').strip().decode(encoding)
+    version=subprocess.check_output('../midas.version').strip().decode(encoding)
     relCompDir='../compiledir/'
     if not os.path.isdir(relCompDir):
         print(f'{relCompDir} does not exist.  Dependency files not accessible')
     ## -- loading compiler from SSM to get initialized EC_ARCH
     proc=subprocess.Popen(
-        ['bash', '-c', f'source {cfgFile} && echo ${envLeafBldDir}'], 
+        ['bash', '-c', f'source {cfgFile} && echo ${envLeafBldDir}'],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     proc.wait()
     ec_arch=proc.stdout.readlines()[-1].strip().decode(encoding)
@@ -149,12 +149,12 @@ if not buildDir:
     if not os.path.isdir(buildDir):
         print(f'{buildDir} does not exist')
         print(f'Dependencies probably not built. Attempting to build them')
-        proc=subprocess.Popen( ['bash', '-c', f'source {cfgFile} && make depend']) 
+        proc=subprocess.Popen( ['bash', '-c', f'source {cfgFile} && make depend'])
         proc.wait()
 try:
     depFileObj = glob(buildDir+'/dep.obj.inc')[0]
     depFileAbs = glob(buildDir+'/dep.abs.inc')[0]
-except: 
+except:
     raise RuntimeError('Inexistant directory', buildDir)
 
 verbose=opt['-v']
@@ -164,20 +164,20 @@ if opt['-a']:
     dependentModules = list(recurseModDependsOnMod( module,
                                                     depFile=depFileObj,
                                                     verbose=verbose))
-    if dependentModules : 
+    if dependentModules :
         dependentModules.sort()
-        if verbose: 
+        if verbose:
             print(f'The following modules depends on {module}:')
             for mod in dependentModules:
-                print(f'  * {mod}')    
-    
+                print(f'  * {mod}')
+
         setAbs = list()
         for mod in dependentModules:
             setAbs.extend(findAbsDependsOnMod(mod, depFile=depFileAbs))
         setAbs=list(set(setAbs))
         setAbs.sort()
-    
-        if setAbs: 
+
+        if setAbs:
             print(f'The following absolutes depends on {module}:')
             for absolute in setAbs:
                 print(f'  * {absolute}')
@@ -187,13 +187,13 @@ if opt['-a']:
         print(f'No modules depends on {module}')
 
 elif opt['-c']:
-    
-    order = recurseCompilationOrder(module, depFile=depFileObj, verbose=verbose) 
+
+    order = recurseCompilationOrder(module, depFile=depFileObj, verbose=verbose)
     if order:
         print(f'Building {module} will result in compiling these objects:')
         for i, prereq in enumerate(order):
             print(f'{i+1} : {prereq}')
     else:
-        print(f'{module} has no prerequisites') 
-        
+        print(f'{module} has no prerequisites')
+
 # vim: set ts=4 sw=4:
