@@ -909,7 +909,7 @@ contains
     ! The lat-lon of the grid point for which we are computing the weights
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    hLocalizeIsConstant = all(enkfNML%hLocalize(:) == enkfNML%hLocalize(1))
+    hLocalizeIsConstant = all( utl_isEqual(enkfNML%hLocalize(:),enkfNML%hLocalize(1)) )
     if (enkfNML%vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
     end if
@@ -2114,7 +2114,7 @@ contains
       LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
         ! skip this grid point if all weights zero (no nearby obs)
-        if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
+        if (all( utl_isEqual(weightsMean(:,1,lonIndex,latIndex),0.0d0) )) cycle LON_LOOP5
 
         ! Compute the ensemble mean increment and analysis
         do varLevIndex = 1, numVarLev
