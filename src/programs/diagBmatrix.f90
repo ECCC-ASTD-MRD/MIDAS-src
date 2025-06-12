@@ -562,7 +562,7 @@ program midas_diagBmatrix
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = field3d(lonIndex,latIndex,varLevIndex)
+            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = real(field3d(lonIndex,latIndex,varLevIndex),4)
           end do
         end do
       end do
@@ -607,9 +607,13 @@ program midas_diagBmatrix
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            ! TODO: simplify the floating point precision conversions
+            !     randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
+            !          randomEns(lonIndex,latIndex,varLevIndex,ensIndex) - &
+            !          real(mean(lonIndex,latIndex,varLevIndex),4)
             randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
-                 randomEns(lonIndex,latIndex,varLevIndex,ensIndex) - &
-                 mean(lonIndex,latIndex,varLevIndex)
+                 real( real(randomEns(lonIndex,latIndex,varLevIndex,ensIndex),8) - &
+                            mean(lonIndex,latIndex,varLevIndex), 4)
           end do
         end do
       end do
