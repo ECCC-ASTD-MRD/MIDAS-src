@@ -494,8 +494,8 @@ module sstBias_mod
                 localLatIndex = gridPointIndexes(2, searchResults(localIndex)%idx)
                 difference = satelliteGrid(localLonIndex, localLatIndex) - &
                              insituGrid(localLonIndex, localLatIndex)
-                if (insituGrid   (localLonIndex, localLatIndex) /= MPC_missingValue_R8 .and. &
-                    satelliteGrid(localLonIndex, localLatIndex) /= MPC_missingValue_R8 .and. &
+                if (.not. utl_isEqual(insituGrid   (localLonIndex, localLatIndex), MPC_missingValue_R8) .and. &
+                    .not. utl_isEqual(satelliteGrid(localLonIndex, localLatIndex), MPC_missingValue_R8) .and. &
                     abs(difference) < maxBias) then
                   distance = sqrt(searchResults(localIndex)%dis)
                   lengthscale = 1000.d0 * searchRadius_ptr(lonIndex, latIndex, 1)
