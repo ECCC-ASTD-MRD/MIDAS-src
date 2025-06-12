@@ -998,7 +998,6 @@ module quasiNewton_mod
  1005 format (4x," nlis0",14x,2d18.8,d11.3)
  1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
  1007 format (/4x," mlis0",10x,"tmin forced to tmax")
- 1008 format (/4x," mlis0",10x,"inconsistent call")
       call mmpi_allReduce(n, ntotal, mmpi_max)
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
        .and. tmax.gt.0.d0 .and. amf.gt.0.d0 &
