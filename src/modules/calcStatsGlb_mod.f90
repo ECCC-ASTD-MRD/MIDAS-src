@@ -3521,7 +3521,7 @@ module calcStatsGlb_mod
     njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
-    read(utl_flnml,nml=NAMHVCORREL_LOCAL)
+    read(utl_flnml,nml=NAMHVCORREL_LOCAL,iostat=ierr)
     if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
     if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
 
