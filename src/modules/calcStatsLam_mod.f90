@@ -47,7 +47,7 @@ module calcStatsLam_mod
     integer              :: varLevIndexStart
     integer              :: varLevIndexEnd
     integer              :: nlev
-    character(len=2)     :: GridType
+    character(len=4)     :: GridType
     integer, allocatable :: ip1(:)
   end type struct_cv
 
@@ -2153,7 +2153,7 @@ contains
     character(len=4)  :: nomvar
     character(len=4)  :: ControlModelVarnameList(bhi%nControlVariable)
     character(len=4)  :: ControlBhiVarnameList  (bhi%nControlVariable)
-    character(len=2)  :: ControlVarGridTypeList (bhi%nControlVariable)
+    character(len=4)  :: ControlVarGridTypeList (bhi%nControlVariable)
     integer           :: ControlVarNlevList     (bhi%nControlVariable)
 
     !
