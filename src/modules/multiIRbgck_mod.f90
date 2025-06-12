@@ -1742,7 +1742,7 @@ contains
       ctp = Hin(nEstimates)
       cfr = Fin(nEstimates)
     else
-      H(1:nEstimates) = Hin(1:nEstimates)
+      H(1:nEstimates) = real(Hin(1:nEstimates),4)
       call ipsort(index, H, nEstimates)
       if (mod(nEstimates,2) == 0) then ! N - pair
         i = index(nEstimates / 2)
@@ -2599,7 +2599,7 @@ contains
     real(8), parameter ::  s(11)=[00.00d0, 18.19d0, 31.79d0, 41.41d0, 49.46d0, &
                                   56.63d0, 63.26d0, 69.51d0, 75.52d0, 81.37d0, 87.13d0]
 
-    i1  = 12 - ( scos + 0.05d0) * 10.d0
+    i1  = int( 12 - ( scos + 0.05d0) * 10.d0 )
     i2  = i1 + 1
     i1  = min(i1,11)
     i2  = min(i2,11)
@@ -2846,7 +2846,7 @@ contains
 
     !   compute sun zenith bin
     cc  = cos( sz * MPC_RADIANS_PER_DEGREE_R8)
-    i1  = 12.d0 - (cc + 0.05d0) * 10.d0
+    i1  = int(12.d0 - (cc + 0.05d0) * 10.d0)
     i2  = i1 + 1
     if (i1 >= 11) i1 = 11
     if (i1 == 11) i2 = i1
@@ -2857,7 +2857,7 @@ contains
     if (j1 == 10) j2 = j1
 
     !  compute relative azimuth bin
-    k1  = RZ / 15.d0 + 1.d0
+    k1  = int(RZ / 15.d0 + 1.d0)
     k2  = k1 + 1
     if (k1 == 13) k2 = k1
 
