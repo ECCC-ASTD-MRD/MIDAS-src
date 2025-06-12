@@ -47,12 +47,11 @@ module minimization_mod
 
   logical             :: initialized = .false.
 
-  integer             :: nmtra,nwork
+  integer             :: nmtra
   integer             :: nvadim_mpilocal ! for mpi
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'
   character(len=20)   :: preconFileNameOut = './pm1q'
-  character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'
   integer             :: n1gc = 3
 
   ! variables stored for later call to min_writeHessian
