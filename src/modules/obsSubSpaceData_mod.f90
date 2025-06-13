@@ -849,27 +849,27 @@ contains
     !
     implicit none
 
-    integer, parameter :: nmax=100, stnid_len=9
+    integer, parameter :: nmax=100
 
     ! Arguments:
-    logical                 , intent(in)   , optional :: initialize_opt
-    logical                 , intent(in)   , optional :: gather_mpi_opt
-    logical                 , intent(in)   , optional :: unilev_add_opt
-    integer                 , intent(in)   , optional :: varno_add_opt
-    character(len=stnid_len), intent(in)   , optional :: stnid_add_opt
-    integer                 , intent(inout), optional :: nset_opt
-    logical                 , intent(inout), optional :: all_combos_opt
-    integer                 , intent(out)  , optional :: varno_list_opt(nmax)
-    integer                 , intent(out)  , optional :: num_elements_opt
-    character(len=stnid_len), intent(out)  , optional :: stnid_list_opt(nmax)
-    logical                 , intent(out)  , optional :: unilev_list_opt(nmax)
+    logical, intent(in)   , optional :: initialize_opt
+    logical, intent(in)   , optional :: gather_mpi_opt
+    logical, intent(in)   , optional :: unilev_add_opt
+    integer, intent(in)   , optional :: varno_add_opt
+    character(len=obs_stnidLength), intent(in), optional :: stnid_add_opt
+    integer, intent(inout), optional :: nset_opt
+    logical, intent(inout), optional :: all_combos_opt
+    integer, intent(out)  , optional :: varno_list_opt(nmax)
+    integer, intent(out)  , optional :: num_elements_opt
+    character(len=obs_stnidLength), intent(out), optional :: stnid_list_opt(nmax)
+    logical, intent(out)  , optional :: unilev_list_opt(nmax)
 
     ! Locals:
     integer, save :: varno_unique(nmax)
-    character(len=stnid_len), save :: stnid_unique(nmax)
+    character(len=obs_stnidLength), save :: stnid_unique(nmax)
     logical, save :: unilev_unique(nmax)
     integer, allocatable :: num_unique_all(:),varno_unique_all(:,:)
-    character(len=stnid_len),allocatable :: stnid_unique_all(:,:)
+    character(len=obs_stnidLength),allocatable :: stnid_unique_all(:,:)
     logical, allocatable :: unilev_unique_all(:,:)
     integer, save :: num_unique ! running count of number of unique elements
     integer, save :: iset=2

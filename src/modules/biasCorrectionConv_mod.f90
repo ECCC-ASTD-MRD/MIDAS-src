@@ -793,7 +793,7 @@ CONTAINS
     integer  :: countTailCorrections,  countBulkCorrections
     integer  :: headerFlag
     real(8)  :: corr, tt, oldCorr, pressure
-    character(len=9) :: stnid, stnId1, stnId2
+    character(len=obs_stnidLength) :: stnid, stnId1, stnId2
 
     if (.not.initialized) call bcc_readConfig()
 
@@ -1372,9 +1372,9 @@ CONTAINS
     real(8)  :: tt, oldCorr, pressure, lat, lon, ttOriginal, es, esOriginal, td
     real(8)  :: solarElev, corr, p1, p2, p3, p4
     real(8)  :: timeOfDayX
-    character(len=9)  :: stnid, stnidPrev
-    character(len=8)  :: sondeType
-    character(len=5)  :: sourceCorr
+    character(len=obs_stnidLength) :: stnid, stnidPrev
+    character(len=8) :: sondeType
+    character(len=5) :: sourceCorr
     logical  :: newStation, debug, stationFound, realRS41
 
     if ( .not. uaBiasActive ) return

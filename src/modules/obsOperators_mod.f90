@@ -1251,7 +1251,7 @@ contains
     integer :: jl, nlev_T, nobs2p
     integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode, lfsl
-    character(len=12) :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     type(gps_profilezd)    :: prf
     type(gps_diff)         :: ztdopv
     !
@@ -2450,7 +2450,7 @@ contains
       integer :: headerIndex, bodyIndex
       integer :: JL, NFLEV, iztd, icount
       logical :: ASSIM
-      character(len=12) :: cstnid
+      character(len=obs_stnidLength) :: cstnid
       real(8), pointer :: columnPtr(:)
 
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
@@ -3646,7 +3646,7 @@ contains
     type(gps_profilezd) :: PRF, PRF2
     type(gps_diff)      :: ZTDOPV, ZTDOPV2
     type(struct_vco), pointer :: vco_anl
-    character(len=12) :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     logical, save :: initializeLinearization = .true.
 
     ! Re-compute the Jacobian for re-linearized state

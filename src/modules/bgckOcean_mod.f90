@@ -338,21 +338,21 @@ module bgckOcean_mod
     integer              :: obsDateStamp
     integer, allocatable :: numberObs(:), bodyIndexList(:,:)
     integer, allocatable :: minDateStamp(:), maxDateStamp(:), swathID(:)
-    real, allocatable    :: rmsDiff(:)
+    real,    allocatable :: rmsDiff(:)
     integer              :: swathIndex, nSwath
     real(8)              :: OmP, deltaHours
     integer              :: numberObsRejected
-    character(len=12)    :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     integer, external    :: newdate
     integer              :: imode, prntdate, prnttime
     integer, parameter   :: numStationMax = 14              ! maximum number of 'idStation' values
 
     ! Namelist variables: (local)
     integer           :: numStation = MPC_missingValue_INT  ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=12) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
     integer           :: maxSwath = 10                      ! maximum number of swaths
     integer           :: maxPerSwath = 200000               ! maximum number of data per swath
+    character(len=obs_stnidLength) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')

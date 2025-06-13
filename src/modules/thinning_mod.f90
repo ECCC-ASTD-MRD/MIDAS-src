@@ -865,7 +865,7 @@ contains
     integer, allocatable :: obsCodtypIndexMpi(:), obsDelTMpi(:)
     real(8) :: obsStepIndex_r8, deltaHours
     logical, allocatable :: valid(:), validMpi(:)
-    character(len=9), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
+    character(len=obs_stnidLength), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
     integer :: listCodtypSelect(numListCodtypSelect)
 
     ! Check if any observations to be treated
@@ -1525,7 +1525,7 @@ contains
     real(4), allocatable :: obsValuesMpi(:,:), oMinusBMpi(:,:)
     real(4), pointer     :: surfPressure(:,:,:,:)
     character(len=4), allocatable :: varNamesPsfc(:)
-    character(len=9), allocatable :: stnId(:), stnIdMpi(:)
+    character(len=obs_stnidLength), allocatable :: stnId(:), stnIdMpi(:)
     character(len=20) :: trlmFileName
     character(len=2)  :: fileNumber
     logical :: upperAirObs
@@ -3139,7 +3139,7 @@ contains
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: normFormalErr, missingFormalErr, formalError, finalZtdScore, ztdScore
     real(8) :: obsLonInDegrees, obsLatInDegrees, obsStepIndex_r8
-    character(len=12)  :: stnId
+    character(len=obs_stnidLength) :: stnId
     logical :: thisStnIdNoaa
     integer, allocatable :: quality(:), qualityMpi(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
@@ -3476,7 +3476,7 @@ contains
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
-    character(len=12)  :: stnId, stnId2, stnidList(numStnIdMax)
+    character(len=obs_stnidLength) :: stnId, stnId2, stnidList(numStnIdMax)
     logical :: skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
@@ -5956,7 +5956,7 @@ contains
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
     logical, allocatable :: validMpi(:)
-    character(len=12)    :: stnId
+    character(len=obs_stnidLength)    :: stnId
     type(kdtree2), pointer            :: tree
     integer, parameter                :: maxNumSearch = 100
     integer                           :: numFoundSearch, resultIndex
@@ -6159,8 +6159,8 @@ contains
     real(4), allocatable :: obsDistanceMpi(:)
     logical, allocatable :: valid(:), validMpi(:)
     character(len=5)     :: stnIdTrim
-    character(len=12)    :: stnId, stnidList(numStnIdMax)
-    character(len=12), allocatable :: stnIdGrid(:,:,:)
+    character(len=obs_stnidLength) :: stnId, stnidList(numStnIdMax)
+    character(len=obs_stnidLength), allocatable :: stnIdGrid(:,:,:)
 
     write(*,*)
     write(*,*) 'thn_scatByLatLonBoxes: Starting'
@@ -7083,7 +7083,7 @@ contains
     integer :: obsLonBurpFile, obsLatBurpFile
     integer, parameter :: numStnIdMax = 10
     integer :: numStnId, stnIdIndexFound, stnIdIndex, countMpi, numObsStnId(numStnIdMax)
-    character(len=12) :: stnid, stnidList(numStnIdMax)
+    character(len=obs_stnidLength)   :: stnid, stnidList(numStnIdMax)
     character(len=codtyp_name_length) :: instrumName
 
     instrumName = codtyp_get_name(codtyp)

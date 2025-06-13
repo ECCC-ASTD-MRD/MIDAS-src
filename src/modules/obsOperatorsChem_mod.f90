@@ -1547,7 +1547,7 @@ module obsOperatorsChem_mod
     integer :: headerIndex,bodyIndex,bodyIndex_start,bodyIndex_end
     integer :: icodtyp,obslevIndex,nobslev,varno,maxnumHeaders,headerCount
     integer :: destObsColumn
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     integer, allocatable :: iass(:)
     logical, allocatable :: process_obs(:)
     real(8), allocatable :: obs_col(:)
@@ -1978,7 +1978,7 @@ module obsOperatorsChem_mod
     integer,                 intent(in)    :: nobslev  ! Number of obs elements (see oopc_obsoper_proceed)
     integer,                 intent(in)    :: kmode    ! Mode of observation operator
     integer,                 intent(in)    :: varno    ! obs unit BUFR number
-    character(len=12),       intent(in)    :: stnid    ! Station ID
+    character(len=obs_stnidLength), intent(in) :: stnid ! Station ID
 
     ! Locals:
     integer :: bodyIndex ! Measurement element index in obsSpaceDate (see oopc_obsoper_proceed)

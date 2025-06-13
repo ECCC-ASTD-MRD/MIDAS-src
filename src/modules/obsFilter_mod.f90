@@ -1169,7 +1169,7 @@ end subroutine filt_topoAISW
     INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT
     character(len=2), dimension(2) :: list_family
     integer :: index_family, headerIndex, bodyIndex
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     real(pre_obsReal) :: obsLAT, obsLON, obsPPP
 
     DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
@@ -1683,7 +1683,7 @@ end subroutine filt_topoAISW
     logical,          intent(in)    :: beSilent
 
     ! Locals:
-    character(len=12) :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     integer           :: ierr
     integer           :: headerIndex, bodyIndex, codeType, platformIndex
     logical           :: inPlatformList

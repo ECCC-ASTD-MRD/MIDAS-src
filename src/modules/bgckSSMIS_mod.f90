@@ -1657,7 +1657,7 @@ contains
 
     ! Locals:
     ! arrays to get from obsspacedata
-    character(len=12)          :: burpFileSatId
+    character(len=obs_stnidLength) :: burpFileSatId
     integer, allocatable       :: landSeaQualifier(:)
     integer, allocatable       :: terrainType(:)
     integer, allocatable       :: ukRainObs(:)
@@ -2248,7 +2248,7 @@ contains
     integer, allocatable, intent(out)   :: flagsInovQc(:)    ! Flags for assimilation/rejection of obs
 
     ! Locals:
-    character(len=12)    :: burpFileSatId            ! Satellite ID
+    character(len=obs_stnidLength) :: burpFileSatId ! Satellite ID
     integer, allocatable :: obsChannels(:)           ! channel numbers
     integer, allocatable :: obsFlags(:)              ! data flags
     integer              :: actualNumChannel         ! actual Num channel

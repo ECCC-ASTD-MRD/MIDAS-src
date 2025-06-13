@@ -123,7 +123,7 @@ contains
     integer                :: BKNAT,BKTYP,BKSTP
     character(len = 5)     :: BURP_TYP
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
-    CHARACTER(LEN=12)      :: STID ! 12 is the size returned by 'obs_elem_c'
+    CHARACTER(LEN=obs_stnidLength) :: STID ! 'obs_stnid_length' is the size returned by 'obs_elem_c'
     LOGICAL                :: HIRES,HIPCS
     integer                :: NDATA_SF
     integer                :: IFLAG

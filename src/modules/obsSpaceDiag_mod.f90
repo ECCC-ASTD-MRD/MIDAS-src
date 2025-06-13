@@ -904,7 +904,7 @@ contains
     logical :: unilev_elemID(nmax),unilevel,diagn_only,assim_obs,status_hpht
     character(len=256) :: label
     real(8) :: lat,lon
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     real(8), allocatable :: lev(:), omp(:), oma(:), obs(:)
     real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)

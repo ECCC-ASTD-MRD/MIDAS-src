@@ -133,7 +133,7 @@ module backgroundCheck_mod
     integer :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
     real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
     logical :: LLOK, LLZD
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     integer :: i_ass, i_vco, i_oth, bodyIndex_u, bodyIndex_v, bodyIndex_start
     real(8) :: uu_d, uu_r, uu_f, vv_d, vv_r, vv_f, duv2, duv2_lim, zslev
     logical :: found_u, found_v

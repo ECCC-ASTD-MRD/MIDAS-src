@@ -1645,6 +1645,8 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
    integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
 
+   integer, public, parameter :: obs_stnidLength   = 9 ! The BURP standard is to use 9 characters for the station ID
+
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
@@ -1667,7 +1669,7 @@ module ObsSpaceData_mod
       type(struct_index_list_depot) :: body_index_list_depot
                                         ! For the cstnid and cfamily arrays:
                                         !   1st dim'n:  row index
-      character(len=12),  pointer :: cstnid(:)
+      character(len=obs_stnidLength),  pointer :: cstnid(:)
       character(len=2),   pointer :: cfamily(:)
                                         ! The primary keys for both tables
       integer(8), pointer :: headerPrimaryKey(:), bodyPrimaryKey(:)
@@ -2834,7 +2836,7 @@ contains
       character(len=*), intent(in)  :: name
       integer         , intent(in)  :: row_index
       ! Result:
-      character(len=12) :: value
+      character(len=obs_stnidLength) :: value
 
       select case (trim(name))
       case ('STID'); value=obsdat%cstnid(row_index)
@@ -4262,7 +4264,7 @@ contains
       integer :: obsRLN, obsONM, obsINS, obsIDF, obsITY
       integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
       real(pre_obsReal) :: obsLON, obsLAT, obsALT
-      character(len=12) :: stnid
+      character(len=obs_stnidLength) :: stnid
 
       if ( present( unitout_opt ) ) then
          unitout_ = unitout_opt

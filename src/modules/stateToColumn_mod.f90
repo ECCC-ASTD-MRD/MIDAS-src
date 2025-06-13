@@ -2744,7 +2744,7 @@ contains
 
     ! Locals:
     character(len=2)  :: obsFamily
-    character(len=12) :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     integer           :: codeType
 
     fpr = bilinearFootprint
