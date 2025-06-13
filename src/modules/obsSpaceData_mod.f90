@@ -1791,7 +1791,7 @@ contains
          obsdat%cfamily(:)='XX'
 
          allocate(obsdat%cstnid(numHeader_max))
-         obsdat%cstnid(:)='XXXXXXXXXXXX'
+         obsdat%cstnid(:)='XXXXXXXXX'
 
          allocate(obsdat%scratchRealHeader(numHeader_max))
          allocate(obsdat%scratchIntHeader (numHeader_max))
@@ -4337,7 +4337,7 @@ contains
       ! Locals:
       integer(8),        allocatable,dimension(:)   :: headerPrimaryKey_tmp
       integer(8),        allocatable,dimension(:)   :: bodyPrimaryKey_tmp
-      character(len=12), allocatable,dimension(:)   :: cstnid_tmp
+      character(len=obs_stnidLength), allocatable,dimension(:)   :: cstnid_tmp
       character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realBodies_tmp
@@ -4493,9 +4493,9 @@ contains
 
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(numHeader_mpiLocal > 0) then
-         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:  )
-         obsdat%cfamily(:  )=cfamily_tmp(:  )
-         obsdat%cstnid (:  )= cstnid_tmp(:  )
+         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:)
+         obsdat%cfamily(:)=cfamily_tmp(:)
+         obsdat%cstnid (:)= cstnid_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
                                     obsdat%realHeaders%odc_flavour, active_index)
@@ -4559,7 +4559,7 @@ contains
       ! Locals:
       integer(8),        allocatable :: headerPrimaryKey_tmp(:)
       integer(8),        allocatable :: bodyPrimaryKey_tmp(:)
-      character(len=12), allocatable :: cstnid_tmp(:)
+      character(len=obs_stnidLength), allocatable :: cstnid_tmp(:)
       character(len=2),  allocatable :: cfamily_tmp(:)
       real(pre_obsReal), allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
       integer,           allocatable :: intHeaders_tmp(:,:),intBodies_tmp(:,:)
