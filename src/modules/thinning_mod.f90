@@ -7941,7 +7941,6 @@ contains
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
     character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
-    logical, parameter    :: writeDiagnostics = .false.
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000
@@ -7955,8 +7954,14 @@ contains
     real(8), save           :: averagingRadius ! the radius used for combining obs (in km)
     real(8), save           :: maxDeltaHours   ! the max time difference for combining obs
     character(len=20), save :: averageType     ! the type of "averaging" to perform
+    logical                 :: writeDiagnostics
 
-    namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType
+    namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType, writeDiagnostics
+
+    ! This first version is only designed to work to radiance observations
+    if (trim(obsFamily) /= 'TO') then
+      call utl_abort('thn_superObs: Currently only radiance observations are supported')
+    end if
 
     ! Return immediately if no namelist is present - no superobing is done
     if (.not. utl_isNamelistPresent('thin_superObs', './flnml')) then
@@ -8009,9 +8014,10 @@ contains
 
     if (firstCall) then
       ! namelist default values
-      averagingRadius = -1.0d0
-      maxDeltaHours = -1.0d0
-      averageType = 'average'
+      averagingRadius  = -1.0d0
+      maxDeltaHours    = -1.0d0
+      averageType      = 'average'
+      writeDiagnostics = .false.
 
       ! Read the namelist for super observations
       call utl_tmg_start(181,'low-level--readNML')
