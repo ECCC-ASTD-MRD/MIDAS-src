@@ -2662,12 +2662,12 @@ contains
 
         if (levIndex == 1) then
           presTop = presInterp(stationIndex,levIndex)
-          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
-                       presInterp(stationIndex,levIndex)) )
+          presBottom = exp( 0.5*log(presInterp(stationIndex,2) * &
+                       presInterp(stationIndex,1)) )
         else if (levIndex == numLev) then
-          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
-                       presInterp(stationIndex,levIndex)) )
-          presBottom = presInterp(stationIndex,levIndex)
+          presTop = exp( 0.5*log(presInterp(stationIndex,numLev-1) * &
+                       presInterp(stationIndex,numLev)) )
+          presBottom = presInterp(stationIndex,numLev)
         else
           presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
@@ -2907,11 +2907,11 @@ contains
         ! Pressures at the bottom and top of the ES layer
 
         if (levIndex == 1) then
-          presBottom = levelsES(levIndex)
-          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
+          presBottom = levelsES(1)
+          presTop = exp(0.5*log(levelsES(2)*levelsES(1)))
         else if (levIndex == numLevES) then
-          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
-          presTop = levelsES(levIndex)
+          presBottom = exp(0.5*log(levelsES(numLevES-1)*levelsES(numLevES)))
+          presTop = levelsES(numLevES)
         else
           presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
           presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
