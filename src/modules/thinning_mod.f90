@@ -1725,7 +1725,7 @@ contains
       end if
       numlev = 0
       do levIndex = 1, maxNumLev
-        if (vlev(levIndex) == MPC_missingValue_R4) exit
+        if ( utl_isEqual(vlev(levIndex),MPC_missingValue_R4) ) exit
         numlev = numlev + 1
       end do
       if (mmpi_myid == 0) write(*,nml=namgem)
@@ -2097,8 +2097,8 @@ contains
             condition = stnId(stationIndex2) == stnId(stationIndex) .and. &
                         obsHeadDate(stationIndex2) == obsHeadDate(stationIndex) .and. &
                         obsLaunchTime(stationIndex2) == obsLaunchTime(stationIndex) .and. &
-                        obsLat(stationIndex2) == obsLat(stationIndex) .and. &
-                        obsLon(stationIndex2) == obsLon(stationIndex) .and. &
+                        utl_isEqual(obsLat(stationIndex2),obsLat(stationIndex)) .and. &
+                        utl_isEqual(obsLon(stationIndex2),obsLon(stationIndex)) .and. &
                         stationFlags(stationIndex2) == stationFlags(stationIndex)
 
             if ( condition ) then
@@ -2327,8 +2327,8 @@ contains
       if ( minDeltaP1 < 1.0 .and. minDeltaP2 < 1.0 ) then
         do varIndex = 2, 4, 2
 
-          if ( obsValues(varIndex,levStnIndex1) /= -999.0 .and. &
-               obsValues(varIndex,levStnIndex2) /= -999.0 ) then
+          if ( .not. (utl_isEqual(obsValues(varIndex,levStnIndex1),-999.0) .or. &
+                      utl_isEqual(obsValues(varIndex,levStnIndex2),-999.0)) ) then
             valSum = valSum + abs(obsValues(varIndex,levStnIndex1) - &
                                   obsValues(varIndex,levStnIndex2))
             numSum = numSum + 1
@@ -2441,7 +2441,7 @@ contains
             presLowerTacBufr(varIndex,raobFormatIndex) = 1000.0
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
-              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2457,7 +2457,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then
@@ -2499,7 +2499,7 @@ contains
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
 
-              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2517,7 +2517,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then
@@ -2743,8 +2743,7 @@ contains
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               do stdLevelIndex = 1, numStdLevels
-                if ( (obsValues(varIndexPres,levStnIndex) == &
-                      standardLevels(stdLevelIndex)) .and. &
+                if ( utl_isEqual(obsValues(varIndexPres,levStnIndex),standardLevels(stdLevelIndex)) .and. &
                      condition ) then
                   levStnIndexValid = levStnIndex
                 end if
@@ -3279,10 +3278,10 @@ contains
           ztdObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         end if
       end do BODY1
-      if (formalError == -1.0 .or. formalError == 1000.0*MPC_missingValue_R4) then
+      if ( utl_isEqual(formalError,-1.0) .or. utl_isEqual(formalError,1000.0*MPC_missingValue_R4) ) then
         formalError = missingFormalErr
       end if
-      if (ztdScore == -1.0) then
+      if ( utl_isEqual(ztdScore,-1.0) ) then
         ztdScore = 999.0
       end if
       if (ztdObsFlag == -1) then
@@ -3308,7 +3307,7 @@ contains
       quality(headerIndex) = nint(finalZtdScore)
 
       ! obs is outside time window
-      if(obsStepIndex(headerIndex) == -1.0d0) then
+      if( obsStepIndex(headerIndex) == -1 ) then
         badTimeCount = badTimeCount + 1
         quality(headerIndex) = nullValue
       end if
@@ -3327,7 +3326,7 @@ contains
       end if
 
       ! ZTD quality is unknown (missing ztd score)
-      if (ztdScore == 999.0) then
+      if ( utl_isEqual(ztdScore,999.0) ) then
         ztdScoreCount = ztdScoreCount + 1
         if ( rejectNoZTDScore ) then
           quality(headerIndex) = 9999
@@ -4371,7 +4370,7 @@ contains
       end if
       numlev = 0
       do levIndex = 1, maxLev
-        if (vlev(levIndex) == -1) exit
+        if ( utl_isEqual(vlev(levIndex),-1.)) exit
         numlev = numlev + 1
       end do
     else
@@ -5170,7 +5169,7 @@ contains
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable
-      if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
+      if ( utl_isEqual(rejectRate,0.) .and. numObsAssim(headerIndex) == 0 ) then
         rejectRate = 1.
       else
         rejectRate = rejectRate / max(numObsAssim(headerIndex),1)
@@ -5265,11 +5264,11 @@ contains
 
         ! Check for multiple obs with same distance to grid point
         if (numObs > 0) then
-          if ( count(obsDistance(headerIndexList2(1:numObs)) == minDistance) > 1 ) then
+          if ( count( utl_isEqual(obsDistance(headerIndexList2(1:numObs)),minDistance) ) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             minLonBurpFile = 10000000
             do obsIndex = 1, numObs
-              if (obsDistance(headerIndexList2(obsIndex)) == minDistance) then
+              if ( utl_isEqual(obsDistance(headerIndexList2(obsIndex)),minDistance) ) then
                 if (obsLonBurpFile(headerIndexList2(obsIndex)) < minLonBurpFile) then
                   minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
                   headerIndexKeep = headerIndexList2(obsIndex)
@@ -5300,12 +5299,12 @@ contains
 
         ! Adjust flags to only keep 1 observation among all mpi tasks
         if (minDistance < 1000000.) then
-          if ( count(minDistanceMpi(:) == minDistance) > 1 ) then
+          if ( count( utl_isEqual(minDistanceMpi(:),minDistance) ) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             call mmpi_allGather(minLonBurpFile, minLonBurpFileMpi)
             minLonBurpFile = 10000000
             do procIndex = 1, mmpi_nprocs
-              if (minDistanceMpi(procIndex) == minDistance) then
+              if ( utl_isEqual(minDistanceMpi(procIndex),minDistance) ) then
                 if (minLonBurpFileMpi(procIndex) < minLonBurpFile) then
                   minLonBurpFile = minLonBurpFileMpi(procIndex)
                   procIndexKeep = procIndex
@@ -5598,7 +5597,7 @@ contains
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable
-      if ( rejectRate == 0. .and. numObsAssim == 0 ) then
+      if ( utl_isEqual(rejectRate,0.) .and. numObsAssim == 0 ) then
         rejectRate = 1.
       else
         rejectRate = rejectRate / max(numObsAssim,1)
@@ -6826,7 +6825,7 @@ contains
             cycle CHANNELS
           end if
         end do BODY2
-        if (obsCloud(channelIndex, headerIndex) == -1.0) then
+        if ( utl_isEqual(obsCloud(channelIndex, headerIndex),-1.0) ) then
           call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
         end if
       end do CHANNELS
@@ -6919,10 +6918,10 @@ contains
 
             ! en cas d'egalite de l'angle,
             ! choisir le profil le plus pres du centre de la boite
-            if ( ( obsAngleMpi(headerIndex) ==  &
-                   angleGrid(latIndex,lonIndex,stepIndex) ) .and. &
-                 ( obsDistanceMpi(headerIndex) >  &
-                   distanceGrid(latIndex,lonIndex,stepIndex) ) ) change = .false.
+            if ( utl_isEqual(obsAngleMpi(headerIndex),angleGrid(latIndex,lonIndex,stepIndex)) .and. &
+                 ( obsDistanceMpi(headerIndex) > distanceGrid(latIndex,lonIndex,stepIndex) ) ) then
+              change = .false.
+            end if
 
           ! si le profil actuel est du meme instrument que celui deja considere
           ! choisir celui dont tous les canaux assimiles ont respectivement
