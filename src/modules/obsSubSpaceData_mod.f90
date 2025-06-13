@@ -756,7 +756,7 @@ contains
     integer, intent(out) :: num_elements
     integer, intent(out) :: nset
     integer, intent(out) :: varno_list(nmax)
-    character(len=9), intent(out) :: stnid_list(nmax)
+    character(len=obs_stnidLength), intent(out) :: stnid_list(nmax)
     logical, intent(out) :: unilev_list(nmax)
     integer :: headerIndex,bodyIndex,vco,nlev_obs,varno
     logical :: all_combos

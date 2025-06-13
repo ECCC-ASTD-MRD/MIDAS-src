@@ -1645,7 +1645,10 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
    integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
 
-   integer, public, parameter :: obs_stnidLength   = 9 ! The BURP standard is to use 9 characters for the station ID
+   ! The BURP standard is to use 9 characters for the station ID but
+   ! SQLite does not have this limitation and some applications need
+   ! more characters so we use 12.
+   integer, public, parameter :: obs_stnidLength = 12
 
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
