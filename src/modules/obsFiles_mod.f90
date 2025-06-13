@@ -783,19 +783,19 @@ contains
     allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
     baseFileNameListAllMpi(:,:) = ''
     call mmpi_allGather(baseFileNamelist, baseFileNameListAllMpi, &
-                        maxLengthFilename, maxNumObsfiles)
+                        maxNumObsfiles)
 
     ! Communicate familyTypes across all mpi tasks
     allocate(familyTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeListAllMpi(:,:) = ''
     call mmpi_allGather(obsf_familyType, familyTypeListAllMpi, &
-                        familyTypeLen, maxNumObsfiles)
+                        maxNumObsfiles)
 
     ! Communicate fileTypes across all mpi tasks
     allocate(fileTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
     fileTypeListAllMpi(:,:) = ''
     call mmpi_allGather(fileTypeList, fileTypeListAllMpi, &
-                        fileTypeLen, maxNumObsfiles)
+                        maxNumObsfiles)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameMpiUniqueList(:) = ''
@@ -868,7 +868,7 @@ contains
 
     if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_fileName(1) )
 
-    call mmpi_bcast(obsFileType, len(obsFileType), procID_opt=procID)
+    call mmpi_bcast(obsFileType, procID_opt=procID)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType

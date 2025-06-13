@@ -934,7 +934,7 @@ contains
       call mmpi_bcast(vgdtable, size(vgdtable))
       ! others
       call mmpi_bcast(vgddate)
-      call mmpi_bcast(vgdetik, len(vgdetik))
+      call mmpi_bcast(vgdetik)
       call mmpi_bcast(vgdig1)
       call mmpi_bcast(vgdig2)
       call mmpi_bcast(vgdig3)

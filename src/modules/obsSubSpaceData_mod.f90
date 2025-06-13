@@ -658,7 +658,7 @@ contains
     code_local(:)=''
     if (obsdata%nrep > 0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
 
-    call mmpi_allGather(code_local, code_global, oss_code_len, nrep_max)
+    call mmpi_allGather(code_local, code_global, nrep_max)
 
     if (obsdata%ndim == 1) then
        allocate(data1d_local(obsdata%dim1,nrep_max))
@@ -933,7 +933,7 @@ contains
           call mmpi_barrier
 
           call mmpi_allGather(num_unique, num_unique_all)
-          call mmpi_allGather(stnid_unique, stnid_unique_all, stnid_len, nmax)
+          call mmpi_allGather(stnid_unique, stnid_unique_all, nmax)
           if (iset >= 2) call mmpi_allGather(varno_unique,  varno_unique_all)
           if (iset >= 3) call mmpi_allGather(unilev_unique, unilev_unique_all)
 

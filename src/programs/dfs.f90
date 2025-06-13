@@ -845,7 +845,7 @@ contains
             deallocate(Rsub)
           end if
 
-          call mmpi_bcast(headerObs, len(headerObs))
+          call mmpi_bcast(headerObs)
 
           if (outputHBHt) then
             call mmpi_bcast(HBHtMatrix)

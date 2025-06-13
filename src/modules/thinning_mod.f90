@@ -1114,7 +1114,7 @@ contains
     call mmpi_allgatherv(obsStepIndex, obsStepIndexMpi)
     call mmpi_allgatherv(obsDelT, obsDelTMpi)
     call mmpi_allgatherv(valid, validMpi)
-    call mmpi_allgatherv(obsStnid, obsStnidMpi, len(obsStnid(1)))
+    call mmpi_allgatherv(obsStnid, obsStnidMpi)
 
     ! Apply the thinning algorithm
     do obsIndex = 1, countObsInMpi
@@ -1827,7 +1827,7 @@ contains
       call mmpi_allgatherv(obsValues(varIndex,:), obsValuesMpi(varIndex,:))
       call mmpi_allgatherv(oMinusB(varIndex,:), oMinusBMpi(varIndex,:))
     end do
-    call mmpi_allgatherv(stnId, stnIdMpi, len(stnId(1)))
+    call mmpi_allgatherv(stnId, stnIdMpi)
 
     ! set stnIdMpi to 'NOT_VALID' for rejected duplicate stations
     call raobs_check_duplicated_stations( stnIdMpi, obsLevOffsetMpi, obsLatMpi, obsLonMpi, &
@@ -7954,7 +7954,7 @@ contains
     real(8), save           :: averagingRadius ! the radius used for combining obs (in km)
     real(8), save           :: maxDeltaHours   ! the max time difference for combining obs
     character(len=20), save :: averageType     ! the type of "averaging" to perform
-    logical                 :: writeDiagnostics
+    logical, save           :: writeDiagnostics
 
     namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType, writeDiagnostics
 
@@ -8150,7 +8150,7 @@ contains
       call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
       call mmpi_allGather(obsValue,      obsValueMpi)
       call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
-      call mmpi_allGather(obsStnId,      obsStnIdMpi, len(obsStnId(1)))
+      call mmpi_allGather(obsStnId,      obsStnIdMpi)
 
       if (writeDiagnostics) then
         call mmpi_allGather(obsLonInDeg,   obsLonInDegMpi)

@@ -727,12 +727,12 @@ contains
       end if
     end if
 
-    call mmpi_bcast(hco%gridname, len(hco%gridname))
+    call mmpi_bcast(hco%gridname)
     call mmpi_bcast(hco%initialized)
     call mmpi_bcast(hco%ni)
     call mmpi_bcast(hco%nj)
-    call mmpi_bcast(hco%grtyp, len(hco%grtyp))
-    call mmpi_bcast(hco%grtypTicTac, len(hco%grtypTicTac))
+    call mmpi_bcast(hco%grtyp)
+    call mmpi_bcast(hco%grtypTicTac)
     call mmpi_bcast(hco%ig1)
     call mmpi_bcast(hco%ig2)
     call mmpi_bcast(hco%ig3)

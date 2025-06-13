@@ -999,7 +999,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_bcast_character
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_character(charData, stringLength, length_opt, procID_opt)
+  subroutine mmpi_bcast_character(charData, length_opt, procID_opt)
     !
     !:Purpose: Calling 'mpi_bcast' for character string array
     !
@@ -1007,16 +1007,16 @@ contains
 
     ! Arguments:
     character(len=*), contiguous, intent(inout) :: charData(..)   ! Input character to broadcast
-    integer,                      intent(in)    :: stringLength   ! length of string
     integer, optional,            intent(in)    :: length_opt     ! size of the input data
     integer, optional,            intent(in)    :: procID_opt     ! MPI rank to broadcast from
 
     ! Locals:
-    integer :: length, ierr
+    integer :: length, stringLength, ierr
     integer :: procID
 
     length = handleLength(charData, length_opt)
     procID = handleProcID(procID_opt)
+    stringLength = utl_getCharStringLength(charData)
 
     call mpi_bcast(charData, stringLength*length, mmpi_character, procID, mmpi_comm_GRID, ierr)
 
@@ -1309,7 +1309,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allGather_character
   !--------------------------------------------------------------------------
-  subroutine mmpi_allGather_character(sending, receiving, stringLength, length_opt, communicator_opt)
+  subroutine mmpi_allGather_character(sending, receiving, length_opt, communicator_opt)
     !
     !:Purpose: Calling 'mpi_allGather' for a character string scalar or array
     !
@@ -1318,16 +1318,16 @@ contains
     ! Arguments:
     character(len=*), contiguous, intent(in)  :: sending(..)      ! string data sent to all MPI ranks
     character(len=*), contiguous, intent(out) :: receiving(..,:)  ! string array which stores the data received
-    integer,                      intent(in)  :: stringLength     ! string length of each array element
     integer,        optional,     intent(in)  :: length_opt       ! size of the input data
     type(mpi_comm), optional,     intent(in)  :: communicator_opt ! the MPI communicator
 
     ! Locals:
-    integer :: ierr, length
+    integer :: ierr, length, stringLength
     type(mpi_comm) :: communicator
 
     length = handleLength(sending, length_opt)
     communicator = handleCommunicator(communicator_opt)
+    stringLength = utl_getCharStringLength(sending)
 
     call mpi_allGather(sending,   length*stringLength, mmpi_character,  &
                        receiving, length*stringLength, mmpi_character, communicator, ierr)
@@ -1797,7 +1797,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_character
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_character(sending, receiving, stringLength, length_opt)
+  subroutine mmpi_gatherv_character(sending, receiving, length_opt)
     !
     !:Purpose: Calling 'mpi_gatherv' for a character string scalar or array
     !          It computes 'allLengths' and 'displacements' locally.
@@ -1807,7 +1807,6 @@ contains
     ! Arguments:
     character(len=*), contiguous, intent(in)  :: sending(..)   ! logical data sent to all MPI ranks
     character(len=*), contiguous, intent(out) :: receiving(..) ! logical array which stores the data received
-    integer,                      intent(in)  :: stringLength  ! length of each array element string
     integer, optional,            intent(in)  :: length_opt    ! size of the input array
 
     ! Locals:
@@ -1819,14 +1818,14 @@ contains
 
     call mmpi_gathervDisplacements(length, allLengths, displacements)
 
-    call mmpi_gatherv(sending, receiving, stringLength, allLengths, displacements, length)
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
 
   end subroutine mmpi_gatherv_character
 
   !--------------------------------------------------------------------------
   ! mmpi_gatherv_character_displs
   !--------------------------------------------------------------------------
-  subroutine mmpi_gatherv_character_displs(sending, receiving, stringLength, allLengths, displacements, length_opt)
+  subroutine mmpi_gatherv_character_displs(sending, receiving, allLengths, displacements, length_opt)
     !
     !:Purpose: Calling 'mpi_gatherv' for a character string scalar or
     !          array when 'allLengths' and 'displacements' are both
@@ -1837,20 +1836,20 @@ contains
     ! Arguments:
     character(len=*), contiguous, intent(in)  :: sending(..)      ! logical data sent to MPI rank 0
     character(len=*), contiguous, intent(out) :: receiving(..)    ! logical array with the data received
-    integer,                      intent(in)  :: stringLength     ! length of each string array element
     integer,                      intent(in)  :: allLengths(:)    ! size of the data for each MPI rank
     integer,                      intent(in)  :: displacements(:) ! offsets for each MPI rank
     integer, optional,            intent(in)  :: length_opt       ! size of the input array
 
     ! Locals:
     integer, parameter :: procID = 0
-    integer :: ierr, length
+    integer :: ierr, length, stringLength
     integer, allocatable :: allLengths2(:), displacements2(:)
 
     allocate(allLengths2(size(allLengths)))
     allocate(displacements2(size(displacements)))
 
     length = handleLength(sending, length_opt)
+    stringLength = utl_getCharStringLength(sending)
 
     length            = stringLength * length
     allLengths2(:)    = stringLength * allLengths(:)
@@ -2167,7 +2166,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allgatherv_character
   !--------------------------------------------------------------------------
-  subroutine mmpi_allgatherv_character(sending, receiving, stringLength)
+  subroutine mmpi_allgatherv_character(sending, receiving)
     !
     !:Purpose: Calling 'mpi_allgatherv' for a character string scalar or array by using
     !          existing mmpi_gatherv and mmpi_bcast
@@ -2177,10 +2176,9 @@ contains
     ! Arguments:
     character(len=*), contiguous, intent(in)  :: sending(..)    ! character data sent to all MPI ranks
     character(len=*), contiguous, intent(out) :: receiving(..)  ! character array which stores the data received
-    integer,                      intent(in)  :: stringLength   ! string length of each array element
 
-    call mmpi_gatherv(sending, receiving, stringLength)
-    call mmpi_bcast(receiving, stringLength)
+    call mmpi_gatherv(sending, receiving)
+    call mmpi_bcast(receiving)
 
   end subroutine mmpi_allgatherv_character
 
