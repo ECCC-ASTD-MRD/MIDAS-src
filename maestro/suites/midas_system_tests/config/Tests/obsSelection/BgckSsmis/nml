@@ -7,16 +7,11 @@
 /
  &namObsSelection
   doThinning    = .true.
-  doPreThinning = .false.
+  doPreThinning = .true.
 /
  &THIN_TOVS
    delta   = 150
    deltrad = 30
-/
- &THIN_SUPEROBS
-   averagingRadius = 50.0d0
-   maxDeltaHours = 0.1d0
-   averageType = 'average'
 /
  &THIN_PRETHIN
    preThinPercent = 10
