@@ -1197,7 +1197,7 @@ module calcStatsGlb_mod
             !                 chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) +  &
             !                                 real(tan(theta(levIndex,latIndex)),4)*psi_ptr(lonIndex,latIndex,levIndex)
             chi_ptr(lonIndex,latIndex,levIndex) = real( real(chi_ptr(lonIndex,latIndex,levIndex),8) +  &
-                 tan(theta(levIndex,latIndex))*real(psi_ptr(lonIndex,latIndex,levIndex),8), 4)
+                          tan(theta(levIndex,latIndex))*real(psi_ptr(lonIndex,latIndex,levIndex),8), 4)
           end do
         end do
       end do
@@ -1224,7 +1224,7 @@ module calcStatsGlb_mod
     real(8),          intent(in)    :: PtoT(:,:,:)
 
     ! Locals:
-    real(4),pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
+    real(4), pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
     real(8) :: spectralState(nla_mpilocal,2,nLevEns_M), spBalancedP(nla_mpilocal,2,nlevEns_M)
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
     real(8) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
@@ -3062,7 +3062,7 @@ module calcStatsGlb_mod
               !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
               !         ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-real(gd2d(lonIndex,latIndex),4)
               ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
-                   real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) -gd2d(lonIndex,latIndex), 4)
+                   real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) - gd2d(lonIndex,latIndex), 4)
             end do
           end do
         end do
