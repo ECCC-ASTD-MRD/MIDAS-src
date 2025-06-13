@@ -285,6 +285,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve `midas.version` to find the highest reachable semantic version tag in the history line (#1087 and !997)
  * Updating `midas.splitobs.Abs` to `rpn/libs/20231219` (#908 and !822)
  * Updating `rpn/libs` and `rpn/utils` to `20231219` (#906 and !815)
    * Adapting scripts/fortran for the new file type code for sqlite files.
