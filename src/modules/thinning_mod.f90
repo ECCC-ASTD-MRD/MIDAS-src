@@ -1656,10 +1656,10 @@ contains
       if (countLevel == 1) then
         obsDate(stationIndex)  = obs_headElem_i(obsdat,obs_dat,headerIndex)
         obsTime(stationIndex)  = obs_headElem_i(obsdat,obs_etm,headerIndex)
-        obsLat(stationIndex)   = obs_headElem_r(obsdat,obs_lat,headerIndex) * &
-                                 MPC_DEGREES_PER_RADIAN_R8
-        obsLon(stationIndex)   = obs_headElem_r(obsdat,obs_lon,headerIndex) * &
-                                 MPC_DEGREES_PER_RADIAN_R8
+        obsLat(stationIndex)   = real(obs_headElem_r(obsdat,obs_lat,headerIndex) * &
+                                      MPC_DEGREES_PER_RADIAN_R8,4)
+        obsLon(stationIndex)   = real(obs_headElem_r(obsdat,obs_lon,headerIndex) * &
+                                      MPC_DEGREES_PER_RADIAN_R8,4)
         obsLat(stationIndex)   = 0.01*nint(100.0*obsLat(stationIndex))
         obsLon(stationIndex)   = 0.01*nint(100.0*obsLon(stationIndex))
       end if
@@ -1682,8 +1682,8 @@ contains
         if (bodyIndex < 0) exit BODY2
 
         obsFlag  = obs_bodyElem_i(obsdat,obs_flg,bodyIndex)
-        obsValue = obs_bodyElem_r(obsdat,obs_var,bodyIndex)
-        obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
+        obsValue = real(obs_bodyElem_r(obsdat,obs_var,bodyIndex),4)
+        obsOmp   = real(obs_bodyElem_r(obsdat,obs_omp,bodyIndex),4)
         select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
         case (bufr_nedd)
           obsFlags(1,levStnIndex)  = obsFlag
@@ -1704,7 +1704,7 @@ contains
           obsValues(4,levStnIndex) = obsValue
           oMinusB(4,levStnIndex)   = obsOmp
         end select
-        obsValues(5,levStnIndex) = 0.01 * obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+        obsValues(5,levStnIndex) = real(0.01d0 * obs_bodyElem_r(obsdat,obs_ppp,bodyIndex),4)
       end do BODY2
 
     end do HEADER1
@@ -1791,9 +1791,9 @@ contains
 
       ! Calculate pressure levels for each station based on GEM3 vertical coordinate
       do levIndex  = 1, numLev
-        zpresb = ((vlev(levIndex) - rptopinc/rprefinc) /  &
-                 (1.0-rptopinc/rprefinc))**rcoefinc
-        zpresa = rprefinc * (vlev(levIndex)-zpresb)
+        zpresb = real(((real(vlev(levIndex),8) - rptopinc/rprefinc) /  &
+                      (1.0-rptopinc/rprefinc))**rcoefinc,4)
+        zpresa = real(rprefinc * (real(vlev(levIndex),8)-zpresb),4)
         presInterp(stationIndex,levIndex) =  &
              0.01 * (zpresa + zpresb*surfPresInterp(stationIndex,obsStepIndex))
       end do
@@ -3269,10 +3269,10 @@ contains
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
         if (obsVarno == bufr_nezd) then
           ! convert units from m to mm
-          formalError = 1000.0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex)
+          formalError = real(1000.0d0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex),4)
         end if
         if (obsVarno == bufr_ztdScore) then
-          ztdScore = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          ztdScore = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
         end if
         if (obsVarno == bufr_nezd) then
           ztdObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
@@ -3583,7 +3583,7 @@ contains
         if (bodyIndex < 0) exit BODY1
 
         if (obsPressure <= 0.0) then
-          obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+          obsPressure = real(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex),4)
           exit BODY1
         end if
       end do BODY1
@@ -4382,8 +4382,8 @@ contains
     numLat = hco_thinning%nj
     allocate(gridLat(numLat))
     allocate(gridLon(numLon))
-    gridLon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
-    gridLat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    gridLon(:) = real(hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8,4)
+    gridLat(:) = real(hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8,4)
     write(*,*) 'thinning grid vlev = '
     write(*,*) vlev(1:numLev)
 
@@ -4516,7 +4516,7 @@ contains
         if (obsVarno == BUFR_NETT) then
           if ( .not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             ttMissing = .false.
-            obsTT(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsTT(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
           end if
         else if (obsVarno == BUFR_NEES) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
@@ -4525,12 +4525,12 @@ contains
         else if (obsVarno == BUFR_NEUU) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             uuMissing = .false.
-            obsUU(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsUU(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex))
           end if
         else if (obsVarno == BUFR_NEVV) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             vvMissing = .false.
-            obsVV(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsVV(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
           end if
         else if (obsVarno == BUFR_NEDD) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
@@ -4601,7 +4601,7 @@ contains
       obsLonIndexVec(headerIndex) = obsLonIndex
       obsLevIndexVec(headerIndex) = obsLevIndex
       obsTimeIndexVec(headerIndex) = obsStepIndex
-      obsDistance(headerIndex) = sqrt((deltaLon*3)**2 + (deltaLat*3)**2 + (deltaPress/100.0)**2)
+      obsDistance(headerIndex) = real(sqrt((deltaLon*3)**2 + (deltaLat*3)**2 + (deltaPress/100.0)**2),4)
 
     end do HEADER1
 
@@ -4744,7 +4744,7 @@ contains
               if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
                 validMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
               end if
-              minScoreGrid(latIndex,lonIndex,levIndex) = score
+              minScoreGrid(latIndex,lonIndex,levIndex) = real(score,4)
               validMpi(headerIndex) = .true.
               handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
             end if
@@ -5088,11 +5088,14 @@ contains
       if ( .not. valid(headerIndex) ) cycle
 
       ! Lat and Lon for each observation
-      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
-      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
-      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      ! TODO: simplify the floating point precision conversions
+      !   obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R4 * obsLonInRad
+      !   obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R4 * obsLatInRad
+      obsLonInDegrees = real(MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad,4)
+      obsLatInDegrees = real(MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad,4)
       obsLonBurpFile(headerIndex) = nint(100.0*(obsLonInDegrees - 180.0))
       if(obsLonBurpFile(headerIndex) < 0) then
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 36000
@@ -5198,7 +5201,7 @@ contains
 
       gridIndex = obsGridIndex(headerIndex)
       if (numObsGrid(gridIndex) /= 0) then
-        latIndex = (gridLatsAll(gridIndex)+90.)/(180./numLat)
+        latIndex = int((gridLatsAll(gridIndex)+90.)/(180./numLat))
         gridLat = gridLatsAll(gridIndex) + 0.5*(180./numLat)
         gridLon = gridLonsAll(gridIndex) + 0.5*360./numGridLons(latIndex)
         obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -5626,8 +5629,8 @@ contains
 
     ! First pass to obtain obslon, obs lat, date and time (local)
     do headerIndex = 1, numHeader
-      obsLoninRad(headerIndex) = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatinRad(headerIndex) = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLoninRad(headerIndex) = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatinRad(headerIndex) = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
@@ -6009,8 +6012,8 @@ contains
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
 
       ! Lat and Lon for each observation
-      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
       ! 3D location array for kdtree
       obsPosition3d(1,headerIndex) = ec_ra * sin(obsLonInRad) * cos(obsLatInRad)
@@ -6242,9 +6245,13 @@ contains
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       gridLatsMid(latIndex) = gridLats(latIndex) - (90./numLat)
       if (gridLats(latIndex) <= 0.0) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
@@ -6713,9 +6720,13 @@ contains
     do latIndex = 1, numLat
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       if (gridLats(latIndex) <= 0.0) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
@@ -6784,7 +6795,7 @@ contains
       if (.not. valid(headerIndex)) cycle HEADER2
 
       ! get the zenith angle
-      obsAngle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
+      obsAngle(headerIndex) = real(obs_headElem_r(obsdat, OBS_SZA, headerIndex),4)
 
       ! Keep obs only if at least one channel not rejected based on tests in suprep
       valid(headerIndex) = .false.
@@ -7231,9 +7242,13 @@ contains
     do latIndex = 1, numLat
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       if ( gridLats(latIndex) <= 0.0 ) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       length = lonLength * cos(latInRadians)
       numGridLons(latIndex)   = nint(length/deltax)
@@ -7302,10 +7317,10 @@ contains
       lonBoxCenterInDegrees = (360. / numGridLons(latBinIndex)) * (lonBinIndex - 0.5)
       obsLat = (obsLatBurpFile - 9000.) / 100.
       obsLon = obsLonBurpFile / 100.
-      distance = 1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * lonBoxCenterInDegrees, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * obsLon )
+      distance = real(1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * lonBoxCenterInDegrees, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * obsLon ), 4)
 
       ! Apply thinning criteria
       keepThisObs = .false.
@@ -7702,8 +7717,8 @@ contains
     ! Setup thinning grid parameters
     allocate(lonGrid(hco_thinning%ni))
     allocate(latGrid(hco_thinning%nj))
-    lonGrid(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
-    latGrid(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    lonGrid(:) = real(hco_thinning%lon(:)*MPC_DEGREES_PER_RADIAN_R8,4)
+    latGrid(:) = real(hco_thinning%lat(:)*MPC_DEGREES_PER_RADIAN_R8,4)
     allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
 
     ! Allocate vectors
@@ -7763,7 +7778,7 @@ contains
 
       if (flg_flagIsOn(obsData, bodyIndex, flg_09rejBgck)) cycle HEADER
 
-      obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+      obsSST(headerIndex) = real(obs_bodyElem_r(obsData, obs_var, bodyIndex),4)
 
       ! obs lat and lon in degrees
       obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
@@ -7793,8 +7808,8 @@ contains
       obsLatIndexVec(headerIndex) = obsLatIndex
       obsLonIndexVec(headerIndex) = obsLonIndex
       obsTimeIndexVec(headerIndex) = obsStepIndex
-      obsDistance  = sqrt(deltaLon**2 + deltaLat**2)
-      sizeGridCell = sqrt(deltaLonCell**2 + deltaLatCell**2)
+      obsDistance  = real(sqrt(deltaLon**2 + deltaLat**2),4)
+      sizeGridCell = real(sqrt(deltaLonCell**2 + deltaLatCell**2),4)
 
       ! reject data that are farther than the given fraction of the size of grid cell
       if (obsDistance > sizeGridCell * fractionGridCell) valid(headerIndex) = .false.
