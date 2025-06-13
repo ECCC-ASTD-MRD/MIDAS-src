@@ -2056,14 +2056,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: numVars, numStation
-    integer,          intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
-    real(4),          intent(in)    :: obsLat(:), obsLon(:)
-    real(4),          intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer,          intent(in)    :: trajFlags(:,:)
-    integer,          intent(in)    :: obsFlags(:,:)
-    integer,          intent(in)    :: obsLevOffset(:)
-    character(len=9), intent(inout) :: stnId(:)
+    integer, intent(in) :: numVars, numStation
+    integer, intent(in) :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
+    real(4), intent(in) :: obsLat(:), obsLon(:)
+    real(4), intent(in) :: obsValues(:,:), oMinusB(:,:), toleranceFactor
+    integer, intent(in) :: trajFlags(:,:)
+    integer, intent(in) :: obsFlags(:,:)
+    integer, intent(in) :: obsLevOffset(:)
+    character(len=obs_stnidLength), intent(inout) :: stnId(:)
 
     ! Locals:
     integer, parameter :: maxNumStnid  = 5000
@@ -2071,8 +2071,8 @@ contains
     integer :: stationIndex, stationIndex2, stationIndex3, catIndex
     integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex
     integer :: bufrStationIndex, tacStationIndex, numChecked, numStnid, numSame
-    character (len=9)  :: stnidList(maxNumStnid)
-    integer            :: stationIndexList(maxNumStnid)
+    character(len=obs_stnidLength) :: stnidList(maxNumStnid)
+    integer :: stationIndexList(maxNumStnid)
     integer :: numCriteria(5), cloche(30), selectCriteria
 
     numCriteria(:) = 0
