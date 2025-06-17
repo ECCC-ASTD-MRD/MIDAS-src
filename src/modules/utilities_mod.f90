@@ -35,6 +35,8 @@ module utilities_mod
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus
   public :: utl_varPresentInNetcdfFile
+  public :: utl_getCharStringLength
+
   ! module interfaces
   ! -----------------
 
@@ -3451,5 +3453,37 @@ contains
     end do
 
   end function utl_isEqual_real8ArraysScalar
+
+  !--------------------------------------------------------------------------
+  ! utl_getCharStringLength
+  !--------------------------------------------------------------------------
+  function utl_getCharStringLength(charData) result(length)
+    !
+    !:Purpose: Return the string length of each element in an
+    !          assumed-rank character array.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: charData(..) ! Assumed-rank character array input
+    ! Result:
+    integer                      :: length
+
+    if (rank(charData) == 0) then
+      length = len(charData)
+    else if (rank(charData) == 1) then
+      length = len(charData(1))
+    else if (rank(charData) == 2) then
+      length = len(charData(1,1))
+    else if (rank(charData) == 3) then
+      length = len(charData(1,1,1))
+    else if (rank(charData) == 4) then
+      length = len(charData(1,1,1,1))
+    else
+      write(*,*) 'rank = ', rank(charData)
+      call utl_abort('utl_getCharStringLength: Rank of array is higher than expected')
+    end if
+
+  end function utl_getCharStringLength
 
 end module utilities_mod

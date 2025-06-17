@@ -1,6 +1,6 @@
  &NAMCT0
    NCONF  = 121,
-/ 
+/
 &NAMBGCK
   debug = .false.,
   RESETQC = .false.,

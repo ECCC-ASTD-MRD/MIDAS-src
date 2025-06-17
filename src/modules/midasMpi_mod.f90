@@ -34,11 +34,12 @@ module midasMpi_mod
   ! Since, we are only considering a single grid, we can assume here that there is only one world
   type(mpi_comm), public, parameter :: mmpi_comm_GRID = MPI_COMM_WORLD
   ! MPI types
-  type(mpi_datatype), public, parameter :: mmpi_logical  = MPI_LOGICAL
-  type(mpi_datatype), public, parameter :: mmpi_integer  = MPI_INTEGER
-  type(mpi_datatype), public, parameter :: mmpi_integer8 = MPI_INTEGER8
-  type(mpi_datatype), public, parameter :: mmpi_real4    = MPI_REAL4
-  type(mpi_datatype), public, parameter :: mmpi_real8    = MPI_REAL8
+  type(mpi_datatype), public, parameter :: mmpi_character = MPI_CHARACTER
+  type(mpi_datatype), public, parameter :: mmpi_logical   = MPI_LOGICAL
+  type(mpi_datatype), public, parameter :: mmpi_integer   = MPI_INTEGER
+  type(mpi_datatype), public, parameter :: mmpi_integer8  = MPI_INTEGER8
+  type(mpi_datatype), public, parameter :: mmpi_real4     = MPI_REAL4
+  type(mpi_datatype), public, parameter :: mmpi_real8     = MPI_REAL8
   ! MPI operations
   type(mpi_op), public, parameter :: mmpi_sum  = MPI_SUM
   type(mpi_op), public, parameter :: mmpi_max  = MPI_MAX
@@ -48,7 +49,7 @@ module midasMpi_mod
 
   ! Public procedures
   public :: mmpi_initialize,mmpi_getptopo
-  public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
+  public :: mmpi_allreduce_sumreal8scalar
   public :: mmpi_allreduce_sumR8_1d, mmpi_allreduce_sumR8_2d
   public :: mmpi_reduce_sumR8_1d, mmpi_reduce_sumR8_2d, mmpi_reduce_sumR8_3d
   public :: mmpi_setup_latbands, mmpi_setup_lonbands
@@ -57,7 +58,7 @@ module midasMpi_mod
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
   public :: mmpi_bcast, mmpi_gather, mmpi_allGather, mmpi_alltoall, mmpi_alltoallv
-  public :: mmpi_allReduce, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
+  public :: mmpi_allReduce, mmpi_allGatherv, mmpi_gatherv, mmpi_reduce, mmpi_scatterv
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
   public :: mmpi_xch_halo, mmpi_adj_halo
@@ -85,6 +86,7 @@ module midasMpi_mod
 
   ! general interface for mpi_allGather
   interface mmpi_allGather
+    module procedure mmpi_allGather_character
     module procedure mmpi_allGather_logical
     module procedure mmpi_allGather_integer
     module procedure mmpi_allGather_real4
@@ -117,6 +119,8 @@ module midasMpi_mod
 
   ! general interface for mpi_gatherv
   interface mmpi_gatherv
+    module procedure mmpi_gatherv_character
+    module procedure mmpi_gatherv_character_displs
     module procedure mmpi_gatherv_logical
     module procedure mmpi_gatherv_logical_displs
     module procedure mmpi_gatherv_integer
@@ -126,6 +130,14 @@ module midasMpi_mod
     module procedure mmpi_gatherv_real8
     module procedure mmpi_gatherv_real8_displs
   end interface mmpi_gatherv
+
+  ! general interface for mpi_allgatherv
+  interface mmpi_allgatherv
+    module procedure mmpi_allgatherv_character
+    module procedure mmpi_allgatherv_logical
+    module procedure mmpi_allgatherv_integer
+    module procedure mmpi_allgatherv_real4
+  end interface mmpi_allgatherv
 
   ! general interface for mpi_reduce
   interface mmpi_reduce
@@ -665,48 +677,6 @@ contains
   end subroutine mmpi_reduce_sumR8_3d
 
   !--------------------------------------------------------------------------
-  ! mmpi_allgather_string
-  !--------------------------------------------------------------------------
-  subroutine mmpi_allgather_string(str_list, str_list_all, nlist, nchar)
-    !
-    ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
-    !
-    implicit none
-
-    ! Arguments:
-    integer,              intent(in)  :: nlist
-    integer,              intent(in)  :: nchar
-    character(len=nchar), intent(in)  :: str_list(nlist)
-    character(len=nchar), intent(out) :: str_list_all(nlist,mmpi_nprocs)
-
-    ! Locals:
-    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,mmpi_nprocs)
-    integer :: ierr,ilist,ichar,iproc
-
-    ! Convert strings to integer sequences
-    do ilist=1,nlist
-       do ichar=1,nchar
-          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
-       end do
-    end do
-
-    ! Perform allgather with converted integer sequences
-    call mpi_allgather(num_list,     nlist*nchar, mmpi_integer, &
-                       num_list_all, nlist*nchar, mmpi_integer, mmpi_comm_GRID, ierr)
-    call handleMpiError(ierr, 'mmpi_allgather_string')
-
-    ! Convert integer sequences to stnid character strings
-    do iproc=1,mmpi_nprocs
-       do ilist=1,nlist
-          do ichar=1,nchar
-             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
-          end do
-       end do
-    end do
-
-  end subroutine mmpi_allgather_string
-
-  !--------------------------------------------------------------------------
   ! mmpi_setup_latbands
   !--------------------------------------------------------------------------
   subroutine mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
@@ -1029,23 +999,26 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_bcast_character
   !--------------------------------------------------------------------------
-  subroutine mmpi_bcast_character(charData, procID_opt)
+  subroutine mmpi_bcast_character(charData, length_opt, procID_opt)
     !
-    !:Purpose: Calling 'mpi_bcast' for character array
+    !:Purpose: Calling 'mpi_bcast' for character string array
     !
     implicit none
 
     ! Arguments:
-    character(len=*),  intent(inout) :: charData   ! Input character to broadcast
-    integer, optional, intent(in)    :: procID_opt ! MPI rank to broadcast from
+    character(len=*), contiguous, intent(inout) :: charData(..)   ! Input character to broadcast
+    integer, optional,            intent(in)    :: length_opt     ! size of the input data
+    integer, optional,            intent(in)    :: procID_opt     ! MPI rank to broadcast from
 
     ! Locals:
-    integer :: ierr
+    integer :: length, stringLength, ierr
     integer :: procID
 
+    length = handleLength(charData, length_opt)
     procID = handleProcID(procID_opt)
+    stringLength = utl_getCharStringLength(charData)
 
-    call mpi_bcast(charData, len(charData), MPI_CHARACTER, procID, mmpi_comm_GRID, ierr)
+    call mpi_bcast(charData, stringLength*length, mmpi_character, procID, mmpi_comm_GRID, ierr)
 
     call handleMpiError(ierr, 'mmpi_bcast_character')
 
@@ -1061,9 +1034,9 @@ contains
     implicit none
 
     ! Arguments:
-    logical,           intent(inout) :: logicalData(..) ! Input logical data to broadcast
-    integer, optional, intent(in)    :: length_opt      ! size of the input data
-    integer, optional, intent(in)    :: procID_opt      ! MPI rank to broadcast from
+    logical, contiguous, intent(inout) :: logicalData(..) ! Input logical data to broadcast
+    integer, optional,   intent(in)    :: length_opt      ! size of the input data
+    integer, optional,   intent(in)    :: procID_opt      ! MPI rank to broadcast from
 
     ! Locals:
     integer :: ierr
@@ -1332,6 +1305,36 @@ contains
     call handleMpiError(ierr, 'mmpi_allGather_logical')
 
   end subroutine mmpi_allGather_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allGather_character
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allGather_character(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_allGather' for a character string scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), contiguous, intent(in)  :: sending(..)      ! string data sent to all MPI ranks
+    character(len=*), contiguous, intent(out) :: receiving(..,:)  ! string array which stores the data received
+    integer,        optional,     intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,     intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr, length, stringLength
+    type(mpi_comm) :: communicator
+
+    length = handleLength(sending, length_opt)
+    communicator = handleCommunicator(communicator_opt)
+    stringLength = utl_getCharStringLength(sending)
+
+    call mpi_allGather(sending,   length*stringLength, mmpi_character,  &
+                       receiving, length*stringLength, mmpi_character, communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_allGather_character')
+
+  end subroutine mmpi_allGather_character
 
   !--------------------------------------------------------------------------
   ! mmpi_allGather_integer
@@ -1792,6 +1795,78 @@ contains
   end subroutine mmpi_gathervDisplacements
 
   !--------------------------------------------------------------------------
+  ! mmpi_gatherv_character
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_character(sending, receiving, length_opt)
+    !
+    !:Purpose: Calling 'mpi_gatherv' for a character string scalar or array
+    !          It computes 'allLengths' and 'displacements' locally.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), contiguous, intent(in)  :: sending(..)   ! logical data sent to all MPI ranks
+    character(len=*), contiguous, intent(out) :: receiving(..) ! logical array which stores the data received
+    integer, optional,            intent(in)  :: length_opt    ! size of the input array
+
+    ! Locals:
+    integer :: length
+    integer :: allLengths(mmpi_nprocs)
+    integer :: displacements(mmpi_nprocs)
+
+    length = handleLength(sending, length_opt)
+
+    call mmpi_gathervDisplacements(length, allLengths, displacements)
+
+    call mmpi_gatherv(sending, receiving, allLengths, displacements, length)
+
+  end subroutine mmpi_gatherv_character
+
+  !--------------------------------------------------------------------------
+  ! mmpi_gatherv_character_displs
+  !--------------------------------------------------------------------------
+  subroutine mmpi_gatherv_character_displs(sending, receiving, allLengths, displacements, length_opt)
+    !
+    !:Purpose: Calling 'mpi_gatherv' for a character string scalar or
+    !          array when 'allLengths' and 'displacements' are both
+    !          provided.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), contiguous, intent(in)  :: sending(..)      ! logical data sent to MPI rank 0
+    character(len=*), contiguous, intent(out) :: receiving(..)    ! logical array with the data received
+    integer,                      intent(in)  :: allLengths(:)    ! size of the data for each MPI rank
+    integer,                      intent(in)  :: displacements(:) ! offsets for each MPI rank
+    integer, optional,            intent(in)  :: length_opt       ! size of the input array
+
+    ! Locals:
+    integer, parameter :: procID = 0
+    integer :: ierr, length, stringLength
+    integer, allocatable :: allLengths2(:), displacements2(:)
+
+    allocate(allLengths2(size(allLengths)))
+    allocate(displacements2(size(displacements)))
+
+    length = handleLength(sending, length_opt)
+    stringLength = utl_getCharStringLength(sending)
+
+    length            = stringLength * length
+    allLengths2(:)    = stringLength * allLengths(:)
+    displacements2(:) = stringLength * displacements(:)
+
+    call mpi_gatherv(sending,   length,                      mmpi_character, &
+                     receiving, allLengths2, displacements2, mmpi_character, &
+                     procID,    mmpi_comm_GRID, ierr )
+
+    call handleMpiError(ierr, 'mmpi_gatherv_logical_displs')
+
+    deallocate(allLengths2)
+    deallocate(displacements2)
+
+  end subroutine mmpi_gatherv_character_displs
+
+  !--------------------------------------------------------------------------
   ! mmpi_gatherv_logical
   !--------------------------------------------------------------------------
   subroutine mmpi_gatherv_logical(sending, receiving, length_opt)
@@ -2030,6 +2105,82 @@ contains
     call handleMpiError(ierr, 'mmpi_gatherv_real8_displs')
 
   end subroutine mmpi_gatherv_real8_displs
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allgatherv_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allgatherv_logical(sending, receiving)
+    !
+    !:Purpose: Calling 'mpi_allgatherv' for a logical scalar or array by using
+    !          existing mmpi_gatherv and mmpi_bcast
+    !
+    implicit none
+
+    ! Arguments:
+    logical, contiguous, intent(in)  :: sending(..)    ! logical data sent to all MPI ranks
+    logical, contiguous, intent(out) :: receiving(..)  ! logical array which stores the data received
+
+    call mmpi_gatherv(sending, receiving)
+    call mmpi_bcast(receiving)
+
+  end subroutine mmpi_allgatherv_logical
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allgatherv_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allgatherv_integer(sending, receiving)
+    !
+    !:Purpose: Calling 'mpi_allgatherv' for a integer scalar or array by using
+    !          existing mmpi_gatherv and mmpi_bcast
+    !
+    implicit none
+
+    ! Arguments:
+    integer, contiguous, intent(in)  :: sending(..)    ! integer data sent to all MPI ranks
+    integer, contiguous, intent(out) :: receiving(..)  ! integer array which stores the data received
+
+    call mmpi_gatherv(sending, receiving)
+    call mmpi_bcast(receiving)
+
+  end subroutine mmpi_allgatherv_integer
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allgatherv_real4
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allgatherv_real4(sending, receiving)
+    !
+    !:Purpose: Calling 'mpi_allgatherv' for a real4 scalar or array by using
+    !          existing mmpi_gatherv and mmpi_bcast
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), contiguous, intent(in)  :: sending(..)      ! real(4) data sent to all MPI ranks
+    real(4), contiguous, intent(out) :: receiving(..)    ! real(4) array which stores the data received
+
+    call mmpi_gatherv(sending, receiving)
+    call mmpi_bcast(receiving)
+
+  end subroutine mmpi_allgatherv_real4
+
+  !--------------------------------------------------------------------------
+  ! mmpi_allgatherv_character
+  !--------------------------------------------------------------------------
+  subroutine mmpi_allgatherv_character(sending, receiving)
+    !
+    !:Purpose: Calling 'mpi_allgatherv' for a character string scalar or array by using
+    !          existing mmpi_gatherv and mmpi_bcast
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), contiguous, intent(in)  :: sending(..)    ! character data sent to all MPI ranks
+    character(len=*), contiguous, intent(out) :: receiving(..)  ! character array which stores the data received
+
+    call mmpi_gatherv(sending, receiving)
+    call mmpi_bcast(receiving)
+
+  end subroutine mmpi_allgatherv_character
 
   !--------------------------------------------------------------------------
   ! mmpi_reduce_integer
