@@ -7954,7 +7954,7 @@ contains
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
-    character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
+    character(len=obs_stnidLength), allocatable :: obsStnId(:), obsStnIdMpi(:)
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000
