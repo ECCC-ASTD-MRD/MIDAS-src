@@ -8129,8 +8129,14 @@ contains
 
         ! For diagnostics
         if (writeDiagnostics) then
-          obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
-          obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+          ! TODO: simplify the floating point precision conversions
+          !     obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8, 4)
+          !     obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8, 4)
+          ! or
+          !     obsLonInDeg(headerIndex) = real(obsLonInRad,4) * mpc_degrees_per_radian_r4
+          !     obsLatInDeg(headerIndex) = real(obsLatInRad,4) * mpc_degrees_per_radian_r4
+          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8,4)
+          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8,4)
         end if
 
         ! Observed value
