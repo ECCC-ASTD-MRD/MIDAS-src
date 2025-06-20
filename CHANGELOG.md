@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Avoid assumed-rank arrays for `char(len=*)` to be able to use both Intel and gfortran compilers (#1088 and !1001)
  * Fix a first set of warnings when compiling with `gfortran -Wall -Wextra` (#1072 and !996)
  * Correct the temporal thinning AMV observations (#1075 and !982)
    * Results affected by rejecting more AMV obs with obsSelection
