@@ -15,7 +15,18 @@
    deltmax          = 720
    fractionGridCell = 0.25
    dataSetSST(1)    = 'N20'
-/ 
+   dataSetSST(2)    = 'NPP'
+   dataSetSST(3)    = 'METO-A'
+   dataSetSST(4)    = 'METO-B'
+   dataSetSST(5)    = 'NOAA19'
+   dataSetSST(6)    = 'AMSR2'
+/
+ &THIN_SUPEROBS
+   averagingRadius = 20.0d0
+   maxDeltaHours = 0.1d0
+   averageType = 'average'
+   writeDiagnostics = .false.
+/
  &NAMSTATE
   ANLVAR(1) = 'TM'
 /
@@ -55,7 +66,7 @@
    sqlNull=' and obsvalue is not null '
    sqlExtraDat_sat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
    sqlExtraHeader_sat=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2") '
-/ 
+/
  &namOceanBGcheck
    checkWinds=.true.
    ndaysWinds=4
@@ -74,6 +85,7 @@
   itemUpdateBodyList(1)='OMP'
   itemUpdateBodyList(2)='OER'
   itemUpdateBodyList(3)='HPHT'
+  itemUpdateBodyList(4)='VAR'
 /
  &namSQLInsert
 /
