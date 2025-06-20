@@ -754,7 +754,7 @@ contains
     write(*,*)'Type  Name '
     write(*,*)'----  ---- '
     do fileIndex = 1, obsf_nfiles
-      write(*,'(1X,A2,1X,A60)' ) obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
+      write(*,'(1X,A2,1X,A120)' ) obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
     end do
 
   end subroutine obsf_setupFileNames

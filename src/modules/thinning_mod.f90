@@ -117,7 +117,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -167,7 +167,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -213,7 +213,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -261,7 +261,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -313,7 +313,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -365,7 +365,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -413,7 +413,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -463,7 +463,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -513,7 +513,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -632,7 +632,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -796,7 +796,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsdat
+    type(struct_obs), intent(inout)        :: obsdat             ! obsSpaceData object
     character(len=*), intent(in)           :: obsFamily
     real(8),          intent(in)           :: step
     integer,          intent(in)           :: deltmax
@@ -1363,7 +1363,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat        ! obsSpaceData object
     real(8),          intent(in)    :: heightMin
     real(8),          intent(in)    :: heightMax
     real(8),          intent(in)    :: heightSpacing
@@ -1494,7 +1494,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat              ! obsSpaceData object
     logical,          intent(in)    :: verticalThinningES
     logical,          intent(in)    :: ecmwfRejetsES
     real(4),          intent(in)    :: toleranceFactor
@@ -2056,13 +2056,19 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: numVars, numStation
-    integer, intent(in) :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
-    real(4), intent(in) :: obsLat(:), obsLon(:)
-    real(4), intent(in) :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer, intent(in) :: trajFlags(:,:)
-    integer, intent(in) :: obsFlags(:,:)
-    integer, intent(in) :: obsLevOffset(:)
+    integer,                        intent(in)    :: numVars
+    integer,                        intent(in)    :: numStation
+    integer,                        intent(in)    :: obsHeadDate(:)
+    integer,                        intent(in)    :: obsLaunchTime(:)
+    integer,                        intent(in)    :: stationFlags(:)
+    real(4),                        intent(in)    :: obsLat(:)
+    real(4),                        intent(in)    :: obsLon(:)
+    real(4),                        intent(in)    :: obsValues(:,:)
+    real(4),                        intent(in)    :: oMinusB(:,:)
+    real(4),                        intent(in)    :: toleranceFactor
+    integer,                        intent(in)    :: trajFlags(:,:)
+    integer,                        intent(in)    :: obsFlags(:,:)
+    integer,                        intent(in)    :: obsLevOffset(:)
     character(len=obs_stnidLength), intent(inout) :: stnId(:)
 
     ! Locals:
@@ -2289,7 +2295,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: stationIndex, stationIndex2
+    integer, intent(in)    :: stationIndex
+    integer, intent(in)    :: stationIndex2
     real(4), intent(in)    :: obsValues(:,:)
     integer, intent(in)    :: obsLevOffset(:)
     logical, intent(out)   :: sameProfile
@@ -2358,13 +2365,19 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: stationIndex, stationIndex2, numVars
+    integer,           intent(in)    :: stationIndex
+    integer,           intent(in)    :: stationIndex2
+    integer,           intent(in)    :: numVars
     integer,           intent(in)    :: trajFlags(:,:)
     integer,           intent(in)    :: obsFlags(:,:)
-    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer,           intent(in)    :: obsLevOffset(:), stationFlags(:)
+    real(4),           intent(in)    :: obsValues(:,:)
+    real(4),           intent(in)    :: oMinusB(:,:)
+    real(4),           intent(in)    :: toleranceFactor
+    integer,           intent(in)    :: obsLevOffset(:)
+    integer,           intent(in)    :: stationFlags(:)
     integer,           intent(inout) :: cloche(:)
-    integer,           intent(out)   :: selectCriteria, selectStationIndex
+    integer,           intent(out)   :: selectCriteria
+    integer,           intent(out)   :: selectStationIndex
 
     ! Locals:
     logical :: condition, tacAndBufr, trajInfoOk
@@ -2601,7 +2614,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: numVars, numLev, numStation, numLevStnMax
+    integer,           intent(in)    :: numVars
+    integer,           intent(in)    :: numLev
+    integer,           intent(in)    :: numStation
+    integer,           intent(in)    :: numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
@@ -2872,7 +2888,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: numStation, numLevStnMax
+    integer,           intent(in)    :: numStation
+    integer,           intent(in)    :: numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
@@ -2986,7 +3003,8 @@ contains
 
     ! Arguments:
     integer, intent(in)    :: numStation
-    integer, intent(in)    :: obsLevOffset(:), obsType(:)
+    integer, intent(in)    :: obsLevOffset(:)
+    integer, intent(in)    :: obsType(:)
     integer, intent(inout) :: obsFlags(:,:)
     real(4), intent(in)    :: obsValues(:,:)
 
@@ -3116,7 +3134,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat            ! obsSpace data object
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
     logical,          intent(in)    :: removeUncorrected
@@ -4950,7 +4968,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsdat
+    type(struct_obs),  intent(inout) :: obsdat      ! obsSpace data object
     integer,           intent(in)    :: delta
     integer,           intent(in)    :: deltrad
     integer,           intent(in)    :: codtyp
@@ -5943,7 +5961,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat   ! obsSpace data object
     logical,          intent(inout) :: valid(:)
 
     ! Locals:
@@ -6129,7 +6147,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpace data object
     integer,          intent(in)    :: deltax
     integer,          intent(in)    :: deltmax
 
@@ -6617,7 +6635,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpace data object
     integer,          intent(in)    :: deltax
     integer,          intent(in)    :: deltrad
 
@@ -7060,7 +7078,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsdat            ! obsSpace data object
     logical,          intent(in)    :: removeUnCorrected
     integer,          intent(in)    :: deltmax
     integer,          intent(in)    :: deltax
@@ -7548,14 +7566,14 @@ contains
   !--------------------------------------------------------------------------
   ! thn_thinSatSST
   !--------------------------------------------------------------------------
-  subroutine thn_thinSatSST(obsData)
+  subroutine thn_thinSatSST(obsdat)
     !
     !:Purpose: Main subroutine for thinning of satellite SST obs.
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsData
+    type(struct_obs), intent(inout) :: obsdat  ! obsSpaceData object
 
     ! Locals:
     integer :: ierr
@@ -7571,15 +7589,15 @@ contains
 
     namelist /thin_satSST/doThinning, numTimesteps, deltmax, fractionGridCell, dataSetSST
 
-    ! set default values for namelist variables
+    ! Return if no SST obs
+    if (.not. obs_famExist(obsdat, 'TM')) return
+
+    ! Set default values for namelist variables
     doThinning        = .false.
     numTimesteps      = 5
     deltmax           = 90
     fractionGridCell  = 1.0
     dataSetSST(:)     = ''
-
-    ! return if no SST obs
-    if (.not. obs_famExist(obsData, 'TM')) return
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_satSST', './flnml')) then
@@ -7603,7 +7621,7 @@ contains
       numberDataSetSST = numberDataSetSST + 1
     end do
 
-    write(*,*)''
+    write(*,*)
     if (numberDataSetSST > 0) then
       write(*,*) 'thn_thinSurface: satellite SST datasets considered in thinning: '
       do dataSetSSTIndex = 1, numberDataSetSST
@@ -7612,10 +7630,18 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
+
+    ! Do thinning for each type of SST satellite data as identified by 'stid'
     do dataSetSSTIndex = 1, numberDataSetSST
-      call thn_satelliteSSTByGridCell(obsData, dataSetSST(dataSetSSTIndex), &
+      call thn_satelliteSSTByGridCell(obsdat, dataSetSST(dataSetSSTIndex), &
                                       numTimesteps, deltmax, fractionGridCell)
     end do
+    call msg_memUsage('thn_thinSatSST')
+
+    ! Do super-obing if it is activated through the namelist
+    call thn_superObs(obsdat, 'TM', codtyp_get_codtyp('satob'), bufr_sst)
+    call msg_memUsage('thn_thinSatSST')
+
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSatSST
@@ -7623,7 +7649,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_satelliteSSTByGridCell
   !--------------------------------------------------------------------------
-  subroutine thn_satelliteSSTByGridCell(obsData, dataSet, numTimesteps, deltmax, fractionGridCell)
+  subroutine thn_satelliteSSTByGridCell(obsdat, dataSet, numTimesteps, deltmax, fractionGridCell)
     !
     !:Purpose: thinning satellite SST data by grid cells.
     !          Set bit 11 of obs_flg on observations that are to be rejected.
@@ -7634,7 +7660,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsData          ! obsSpace data object
+    type(struct_obs), intent(inout) :: obsdat           ! obsSpace data object
     character(len=*), intent(in)    :: dataSet          ! station ID (id_stn variable in SQLite obs.files)
     integer         , intent(in)    :: numTimesteps     ! thinning number of timesteps
     integer         , intent(in)    :: deltmax          ! maximum time difference (in minutes)
@@ -7653,13 +7679,13 @@ contains
     real(8) :: deltaLon, deltaLat, deltaLatCell, deltaLonCell
     real(4) :: obsDistance, sizeGridCell
     integer :: medianIndex
-    logical :: llok
     real(4), allocatable :: lonGrid(:), latGrid(:)
     logical, allocatable :: valid(:), validMpi(:)
     integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
     integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:)
     integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
+    character(len=12) :: stnID
     type countSatSSTdataType
       integer              :: numObs         ! number of data inside each grid cell
       real(4), allocatable :: dataVec(:)     ! vector of data inside each grid cell
@@ -7671,7 +7697,7 @@ contains
     write(*,*) 'thn_satelliteSSTByGridCell: Starting satellite SST data thinning for sensor: ', trim(dataSet)
     write(*,*)
 
-    numHeader = obs_numHeader(obsData)
+    numHeader = obs_numHeader(obsdat)
     call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
 
     allocate(valid(numHeaderMaxMpi))
@@ -7679,20 +7705,22 @@ contains
 
     ! count satellite SST data of the current sensor (id_stn)
     satSSTCount = 0
-    do headerIndex = 1, numHeader
-      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
-      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
-      if (.not. llok) cycle
-      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle
-      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-      if (codeType /= codtyp_get_codtyp('satob')) cycle
+    HEADER0: do headerIndex = 1, numHeader
+      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
 
-      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) == trim(dataSet)) then
-        satSSTCount = satSSTCount + 1
-        valid(headerIndex) = .true.
-      end if
-    end do
+      ! Check values of obs_flg, obs_vnm, obs_ity and stid
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER0
+      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle HEADER0
+      codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER0
+      stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
+      if (trim(stnID) /= trim(dataSet)) cycle HEADER0
+
+      satSSTCount = satSSTCount + 1
+      valid(headerIndex) = .true.
+
+    end do HEADER0
 
     ! Return if no satellite SST obs to thin
     allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
@@ -7739,26 +7767,28 @@ contains
     obsTimeIndexVec(:) = 0
     obsSST(:) = 0.
 
-    HEADER: do headerIndex = 1, numHeader
-      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
-      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
-      if (.not. llok) cycle HEADER
-      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle HEADER
-      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-      if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER
-      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle HEADER
+    HEADER1: do headerIndex = 1, numHeader
+      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
+
+      ! Check values of obs_flg, obs_vnm, obs_ity and stid
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER1
+      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle HEADER1
+      codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER1
+      stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
+      if (trim(stnID) /= trim(dataSet)) cycle HEADER1
 
       ! find time difference
-      obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
-      obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
+      obsDate = obs_headElem_i(obsdat, obs_dat, headerIndex)
+      obsTime = obs_headElem_i(obsdat, obs_etm, headerIndex)
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
       obsStepIndex = nint(obsStepIndex_r8)
 
       ! reject observations that are outside the assimilation window
       if (obsStepIndex < 1 .or. obsStepIndex > numTimesteps) then
         valid(headerIndex) = .false.
-        cycle HEADER
+        cycle HEADER1
       end if
 
       if (numTimesteps == 1) then
@@ -7771,18 +7801,16 @@ contains
       ! check time window
       if (delMinutes > deltmax) then
         valid(headerIndex) = .false.
-        cycle HEADER
+        cycle HEADER1
       end if
 
-      obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-
-      if (flg_flagIsOn(obsData, bodyIndex, flg_09rejBgck)) cycle HEADER
+      obsVarno = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
 
       obsSST(headerIndex) = real(obs_bodyElem_r(obsData, obs_var, bodyIndex),4)
 
       ! obs lat and lon in degrees
-      obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      obsLat = obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      obsLon = obs_headElem_r(obsdat, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      obsLat = obs_headElem_r(obsdat, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       ! latitude index
       deltaLat = abs(latGrid(1) - obsLat)
       obsLatIndex = 1
@@ -7814,7 +7842,7 @@ contains
       ! reject data that are farther than the given fraction of the size of grid cell
       if (obsDistance > sizeGridCell * fractionGridCell) valid(headerIndex) = .false.
 
-    end do HEADER
+    end do HEADER1
 
     ! Make all inputs to the following tests mpiglobal
     call mmpi_allGather(valid,           validMpi)
@@ -7845,15 +7873,15 @@ contains
 
       ! Fill out vectors of data and header indexes inside each grid cell
       dataGrid(:,:)%numObs = 0 ! to reuse it as a counter that should be differentiated for each lat-lon cell
-      do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
-        if (.not. validMpi(headerIndex)) cycle
-        if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
+      HEADER2: do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
+        if (.not. validMpi(headerIndex)) cycle HEADER2
+        if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle HEADER2
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
         dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
         dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
         dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex
-      end do
+      end do HEADER2
 
       ! Compute median inside each grid cell and keep only this observation, rejecting all the others
       do lonIndex = 1, hco_thinning%ni
@@ -7890,21 +7918,22 @@ contains
     write(*,*)
 
     ! Modify the flags for rejected observations
-    do headerIndex = 1, numHeader
-      ! skip observation if we're not supposed to consider it
-      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
-      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
-      if (.not. llok) cycle
-      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle
-      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-      if (codeType /= codtyp_get_codtyp('satob')) cycle
-      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle
+    HEADER3: do headerIndex = 1, numHeader
+      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
+
+      ! Check values of obs_flg, obs_vnm, obs_ity and stid
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER3
+      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle HEADER3
+      codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER3
+      stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
+      if (trim(stnID) /= trim(dataSet)) cycle HEADER3
 
       if (.not. valid(headerIndex)) then
-        call flg_setFlag(obsData, bodyIndex, flg_11rejSelect)
+        call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
       end if
-    end do
+    end do HEADER3
 
     ! Deallocation
     deallocate(valid)
@@ -7949,10 +7978,11 @@ contains
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
     integer              :: obsDate, obsTime, imode, ierr
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
+    logical              :: checkChannel
+    logical, save        :: firstCall = .true.
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     integer, allocatable :: channels(:)
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
-    logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
     character(len=obs_stnidLength), allocatable :: obsStnId(:), obsStnIdMpi(:)
 
@@ -7973,8 +8003,8 @@ contains
     namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType, writeDiagnostics
 
     ! This first version is only designed to work to radiance observations
-    if (trim(obsFamily) /= 'TO') then
-      call utl_abort('thn_superObs: Currently only radiance observations are supported')
+    if (trim(obsFamily) /= 'TO' .and. trim(obsFamily) /= 'TM') then
+      call utl_abort('thn_superObs: Currently only radiance and SST observations are supported')
     end if
 
     ! Return immediately if no namelist is present - no superobing is done
@@ -8008,24 +8038,39 @@ contains
       return
     end if
 
-    ! Get the list of channels for this codtyp/elementID
-    allocate(channels(tvs_maxNumberOfChannels))
-    call getChannels(obsdat, channels, numChannels, codtyp, elementID)
-    if (numChannels > 0) then
-      if (mmpi_myid == 0) then
-        write(*,*) 'thin_superObs: will compute superobs for codtyp, elementID = ', codtyp, elementID
-        write(*,*) 'thin_superObs: number of channels to be processed: ', numChannels
-        if (numChannels < 30) then
-          write(*,*) 'thin_superObs: channel list = ', channels(1:numChannels)
-        else
-          write(*,*) 'thin_superObs: channel list is very long, first 30 = ', channels(1:30)
+    ! Only for radiance observations, determine list of channels
+    if (elementID == bufr_nbt3) then
+
+      ! Get the list of channels for this codtyp/elementID
+      allocate(channels(tvs_maxNumberOfChannels))
+      call getChannels(obsdat, channels, numChannels, codtyp, elementID)
+      if (numChannels > 0) then
+        if (mmpi_myid == 0) then
+          write(*,*) 'thin_superObs: will compute superobs for codtyp, elementID = ', codtyp, elementID
+          write(*,*) 'thin_superObs: number of channels to be processed: ', numChannels
+          if (numChannels < 30) then
+            write(*,*) 'thin_superObs: channel list = ', channels(1:numChannels)
+          else
+            write(*,*) 'thin_superObs: channel list is very long, first 30 = ', channels(1:30)
+          end if
         end if
+      else
+        deallocate(channels)
+        return
       end if
+      checkChannel = .true.
+
     else
-      deallocate(channels)
-      return
+
+      ! For non-radiance obs set channel list to missing (will be ignored)
+      numChannels = 1
+      allocate(channels(numChannels))
+      channels(1) = mpc_missingValue_int
+      checkChannel = .false.
+
     end if
 
+    ! Only read namelist on the first call
     if (firstCall) then
       ! namelist default values
       averagingRadius  = -1.0d0
@@ -8040,10 +8085,11 @@ contains
       if (mmpi_myid == 0) write(*, nml = thin_superObs)
       call utl_tmg_stop(181)
       firstCall = .false.
-    end if
 
-    if (trim(averageType) /= 'average') then
-      call utl_abort('thn_superObs: Only averageType="average" is implemented')
+      if (trim(averageType) /= 'average') then
+        call utl_abort('thn_superObs: Only averageType="average" is implemented')
+      end if
+
     end if
 
     if (averagingRadius <= 0.0d0) then
@@ -8104,7 +8150,7 @@ contains
 
           if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY1
 
-          if (trim(obsFamily) == 'TO') then
+          if (checkChannel) then
             if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY1
           end if
 
@@ -8202,7 +8248,7 @@ contains
 
           if (obs_bodyElem_i(obsdat, obs_vnm, bodyIndex) /= elementID) cycle BODY2
 
-          if (trim(obsFamily) == 'TO') then
+          if (checkChannel) then
             if (nint(obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)) /= channel) cycle BODY2
           end if
 
@@ -8334,7 +8380,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsdat
+    type(struct_obs),     intent(inout) :: obsdat      ! obsSpace data object
     integer,              intent(out)   :: channels(:)
     integer,              intent(out)   :: numChannels
     integer,              intent(in)    :: codtyp
