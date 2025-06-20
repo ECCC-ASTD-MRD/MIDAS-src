@@ -145,7 +145,7 @@ module obsSpaceDiag_mod
   integer :: diagn_num(ofl_numFamily)                         ! Prescribed (starting) number of (stnid, bufr, nlev) for diag calc
   integer :: diagn_nset(ofl_numFamily)                        ! Choose to group by 1: stnid, 2: stnid,bufr, 3: stnid,bufr,nlev
   integer :: diagn_varno(ofl_numFamily,max_cfg_size)          ! List of bufr element ids for diag calc
-  character(len=9) :: diagn_stnid(ofl_numFamily,max_cfg_size) ! List of stnid for diag calc
+  character(len=obs_stnidLength) :: diagn_stnid(ofl_numFamily,max_cfg_size) ! List of stnid for diag calc
   logical :: diagn_save(ofl_numFamily)                        ! Choose to save gridded info in ascii file
   logical :: diagn_all(ofl_numFamily)                         ! Choose to use all combinations specified by diagn_nset
   logical :: diagn_unilev(ofl_numFamily,max_cfg_size)         ! List indicating if uni-lev obs for diag calc

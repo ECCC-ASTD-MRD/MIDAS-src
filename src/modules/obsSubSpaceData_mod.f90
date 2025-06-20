@@ -798,7 +798,9 @@ contains
           end do
 
           ! Adds to running list of unique pairs if unique
-          call oss_comboIdlist(stnid_add_opt=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add_opt=varno, unilev_add_opt=(nlev_obs.eq.1.and.vco.ge.obs_vcoChemColumn))
+          call oss_comboIdlist(stnid_add_opt  = obs_elem_c(obsSpaceData,'STID',headerIndex), &
+                               varno_add_opt  = varno,                                       &
+                               unilev_add_opt = (nlev_obs == 1 .and. vco >= obs_vcoChemColumn))
 
        end do HEADER
 
@@ -809,7 +811,9 @@ contains
     end if
 
     ! Get list of unique pairs
-    call oss_comboIdlist(stnid_list_opt=stnid_list, varno_list_opt=varno_list, unilev_list_opt=unilev_list, num_elements_opt=num_elements, nset_opt=nset)
+    call oss_comboIdlist(stnid_list_opt=stnid_list, varno_list_opt=varno_list,       &
+                         unilev_list_opt=unilev_list, num_elements_opt=num_elements, &
+                         nset_opt=nset)
 
   end subroutine oss_get_comboIdlist
 
