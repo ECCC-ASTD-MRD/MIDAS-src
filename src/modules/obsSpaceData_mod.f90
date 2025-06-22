@@ -1794,7 +1794,7 @@ contains
          obsdat%cfamily(:)='XX'
 
          allocate(obsdat%cstnid(numHeader_max))
-         obsdat%cstnid(:)='XXXXXXXXX'
+         obsdat%cstnid(:)='XXXXXXXXXXXX'
 
          allocate(obsdat%scratchRealHeader(numHeader_max))
          allocate(obsdat%scratchIntHeader (numHeader_max))
