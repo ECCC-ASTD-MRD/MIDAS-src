@@ -4381,7 +4381,7 @@ contains
     integer :: idum4, idum5, idum6, idum7, idum8, idum9, idum10, idum11
     integer :: idum12, idum13, idum14, idum15, idum16, idum17, idum18
     integer :: indx, ii, jj, nlat, nlon
-    integer, parameter :: ii_obsloc = ((mxlat * mxlon) / 2) + 1  ! 1D-index of central mesh-point (obs location)
+    integer, parameter :: ii_obsloc = int(real(mxlat * mxlon) / 2.0) + 1 ! 1D-index of central mesh-point (obs location)
     real(4), parameter :: pi = 3.141592654
     real(4), parameter :: MGthresh = 0.01, LGthresh = 0.01
     real(4), parameter :: rlat_km = 40.0, rlon_km = 40.0
