@@ -667,7 +667,6 @@ contains
     integer :: iScan, iFov, jPred, numActivePredictors
     real(8) :: predictor(NumPredictors)
     real(8) :: biasCor
-    logical :: anyMissing
 
     if (.not. biasActive) return
 
@@ -709,30 +708,20 @@ contains
 
         call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
         if (chanindx > 0) then
-          if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan>0) then
+          if ( bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan > 0 ) then
             numActivePredictors = bias(iSensor)%chans(chanIndx)%numActivePredictors
-            if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) ) then
-              ! Check if all values in 'bias(iSensor)%chans(chanIndx)%coeff(:)' are valid
-              anyMissing = .false.
-              do iPredictor = 1, numActivePredictors
-                if ( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff(iPredictor),MPC_missingValue_R8) ) then
-                  anyMissing = .true.
-                  exit
-                end if
+            if ( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) .and. &
+                 all( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff(1:numActivePredictors),MPC_missingValue_R8) ) ) then
+              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
+                   bias(iSensor)%chans(chanIndx)%coeff(1)
+              call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
+              do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
+                jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
+                biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
               end do
-
-              if ( .not. anyMissing ) then
-                biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                          bias(iSensor)%chans(chanIndx)%coeff(1)
-                call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
-                do iPredictor = 2, numActivePredictors
-                  jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
-                  biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
-                end do
-                biasCor = -1.d0 * biascor
-                call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
-              end if ! if ( .not. anyMissing )
-            end if ! if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) )
+              biasCor = -1.d0 * biascor
+              call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
+            end if ! if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) ... )
           end if ! if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan>0)
         end if ! if (chanindx > 0)
       end do BODY
