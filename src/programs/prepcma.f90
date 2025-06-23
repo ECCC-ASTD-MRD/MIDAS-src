@@ -893,7 +893,7 @@ contains
     end if
 
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2),matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
         numHeadersFound = 0
@@ -937,7 +937,7 @@ contains
     numHeadersFoundInBlock(:,:) = 0
     numHeadersFoundInBlock_mpiGlobal(:,:) = 0
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 
@@ -952,7 +952,7 @@ contains
 
     ! check the sum over all blocks match the counts per sensor
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 
