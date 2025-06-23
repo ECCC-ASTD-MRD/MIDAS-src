@@ -1937,14 +1937,18 @@ contains
     ! Compute the AMSU-B Dryness Index for all points
     !--------------------------------------------------------------------
 
-    do obsIndex = 1, numObsToProcess
-      if ( .not. utl_isEqual(ztb_amsub3(obsIndex),ssbg_realMissing) .and. &
-           .not. utl_isEqual(ztb_amsub5(obsIndex),ssbg_realMissing) ) then
-        amsubDrynessIndex(obsIndex) = ztb_amsub3(obsIndex) - ztb_amsub5(obsIndex)
-      else
-        amsubDrynessIndex(obsIndex) = ssbg_realMissing
-      end if
-    end do
+    where ( .not. utl_isEqual(ztb_amsub3(:),ssbg_realMissing) .and. &
+            .not. utl_isEqual(ztb_amsub5(:),ssbg_realMissing) )
+      amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
+    elsewhere
+      amsubDrynessIndex = ssbg_realMissing
+    end where
+
+    !where ( .not. ( utl_isEqual(ztb_amsub3, ssbg_realMissing) .or. utl_isEqual(ztb_amsub5, ssbg_realMissing) ) )
+    !  amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
+    !elsewhere
+    !  amsubDrynessIndex = ssbg_realMissing
+    !end where
 
     !--------------------------------------------------------------------
     ! Review all the checks previously made to determine which obs are to be accepted
