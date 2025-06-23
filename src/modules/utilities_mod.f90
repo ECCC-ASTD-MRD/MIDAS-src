@@ -2926,7 +2926,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_findlocs_char
   !--------------------------------------------------------------------------
-  subroutine utl_findlocs_char(charArray, char, locations)
+  subroutine utl_findlocs_char(charArray, charValue, locations)
     !
     !:Purpose: A modified version of the fortran function `findloc`.
     !          Returns an array of all matches found in the array.
@@ -2935,7 +2935,7 @@ contains
 
     ! Arguments:
     character(len=*),     intent(in)  :: charArray(:)
-    character(len=*),     intent(in)  :: char
+    character(len=*),     intent(in)  :: charValue
     integer, allocatable, intent(out) :: locations(:)
 
     ! Locals:
@@ -2946,7 +2946,7 @@ contains
     ! count number of matches found
     numFound = 0
     do arrayIndex = 1, size(charArray)
-      if (trim(charArray(arrayIndex)) == trim(char)) numFound = numFound + 1
+      if (trim(charArray(arrayIndex)) == trim(charValue)) numFound = numFound + 1
     end do
 
     if (numFound > 0) then
@@ -2955,7 +2955,7 @@ contains
       allocate(locations(numFound))
       numFound = 0
       do arrayIndex = 1, size(charArray)
-        if (trim(charArray(arrayIndex)) == trim(char)) then
+        if (trim(charArray(arrayIndex)) == trim(charValue)) then
           numFound = numFound + 1
           locations(numFound) = arrayIndex
         end if
