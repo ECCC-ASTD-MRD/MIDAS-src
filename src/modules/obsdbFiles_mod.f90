@@ -1497,7 +1497,7 @@ contains
     if (allocated(sqlName)) deallocate(sqlName)
 
     ! first try the body matching list
-    matchIndexList = utl_findlocs(bodyMatchList(obsColIndex,:), trim(obsSpaceName))
+    call utl_findlocs(bodyMatchList(obsColIndex,:), trim(obsSpaceName), matchIndexList)
     if (matchIndexList(1) > 0) then
       numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))
@@ -1508,7 +1508,7 @@ contains
     end if
 
     ! now try the header matching list
-    matchIndexList = utl_findlocs(headMatchList(obsColIndex,:), trim(obsSpaceName))
+    call utl_findlocs(headMatchList(obsColIndex,:), trim(obsSpaceName), matchIndexList)
     if (matchIndexList(1) > 0) then
       numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))

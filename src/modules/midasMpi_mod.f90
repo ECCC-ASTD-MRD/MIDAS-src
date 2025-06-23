@@ -260,8 +260,10 @@ contains
     call mpi_allgather(mmpi_myidHost, 1, mmpi_integer, &
                        allMyidHost,   1, mmpi_integer, mmpi_comm_GRID, ierr)
     numNodeMasters = count(allMyidHost(:) == 0)
-    allocate(mmpi_nodeMasters(numNodeMasters))
-    mmpi_nodeMasters = utl_findlocs(allMyidHost,0) - 1
+
+    call utl_findlocs(allMyidHost,0,mmpi_nodeMasters)
+    mmpi_nodeMasters(:) = mmpi_nodeMasters(:) - 1
+
     deallocate(allMyidHost)
     write(*,*) 'mmpi_initialize: mmpi_nodeMasters = ', mmpi_nodeMasters(:)
 
