@@ -2122,6 +2122,10 @@ contains
           if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
           memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
           do stepIndex = 1, tim_nstepobsinc
+            ! TODO: simplify the floating point precision conversions
+            ! add 'real(8) :: meanInc_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+            !     meanInc_r8 = real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8)
+
             ! mean increment
             if ( useModulatedEns ) then
               do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
@@ -2130,30 +2134,33 @@ contains
                                           modulationFactor_r4 )
 
                 do memberIndex = 1, enkfNML%nEns
+                  ! TODO: simplify the floating point precision conversions
+                  ! add 'real(8) :: pert_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+                  !    pert_r8 = real(modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                  !                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ), 8)
                   pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
                   ! Index of the modulated ensemble member corresponding to original
                   ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                   memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
-                  ! TODO: simplify the floating point precision conversions
-                  !    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                  !         meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                  !         real(weightsMean(memberIndexInModEns,1,lonIndex,latIndex),4) * pert_r4
 
+                  ! TODO: simplify the floating point precision conversions
+                  !    meanInc_r8 =  meanInc_r8 + weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r8
                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                        real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +  &
                              weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * real(pert_r4,8), 4)
                 end do
               end do
             else
+
               do memberIndex = 1, enkfNML%nEns
                 ! TODO: simplify the floating point precision conversions
-                !      meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                !           meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                !           real(weightsMean(memberIndex,1,lonIndex,latIndex),4) *  &
-                !           (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                !            meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                ! add 'real(8) :: pert_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+                !    pert_r8 = real(modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                !                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ), 8)
+                !    meanInc_r8 =  meanInc_r8 + weightsMean(memberIndex,1,lonIndex,latIndex) * pert_r8
+
                 meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =                          &
                      real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +       &
                                 weightsMean(memberIndex,1,lonIndex,latIndex) *                     &
@@ -2161,6 +2168,9 @@ contains
                                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8), 4)
               end do
             end if
+
+            ! TODO: simplify the floating point precision conversions
+            !   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  real(meanInc_r8,4)
 
             ! mean analysis
             meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
