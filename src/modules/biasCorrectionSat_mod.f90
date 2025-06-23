@@ -710,10 +710,9 @@ contains
         if (chanindx > 0) then
           if ( bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan > 0 ) then
             numActivePredictors = bias(iSensor)%chans(chanIndx)%numActivePredictors
-            if ( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) .and. &
-                 all( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff(1:numActivePredictors),MPC_missingValue_R8) ) ) then
-              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                   bias(iSensor)%chans(chanIndx)%coeff(1)
+            if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) .and. &
+                 .not. any( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff(1:numActivePredictors),MPC_missingValue_R8) ) ) then
+              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + bias(iSensor)%chans(chanIndx)%coeff(1)
               call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
               do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
                 jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
