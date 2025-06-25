@@ -1068,11 +1068,6 @@ contains
 
     end do
 
-    do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
-      xout ( 1, latIndex )               = xin ( 1, latIndex )
-      xout ( diff(diffID)%ni, latIndex ) = xin ( diff(diffID)%ni, latIndex )
-    end do
-
   end subroutine diffusion1x_implicit
 
 
