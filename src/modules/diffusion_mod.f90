@@ -1131,11 +1131,6 @@ contains
 
     end do
 
-    do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
-      xout( lonIndex, 1 )                = xin ( lonIndex, 1 )
-      xout( lonIndex, diff (diffID)%nj ) = xin ( lonIndex, diff (diffID)%nj )
-    end do
-
   end subroutine diffusion1y_implicit
 
 end module diffusion_mod
