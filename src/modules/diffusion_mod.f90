@@ -476,12 +476,13 @@ contains
             call diffusion1x_implicit  (diffID, xin,                    xin_diffused)
             call transposeLatToLonBands(diffID, xin_diffused,           xin_transpose)
             call diffusion1y_implicit  (diffID, xin_transpose,          xin_transpose_diffused)
-            call transposeLonToLatBands(diffID, xin_transpose_diffused, xin_diffused)
+            call transposeLonToLatBands(diffID, xin_transpose_diffused, xin)
           end do
 
         else
 
           call diffusion_explicit(diffID, xin, xin_diffused)
+          xin(:,:) = xin_diffused(:,:)
 
         end if
 
@@ -489,7 +490,7 @@ contains
           do lonIndex = myLonBeg, myLonEnd
 
             diff(diffID)%Lambda(lonIndex, latIndex) = diff(diffID)%Lambda(lonIndex, latIndex) + &
-                                                      xin_diffused(lonIndex, latIndex) * xin_diffused(lonIndex, latIndex)
+                                                      xin(lonIndex, latIndex) * xin(lonIndex, latIndex)
 
           end do
         end do
