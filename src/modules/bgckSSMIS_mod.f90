@@ -1944,12 +1944,6 @@ contains
       amsubDrynessIndex = ssbg_realMissing
     end where
 
-    !where ( .not. ( utl_isEqual(ztb_amsub3, ssbg_realMissing) .or. utl_isEqual(ztb_amsub5, ssbg_realMissing) ) )
-    !  amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
-    !elsewhere
-    !  amsubDrynessIndex = ssbg_realMissing
-    !end where
-
     !--------------------------------------------------------------------
     ! Review all the checks previously made to determine which obs are to be accepted
     ! for assimilation and which are to be flagged for exclusion. First, initialize
