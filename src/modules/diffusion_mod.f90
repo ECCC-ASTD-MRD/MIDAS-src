@@ -1032,13 +1032,13 @@ contains
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
     do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
       do lonIndex = 1, diff (diffID)%ni
+        ! We need first to copy 'xin' in 'xout'
+        xout ( lonIndex, latIndex )  = xin ( lonIndex, latIndex )
+        ! Initialize 'xlast' from 'xin'
         xlast ( lonIndex, latIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
     !$OMP END PARALLEL DO
-
-    ! We need first to copy 'xin' in 'xout'
-    xout(:,:) = xin(:,:)
 
     do iterIndex = 1, diff(diffID)%numIterImp
 
@@ -1095,13 +1095,13 @@ contains
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff (diffID)%nj
       do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
+        ! We need first to copy 'xin' in 'xout'
+        xout ( lonIndex, latIndex )  = xin ( lonIndex, latIndex )
+        ! Initialize 'xlast' from 'xin'
         xlast ( latIndex, lonIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
     !$OMP END PARALLEL DO
-
-    ! We need first to copy 'xin' in 'xout'
-    xout(:,:) = xin(:,:)
 
     do iterIndex = 1, diff(diffID)%numIterImp
 
