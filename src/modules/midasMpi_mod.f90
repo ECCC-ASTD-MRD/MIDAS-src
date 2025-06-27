@@ -96,6 +96,7 @@ module midasMpi_mod
 
   ! general interface for mpi_alltoall
   interface mmpi_alltoall
+    module procedure mmpi_alltoall_logical
     module procedure mmpi_alltoall_integer
     module procedure mmpi_alltoall_integer8
     module procedure mmpi_alltoall_real4
@@ -104,6 +105,7 @@ module midasMpi_mod
 
   ! general interface for mpi_alltoallv
   interface mmpi_alltoallv
+    module procedure mmpi_alltoallv_integer
     module procedure mmpi_alltoallv_real4
     module procedure mmpi_alltoallv_real8
   end interface mmpi_alltoallv
@@ -1485,6 +1487,35 @@ contains
   end subroutine mmpi_allGather_real8
 
   !--------------------------------------------------------------------------
+  ! mmpi_alltoall_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_logical(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_alltoall' for a logical scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    logical,        contiguous, intent(in)  :: sending(..)      ! logical data sent to all MPI ranks
+    logical,        contiguous, intent(out) :: receiving(..)    ! logical array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr, length
+    type(mpi_comm) :: communicator
+
+    communicator = handleCommunicator(communicator_opt)
+    length = handleLength(sending, communicator, length_opt)
+
+    call mpi_alltoall(sending,   length, mmpi_logical,  &
+                      receiving, length, mmpi_logical, communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_logical')
+
+  end subroutine mmpi_alltoall_logical
+
+  !--------------------------------------------------------------------------
   ! mmpi_alltoall_integer
   !--------------------------------------------------------------------------
   subroutine mmpi_alltoall_integer(sending, receiving, length_opt, communicator_opt)
@@ -1599,6 +1630,40 @@ contains
     call handleMpiError(ierr, 'mmpi_alltoall_real8')
 
   end subroutine mmpi_alltoall_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoallv_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoallv_integer(sending, sendsizes, senddispls, &
+                                    receiving, recvsizes, recvdispls, &
+                                    communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_alltoallv' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer,        contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
+    integer,                    intent(in)  :: sendsizes(:)     ! array containing the size of each array to be sent
+    integer,                    intent(in)  :: senddispls(:)    ! displacement offsets in the input array
+    integer,        contiguous, intent(out) :: receiving(..)    ! integer array which stores the data received
+    integer,                    intent(in)  :: recvsizes(:)     ! array containing the size of each array to be received
+    integer,                    intent(in)  :: recvdispls(:)    ! displacement offsets in the output array
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr
+    type(mpi_comm) :: communicator
+
+    communicator = handleCommunicator(communicator_opt)
+
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_integer, &
+                       receiving, recvsizes, recvdispls, mmpi_integer, &
+                       communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoallv_integer')
+
+  end subroutine mmpi_alltoallv_integer
 
   !--------------------------------------------------------------------------
   ! mmpi_alltoallv_real4
