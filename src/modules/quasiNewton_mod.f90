@@ -6,6 +6,7 @@ module quasiNewton_mod
   !          modified to support MPI parallelization.
   !
       use midasMpi_mod
+      use utilities_mod
 
       implicit none
       save
@@ -998,7 +999,6 @@ module quasiNewton_mod
  1005 format (4x," nlis0",14x,2d18.8,d11.3)
  1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
  1007 format (/4x," mlis0",10x,"tmin forced to tmax")
- 1008 format (/4x," mlis0",10x,"inconsistent call")
       call mmpi_allReduce(n, ntotal, mmpi_max)
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
        .and. tmax.gt.0.d0 .and. amf.gt.0.d0 &
@@ -1124,7 +1124,7 @@ module quasiNewton_mod
   350 tg=t
       fg=f
       fpg=fp
-      if(td.ne.0.d0) go to 500
+      if( .not. utl_isEqual(td,0.d0) ) go to 500
 !
 !              extrapolation
 !
@@ -1168,7 +1168,7 @@ module quasiNewton_mod
 !
 ! --- faut-il continuer ?
 !
-      if (td.eq.0.d0) go to 950
+      if ( utl_isEqual(td,0.d0) ) go to 950
       if (td-tg.lt.tmin) go to 920
 !
 !     --- limite de precision machine (arret de secours) ?
@@ -1176,7 +1176,7 @@ module quasiNewton_mod
       lfound=.false.
       do i = 1, n
           z=xn(i)+t*d(i)
-          if (z.ne.xn(i).and.z.ne.x(i)) then
+          if ( .not. ( utl_isEqual(z,xn(i)) .or. utl_isEqual(z,x(i)) ) ) then
             lfound=.true.
             exit
           endif
@@ -1195,7 +1195,7 @@ module quasiNewton_mod
 !     si tg=0, xn = xn_depart,
 !     sinon on prend xn=x_gauche qui fait decroitre f
 !
-      if (tg.eq.0.d0) go to 940
+      if ( utl_isEqual(tg,0.d0) ) go to 940
       fn=fg
       do i = 1, n
         xn(i)=xn(i)+tg*d(i)

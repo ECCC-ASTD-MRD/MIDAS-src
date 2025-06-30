@@ -97,7 +97,7 @@ contains
     real(8), allocatable :: kappa(:,:)
     real(8), allocatable :: W(:,:)
     real(8), allocatable :: m(:,:)
-    real(8), allocatable :: xin(:,:), xin_transpose(:,:)
+    real(8), allocatable :: xin(:,:), xin_transpose(:,:), xin_diffused(:,:), xin_transpose_diffused(:,:)
     real(8), allocatable :: lambdaLocal(:,:)    ! auxiliary variable to MPI_ALLREDUCE of diff%Lambda
     real(4), allocatable :: lambdaLocal_r4(:,:) ! auxiliary variable to save diff%Lambda in fst file
 
@@ -265,7 +265,7 @@ contains
     do latIndex = 1, nj - 1
       do lonIndex = 1, ni - 1
 
-        if ((diff (diffID)%mhalfy (lonIndex, latIndex) == 1.0d0) .and. (diff(diffID)%mhalfx(lonIndex, latIndex) == 1.0d0)) then
+        if ( utl_isEqual(diff(diffID)%mhalfy(lonIndex, latIndex),1.0d0) .and. utl_isEqual(diff(diffID)%mhalfx(lonIndex,latIndex), 1.0d0) ) then
 
           currentLonSpacing = cos(latr( latIndex)) * diff(diffID)%dlon
           currentLatSpacing =                        diff(diffID)%dlat
@@ -283,7 +283,7 @@ contains
     mindxy = min( mindxy, diff(diffID)%dlat )
     write(*,*) 'diff_setup: minimim grid spacing: mindxy = ', mindxy
 
-    if ( corr_len == -1 ) then
+    if ( utl_isEqual(corr_len, -1.0) ) then
 
       write(*,*) 'diff_setup: Correlation length scale 2D field will be read from the file: ', correlationLengthFileName
       call gsv_allocate(statevector, 1, hco, vco, dateStamp_opt=-1, dataKind_opt=4, &
@@ -456,6 +456,10 @@ contains
       lambdaLocal(:,:)    = 0.0d0
       lambdaLocal_r4(:,:) = 0.0d0
 
+      allocate(xin_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xin_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xin_diffused          (myLonBeg : myLonEnd, myLatBeg : myLatEnd))
+
       SAMPLE: do sampleIndex = 1, numberSamples
 
         if (modulo(sampleIndex, 100) == 0) write(*,*) 'diff_setup: Computing sample: ', sampleIndex
@@ -468,18 +472,17 @@ contains
 
         if (useImplicit) then
 
-          allocate(xin_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
           do timeStep = 1, diff(diffID)%numt
-            call diffusion1x_implicit( diffID, xin, xin )
-            call transposeLatToLonBands( diffID, xin, xin_transpose )
-            call diffusion1y_implicit( diffID, xin_transpose, xin_transpose )
-            call transposeLonToLatBands(diffID, xin_transpose, xin)
+            call diffusion1x_implicit  (diffID, xin,                    xin_diffused)
+            call transposeLatToLonBands(diffID, xin_diffused,           xin_transpose)
+            call diffusion1y_implicit  (diffID, xin_transpose,          xin_transpose_diffused)
+            call transposeLonToLatBands(diffID, xin_transpose_diffused, xin)
           end do
-          deallocate(xin_transpose)
 
         else
 
-          call diffusion_explicit(diffID, xin, xin)
+          call diffusion_explicit(diffID, xin, xin_diffused)
+          xin(:,:) = xin_diffused(:,:)
 
         end if
 
@@ -493,6 +496,10 @@ contains
         end do
 
       end do SAMPLE
+
+      deallocate(xin_transpose)
+      deallocate(xin_diffused)
+      deallocate(xin_transpose_diffused)
 
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -793,7 +800,7 @@ contains
 
     ! Locals:
     integer              :: timeStep, myLatBegIgnore, myLatEndIgnore
-    real(8), allocatable :: xout_transpose(:,:)
+    real(8), allocatable :: xout_transpose(:,:), xout_diffused(:,:), xout_transpose_diffused(:,:)
 
     ! compute Csqrt
 
@@ -811,25 +818,32 @@ contains
       myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
       xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
     end if
-    write(*,*) 'min/maxval xout=', minval(xout),maxval(xout)
+    write(*,*) 'diff_Csqrt: min/maxval xout=', minval(xout),maxval(xout)
 
+    allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
     if ( diff(diffID)%useImplicit ) then
-      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
-      do timeStep = 1, diff(diffID)%numt
-        call diffusion1x_implicit( diffID, xout, xout )
+      allocate(xout_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xout_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
 
-        call transposeLatToLonBands( diffID, xout, xout_transpose )
-        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
+      do timeStep = 1, diff(diffID)%numt
+        call diffusion1x_implicit  ( diffID, xout,           xout_diffused )
+        call transposeLatToLonBands( diffID, xout_diffused,  xout_transpose_diffused )
+        call diffusion1y_implicit  ( diffID, xout_transpose_diffused, xout_transpose )
         call transposeLonToLatBands( diffID, xout_transpose, xout )
       end do
+
       deallocate(xout_transpose)
+      deallocate(xout_transpose_diffused)
     else
-      call diffusion_explicit ( diffID, xout, xout )
+      call diffusion_explicit ( diffID, xout, xout_diffused )
+      xout(:,:) = xout_diffused(:,:)
     end if
 
     xout(:,:) = xout(:,:) *  &
                 diff(diffID)%Lambda(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                      diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+                                    diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+
+    deallocate(xout_diffused)
 
   end subroutine diff_Csqrt
 
@@ -845,7 +859,7 @@ contains
 
     ! Locals:
     integer              :: timeStep
-    real(8), allocatable :: xout_transpose(:,:)
+    real(8), allocatable :: xout_transpose(:,:), xout_diffused(:,:), xout_transpose_diffused(:,:)
 
     ! compute Csqrtadj
 
@@ -854,23 +868,30 @@ contains
                                                 diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
     xout(:,:) = xout(:,:) * diff(diffID)%Winv(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                               diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
-    if ( diff(diffID)%useImplicit ) then
-      allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
-      do timeStep = 1, diff(diffID)%numt
-        call transposeLatToLonBands( diffID, xout, xout_transpose )
-        call diffusion1y_implicit( diffID, xout_transpose, xout_transpose )
-        call transposeLonToLatBands( diffID, xout_transpose, xout )
 
-        call diffusion1x_implicit( diffID, xout, xout )
+    allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
+
+    if ( diff(diffID)%useImplicit ) then
+      allocate(xout_transpose         (diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      allocate(xout_transpose_diffused(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
+      do timeStep = 1, diff(diffID)%numt
+        call transposeLatToLonBands( diffID, xout,           xout_transpose )
+        call diffusion1y_implicit  ( diffID, xout_transpose, xout_transpose_diffused )
+        call transposeLonToLatBands( diffID, xout_transpose_diffused, xout_diffused  )
+        call diffusion1x_implicit  ( diffID, xout_diffused,  xout )
       end do
       deallocate(xout_transpose)
+      deallocate(xout_transpose_diffused)
     else
-      call diffusion_explicit( diffID, xout, xout )
+      call diffusion_explicit( diffID, xout, xout_diffused )
+      xout(:,:) = xout_diffused(:,:)
     end if
+
+    deallocate(xout_diffused)
 
     xout(:,:) = xout(:,:) * &
                 diff(diffID)%Wsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
-                                     diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+                                   diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
 
   end subroutine diff_Csqrtadj
 
@@ -1011,6 +1032,9 @@ contains
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
     do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
       do lonIndex = 1, diff (diffID)%ni
+        ! We need first to copy 'xin' in 'xout'
+        xout ( lonIndex, latIndex )  = xin ( lonIndex, latIndex )
+        ! Initialize 'xlast' from 'xin'
         xlast ( lonIndex, latIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
@@ -1044,11 +1068,6 @@ contains
 
     end do
 
-    do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
-      xout ( 1, latIndex )               = xin ( 1, latIndex )
-      xout ( diff(diffID)%ni, latIndex ) = xin ( diff(diffID)%ni, latIndex )
-    end do
-
   end subroutine diffusion1x_implicit
 
 
@@ -1076,6 +1095,9 @@ contains
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff (diffID)%nj
       do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
+        ! We need first to copy 'xin' in 'xout'
+        xout ( lonIndex, latIndex )  = xin ( lonIndex, latIndex )
+        ! Initialize 'xlast' from 'xin'
         xlast ( latIndex, lonIndex ) = xin ( lonIndex, latIndex )
       end do
     end do
@@ -1107,11 +1129,6 @@ contains
       end do
       !$OMP END PARALLEL DO
 
-    end do
-
-    do lonIndex = diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose
-      xout( lonIndex, 1 )                    = xin ( lonIndex, 1 )
-      xout( lonIndex, diff (diffID)%nj ) = xin ( lonIndex, diff (diffID)%nj )
     end do
 
   end subroutine diffusion1y_implicit

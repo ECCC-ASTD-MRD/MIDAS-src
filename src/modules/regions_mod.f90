@@ -2,11 +2,11 @@
 module regions_mod
   ! MODULE regions_mod (prefix='reg' category='7. Low-level data objects')
   !
-  !:Purpose:  This is a subset of the EnKF module that deals with 
-  !           operations involving the generation of a set of regions. 
-  !           Each region consists of a small number of observations 
-  !           which is to be assimilated simultaneously in the 
-  !           sequential algorithm. 
+  !:Purpose:  This is a subset of the EnKF module that deals with
+  !           operations involving the generation of a set of regions.
+  !           Each region consists of a small number of observations
+  !           which is to be assimilated simultaneously in the
+  !           sequential algorithm.
   !
   use mathPhysConstants_mod
   use midasMpi_mod
@@ -28,12 +28,12 @@ module regions_mod
    real(8) :: r0_km
    ! horizontal radius in km of the area in which an observation can have an impact
    real(8) :: r1_km
-   ! the vertical extend in log(P) of the area in which an observation can have an 
+   ! the vertical extend in log(P) of the area in which an observation can have an
    ! impact
-   real(8) :: rz_logp 
+   real(8) :: rz_logp
    ! as r0km but in radians and adjusted considering that we want an integer
    ! number of latitude bands
-   real(8) :: r0_rad 
+   real(8) :: r0_rad
    real(8) :: r1_rad ! equivalent of r1 in radians
    ! the horizontal length scale for the hadamard product (0.5 r1)
    real(8) :: scale_hor
@@ -44,14 +44,14 @@ module regions_mod
    ! estimated maximum number of regions that could possibly be formed
    integer :: mxreg
   end type struct_reg
-      
+
 contains
 
   subroutine reg_getblock(nlatband, r0, latmin, latmax, nlonblock)
     !
     ! :Purpose: We have nlatband latitude bands (bounded by latitudes
-    !           latmin and latmax). For each band determine how many 
-    !           longitidunal blocks of at most r0*root(2) radians it 
+    !           latmin and latmax). For each band determine how many
+    !           longitidunal blocks of at most r0*root(2) radians it
     !           contains. Output is in nlonblock.
     !
     implicit none
@@ -68,11 +68,11 @@ contains
     real(8) :: bar, dpie, lat
 
     dpie=MPC_PI_R8
-      
+
     nlonblock(1)=1
     nlonblock(nlatband)=1
-      
-    do i = 2, nlatband-1 
+
+    do i = 2, nlatband-1
      if (latmin(i)*latmax(i).gt.0) then
       lat = min(abs(latmin(i)),abs(latmax(i)))
      else
@@ -81,20 +81,20 @@ contains
      end if
      bar = (2**0.5)*r0/cos(lat)
      nlonblock(i) = int((2.0D0*dpie)/bar)+1
-   end do 
+   end do
 
   end subroutine reg_getblock
 
 
   subroutine reg_getlatitude(r0, nlatband, latmin, latcenter, latmax, beSilent_opt)
     !
-    ! :Purpose: the circle is covered with nlatband latitude bands. 
-    !           the polar caps (with radius r0 radians) form the first and 
+    ! :Purpose: the circle is covered with nlatband latitude bands.
+    !           the polar caps (with radius r0 radians) form the first and
     !           last band. Intermediate bands are of width r0*(2**0.5)
     !           For reach band we have the southern most latitude latmin,
-    !           the central latitude latcenter (at the poles for the extreme 
+    !           the central latitude latcenter (at the poles for the extreme
     !           bands) and the northern most latitude latcenter
-    !      
+    !
     implicit none
 
     ! Arguments:
@@ -137,21 +137,21 @@ contains
       latcenter(i) = latmin(i)+0.5D0*r0*(2**0.5)
       if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'at ', i, latmin(i), latcenter(i), latmax(i)
     end do
- 
+
   end subroutine reg_getlatitude
 
 
   subroutine getr0(r0km, r0, nlatband)
     !
-    ! :Purpose: The user specifies a radius of r0km (in km) within which 
+    ! :Purpose: The user specifies a radius of r0km (in km) within which
     !           stations can be taken together for simultaneous analysis
     !           in a single batch. For simplicity of the search procedures
-    !           we - instead - use somewhat smaller squares with sides of 
+    !           we - instead - use somewhat smaller squares with sides of
     !           at most r0km*root(2). We do have circles at the two poles.
-    !           Here we compute the radius r0 in radians such that we arrive 
-    !           exactly at nlatband latitude bands. The equator separates 
+    !           Here we compute the radius r0 in radians such that we arrive
+    !           exactly at nlatband latitude bands. The equator separates
     !           two latitude bands.
-    !         
+    !
     implicit none
 
     ! Arguments:
@@ -164,7 +164,7 @@ contains
     integer              :: nbandi
 
     dpie = MPC_PI_R8
-      
+
     ! figure out if r0km*root(2) is a divisor of 10000-r0km
 
     eps = 0.01
@@ -180,11 +180,11 @@ contains
     end if
     ! decrease r0km to r0new
     r0new = 10000./(dble(nbandi)*2**0.5 + 1.)
-    ! compute the corresponding r0 in radians       
+    ! compute the corresponding r0 in radians
     r0 = (r0new/20000.)*dpie
     ! two hemispheres with a pole
     nlatband = 2*(nbandi+1)
-      
+
   end subroutine getr0
 
   subroutine reg_init_struct(lsc, r0_km, r1_km, rz_logp)
@@ -203,7 +203,7 @@ contains
     ! Locals:
     real(8)  :: dpie
     integer :: ione
-  
+
     lsc%r0_km   = r0_km
     lsc%r1_km   = r1_km
     lsc%rz_logp = rz_logp
@@ -258,7 +258,9 @@ contains
     else if (lat.gt.(0.5D0*dpie-r0)) then
       ilat = nlatband
     else
-      lat = lat+0.5D0*dpie-r0
+      ! TODO: simplify the floating point precision conversions
+      !     lat = lat+0.5*MPC_PI_R8-real(r0,4)
+      lat = real( real(lat,8)+0.5*dpie-r0, 4)
       ilat = 1+ceiling(lat/(r0*(2**0.5)))
     end if
     ilat = min(max(ilat,1),nlatband)
@@ -268,5 +270,5 @@ contains
     iblock = nblockoffset(ilat)+ilon
 
   end subroutine reg_locatestn
-      
+
 end module regions_mod

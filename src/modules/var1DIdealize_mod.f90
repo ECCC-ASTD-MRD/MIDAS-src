@@ -92,7 +92,7 @@ module var1DIdealize_mod
     call col_setVco(columnPertOnAnLev, vco_anl)
     call col_allocate(columnPertOnAnLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
 
-    if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
+    if (col_varExist(columnPertOnAnLev, 'EMMW') .and. .not. utl_isEqual(inflateEmissErr,MPC_missingValue_R8)) then
       call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
                         inflateEmissErr_opt = inflateEmissErr)
     else
@@ -596,7 +596,7 @@ module var1DIdealize_mod
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           count = count + 1
-          channelNumber = obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex)
+          channelNumber = int(obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex))
 
           ! Match tvs_channelnumber with the channel index in emissivity error std file
           matchChanIndex = FINDLOC(emissChanList, channelNumber, dim=1)
@@ -628,7 +628,7 @@ module var1DIdealize_mod
         end do
 
         ! QC check: Simulated surface emissivity can only be between 0 and 1 or missing value
-        if (any(sfcEmissivityOriginal(:) == missingValueEmisAtlas)) then
+        if (any( utl_isEqual(sfcEmissivityOriginal(:),missingValueEmisAtlas) )) then
           ! Fill missing value if ref column also have missing value
           sfcEmissivityUpdated(:) = missingValueEmisAtlas
         else if(any(sfcEmissivityOriginal(:) < 0.0d0)) then
@@ -709,9 +709,9 @@ module var1DIdealize_mod
       bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
       BODYCHCK: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        columnValue = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
+        columnValue = real(obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex),4)
 
-        if (columnValue /= MPC_missingValue_R8) then
+        if (.not. utl_isEqual(columnValue, MPC_missingValue_R4)) then
           nonEmptyBodyColumn = .true.
           exit HEADERCHCK
         end if
@@ -747,7 +747,7 @@ module var1DIdealize_mod
       call col_setVco(columnPertOnAnLev, vco_anl)
       call col_allocate(columnPertOnAnLev, obs_numheader(obsSpaceData), setToZero_opt=.true.)
 
-      if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
+      if (col_varExist(columnPertOnAnLev, 'EMMW') .and. .not. utl_isEqual(inflateEmissErr, MPC_missingValue_R8)) then
         call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
                         inflateEmissErr_opt = inflateEmissErr)
       else

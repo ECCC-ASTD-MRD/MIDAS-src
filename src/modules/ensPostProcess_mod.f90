@@ -1130,11 +1130,17 @@ contains
             ! apply the inflation factor to all Anl members (in place)
             if (factorRTPS > 0.0D0) then
               do memberIndex = 1, nEns
+                ! TODO: We should simplify the floating point precision conversions by using
+                !      memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
+                !           factorRTPS *  &
+                !           ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                !             meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
+                !           meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                 memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                     factorRTPS *  &
-                     ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                       meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
-                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                     real( factorRTPS *  &
+                           real(memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                                meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +  &
+                           real(meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8), 4)
               end do ! memberIndex
             end if ! factorRTPS > 0
           end do ! stepIndex
@@ -1186,14 +1192,24 @@ contains
             ! apply RTPP to all Anl members (in place)
             ! member_anl = mean_anl + (1-a)*(member_anl-mean_anl) + a*(member_trl-mean_trl)
             do memberIndex = 1, nEns
-              memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                   meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + &
-                   (1.0D0 - alphaRTPP) * &
-                   ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                     meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
-                   alphaRTPP * &
-                   ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+              ! TODO: We should simplify the floating point precision conversions by using
+              !         memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
+              !              meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + &
+              !              (1.00 - real(alphaRTPP,4)) * &
+              !              ( memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+              !                meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ) +  &
+              !              real(alphaRTPP,4) * &
+              !              ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+              !                meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+              ! or declaring 'alphaRTPP' as a 'real(4)'
+              memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =                       &
+                   real( real(meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +      &
+                         (1.0D0 - alphaRTPP) *                                                  &
+                         real(memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                              meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)  ,8) +  &
+                         alphaRTPP *                                                            &
+                         real(memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                              meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)  ,8), 4)
             end do ! memberIndex
           end do ! stepIndex
         end do ! lonIndex
@@ -1409,9 +1425,13 @@ contains
 
             ! Add perturbation to member
             do stepIndex = 1, numStep
+              ! TODO: simplify the floating point precision conversions
+              !      memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
+              !           memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) +  &
+              !           real(perturbation_ptr(lonIndex, latIndex, varLevIndex),4)
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) +  &
-                   perturbation_ptr(lonIndex, latIndex, varLevIndex)
+                   real( real(memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8) +  &
+                              perturbation_ptr(lonIndex, latIndex, varLevIndex), 4)
             end do ! stepIndex
 
           end do ! lonIndex
@@ -1427,9 +1447,13 @@ contains
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, numStep
             do memberIndex = 1, nEns
+              ! TODO: simplify the floating point precision conversions
+              !      memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
+              !           memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+              !           real(perturbationMean(lonIndex, latIndex, varLevIndex),4)
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
-                   memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                   perturbationMean(lonIndex, latIndex, varLevIndex)
+                   real( real(memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8) -  &
+                              perturbationMean(lonIndex, latIndex, varLevIndex), 4)
             end do ! memberIndex
           end do ! stepIndex
         end do ! lonIndex
@@ -1608,7 +1632,7 @@ contains
       end do
       status = fclos(nulFile)
     else
-      if (any(weightRecenter(1:vco_getNumLev(vco_ens, 'MM')) == -1.d0)) then
+      if (any( utl_isEqual(weightRecenter(1:vco_getNumLev(vco_ens, 'MM')),-1.d0) ) ) then
         write(*,*) ''
         write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens, 'MM')
         write(*,*) 'Provided values : '
@@ -1811,11 +1835,11 @@ contains
         nomvar_v(varLevIndex) = gsv_getVarNameFromVarLev(stateVectorStdDev,varLevIndex)
         varLevel = vnl_varLevelFromVarname(nomvar_v(varLevIndex))
         if (varLevel == 'MM') then
-          pressureOrHeightOrDepth(varLevIndex) = pressureOrHeight_M(1,1,levIndex) / &
-                                                 max(pzSfc(1,1),maxval(pressureOrHeight_M))
+          pressureOrHeightOrDepth(varLevIndex) = real(pressureOrHeight_M(1,1,levIndex) / &
+                                                       max(pzSfc(1,1),maxval(pressureOrHeight_M)),4)
         else if (varLevel == 'TH') then
-          pressureOrHeightOrDepth(varLevIndex) = pressureOrHeight_T(1,1,levIndex) / &
-                                                 max(pzSfc(1,1),maxval(pressureOrHeight_T))
+          pressureOrHeightOrDepth(varLevIndex) = real(pressureOrHeight_T(1,1,levIndex) / &
+                                                      max(pzSfc(1,1),maxval(pressureOrHeight_T)),4)
         else
           if (vco%vcode == 5002 .or. vco%vcode == 5005) then
             pressureOrHeightOrDepth(varLevIndex) = 1.0
@@ -1836,7 +1860,7 @@ contains
           pressureOrHeightOrDepth(varLevIndex) = 0.0
         else
           levIndex = gsv_getLevFromVarLev(stateVectorStdDev, varLevIndex)
-          pressureOrHeightOrDepth(varLevIndex) = vco%depths(levIndex)
+          pressureOrHeightOrDepth(varLevIndex) = real(vco%depths(levIndex),4)
         end if
       end do
 

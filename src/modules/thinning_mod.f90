@@ -865,7 +865,7 @@ contains
     integer, allocatable :: obsCodtypIndexMpi(:), obsDelTMpi(:)
     real(8) :: obsStepIndex_r8, deltaHours
     logical, allocatable :: valid(:), validMpi(:)
-    character(len=9), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
+    character(len=obs_stnidLength), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
     integer :: listCodtypSelect(numListCodtypSelect)
 
     ! Check if any observations to be treated
@@ -1525,7 +1525,7 @@ contains
     real(4), allocatable :: obsValuesMpi(:,:), oMinusBMpi(:,:)
     real(4), pointer     :: surfPressure(:,:,:,:)
     character(len=4), allocatable :: varNamesPsfc(:)
-    character(len=9), allocatable :: stnId(:), stnIdMpi(:)
+    character(len=obs_stnidLength), allocatable :: stnId(:), stnIdMpi(:)
     character(len=20) :: trlmFileName
     character(len=2)  :: fileNumber
     logical :: upperAirObs
@@ -1656,10 +1656,10 @@ contains
       if (countLevel == 1) then
         obsDate(stationIndex)  = obs_headElem_i(obsdat,obs_dat,headerIndex)
         obsTime(stationIndex)  = obs_headElem_i(obsdat,obs_etm,headerIndex)
-        obsLat(stationIndex)   = obs_headElem_r(obsdat,obs_lat,headerIndex) * &
-                                 MPC_DEGREES_PER_RADIAN_R8
-        obsLon(stationIndex)   = obs_headElem_r(obsdat,obs_lon,headerIndex) * &
-                                 MPC_DEGREES_PER_RADIAN_R8
+        obsLat(stationIndex)   = real(obs_headElem_r(obsdat,obs_lat,headerIndex) * &
+                                      MPC_DEGREES_PER_RADIAN_R8,4)
+        obsLon(stationIndex)   = real(obs_headElem_r(obsdat,obs_lon,headerIndex) * &
+                                      MPC_DEGREES_PER_RADIAN_R8,4)
         obsLat(stationIndex)   = 0.01*nint(100.0*obsLat(stationIndex))
         obsLon(stationIndex)   = 0.01*nint(100.0*obsLon(stationIndex))
       end if
@@ -1682,8 +1682,8 @@ contains
         if (bodyIndex < 0) exit BODY2
 
         obsFlag  = obs_bodyElem_i(obsdat,obs_flg,bodyIndex)
-        obsValue = obs_bodyElem_r(obsdat,obs_var,bodyIndex)
-        obsOmp   = obs_bodyElem_r(obsdat,obs_omp,bodyIndex)
+        obsValue = real(obs_bodyElem_r(obsdat,obs_var,bodyIndex),4)
+        obsOmp   = real(obs_bodyElem_r(obsdat,obs_omp,bodyIndex),4)
         select case (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex))
         case (bufr_nedd)
           obsFlags(1,levStnIndex)  = obsFlag
@@ -1704,7 +1704,7 @@ contains
           obsValues(4,levStnIndex) = obsValue
           oMinusB(4,levStnIndex)   = obsOmp
         end select
-        obsValues(5,levStnIndex) = 0.01 * obs_bodyElem_r(obsdat,obs_ppp,bodyIndex)
+        obsValues(5,levStnIndex) = real(0.01d0 * obs_bodyElem_r(obsdat,obs_ppp,bodyIndex),4)
       end do BODY2
 
     end do HEADER1
@@ -1725,7 +1725,7 @@ contains
       end if
       numlev = 0
       do levIndex = 1, maxNumLev
-        if (vlev(levIndex) == MPC_missingValue_R4) exit
+        if ( utl_isEqual(vlev(levIndex),MPC_missingValue_R4) ) exit
         numlev = numlev + 1
       end do
       if (mmpi_myid == 0) write(*,nml=namgem)
@@ -1791,9 +1791,9 @@ contains
 
       ! Calculate pressure levels for each station based on GEM3 vertical coordinate
       do levIndex  = 1, numLev
-        zpresb = ((vlev(levIndex) - rptopinc/rprefinc) /  &
-                 (1.0-rptopinc/rprefinc))**rcoefinc
-        zpresa = rprefinc * (vlev(levIndex)-zpresb)
+        zpresb = real(((real(vlev(levIndex),8) - rptopinc/rprefinc) /  &
+                      (1.0-rptopinc/rprefinc))**rcoefinc,4)
+        zpresa = real(rprefinc * (real(vlev(levIndex),8)-zpresb),4)
         presInterp(stationIndex,levIndex) =  &
              0.01 * (zpresa + zpresb*surfPresInterp(stationIndex,obsStepIndex))
       end do
@@ -2056,14 +2056,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: numVars, numStation
-    integer,          intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
-    real(4),          intent(in)    :: obsLat(:), obsLon(:)
-    real(4),          intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer,          intent(in)    :: trajFlags(:,:)
-    integer,          intent(in)    :: obsFlags(:,:)
-    integer,          intent(in)    :: obsLevOffset(:)
-    character(len=9), intent(inout) :: stnId(:)
+    integer, intent(in) :: numVars, numStation
+    integer, intent(in) :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
+    real(4), intent(in) :: obsLat(:), obsLon(:)
+    real(4), intent(in) :: obsValues(:,:), oMinusB(:,:), toleranceFactor
+    integer, intent(in) :: trajFlags(:,:)
+    integer, intent(in) :: obsFlags(:,:)
+    integer, intent(in) :: obsLevOffset(:)
+    character(len=obs_stnidLength), intent(inout) :: stnId(:)
 
     ! Locals:
     integer, parameter :: maxNumStnid  = 5000
@@ -2071,8 +2071,8 @@ contains
     integer :: stationIndex, stationIndex2, stationIndex3, catIndex
     integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex
     integer :: bufrStationIndex, tacStationIndex, numChecked, numStnid, numSame
-    character (len=9)  :: stnidList(maxNumStnid)
-    integer            :: stationIndexList(maxNumStnid)
+    character(len=obs_stnidLength) :: stnidList(maxNumStnid)
+    integer :: stationIndexList(maxNumStnid)
     integer :: numCriteria(5), cloche(30), selectCriteria
 
     numCriteria(:) = 0
@@ -2097,8 +2097,8 @@ contains
             condition = stnId(stationIndex2) == stnId(stationIndex) .and. &
                         obsHeadDate(stationIndex2) == obsHeadDate(stationIndex) .and. &
                         obsLaunchTime(stationIndex2) == obsLaunchTime(stationIndex) .and. &
-                        obsLat(stationIndex2) == obsLat(stationIndex) .and. &
-                        obsLon(stationIndex2) == obsLon(stationIndex) .and. &
+                        utl_isEqual(obsLat(stationIndex2),obsLat(stationIndex)) .and. &
+                        utl_isEqual(obsLon(stationIndex2),obsLon(stationIndex)) .and. &
                         stationFlags(stationIndex2) == stationFlags(stationIndex)
 
             if ( condition ) then
@@ -2327,8 +2327,8 @@ contains
       if ( minDeltaP1 < 1.0 .and. minDeltaP2 < 1.0 ) then
         do varIndex = 2, 4, 2
 
-          if ( obsValues(varIndex,levStnIndex1) /= -999.0 .and. &
-               obsValues(varIndex,levStnIndex2) /= -999.0 ) then
+          if ( .not. (utl_isEqual(obsValues(varIndex,levStnIndex1),-999.0) .or. &
+                      utl_isEqual(obsValues(varIndex,levStnIndex2),-999.0)) ) then
             valSum = valSum + abs(obsValues(varIndex,levStnIndex1) - &
                                   obsValues(varIndex,levStnIndex2))
             numSum = numSum + 1
@@ -2441,7 +2441,7 @@ contains
             presLowerTacBufr(varIndex,raobFormatIndex) = 1000.0
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
-              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2457,7 +2457,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then
@@ -2499,7 +2499,7 @@ contains
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
 
-              condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2517,7 +2517,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then
@@ -2662,12 +2662,12 @@ contains
 
         if (levIndex == 1) then
           presTop = presInterp(stationIndex,levIndex)
-          presBottom = exp( 0.5*log(presInterp(stationIndex,levIndex+1) * &
-                       presInterp(stationIndex,levIndex)) )
+          presBottom = exp( 0.5*log(presInterp(stationIndex,2) * &
+                       presInterp(stationIndex,1)) )
         else if (levIndex == numLev) then
-          presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
-                       presInterp(stationIndex,levIndex)) )
-          presBottom = presInterp(stationIndex,levIndex)
+          presTop = exp( 0.5*log(presInterp(stationIndex,numLev-1) * &
+                       presInterp(stationIndex,numLev)) )
+          presBottom = presInterp(stationIndex,numLev)
         else
           presTop = exp( 0.5*log(presInterp(stationIndex,levIndex-1) * &
                        presInterp(stationIndex,levIndex)) )
@@ -2743,8 +2743,7 @@ contains
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               do stdLevelIndex = 1, numStdLevels
-                if ( (obsValues(varIndexPres,levStnIndex) == &
-                      standardLevels(stdLevelIndex)) .and. &
+                if ( utl_isEqual(obsValues(varIndexPres,levStnIndex),standardLevels(stdLevelIndex)) .and. &
                      condition ) then
                   levStnIndexValid = levStnIndex
                 end if
@@ -2908,11 +2907,11 @@ contains
         ! Pressures at the bottom and top of the ES layer
 
         if (levIndex == 1) then
-          presBottom = levelsES(levIndex)
-          presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
+          presBottom = levelsES(1)
+          presTop = exp(0.5*log(levelsES(2)*levelsES(1)))
         else if (levIndex == numLevES) then
-          presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
-          presTop = levelsES(levIndex)
+          presBottom = exp(0.5*log(levelsES(numLevES-1)*levelsES(numLevES)))
+          presTop = levelsES(numLevES)
         else
           presBottom = exp(0.5*log(levelsES(levIndex-1)*levelsES(levIndex)))
           presTop = exp(0.5*log(levelsES(levIndex+1)*levelsES(levIndex)))
@@ -3139,7 +3138,7 @@ contains
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: normFormalErr, missingFormalErr, formalError, finalZtdScore, ztdScore
     real(8) :: obsLonInDegrees, obsLatInDegrees, obsStepIndex_r8
-    character(len=12)  :: stnId
+    character(len=obs_stnidLength) :: stnId
     logical :: thisStnIdNoaa
     integer, allocatable :: quality(:), qualityMpi(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
@@ -3270,19 +3269,19 @@ contains
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
         if (obsVarno == bufr_nezd) then
           ! convert units from m to mm
-          formalError = 1000.0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex)
+          formalError = real(1000.0d0*obs_bodyElem_r(obsdat, OBS_OER, bodyIndex),4)
         end if
         if (obsVarno == bufr_ztdScore) then
-          ztdScore = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          ztdScore = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
         end if
         if (obsVarno == bufr_nezd) then
           ztdObsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         end if
       end do BODY1
-      if (formalError == -1.0 .or. formalError == 1000.0*MPC_missingValue_R4) then
+      if ( utl_isEqual(formalError,-1.0) .or. utl_isEqual(formalError,1000.0*MPC_missingValue_R4) ) then
         formalError = missingFormalErr
       end if
-      if (ztdScore == -1.0) then
+      if ( utl_isEqual(ztdScore,-1.0) ) then
         ztdScore = 999.0
       end if
       if (ztdObsFlag == -1) then
@@ -3308,7 +3307,7 @@ contains
       quality(headerIndex) = nint(finalZtdScore)
 
       ! obs is outside time window
-      if(obsStepIndex(headerIndex) == -1.0d0) then
+      if( obsStepIndex(headerIndex) == -1 ) then
         badTimeCount = badTimeCount + 1
         quality(headerIndex) = nullValue
       end if
@@ -3327,7 +3326,7 @@ contains
       end if
 
       ! ZTD quality is unknown (missing ztd score)
-      if (ztdScore == 999.0) then
+      if ( utl_isEqual(ztdScore,999.0) ) then
         ztdScoreCount = ztdScoreCount + 1
         if ( rejectNoZTDScore ) then
           quality(headerIndex) = 9999
@@ -3476,7 +3475,7 @@ contains
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
     real(8) :: obsStepIndex_r8, deltaPress, deltaPressMin
-    character(len=12)  :: stnId, stnId2, stnidList(numStnIdMax)
+    character(len=obs_stnidLength) :: stnId, stnId2, stnidList(numStnIdMax)
     logical :: skipThisObs
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
@@ -3584,7 +3583,7 @@ contains
         if (bodyIndex < 0) exit BODY1
 
         if (obsPressure <= 0.0) then
-          obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
+          obsPressure = real(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex),4)
           exit BODY1
         end if
       end do BODY1
@@ -4371,7 +4370,7 @@ contains
       end if
       numlev = 0
       do levIndex = 1, maxLev
-        if (vlev(levIndex) == -1) exit
+        if ( utl_isEqual(vlev(levIndex),-1.)) exit
         numlev = numlev + 1
       end do
     else
@@ -4383,8 +4382,8 @@ contains
     numLat = hco_thinning%nj
     allocate(gridLat(numLat))
     allocate(gridLon(numLon))
-    gridLon(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
-    gridLat(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    gridLon(:) = real(hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8,4)
+    gridLat(:) = real(hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8,4)
     write(*,*) 'thinning grid vlev = '
     write(*,*) vlev(1:numLev)
 
@@ -4517,7 +4516,7 @@ contains
         if (obsVarno == BUFR_NETT) then
           if ( .not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             ttMissing = .false.
-            obsTT(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsTT(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
           end if
         else if (obsVarno == BUFR_NEES) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
@@ -4526,12 +4525,12 @@ contains
         else if (obsVarno == BUFR_NEUU) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             uuMissing = .false.
-            obsUU(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsUU(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex))
           end if
         else if (obsVarno == BUFR_NEVV) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             vvMissing = .false.
-            obsVV(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+            obsVV(headerIndex) = real(obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex),4)
           end if
         else if (obsVarno == BUFR_NEDD) then
           if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
@@ -4602,7 +4601,7 @@ contains
       obsLonIndexVec(headerIndex) = obsLonIndex
       obsLevIndexVec(headerIndex) = obsLevIndex
       obsTimeIndexVec(headerIndex) = obsStepIndex
-      obsDistance(headerIndex) = sqrt((deltaLon*3)**2 + (deltaLat*3)**2 + (deltaPress/100.0)**2)
+      obsDistance(headerIndex) = real(sqrt((deltaLon*3)**2 + (deltaLat*3)**2 + (deltaPress/100.0)**2),4)
 
     end do HEADER1
 
@@ -4745,7 +4744,7 @@ contains
               if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
                 validMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
               end if
-              minScoreGrid(latIndex,lonIndex,levIndex) = score
+              minScoreGrid(latIndex,lonIndex,levIndex) = real(score,4)
               validMpi(headerIndex) = .true.
               handlesGrid(latIndex,lonIndex,levIndex) = headerIndex
             end if
@@ -5089,11 +5088,14 @@ contains
       if ( .not. valid(headerIndex) ) cycle
 
       ! Lat and Lon for each observation
-      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
-      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad
-      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad
+      ! TODO: simplify the floating point precision conversions
+      !   obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R4 * obsLonInRad
+      !   obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R4 * obsLatInRad
+      obsLonInDegrees = real(MPC_DEGREES_PER_RADIAN_R8 * obsLonInRad,4)
+      obsLatInDegrees = real(MPC_DEGREES_PER_RADIAN_R8 * obsLatInRad,4)
       obsLonBurpFile(headerIndex) = nint(100.0*(obsLonInDegrees - 180.0))
       if(obsLonBurpFile(headerIndex) < 0) then
         obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 36000
@@ -5170,7 +5172,7 @@ contains
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable
-      if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
+      if ( utl_isEqual(rejectRate,0.) .and. numObsAssim(headerIndex) == 0 ) then
         rejectRate = 1.
       else
         rejectRate = rejectRate / max(numObsAssim(headerIndex),1)
@@ -5199,7 +5201,7 @@ contains
 
       gridIndex = obsGridIndex(headerIndex)
       if (numObsGrid(gridIndex) /= 0) then
-        latIndex = (gridLatsAll(gridIndex)+90.)/(180./numLat)
+        latIndex = int((gridLatsAll(gridIndex)+90.)/(180./numLat))
         gridLat = gridLatsAll(gridIndex) + 0.5*(180./numLat)
         gridLon = gridLonsAll(gridIndex) + 0.5*360./numGridLons(latIndex)
         obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -5265,11 +5267,11 @@ contains
 
         ! Check for multiple obs with same distance to grid point
         if (numObs > 0) then
-          if ( count(obsDistance(headerIndexList2(1:numObs)) == minDistance) > 1 ) then
+          if ( count( utl_isEqual(obsDistance(headerIndexList2(1:numObs)),minDistance) ) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             minLonBurpFile = 10000000
             do obsIndex = 1, numObs
-              if (obsDistance(headerIndexList2(obsIndex)) == minDistance) then
+              if ( utl_isEqual(obsDistance(headerIndexList2(obsIndex)),minDistance) ) then
                 if (obsLonBurpFile(headerIndexList2(obsIndex)) < minLonBurpFile) then
                   minLonBurpFile = obsLonBurpFile(headerIndexList2(obsIndex))
                   headerIndexKeep = headerIndexList2(obsIndex)
@@ -5300,12 +5302,12 @@ contains
 
         ! Adjust flags to only keep 1 observation among all mpi tasks
         if (minDistance < 1000000.) then
-          if ( count(minDistanceMpi(:) == minDistance) > 1 ) then
+          if ( count( utl_isEqual(minDistanceMpi(:),minDistance) ) > 1 ) then
             ! resolve ambiguity by choosing obs with min value of lon
             call mmpi_allGather(minLonBurpFile, minLonBurpFileMpi)
             minLonBurpFile = 10000000
             do procIndex = 1, mmpi_nprocs
-              if (minDistanceMpi(procIndex) == minDistance) then
+              if ( utl_isEqual(minDistanceMpi(procIndex),minDistance) ) then
                 if (minLonBurpFileMpi(procIndex) < minLonBurpFile) then
                   minLonBurpFile = minLonBurpFileMpi(procIndex)
                   procIndexKeep = procIndex
@@ -5598,7 +5600,7 @@ contains
       end do BODY
 
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable
-      if ( rejectRate == 0. .and. numObsAssim == 0 ) then
+      if ( utl_isEqual(rejectRate,0.) .and. numObsAssim == 0 ) then
         rejectRate = 1.
       else
         rejectRate = rejectRate / max(numObsAssim,1)
@@ -5627,8 +5629,8 @@ contains
 
     ! First pass to obtain obslon, obs lat, date and time (local)
     do headerIndex = 1, numHeader
-      obsLoninRad(headerIndex) = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatinRad(headerIndex) = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLoninRad(headerIndex) = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatinRad(headerIndex) = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
@@ -5956,7 +5958,7 @@ contains
     integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
     logical, allocatable :: validMpi(:)
-    character(len=12)    :: stnId
+    character(len=obs_stnidLength)    :: stnId
     type(kdtree2), pointer            :: tree
     integer, parameter                :: maxNumSearch = 100
     integer                           :: numFoundSearch, resultIndex
@@ -6010,8 +6012,8 @@ contains
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
 
       ! Lat and Lon for each observation
-      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
+      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
 
       ! 3D location array for kdtree
       obsPosition3d(1,headerIndex) = ec_ra * sin(obsLonInRad) * cos(obsLatInRad)
@@ -6159,8 +6161,8 @@ contains
     real(4), allocatable :: obsDistanceMpi(:)
     logical, allocatable :: valid(:), validMpi(:)
     character(len=5)     :: stnIdTrim
-    character(len=12)    :: stnId, stnidList(numStnIdMax)
-    character(len=12), allocatable :: stnIdGrid(:,:,:)
+    character(len=obs_stnidLength) :: stnId, stnidList(numStnIdMax)
+    character(len=obs_stnidLength), allocatable :: stnIdGrid(:,:,:)
 
     write(*,*)
     write(*,*) 'thn_scatByLatLonBoxes: Starting'
@@ -6243,9 +6245,13 @@ contains
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       gridLatsMid(latIndex) = gridLats(latIndex) - (90./numLat)
       if (gridLats(latIndex) <= 0.0) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
@@ -6714,9 +6720,13 @@ contains
     do latIndex = 1, numLat
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       if (gridLats(latIndex) <= 0.0) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       distance = lonLength * cos(latInRadians)
       numGridLons(latIndex) = nint(distance/deltax)
@@ -6785,7 +6795,7 @@ contains
       if (.not. valid(headerIndex)) cycle HEADER2
 
       ! get the zenith angle
-      obsAngle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
+      obsAngle(headerIndex) = real(obs_headElem_r(obsdat, OBS_SZA, headerIndex),4)
 
       ! Keep obs only if at least one channel not rejected based on tests in suprep
       valid(headerIndex) = .false.
@@ -6826,7 +6836,7 @@ contains
             cycle CHANNELS
           end if
         end do BODY2
-        if (obsCloud(channelIndex, headerIndex) == -1.0) then
+        if ( utl_isEqual(obsCloud(channelIndex, headerIndex),-1.0) ) then
           call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
         end if
       end do CHANNELS
@@ -6919,10 +6929,10 @@ contains
 
             ! en cas d'egalite de l'angle,
             ! choisir le profil le plus pres du centre de la boite
-            if ( ( obsAngleMpi(headerIndex) ==  &
-                   angleGrid(latIndex,lonIndex,stepIndex) ) .and. &
-                 ( obsDistanceMpi(headerIndex) >  &
-                   distanceGrid(latIndex,lonIndex,stepIndex) ) ) change = .false.
+            if ( utl_isEqual(obsAngleMpi(headerIndex),angleGrid(latIndex,lonIndex,stepIndex)) .and. &
+                 ( obsDistanceMpi(headerIndex) > distanceGrid(latIndex,lonIndex,stepIndex) ) ) then
+              change = .false.
+            end if
 
           ! si le profil actuel est du meme instrument que celui deja considere
           ! choisir celui dont tous les canaux assimiles ont respectivement
@@ -7083,7 +7093,7 @@ contains
     integer :: obsLonBurpFile, obsLatBurpFile
     integer, parameter :: numStnIdMax = 10
     integer :: numStnId, stnIdIndexFound, stnIdIndex, countMpi, numObsStnId(numStnIdMax)
-    character(len=12) :: stnid, stnidList(numStnIdMax)
+    character(len=obs_stnidLength)   :: stnid, stnidList(numStnIdMax)
     character(len=codtyp_name_length) :: instrumName
 
     instrumName = codtyp_get_name(codtyp)
@@ -7232,9 +7242,13 @@ contains
     do latIndex = 1, numLat
       gridLats(latIndex) = (latIndex*180./numLat) - 90.
       if ( gridLats(latIndex) <= 0.0 ) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex),8) * MPC_PI_R8 / 180.0d0, 4)
       else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+        ! TODO: simplify the floating point precision conversions
+        !     latInRadians = gridLats(latIndex-1) * MPC_PI_R4 / 180.
+        latInRadians = real( real(gridLats(latIndex-1),8) * MPC_PI_R8 / 180.0d0, 4)
       end if
       length = lonLength * cos(latInRadians)
       numGridLons(latIndex)   = nint(length/deltax)
@@ -7303,10 +7317,10 @@ contains
       lonBoxCenterInDegrees = (360. / numGridLons(latBinIndex)) * (lonBinIndex - 0.5)
       obsLat = (obsLatBurpFile - 9000.) / 100.
       obsLon = obsLonBurpFile / 100.
-      distance = 1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * lonBoxCenterInDegrees, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
-                                           MPC_RADIANS_PER_DEGREE_R8 * obsLon )
+      distance = real(1.0d-3 * phf_calcDistance(MPC_RADIANS_PER_DEGREE_R8 * latBoxCenterInDegrees, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * lonBoxCenterInDegrees, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * obsLat, &
+                                                MPC_RADIANS_PER_DEGREE_R8 * obsLon ), 4)
 
       ! Apply thinning criteria
       keepThisObs = .false.
@@ -7703,8 +7717,8 @@ contains
     ! Setup thinning grid parameters
     allocate(lonGrid(hco_thinning%ni))
     allocate(latGrid(hco_thinning%nj))
-    lonGrid(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
-    latGrid(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    lonGrid(:) = real(hco_thinning%lon(:)*MPC_DEGREES_PER_RADIAN_R8,4)
+    latGrid(:) = real(hco_thinning%lat(:)*MPC_DEGREES_PER_RADIAN_R8,4)
     allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
 
     ! Allocate vectors
@@ -7764,7 +7778,7 @@ contains
 
       if (flg_flagIsOn(obsData, bodyIndex, flg_09rejBgck)) cycle HEADER
 
-      obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+      obsSST(headerIndex) = real(obs_bodyElem_r(obsData, obs_var, bodyIndex),4)
 
       ! obs lat and lon in degrees
       obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
@@ -7794,8 +7808,8 @@ contains
       obsLatIndexVec(headerIndex) = obsLatIndex
       obsLonIndexVec(headerIndex) = obsLonIndex
       obsTimeIndexVec(headerIndex) = obsStepIndex
-      obsDistance  = sqrt(deltaLon**2 + deltaLat**2)
-      sizeGridCell = sqrt(deltaLonCell**2 + deltaLatCell**2)
+      obsDistance  = real(sqrt(deltaLon**2 + deltaLat**2),4)
+      sizeGridCell = real(sqrt(deltaLonCell**2 + deltaLatCell**2),4)
 
       ! reject data that are farther than the given fraction of the size of grid cell
       if (obsDistance > sizeGridCell * fractionGridCell) valid(headerIndex) = .false.
@@ -7940,7 +7954,7 @@ contains
     real(8), allocatable :: obsValue(:), obsValueMpi(:)
     logical, save        :: firstCall = .true.
     real(4), allocatable :: obsLonInDeg(:), obsLatInDeg(:), obsLonInDegMpi(:), obsLatInDegMpi(:)
-    character(len=9), allocatable :: obsStnId(:), obsStnIdMpi(:)
+    character(len=obs_stnidLength), allocatable :: obsStnId(:), obsStnIdMpi(:)
 
     type(kdtree2), pointer    :: tree
     integer, parameter        :: maxNumSearch = 5000
@@ -8115,8 +8129,14 @@ contains
 
         ! For diagnostics
         if (writeDiagnostics) then
-          obsLonInDeg(headerIndex) = obsLonInRad * mpc_degrees_per_radian_r4
-          obsLatInDeg(headerIndex) = obsLatInRad * mpc_degrees_per_radian_r4
+          ! TODO: simplify the floating point precision conversions
+          !     obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8, 4)
+          !     obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8, 4)
+          ! or
+          !     obsLonInDeg(headerIndex) = real(obsLonInRad,4) * mpc_degrees_per_radian_r4
+          !     obsLatInDeg(headerIndex) = real(obsLatInRad,4) * mpc_degrees_per_radian_r4
+          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8,4)
+          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8,4)
         end if
 
         ! Observed value

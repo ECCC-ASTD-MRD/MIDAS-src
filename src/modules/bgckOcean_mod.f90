@@ -44,7 +44,7 @@ module bgckOcean_mod
   real(8)           :: maxLatNH = 40.d0              ! max lat of N. hemisphere lat band where TS is detected
   real(8)           :: maxLatExceptionNH = 45.d0     ! max lat of N. hemisphere lat band allows TS to penetrate further North in some months
   integer           :: nmonthsExceptionNH  = 0       ! MUST NOT BE INCLUDED IN NAMELIST!
-  character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
+  character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North
   real(8)           :: minLatSH = -35.d0             ! min lat of Southern hemisphere latutude band where TS is detected
   real(8)           :: maxLatSH = -10.d0             ! max lat of Southern hemisphere latutude band where TS is detected
   real(8)           :: smoothLenghtScale = 50000.d0  ! length scale. in m, to smooth the amplification error field
@@ -55,7 +55,7 @@ module bgckOcean_mod
   real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
   real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
   real(8)           :: seaWaterThreshold = 0.1d0     ! threshold to distinguish inland water from sea water
-  logical           :: fourSeasonsBgstdSST = .false. ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov. 
+  logical           :: fourSeasonsBgstdSST = .false. ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov.
 
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
@@ -91,13 +91,13 @@ module bgckOcean_mod
     type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
     integer                     :: ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
-    integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
+    integer                     :: numberObsInsitu, numberObsInsituRejected, codeType
     real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
     type(struct_columnData)     :: columnFGE, columnSeaWaterFraction
     real(8), pointer            :: stateVectorFGE_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
-    
+
     call msg('ocebg_bgCheckSST', 'performing background check for the SST data...')
 
     ! get mpi topology
@@ -166,9 +166,9 @@ module bgckOcean_mod
                             unitConversion_opt=.false., containsFullField_opt=.true.)
     end if
     call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
-    
+
     if (checkWinds) then
-      call utl_tmg_start(122, '--checkWindsForSST') 
+      call utl_tmg_start(122, '--checkWindsForSST')
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
       call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
       call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
@@ -186,8 +186,8 @@ module bgckOcean_mod
           call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
         end if
       end do
-      
-      ! amplification error field state vector  
+
+      ! amplification error field state vector
       call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 8, &
                         hInterpolateDegree_opt = 'LINEAR', dateStampList_opt = (/dateStamp/), &
                         mpi_local_opt = .true., varNames_opt = (/'TM'/))
@@ -195,14 +195,14 @@ module bgckOcean_mod
       stateVectorAmplFactor_ptr(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1) = 1.0d0
 
       call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
-      
+
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           stateVectorFGE_ptr(lonIndex, latIndex, 1) = stateVectorFGE_ptr(lonIndex, latIndex, 1) * &
                                                       stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
         end do
-      end do      
+      end do
       call gsv_deallocate(stateVectorAmplFactor)
       call utl_tmg_stop(122)
     end if
@@ -232,7 +232,7 @@ module bgckOcean_mod
           OER = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
           codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
 
-          if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(FGE, MPC_missingValue_R8) .and. .not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs = numberObs + 1
             if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
@@ -252,7 +252,7 @@ module bgckOcean_mod
                   obsFlag = ocebg_setFlag(obsVarno, bgCheck, seaWaterSelectCriteriaSatData)
                 else
                   obsFlag = ocebg_setFlag(obsVarno, bgCheck, seaWaterSelectCriteriaInsitu)
-                end if 
+                end if
               end if
             else
               obsFlag = ocebg_setFlag(obsVarno, bgCheck, globalSelectCriteria)
@@ -266,7 +266,7 @@ module bgckOcean_mod
                                               //obs_elem_c(obsData, 'STID' , headerIndex)//' data: ', codeType, &
                                               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
                                               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
-                                              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag 
+                                              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag
             end if
 
             ! update background check flags based on bgCheck
@@ -307,7 +307,7 @@ module bgckOcean_mod
     if (separateSelectCriteria) then
       call col_deallocate(columnSeaWaterFraction)
       call gsv_deallocate(stateVectorSeaWaterFraction)
-    end if      
+    end if
 
   end subroutine ocebg_bgCheckSST
 
@@ -338,25 +338,25 @@ module bgckOcean_mod
     integer              :: obsDateStamp
     integer, allocatable :: numberObs(:), bodyIndexList(:,:)
     integer, allocatable :: minDateStamp(:), maxDateStamp(:), swathID(:)
-    real, allocatable    :: rmsDiff(:)
+    real,    allocatable :: rmsDiff(:)
     integer              :: swathIndex, nSwath
     real(8)              :: OmP, deltaHours
     integer              :: numberObsRejected
-    character(len=12)    :: cstnid
+    character(len=obs_stnidLength) :: cstnid
     integer, external    :: newdate
     integer              :: imode, prntdate, prnttime
     integer, parameter   :: numStationMax = 14              ! maximum number of 'idStation' values
 
     ! Namelist variables: (local)
     integer           :: numStation = MPC_missingValue_INT  ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=12) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
     integer           :: maxSwath = 10                      ! maximum number of swaths
     integer           :: maxPerSwath = 200000               ! maximum number of data per swath
+    character(len=obs_stnidLength) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
- 
+
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namIceBGcheck','./flnml')) then
       if (mmpi_myid == 0) then
@@ -418,7 +418,7 @@ module bgckOcean_mod
              obsChid == swathID(swathIndex)) exit
 
           call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
-            
+
           if(abs(deltaHours) <= 0.5d0 .and. obsChid == swathID(swathIndex)) exit
 
         end do
@@ -441,10 +441,12 @@ module bgckOcean_mod
 
           OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
 
-          if (OmP /= MPC_missingValue_R8) then
+          if (.not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs(swathIndex) = numberObs(swathIndex) + 1
-            rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
+            ! TODO: simplify the floating point precision conversions
+            !   rmsDiff(swathIndex) = rmsDiff(swathIndex) + real(OmP,4)**2
+            rmsDiff(swathIndex) = real(real(rmsDiff(swathIndex),8) + (OmP)**2, 4)
             if (numberObs(swathIndex) <= maxPerSwath) then
               bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
             else
@@ -515,12 +517,12 @@ module bgckOcean_mod
     ! Arguments:
     integer, intent(in) :: obsVarno          ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
     real(8), intent(in) :: bgCheck           ! normalized background departure
-    real(8), intent(in) :: selectCriteria(:) ! selection criteria for three levels 
+    real(8), intent(in) :: selectCriteria(:) ! selection criteria for three levels
     ! Result:
     integer             :: obsFlag  ! obs flag
 
     obsFlag = 0
- 
+
     if (obsVarno == bufr_sst) then
       if (bgCheck >= selectCriteria(1) .and. bgCheck < selectCriteria(2)) then
         obsFlag = 1
@@ -539,14 +541,14 @@ module bgckOcean_mod
   subroutine ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
     !
     ! :Purpose: Read wind speed fields for the last four days.
-    !           In the operations: 
+    !           In the operations:
     !           The background error used during the background check is then
     !           amplified in those regions by a factor that varies from 1,
     !           where the maximum wind speed is 21m/s or less, to 12,
     !           where the maximum wind speed is 24m/s or more.
     !           The factor is then filtered to produce a smoothly varying
     !           field. This amplified background error is used only to
-    !           perform the background check. 
+    !           perform the background check.
     !
     implicit none
 
@@ -568,9 +570,9 @@ module bgckOcean_mod
     integer                   :: lonIndex, latIndex, monthIndex
     real(8)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
     real(8)                   :: amplFactor
-    
+
     nullify(vco_winds)
-    
+
     ! looking for the earliest valid time:
     deltaT = - real(ndaysWinds * 24 - windForecastLeadtime)
     call incdatr(dataStampList(1), dateStamp, deltaT)
@@ -586,7 +588,7 @@ module bgckOcean_mod
                       dateStampList_opt = dataStampList, dataKind_opt = 8, &
                       varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
                       hInterpolateDegree_opt = 'LINEAR')
-      
+
     call msg('ocebg_getFGEamplification', 'reading wind speed fields...')
     do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
       call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
@@ -628,7 +630,7 @@ module bgckOcean_mod
                              vv_ptr4d(lonIndex, latIndex, 1, timeStepIndex) * &
                              vv_ptr4d(lonIndex, latIndex, 1, timeStepIndex))
             amplFactor = max(1.0d0, min(4.0d0 * max(0.0d0,(windSpeed - 20.75d0)), 12.0d0))
-            ! stateVectorAmplFactor_ptr may already be assigned with a value > 1.0 in a previous state 
+            ! stateVectorAmplFactor_ptr may already be assigned with a value > 1.0 in a previous state
             if(amplFactor > stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)) then
               stateVectorAmplFactor_ptr(lonIndex, latIndex, 1) = amplFactor
             end if
@@ -641,9 +643,9 @@ module bgckOcean_mod
 
     call gsv_deallocate(stateVector)
 
-    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'ORIG')      
+    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'ORIG')
     call gsv_smoothHorizontal(stateVectorAmplFactor, smoothLenghtScale)
-    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'SMOOTH')        
+    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'SMOOTH')
 
   end subroutine ocebg_getFGEamplification
 

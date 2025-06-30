@@ -20,7 +20,6 @@ module bgckSSMIS_mod
   public :: ssbg_computeSsmisSurfaceType
   public :: ssbg_bgCheckSSMIS
 
-  real    :: ssbg_clwQcThreshold
   logical :: ssbg_debug
 
   real,    parameter :: ssbg_realMissing=-99.
@@ -161,7 +160,7 @@ contains
     real,    intent(out) :: Remapped_SSMI_Ta(ssbg_maxNumChan) ! Remapped SSMI antenna temperature
 
     ! Locals:
-    integer, parameter :: f16_id = 1
+    ! integer, parameter :: f16_id = 1
     integer, parameter :: f17_id = 2
     integer, parameter :: f18_id = 3
     integer(2)         :: channelIndex
@@ -199,7 +198,7 @@ contains
     end if
 
     do channelIndex=1, ssbg_maxNumChan
-      Remapped_SSMI_Ta(channelIndex) = AP(channelIndex) + BP(channelIndex)*(tbx(channelIndex)+CP(channelIndex))
+      Remapped_SSMI_Ta(channelIndex) = real(AP(channelIndex) + BP(channelIndex)*(tbx(channelIndex)+CP(channelIndex)),4)
     end do
 
   end subroutine f16tdr_remapping
@@ -236,8 +235,10 @@ contains
 
     ! All channel antenna gain correction. Note the cross-polarization effects on antenna gain correction.
     do channelIndex=1, 24
-      CP(channelIndex) = 1.0/( AP(channelIndex)*(1.0 - BP(channelIndex)) )
-      DP(channelIndex) = CP(channelIndex) * BP(channelIndex)
+      CP(channelIndex) = real(1.d0/( AP(channelIndex)*(1.d0 - BP(channelIndex)) ), 4)
+      ! TODO: simplify the floating point precision conversions
+      !     DP(channelIndex) = CP(channelIndex) * real(BP(channelIndex),4)
+      DP(channelIndex) = real( real(CP(channelIndex),8) * BP(channelIndex), 4)
       Tb(channelIndex) = CP(channelIndex)*Ta(channelIndex)
     end do
 
@@ -538,7 +539,7 @@ contains
     call determ_sea_ice(ocean, Ta, sType, seaIce, latitude)
 
     ! Calculate CLW Over Ocean
-    if ( (sType == ocean) .and. (seaIce /= 100.0) ) then
+    if ( (sType == ocean) .and. (.not. utl_isEqual(seaIce, 100.0)) ) then
       ALG1 = ssbg_rmisg
       ALG2 = ssbg_rmisg
       ALG3 = ssbg_rmisg
@@ -582,7 +583,7 @@ contains
       if ( CLW > clwLimit ) CLW = ssbg_rmisg
 
       ! Force negative CLW values to zero.
-      if ( CLW < 0.0 .and. CLW /= ssbg_rmisg ) CLW = 0.0
+      if ( CLW < 0.0 .and. .not. utl_isEqual(CLW, ssbg_rmisg) ) CLW = 0.0
 
     else
       ! Sea Ice (>70%) detected from s/r determ_sea_ice but sType was 0 = waterobs (on call)
@@ -684,7 +685,7 @@ contains
           ! Missing value for IWV means possible precipitation
           ! and so CLW will not be computed
           call compute_iwv_101(Tb,iwv)
-          if ( iwv == ssbg_rmisg ) precipObs(obsIndex) = .true.
+          if ( utl_isEqual(iwv, ssbg_rmisg) ) precipObs(obsIndex) = .true.
         else if ( trim(algOption) == 'nsun' ) then
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
@@ -712,14 +713,14 @@ contains
         ! Also, reject obs if CLW is missing (undetermined)
         ! Set waterObs flag to false if deter_clw returns "seaIce" value (-500)
         if ( (clw > ssbg_clwThresh) .or. precipObs(obsIndex) ) cloudObs(obsIndex) = .true.
-        if ( clw == ssbg_rmisg )  cloudObs(obsIndex) = .true.
-        if ( clw == -500.0 ) then
+        if ( utl_isEqual(clw, ssbg_rmisg) )  cloudObs(obsIndex) = .true.
+        if ( utl_isEqual(clw,-500.0) ) then
            waterObs(obsIndex) = .false.
            clw = ssbg_rmisg
         end if
         ! Reject obs with IWV value more than threshold and set IWV to missing.
         ! First, set IWV values below zero to 0.0.
-        if ( iwv < 0.0 .and. iwv /= ssbg_rmisg ) iwv = 0.0
+        if ( iwv < 0.0 .and. .not. utl_isEqual(iwv, ssbg_rmisg) ) iwv = 0.0
         if ( iwv > iwvThresh ) then
           if ( .not. cloudObs(obsIndex) ) iwvReject(obsIndex) = .true.
           iwv = ssbg_rmisg
@@ -736,9 +737,6 @@ contains
       end if
 
     end do HEADER
-
-    120  format(' obsIndex ',2x,i3,2x,' clw ',f4.2,2x,' CLW threshold = ',f4.2,2x,' cloudObs ',l2)
-    130  format(' obsIndex ',2x,i3,2x,' iwv ',f4.2,2x,' IWV threshold = ',f4.2,2x,' iwvReject ',l2)
 
   end subroutine cld_filter_fweng
 
@@ -1507,10 +1505,10 @@ contains
 
     ! Define the land/sea qualifier for each point based on wentz surface values.
     do obsIndex = 1, numObsToProcess
-      if ( wenTyp(obsIndex) == 0. .or. wenTyp(obsIndex) == 6. ) then
+      if ( utl_isEqual(wenTyp(obsIndex),0.) .or. utl_isEqual(wenTyp(obsIndex),6.) ) then
         ! wentz = land/coast --> land
         landSeaQualifier(obsIndex) = 0
-      else if ( wenTyp(obsIndex) == 4. .or. wenTyp(obsIndex) == 5. ) then
+      else if ( utl_isEqual(wenTyp(obsIndex),4.) .or. utl_isEqual(wenTyp(obsIndex),5.) ) then
         ! wentz = sea/sea-ice --> sea
         landSeaQualifier(obsIndex) = 1
       else
@@ -1568,11 +1566,14 @@ contains
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
-      obsLatitude(1)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-      obsLongitude(1) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
-      obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R8
+      obsLatitude(1)  = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+      obsLongitude(1) = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
+      ! TODO: simplify the floating point precision conversions
+      !     obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R4
+      !     obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R4
+      obsLongitude(1) = real( real(obsLongitude(1),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
       if( obsLongitude(1) > 180. ) obsLongitude(1) = obsLongitude(1) - 360.
-      obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R8
+      obsLatitude(1)  = real( real(obsLatitude(1),8) *MPC_DEGREES_PER_RADIAN_R8, 4)
       call wentz_sfctype_ssmis(1, obsLatitude, obsLongitude, landSeaQualifier)
       call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
       call obs_headSet_r(obsSpaceData, OBS_SZA, headerIndex,satZenithAngle)
@@ -1656,7 +1657,7 @@ contains
 
     ! Locals:
     ! arrays to get from obsspacedata
-    character(len=9)           :: burpFileSatId
+    character(len=obs_stnidLength) :: burpFileSatId
     integer, allocatable       :: landSeaQualifier(:)
     integer, allocatable       :: terrainType(:)
     integer, allocatable       :: ukRainObs(:)
@@ -1792,18 +1793,21 @@ contains
     ! Lecture dans obsspacedata
 
     burpFileSatId                 = obs_elem_c    ( obsSpaceData, 'STID'  , headerIndex )
-    rclw(headerCompt)             = obs_headElem_r( obsSpaceData, OBS_CLWO, headerIndex )
     ukRainObs(headerCompt)        = obs_headElem_i( obsSpaceData, OBS_RAIN, headerIndex )
     landSeaQualifier(headerCompt) = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex )
     terrainType(headerCompt)      = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex )
+    rclw(headerCompt)             = real(obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex),4)
     ! If terrain type is missing, set it to -1 for the QC programs
     if (terrainType(headerCompt) ==  99) terrainType(headerCompt) = -1
-    obsLatitude(headerCompt)      = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-    obsLongitude(headerCompt)     = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
-    satZenithAngle(headerCompt)   = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex )
+    obsLatitude(headerCompt)      = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLongitude(headerCompt)     = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
+    satZenithAngle(headerCompt)   = real(obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex),4)
     ! Convert lat/lon to degrees
-    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    ! TODO: simplify the floating point precision conversions
+    !     obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R4
+    !     obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R4
+    obsLatitude(headerCompt)  = real(real(obsLatitude (headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
+    obsLongitude(headerCompt) = real(real(obsLongitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8, 4)
     if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
 
     ! To read body elements
@@ -1812,10 +1816,10 @@ contains
 
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      if (obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex ) /= ssbg_rmisg) then
-        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex ) - obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex )
+      if (.not. utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex), real(ssbg_rmisg,8)) ) then
+        obsTb(currentChannelNumber) = real(obs_bodyElem_r(obsSpaceData,  OBS_VAR, bodyIndex) - obs_bodyElem_r(obsSpaceData,  OBS_BCOR, bodyIndex), 4)
       else
-        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+        obsTb(currentChannelNumber) = real(obs_bodyElem_r(obsSpaceData,  OBS_VAR, bodyIndex),4)
       end if
     end do BODY
 
@@ -1933,7 +1937,8 @@ contains
     ! Compute the AMSU-B Dryness Index for all points
     !--------------------------------------------------------------------
 
-    where ( (ztb_amsub3 /= ssbg_realMissing) .and. (ztb_amsub5 /= ssbg_realMissing) )
+    where ( .not. utl_isEqual(ztb_amsub3(:),ssbg_realMissing) .and. &
+            .not. utl_isEqual(ztb_amsub5(:),ssbg_realMissing) )
       amsubDrynessIndex = ztb_amsub3 - ztb_amsub5
     elsewhere
       amsubDrynessIndex = ssbg_realMissing
@@ -1976,11 +1981,11 @@ contains
           !        Check BSI and DI for AMSU-B 3-4
           !         Bennartz Scattering Index
           !         Land point
-          if ( scatL(obsIndex) > 0.0  .and. scatL(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
+          if ( scatL(obsIndex) > 0.0  .and. .not. utl_isEqual(scatL(obsIndex),ssbg_realMissing) )   obsToReject(10:11) = .true.
           !         Sea-ice point
-          if ( scatW(obsIndex) > 40.0 .and. scatW(obsIndex) /= ssbg_realMissing )   obsToReject(10:11) = .true.
+          if ( scatW(obsIndex) > 40.0 .and. .not. utl_isEqual(scatW(obsIndex),ssbg_realMissing) )   obsToReject(10:11) = .true.
           !         Missing scattering index
-          if ( scatW(obsIndex) == ssbg_realMissing .and. scatL(obsIndex) == ssbg_realMissing ) obsToReject(10:11) = .true.
+          if ( utl_isEqual(scatW(obsIndex),ssbg_realMissing) .and. utl_isEqual(scatL(obsIndex),ssbg_realMissing) ) obsToReject(10:11) = .true.
           if ( any(obsToReject(10:11))) then
             numLandScatObs = numLandScatObs + 1
           end if
@@ -2026,7 +2031,7 @@ contains
           !        Check BSI for AMSU B channels 2-5 for all water obs
           !        Bennartz Scattering Index ( AMSU-B 2-5)
           !        Open water point
-          if ( scatW(obsIndex) > 15.0 .and. scatW(obsIndex) /= ssbg_realMissing ) then
+          if ( scatW(obsIndex) > 15.0 .and. .not. utl_isEqual(scatW(obsIndex),ssbg_realMissing) ) then
             obsToReject(8:11) = .true.
             numSeaScatObs = numSeaScatObs + 1
             if ( precipObs(obsIndex) ) numScatPrecipObs = numScatPrecipObs + 1
@@ -2054,7 +2059,7 @@ contains
     !-------------------------------------------------------------------------------
     call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
     call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainType(1))
-    if (scatW(1) /= ssbg_realMissing) then
+    if (.not. utl_isEqual(scatW(1),ssbg_realMissing)) then
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
     else
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
@@ -2241,7 +2246,7 @@ contains
     integer, allocatable, intent(out)   :: flagsInovQc(:)    ! Flags for assimilation/rejection of obs
 
     ! Locals:
-    character(len=9)     :: burpFileSatId            ! Satellite ID
+    character(len=obs_stnidLength) :: burpFileSatId ! Satellite ID
     integer, allocatable :: obsChannels(:)           ! channel numbers
     integer, allocatable :: obsFlags(:)              ! data flags
     integer              :: actualNumChannel         ! actual Num channel
@@ -2324,15 +2329,15 @@ contains
 
     ! Lecture dans obsspacedata
     burpFileSatId             = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex )
-    obsLatitude(headerCompt)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
-    obsLongitude(headerCompt) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
+    obsLatitude(headerCompt)  = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
+    obsLongitude(headerCompt) = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
 
     bodyIndexBeg = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) -1
 
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      ompTb(currentChannelNumber)    = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
+      ompTb(currentChannelNumber)    = real(obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex),4)
       obsFlags(currentChannelNumber) = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
     end do BODY
 
@@ -2340,9 +2345,12 @@ contains
       obsChannels(channelIndex) = channelIndex+tvs_channelOffset(sensorIndex)
     end do
 
+    ! TODO: simplify the floating point precision conversions
+    !    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R4
+    !    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R4
     ! Convert lat/lon to degrees
-    obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
+    obsLatitude(headerCompt)  = real( real( obsLatitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8,4)
+    obsLongitude(headerCompt) = real( real(obsLongitude(headerCompt),8)*MPC_DEGREES_PER_RADIAN_R8,4)
     if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
 
     !--------------------------------------------------------------------
@@ -2460,7 +2468,9 @@ contains
     HEADER0: do obsChanIndex = 1, numObsToProcess*actualNumChannel
 
       channelNumber = obsChannels(obsChanIndex)
-      productRogueSTD = rogueFac(channelNumber) * oer_toverrst(channelNumber,sensorIndex)
+      ! TODO: simplify the floating point precision conversions
+      !    productRogueSTD = rogueFac(channelNumber) * real(oer_toverrst(channelNumber,sensorIndex),4)
+      productRogueSTD = real( real(rogueFac(channelNumber),8) * oer_toverrst(channelNumber,sensorIndex), 4)
 
       if ( .not. flg_flagIsOn(obsFlags(obsChanIndex),flg_07rejVarious) ) then
 
@@ -2516,7 +2526,9 @@ contains
 
       ! AMSU-A like ch. 1-4
       if ( sum(flagsInovQc(chanIndex1:chanIndex4)) /= 4 ) then
-        productRogueSTD = factorCh1 * oer_toverrst(1,sensorIndex)
+        ! TODO: simplify the floating point precision conversions
+        !     productRogueSTD = factorCh1 * real(oer_toverrst(1,sensorIndex),4)
+        productRogueSTD = real( real(factorCh1,8) * oer_toverrst(1,sensorIndex), 4)
         if ( abs(ompTb(chanIndex1)) >= productRogueSTD ) then
           do chanIndex = chanIndex1, chanIndex4
             channelNumber = obsChannels(chanIndex)
@@ -2623,7 +2635,7 @@ contains
       topoHeight = modelInterpTer(obsIndex)           ! model topography height [m]
 
       if (ssbg_debug) then
-        if (topoHeight == maxval(modelInterpTer) .and. topoHeight > minval(topoLimit)) then
+        if (utl_isEqual(topoHeight, maxval(modelInterpTer)) .and. topoHeight > minval(topoLimit)) then
           write(*,*) 'check_topo: ****** Max height point! topoHeight = ', topoHeight
           debugSupp = .true.
         end if

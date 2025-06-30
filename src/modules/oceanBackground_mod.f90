@@ -11,16 +11,16 @@ module oceanBackground_mod
   use verticalCoord_mod
   use timeCoord_mod
   use utilities_mod
-  
+
   implicit none
   save
   private
 
   ! Public functions/subroutines
   public :: obgd_computeSSTrial
- 
+
   ! External functions
-  integer, external :: fnom, fclos  
+  integer, external :: fnom, fclos
 
   contains
 
@@ -32,28 +32,28 @@ module oceanBackground_mod
     !
     !: Purpose: 1) to compute SST analysis anomaly w.r.t. climatology
     !              x_anomaly(t-1) = (xa(t-1) - xclim(t-1))
-    !           2) to compute SST background   
-    !              xb(t) = x_anomaly(t-1) * alpha + xclim(t)             
+    !           2) to compute SST background
+    !              xb(t) = x_anomaly(t-1) * alpha + xclim(t)
     implicit none
 
     ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco               ! horizontal grid
     type(struct_vco), pointer, intent(in) :: vco               ! vertical grid
     integer                  , intent(in) :: trialDateStamp    ! trial datestamp
-    integer                  , intent(in) :: analysisDateStamp ! datestamp for last analysis 
+    integer                  , intent(in) :: analysisDateStamp ! datestamp for last analysis
     integer                  , intent(in) :: nmonthsClim       ! number of climatological fields (= 12)
     integer                  , intent(in) :: datestampClim(:)  ! datestamps of input climatology fields
     real(8)                  , intent(in) :: alphaClim         ! scalling factor to relax towards climatology
     character(len=10)        , intent(in) :: etiket            ! etiket from namelist and for trial
-    
+
     ! Locals:
-    type(struct_gsv) :: stateVector, stateVectorAnomaly 
+    type(struct_gsv) :: stateVector, stateVectorAnomaly
     real(8), pointer :: stateVector_ptr(:, :, :), stateVectorAnomaly_ptr(:, :, :)
     integer          :: lonIndex, latIndex, status
     real(8)          :: climatology_m1(hco % ni, hco % nj), climatology(hco % ni, hco % nj)
-    
-    write(*,*) 'obgd_computeSSTrial: starting...'  
-      
+
+    write(*,*) 'obgd_computeSSTrial: starting...'
+
     ! make a copy of analysis file
     status = utl_copyFile('./analysis', './analysisAndAnomaly')
 
@@ -72,13 +72,13 @@ module oceanBackground_mod
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gsv_copy(stateVector, stateVectorAnomaly)
     call gsv_getField(stateVectorAnomaly, stateVectorAnomaly_ptr)
-    
+
     call obgd_getClimatology(analysisDateStamp, hco, vco, nmonthsClim, datestampClim, climatology_m1)
     call obgd_getClimatology(trialDateStamp   , hco, vco, nmonthsClim, datestampClim, climatology)
-    
+
     ! compute background state
     ! xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)
-    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
+    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         stateVectorAnomaly_ptr(lonIndex, latIndex, 1) = stateVector_ptr(lonIndex, latIndex, 1) - &
                                                         climatology_m1(lonIndex, latIndex)
@@ -93,7 +93,7 @@ module oceanBackground_mod
 
     ! modify dateStamp (from analysis) with trial dateStamp
     call gsv_modifyDate(stateVector, trialDateStamp, modifyDateOrigin_opt = .true.)
-    
+
     ! save trial field in RPN standard file
     call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
@@ -110,14 +110,14 @@ module oceanBackground_mod
     call gsv_deallocate(stateVectorAnomaly)
 
   end subroutine obgd_computeSSTrial
-  
+
   !----------------------------------------------------------------------------------------
   ! obgd_getClimatology
   !----------------------------------------------------------------------------------------
   subroutine obgd_getClimatology(dateStamp, hco, vco, nmonthsClim, datestampClim, output)
     !
     !: Purpose: 1) to read SST climatological fields from a std file
-    !           2) to interpolate the field in time using the current day (t) in current month (m)    
+    !           2) to interpolate the field in time using the current day (t) in current month (m)
     !           SST(t) = SST_neighbourMonth * weight + SST_currentMonth * (1.0 - weight),
     !
     implicit none
@@ -126,10 +126,10 @@ module oceanBackground_mod
     integer                  , intent(in)    :: dateStamp        ! date stamp for the current day
     type(struct_hco), pointer, intent(in)    :: hco              ! horizontal grid
     type(struct_vco), pointer, intent(in)    :: vco              ! vertical grid
-    integer                  , intent(in)    :: nmonthsClim      ! number of records in the climatology file 
+    integer                  , intent(in)    :: nmonthsClim      ! number of records in the climatology file
     integer                  , intent(in)    :: datestampClim(:) ! datestamps in the climatology file
     real(8)                  , intent(inout) :: output(:,:)      ! interpolated SST field from climatology
-  
+
     ! Locals:
     integer          :: hour, day, month, yyyy  ! these variables correspond to the current time (dateStamp)
     integer          :: ndays                   ! number of days in the current month
@@ -174,39 +174,39 @@ module oceanBackground_mod
 
     ! Difference (in hours) between the 15th of the current and neighbour months
     call difdatr(dataStampMonth, dataStampNeighbourMonth, numberHours)
-    if (numberHours == 2.d0**30) then
+    if (utl_isEqual(numberHours, 2.d0**30)) then
       call utl_abort('obgd_getClimatology: difdatr received invalid arguments: '//&
                                            char(dataStampMonth)//' and '//&
                                            char(dataStampNeighbourMonth))
-    end if 
+    end if
     ! safe check: the number of hours cannot be greater than 31 days * 24h = 744h
     if (abs(numberHours) > 744.d0) then
       call utl_abort('obgd_getClimatology: number of hours between two months exceeds 744h!')
     end if
     ! safe check: the number of hours cannot be equal to zero
-    if (numberHours == 0.d0) then
+    if (utl_isEqual(numberHours, 0.d0)) then
       call utl_abort('obgd_getClimatology: number of hours between two neighbour months is zero!')
     end if
- 
+
     ! computing weight for linear interpolation of climatology in time
     ! The weight depends on the distance between the current day and the 15th of the month
-    ! and the number of days between the 15th of the month and the neighbour month  
+    ! and the number of days between the 15th of the month and the neighbour month
     weight = abs(real(day - 15, 8) * 24.d0 / numberHours)
     write(*,*) 'obgd_getClimatology: weight for the current date: ', weight
 
     ! get climatology, current month
     write(*,*) 'obgd_getClimatology: reading climatology, current month: ', &
-               month, ', datestamp: ', datestampClim(month) 
+               month, ', datestamp: ', datestampClim(month)
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = datestampClim(month:month), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector, clim_ptr)
-    
+
     ! get climatology, neighbour month
     write(*,*) 'obgd_getClimatology: reading climatology, neighbour month: ', &
-               neighbourMonth, ', datestamp: ', datestampClim(neighbourMonth) 
+               neighbourMonth, ', datestamp: ', datestampClim(neighbourMonth)
     call gsv_allocate(stateVector_neighbourMonth, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = datestampClim(neighbourMonth:neighbourMonth), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
@@ -214,16 +214,16 @@ module oceanBackground_mod
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_neighbourMonth, clim_neighbourMonth_ptr)
 
-    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
+    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) * (1.0d0 - weight) + &
                                      clim_neighbourMonth_ptr(lonIndex, latIndex, 1) * weight
       end do
     end do
-    
+
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVector_neighbourMonth)
-  
-  end subroutine obgd_getClimatology 
-  
-end module oceanBackground_mod  
+
+  end subroutine obgd_getClimatology
+
+end module oceanBackground_mod

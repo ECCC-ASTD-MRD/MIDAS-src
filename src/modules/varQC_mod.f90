@@ -10,6 +10,7 @@ module varQC_mod
   use earthConstants_mod
   use codtyp_mod
   use bufr_mod
+  use utilities_mod
   use obsSpaceData_mod
   use columnData_mod
   use rmatrix_mod ,only : rmat_lnondiagr
@@ -130,7 +131,7 @@ module varQC_mod
                     ISTYP = obs_bodyElem_i( obsSpaceData, OBS_VNM, JJ )
                     ZSLEV = obs_bodyElem_r( obsSpaceData, OBS_PPP, JJ ) * MPC_MBAR_PER_PA_R8
                     if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS)  &
-                         .and. ZLEV == ZSLEV) then
+                         .and. utl_isEqual(ZLEV, ZSLEV)) then
                       IOTHER = JJ
                     end if
                   end do
@@ -139,7 +140,7 @@ module varQC_mod
                     ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
                     ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)*MPC_MBAR_PER_PA_R8
                     if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS)  &
-                         .and. ZLEV == ZSLEV) then
+                         .and. utl_isEqual(ZLEV, ZSLEV)) then
                       IOTHER = JJ
                     end if
                   end do
@@ -348,7 +349,7 @@ module varQC_mod
               ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
               if ((ISTYP == BUFR_NEVV .or.  &
                    ISTYP == BUFR_NEVS) .and.  &
-                   ZSLEV == ZLEV) then
+                   utl_isEqual(ZSLEV, ZLEV)) then
                 ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
                      obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
                 ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
@@ -370,7 +371,7 @@ module varQC_mod
               ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
               if ((ISTYP == BUFR_NEUU .or.  &
                    ISTYP == BUFR_NEUS) .and.  &
-                   ZSLEV == ZLEV) then
+                   utl_isEqual(ZSLEV, ZLEV)) then
                 ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
                      obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
                 ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
@@ -572,7 +573,7 @@ module varQC_mod
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
                    end if
                    if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS) .and. &
-                        ZLEV == ZSLEV) then
+                        utl_isEqual(ZLEV, ZSLEV)) then
                      IOTHER = bodyIndex2
                    end if
                  end do
@@ -587,7 +588,7 @@ module varQC_mod
                      ZSLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex2)
                    end if
                    if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS) .and.  &
-                        ZLEV == ZSLEV) then
+                        utl_isEqual(ZLEV, ZSLEV)) then
                      IOTHER = bodyIndex2
                    end if
                  end do
@@ -602,7 +603,7 @@ module varQC_mod
                  end if
                  SPD = SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDO = NINT(SPD)
-                 if (ZUU==0.D0 .and. ZVV==0.D0)then
+                 if (utl_isEqual(ZUU, 0.D0) .and. utl_isEqual(ZVV, 0.D0))then
                    IDIRO = 999
                  else
                    DEG = 270. - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
@@ -621,7 +622,7 @@ module varQC_mod
                  end if
                  SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDF = NINT(SPD)
-                 if (ZUU == 0.D0 .and. ZVV == 0.D0) then
+                 if (utl_isEqual(ZUU, 0.D0) .and. utl_isEqual(ZVV, 0.D0)) then
                    IDIRF = 999
                  else
                    DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8
@@ -640,7 +641,7 @@ module varQC_mod
                  end if
                  SPD=SQRT(ZUU*ZUU + ZVV*ZVV)
                  ISPDA = NINT(SPD)
-                 if (ZUU==0.D0 .and. ZVV==0.D0) then
+                 if (utl_isEqual(ZUU, 0.D0) .and. utl_isEqual(ZVV, 0.D0)) then
                    IDIRA = 999
                  else
                    DEG = 270.D0 - ATAN2(ZVV,ZUU)*MPC_DEGREES_PER_RADIAN_R8

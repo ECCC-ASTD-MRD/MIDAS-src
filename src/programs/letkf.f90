@@ -146,7 +146,7 @@ program midas_letkf
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            letkf analysis are listed in the following table:
-  ! 
+  !
   !======================== ============== ==============================================================
   ! Program/Module           Namelist       Description of what is controlled
   !======================== ============== ==============================================================
@@ -182,7 +182,7 @@ program midas_letkf
   use enkf_mod
   use ensPostProcess_mod
   use message_mod
-  
+
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -278,9 +278,9 @@ program midas_letkf
                      trim(enkfNML%algorithm))
     end if
   end if
-  
+
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if (.not. all(enkfNML%hLocalize(2:4) == enkfNML%hLocalize(1)) .and. useModulatedEns) then
+  if (.not. all( utl_isEqual(enkfNML%hLocalize(2:4),enkfNML%hLocalize(1)) ) .and. useModulatedEns) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
                    'letkf with modulated ensembles')
   end if
@@ -413,13 +413,13 @@ program midas_letkf
     call gsv_zero(stateVector4Dmod)
   end if
 
-  !- 2.9 Allocate statevector related to an analysis ensemble member  
+  !- 2.9 Allocate statevector related to an analysis ensemble member
   call gsv_allocate(stateVectorMemberAnl, tim_nstepobsinc, hco_ens, vco_ens, &
                     dateStamp_opt = tim_getDateStamp(),  &
                     mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
                     dataKind_opt = 4, allocHeightSfc_opt = .true.)
   call gsv_zero(stateVectorMemberAnl)
-  
+
   !- 2.10 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
   call gsv_allocate(stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
                     dateStamp_opt = tim_getDateStamp(),  &
@@ -436,7 +436,7 @@ program midas_letkf
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (enkfNML%recenterInputEns) then
-  
+
     call msg('midas-letkf', 'Read a deterministic state for recentering the ensemble.')
     call gsv_allocate(stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
                       dateStamp_opt = tim_getDateStamp(),  &
@@ -444,7 +444,7 @@ program midas_letkf
                       dataKind_opt = 4, allocHeightSfc_opt = .false., &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorRecenter)
-    
+
     call fln_ensTrlFileName(recenterFileName, './', tim_getDateStamp())
 
     do stepIndex = 1, tim_nstepobs
@@ -452,13 +452,13 @@ program midas_letkf
                             stepIndex_opt = stepIndex, containsFullField_opt = .true., &
                             readHeightSfc_opt = .false.)
     end do
-    
+
     call ens_recenter(ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt = 1.0d0)
     call gsv_deallocate(stateVectorRecenter)
     call msg('midas-letkf', 'Recentering the ensemble completed.')
-    
+
   end if
-  
+
   !- 2.13 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
@@ -467,7 +467,7 @@ program midas_letkf
   else
     call gsv_copy(stateVectorMeanTrl4D, stateVectorMeanAnl)
   end if
-  
+
   !- 2.14 Add posterior random additive inflation, if requested
   if (enkfNML%alphaRandomPertPrior > 0.0D0) then
     call msg('midas-letkf', 'Apply random additive inflation to prior ensemble.')
@@ -493,7 +493,7 @@ program midas_letkf
     end if
   else
     do memberIndex = 1, enkfNML%nEns
-  
+
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
       call msg_memUsage('midas-letkf')
@@ -699,9 +699,9 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo)
 
-  !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
+  !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired)
   if (enkfNML%outputEnsObs) then
-  
+
     do memberIndex = 1, enkfNML%nEns
 
       write(*,*) ''
@@ -711,7 +711,7 @@ program midas_letkf
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleAnl, stateVectorMemberAnl, memberIndex)
-      
+
       if (tim_nstepobsinc < tim_nstepobs) then
         ! ensembleAnl is only 3D, so need to make 4D for s2c_nl
         middleStepIndex = (tim_nstepobs + 1) / 2
@@ -721,16 +721,16 @@ program midas_letkf
       else
         call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
       end if
-      
+
       ! copy the surface height field
       if (nwpFields) then
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
-      end if  
-      
+      end if
+
       call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                   timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
 
-      ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
+      ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified)
       call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMAM, beSilent_opt=.true., &
                                  callFiltTopo_opt=.false., callSetErrGpsgb_opt=.false., analysisMode_opt=.false.)
 
@@ -738,9 +738,9 @@ program midas_letkf
       call eob_setYa(ensObs, memberIndex, OBS_OMAM)
 
     end do
-  
+
   end if
-  
+
   !- 6. Output obs files with mean OMP and (unrecentered) OMA
 
   ! Compute Y-H(Xa_mean) in OBS_OMA
@@ -764,13 +764,13 @@ program midas_letkf
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, &
                              beSilent_opt = .false.)
 
-  ! Write (update) observation files. 
+  ! Write (update) observation files.
   if (enkfNML%outputEnsObs) then
     call obsf_writeFiles(obsSpaceData, ensObs_opt=ensObs)
   else
     call obsf_writeFiles(obsSpaceData)
   end if
-  
+
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (enkfNML%ensPostProcessing) then
     call utl_printTime()
@@ -815,7 +815,7 @@ program midas_letkf
 
   !
   !- 8. MPI, tmg finalize
-  !  
+  !
   call msg_memUsage('midas-letkf')
   call utl_tmg_stop(0)
   call utl_printTime()
@@ -848,7 +848,7 @@ contains
     integer             :: randomSeed
 
     ! Locals:
-    integer :: imode, datePrint, timePrint, newdate 
+    integer :: imode, datePrint, timePrint, newdate
 
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)

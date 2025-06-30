@@ -33,7 +33,7 @@ module multiIRbgck_mod
   integer, parameter :: NIR = 3, NVIS = 3
   integer, parameter :: nChanAVHRR = NIR + NVIS
   integer, parameter :: nmaxinst = 10
- 
+
   ! Cloud top units : (1) mb, (2) meters
   ! (subroutines cloud_height (iopt1) and cloud_top (iopt2))
 
@@ -49,11 +49,11 @@ module multiIRbgck_mod
 
   integer, parameter :: bitflag = 29
 
-  real(8),parameter ::  albedoThresholdQC= 0.25d0 ! max albedo allowed over the water 
+  real(8),parameter ::  albedoThresholdQC= 0.25d0 ! max albedo allowed over the water
 
   real(8),parameter :: seuilalb_static(NIR,0:2)= reshape( (/ 70.0,67.0,50.0, &
                                                              40.0,37.0,37.0, &
-                                                             70.0,57.0,40. /),(/3,3/) ) 
+                                                             70.0,57.0,40. /),(/3,3/) )
   real(8),parameter :: seuilalb_homog(NIR,0:2)= reshape( (/ 15.0,18.0,13.0, &
                                                             9.0,10.0,10.0, &
                                                             18.0,16.0,10.0 /),(/3,3/) )
@@ -74,7 +74,7 @@ module multiIRbgck_mod
   character(len=7) :: inst(nmaxinst)    ! List of instrument names
   integer :: iwindow(nmaxinst)          ! Ref window channel for clear/cloudy profile detection
   integer :: iwindow_alt(nmaxinst)      ! Alternate window channel for clear/cloudy profile detection
-  integer :: ilist1(nmaxinst,nch_he)    ! Chan numbers for cloud top height detection: background profile matching 
+  integer :: ilist1(nmaxinst,nch_he)    ! Chan numbers for cloud top height detection: background profile matching
   integer :: ilist2(nmaxinst,nco2)      ! Chan numbers for cloud top height detection: CO2-slicing
   integer :: ilist2_pair(nmaxinst,nco2) ! Chan number pairs for cloud top height detection: CO2-slicing
   real(8) :: dtw                        ! Max delta allowed btwn guess and true skin temp over water
@@ -186,7 +186,7 @@ contains
     end do
 
     call tvs_allocateEmissivity(maxChannelNumber)
-    
+
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instruments(sensorIndex) == inst_id_iasi ) then
         allocate (avhrr_bgck(tvs_headerEnd))
@@ -208,7 +208,7 @@ contains
     ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs),        intent(inout) :: obsSpaceData
-   
+
     ! Locals:
     integer,allocatable :: nobir(:)
     integer             :: headerIndex, idatyp, sensorIndex, instrumentIndex
@@ -241,7 +241,7 @@ contains
     call irbg_init()
     allocate (nobir(ninst))
     nobir = 0
-  
+
 
     ! Loop over all header indices of the 'TO' family
     ! Set the header list (and start at the beginning of the list)
@@ -249,14 +249,14 @@ contains
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-      
+
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'irbg_bgCheckIR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER   ! Proceed to the next header_index
       end if
-      
+
       do instrumentIndex=1, ninst
         if ( tvs_isIdBurpInst(idatyp,inst(instrumentIndex)) ) then
           nobir(instrumentIndex) = nobir(instrumentIndex) + 1
@@ -264,7 +264,7 @@ contains
         end if
       end do
     end do HEADER
-    
+
     do instrumentIndex=1, ninst
       if (nobir(instrumentIndex) > 0) then
         do sensorIndex=1,tvs_nsensors
@@ -279,7 +279,7 @@ contains
     call utl_tmg_stop(115)
 
   end subroutine irbg_bgCheckIR
- 
+
   !--------------------------------------------------------------------------
   !  bgck_get_qcid
   !--------------------------------------------------------------------------
@@ -292,7 +292,7 @@ contains
     integer,          intent(out) :: qcid
 
     ! Locals:
-    integer :: i 
+    integer :: i
 
     qcid = -1
 
@@ -304,7 +304,7 @@ contains
     end do
 
     if (qcid == -1) call utl_abort('bgck_get_qcid: unknown instrument '//trim(instrumentName))
-    
+
   end subroutine bgck_get_qcid
 
   !--------------------------------------------------------------------------
@@ -313,7 +313,7 @@ contains
   subroutine irbg_doQualityControl (columnTrlOnTrlLev, obsSpaceData, instrumentName, id_opt)
     !
     ! :Purpose: Quality control of hyperspectral infrared observations.
-    !           assign assimilation flags to observations 
+    !           assign assimilation flags to observations
     !
     implicit none
 
@@ -337,11 +337,11 @@ contains
     real(8), allocatable :: tt(:), height(:,:)
     real(8), allocatable :: pressure(:,:)
     real(8), allocatable :: btObsErr(:), btObs(:), btCalc(:), rcal_clr(:), sfctau(:)
-    real(8), allocatable :: radObs(:), cloudyRadiance(:,:), transm(:,:), emi_sfc(:) 
+    real(8), allocatable :: radObs(:), cloudyRadiance(:,:), transm(:,:), emi_sfc(:)
     real(8), allocatable :: ptop_bt(:), ptop_rd(:)
     real(8), allocatable :: pmin(:), dtaudp1(:), maxwf(:)
     real(8), allocatable :: cloudyRadiance_avhrr(:,:)
-    integer, allocatable :: rejflag(:,:) 
+    integer, allocatable :: rejflag(:,:)
     integer, allocatable :: ntop_bt(:), ntop_rd(:)
     integer, allocatable :: minp(:), fate(:), channelIndexes(:)
     real(8) :: clfr, sunZenithAngle, satelliteAzimuthAngle, satelliteZenithAngle, sunAzimuthAngle
@@ -357,7 +357,7 @@ contains
     real(8) :: avhrr_surfem1(NIR)
     real(8) :: albedoThreshold(NIR)
     integer :: ksurf,ltype
-    integer :: cldflag, lev_start   
+    integer :: cldflag, lev_start
     integer :: gncldflag
     integer :: ichref
     integer :: ntop_eq, ntop_mb
@@ -391,7 +391,7 @@ contains
              trim(instrumentName) == 'crisfsr' )
 
     call bgck_get_qcid(instrumentName,qcid)
-    
+
     if (present(id_opt)) then
       id = id_opt
     else
@@ -406,7 +406,7 @@ contains
       if (id < 0) call utl_abort('irbg_doQualityControl: should not happen !')
     end if
 
-    !  Find number of profiles 
+    !  Find number of profiles
     count = 0
 
     ! Loop over all header indices of the 'TO' family
@@ -428,7 +428,7 @@ contains
     nlv_T = col_getNumLev(columnTrlOnTrlLev,'TH')
 
     write(*,*) ' irbg_doQualityControl - nchn ', nchn
-   
+
 
     ! information to extract (transvidage)
     !
@@ -456,7 +456,7 @@ contains
     ! pcnt_wat -- water fraction (0-1)
     ! pcnt_reg -- water fraction in the area (0-1)
     ! radObs(nchn) -- observed radiances (mW/m2/sr/cm-1)
- 
+
     allocate(btObsErr(nchn))
     allocate(btObs(nchn))
     allocate(btCalc(nchn))
@@ -481,7 +481,7 @@ contains
     allocate(tt(nlv_T-1))
     allocate(height(nlv_T-1,1))
     allocate(channelIndexes(nchn))
-  
+
     difftop_min = 100000.d0
     modelTopIndex = 1
 
@@ -540,7 +540,7 @@ contains
             end if
           end do
           sunAzimuthAngle = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex)
-          sunAzimuthAnglePresent = ( abs(sunAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
+          sunAzimuthAnglePresent = ( abs(sunAzimuthAngle - MPC_missingValue_R8) > 0.01 )
         end if
 
         tg = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
@@ -559,7 +559,7 @@ contains
         if (lcris) bad=( obs_headElem_i(obsSpaceData, OBS_GQF, headerIndex)/=0 .or. &
              obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) /=0)
         if (liasi) bad=( obs_headElem_i(obsSpaceData, OBS_GQF, headerIndex)/=0 .or. &
-             obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) >1) 
+             obs_headElem_i(obsSpaceData, OBS_GQL, headerIndex) >1)
 
         nchannels = 0 ! number of channels available at that observation point
         do bodyIndex= bodyStart, bodyEnd
@@ -593,9 +593,9 @@ contains
           btCalc(channelIndex) = tvs_radiance(headerIndex) % bt(channelIndex)
           rcal_clr(channelIndex) = tvs_radiance(headerIndex) % clear(channelIndex)
           sfctau(channelIndex) = tvs_transmission(headerIndex) % tau_total(channelIndex)
-          do levelIndex = 1, nlv_T 
+          do levelIndex = 1, nlv_T
             transm(channelIndex,levelIndex) = tvs_transmission(headerIndex) % tau_levels(levelIndex, channelIndex)
-          end do          
+          end do
           do levelIndex = 1, nlv_T - 1
             cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(headerIndex) % overcast(levelIndex, channelIndex)
           end do
@@ -620,11 +620,11 @@ contains
         if (lairs .or. lcris) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
         sunZenithAngle = profiles(headerIndex) % sunzenangle
-        sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
+        sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 )
 
         if (liasi) then
           satelliteAzimuthAngle = profiles(headerIndex) % azangle
-          satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
+          satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 )
         end if
         albedo =  tvs_surfaceParameters(headerIndex) % albedo
         ice =  tvs_surfaceParameters(headerIndex) % ice
@@ -632,11 +632,11 @@ contains
         if (ltype == 20) ksurf = 2
         pcnt_wat =  tvs_surfaceParameters(headerIndex) % pcnt_wat
         pcnt_reg =  tvs_surfaceParameters(headerIndex) % pcnt_reg
-           
+
         !  Find TOA radiances converted from observed BT's
 
         radObs(:) = -1.d0
-        
+
         channels: do jc = 1, nchannels
           channelIndex = channelIndexes(jc)
           if (channelIndex == -1) cycle channels
@@ -654,9 +654,9 @@ contains
 
         ! ///// ---------------------------------------------------- /////
         ! ///// Determination of the clear/cloudy profiles (cldflag) /////
-        ! ///// ---------------------------------------------------- /////           
+        ! ///// ---------------------------------------------------- /////
         cldflag = 0
-        
+
         ! Reference for window channel
         call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo, iwindow(qcid))
         call tvs_getLocalChannelIndexFromChannelNumber(id, iwindo_alt, iwindow_alt(qcid))
@@ -681,7 +681,7 @@ contains
           write(*,*) 'ALL '//instrumentName//' OBSERVATIONS FROM THIS PROFILE REJECTED'
         end if
 
-        !  -- Cloud top based on matching observed brightness temperature 
+        !  -- Cloud top based on matching observed brightness temperature
         !  -- at a reference surface channel with background temperature profile (ptop_eq)
         !  -- on guess vertical levels.
 
@@ -697,16 +697,16 @@ contains
 
         if (liasi) then
           ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
-           
+
           call get_avhrr_emiss(emi_sfc(channelIndexes(1:nchannels)),tvs_coefs(id) % coef % ff_cwn(channelIndexes(1:nchannels)), &
                nchannels,avhrr_surfem1)
 
           call tovs_rttov_avhrr_for_IASI(headerIndex,avhrr_surfem1,tvs_satellites(id))
-                 
+
           !The value computed will be used only if sunZenithAnglePresent is true
           call convert_avhrr(sunZenithAngle, avhrr_bgck(headerIndex) )
           call stat_avhrr(avhrr_bgck(headerIndex))
-          
+
           lev_start_avhrr(:) = 0
           cldflag_avhrr(:) = 0
           do classIndex = 1, nClassAVHRR
@@ -715,11 +715,11 @@ contains
             rcal_clr_avhrr(:) = avhrr_bgck(headerIndex) % radclearcalc(:)
             emi_sfc_avhrr(:) = avhrr_bgck(headerIndex) % emiss(:)
             sfctau_avhrr(:) = avhrr_bgck(headerIndex) % transmsurf(:)
-            
+
             do levelIndex = 1, nlv_T - 1
               cloudyRadiance_avhrr(:,levelIndex) = avhrr_bgck(headerIndex) % radovcalc(levelIndex,:)
             end do
-           
+
             if (btObs_avhrr(2,classIndex) > 100.d0 ) then
               ichref_avhrr(classIndex) = 2
             else if (btObs_avhrr(3,classIndex) > 100.d0 ) then
@@ -728,11 +728,11 @@ contains
               ichref_avhrr(classIndex) = -1
               cldflag_avhrr(classIndex) = -1
             end if
-            
+
             call cloud_height (ptop_eq_avhrr(classIndex),ntop_eq_avhrr(classIndex), btObs_avhrr(:,classIndex),cldflag_avhrr(classIndex),tt, &
                  height(:,1),p0,pressure,ichref_avhrr(classIndex),lev_start_avhrr(classIndex),iopt1)
           end do
-          
+
         end if
 
         !  -- Clear/cloudy profile detection using the garand & nadon algorithm
@@ -746,10 +746,10 @@ contains
                  height(:,1), ptop_eq_avhrr(classIndex), ntop_eq_avhrr(classIndex), ichref_avhrr(classIndex))
           end do
         end if
-        
+
         ! Further tests to remove potential cloudy profiles
-        !  Test # A 
-        !  In daytime, set cloudy if cloud fraction over 5% 
+        !  Test # A
+        !  In daytime, set cloudy if cloud fraction over 5%
         cfsub = -1.d0
         if (lairs) then
           if (cldflag == 0 .and. clfr > 5.d0 .and. sunZenithAngle < 90.d0 .and. sunZenithAnglePresent) then
@@ -764,15 +764,15 @@ contains
             cfsub = 0.01d0 * clfr !conversion % -> 0-1
           end if
         end if
-        !  Test # B 
-        !  Set cloudy if temperature difference between guess (tg)     
-        !  and estimated true (tskinRetrieved) skin temperatures is over threshold 
-        
+        !  Test # B
+        !  Set cloudy if temperature difference between guess (tg)
+        !  and estimated true (tskinRetrieved) skin temperatures is over threshold
+
         call estim_ts(tskinRetrieved, tg, emi_sfc, rcal_clr, radObs, &
              sfctau, cldflag, ichref, tvs_coefs(id) )
 
         if ( cldflag == 0 .and. ksurf == 1 &
-             .and. abs(tskinRetrieved-tg) > dtw ) cldflag = 1 
+             .and. abs(tskinRetrieved-tg) > dtw ) cldflag = 1
 
         if ( cldflag == 0 .and. ksurf /= 1 &
              .and. abs(tskinRetrieved-tg) > dtl ) cldflag = 1
@@ -787,26 +787,26 @@ contains
           do classIndex = 1, nClassAVHRR
             if ( cldflag_avhrr(classIndex) == 0 .and. ksurf == 1 &
                  .and. abs(tskinRetrieved_avhrr(classIndex)-tg) > dtw ) cldflag_avhrr(classIndex) = 1
-              
+
             if ( cldflag_avhrr(classIndex) == 0 .and. ksurf /= 1 &
                  .and. abs(tskinRetrieved_avhrr(classIndex)-tg) > dtl ) cldflag_avhrr(classIndex) = 1
-              
+
           end do
 
           !criteres AVHRR utilisant les canaux visibles (de jour seulement)
           if ( sunZenithAngle < sunzenmax .and. sunZenithAnglePresent .and. satelliteAzimuthAnglePresent .and. &
-               sunAzimuthAnglePresent .and. satelliteZenithAnglePresent) then 
+               sunAzimuthAnglePresent .and. satelliteZenithAnglePresent) then
             anisot = 1.d0
-            
+
             if (albedo < albedoThresholdQC) then
               deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
               if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
               call visocn(sunZenithAngle,satelliteZenithAngle,deltaphi,anisot,zlamb,zcloud,IER)
-              albedoThreshold = 10.d0 * max(1.d0,anisot) 
+              albedoThreshold = 10.d0 * max(1.d0,anisot)
             else
               albedoThreshold = 100.d0 * albedo + 10.d0
             end if
-              
+
             if (anisot < 1.5d0) then !to avoid sun glint
               scos = cos ( sunZenithAngle * MPC_DEGREES_PER_RADIAN_R8 )
               call cor_albedo (del, scos )
@@ -822,7 +822,7 @@ contains
                   end if
                 end do
               end do
-             
+
             end if
           end if
 
@@ -880,7 +880,7 @@ contains
         !     already done
 
 
-        ! -- Cloud top based on matching 
+        ! -- Cloud top based on matching
         ! -- observed brightness temperature with background temperature profiles (ptop_bt)
         ! -- or computed observed radiances with background radiance profiles (ptop_rd)
         ! -- on rttov vertical levels
@@ -920,7 +920,7 @@ contains
             countInvalidChannels = countInvalidChannels + 1
           end if
         end do
-         
+
         if (countInvalidChannels == nco2) then
           cldflag = -1
           rejflag(:,9) = 1
@@ -934,16 +934,16 @@ contains
         heff = MPC_missingValue_R8
         call tvs_getLocalChannelIndexFromChannelNumber(id, channelIndex, ilist1(qcid,2))
         if (channelIndex /= -1) heff = ptop_rd( channelIndex )
-              
+
         if (ichref == iwindo_alt) then
           call tvs_getLocalChannelIndexFromChannelNumber(id, channelIndex, ilist1(qcid,3))
           if (channelIndex /= -1) heff = ptop_rd( channelIndex )
         end if
-        !  Cloud top based on co2 slicing 
+        !  Cloud top based on co2 slicing
 
         co2min = minloc( abs( pressure(:,1) - pco2min ) )
         co2max = minloc( abs( pressure(:,1) - pco2max ) )
-        
+
         lev_start = max( min(lev_start,co2max(1)), co2min(1) )
 
         call co2_slicing(ptop_co2, ntop_co2, fcloud_co2, &
@@ -951,7 +951,7 @@ contains
              lev_start, ichref, ilist_co2, ilist_co2_pair)
 
         !  -- Find consensus cloud top and fraction
- 
+
         call seltop(etop, vtop, ecf, vcf, ngood, heff, ptop_co2, fcloud_co2, &
              cfsub, ptop_mb, p0, cldflag,gncldflag )
 
@@ -981,9 +981,9 @@ contains
                  minpavhrr(3) < etop .and. &
                  abs(minpavhrr(2)- minpavhrr(3)) < 25.d0 .and. &
                  cldflag_avhrr(iloc(2)) /= -1 .and. cldflag_avhrr(iloc(3)) /= -1) then
-              
-              if (ecf == 0.d0 .and. cldflag == 1) then
-                ! cas predetermine nuageux mais ramene a clair 
+
+              if ( utl_isEqual(ecf,0.d0) .and. cldflag == 1) then
+                ! cas predetermine nuageux mais ramene a clair
                 ecf = 0.01d0 * min(100.d0,cfrac_avhrr)
                 ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
                 etop = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
@@ -1004,17 +1004,17 @@ contains
           end if
         end if
 
-        !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds        
+        !  -- Find minimum level of sensitivity for channel assimilation not sensible to clouds
         call min_pres_new (maxwf, minp, pmin, dtaudp1, p0, transm(:,2:nlv_T), pressure(:,1), cldflag, modelTopIndex)
         !  -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
         ! *** Test # 3 ***
         ! *** Assimilation above clouds (refinement of test 1)             ***
-        ! *** Set security margin to 2x the std on height from CO2-slicing *** 
+        ! *** Set security margin to 2x the std on height from CO2-slicing ***
 
-        tampon = max(50.d0, 2.d0*vtop)                                                          
+        tampon = max(50.d0, 2.d0*vtop)
 
-        do channelIndex = 1, nchn        
+        do channelIndex = 1, nchn
           if ( rejflag(channelIndex,11) == 1 .and. rejflag(channelIndex,23) == 1 .and. etop - tampon > pmin(channelIndex) ) then
             rejflag(channelIndex,11) = 0
             rejflag(channelIndex,23) = 0
@@ -1022,7 +1022,7 @@ contains
         end do
 
         !     Look at the fate of the observations
-        fate(:) = sum(rejflag(:,:), DIM=2)            
+        fate(:) = sum(rejflag(:,:), DIM=2)
 
         !     Further reasons to reject observations
         do channelIndex = 1, nchn
@@ -1063,19 +1063,19 @@ contains
               else if ( ksurf == 1 ) then
                 if ( pcnt_wat < 0.99d0 .or. pcnt_reg < 0.97d0 .or. &
                      ice > 0.001d0 .or. albedo >= albedoThresholdQC .or. emi_sfc(channelIndex) < 0.9d0 ) then
-                  rejflag(channelIndex,11) = 1   
-                  rejflag(channelIndex,19) = 1   
+                  rejflag(channelIndex,11) = 1
+                  rejflag(channelIndex,19) = 1
                 end if
-                
+
                 ! *** Test # 8 ***
                 ! *** Do not assimilate surface channels over sea ice ***
-                          
+
               else if ( ksurf == 2 ) then
                 rejflag(channelIndex,11) = 1
-                rejflag(channelIndex,19) = 1   
+                rejflag(channelIndex,19) = 1
               end if
             end if
-            
+
           end if
 
           ! *** Test # 9 ***
@@ -1088,12 +1088,12 @@ contains
               rejflag(channelIndex,21) = 1
             end if
           end if
-        
+
           ! Condition valid if model top at 10mb or lower only
           if ( nint(ptop_T) >= 1000 ) then
             if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.99d0 ) then
               rejflag(channelIndex,11) = 1
-              rejflag(channelIndex,21) = 1 
+              rejflag(channelIndex,21) = 1
             end if
           end if
 
@@ -1105,13 +1105,13 @@ contains
           if ( nint(ptop_T) < 1000 ) then
             if ( rejflag(channelIndex,9) /= 1 .and. transm(channelIndex,1) < 0.95d0 ) then
               rejflag(channelIndex,11) = 1
-              rejflag(channelIndex,21) = 1 
+              rejflag(channelIndex,21) = 1
             end if
           end if
 
         end do
 
-        nchannels =0 
+        nchannels =0
         do bodyIndex= bodyStart, bodyEnd
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             nchannels =  nchannels + 1
@@ -1122,8 +1122,8 @@ contains
         !  For each profile, are all non-blacklisted channels assimilated
 
         assim_all = .true.
-        fate(:) = sum(rejflag(:,:),DIM=2)            
-        
+        fate(:) = sum(rejflag(:,:),DIM=2)
+
         chn: do channelIndex = 1, nchn
           if ( rejflag(channelIndex,8) == 0 ) then
             if ( fate(channelIndex) /= 0 ) then
@@ -1164,7 +1164,7 @@ contains
             end if
           end do
         end do
-          
+
       end if
 
     end do HEADER_2
@@ -1205,7 +1205,7 @@ contains
     !
     ! :Purpose: conversion des radiance IR en temperatures de brillance
     !           et des radiances visibles en 'albedo'
-  
+
     implicit none
 
     ! Arguments:
@@ -1238,7 +1238,7 @@ contains
     !
     ! :Purpose: Computes Top of Atmosphere Albedo as defined by equation (4)
     !           of Rao et al. Int. J. of Remote Sensing, 2003, vol 24, no 9, 1913-1924
-    !           
+    !
     implicit none
 
     ! Arguments:
@@ -1264,7 +1264,7 @@ contains
         reflect(i) = -1
       end if
     end do
-  
+
   end subroutine calcreflect
 
   !--------------------------------------------------------------------------
@@ -1274,14 +1274,14 @@ contains
     !
     ! :Purpose: Computes brightness temperature (bt) and the first derivative of
     !            bt with respect to radiance, from radiance, frequencies
-    !           
+    !
     !
     implicit none
 
     ! Arguments:
     real(8), intent(in)  :: rad(:)              ! Radiance
     real(8), intent(in)  :: freq(size(rad))     ! Channel wavenumber (cm-1)
-    real(8), intent(in)  :: offset(size(rad))   ! 
+    real(8), intent(in)  :: offset(size(rad))   !
     real(8), intent(in)  :: slope(size(rad))    !
     real(8), intent(out) :: tb(size(rad))       ! Brightness Temperature
     real(8), intent(out) :: dtbsdrad(size(rad)) ! Derivative of tb wrt radiance
@@ -1290,28 +1290,28 @@ contains
     integer  :: channelIndex, nchan
     real(8)  :: radtotal, tstore, planck1, planck2
     real(8), parameter :: c1= 1.19106590d-05   ! First Planck constant
-    real(8), parameter :: c2= 1.438833d0       ! Second Planck constant 
+    real(8), parameter :: c2= 1.438833d0       ! Second Planck constant
 
     nchan = size(rad)
 
     do channelIndex = 1, nchan
       if (rad(channelIndex) > 1.d-20) then
         planck2 = c2 * freq(channelIndex)
-        planck1 = c1 * ( freq(channelIndex) ** 3 ) 
+        planck1 = c1 * ( freq(channelIndex) ** 3 )
         tstore = planck2 / log( 1.0d0 + planck1 / rad(channelIndex) )
         tb(channelIndex) = ( tstore - offset(channelIndex) ) / slope(channelIndex)
-        
+
         radtotal = rad(channelIndex)
-        
+
         dtbsdrad(channelIndex) = planck1 * tstore ** 2 / ( planck2 * radtotal * ( radtotal + planck1 ) )
-        
+
         dtbsdrad(channelIndex) = dtbsdrad(channelIndex) / slope(channelIndex)
-        
+
       else
         tb(channelIndex) = 0.d0
         dtbsdrad(channelIndex) = 0.d0
       end if
-      
+
     end do
 
   end subroutine calcbt
@@ -1333,13 +1333,13 @@ contains
     integer :: classIndex, channelIndex
     real(8) :: sumFrac(nvis+nir), sumBt(nvis+1:nvis+nir),sumBt2(nvis+1:nvis+nir)
     real(8) :: sumAlb(1:nvis),sumAlb2(1:nvis)
-    
+
     sumFrac(:) = 0.d0
     sumBt(:) = 0.d0
     sumBt2(:) = 0.d0
     sumAlb(:) = 0.d0
     sumAlb2(:) = 0.d0
-    
+
     do classIndex = 1, nClassAVHRR
       if (avhrr%cfrac(classIndex) > 0.d0 ) then
         do channelIndex = 1, NVIS
@@ -1358,7 +1358,7 @@ contains
         end do
       end if
     end do
-      
+
     do channelIndex = 1, NVIS
       if (sumFrac(channelIndex) > 0.d0 ) then
         sumAlb(channelIndex) = sumAlb(channelIndex) / sumFrac(channelIndex)
@@ -1370,7 +1370,7 @@ contains
         end if
       end if
     end do
-      
+
     do channelIndex = NVIS+1, NVIS+NIR
       if (sumFrac(channelIndex) > 0.d0 ) then
         sumBt(channelIndex) = sumBt(channelIndex) / sumFrac(channelIndex)
@@ -1382,10 +1382,10 @@ contains
         end if
       end if
     end do
-      
+
     avhrr % tbstd_pixelIASI = sumBt2
     avhrr % albstd_pixeliasi = sumAlb2
-      
+
   end subroutine stat_avhrr
 
   !--------------------------------------------------------------------------
@@ -1442,18 +1442,18 @@ contains
     !  Define closest level jpmax to surface pressure p0
 
     jpmax = nlev
-    
+
     do J = lev_start, nlev
       if ( plev(J) > p0 ) then
         jpmax = J
         exit
       end if
     end do
-    
+
     !     define jmax as last level for co2-slicing calculations
-  
+
     jmax = jpmax - 1
-    
+
     !     predetermined clear window channel, all nco2 estimates clear
 
     sumrej = sum(rejflag(ichref,:))
@@ -1468,18 +1468,18 @@ contains
     allocate(fc(nchn,nlev), drap(nco2,nlev), a_drap(nlev) )
 
     channels: do jch = 1, nco2
-      
+
       jc = ilist(jch)
       jc_pair = ilist_pair(jch)
       fc(jc_pair,:) = rcal(jc_pair) - cloudyRadiance(jc_pair,:)
       niter = 1
-      if ( jch > 13) niter = 2 
-     
+      if ( jch > 13) niter = 2
+
       iteration: do iter = 1, niter
         drap(jch,:)   = 9999.d0
         ntop(jch) = -1
         !         calcul emi_ratio
-        if (jch > 13) then       
+        if (jch > 13) then
           if ( iter == 1 ) then
             emi_ratio = 1.0376d0
           else
@@ -1530,8 +1530,8 @@ contains
             val2 = drap(jch,J - 3) / drap(jch,J - 1)
             val3 = drap(jch,J) / drap(jch,J + 1)
 
-            if ( val1 > 0.d0 .and.  & 
-                 val2 > 0.d0 .and.  & 
+            if ( val1 > 0.d0 .and.  &
+                 val2 > 0.d0 .and.  &
                  val3 > 0.d0 .and.  &
                  a_drap(J-2) > a_drap(J-1) .and.  &
                  a_drap(J-3) > a_drap(J-2) .and.  &
@@ -1541,11 +1541,11 @@ contains
               ptop(jch) = plev(J)
               ntop(jch) = J
             end if
-            
+
             exit levels
-                      
+
           end if
-              
+
         end do levels
 
         j = ntop(jch)
@@ -1558,7 +1558,7 @@ contains
           fcloud(jch) = -1.d0
           cycle channels
         end if
-      
+
         if ( J <= lev_start .or. drap(jch,J) > 9000.d0 ) then
           !if ( iter == 1) then
           ptop(jch) = -1.d0
@@ -1567,7 +1567,7 @@ contains
           !end if
           cycle channels
         end if
-        
+
         if ( abs( cloudyRadiance(jc,J) - rcal(jc) ) > 0.d0 )  &
              fcloud(jch) = (radObs(jc) - rcal(jc)) /  &
              (cloudyRadiance(jc,J) - rcal(jc))
@@ -1590,13 +1590,13 @@ contains
         fcloud(jch) = max ( fcloud(jch), -0.5d0 )
 
         if (fcloud(jch) < 0.0d0 .or. fcloud(jch) > 1.0d0 )  cycle channels
-      
+
       end do iteration
-     
+
     end do channels
 
     deallocate(fc, drap, a_drap )
-      
+
   end subroutine co2_slicing
 
   !--------------------------------------------------------------------------
@@ -1635,7 +1635,7 @@ contains
     ngood = 0
 
     !     Profile not assimilated if data from 2 windows channels bad
-    !     and/or if data from 2 reference co2 channels bad    
+    !     and/or if data from 2 reference co2 channels bad
     if ( cldflag == -1 ) return
 
     n = 0
@@ -1654,7 +1654,7 @@ contains
 
 
         !       Consider only valid values of cloud fraction above some threshold
-     
+
         !       Important logic: for values above 1.0 of co2-slicing cloud fraction,
         !       set it to 1.0 and force the top equal to the effective height he.
         !       co2-slicing not allowed to give estimates below he, which happens
@@ -1679,18 +1679,18 @@ contains
     if ( n >= 1 ) then
 
       call calcul_median_fast(n, H, F, etop, ecf)
-    
+
       vtop = sqrt ( sum((H(1:n) - etop)**2) / n )
-      vcf  = sqrt ( sum((F(1:n) - ecf)**2) / n )         
+      vcf  = sqrt ( sum((F(1:n) - ecf)**2) / n )
 
       if ( n == 1 ) then
         vtop = 50.d0
         vcf  = 0.20d0
       end if
-       
+
     else
 
-      !    If no solution from co2-slicing, and not predetermined clear, 
+      !    If no solution from co2-slicing, and not predetermined clear,
       !    assume cloudy with top equal to effective height he;
       !    however if he is very close to surface pressure p0, assume clear.
 
@@ -1713,9 +1713,9 @@ contains
       ecf = 0.0d0
       etop = p0
     end if
-  
+
   end subroutine seltop
-  
+
   !--------------------------------------------------------------------------
   ! calcul_median_fast
   !--------------------------------------------------------------------------
@@ -1723,7 +1723,7 @@ contains
     !
     ! :Purpose: Compute cloud fraction and height median.
     !
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -1742,7 +1742,7 @@ contains
       ctp = Hin(nEstimates)
       cfr = Fin(nEstimates)
     else
-      H(1:nEstimates) = Hin(1:nEstimates)
+      H(1:nEstimates) = real(Hin(1:nEstimates),4)
       call ipsort(index, H, nEstimates)
       if (mod(nEstimates,2) == 0) then ! N - pair
         i = index(nEstimates / 2)
@@ -1761,7 +1761,7 @@ contains
   subroutine min_pres_new( maxheight, minp, pmin, dt1, p0, tau, plev, cldflag, &
                            modelTopIndex )
     !
-    ! :Purpose: from total transmittance array, find minimum height 
+    ! :Purpose: from total transmittance array, find minimum height
     !           level of sensitivity for a number of profiles and channels.
     !           this may be used to select for assimilation only the
     !           observations without sensitivity to clouds, that is the
@@ -1782,7 +1782,7 @@ contains
     integer, intent(in)   :: cldflag                         ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
     integer, intent(in)   :: modelTopIndex                   ! rt model level nearest to model top
 
-    ! Locals:   
+    ! Locals:
     real(8) :: maxwf
     integer :: levelIndex, channelIndex, ipos(1), nlev, nchn
     real(8),allocatable :: wfunc(:), rap(:)
@@ -1806,7 +1806,7 @@ contains
 
       !       Profile not assimilated if data from 2 windows channels bad
       !       and/or if data from 2 reference co2 channels bad
-    
+
       do levelIndex = 1, nlev
         if ( tau(channelIndex,levelIndex) < 0.d0) cycle channels
       end do
@@ -1815,11 +1815,11 @@ contains
       pmin(channelIndex) = min(plev(nlev),p0)
 
       !   Compute entire array of dtau/dlog(P)
-          
+
       do levelIndex = 1, nlev - 1
-        wfunc(levelIndex) = (tau(channelIndex,levelIndex) - tau(channelIndex,levelIndex + 1)) / rap(levelIndex) 
+        wfunc(levelIndex) = (tau(channelIndex,levelIndex) - tau(channelIndex,levelIndex + 1)) / rap(levelIndex)
       end do
-       
+
       dt1(channelIndex) = wfunc(modelTopIndex)
 
       !   If channel sees the surface, don't recalculate minp and pmin
@@ -1843,7 +1843,7 @@ contains
           exit
         end if
       end do
-     
+
     end do channels
 
     deallocate(wfunc, rap )
@@ -1856,9 +1856,9 @@ contains
   subroutine cloud_height ( ptop, ntop, btObs, cldflag, tt, height, p0, plev, &
                             ichref, lev_start, iopt )
     !
-    ! :Purpose: 
+    ! :Purpose:
     !         Computation of cloud top height (above the ground)
-    !         based on matching observed brightness temperature at a 
+    !         based on matching observed brightness temperature at a
     !         reference surface channel with background temperature profile.
     !         to use with one reference channel. used here on model levels.
     !
@@ -1886,13 +1886,13 @@ contains
     allocate(ht(nlev))
 
     if ( iopt == 1 ) then
-     
+
       ptop = p0
-      ntop = 1      
+      ntop = 1
 
       if ( cldflag == -1 ) return
-      
-      call get_top(ht, nht, btObs(ichref), tt, plev, lev_start, iopt) 
+
+      call get_top(ht, nht, btObs(ichref), tt, plev, lev_start, iopt)
 
       itop = 1
       if ( nht >= 2 ) itop = 2
@@ -1900,9 +1900,9 @@ contains
       ntop = nht
 
     else if ( iopt == 2 ) then
-      
+
       ptop = 0.d0
-      ntop = 1      
+      ntop = 1
 
       if ( cldflag == -1 ) return
 
@@ -1912,7 +1912,7 @@ contains
       if ( nht >= 2 ) itop = 2
       ptop = max ( ht(itop), 0.d0 )
       ntop = nht
-       
+
     end if
 
     deallocate(ht)
@@ -1920,7 +1920,7 @@ contains
   end subroutine cloud_height
 
   !--------------------------------------------------------------------------
-  ! garand1998nadon 
+  ! garand1998nadon
   !--------------------------------------------------------------------------
   subroutine garand1998nadon ( cldflag, btObs, tg, tt, height, &
                                ptop_eq, ntop_eq, ichref )
@@ -1943,7 +1943,7 @@ contains
     ! Locals:
     integer    :: ninv
     real(8)    :: lev(2)
-      
+
     lev(1) = 222.d0
     lev(2) = 428.d0
 
@@ -1963,13 +1963,13 @@ contains
         return
       end if
     end if
-    
+
     if ( ptop_eq > 728.d0 ) then
       cldflag = 1
       return
     end if
 
-    if ( tg - btObs(ichref) > 8.d0 ) then 
+    if ( tg - btObs(ichref) > 8.d0 ) then
       if ( ntop_eq >= 3 ) then
         if ( ptop_eq > 73.d0 ) then
           cldflag=1
@@ -1985,7 +1985,7 @@ contains
             cldflag = 1
             return
           else
-            cldflag = 0 
+            cldflag = 0
             return
           end if
         else
@@ -1994,7 +1994,7 @@ contains
         end if
       end if
     end if
-    
+
     if ( tg - btObs(ichref) > 5.d0 ) then
       if ( ntop_eq >= 3 ) then
         if ( ptop_eq > 222.d0 ) then
@@ -2021,7 +2021,7 @@ contains
     else
       cldflag = 0
     end if
-    
+
   end subroutine garand1998nadon
 
   !--------------------------------------------------------------------------
@@ -2074,9 +2074,9 @@ contains
     ! :Purpose: Get an estimated skin temperature by inversion of
     !           radiative transfer equation assuming guess t and q profiles
     !           are perfect. designed for a single channel ichref and nprf
-    !           profiles. assumes a real tg (guess) over oceans and a tg 
+    !           profiles. assumes a real tg (guess) over oceans and a tg
     !           with hypothesis of unity emissivity over land.
-    !      
+    !
     ! :Note:  Uses rcal = B(TG)*EMI*SFCtau + ATMOS_PART
     !         ts = B(ts)*EMI*SFCtau + ATMOS_PART
     !         SOLVES FOR ts
@@ -2097,14 +2097,14 @@ contains
     ! Locals:
     real(8)    :: rtg,radtg
     real(8)    :: radts,tstore,t_effective
-  
+
     ts = -1.d0
 
     if ( cldflag /= 0 ) return
     if ( ichref == -1 ) return
 
 
-    !   Transform guess skin temperature to plank radiances 
+    !   Transform guess skin temperature to plank radiances
 
     t_effective =  myCoefs % coef % ff_bco(ichref) + myCoefs % coef % ff_bcs(ichref) * TG
 
@@ -2118,7 +2118,7 @@ contains
 
 
     !  Compute true skin planck radiances due to TOA true planck radiances
-    
+
     radts = ( RADOBS(ichref) + rtg - rcal(ichref) ) / &
          ( EMI(ichref) * SFCtau(ichref) )
 
@@ -2129,13 +2129,13 @@ contains
       return
     end if
 
-    
+
     !  Transform true skin planck radiances to true skin temperatures
 
     tstore = myCoefs % coef % planck2(ichref) / log( 1.0d0 + myCoefs % coef % planck1(ichref) / radts )
 
     ts = ( tstore - myCoefs % coef % ff_bco(ichref) ) / myCoefs % coef % ff_bcs(ichref)
-    
+
 
   end subroutine estim_ts
 
@@ -2148,7 +2148,7 @@ contains
        ilist,rejflag_opt, ichref_opt )
     !
     ! :Purpose: Computation of cloud top height (above the ground)
-    !           based on matching observed brightness temperature with 
+    !           based on matching observed brightness temperature with
     !           background temperature profiles and/or computed observed
     !           radiances with background radiance profiles.
     !           to use with more than one channel. used here on rttov levels.
@@ -2208,7 +2208,7 @@ contains
     end if
 
     if ( clear ) then
-      
+
       if ( iopt == 1 ) then
         ptop_bt(:) = min ( plev(nlev), p0 )
         ptop_rd(:) = min ( plev(nlev), p0 )
@@ -2216,10 +2216,10 @@ contains
         ptop_bt(:) = 0.d0
         ptop_rd(:) = 0.d0
       end if
-     
+
       ntop_bt(:) = 1
       ntop_rd(:) = 1
-     
+
       lev_start = max ( lev_start , i10 )
 
       return
@@ -2230,9 +2230,9 @@ contains
     nch = size( ilist)
 
     channels: do jch = 1, nch
-       
+
       jc = ilist(jch)
-       
+
       !    missing channel ... yes it can happen
       if (jc == -1) cycle channels
       !     gross check failure
@@ -2252,12 +2252,12 @@ contains
           ptop_bt(jc) = 0.d0
           ptop_rd(jc) = 0.d0
         end if
-      
+
         ntop_bt(jc) = 1
         ntop_rd(jc) = 1
 
         cycle channels
-           
+
       end if
 
       !    cloudy
@@ -2267,19 +2267,19 @@ contains
       else
         cloudy = ( cldflag == 1 )
       end if
-      
+
       if ( cloudy ) then
 
         if ( iopt == 1 ) then
-          
+
           if ( ihgt == 0 .or. ihgt == 2 ) then
-            call get_top(ht, nht, btObs(jc), tt, plev, lev_start, iopt) 
+            call get_top(ht, nht, btObs(jc), tt, plev, lev_start, iopt)
             itop = 1
             if ( nht >= 2 ) itop = 2
             ptop_bt(jc) = min ( ht(itop), p0 )
             ntop_bt(jc) = nht
           end if
-          
+
           if ( ihgt == 1 .or. ihgt == 2 ) then
             call get_top(ht, nht, radObs(jc), cloudyRadiance(jc,:), plev, lev_start, iopt)
             itop = 1
@@ -2287,17 +2287,17 @@ contains
             ptop_rd(jc) = min ( ht(itop), p0 )
             ntop_rd(jc) = nht
           end if
-          
-        else if ( iopt == 2 ) then 
-          
+
+        else if ( iopt == 2 ) then
+
           if ( ihgt == 0 .or. ihgt == 2 ) then
-            call get_top(ht, nht, btObs(jc), tt, height, lev_start, iopt) 
+            call get_top(ht, nht, btObs(jc), tt, height, lev_start, iopt)
             itop = 1
             if ( nht >= 2 ) itop = 2
             ptop_bt(jc) = max ( ht(itop), 0.d0 )
             ntop_bt(jc) = nht
           end if
-          
+
           if ( ihgt == 1 .or. ihgt == 2 ) then
             call get_top(ht, nht, radObs(jc), cloudyRadiance(jc,:), height, lev_start, iopt)
             itop = 1
@@ -2305,11 +2305,11 @@ contains
             ptop_rd(jc) = max ( ht(itop), 0.d0 )
             ntop_rd(jc) = nht
           end if
-          
+
         end if
-       
+
       end if
-      
+
     end do channels
 
     deallocate ( ht )
@@ -2327,7 +2327,7 @@ contains
 
     ! Arguments:
     real(8), intent(out)   :: ht(:)            ! Cloud top height in hpa or meters (iopt = 1 or 2)
-    integer, intent(out)   :: nht              ! Number of possible cloud height solutions 
+    integer, intent(out)   :: nht              ! Number of possible cloud height solutions
     real(8), intent(in)    :: bt               ! Observed brightness temperatures (deg k) or radiance (mw/m2/sr/cm-1)
     real(8), intent(in)    :: tt(:)            ! Temperature profile (deg k) or computed cloud radiance from each level to top
     real(8), intent(in)    :: pp(size(tt))     ! Pressure (hpa) or heights (m) profile (iopt=1 or 2)
@@ -2340,7 +2340,7 @@ contains
     real(8)             :: dt, a, b
 
     ht(:) = -1.
-    
+
     im = lev_start
 
     nlev = size( tt )
@@ -2357,16 +2357,16 @@ contains
           exit
         end if
       end do
-       
+
       lev_start = im(1)
-     
+
       if ( im(1) == nlev ) then
         lev_start = max(lev_start,i10)
         nht = 1
         ht(1) = pp(nlev)
         return
       end if
-       
+
     end if
 
     if (iopt == 1) then
@@ -2374,14 +2374,14 @@ contains
       logp(:) = log(pp(:))
     end if
 
-    nht = 0        
-    
+    nht = 0
+
     do I = im(1), nlev - 1
       dt = tt(I + 1) - tt(I) + 1.D-12
       if ( bt > tt(I) .and. bt <= tt(I + 1) ) then
-        
+
         nht = nht + 1
-        
+
         if (iopt == 1) then
           a = logp(I) + (logp(I + 1) - logp(I)) / dt * ( bt - tt(I))
           ht(nht) = exp(a)
@@ -2391,11 +2391,11 @@ contains
           b  = pp(I) + (pp(I+1) - pp(I)) / dt * (bt - tt(I))
           ht(nht) = b
         end if
-         
+
       else if ( bt >= tt(I+1) .and. bt < tt(I) ) then
-      
+
         nht = nht + 1
-      
+
         if (iopt == 1) then
           a  = logp(I + 1)- (logp(I + 1)-logp(I)) / dt * (tt(I + 1) - bt)
           ht(nht) = exp(A)
@@ -2405,11 +2405,11 @@ contains
           b = pp(I + 1)- (pp(I + 1) - pp(I)) / dt * (tt(I + 1) - bt)
           ht(nht) = b
         end if
-       
+
       end if
     end do
-    
-    
+
+
     if ( nht == 0 .and. bt < tt(im(1)) )  then
       nht  = 1
       ht(1) = pp(im(1))
@@ -2419,14 +2419,14 @@ contains
     end if
 
     if (iopt==1)  deallocate ( logp )
-    
+
   end subroutine get_top
 
   !--------------------------------------------------------------------------
   ! get_avhrr_emiss
   !--------------------------------------------------------------------------
   subroutine get_avhrr_emiss( iasi_surfem1, freqiasi, nchaniasi, avhrr_surfem1 )
-    ! 
+    !
     ! :Purpose: choisi l'emissivite d'un canal IASI proche pour AVHRR
     !           a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
     !
@@ -2451,7 +2451,7 @@ contains
     do I=1,NIR
       avhrr_surfem1(i) = iasi_surfem1(indxavhrr(i))
     end do
-  
+
   end subroutine get_avhrr_emiss
 
   !--------------------------------------------------------------------------
@@ -2492,7 +2492,7 @@ contains
       do ich=1,nir
         ichan_avhrr(ich)=ich
       end do
-    
+
       errorStatus = 0
       allocStatus = 0
       if (idiasi_old > 0) then
@@ -2505,11 +2505,11 @@ contains
            tvs_opts(1),                  &! in
            channels=ichan_avhrr,         &! in
            instrument=list_sensor )       ! in
-       
+
       if (errorStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: error in rttov_read_coefs')
-     
+
       idiasi_old = idiasi
-   
+
     end if
 
     call tvs_getProfile(profiles, 'nl')
@@ -2527,7 +2527,7 @@ contains
       chanprof(ich) % prof = 1
       chanprof(ich) % chan = ich
     end do
-  
+
     call rttov_alloc_direct(         &
          allocStatus,                &
          asw=1,                      &
@@ -2541,7 +2541,7 @@ contains
          init=.true.)
 
     if (allocStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: memory allocation error in rttov_alloc_direct')
-    
+
     call rttov_direct(            &
          errorStatus,             & ! out
          chanprof,                & ! in
@@ -2552,9 +2552,9 @@ contains
          radiancedata_d,          & ! out
          calcemis=calcemis,       & ! in
          emissivity=emissivity)     ! inout
-    
+
     if (errorStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: fatal error in rttov_direct')
-    
+
     avhrr_bgck(headerIndex) % radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
     avhrr_bgck(headerIndex) % tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
     allocate(avhrr_bgck(headerIndex) % radovcalc(nlevels-1,NVIS+1:NVIS+NIR))
@@ -2576,7 +2576,7 @@ contains
     if (allocStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: memory deallocation error in rttov_alloc_direct')
 
     nullify(profiles)
-  
+
   end subroutine tovs_rttov_avhrr_for_IASI
 
   !--------------------------------------------------------------------------
@@ -2598,13 +2598,13 @@ contains
     real(8)  x1, x2, g1, g2, a, b
     real(8), parameter ::  s(11)=[00.00d0, 18.19d0, 31.79d0, 41.41d0, 49.46d0, &
                                   56.63d0, 63.26d0, 69.51d0, 75.52d0, 81.37d0, 87.13d0]
- 
-    i1  = 12 - ( scos + 0.05d0) * 10.d0 
-    i2  = i1 + 1 
+
+    i1  = int( 12 - ( scos + 0.05d0) * 10.d0 )
+    i2  = i1 + 1
     i1  = min(i1,11)
     i2  = min(i2,11)
-    x1  = cos ( s(I1) * MPC_RADIANS_PER_DEGREE_R8 )  
-    x2  = cos ( s(I2) * MPC_RADIANS_PER_DEGREE_R8 ) 
+    x1  = cos ( s(I1) * MPC_RADIANS_PER_DEGREE_R8 )
+    x2  = cos ( s(I2) * MPC_RADIANS_PER_DEGREE_R8 )
     g1  = drcld(i1)
     g2  = drcld(i2)
     if (i1 == i2) then
@@ -2613,18 +2613,18 @@ contains
       call lineq(x1, x2, g1, g2, a, b, ierr)
       delta = a * scos + b
     end if
-  
+
   end subroutine cor_albedo
 
   !--------------------------------------------------------------------------
   ! drcld
   !--------------------------------------------------------------------------
-  real(8) function drcld(iz) 
+  real(8) function drcld(iz)
     !
     ! :Purpose: Generaliser pour toutes les plateformes satellitaires.
     !           Ce sous-programme calcule la normalisation due
-    !           a l'angle zenith solaire selon 
-    !           MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.  
+    !           a l'angle zenith solaire selon
+    !           MINNIS-HARRISSON (COURBE FIG 7), P1038,JCAM 84.
     !
     ! :Output: facteur de normalisation
     !
@@ -2638,23 +2638,23 @@ contains
                                     1.420d0, 1.546d0, 1.710d0, 1.870d0, 2.050d0]
 
     drcld = drf (iz)
-    
+
   end function drcld
 
 
   !--------------------------------------------------------------------------
-  ! visocn 
+  ! visocn
   !--------------------------------------------------------------------------
   subroutine visocn(sz, satz, rz, anisot, zlamb, zcloud, ierr)
     !
     ! :Purpose: This routine provides the corrective factors for the anisotropy
     !           of reflectance over clear ocean.
-    !                 
+    !
     !
     ! :Notes:  Obtained from dr pat minnis,langley , and based on the work
     !          of minnis and harrisson,jcam 1984,p993.
-    !          the routine is a look up table along with interpolation on the 
-    !          three angles. 
+    !          the routine is a look up table along with interpolation on the
+    !          three angles.
     !
     implicit  none
 
@@ -2670,9 +2670,9 @@ contains
     ! Locals:
     integer  i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
     real(8) cc, d1, d2, slope, intercept, x1, x2
-    real(8) g1, g2, da(2), dd(2) 
+    real(8) g1, g2, da(2), dd(2)
     real(8), parameter :: s(11)=[0.0d0,18.19d0,31.79d0,41.41d0,49.46d0,56.63d0, &
-         63.26d0,69.51d0,75.52d0,81.37d0,87.13d0]    
+         63.26d0,69.51d0,75.52d0,81.37d0,87.13d0]
     real(8), parameter :: r(13)=[0.0d0, 15.0d0, 30.0d0, 45.0d0, 60.0d0, 75.0d0, 90.0d0, &
          105.0d0, 120.0d0, 135.0d0, 150.0d0, 165.0d0, 180.0d0]
     real(8), parameter :: v(10)=[0.0d0, 10.0d0, 20.0d0, 30.0d0, 40.0d0, 50.0d0, 60.0d0, &
@@ -2692,8 +2692,8 @@ contains
          2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
          2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
          2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
-         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0/ 
-    
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0/
+
     data ((vnorm(2,j,k),j=1,10),k=1,13)/  &
          1.154d0, .960d0, .896d0, .818d0, .748d0, .825d0, .922d0,1.018d0,1.179d0,1.334d0, &
          1.154d0, .954d0, .838d0, .799d0, .735d0, .786d0, .883d0, .960d0,1.128d0,1.250d0, &
@@ -2707,7 +2707,7 @@ contains
          1.514d0,2.165d0,2.165d0,1.270d0,1.038d0,0.760d0,0.812d0,0.902d0,1.012d0,1.115d0, &
          1.514d0,2.275d0,2.262d0,1.688d0,1.115d0,0.780d0,0.857d0,0.954d0,1.070d0,1.173d0, &
          1.514d0,2.326d0,2.520d0,2.172d0,1.257d0,0.812d0,0.883d0,1.005d0,1.108d0,1.212d0, &
-         1.514d0,2.359d0,2.951d0,2.255d0,1.411d0,0.980d0,0.915d0,1.050d0,1.160d0,1.295d0/ 
+         1.514d0,2.359d0,2.951d0,2.255d0,1.411d0,0.980d0,0.915d0,1.050d0,1.160d0,1.295d0/
 
     data ((vnorm(3,j,k),j=1,10),k=1,13)/   &
          0.897d0,0.792d0,0.765d0,0.765d0,0.778d0,0.897d0,0.996d0,1.095d0,1.306d0,1.431d0, &
@@ -2722,7 +2722,7 @@ contains
          0.897d0,1.036d0,1.253d0,1.286d0,1.260d0,0.778d0,0.858d0,0.996d0,1.181d0,1.260d0, &
          0.897d0,1.201d0,1.788d0,1.986d0,1.827d0,0.884d0,0.851d0,1.062d0,1.227d0,1.333d0, &
          0.897d0,1.530d0,2.249d0,2.546d0,2.381d0,1.352d0,0.891d0,1.108d0,1.286d0,1.405d0, &
-         0.897d0,1.854d0,2.401d0,3.325d0,2.559d0,1.590d0,0.937d0,1.168d0,1.214d0,1.425d0/ 
+         0.897d0,1.854d0,2.401d0,3.325d0,2.559d0,1.590d0,0.937d0,1.168d0,1.214d0,1.425d0/
 
     data ((vnorm(4,j,k),j=1,10),k=1,13)/  &
          0.752d0,0.800d0,0.745d0,0.717d0,0.759d0,0.891d0,1.149d0,1.309d0,1.469d0,1.650d0, &
@@ -2737,7 +2737,7 @@ contains
          0.752d0,0.682d0,0.717d0,0.961d0,1.023d0,0.968d0,0.940d0,1.142d0,1.274d0,1.413d0, &
          0.752d0,0.856d0,1.037d0,1.434d0,1.594d0,1.441d0,1.044d0,1.225d0,1.323d0,1.545d0, &
          0.752d0,1.044d0,1.295d0,2.207d0,1.610d0,2.311d0,1.385d0,1.274d0,1.441d0,1.636d0, &
-         0.752d0,1.079d0,1.524d0,2.541d0,3.564d0,3.014d0,1.942d0,1.462d0,1.552d0,1.726d0/ 
+         0.752d0,1.079d0,1.524d0,2.541d0,3.564d0,3.014d0,1.942d0,1.462d0,1.552d0,1.726d0/
 
     data ((vnorm(5,j,k),j=1,10),k=1,13)/  &
          0.552d0,0.588d0,0.617d0,0.638d0,0.724d0,0.860d0,1.133d0,1.362d0,1.556d0,1.678d0, &
@@ -2752,7 +2752,7 @@ contains
          0.552d0,0.566d0,0.552d0,0.574d0,0.710d0,0.839d0,0.982d0,1.298d0,1.391d0,2.323d0, &
          0.552d0,0.566d0,0.559d0,0.710d0,1.147d0,1.176d0,1.040d0,1.348d0,1.671d0,2.674d0, &
          0.552d0,0.588d0,1.133d0,1.355d0,2.194d0,2.803d0,2.201d0,2.459d0,2.904d0,3.126d0, &
-         0.552d0,0.710d0,1.341d0,1.757d0,3.026d0,3.900d0,4.445d0,4.503d0,4.445d0,4.503d0/ 
+         0.552d0,0.710d0,1.341d0,1.757d0,3.026d0,3.900d0,4.445d0,4.503d0,4.445d0,4.503d0/
 
     data ((vnorm(6,j,k),j=1,10),k=1,13)/  &
          0.551d0,0.627d0,0.665d0,0.734d0,0.826d0,0.971d0,1.231d0,1.537d0,1.721d0,1.866d0, &
@@ -2767,7 +2767,7 @@ contains
          0.551d0,0.535d0,0.543d0,0.558d0,0.704d0,1.193d0,1.247d0,1.285d0,1.346d0,1.950d0, &
          0.551d0,0.543d0,0.551d0,0.581d0,0.994d0,1.545d0,1.583d0,1.354d0,2.019d0,2.883d0, &
          0.551d0,0.566d0,0.612d0,0.788d0,1.468d0,2.233d0,2.340d0,2.531d0,2.983d0,3.365d0, &
-         0.551d0,0.658d0,0.665d0,1.101d0,2.134d0,3.120d0,4.221d0,4.856d0,4.956d0,5.613d0/ 
+         0.551d0,0.658d0,0.665d0,1.101d0,2.134d0,3.120d0,4.221d0,4.856d0,4.956d0,5.613d0/
 
     data ((vnorm(7,j,k),j=1,10),k=1,13)/  &
          0.545d0,0.606d0,0.683d0,0.744d0,0.798d0,0.990d0,1.228d0,1.704d0,1.850d0,2.049d0, &
@@ -2782,7 +2782,7 @@ contains
          0.545d0,0.537d0,0.545d0,0.553d0,0.614d0,0.906d0,1.028d0,1.389d0,1.504d0,2.533d0, &
          0.545d0,0.553d0,0.553d0,0.576d0,0.637d0,1.036d0,1.550d0,1.658d0,1.934d0,3.277d0, &
          0.545d0,0.560d0,0.568d0,0.606d0,1.174d0,1.781d0,2.563d0,3.170d0,3.791d0,4.966d0, &
-         0.545d0,0.591d0,0.614d0,1.259d0,2.065d0,2.824d0,3.761d0,4.498d0,5.902d0,6.148d0/ 
+         0.545d0,0.591d0,0.614d0,1.259d0,2.065d0,2.824d0,3.761d0,4.498d0,5.902d0,6.148d0/
 
     data ((vnorm(8,j,k),j=1,10),k=1,13)/  &
          0.514d0,0.539d0,0.596d0,0.694d0,0.832d0,1.004d0,1.444d0,1.869d0,2.203d0,2.538d0, &
@@ -2797,7 +2797,7 @@ contains
          0.514d0,0.547d0,0.547d0,0.571d0,0.604d0,0.767d0,1.036d0,1.355d0,1.550d0,3.142d0, &
          0.514d0,0.563d0,0.579d0,0.604d0,0.612d0,0.832d0,1.909d0,2.848d0,3.917d0,4.790d0, &
          0.514d0,0.522d0,0.563d0,0.677d0,0.767d0,1.420d0,2.040d0,3.158d0,4.863d0,6.291d0, &
-         0.514d0,0.588d0,0.588d0,0.612d0,0.824d0,2.032d0,3.109d0,4.969d0,6.846d0,7.695d0/ 
+         0.514d0,0.588d0,0.588d0,0.612d0,0.824d0,2.032d0,3.109d0,4.969d0,6.846d0,7.695d0/
 
     data ((vnorm(9,j,k),j=1,10),k=1,13)/  &
          0.572d0,0.608d0,0.679d0,0.751d0,0.831d0,1.001d0,1.377d0,1.913d0,2.512d0,2.879d0, &
@@ -2812,8 +2812,8 @@ contains
          0.572d0,0.590d0,0.608d0,0.635d0,0.662d0,0.742d0,0.912d0,1.529d0,3.075d0,4.693d0, &
          0.572d0,0.590d0,0.626d0,0.644d0,0.670d0,0.760d0,1.109d0,1.564d0,3.111d0,4.702d0, &
          0.572d0,0.599d0,0.644d0,0.662d0,0.688d0,0.822d0,1.788d0,2.816d0,5.346d0,7.295d0, &
-         0.572d0,0.608d0,0.662d0,0.670d0,0.715d0,1.851d0,3.227d0,4.810d0,6.669d0,9.557d0/ 
-    
+         0.572d0,0.608d0,0.662d0,0.670d0,0.715d0,1.851d0,3.227d0,4.810d0,6.669d0,9.557d0/
+
     data ((vnorm(10,j,k),j=1,10),k=1,13)/   &
          0.552d0,0.606d0,0.639d0,0.671d0,0.704d0,0.899d0,1.223d0,2.479d0,3.194d0,3.573d0, &
          0.552d0,0.574d0,0.606d0,0.628d0,0.682d0,0.855d0,1.148d0,2.339d0,2.642d0,3.378d0, &
@@ -2843,84 +2843,84 @@ contains
          0.518d0,0.489d0,0.489d0,0.547d0,0.576d0,0.749d0,1.008d0,2.476d0,3.599d0,6.334d0, &
          0.518d0,0.547d0,0.518d0,0.576d0,0.633d0,0.777d0,1.842d0,3.224d0,6.132d0,8.550d0, &
          0.518d0,0.605d0,0.633d0,0.662d0,0.777d0,1.008d0,2.562d0,3.771d0,8.953d0,12.293d0/
- 
+
     !   compute sun zenith bin
     cc  = cos( sz * MPC_RADIANS_PER_DEGREE_R8)
-    i1  = 12.d0 - (cc + 0.05d0) * 10.d0
-    i2  = i1 + 1 
-    if (i1 >= 11) i1 = 11 
-    if (i1 == 11) i2 = i1 
+    i1  = int(12.d0 - (cc + 0.05d0) * 10.d0)
+    i2  = i1 + 1
+    if (i1 >= 11) i1 = 11
+    if (i1 == 11) i2 = i1
 
-    !  compute sat zenith bin 
-    j1  = int(satz / 10.d0) + 1 
-    j2  = j1 + 1 
-    if (j1 == 10) j2 = j1 
+    !  compute sat zenith bin
+    j1  = int(satz / 10.d0) + 1
+    j2  = j1 + 1
+    if (j1 == 10) j2 = j1
 
-    !  compute relative azimuth bin 
-    k1  = RZ / 15.d0 + 1.d0
-    k2  = k1 + 1 
-    if (k1 == 13) k2 = k1 
+    !  compute relative azimuth bin
+    k1  = int(RZ / 15.d0 + 1.d0)
+    k2  = k1 + 1
+    if (k1 == 13) k2 = k1
 
     !  interpolate
-    ierr = 0 
-    do l=i1,i2  
+    ierr = 0
+    do l=i1,i2
       i = l -i1 + 1
-       
-    !     between r's for constant s
-      do n=k1,k2 
 
-        !        between v's for constant r and s 
+    !     between r's for constant s
+      do n=k1,k2
+
+        !        between v's for constant r and s
         m  = n - k1 + 1
         d1 = vnorm(l,j1,n)
         d2 = vnorm(l,j2,n)
-        if (d1 == d2) then
+        if ( utl_isEqual(d1,d2) ) then
           da(m) = d1
         else
-          call lineq(V(j1), V(j2), d1, d2, slope, intercept, ierr) 
+          call lineq(V(j1), V(j2), d1, d2, slope, intercept, ierr)
           da(m) = slope * satz + intercept
         end if
       end do
-      if(k1 == k2) then 
-        dd(i)  = da(1) 
-      else 
-        call lineq(R(k1), R(k2), da(1), da(2), slope, intercept, ierr) 
+      if(k1 == k2) then
+        dd(i)  = da(1)
+      else
+        call lineq(R(k1), R(k2), da(1), da(2), slope, intercept, ierr)
         dd(i) = slope * RZ + intercept
       end if
     end do
 
-    !  between s's using result of other interpolations 
+    !  between s's using result of other interpolations
     if(i1 == i2) then
-      zlamb  = drm(i1) 
+      zlamb  = drm(i1)
       zcloud = drcld(i1)
       anisot = dd(1)
     else
-      x1 = cos(s(i1) * MPC_RADIANS_PER_DEGREE_R8) 
-      x2 = cos(s(i2) * MPC_RADIANS_PER_DEGREE_R8) 
-      call lineq(x1, x2, dd(1), dd(2), slope, intercept, ierr) 
-      anisot = slope * cc + intercept 
+      x1 = cos(s(i1) * MPC_RADIANS_PER_DEGREE_R8)
+      x2 = cos(s(i2) * MPC_RADIANS_PER_DEGREE_R8)
+      call lineq(x1, x2, dd(1), dd(2), slope, intercept, ierr)
+      anisot = slope * cc + intercept
       g1 = drm(i1)
       g2 = drm(i2)
-      call lineq(x1, x2, g1, g2, slope, intercept, ierr) 
+      call lineq(x1, x2, g1, g2, slope, intercept, ierr)
       zlamb  = slope * cc + intercept
       g1 = drcld(i1)
       g2 = drcld(i2)
-      call lineq(x1, x2, g1, g2, slope, intercept, ierr) 
-      zcloud = slope * cc + intercept 
+      call lineq(x1, x2, g1, g2, slope, intercept, ierr)
+      zcloud = slope * cc + intercept
     end if
-    
-    if (anisot < 0.) then 
+
+    if (anisot < 0.) then
       ierr = -1
-      anisot = 1.d0 
-      zlamb  = drm(i1) 
+      anisot = 1.d0
+      zlamb  = drm(i1)
       zcloud = drcld(i1)
     end if
-    
+
   end subroutine visocn
 
   !--------------------------------------------------------------------------
   ! lineq
   !--------------------------------------------------------------------------
-  subroutine lineq(x1, x2, y1, y2, a, b, ierr) 
+  subroutine lineq(x1, x2, y1, y2, a, b, ierr)
     !
     ! :Purpose: calculate slope and intercept of a line.
     !
@@ -2934,24 +2934,24 @@ contains
     real(8), intent(out) :: a    ! slope
     real(8), intent(out) :: b    ! intercept
     integer, intent(out) :: ierr ! error code (0=ok)
-     
+
     ierr = 0
-    
-    if ( (x2 - x1) == 0.d0) then 
+
+    if ( utl_isEqual(x2 - x1, 0.d0) ) then
       ierr = -1
       return
     end if
 
-    a = ( y2 - y1) / (x2 - x1) 
-    b = y1 - a * x1 
-    
+    a = ( y2 - y1) / (x2 - x1)
+    b = y1 - a * x1
+
   end subroutine lineq
 
 
   !--------------------------------------------------------------------------
   ! drm
   !--------------------------------------------------------------------------
-  real(8) function drm(iz) 
+  real(8) function drm(iz)
     !
     ! :Purpose: Normalization for sun zenith angle (lambertian)
     !           for ocean.
@@ -2967,10 +2967,9 @@ contains
     real(8), parameter :: drf(11)=[1.d0,1.0255d0,1.1197d0,1.2026d0,1.3472d0, &
          1.4926d0,1.8180d0,2.1980d0, 2.8180d0,3.8615d0,4.3555d0]
 
-    drm = drf(IZ) 
-  
+    drm = drf(IZ)
+
   end function drm
-      
+
 
 end module multiIRbgck_mod
-

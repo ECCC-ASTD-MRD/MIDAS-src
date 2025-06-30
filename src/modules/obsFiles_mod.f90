@@ -229,7 +229,6 @@ contains
     character(len=256):: obsDirectory
     character(len=fileTypeLen) :: obsFileType
     character(len=10) :: sfFileName
-    character(len=*), parameter :: myName = 'obsf_writeFiles'
 
     ! Namelist variables:
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files

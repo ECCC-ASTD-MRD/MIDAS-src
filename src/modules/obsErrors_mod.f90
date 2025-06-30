@@ -1204,8 +1204,8 @@ contains
     real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
     real(8) :: errThresh1, errThresh2, sigmaObsErrUsed
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
-    character(len=2)  :: cfam
-    character(len=12) :: cstnid
+    character(len=2) :: cfam
+    character(len=obs_stnidLength) :: cstnid
 
     write(*,'(10X, "***********************************")')
     write(*,'(10X, "oer_fillObsErrors: starting", /)')
@@ -2288,8 +2288,8 @@ contains
     real(8) :: SP_WGH,TO_WGH,TO_DSP,E_VHGT,E_DRIFT,E_HEIGHT
     character(len=4) :: varName
     character(len=4) :: varLevel
-    character(len=12) :: cstnid
-    character(len=20), allocatable :: SWname(:), QIvalue(:)
+    character(len=obs_stnidLength) :: cstnid
+    character(len=20), allocatable  :: SWname(:), QIvalue(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.

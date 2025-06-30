@@ -1624,8 +1624,8 @@ module sqliteRead_mod
     integer, parameter     :: obsStatus = 3072
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate
-    character(len = 12)    :: idStation
+    character(len=512)     :: queryData, queryHeader, queryCreate
+    character(len=obs_stnidLength) :: idStation
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
 

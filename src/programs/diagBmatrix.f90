@@ -372,7 +372,7 @@ program midas_diagBmatrix
 
           write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
 
-          if (centralValue /= 0.d0) then
+          if (.not. utl_isEqual(centralValue, 0.d0)) then
             call gsv_scale(statevector,1.d0/centralValue)
           else
             call utl_abort('midas-diagBmatrix: central value equals 0!')
@@ -562,7 +562,7 @@ program midas_diagBmatrix
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = field3d(lonIndex,latIndex,varLevIndex)
+            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = real(field3d(lonIndex,latIndex,varLevIndex),4)
           end do
         end do
       end do
@@ -607,9 +607,13 @@ program midas_diagBmatrix
       do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            ! TODO: simplify the floating point precision conversions
+            !     randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
+            !          randomEns(lonIndex,latIndex,varLevIndex,ensIndex) - &
+            !          real(mean(lonIndex,latIndex,varLevIndex),4)
             randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
-                 randomEns(lonIndex,latIndex,varLevIndex,ensIndex) - &
-                 mean(lonIndex,latIndex,varLevIndex)
+                 real( real(randomEns(lonIndex,latIndex,varLevIndex,ensIndex),8) - &
+                            mean(lonIndex,latIndex,varLevIndex), 4)
           end do
         end do
       end do

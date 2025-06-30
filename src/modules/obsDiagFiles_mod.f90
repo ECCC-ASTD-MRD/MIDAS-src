@@ -133,20 +133,20 @@ module obsDiagFiles_mod
     type(struct_eob) , optional, intent(in)    :: ensObs_opt
 
     ! Locals:
-    type(fSQL_DATABASE)    :: db                                   ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)   :: stmtData, stmtHeader, stmtEnsObs     ! type for precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat                                 ! type for error status
-    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData, memberIndex
-    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, ENSOBSTRL, ENSOBSANL
-    real                   :: latData, lonData
-    real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
-    integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs
-    character(len = 12)    :: idStation
-    character(len=30)      :: fileNameExtention
-    character(len=256)     :: fileName, fileNameDir
-    character(len=4)       :: cmyidx, cmyidy
-    logical                :: writeHeader
+    type(fSQL_DATABASE)  :: db                                   ! type for SQLIte  file handle
+    type(fSQL_STATEMENT) :: stmtData, stmtHeader, stmtEnsObs     ! type for precompiled SQLite statements
+    type(fSQL_STATUS)    :: stat                                 ! type for error status
+    integer              :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData, memberIndex
+    real                 :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, ENSOBSTRL, ENSOBSANL
+    real                 :: latData, lonData
+    real                 :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
+    integer              :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
+    character(len=512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs
+    character(len=30)    :: fileNameExtention
+    character(len=256)   :: fileName, fileNameDir
+    character(len=4)     :: cmyidx, cmyidy
+    logical              :: writeHeader
+    character(len=obs_stnidLength) :: idStation
 
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)

@@ -797,7 +797,7 @@ module calcStatsGlb_mod
     if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
 
-     if (vertModesLengthScale(2) == -1.d0) then
+     if ( utl_isEqual(vertModesLengthScale(2),-1.d0) ) then
       vertModesLengthScale(2) = vertModesLengthScale(1)
      end if
 
@@ -1193,8 +1193,11 @@ module calcStatsGlb_mod
       do levIndex = 1, nLevEns_M
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) +  &
-                 tan(theta(levIndex,latIndex))*psi_ptr(lonIndex,latIndex,levIndex)
+            ! TODO: We should simplify the floating point precision conversions by using
+            !                 chi_ptr(lonIndex,latIndex,levIndex) = chi_ptr(lonIndex,latIndex,levIndex) +  &
+            !                                 real(tan(theta(levIndex,latIndex)),4)*psi_ptr(lonIndex,latIndex,levIndex)
+            chi_ptr(lonIndex,latIndex,levIndex) = real( real(chi_ptr(lonIndex,latIndex,levIndex),8) +  &
+                          tan(theta(levIndex,latIndex))*real(psi_ptr(lonIndex,latIndex,levIndex),8), 4)
           end do
         end do
       end do
@@ -1221,7 +1224,7 @@ module calcStatsGlb_mod
     real(8),          intent(in)    :: PtoT(:,:,:)
 
     ! Locals:
-    real(4),pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
+    real(4), pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
     real(8) :: spectralState(nla_mpilocal,2,nLevEns_M), spBalancedP(nla_mpilocal,2,nlevEns_M)
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
     real(8) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
@@ -1250,12 +1253,16 @@ module calcStatsGlb_mod
         do lonIndex = myLonBeg, myLonEnd
           do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
-              ttb_ptr(lonIndex,latIndex,jk1) = ttb_ptr(lonIndex,latIndex,jk1) + PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
+              ! TODO: We should simplify the floating point precision conversions by using
+              !     ttb_ptr(lonIndex,latIndex,jk1) = ttb_ptr(lonIndex,latIndex,jk1) + real(PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2),4)
+              ttb_ptr(lonIndex,latIndex,jk1) = real( real(ttb_ptr(lonIndex,latIndex,jk1),8) + PtoT(jk1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2), 4)
             end do
             tt_ptr(lonIndex,latIndex,jk1) = tt_ptr(lonIndex,latIndex,jk1) - ttb_ptr(lonIndex,latIndex,jk1)
           end do
           do jk2 = 1, nlevptot
-            psb_ptr(lonIndex,latIndex,1) = psb_ptr(lonIndex,latIndex,1) + PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2)
+            ! TODO: We should simplify the floating point precision conversions by using
+            !   psb_ptr(lonIndex,latIndex,1) = psb_ptr(lonIndex,latIndex,1) + real(PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2),4)
+            psb_ptr(lonIndex,latIndex,1) = real( real(psb_ptr(lonIndex,latIndex,1),8) + PtoT(nLevEns_T+1,jk2,latIndex)*balancedP(lonIndex,latIndex,jk2), 4)
           end do
           ps_ptr(lonIndex,latIndex,1) = ps_ptr(lonIndex,latIndex,1) - psb_ptr(lonIndex,latIndex,1)
         end do
@@ -1351,8 +1358,8 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         do jk2 = 1, numVarLevEns
-          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
-            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          if(.not. (utl_isEqual(rstddev(jk1,jn),0.0d0) .or. utl_isEqual(rstddev(jk2,jn),0.0d0)) ) then
+            corns(jk1,jk2,jn) = corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
             corns(jk1,jk2,jn) = 0.0d0
           end if
@@ -1492,8 +1499,8 @@ module calcStatsGlb_mod
     do jn = 0, ntrunc
       do jk1 = 1, numVarLevEns
         do jk2 = 1, numVarLevEns
-          if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
-            corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
+          if(.not. (utl_isEqual(rstddev(jk1,jn),0.0d0) .or. utl_isEqual(rstddev(jk2,jn),0.0d0)) ) then
+            corns(jk1,jk2,jn) = corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
             corns(jk1,jk2,jn) = 0.0d0
           end if
@@ -2544,8 +2551,11 @@ module calcStatsGlb_mod
         dmean_mpiglobal = dmean_mpiglobal/(dble(ni)*dble(nj))
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
+            ! TODO: We should simplify the floating point precision conversions by using
+            !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =   &
+            !         ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) - real(dmean_mpiglobal,4)
             ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =   &
-                 ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) - dmean_mpiglobal
+                 real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) - dmean_mpiglobal, 4)
           end do
         end do
       end do
@@ -2833,7 +2843,9 @@ module calcStatsGlb_mod
             dfact=0.0d0
           end if
           do ensIndex = 1, nens
-            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*dfact
+            ! TODO: We should simplify the floating point precision conversions by declaring 'dfact' as a 'real(4)'
+            !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*dfact
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) =  real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8)*dfact ,4)
           end do
         end do
       end do
@@ -2866,7 +2878,9 @@ module calcStatsGlb_mod
       do levIndex = 1, nlev
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*stddev3d(lonIndex,latIndex,levIndex)
+            ! TODO: We should simplify the floating point precision conversions by using
+            ! ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)*real(stddev3d(lonIndex,latIndex,levIndex),4)
+            ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = real ( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8)*stddev3d(lonIndex,latIndex,levIndex), 4)
           end do
         end do
       end do
@@ -3044,8 +3058,11 @@ module calcStatsGlb_mod
         do ensIndex = 1, nens
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
-              ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)=     &
-                ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-gd2d(lonIndex,latIndex)
+              ! TODO: We should simplify the floating point precision conversions by using
+              !    ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
+              !         ensPerturbations(lonIndex,latIndex,levIndex,ensIndex)-real(gd2d(lonIndex,latIndex),4)
+              ensPerturbations(lonIndex,latIndex,levIndex,ensIndex) = &
+                   real( real(ensPerturbations(lonIndex,latIndex,levIndex,ensIndex),8) - gd2d(lonIndex,latIndex), 4)
             end do
           end do
         end do
@@ -3328,7 +3345,7 @@ module calcStatsGlb_mod
              b = b - temp*rjn*(rjn+1.d0)
           end if
        end do
-       if (a > 0.d0 .and. b /= 0.d0) then
+       if (a > 0.d0 .and. .not. utl_isEqual(b,0.d0)) then
           HorizScale(jk) = ec_ra * sqrt(-2.0d0*a/b)
        else
           HorizScale(jk) = 0.d0
@@ -3504,7 +3521,7 @@ module calcStatsGlb_mod
     njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
-    read(utl_flnml,nml=NAMHVCORREL_LOCAL)
+    read(utl_flnml,nml=NAMHVCORREL_LOCAL,iostat=ierr)
     if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
     if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
 

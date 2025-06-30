@@ -1024,7 +1024,7 @@ contains
     numRowsHeadTable = size(headCharValues,1)
 
     ! Set the STATION ID
-    stIdSqlName = odbf_sqlNameFromObsSpaceName('STID')
+    call odbf_sqlNameFromObsSpaceName('STID', stIdSqlName)
     columnIndex = utl_findloc(headCharSqlNames(:), trim(stIdSqlName(1)))
     if (columnIndex == 0) then
       call utl_abort('odbf_copyToObsSpaceHeadChar: Station ID column not found in sql table')
@@ -1040,7 +1040,7 @@ contains
     end do
 
     ! Set the codeType (obs_ity) from a character column containing the obs type
-    codeTypeSqlName = odbf_sqlNameFromObsSpaceName('ITY')
+    call odbf_sqlNameFromObsSpaceName('ITY', codeTypeSqlName)
     columnIndex = utl_findloc(headCharSqlNames(:), trim(codeTypeSqlName(1)))
     if (columnIndex == 0) then
       call utl_abort('odbf_copyToObsSpaceHeadChar: Obs type column not found in sql table')
@@ -1221,7 +1221,7 @@ contains
     end do
 
     ! figure out column indexes for observation values (OBS_VAR)
-    obsValueSqlNames = odbf_sqlNameFromObsSpaceName('VAR')
+    call odbf_sqlNameFromObsSpaceName('VAR', obsValueSqlNames)
     numObsValues = size(obsValueSqlNames)
     allocate(obsVarNoList(numObsValues))
     allocate(bodyColumnIndexObsValueList(numObsValues))
@@ -1478,7 +1478,7 @@ contains
   !--------------------------------------------------------------------------
   ! odbf_sqlNameFromObsSpaceName
   !--------------------------------------------------------------------------
-  function odbf_sqlNameFromObsSpaceName(obsSpaceName) result(sqlName)
+  subroutine odbf_sqlNameFromObsSpaceName(obsSpaceName, sqlName)
     !
     ! :Purpose: Return the corresponding sql file column name for a
     !           given obsSpaceData column name from the matching
@@ -1487,18 +1487,17 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)           :: obsSpaceName
-    ! Result:
-    character(len=lenSqlName), allocatable :: sqlName(:)
+    character(len=*),                       intent(in)  :: obsSpaceName
+    character(len=lenSqlName), allocatable, intent(out) :: sqlName(:)
 
     ! Locals:
-    integer                   :: numMatchFound, matchFoundIndex
-    integer, allocatable      :: matchIndexList(:)
+    integer              :: numMatchFound, matchFoundIndex
+    integer, allocatable :: matchIndexList(:)
 
     if (allocated(sqlName)) deallocate(sqlName)
 
     ! first try the body matching list
-    matchIndexList = utl_findlocs(bodyMatchList(obsColIndex,:), trim(obsSpaceName))
+    call utl_findlocs(bodyMatchList(obsColIndex,:), trim(obsSpaceName), matchIndexList)
     if (matchIndexList(1) > 0) then
       numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))
@@ -1509,7 +1508,7 @@ contains
     end if
 
     ! now try the header matching list
-    matchIndexList = utl_findlocs(headMatchList(obsColIndex,:), trim(obsSpaceName))
+    call utl_findlocs(headMatchList(obsColIndex,:), trim(obsSpaceName), matchIndexList)
     if (matchIndexList(1) > 0) then
       numMatchFound = size(matchIndexList)
       allocate(sqlName(numMatchFound))
@@ -1523,7 +1522,7 @@ contains
     write(*,*) 'odbf_sqlNameFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
     call utl_abort('odbf_sqlNameFromObsSpaceName: obsSpace name not found in matching list')
 
-  end function odbf_sqlNameFromObsSpaceName
+  end subroutine odbf_sqlNameFromObsSpaceName
 
   !--------------------------------------------------------------------------
   ! odbf_midasTabColFromObsSpaceName
@@ -2358,7 +2357,7 @@ contains
     call fSQL_exec_stmt(stmt)
 
     ! Remove rows with missing obsvalue in body table.
-    varSqlName = odbf_sqlnamefromobsspacename('VAR')
+    call odbf_sqlNameFromObsSpaceName('VAR', varSqlName)
     query = 'delete from '// trim(bodyTableName) //' where '// trim(varSqlName(1)) // ' is null;'
 
     write(*,*) 'odbf_clean: query = ', trim(query)

@@ -125,7 +125,7 @@ contains
     end do
 
     write(*,*) ' sum(scaleFactor) : ',sum(scaleFactor(1:nLev))
-    if ( sum(scaleFactor(1:nLev)) == 0.0d0 ) then
+    if ( utl_isEqual(sum(scaleFactor(1:nLev)),0.0d0) ) then
       write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
       cvDim_out   = 0
       return
@@ -1204,7 +1204,7 @@ contains
             k = kgd - kgdStart + 1
             do j = myLatBeg, myLatEnd
               do i = myLonBeg, myLonEnd
-                field_r4(i,j,k) = gd(i,j,kgd)
+                field_r4(i,j,k) = real(gd(i,j,kgd),4)
               end do
             end do
           end do

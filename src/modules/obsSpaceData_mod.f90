@@ -1645,6 +1645,11 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
    integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
 
+   ! The BURP standard is to use 9 characters for the station ID but
+   ! SQLite does not have this limitation and some applications need
+   ! more characters so we use 12.
+   integer, public, parameter :: obs_stnidLength = 12
+
    real(pre_obsReal), public, parameter :: obs_missingValue_R = real(MPC_missingValue_R8, pre_obsReal) ! Missing value
 
    ! DERIVED TYPE AND MODULE VARIABLE DECLARATIONS
@@ -1667,7 +1672,7 @@ module ObsSpaceData_mod
       type(struct_index_list_depot) :: body_index_list_depot
                                         ! For the cstnid and cfamily arrays:
                                         !   1st dim'n:  row index
-      character(len=12),  pointer :: cstnid(:)
+      character(len=obs_stnidLength),  pointer :: cstnid(:)
       character(len=2),   pointer :: cfamily(:)
                                         ! The primary keys for both tables
       integer(8), pointer :: headerPrimaryKey(:), bodyPrimaryKey(:)
@@ -2834,7 +2839,7 @@ contains
       character(len=*), intent(in)  :: name
       integer         , intent(in)  :: row_index
       ! Result:
-      character(len=12) :: value
+      character(len=obs_stnidLength) :: value
 
       select case (trim(name))
       case ('STID'); value=obsdat%cstnid(row_index)
@@ -4262,7 +4267,7 @@ contains
       integer :: obsRLN, obsONM, obsINS, obsIDF, obsITY
       integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
       real(pre_obsReal) :: obsLON, obsLAT, obsALT
-      character(len=12) :: stnid
+      character(len=obs_stnidLength) :: stnid
 
       if ( present( unitout_opt ) ) then
          unitout_ = unitout_opt
@@ -4335,7 +4340,7 @@ contains
       ! Locals:
       integer(8),        allocatable,dimension(:)   :: headerPrimaryKey_tmp
       integer(8),        allocatable,dimension(:)   :: bodyPrimaryKey_tmp
-      character(len=12), allocatable,dimension(:)   :: cstnid_tmp
+      character(len=obs_stnidLength), allocatable,dimension(:)   :: cstnid_tmp
       character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realBodies_tmp
@@ -4491,9 +4496,9 @@ contains
 
       ! copy all data from temporary arrays to object's arrays
       HEADER:if(numHeader_mpiLocal > 0) then
-         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:  )
-         obsdat%cfamily(:  )=cfamily_tmp(:  )
-         obsdat%cstnid (:  )= cstnid_tmp(:  )
+         obsdat%headerPrimaryKey(:)=headerPrimaryKey_tmp(:)
+         obsdat%cfamily(:)=cfamily_tmp(:)
+         obsdat%cstnid (:)= cstnid_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
             column_index=odc_columnIndexFromActiveIndex( &
                                     obsdat%realHeaders%odc_flavour, active_index)
@@ -4557,7 +4562,7 @@ contains
       ! Locals:
       integer(8),        allocatable :: headerPrimaryKey_tmp(:)
       integer(8),        allocatable :: bodyPrimaryKey_tmp(:)
-      character(len=12), allocatable :: cstnid_tmp(:)
+      character(len=obs_stnidLength), allocatable :: cstnid_tmp(:)
       character(len=2),  allocatable :: cfamily_tmp(:)
       real(pre_obsReal), allocatable :: realHeaders_tmp(:,:), realBodies_tmp(:,:)
       integer,           allocatable :: intHeaders_tmp(:,:),intBodies_tmp(:,:)

@@ -47,7 +47,7 @@ module calcStatsLam_mod
     integer              :: varLevIndexStart
     integer              :: varLevIndexEnd
     integer              :: nlev
-    character(len=2)     :: GridType
+    character(len=4)     :: GridType
     integer, allocatable :: ip1(:)
   end type struct_cv
 
@@ -415,7 +415,7 @@ contains
     !
     !- 10.  Setup the scaling
     !
-    if ( all(scaleFactor(:) == 1.d0) ) then
+    if ( all( utl_isEqual(scaleFactor,1.d0) ) ) then
       write(*,*)
       write(*,*) 'csl_setup: NO scaling of the StdDev will be performed'
       stdDevScaling=.false.
@@ -818,6 +818,8 @@ contains
           SumWeight(totwvnb) = SumWeight(totwvnb)*nEns
         end if
 
+        ! TODO: use 'utl_isEqual' but we can't because it affects the results
+        !     if ( .not. utl_isEqual(SumWeight(totwvnb),0.d0) ) then
         if ( SumWeight(totwvnb) /= 0.d0 ) then
           SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
         else
@@ -840,8 +842,8 @@ contains
       do totwvnb = 0, nTrunc
         do k2 = 1, bhi%nVarLev
           do k1 = 1, bhi%nVarLev
-            if ( PowerSpectrum(k1,totwvnb) /= 0.d0 .and. &
-                 PowerSpectrum(k2,totwvnb) /= 0.d0 ) then
+            if ( .not. ( utl_isEqual(PowerSpectrum(k1,totwvnb),0.d0) .or. &
+                         utl_isEqual(PowerSpectrum(k2,totwvnb),0.d0) ) ) then
               SpVertCorrel(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) / &
                    sqrt( PowerSpectrum(k1,totwvnb) * PowerSpectrum(k2,totwvnb) )
             else
@@ -940,13 +942,15 @@ contains
       do totwvnb = 0, nTrunc
         sum = sum + real(totwvnb,8) * PowerSpectrum(k,totwvnb)
       end do
-      do totwvnb = 0, nTrunc
-        if ( sum /= 0.0d0 ) then
+      ! TODO: use 'utl_isEqual' but we can't because it affects the results
+      !      if ( .not. utl_isEqual(sum,0.0d0) ) then
+      if ( sum /= 0.0d0 ) then
+        do totwvnb = 0, nTrunc
           NormPowerSpectrum(k,totwvnb) = PowerSpectrum(k,totwvnb) / sum
-        else
-          NormPowerSpectrum(k,totwvnb) = 0.d0
-        end if
-      end do
+        end do
+      else
+        NormPowerSpectrum(k,:) = 0.d0
+      end if
     end do
     !$OMP END PARALLEL DO
 
@@ -993,7 +997,7 @@ contains
         call utl_abort('aborting in NormalizePowerSpectrum')
       end if
 
-      if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) /= 0.d0 ) then
+      if ( .not. utl_isEqual(GridState(hco_bhi%ni/2,hco_bhi%nj/2,k),0.d0) ) then
         write(*,*) 'Normalization factor = ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k), 1.d0 / GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
         NormPowerSpectrum(k,:) = NormPowerSpectrum(k,:) / GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
       else
@@ -1116,8 +1120,8 @@ contains
     !
     do k2 = 1, bhi%nVarLev
       do k1 = 1, bhi%nVarLev
-        if ( TotVertCov(k1,k1) /= 0.d0 .and. &
-             TotVertCov(k2,k2) /= 0.d0 ) then
+        if ( .not. ( utl_isEqual(TotVertCov(k1,k1),0.d0) .or. &
+                     utl_isEqual(TotVertCov(k2,k2),0.d0) ) ) then
           TotVertCorrel(k1,k2) = TotVertCov(k1,k2) / &
                ( sqrt(TotVertCov(k1,k1)) * sqrt(TotVertCov(k2,k2)) )
         else
@@ -1555,7 +1559,7 @@ contains
     end do
 
     do totwvnb = 0, nTrunc
-      if (SumWeight(totwvnb) /= 0.d0) then
+      if ( .not. utl_isEqual(SumWeight(totwvnb), 0.d0) ) then
         PowerSpectrum(:,totwvnb) = PowerSpectrum(:,totwvnb) / SumWeight(totwvnb)
       else
         PowerSpectrum(:,totwvnb) = 0.d0
@@ -1877,8 +1881,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: work2d(:,:)
-    real(4) :: work
-    integer   :: ier, fstecr, totwvnb
+    real(4) :: work(1)
+    integer :: ier, fstecr, totwvnb
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -1944,8 +1948,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:)
-    real(4)   :: work
-    integer   :: ier, fstecr
+    real(4) :: work(1)
+    integer :: ier, fstecr
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2005,7 +2009,7 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:)
-    real(4)   :: work
+    real(4)   :: work(1)
     integer   :: ier, fstecr
     integer   :: var, k, kgdim
     integer :: dateo, npak, ni, nj, nk
@@ -2078,8 +2082,8 @@ contains
 
     ! Locals:
     real(4), allocatable :: workecr(:,:,:)
-    real(4)   :: work
-    integer   :: ier, fstecr, var
+    real(4) :: work(1)
+    integer :: ier, fstecr, var
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2141,7 +2145,7 @@ contains
 
     ! Locals:
     integer :: ier, fstecr, fstecr_s
-    real(8) :: work
+    real(4) :: work(1)
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     character(len=1)  :: grtyp
@@ -2149,7 +2153,7 @@ contains
     character(len=4)  :: nomvar
     character(len=4)  :: ControlModelVarnameList(bhi%nControlVariable)
     character(len=4)  :: ControlBhiVarnameList  (bhi%nControlVariable)
-    character(len=2)  :: ControlVarGridTypeList (bhi%nControlVariable)
+    character(len=4)  :: ControlVarGridTypeList (bhi%nControlVariable)
     integer           :: ControlVarNlevList     (bhi%nControlVariable)
 
     !

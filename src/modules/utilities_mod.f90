@@ -2884,7 +2884,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_findloc_int
   !--------------------------------------------------------------------------
-  function utl_findloc_int(intArray, value) result(location)
+  function utl_findloc_int(intArray, intValue) result(location)
     !
     !:Purpose: A modified version of the fortran function `findloc`.
     !          If multiple matches are found in the array, a warning
@@ -2894,7 +2894,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: intArray(:)
-    integer, intent(in) :: value
+    integer, intent(in) :: intValue
     ! Result:
     integer             :: location
 
@@ -2903,7 +2903,7 @@ contains
 
     numFound = 0
     LOOP: do arrayIndex = 1, size(intArray)
-      if (intArray(arrayIndex) == value) then
+      if (intArray(arrayIndex) == intValue) then
         numFound = numFound + 1
         ! return the first location found
         if (numFound == 1) location = arrayIndex
@@ -2912,7 +2912,7 @@ contains
 
     ! give warning if more than 1 found
     if (numFound > 1) then
-      write(*,*) 'utl_findloc_int: found multiple locations of ', value
+      write(*,*) 'utl_findloc_int: found multiple locations of ', intValue
       write(*,*) 'utl_findloc_int: number locations found =  ', numFound
     end if
 
@@ -2926,7 +2926,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_findlocs_char
   !--------------------------------------------------------------------------
-  function utl_findlocs_char(charArray, value) result(locations)
+  subroutine utl_findlocs_char(charArray, charValue, locations)
     !
     !:Purpose: A modified version of the fortran function `findloc`.
     !          Returns an array of all matches found in the array.
@@ -2934,10 +2934,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: charArray(:)
-    character(len=*), intent(in) :: value
-    ! Result:
-    integer, allocatable         :: locations(:)
+    character(len=*),     intent(in)  :: charArray(:)
+    character(len=*),     intent(in)  :: charValue
+    integer, allocatable, intent(out) :: locations(:)
 
     ! Locals:
     integer :: numFound, arrayIndex
@@ -2947,7 +2946,7 @@ contains
     ! count number of matches found
     numFound = 0
     do arrayIndex = 1, size(charArray)
-      if (trim(charArray(arrayIndex)) == trim(value)) numFound = numFound + 1
+      if (trim(charArray(arrayIndex)) == trim(charValue)) numFound = numFound + 1
     end do
 
     if (numFound > 0) then
@@ -2956,7 +2955,7 @@ contains
       allocate(locations(numFound))
       numFound = 0
       do arrayIndex = 1, size(charArray)
-        if (trim(charArray(arrayIndex)) == trim(value)) then
+        if (trim(charArray(arrayIndex)) == trim(charValue)) then
           numFound = numFound + 1
           locations(numFound) = arrayIndex
         end if
@@ -2970,12 +2969,12 @@ contains
 
     end if
 
-  end function utl_findlocs_char
+  end subroutine utl_findlocs_char
 
   !--------------------------------------------------------------------------
   ! utl_findlocs_int
   !--------------------------------------------------------------------------
-  function utl_findlocs_int(intArray, value) result(locations)
+  subroutine utl_findlocs_int(intArray, intValue, locations)
     !
     !:Purpose: A modified version of the fortran function `findloc`.
     !          Returns an array of all matches found in the array.
@@ -2983,10 +2982,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: intArray(:)
-    integer, intent(in)  :: value
-    ! Result:
-    integer, allocatable :: locations(:)
+    integer,              intent(in)  :: intArray(:)
+    integer,              intent(in)  :: intValue
+    integer, allocatable, intent(out) :: locations(:)
 
     ! Locals:
     integer :: numFound, arrayIndex
@@ -2996,7 +2994,7 @@ contains
     ! count number of matches found
     numFound = 0
     do arrayIndex = 1, size(intArray)
-      if (intArray(arrayIndex) == value) numFound = numFound + 1
+      if (intArray(arrayIndex) == intValue) numFound = numFound + 1
     end do
 
     if (numFound > 0) then
@@ -3005,7 +3003,7 @@ contains
       allocate(locations(numFound))
       numFound = 0
       do arrayIndex = 1, size(intArray)
-        if (intArray(arrayIndex) == value) then
+        if (intArray(arrayIndex) == intValue) then
           numFound = numFound + 1
           locations(numFound) = arrayIndex
         end if
@@ -3019,7 +3017,7 @@ contains
 
     end if
 
-  end function utl_findlocs_int
+  end subroutine utl_findlocs_int
 
   !--------------------------------------------------------------------------
   ! utl_randomOrderInt

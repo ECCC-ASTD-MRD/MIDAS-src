@@ -76,7 +76,6 @@ module biasCorrectionSat_mod
   type(struct_vco),       pointer :: vco_mask => null()
   type(struct_hco),       pointer :: hco_mask => null()
   type(struct_columnData) :: column_mask
-  logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 16
@@ -95,7 +94,6 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  integer               :: nobs
   integer, external     :: fnom, fclos
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
@@ -664,11 +662,11 @@ contains
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, idatyp
-    integer  :: iSensor, iPredictor, chanIndx
-    integer  :: iScan, iFov, jPred
-    real(8)  :: predictor(NumPredictors)
-    real(8)  :: biasCor
+    integer :: headerIndex, bodyIndex, idatyp
+    integer :: iSensor, iPredictor, chanIndx
+    integer :: iScan, iFov, jPred, numActivePredictors
+    real(8) :: predictor(NumPredictors)
+    real(8) :: biasCor
 
     if (.not. biasActive) return
 
@@ -706,15 +704,15 @@ contains
         if (bodyIndex < 0) exit BODY
 
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
-        if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
+        if (utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex),MPC_missingValue_R8)) cycle BODY
 
         call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
         if (chanindx > 0) then
-          if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            if ( bias(iSensor)%chans(chanIndx)%coeff_fov(iScan)/= MPC_missingValue_R8 .and. &
-                 all( bias(iSensor)%chans(chanIndx)%coeff(1:bias(iSensor)%chans(chanIndx)%NumActivePredictors)/= MPC_missingValue_R8) ) then
-              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
-                   bias(iSensor)%chans(chanIndx)%coeff(1)
+          if ( bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan > 0 ) then
+            numActivePredictors = bias(iSensor)%chans(chanIndx)%numActivePredictors
+            if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) .and. &
+                 .not. any( utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff(1:numActivePredictors),MPC_missingValue_R8) ) ) then
+              biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + bias(iSensor)%chans(chanIndx)%coeff(1)
               call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
               do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
                 jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
@@ -722,9 +720,9 @@ contains
               end do
               biasCor = -1.d0 * biascor
               call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, biasCor)
-            end if
-          end if
-        end if
+            end if ! if ( .not. utl_isEqual(bias(iSensor)%chans(chanIndx)%coeff_fov(iScan),MPC_missingValue_R8) ... )
+          end if ! if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan>0)
+        end if ! if (chanindx > 0)
       end do BODY
     end do HEADER
 
@@ -764,9 +762,9 @@ contains
     character(len=4)   :: cmyidx, cmyidy
     integer            :: tovsCodeTypeListSize, tovsCodeTypeList(ninst)
     integer            :: tovsFileNameListSize
-    character(len=20)  :: tovsFileNameList(30)
-    character(len=256) :: fileName
-    character(len=256) :: dirName
+    character(len=codtyp_name_length) :: tovsFileNameList(30)
+    character(len=codtyp_name_length) :: fileName
+    character(len=256) :: dirName, fullFileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
     logical :: fromGenCoeff
 
@@ -872,10 +870,10 @@ contains
           end if
         end if
         ! Construct full path of sqlite files from genCoeff
-        fileName = trim(dirName) // '/bcr' // trim(tovsFileNameList(fileIndex)) // '_' // trim(fileNameExtension)
+        fullFileName = trim(dirName) // '/bcr' // trim(tovsFileNameList(fileIndex)) // '_' // trim(fileNameExtension)
 
-        call fSQL_open(db(fileIndex), fileName, stat)
-        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)
+        call fSQL_open(db(fileIndex), fullFileName, stat)
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fullFileName), fSQL_error(stat), len_trim(fullFileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')
 
         ! Create the tables
@@ -913,8 +911,8 @@ contains
         if (bodyIndex < 0) exit BODY
         dataOffset(fileIndex) = dataOffset(fileIndex) + 1
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
-        if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
-        if (obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex) == MPC_missingValue_R8) cycle BODY
+        if ( utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex), MPC_missingValue_R8) ) cycle BODY
+        if ( utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex), MPC_missingValue_R8) ) cycle BODY
         if (flg_flagIsOn(obsSpaceData, bodyIndex, flg_11rejSelect)) cycle BODY
 
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, chanIndx, bodyIndex)
@@ -1078,7 +1076,7 @@ contains
           if (chanindx > 0) then
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             bcor =  obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-            if (OmF /= MPC_missingValue_R8 .and. bcor /= MPC_missingValue_R8) then
+            if (.not. utl_isEqual(OmF, MPC_missingValue_R8) .and. .not. utl_isEqual(bcor, MPC_missingValue_R8)) then
               tbias(chanIndx,iScan) = tbias(chanIndx,iScan) + (OmF + bcor)
               tstd(chanIndx,iScan) = tstd(chanIndx,iScan) + (OmF + bcor) ** 2
               tcount(chanIndx,iScan) = tcount(chanIndx,iScan) + 1
@@ -1201,7 +1199,7 @@ contains
             call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
             if (chanindx > 0) then
               OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
-              if (OmF /= MPC_missingValue_R8) then
+              if (.not. utl_isEqual(OmF, MPC_missingValue_R8)) then
                 tbias(chanIndx,timeindex) = tbias(chanIndx,timeindex) + OmF
                 tstd(chanIndx,timeindex) = tstd(chanIndx,timeindex) + (OmF ** 2)
                 tcount(chanIndx,timeindex) =  tcount(chanIndx,timeindex) + 1
@@ -1602,7 +1600,6 @@ contains
       real(8) :: topPressure, bottomPressure, conversionFactor
       real(8) :: topProfile, bottomProfile
       real(8), pointer :: profile(:)
-      real(8),allocatable :: weight(:)
 
       if (present(conversionFactor_opt)) then
         conversionFactor = conversionFactor_opt
@@ -2072,10 +2069,10 @@ contains
           do iChannel = 1, bias(iSensor)%numChannels
             if (bias(iSensor)%chans(iChannel)%isDynamic) then
               iChannel2 = bias(iSensor)%chans(iChannel)%channelNum
-              if (sum(bias(iSensor)%chans(iChannel)%coeffIncr(:)) /= 0.0d0) &
+              if (.not. utl_isEqual(sum(bias(iSensor)%chans(iChannel)%coeffIncr(:)),0.0d0)) &
                    write(nulfile_inc,'(3X,"Channel number=",I4)') iChannel2
               do iPredictor = 2, bias(iSensor)%chans(iChannel)%numActivePredictors
-                if (bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor) /= 0.0d0) &
+                if (.not. utl_isEqual(bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor),0.0d0)) &
                      write(nulfile_inc,'(5X,"Predictor number=",I4,", Coefficient=",e12.4)') &
                      iPredictor, bias(iSensor)%chans(iChannel)%coeffIncr(iPredictor)
               end do
@@ -2096,7 +2093,7 @@ contains
           do iChannel = 1, bias(iSensor)%numChannels
             if (bias(iSensor)%chans(iChannel)%isDynamic) then
               iChannel2 = bias(iSensor)%chans(iChannel)%channelNum
-              if (sum(bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)) /= 0.0d0) then
+              if (.not. utl_isEqual(sum(bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)),0.0d0) ) then
                 write(nulfile_fov,'(3X,"Channel number=",I4)') iChannel2
                 write(nulfile_fov,*) bias(iSensor)%chans(iChannel)%coeffIncr_fov(:)
               end if
@@ -2164,7 +2161,7 @@ contains
     ! Locals:
     real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)
     real(8)            :: coeff(maxsat,tvs_maxChannelNumber,maxpred)
-    character(len=2) :: ptypes(maxsat,tvs_maxChannelNumber,maxpred)
+    character(len=2)   :: ptypes(maxsat,tvs_maxChannelNumber,maxpred)
     integer            :: npred(maxsat,tvs_maxChannelNumber)           ! number of predictors
     integer            :: ndata(maxsat,tvs_maxChannelNumber)
     ! LOCAL for reading background coeff file
@@ -2177,7 +2174,7 @@ contains
     character(len=10)  :: tmp_SatName, tmp_InstName
     ! write out files
     integer            :: iuncoef2, ierr, numPred
-    character(len=80):: filename2
+    character(len=80)  :: filename2
     logical            :: updateCoeff_opt2
     !   sats(nsat)            = satellite names
     !   chans(nsat, nchan(i))  = channel numbers of each channel of each satellite i
@@ -2246,8 +2243,8 @@ contains
     !
     !- 2.update coeff and fovbias
     !
-    coeff_an(:,:,:) = coeff(:,:,:)
-    fovbias_an(:,:,:) = fovbias(:,:,:)
+    coeff_an  (:,:,:) = real(coeff  (:,:,:),4)
+    fovbias_an(:,:,:) = real(fovbias(:,:,:),4)
 
     do iSat = 1, nsat  !backgroud sat
       do iSensor = 1, tvs_nSensors
@@ -2263,13 +2260,13 @@ contains
 
             ! part 1 for coeffIncr
             do iFov = 1, nfov
-              fovbias_an(iSat, jChan, iFov) = fovbias(iSat, jChan, iFov) + bias(iSensor)%chans(jchannel)%coeffIncr_fov(iFov)
+              fovbias_an(iSat, jChan, iFov) = real(fovbias(iSat, jChan, iFov) + bias(iSensor)%chans(jchannel)%coeffIncr_fov(iFov),4)
             end do ! iFov
 
             ! part 2 for coeffIncr_fov
             totPred  = bias(iSensor)%chans(jchannel)%NumActivePredictors
             do iPred = 1, totPred
-              coeff_an(iSat, jChan, iPred) = coeff(iSat, jChan, iPred) + bias(iSensor)%chans(jchannel)%coeffIncr(iPred)
+              coeff_an(iSat, jChan, iPred) = real(coeff(iSat, jChan, iPred) + bias(iSensor)%chans(jchannel)%coeffIncr(iPred),4)
             end do ! iPred
 
           end do ! jChannel
@@ -2292,7 +2289,8 @@ contains
       do iSat = 1, nsat
         do jChan = 1, nchan(iSat)
           numPred = npred(iSat, jChan)
-          if (sum(abs(coeff_an(iSat, jchan, 1:numpred+1))) /= 0.d0 .and. sum(abs(fovbias_an(iSat, jChan, 1:nfov))) /= 0.d0) then
+          if ( .not. utl_isEqual(sum(abs(coeff_an(iSat, jchan, 1:numpred+1))),0.0) .and. &
+               .not. utl_isEqual(sum(abs(fovbias_an(iSat, jChan, 1:nfov))),   0.0)) then
             write(iuncoef2,'(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') &
                  'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ', sats(iSat), cinstrum, chans(iSat,jChan), ndata(isat,jchan), numPred, nfov
             write(iuncoef2,'(A7,6(1X,A2))') 'PTYPES:', (ptypes(iSat, jChan, kPred), kPred = 1, numPred)
@@ -2416,7 +2414,7 @@ contains
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
       biasCor = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
       Obs = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
-      if (biasCor /= MPC_missingValue_R8 .and. Obs /= MPC_missingValue_R8) then
+      if (.not. utl_isEqual(biasCor, MPC_missingValue_R8) .and. .not. utl_isEqual(Obs, MPC_missingValue_R8)) then
         call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, real(Obs - biasCor, pre_obsReal))
         call obs_bodySet_r(obsSpaceData, OBS_BCOR, bodyIndex, real(0.d0, pre_obsReal))
         nbcor = nbcor + 1
@@ -2701,9 +2699,9 @@ contains
       if (bodyIndex < 0) exit BODY
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
       biasCor = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-      if (biasCor /= MPC_missingValue_R8) then
+      if (.not. utl_isEqual(biasCor, MPC_missingValue_R8)) then
         Obs = obs_bodyElem_r(obsSpaceData, column, bodyIndex)
-        if (Obs /= MPC_missingValue_R8) then
+        if (.not. utl_isEqual(Obs, MPC_missingValue_R8)) then
           call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor, pre_obsReal))
           call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
           nbcor = nbcor + 1
@@ -3952,7 +3950,7 @@ contains
     ! Arguments:
     integer, intent(in) :: codeType
     ! Result:
-    character(len=20)   :: fileName
+    character(len=codtyp_name_length) :: fileName
 
     if (codtyp_get_name(codeType) == 'radianceclear') then
       fileName  = 'csr'

@@ -122,7 +122,7 @@ CONTAINS
       call utl_tmg_stop(181)
     end if
 
-    if (sum(scaleFactor(:)) == 0.0d0) then
+    if ( utl_isEqual(sum(scaleFactor(:)),0.0d0) ) then
       if(mmpi_myid == 0) call msg('bdiff_setup', 'scaleFactor=0, skipping rest of setup')
       cvdim_out = 0
       call utl_tmg_stop(65)
@@ -569,7 +569,7 @@ CONTAINS
           jlev2 = jlev-ilev1+1
           do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              field_r4(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
+              field_r4(jlon,jlat,jlev2) = real(gd(jlon,jlat,jlev),4)
             end do
           end do
         end do

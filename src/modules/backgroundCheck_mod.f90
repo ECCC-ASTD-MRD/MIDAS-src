@@ -133,7 +133,7 @@ module backgroundCheck_mod
     integer :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
     real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
     logical :: LLOK, LLZD
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     integer :: i_ass, i_vco, i_oth, bodyIndex_u, bodyIndex_v, bodyIndex_start
     real(8) :: uu_d, uu_r, uu_f, vv_d, vv_r, vv_f, duv2, duv2_lim, zslev
     logical :: found_u, found_v
@@ -358,7 +358,7 @@ module backgroundCheck_mod
           do i_oth = bodyIndex_start, bodyIndex
             obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
             zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEVV .and. zslev == zlev ) then
+            if ( obsVarno == BUFR_NEVV .and. utl_isEqual(zslev,zlev) ) then
               bodyIndex_v = i_oth
               found_v = .true.
             end if
@@ -372,7 +372,7 @@ module backgroundCheck_mod
           do i_oth = bodyIndex_start, bodyIndex
             obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
             zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEUU .and. zslev == zlev ) then
+            if ( obsVarno == BUFR_NEUU .and. utl_isEqual(zslev,zlev) ) then
               bodyIndex_u = i_oth
               found_u = .true.
             end if

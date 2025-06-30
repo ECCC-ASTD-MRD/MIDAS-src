@@ -909,7 +909,7 @@ contains
     ! The lat-lon of the grid point for which we are computing the weights
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    hLocalizeIsConstant = all(enkfNML%hLocalize(:) == enkfNML%hLocalize(1))
+    hLocalizeIsConstant = all( utl_isEqual(enkfNML%hLocalize(:),enkfNML%hLocalize(1)) )
     if (enkfNML%vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
     end if
@@ -2114,7 +2114,7 @@ contains
       LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
         ! skip this grid point if all weights zero (no nearby obs)
-        if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
+        if (all( utl_isEqual(weightsMean(:,1,lonIndex,latIndex),0.0d0) )) cycle LON_LOOP5
 
         ! Compute the ensemble mean increment and analysis
         do varLevIndex = 1, numVarLev
@@ -2122,6 +2122,10 @@ contains
           if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
           memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
           do stepIndex = 1, tim_nstepobsinc
+            ! TODO: simplify the floating point precision conversions
+            ! add 'real(8) :: meanInc_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+            !     meanInc_r8 = real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8)
+
             ! mean increment
             if ( useModulatedEns ) then
               do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
@@ -2130,6 +2134,10 @@ contains
                                           modulationFactor_r4 )
 
                 do memberIndex = 1, enkfNML%nEns
+                  ! TODO: simplify the floating point precision conversions
+                  ! add 'real(8) :: pert_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+                  !    pert_r8 = real(modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                  !                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ), 8)
                   pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
@@ -2137,20 +2145,32 @@ contains
                   ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                   memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
 
+                  ! TODO: simplify the floating point precision conversions
+                  !    meanInc_r8 =  meanInc_r8 + weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r8
                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                       meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                       weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
+                       real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +  &
+                             weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * real(pert_r4,8), 4)
                 end do
               end do
             else
+
               do memberIndex = 1, enkfNML%nEns
-                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                     weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+                ! TODO: simplify the floating point precision conversions
+                ! add 'real(8) :: pert_r8' above (don't forget to add it in the private variables of the OpenMP loop)
+                !    pert_r8 = real(modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                !                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) ), 8)
+                !    meanInc_r8 =  meanInc_r8 + weightsMean(memberIndex,1,lonIndex,latIndex) * pert_r8
+
+                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =                          &
+                     real( real(meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) +       &
+                                weightsMean(memberIndex,1,lonIndex,latIndex) *                     &
+                                real(memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -   &
+                                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8), 4)
               end do
             end if
+
+            ! TODO: simplify the floating point precision conversions
+            !   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  real(meanInc_r8,4)
 
             ! mean analysis
             meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
@@ -2212,9 +2232,11 @@ contains
             end if
 
             ! Add analysis member perturbation to mean analysis
+            ! TODO: simplify the floating point precision conversions
+            !      memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
+            !           meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + real(memberAnlPert(:),4)
             memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
-                 meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
-
+                 real( real(meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex),8) + memberAnlPert(:), 4)
 
           end do ! stepIndex
         end do ! varLevIndex
@@ -2363,7 +2385,7 @@ contains
       do levIndex = 1, nLev_depth
         write(*,*) 'setting vertLocation for levIndex =', levIndex, &
                    ', depth = ', stateVectorMeanTrl%vco%depths(levIndex)
-        vertLocation_r4(:,:,levIndex) = stateVectorMeanTrl%vco%depths(levIndex)
+        vertLocation_r4(:,:,levIndex) = real(stateVectorMeanTrl%vco%depths(levIndex),4)
       end do
 
     end if

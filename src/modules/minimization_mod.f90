@@ -47,12 +47,11 @@ module minimization_mod
 
   logical             :: initialized = .false.
 
-  integer             :: nmtra,nwork
+  integer             :: nmtra
   integer             :: nvadim_mpilocal ! for mpi
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'
   character(len=20)   :: preconFileNameOut = './pm1q'
-  character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'
   integer             :: n1gc = 3
 
   ! variables stored for later call to min_writeHessian
@@ -1029,7 +1028,7 @@ CONTAINS
       do jvec = 1, ictrlvec
         !$OMP PARALLEL DO PRIVATE(ii)
         do ii = 1, nvadim_mpilocal
-          vatra_r4(ii) = vatra((jvec-1)*nvadim_mpilocal+ii)
+          vatra_r4(ii) = real(vatra((jvec-1)*nvadim_mpilocal+ii),4)
         enddo
         !$OMP END PARALLEL DO
         call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
@@ -1114,7 +1113,7 @@ CONTAINS
   ! 2. Perform the test
   !    ----------------
 
-  if(dl_gnorm0 == 0.d0)then
+  if( utl_isEqual(dl_gnorm0, 0.d0) )then
      write(*,FMT=9101)
      return
   end if

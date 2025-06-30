@@ -316,7 +316,7 @@ CONTAINS
       !- Adjust some namelist-dependent variables
 
       ! If zero weight, skip rest of setup
-      if ( sum(scaleFactor(:)) == 0.0d0 ) then
+      if ( utl_isEqual(sum(scaleFactor(:)),0.0d0) ) then
         if (mmpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup and exit instance loop'
         cvDimStorage(nInstance) = 0
         bEns(nInstance)%initialized = .false.
@@ -331,7 +331,7 @@ CONTAINS
         call utl_abort('ben_setup: the background check mode is not compatible with multiple instance')
       end if
 
-      if ( (huMinValue == MPC_missingValue_R8) .and. &
+      if ( utl_isEqual(huMinValue,MPC_missingValue_R8) .and. &
            gsv_varExist(varName='HU') .and. &
            (ctrlVarHumidity == 'LQ') ) then
         call utl_abort('ben_setup: the value of huMinValue must be specified in namelist NAMBEN')
@@ -787,7 +787,7 @@ CONTAINS
         end do
 
         ! Make sure that the bottom lengthscale is appropriately set
-        if (bEns(instanceIndex)%vertModesLengthScale(2) == -1.d0) then
+        if ( utl_isEqual(bEns(instanceIndex)%vertModesLengthScale(2),-1.d0) ) then
           bEns(instanceIndex)%vertModesLengthScale(2) = bEns(instanceIndex)%vertModesLengthScale(1)
         end if
 
@@ -975,7 +975,7 @@ CONTAINS
     !- 2.5 Pre-compute everything for advection in FSO mode
     if (bEns(instanceIndex)%fsoLeadTime > 0.0D0) then
       bEns(instanceIndex)%amp3dStepIndexFSOFcst = 1
-      if ( sum(bEns(instanceIndex)%advectFactorFSOFcst(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
+      if ( utl_isEqual(sum(bEns(instanceIndex)%advectFactorFSOFcst(:)),0.0d0) .or. bEns(instanceIndex)%numStep == 1) then
         if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated for FSO'
         bEns(instanceIndex)%advectAmplitudeFSOFcst = .false.
         bEns(instanceIndex)%numStepAmplitudeFSOFcst = 1
@@ -1005,7 +1005,7 @@ CONTAINS
     end if
 
     !- 2.6 Pre-compute everything for advection in ANALYSIS mode
-    if ( sum(bEns(instanceIndex)%advectFactorAssimWindow(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
+    if ( utl_isEqual(sum(bEns(instanceIndex)%advectFactorAssimWindow(:)),0.0d0) .or. bEns(instanceIndex)%numStep == 1) then
       if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated in ANALYSIS mode'
 
       bEns(instanceIndex)%advectAmplitudeAssimWindow = .false.
@@ -1354,7 +1354,7 @@ CONTAINS
          bEns(instanceIndex)%ensContainsFullField ) then
       call gvt_transform(bEns(instanceIndex)%ensPerts(1,1),'HUtoLQ',huMinValue_opt=bEns(instanceIndex)%huMinValue)
     else if ( bEns(instanceIndex)%ctrlVarHumidity == 'HU' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1,1),'HU') .and. &
-         bEns(instanceIndex)%ensContainsFullField .and. bEns(instanceIndex)%huMinValue /= MPC_missingValue_R8 ) then
+         bEns(instanceIndex)%ensContainsFullField .and. .not. utl_isEqual(bEns(instanceIndex)%huMinValue, MPC_missingValue_R8) ) then
       call qlim_setMin(bEns(instanceIndex)%ensPerts(1,1), bEns(instanceIndex)%huMinValue)
     else if ( trim(bEns(instanceIndex)%transformVarKindCH) /= '' ) then
       do varIndex = 1, bEns(instanceIndex)%numIncludeAnlVar
@@ -1762,7 +1762,7 @@ CONTAINS
       return
     end if
 
-    if (sum(bEns(instanceIndex)%scaleFactor) == 0.0d0) then
+    if ( utl_isEqual(sum(bEns(instanceIndex)%scaleFactor),0.0d0) ) then
       if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: scaleFactor=0, skipping bSqrt'
       return
     end if
@@ -1770,7 +1770,7 @@ CONTAINS
     ! only check controlVector on proc 0, since may be zero-length on some procs
     if (mmpi_myid == 0) then
       immediateReturn = .false.
-      if (maxval(controlVector_in) == 0.0d0 .and. minval(controlVector_in) == 0.0d0) then
+      if ( utl_isEqual(maxval(controlVector_in),0.0d0) .and. utl_isEqual(minval(controlVector_in),0.0d0) ) then
         write(*,*) 'ben_bsqrt: controlVector=0, skipping bSqrt'
         immediateReturn = .true.
       end if
@@ -1901,7 +1901,7 @@ CONTAINS
       return
     end if
 
-    if (sum(bEns(instanceIndex)%scaleFactor) == 0.0d0) then
+    if ( utl_isEqual(sum(bEns(instanceIndex)%scaleFactor), 0.0d0) ) then
       if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: scaleFactor=0, skipping bSqrtAd'
       return
     end if
@@ -2199,7 +2199,9 @@ CONTAINS
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
         if (gsv_getDataKind(statevector_out) == 4) then
-          increment_out_r4(:,:,lev2,stepIndex2) = increment_out_r4(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
+          ! TODO: simplify the floating point precision conversions
+          !  increment_out_r4(:,:,lev2,stepIndex2) = increment_out_r4(:,:,lev2,stepIndex2) + real(increment_out2(stepIndex2,:,:),4)
+          increment_out_r4(:,:,lev2,stepIndex2) = real(real(increment_out_r4(:,:,lev2,stepIndex2),8) + increment_out2(stepIndex2,:,:), 4)
         else
           increment_out_r8(:,:,lev2,stepIndex2) = increment_out_r8(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
         end if
@@ -2721,6 +2723,7 @@ CONTAINS
     integer :: horizWaveBandIndex
     integer :: vertWaveBandIndex
 
+    nullify(loc)
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (locIndex < 1 .or. locIndex > (bEns(instanceIndex)%nHorizWaveBand*bEns(instanceIndex)%nVertWaveBand)) then

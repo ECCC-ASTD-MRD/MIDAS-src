@@ -1207,7 +1207,7 @@ module obsSpaceErrorStdDev_mod
     real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh, bodyElem_r, colElem1, colElem2
     character(len=2) :: cfam
     character(len=4) :: varLevel
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     logical          :: ok
 
     ! loop over all body rows
@@ -1620,7 +1620,7 @@ module obsSpaceErrorStdDev_mod
     INTEGER INOBS_OPT, INOBS_JAC, icount, iversion
     LOGICAL  ASSIM, OK, LSTAG
     CHARACTER(9)  STN_JAC
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     CHARACTER(len=4) :: varLevel
     TYPE(GPS_PROFILEZD)    :: PRF, PRFP
     TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
@@ -1935,9 +1935,6 @@ module obsSpaceErrorStdDev_mod
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
-
-    ! Locals:
-    integer, parameter :: ndim=1
 
     ! Check for the presence of CH observations
     availableOMPE = '    '
@@ -2297,7 +2294,7 @@ module obsSpaceErrorStdDev_mod
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
     real(8) :: zlat, zval, zlev, lat, sumOmP, sumSqrOmP, varOmP, maxOmP,meanOmP,medianOmP
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
     real(8), allocatable :: series(:,:,:),sumOmP2d(:,:),sumSqrOmP2d(:,:)
     real(8), allocatable :: sumOmP2dt(:,:),sumSqrOmP2dt(:,:)
     integer, allocatable :: nSeries(:,:),nSeriest(:,:)
@@ -2305,7 +2302,7 @@ module obsSpaceErrorStdDev_mod
     integer, parameter :: minCount = 5
     real(8), parameter :: stdScale = 2.0
     real(8), parameter :: minVal = 1.0d-20
-    real(4) :: rseries(maxCount)
+    real(8) :: rseries(maxCount)
     integer :: ip(maxCount)
 
     ! Loop over all obs types
@@ -2558,7 +2555,7 @@ module obsSpaceErrorStdDev_mod
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, monthIndex, ibegin
     real(8) :: zlat, zlev, OmP_err_stddev, lat
-    character(len=12) :: stnid
+    character(len=obs_stnidLength) :: stnid
 
     ! Loop over all obs types
 
