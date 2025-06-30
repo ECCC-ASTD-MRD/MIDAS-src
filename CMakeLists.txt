@@ -10,7 +10,7 @@ ec_parse_manifest()        # Parse MANIFEST file
 project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
 # get MIDAS version from midas.version.sh, instead of using cmake_rpn ec_git_version() macro
 execute_process(
-  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version.sh" 
+  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version.sh"
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -65,6 +65,9 @@ endif()
 # as there are errors because of the new flag -stand f08, and the
 # compilation fails
 string(REPLACE " -warn errors" "" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
+# Since we have '-stand f18' in the compiler options, we remove the
+# default '-stand f08' to avoid an override warning
+string(REPLACE " -stand f08" "" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
 
 link_libraries("-Wl,--disable-new-dtags")
 
