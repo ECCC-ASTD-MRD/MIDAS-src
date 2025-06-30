@@ -106,7 +106,6 @@ program midas_oMinusF
   ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
   !=========================== ========================= =========================================
   !
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use oMinusF_mod

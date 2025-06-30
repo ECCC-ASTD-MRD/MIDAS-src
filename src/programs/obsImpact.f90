@@ -144,7 +144,6 @@ program midas_obsImpact
   !========================= ====================== =============================================================
   !
   !
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use codePrecision_mod

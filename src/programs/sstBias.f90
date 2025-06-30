@@ -103,7 +103,6 @@ program midas_sstBias
   !
   !           --
   !   
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use ramDisk_mod

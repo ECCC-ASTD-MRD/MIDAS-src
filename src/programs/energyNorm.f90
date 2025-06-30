@@ -103,7 +103,6 @@ program midas_energyNorm
   !========================= ====================== =============================================================
   !
   !
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use utilities_mod

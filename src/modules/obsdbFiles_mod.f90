@@ -4,7 +4,6 @@ module obsdbFiles_mod
   !
   !:Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
-  use rpn_comm
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod

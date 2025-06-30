@@ -127,7 +127,6 @@ program midas_var1D
   !
   !           --
   !
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use codePrecision_mod

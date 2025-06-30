@@ -66,7 +66,6 @@ module tovs_mod
        min_reflectivity            ,&
        min_radiance_radar
   use parkind1, only : jpim, jplm, jprb
-  use rpn_comm
   use midasMpi_mod
   use message_mod
   use codtyp_mod

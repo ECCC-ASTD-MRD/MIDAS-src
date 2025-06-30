@@ -85,7 +85,6 @@ program midas_genCoeff
   !          that can affect the ``genCoeff`` program.
   !
   
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use codePrecision_mod

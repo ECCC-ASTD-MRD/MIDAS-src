@@ -5,7 +5,6 @@ module quasiNewton_mod
   !:Purpose: The n1qn3 routine, and its supporting subroutines. The original code was
   !          modified to support MPI parallelization.
   !
-      use rpn_comm
       use midasMpi_mod
       use utilities_mod
 

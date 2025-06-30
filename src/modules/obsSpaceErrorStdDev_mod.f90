@@ -5,7 +5,6 @@ module obsSpaceErrorStdDev_mod
   !:Purpose:  Contains subroutines for computing background-error and OmP-error
   !           standard deviations in observation space
   !
-  use rpn_comm
   use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod

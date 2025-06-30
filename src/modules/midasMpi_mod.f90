@@ -189,7 +189,6 @@ contains
     ! Locals:
     integer :: mythread, numthread
     integer :: omp_get_thread_num, omp_get_num_threads
-    integer :: rpn_comm_mype
     integer :: ierr, numNodeMasters
     integer :: npex, npey
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue

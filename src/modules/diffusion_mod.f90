@@ -16,7 +16,6 @@ module diffusion_mod
   !:Basic equations: * Lcorr^2 = 2*k*dt*numt   (1)
   !                  * stab    = k*dt/dx^2     (2)
   !
-  use rpn_comm
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod

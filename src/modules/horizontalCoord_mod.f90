@@ -5,7 +5,6 @@ module horizontalCoord_mod
   !:Purpose:  Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
   !
-  use rpn_comm
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod

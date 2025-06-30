@@ -156,7 +156,6 @@ program midas_letkf
   !                                         the background state and the analysis
   !======================== ============== ==============================================================
   !
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use mathPhysConstants_mod

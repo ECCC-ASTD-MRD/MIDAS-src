@@ -8,7 +8,6 @@ module thinning_mod
   !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
-  use rpn_comm
   use midasMpi_mod
   use message_mod
   use bufr_mod
@@ -3561,10 +3560,10 @@ contains
 
     ! Locals:
     integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
-    integer :: ierr, numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsInMpi, countObsOutMpi
     integer :: countRejectedInObs, countRejectedInObsMpi
-    integer :: obsDate, obsTime, obsFlag, nsize
+    integer :: obsDate, obsTime, obsFlag
     integer :: flagCount, badFlagCount
     integer :: badTimeCount, badTimeCountMpi
     integer :: numSelected, middleStep
@@ -3585,8 +3584,7 @@ contains
     write(*,*)
 
     numHeader = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max', 'grid', ierr)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
 
     ! Identify set of observations to be treated in thinning
@@ -3647,8 +3645,7 @@ contains
       end if
     end do HEADER0
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsInMpi, mmpi_sum)
     if (countObsInMpi == 0) then
       if (mmpi_myid == 0) then
          write(*,*) 'thn_CHfamByDistance: no CH observations present for ', stnId
@@ -3658,8 +3655,7 @@ contains
       return
     end if
 
-    call rpn_comm_allReduce(countRejectedInObs, countRejectedInObsMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countRejectedInObs, countRejectedInObsMpi, mmpi_sum)
     write(*,*) 'thn_CHfamByDistance: number of valid initial obs  = ', &
                countObs, countObsInMpi
     write(*,*) 'thn_CHfamByDistance: number of rejected initial obs  = ', &
@@ -3740,15 +3736,10 @@ contains
     end do HEADER1
 
     ! Gather needed information from all MPI tasks
-    nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
-                            qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsLatBurpFile,    nsize, 'mpi_integer',  &
-                            obsLatBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsLonBurpFile,    nsize, 'mpi_integer',  &
-                            obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
-                            obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call mmpi_allgather(quality,        qualityMpi)
+    call mmpi_allgather(obsLatBurpFile, obsLatBurpFileMpi)
+    call mmpi_allgather(obsLonBurpFile, obsLonBurpFileMpi)
+    call mmpi_allgather(obsStepIndex,   obsStepIndexMpi)
 
     do obsIndex1 = 1, numHeaderMpi
       headerIndexSorted(obsIndex1)  = obsIndex1
@@ -3806,8 +3797,7 @@ contains
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
     countObs = count(valid)
-    call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
     write(*,*) 'thn_CHfamByDistance: number of obs after thinning = ', &
                countObs, countObsOutMpi
 
@@ -3832,8 +3822,7 @@ contains
 
     end do HEADER3
 
-    call rpn_comm_allReduce(badTimeCount, badTimeCountMpi, 1, 'mpi_integer', &
-                            'mpi_sum','grid',ierr)
+    call mmpi_allReduce(badTimeCount, badTimeCountMpi, mmpi_sum)
 
     if (mmpi_myid == 0) then
       write(*,*)

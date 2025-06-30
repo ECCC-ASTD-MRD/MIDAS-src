@@ -4,7 +4,6 @@ module costFunction_mod
   !
   !:Purpose: To compute Jo term.
   !
-  use rpn_comm
   use midasMpi_mod
   use obsSpaceData_mod
   use rttov_const, only : inst_name, platform_name

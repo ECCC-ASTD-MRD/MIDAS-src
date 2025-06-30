@@ -5,7 +5,6 @@ module obsTimeInterp_mod
   !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
-  use rpn_comm
   use midasMpi_mod
   use utilities_mod
   use message_mod

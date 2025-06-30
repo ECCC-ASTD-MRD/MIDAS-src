@@ -7,7 +7,6 @@ module oceanMask_mod
   !                 * In the case of variables on ocean depth levels, it varies with vertical level.
   !                 * In other cases it is a single 2D field used for all variables.
   !
-  use rpn_comm
   use midasMpi_mod
   use kdTree2_mod
   use horizontalCoord_mod

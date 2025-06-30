@@ -6,7 +6,6 @@ MODULE localizationSpectral_mod
   !           ensemble member from a given (1D) control vector of
   !           SPECTRAL ELEMENTS
   !
-  use rpn_comm
   use midasMpi_mod
   use utilities_mod
   use globalSpectralTransform_mod

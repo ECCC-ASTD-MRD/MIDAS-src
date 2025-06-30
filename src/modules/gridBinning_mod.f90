@@ -6,7 +6,6 @@ module gridBinning_mod
   !           contained in a gridStateVector or in an ensemble of
   !           gridStateVectors (e.g. the respective mean over land and sea)
   !
-  use rpn_comm
   use midasMpi_mod
   use ensembleStateVector_mod
   use gridStateVector_mod

@@ -139,7 +139,6 @@ program midas_ensPostProcess
   !========================== ========================== ==============================================================
   !
 
-  use rpn_comm
   use midasMpi_mod
   use version_mod
   use message_mod

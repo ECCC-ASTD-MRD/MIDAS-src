@@ -5,7 +5,6 @@ module ensembleStateVector_mod
   !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
-  use rpn_comm
   use midasMpi_mod
   use ramDisk_mod
   use message_mod
@@ -2902,7 +2901,7 @@ CONTAINS
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     integer :: displs_height(mmpi_nprocs), nsizes_height(mmpi_nprocs)
-    integer :: yourid, youridx, youridy, nsize, ierr
+    integer :: yourid, youridx, youridy, nsize
 
     ! Scatter surface height (if it exists) from task 0 to all others, 1 tile per task.
     if (statevector_mpiGlobal%heightSfcPresent .and. statevector_tiles%heightSfcPresent) then
@@ -2934,9 +2933,7 @@ CONTAINS
         displs_height(yourid+1) = yourid*nsize
         nsizes_height(yourid+1) = nsize
       end do
-      call rpn_comm_scatterv(gd_send_height, nsizes_height, displs_height, 'mpi_double_precision', &
-                             gd_recv_height, nsize, 'mpi_double_precision', &
-                             0, 'grid', ierr)
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes_height, displs_height)
 
       field_height_out_ptr(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
                            statevector_tiles%myLatBeg:statevector_tiles%myLatEnd) =   &
@@ -2970,9 +2967,7 @@ CONTAINS
           displs_height(yourid+1) = yourid*nsize
           nsizes_height(yourid+1) = nsize
         end do
-        call rpn_comm_scatterv(gd_send_height, nsizes_height, displs_height, 'mpi_double_precision', &
-                               gd_recv_height, nsize, 'mpi_double_precision', &
-                               0, 'grid', ierr)
+        call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes_height, displs_height)
 
         field_height_out_ptr(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
                              statevector_tiles%myLatBeg:statevector_tiles%myLatEnd) =   &
