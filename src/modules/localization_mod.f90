@@ -73,16 +73,20 @@ CONTAINS
     loc%hco => hco_loc
     loc%vco => vco_loc
 
-    if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 .or. loc%vco%Vcode == 21001 ) then
+    if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 .or. loc%vco%Vcode == 21001 .or. loc%vco%Vcode == 2001) then
       if (loc%vco%nLev_M > 0) then
         nLev = loc%vco%nLev_M
       else
         nLev = loc%vco%nLev_T
       end if
-    else if ( loc%vco%nLev_depth > 0 ) then
+    else if (loc%vco%nLev_depth > 0) then
       nLev = loc%vco%nLev_depth
-    else
+    else if (loc%vco%Vcode == 0) then
       nLev = 1
+    else
+      write(*,*)
+      write(*,*) 'Vcode = ', loc%vco%Vcode
+      call utl_abort('loc_setup: unknown Vcode') 
     end if
 
     select case (trim(loc%locType))

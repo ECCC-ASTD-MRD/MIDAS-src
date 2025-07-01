@@ -419,7 +419,7 @@ program midas_diagBmatrix
       do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
         loc => ben_getLoc(locIndex,instanceIndex_opt=instanceIndex)
 
-        if (loc%vco%Vcode == -1) then
+        if (loc%vco%Vcode == 0) then
           varNameALFA(:) = varNameALFAsfc(:)
         else
           varNameALFA(:) = varNameALFAatm(:)

@@ -41,7 +41,8 @@ module calcHeightAndPressure_mod
   public :: czp_calcPressureProfileUsingStdAtm
   public :: czp_ensureCompatibleTops
   public :: czp_fetch3DLevels, czp_fetch1DLevels, czp_fetch1DdPdPs
-
+  public :: czp_fetch1DPressureLevels
+  
   interface czp_fetch3DLevels
     module procedure fetch3DLevels_r8
     module procedure fetch3DLevels_r4
@@ -49,6 +50,9 @@ module calcHeightAndPressure_mod
   interface czp_fetch1DLevels
     module procedure fetch1DLevels_r8
   end interface czp_fetch1DLevels
+  interface czp_fetch1DPressureLevels
+    module procedure fetch1DPressureLevels_r8
+  end interface czp_fetch1DPressureLevels
   interface czp_fetch1DdPdPs
     module procedure fetch1DdPdPs_r8
   end interface czp_fetch1DdPdPs
@@ -5530,6 +5534,43 @@ contains
     end if
   end subroutine fetch1DLevels_r8
 
+  !---------------------------------------------------------
+  ! fetch1DPressureLevels_r8
+  !---------------------------------------------------------
+  subroutine fetch1DPressureLevels_r8(vco, profile)
+    !
+    ! :Purpose: Profile query for pressure coordinate vCode = 2001. Return vertical profile
+    !           profile on non-stagerred levels; real(8) flavor.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_vco), pointer,  intent(in)    :: vco          ! Vertical descriptor
+    real(8), pointer,           intent(inout) :: profile(:)   ! Non-stagerred levels profile
+
+    ! Locals:
+    integer :: kind, levIndex, nLev
+    real(4) :: pressure
+
+    if ( vco_getVcode(vco) /= 2001 ) then
+      call utl_abort('fetch1DPressureLevels_r8: only compatible with vCode = 2001')
+    end if
+
+    nLev = vco_getNumLev(vco,'MM')
+    allocate(profile(nLev))
+    
+    ! Set the pressure/static levels
+    kind = 2
+    do levIndex = 1, nLev
+      call convip(vco%ip1_M(levIndex), pressure, kind, -1, ' ', .false.)
+      profile(levIndex) = real(pressure,8) * mpc_pa_per_mbar_r8 ! hPa -> Pa
+    end do
+
+    ! Set the surface/dynamic level
+    profile(nLev) = profile(nLev-1) ! same pressure then nLev-1
+
+  end subroutine fetch1DPressureLevels_r8
+  
   !---------------------------------------------------------
   ! fetch1DdPdPs_r8
   !---------------------------------------------------------

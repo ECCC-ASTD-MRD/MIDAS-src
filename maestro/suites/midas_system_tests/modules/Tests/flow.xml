@@ -662,6 +662,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="Bcolumns-pressure"/>
+    <FAMILY  name="Bcolumns-pressure">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="extractBmatrixFor1Dvar">
