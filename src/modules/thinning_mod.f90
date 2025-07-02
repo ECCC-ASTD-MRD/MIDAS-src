@@ -69,7 +69,7 @@ contains
     ! Namelist variables:
     logical :: doThinning        ! if false, we return immediately
     real(8) :: step              ! time resolution (in hours)
-    integer :: deltmax           ! maximum time difference (in minutes)
+    integer :: deltmax           ! max time difference from bin center (in minutes)
     logical :: useBlackList      ! signal if blacklist file should be read and used
     logical :: considerSHIPstnID ! signal if SHIP stn ID should be considered in thinning
 
@@ -519,10 +519,10 @@ contains
     integer :: ierr
 
     ! Namelist variables:
-    character(len=18) ::  thinningTechnique
-    integer :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
-    integer :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
-    real(8) :: minDist  ! For distance-based thinning, no observations can be closer to each other than this distance.
+    character(len=18) :: thinningTechnique ! Should be 'grid-based' or 'distance-dependent'
+    integer           :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
+    integer           :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
+    real(8)           :: minDist  ! For distance-based thinning, no observations can be closer to each other than this distance.
 
     namelist /thin_tovs/ thinningTechnique, delta, deltrad, minDist
 
@@ -532,7 +532,7 @@ contains
     write(*,*) 'thn_thinTovs: Starting'
 
     ! Default namelist values
-    thinningTechnique='grid-based' ! Should be 'grid-based' or 'distance-dependent'
+    thinningTechnique='grid-based'
     delta   = 100
     deltrad = 75
     minDist = -1.0
@@ -797,11 +797,11 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout)        :: obsdat             ! obsSpaceData object
-    character(len=*), intent(in)           :: obsFamily
-    real(8),          intent(in)           :: step
-    integer,          intent(in)           :: deltmax
-    logical,          intent(in)           :: useBlackList
-    logical,          intent(in)           :: considerSHIPstnID
+    character(len=*), intent(in)           :: obsFamily          ! obs family to process
+    real(8),          intent(in)           :: step               ! time step length in hours for thinning
+    integer,          intent(in)           :: deltmax            ! max time difference in minutes
+    logical,          intent(in)           :: useBlackList       ! choose to use black list file
+    logical,          intent(in)           :: considerSHIPstnID  ! choose to only compare obs with same stnID
 
     ! Local paramters:
 
@@ -822,7 +822,7 @@ contains
                                       'satob        '/)
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: numListCodtypSelect = 3
-    character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
+    character(len=codtyp_name_length), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
                                     (/'metar        ', 'saswobnonauto', 'saswobauto   '/)
     ! Elements to select (flags for all other elements will have bit 11 set)
     integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
@@ -2011,8 +2011,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: array(:)
-    integer,           intent(out) :: arrayMpi(:)
+    integer,           intent(in)  :: array(:)    ! input values of each mpi task
+    integer,           intent(out) :: arrayMpi(:) ! global data after gathering from all mpi tasks
 
     ! Locals:
     integer :: arrayIndex
@@ -3135,10 +3135,10 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat            ! obsSpace data object
-    integer,          intent(in)    :: deltemps
-    integer,          intent(in)    :: deldist
-    logical,          intent(in)    :: removeUncorrected
-    logical,          intent(in)    :: rejectNoZTDScore
+    integer,          intent(in)    :: deltemps          ! min number of time steps between kept obs
+    integer,          intent(in)    :: deldist           ! min distance (in km) between kept obs
+    logical,          intent(in)    :: removeUncorrected ! choose to remove uncorrected obs
+    logical,          intent(in)    :: rejectNoZTDScore  ! choose to remove obs with no ZTD score
 
     ! Locals:
     real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
@@ -4017,9 +4017,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(inout) :: A(:)
-    integer, intent(inout) :: B(:)
-    integer, intent(in)    :: nullValue
+    integer, intent(inout) :: A(:)      ! Values used to determine order
+    integer, intent(inout) :: B(:)      ! Additional array put in same order as A
+    integer, intent(in)    :: nullValue ! Value used to determine elements of A to ignore
 
     ! Locals:
     integer :: numSelected, indexSelected, index
@@ -4079,8 +4079,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(inout) :: A(:)
-    integer, intent(inout) :: B(:)
+    integer, intent(inout) :: A(:) ! Values used to determine order
+    integer, intent(inout) :: B(:) ! Additional array put in same order as A
 
     ! Locals:
     integer :: iq
@@ -4103,9 +4103,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(inout) :: A(:)
-    integer, intent(inout) :: B(:)
-    integer, intent(out)   :: marker
+    integer, intent(inout) :: A(:)   ! Values used to determine order
+    integer, intent(inout) :: B(:)   ! Additional array put in same order as A
+    integer, intent(out)   :: marker ! Index value where to partition
 
     ! Locals:
     integer :: i, j, tmpi
@@ -4156,8 +4156,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: A(:)
-    integer, intent(inout) :: B(:)
+    real(8), intent(inout) :: A(:) ! Values used to determine order
+    integer, intent(inout) :: B(:) ! Additional array put in same order as A
 
     ! Locals:
     integer :: iq
@@ -4180,9 +4180,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: A(:)
-    integer, intent(inout) :: B(:)
-    integer, intent(out)   :: marker
+    real(8), intent(inout) :: A(:)   ! Values used to determine order
+    integer, intent(inout) :: B(:)   ! Additional array put in same order as A
+    integer, intent(out)   :: marker ! Index value where to partition
 
     ! Locals:
     integer :: i, j, tmpi
@@ -4228,15 +4228,15 @@ contains
   !--------------------------------------------------------------------------
   real(4) function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
     !
-    ! :Purpose: Compute arc distance.
+    ! :Purpose: Compute arc distance in kilometers.
     !
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: deltaLat
-    real(4), intent(in) :: deltaLon
-    real(4), intent(in) :: lat1
-    real(4), intent(in) :: lat2
+    real(4), intent(in) :: deltaLat ! Difference in latitude (degrees)
+    real(4), intent(in) :: deltaLon ! Difference in longitude (degrees)
+    real(4), intent(in) :: lat1     ! Reference location latitude (degrees)
+    real(4), intent(in) :: lat2     ! Reference location longitude (degrees)
 
     ! Locals:
     real(4), parameter :: PI = 3.141592654
@@ -4268,9 +4268,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: deltmax
+    type(struct_obs), intent(inout) :: obsdat      ! obsSpace data object
+    character(len=*), intent(in)    :: familyType  ! family name to process
+    integer,          intent(in)    :: deltmax     ! max time difference in minutes from bin center
 
     ! Locals:
     character(len=4), allocatable :: varNamesPsfc(:)
@@ -6660,8 +6660,8 @@ contains
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), numChannel(:), numChannelMpi(:)
     real(4), allocatable :: obsCloudMpi(:,:), obsAngleMpi(:), obsDistanceMpi(:)
     logical, allocatable :: valid(:), validMpi(:), channelAssim(:,:), channelAssimMpi(:,:)
-    character(len=12) :: stnId
-    character(len=12), allocatable :: stnIdGrid(:,:,:)
+    character(len=obs_stnidLength) :: stnId
+    character(len=obs_stnidLength), allocatable :: stnIdGrid(:,:,:)
 
     write(*,*)
     write(*,*) 'thn_csrByLatLonBoxes: Starting'
@@ -7581,11 +7581,11 @@ contains
     integer :: dataSetSSTIndex, numberDataSetSST
 
     ! Namelist variables:
-    logical :: doThinning                             ! if false, we return immediately
-    integer :: numTimesteps                           ! thinning number of timesteps
-    integer :: deltmax                                ! maximum time difference (in minutes)
-    real(4) :: fractionGridCell                       ! keep data only inside a fraction of the grid cell size
-    character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names considered in thinning
+    logical                        :: doThinning                   ! if false, we return immediately
+    integer                        :: numTimesteps                 ! thinning number of timesteps
+    integer                        :: deltmax                      ! maximum time difference (in minutes)
+    real(4)                        :: fractionGridCell             ! keep data only inside a fraction of the grid cell size
+    character(len=obs_stnidLength) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names considered in thinning
 
     namelist /thin_satSST/doThinning, numTimesteps, deltmax, fractionGridCell, dataSetSST
 
@@ -7685,7 +7685,7 @@ contains
     integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:)
     integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
-    character(len=12) :: stnID
+    character(len=obs_stnidLength) :: stnID
     type countSatSSTdataType
       integer              :: numObs         ! number of data inside each grid cell
       real(4), allocatable :: dataVec(:)     ! vector of data inside each grid cell
@@ -7806,7 +7806,7 @@ contains
 
       obsVarno = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
 
-      obsSST(headerIndex) = real(obs_bodyElem_r(obsData, obs_var, bodyIndex),4)
+      obsSST(headerIndex) = real(obs_bodyElem_r(obsdat, obs_var, bodyIndex),4)
 
       ! obs lat and lon in degrees
       obsLon = obs_headElem_r(obsdat, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
