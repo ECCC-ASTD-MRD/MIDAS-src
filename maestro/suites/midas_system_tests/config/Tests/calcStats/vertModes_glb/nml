@@ -12,7 +12,6 @@
    ANLVAR(2)   ='HU'
    ANLVAR(3)   ='UU'
    ANLVAR(4)   ='VV'
-   ANLVAR(5)   ='P0'
 /
  &NAMENS
    NENS=256

@@ -913,7 +913,8 @@ module calcStatsGlb_mod
         if (nVertWaveBand > 1) then
           call scd_vertical(ensPertsScaleDecomp,                                    & ! INOUT
                             nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale, & ! IN
-                            'Select', vertWaveBandIndexSelected_opt=waveBandIndex,  & ! IN
+                            'Select', 'Covariances',                                & ! IN
+                            vertWaveBandIndexSelected_opt=waveBandIndex,            & ! IN
                             writeResponseFunction_opt=.true.)                         ! IN
         else if (nHorizWaveBand > 1) then
           call scd_horizontal(ensPertsScaleDecomp,                                   & ! INOUT
@@ -1011,7 +1012,8 @@ module calcStatsGlb_mod
 
         call scd_vertical(ensPertsScaleDecomp,                                           & ! INOUT
                           nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale,        & ! IN
-                          'Select', vertWaveBandIndexSelected_opt=vertWaveBandIndex,     & ! IN
+                          'Select', 'Covariances',                                       & ! IN
+                          vertWaveBandIndexSelected_opt=vertWaveBandIndex,               & ! IN
                           writeResponseFunction_opt=.true., writeTransformInfo_opt=.true.) ! IN
 
         write(wbnum,'(I2.2)') vertWaveBandIndex

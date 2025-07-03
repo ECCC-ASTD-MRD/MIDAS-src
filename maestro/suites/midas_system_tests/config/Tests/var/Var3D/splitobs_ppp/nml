@@ -19,6 +19,7 @@
    channelNumberList(:,1) = 4,6,8,9,10,12,11
    sensorNameList(2) = 'AMSUA  ' ! sensor/channel pairs can be prescribed on multiple lines with extra spacing in sensor name
    channelNumberList(:,2) = 7,13,14,5
+   allReduceForward = .false.
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -62,7 +63,7 @@
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
   list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
+  list_topoFilt(2) = 'UA'
   list_topoFilt(3) = 'AI'
   list_topoFilt(4) = 'SW'
   list_topoFilt(5) = 'PR'
@@ -82,7 +83,7 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
- &NAMTOV   
+ &NAMTOV
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

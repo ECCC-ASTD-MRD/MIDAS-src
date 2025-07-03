@@ -6,6 +6,7 @@ module stateToColumn_mod
   !           horizontal-temporal interpolation between a gridStateVector object
   !           and a columnData object.
   !
+  use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -40,6 +41,21 @@ module stateToColumn_mod
 
   ! private module variables and derived types
 
+  ! Basic real48 types that contain allocatable arrays of both real(4) and real(8) types
+  type real48_2d
+    integer              :: dataKind = 0
+    real(4), allocatable :: r4(:,:)
+    real(8), allocatable :: r8(:,:)
+    real(8), allocatable :: GZsfc(:)
+  end type real48_2d
+  type real48_3d
+    integer              :: dataKind = 0
+    real(4), allocatable :: r4(:,:,:)
+    real(8), allocatable :: r8(:,:,:)
+    real(8), allocatable :: GZsfc(:)
+  end type real48_3d
+
+  ! Secondary derived type for using the "2DFIELDS" MPI strategy
   type struct_stepProcData
     ! lat-lon location of observations to be interpolated
     real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, varLevIndex)
@@ -54,6 +70,7 @@ module stateToColumn_mod
     integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, varLevIndex)
   end type struct_stepProcData
 
+  ! Main derived type for using the "2DFIELDS" MPI strategy
   type struct_interpInfo
     logical                   :: initialized = .false.
     type(struct_hco), pointer :: hco => null() ! horizontal grid object
@@ -73,7 +90,75 @@ module stateToColumn_mod
     character(len=2)          :: inputStateVectorType
   end type struct_interpInfo
 
-  type(struct_interpInfo), target :: interpInfo_tlad, interpInfo_nl
+  ! This parameter is the value of latIndexDepot that indicates the value is
+  ! located in the halo and the lonIndexDepot value indicates the value of
+  ! haloIndex for this location.
+  integer, parameter :: valueIsInHalo = -99
+
+  ! Derived type for using the "TILES" MPI strategy
+  type struct_interpInfoTiles
+    logical                       :: initialized = .false.
+    logical                       :: rotatedWinds = .false.
+    integer                       :: numVarLevState
+    integer, allocatable          :: varLevColFromVarLevState(:)
+    integer                       :: sfcVarLevIndex
+    character(len=2)              :: inputStateVectorType
+    type(struct_hco), pointer     :: hco => null() ! horizontal grid object
+    type(struct_uvr), pointer     :: uvr => null() ! windRotation object
+    type(struct_oti), pointer     :: oti => null() ! obsTimeInterp object
+
+    ! Number of obs headers on each proc
+    integer, allocatable      :: allNumHeader(:)      ! (proc)
+
+    ! MPI proc id for all observations wrt lat-lon tiles
+    integer, allocatable      :: allObsTileMpiId(:,:) ! (headerIndex, proc)
+
+    ! MPI proc id for all observations wrt original obsSpaceData
+    integer              :: yourNumHeader
+    integer, allocatable :: yourObsTileMpiId(:)      ! (yourHeaderIndex)
+    integer, allocatable :: yourObsSubGridIndex(:,:) ! (varLevIndex,yourHeaderIndex)
+    real(8), allocatable :: yourObsLat(:,:)          ! (varLevIndex,yourHeaderIndex)
+    real(8), allocatable :: yourObsLon(:,:)          ! (varLevIndex,yourHeaderIndex)
+
+    ! Information about obs on my Tile that I am responsible for interpolating
+    integer              :: myInterpNumHeader            ! Number columns/headers in my tile
+    real(8), allocatable :: myInterpObsLat(:,:)          ! (varLevIndex,myHeaderIndex)
+    real(8), allocatable :: myInterpObsLon(:,:)          ! (varLevIndex,myHeaderIndex)
+    real(8), allocatable :: myInterpObsLatRot(:,:)       ! (varLevIndex,myHeaderIndex)
+    real(8), allocatable :: myInterpObsLonRot(:,:)       ! (varLevIndex,myHeaderIndex)
+    real(4), allocatable :: myInterpObsXpos_r4(:,:)      ! (varLevIndex,myHeaderIndex)
+    real(4), allocatable :: myInterpObsYpos_r4(:,:)      ! (varLevIndex,myHeaderIndex)
+    integer, allocatable :: myInterpObsSubGridIndex(:,:) ! (varLevIndex,myHeaderIndex)
+    real(4), allocatable :: myInterpObsFootprint_r4(:,:) ! (varLevIndex,myHeaderIndex)
+    integer, allocatable :: myInterpObsMpiIdSrc(:)       ! (myHeaderIndex)
+    integer, allocatable :: myInterpObsHeaderIndex(:)    ! (myHeaderIndex)
+
+    ! Interpolation weights and grid point indexes, stored within a "depot"
+    integer, allocatable :: depotIndexBeg(:,:)     ! (varLevIndex,myHeaderIndex)
+    integer, allocatable :: depotIndexEnd(:,:)     ! (varLevIndex,myHeaderIndex)
+    integer, allocatable :: latIndexDepot(:)       ! (depotIndex)
+    integer, allocatable :: lonIndexDepot(:)       ! (depotIndex)
+    real(8), allocatable :: interpWeightDepot(:)   ! (depotIndex)
+
+    ! Halo information
+    logical              :: periodic
+    integer              :: myHaloSize
+    integer              :: minLon                ! needed for dimensioning
+    integer              :: minLat
+    integer, allocatable :: myHaloLatIndex(:)     ! (haloIndex)
+    integer, allocatable :: myHaloLonIndex(:)     ! (haloIndex)
+    integer, allocatable :: myHaloMpiIdSrc(:)     ! (haloIndex)
+    integer, allocatable :: myHaloMpiTag(:)       ! (haloIndex)
+    integer              :: yourHaloSize
+    integer, allocatable :: yourHaloLatIndex(:)   ! (haloIndex)
+    integer, allocatable :: yourHaloLonIndex(:)   ! (haloIndex)
+    integer, allocatable :: yourHaloMpiIdDst(:)   ! (haloIndex)
+    integer, allocatable :: yourHaloMpiTag(:)     ! (haloIndex)
+
+  end type struct_interpInfoTiles
+
+  type(struct_interpInfo),      target :: interpInfo_tlad, interpInfo_nl
+  type(struct_interpInfoTiles), target :: interpInfoTiles_tlad, interpInfoTiles_nl
   type(kdtree2), pointer  :: tree_nl => null()
   type(kdtree2), pointer  :: tree_tlad => null()
 
@@ -90,6 +175,7 @@ module stateToColumn_mod
   integer, parameter :: minNumLocalGridptsSearch = 8
 
   ! namelist variables
+  character(len=20) :: mpiMode             ! select mode for MPI distribution: 'TILES','2DFIELDS'
   logical :: slantPath_TO_nl               ! choose to use slant path for non-linear radiance operator
   logical :: slantPath_TO_tlad             ! choose to use slant path for linearized radiance operators
   logical :: slantPath_RO_nl               ! choose to use slant path for non-linear GPS-RO operator
@@ -100,8 +186,3587 @@ module stateToColumn_mod
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
   logical :: NNInterpForCloudVars          ! to perform nearest neighbour horizontal interpolation for cloudy variables
   logical :: NNInterpForAllVars            ! to perform nearest neighbour horizontal interpolation for selected variablles
+
 contains
 
+  !---------------------------------------------------------
+  ! readNml
+  !---------------------------------------------------------
+  subroutine readNml()
+    !
+    ! :Purpose: Read the namelist
+    !
+    implicit none
+
+    ! Locals:
+    integer :: ierr
+    logical, save :: nmlAlreadyRead = .false.
+
+    namelist /nams2c/ mpiMode, slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl
+    namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
+    namelist /nams2c/ calcHeightPressIncrOnColumn
+    namelist /nams2c/ NNInterpForCloudVars, NNInterpForAllVars
+
+    if (nmlAlreadyRead) return
+
+    write(*,*) 'readNml (s2c): STARTING'
+
+    nmlAlreadyRead = .true.
+    write(*,*) 'readNml (s2c): Reading namelist'
+
+    ! default values
+    mpiMode           = '2DFIELDS'
+    slantPath_TO_nl   = .false.
+    slantPath_TO_tlad = .false.
+    slantPath_RO_nl   = .false.
+    slantPath_RA_nl   = .false.
+    calcHeightPressIncrOnColumn = .false.
+    useFootprintForTovs = .false.
+    rejectObsNonMonotonicPressure =.true.
+    rejectObsOutsideGlobalGrid = .false.
+    NNInterpForCloudVars = .false.
+    NNInterpForAllVars = .false.
+
+    if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
+
+      if ( mmpi_myid == 0 ) then
+        write(*,*) 'readNml (s2c): nams2c is missing in the namelist.'
+        write(*,*) '               The default values will be taken.'
+      end if
+
+    else
+
+      ! reading namelist variables
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = nams2c, iostat = ierr)
+      if ( ierr /= 0 ) call utl_abort('readNml (s2c): Error reading namelist')
+      call utl_tmg_stop(181)
+
+    end if
+
+    if (mmpi_myid == 0) write(*, nml = nams2c)
+
+    ! Check for invalid combinations of namelist variables
+
+    if (trim(mpiMode) /= '2DFIELDS' .and. trim(mpiMode) /= 'TILES') then
+      call utl_abort('readNml (s2c): invalid value of mpiMode = '//trim(mpiMode))
+    end if
+
+    write(*,*) 'readNml (s2c): FINISHED'
+
+  end subroutine readNml
+
+  !-------------------------------------------------------------
+  ! The following subroutines are for the newer "TILES" mpiMode
+  !-------------------------------------------------------------
+
+  !---------------------------------------------------------
+  ! setupInterpInfoTiles
+  !---------------------------------------------------------
+  subroutine setupInterpInfoTiles(intInfo, obsSpaceData, stateVector,  &
+                                  column, timeInterpType, rejectOutsideObs, &
+                                  inputStateVectorType, beSilent)
+    !
+    ! :Purpose: Setup all of the information needed to quickly
+    !           perform the horizontal interpolation to the observation
+    !           locations using the mpi strategy of keeping most of
+    !           the gridded data as lat-lon tiles to avoid lots of
+    !           communication.
+    !
+    !           Note: this first version is simplified by not supporting
+    !           multiple obs batches. Also, may still need to introduce
+    !           some latlon checks.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_interpInfoTiles), intent(out)   :: intInfo              ! Interpolation info structure
+    type(struct_obs)            , intent(inout) :: obsSpaceData         ! obs space object
+    type(struct_gsv), target    , intent(in)    :: stateVector          ! stateVector object
+    type(struct_columnData)     , intent(in)    :: column               ! column object
+    logical                     , intent(inout) :: rejectOutsideObs     ! choose to reject obs outside domain
+    character(len=*)            , intent(in)    :: timeInterpType       ! type of temporal interpolation
+    character(len=*)            , intent(in)    :: inputStateVectorType ! type of state vector "nl", "tl" or "ad"
+    logical,                      intent(in)    :: beSilent             ! choose to print nothing
+
+    ! Locals:
+    integer :: numStep, numHeader, varLevIndex
+    character(len=4) :: varName
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): STARTING'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+
+    intInfo%initialized = .true.
+    intInfo%numVarLevState = stateVector%numVarLev
+    intInfo%yourNumHeader = obs_numHeader(obsSpaceData)
+    intInfo%inputStateVectorType = trim(inputStateVectorType)
+    allocate(intInfo%varLevColFromVarLevState(intInfo%numVarLevState))
+    do varLevIndex = 1, intInfo%numVarLevState
+      varName = gsv_getVarNameFromVarLev(statevector,varLevIndex)
+      intInfo%varLevColFromVarLevState(varLevIndex) =  &
+           col_getOffsetFromVarName(column,varName) + &
+           gsv_getLevFromVarLev(statevector,varLevIndex)
+    end do
+
+    if (inputStateVectorType == 'nl' .and. rejectObsOutsideGlobalGrid) then
+      rejectOutsideObs = .true.
+    end if
+
+    numStep = stateVector%numStep
+    numHeader = obs_numHeader(obsSpaceData)
+
+    call oti_setup(intInfo%oti, obsSpaceData, numStep,  &
+                   1, numHeader, &
+                   interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
+
+    ! copy the horizontal grid object
+    intInfo%hco => stateVector%hco
+
+    ! setup the information for wind rotation
+    if (gsv_varExist(varName='UU') .and. &
+        gsv_varExist(varName='VV') .and.  &
+        stateVector%hco%rotated) then
+      intInfo%rotatedWinds = .true.
+      call uvr_Setup(intInfo%uvr, & ! INOUT
+                     stateVector%hco)  ! IN
+    end if
+
+    if ( stateVector%hco%grtyp == 'G' .or. &
+        (stateVector%hco%grtyp == 'Z' .and. stateVector%hco%global) ) then
+      intInfo%periodic = .true.
+    else
+      intInfo%periodic = .false.
+    end if
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Set the varLevIndex for lat-lon of GZsfc'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call setSfcVarLevIndex(intInfo,stateVector)
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Obtain profile of lat-lon for each obs'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call getObsLatLon(intInfo, obsSpaceData, stateVector)
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Communicate all obs tile ID and locations globally'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call getObsTileMpiId(intInfo, obsSpaceData, stateVector)
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Collect information on obs in my tile'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call getMyInterpObsLatLon(intInfo, stateVector)
+    call getMyInterpObsXYposSubGridIndex(intInfo, obsSpaceData, stateVector)
+    if (intInfo%rotatedWinds) then
+      call getMyInterpObsRotLatLon(intInfo, stateVector)
+    end if
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Compute interpolation weights and indices for my obs'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call utl_tmg_start(33,'------s2c_SetupWeights')
+    call getMyInterpWeights(intInfo, stateVector)
+    call utl_tmg_stop(33)
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Figure out which extra grid points I need (i.e. halo)'
+    end if
+    call getMyHalo(intInfo, stateVector)
+
+    if (.not. beSilent) then
+      write(*,*) 'setupInterpInfoTiles (s2c): Adjust lat/lonIndexDepot for halo locations'
+      call msg_memUsage('setupInterpInfoTiles')
+    end if
+    call utl_tmg_start(33,'------s2c_SetupWeights')
+    call getMyLatLonIndexHalo(intInfo, stateVector)
+    call utl_tmg_stop(33)
+
+    ! reject obs in obsSpaceData if any processor has zero weight
+    ! called when a mask exists to catch land contaminated ocean obs
+    if ( stateVector%oceanMask%maskPresent ) then
+      call rejectZeroWeightObs(intInfo,obsSpaceData)
+    end if
+
+    if (.not. beSilent) call msg_memUsage('setupInterpInfoTiles')
+    if (.not. beSilent) write(*,*) 'setupInterpInfoTiles (s2c): FINISHED'
+
+  end subroutine setupInterpInfoTiles
+
+  !--------------------------------------------------------------------------
+  ! rejectZeroWeightObs (called by setupInterpInfoTiles)
+  !--------------------------------------------------------------------------
+  subroutine rejectZeroWeightObs(intInfo, obsSpaceData)
+    !
+    !:Purpose: To flag an observation in obsSpaceData as being rejected if
+    !          it has zero interpolation weight (usually because an ocean
+    !          obs is touching land) on any mpi task.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+
+    ! Locals:
+    integer :: myHeaderIndex, headerIndex, varLevIndex, procIndex, depotIndex
+    integer :: numVarLev, myNumHeader, myNumHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
+    integer :: headerCount(mmpi_nprocs), myNumHeaders(mmpi_nprocs)
+    integer, save :: numWrites = 0
+    logical, allocatable :: rejectObsSend(:,:), rejectObsRecv(:,:)
+    integer, allocatable :: headIndexSend(:,:), headIndexRecv(:,:)
+
+    write(*,*) 'rejectZeroWeightObs (s2c): Starting'
+
+    myNumHeader = intInfo%myInterpNumHeader
+    numVarLev = intInfo%numVarLevState
+
+    ! Determine max number of headers on this mpi task from each mpi task
+    myNumHeaders(:) = 0
+    do myHeaderIndex = 1, myNumHeader
+      procIndex = intInfo%myInterpObsMpiIdSrc(myHeaderIndex) + 1
+      myNumHeaders(procIndex) = myNumHeaders(procIndex) + 1
+    end do
+    call mmpi_allReduce(maxval(myNumHeaders(:)), myNumHeaderMax, mmpi_max)
+
+    allocate(rejectObsSend(myNumHeaderMax,mmpi_nprocs))
+    allocate(rejectObsRecv(myNumHeaderMax,mmpi_nprocs))
+    rejectObsSend(:,:) = .true.
+    rejectObsRecv(:,:) = .true.
+    allocate(headIndexSend(myNumHeaderMax,mmpi_nprocs))
+    allocate(headIndexRecv(myNumHeaderMax,mmpi_nprocs))
+    headIndexSend(:,:) = 0
+    headIndexRecv(:,:) = 0
+
+    headerCount(:) = 0
+    do myHeaderIndex = 1, myNumHeader
+      procIndex = intInfo%myInterpObsMpiIdSrc(myHeaderIndex) + 1
+      headerCount(procIndex) = headerCount(procIndex) + 1
+
+      headIndexSend(headerCount(procIndex),procIndex) = intInfo%myInterpObsHeaderIndex(myHeaderIndex)
+
+      do varLevIndex = 1, numVarLev
+        do depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex),  &
+                        intInfo%depotIndexEnd(varLevIndex,myHeaderIndex)
+
+          if (intInfo%interpWeightDepot(depotIndex) > 0.0d0) then
+            rejectObsSend(headerCount(procIndex),procIndex) = .false.
+          end if
+
+        end do ! depotIndex
+      end do ! varLevIndex
+
+    end do ! myHeaderIndex
+
+    ! do global communication of reject flags and original headerIndex
+    call mmpi_alltoall(rejectObsSend, rejectObsRecv)
+    call mmpi_alltoall(headIndexSend, headIndexRecv)
+
+    ! modify obsSpaceData based on reject flags
+    do procIndex = 1, mmpi_nprocs
+      do myHeaderIndex = 1, myNumHeaderMax
+        ! Get the original headerIndex for obsSpaceData
+        headerIndex = headIndexRecv(myHeaderIndex,procIndex)
+
+        ! Check if we already reached the last header from the mpi task procIndex
+        if (headerIndex == 0) cycle
+
+        if (rejectObsRecv(myHeaderIndex,procIndex)) then
+
+          numWrites = numWrites + 1
+          if (numWrites < maxNumWrites) then
+            write(*,*) 'rejectZeroWeightObs (s2c): Rejecting OBS with zero weight, index ', headerIndex
+          else if (numWrites == maxNumWrites) then
+            write(*,*) 'rejectZeroWeightObs (s2c): More rejects, but reached maximum number of writes to the listing.'
+          end if
+
+          bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg -1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+          end do
+          call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex,  &
+               ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
+        end if
+
+      end do
+    end do
+
+    deallocate(rejectObsSend)
+    deallocate(rejectObsRecv)
+    deallocate(headIndexSend)
+    deallocate(headIndexRecv)
+
+    write(*,*) 'rejectZeroWeightObs (s2c): Finished'
+
+  end subroutine rejectZeroWeightObs
+
+  !---------------------------------------------------------
+  ! getMyLatLonIndexHalo (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyLatLonIndexHalo(intInfo, stateVector)
+    !
+    ! :Purpose: Adjust the lat/lonIndexDepot for locations in the halo so
+    !           that they point to the haloIndex instead of lat/lonIndex.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo     ! Interpolation info structure
+    type(struct_gsv), target    , intent(in)    :: stateVector ! stateVector object
+
+    ! Locals:
+    integer :: myHeaderIndex, depotIndex, haloIndex
+    integer :: lonIndex, latIndex
+    integer :: varLevIndex, numVarLev
+
+    numVarLev = intInfo%numVarLevState
+
+    ! Go through all grid points in the depot
+    do myHeaderIndex = 1, intInfo%myInterpNumHeader
+      do varLevIndex = 1, numVarLev
+        depotLoop: do depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex),  &
+                                   intInfo%depotIndexEnd(varLevIndex,myHeaderIndex)
+
+          ! Identify if this grid point in the depot is outside the tile interior
+          latIndex = intInfo%latIndexDepot(depotIndex)
+          lonIndex = intInfo%lonIndexDepot(depotIndex)
+          if (latIndex < stateVector%myLatBeg .or. latIndex > stateVector%myLatEnd .or. &
+              lonIndex < stateVector%myLonBeg .or. lonIndex > stateVector%myLonEnd) then
+
+            ! Grid is outside, now find haloIndex value for this lat/lonIndex
+            haloLoop: do haloIndex = 1, intInfo%myHaloSize
+              if (latIndex == intInfo%myHaloLatIndex(haloIndex) .and. &
+                  lonIndex == intInfo%myHaloLonIndex(haloIndex)) then
+
+                ! Modify lat/lonIndexDepot values to record haloIndex value and exit loop
+                intInfo%latIndexDepot(depotIndex) = valueIsInHalo
+                intInfo%lonIndexDepot(depotIndex) = haloIndex
+                exit haloLoop
+
+              end if
+            end do haloLoop
+
+          end if
+
+        end do depotLoop
+      end do
+    end do
+
+  end subroutine getMyLatLonIndexHalo
+
+  !---------------------------------------------------------
+  ! getMyHalo (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyHalo(intInfo, stateVector)
+    !
+    ! :Purpose: Determine what grid points need to be communicated between
+    !           lat-lon tiles, i.e. the halo.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo     ! Interpolation info structure
+    type(struct_gsv), target    , intent(in)    :: stateVector ! stateVector object
+
+    ! Locals:
+    integer, parameter :: maxTempHaloSize = 10000000
+    integer :: myHeaderIndex, depotIndex, haloIndex, haloIndex2, tileMpiIdX, tileMpiIdY
+    integer :: procIndex, msgIndex, mpiMsgSize, lonIndex, latIndex
+    integer :: varLevIndex, numVarLev
+    integer, allocatable :: latVecSend(:,:), lonVecSend(:,:), latVecRecv(:,:), lonVecRecv(:,:)
+    integer :: myHaloSizeMax, myHaloSizeMpi(mmpi_nprocs), yourHaloSizeMpi(mmpi_nprocs)
+
+    numVarLev = intInfo%numVarLevState
+
+    ! Temporarily allocate lat-lon arrays just for counting halo size
+    allocate(intInfo%myHaloLatIndex(maxTempHaloSize))
+    allocate(intInfo%myHaloLonIndex(maxTempHaloSize))
+
+    ! Count number of grid points that are outside the lat-lon tile
+    haloIndex = 0
+    do myHeaderIndex = 1, intInfo%myInterpNumHeader
+      do varLevIndex = 1, numVarLev
+        depotLoop0: do depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex),  &
+                                    intInfo%depotIndexEnd(varLevIndex,myHeaderIndex)
+
+          ! Identify if this grid point is outside the tile interior
+          latIndex = intInfo%latIndexDepot(depotIndex)
+          lonIndex = intInfo%lonIndexDepot(depotIndex)
+          if (latIndex < stateVector%myLatBeg .or. latIndex > stateVector%myLatEnd .or. &
+              lonIndex < stateVector%myLonBeg .or. lonIndex > stateVector%myLonEnd) then
+
+            ! Check if this location is already recorded as part of the halo
+            if (haloIndex > 0) then
+              do haloIndex2 = 1, haloIndex
+                if (latIndex == intInfo%myHaloLatIndex(haloIndex2) .and. &
+                    lonIndex == intInfo%myHaloLonIndex(haloIndex2)) then
+                  cycle depotLoop0
+                end if
+              end do
+            end if
+
+            haloIndex = haloIndex + 1
+
+            ! Lat-lon of halo grid point
+            if (haloIndex > size(intInfo%myHaloLatIndex)) then
+              call utl_abort('getMyHalo (s2c): temporary allocation size for halo not big enough')
+            end if
+            intInfo%myHaloLatIndex(haloIndex) = intInfo%latIndexDepot(depotIndex)
+            intInfo%myHaloLonIndex(haloIndex) = intInfo%lonIndexDepot(depotIndex)
+
+          end if
+        end do depotLoop0
+      end do
+    end do
+    intInfo%myHaloSize = haloIndex
+    write(*,*) 'getMyHalo (s2c): myHaloSize    = ', intInfo%myHaloSize
+
+    ! Deallocate temporarily allocated arrays
+    deallocate(intInfo%myHaloLatIndex)
+    deallocate(intInfo%myHaloLonIndex)
+
+    ! Allocate arrays to store the halo information
+    allocate(intInfo%myHaloLatIndex(intInfo%myHaloSize))
+    allocate(intInfo%myHaloLonIndex(intInfo%myHaloSize))
+    allocate(intInfo%myHaloMpiIdSrc(intInfo%myHaloSize))
+    allocate(intInfo%myHaloMpiTag(intInfo%myHaloSize))
+
+    ! Store my halo information
+    haloIndex = 0
+    do myHeaderIndex = 1, intInfo%myInterpNumHeader
+      do varLevIndex = 1, numVarLev
+        depotLoop1: do depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex),  &
+                                    intInfo%depotIndexEnd(varLevIndex,myHeaderIndex)
+
+          ! Identify if this grid point is outside the tile interior
+          latIndex = intInfo%latIndexDepot(depotIndex)
+          lonIndex = intInfo%lonIndexDepot(depotIndex)
+          if (latIndex < stateVector%myLatBeg .or. latIndex > stateVector%myLatEnd .or. &
+              lonIndex < stateVector%myLonBeg .or. lonIndex > stateVector%myLonEnd) then
+
+            ! Check if this location is already recorded as part of the halo
+            if (haloIndex > 0) then
+              do haloIndex2 = 1, haloIndex
+                if (latIndex == intInfo%myHaloLatIndex(haloIndex2) .and. &
+                    lonIndex == intInfo%myHaloLonIndex(haloIndex2)) then
+                  cycle depotLoop1
+                end if
+              end do
+            end if
+
+            ! Add this horizontal location to the halo
+            haloIndex = haloIndex + 1
+            if (haloIndex > intInfo%myHaloSize) then
+              call utl_abort('getMyHalo (s2c): haloIndex is too big')
+            end if
+
+            ! Lat-lon of halo grid point
+            intInfo%myHaloLatIndex(haloIndex) = intInfo%latIndexDepot(depotIndex)
+            intInfo%myHaloLonIndex(haloIndex) = intInfo%lonIndexDepot(depotIndex)
+
+            ! Adjust lonIndex used to determine source tile in special cases with periodic domain
+            if (intInfo%periodic .and. intInfo%myHaloLonIndex(haloIndex) > stateVector%ni) then
+              lonIndex = 1
+            else if (intInfo%periodic .and. intInfo%myHaloLonIndex(haloIndex) < 1) then
+              lonIndex = stateVector%ni
+            else
+              lonIndex = intInfo%myHaloLonIndex(haloIndex)
+            end if
+            latIndex = intInfo%myHaloLatIndex(haloIndex)
+
+            ! MPI tile id in X, Y directions and global tile id
+            tileMpiIdX = utl_findloc( &
+                 lonIndex >= stateVector%allLonBeg(:) .and. &
+                 lonIndex <= stateVector%allLonEnd(:)) - 1
+            tileMpiIdY = utl_findloc( &
+                 latIndex >= stateVector%allLatBeg(:) .and. &
+                 latIndex <= stateVector%allLatEnd(:)) - 1
+            intInfo%myHaloMpiIdSrc(haloIndex) = tileMpiIdX + tileMpiIdY*mmpi_npex
+
+            ! Set mpi tag to distinguish between multiple messages received from the same mpi task
+            intInfo%myHaloMpiTag(haloIndex) = count(intInfo%myHaloMpiIdSrc(1:haloIndex) == &
+                                                    intInfo%myHaloMpiIdSrc(haloIndex))
+
+          end if
+
+        end do depotLoop1
+
+      end do ! varLevIndex
+    end do ! myHeaderIndex
+
+    ! Send halo information to source MPI tiles so they will know what to send
+    call mmpi_allReduce(intInfo%myHaloSize, myHaloSizeMax, mmpi_max)
+
+    ! Number of grid points needed from each mpi task
+    myHaloSizeMpi(:) = 0
+    do procIndex = 1, mmpi_nprocs
+      myHaloSizeMpi(procIndex) = count(intInfo%myHaloMpiIdSrc(:) == procIndex-1)
+    end do
+    call mmpi_alltoall(myHaloSizeMpi, yourHaloSizeMpi)
+
+    ! Maximum size of MPI message for halo
+    call mmpi_allReduce(maxval(myHaloSizeMpi), mpiMsgSize, mmpi_max)
+    write(*,*) 'getMyHalo (s2c): mpiMsgSize      = ', mpiMsgSize
+
+    allocate(latVecSend(mpiMsgSize,mmpi_nprocs))
+    allocate(lonVecSend(mpiMsgSize,mmpi_nprocs))
+    allocate(latVecRecv(mpiMsgSize,mmpi_nprocs))
+    allocate(lonVecRecv(mpiMsgSize,mmpi_nprocs))
+    latVecSend(:,:) = -999
+    lonVecSend(:,:) = -999
+
+    do haloIndex = 1, intInfo%myHaloSize
+      procIndex = intInfo%myHaloMpiIdSrc(haloIndex) + 1
+      msgIndex = count(latVecSend(:,procIndex) >= 0) + 1
+      latVecSend(msgIndex,procIndex) = intInfo%myHaloLatIndex(haloIndex)
+      lonVecSend(msgIndex,procIndex) = intInfo%myHaloLonIndex(haloIndex)
+    end do
+
+    call mmpi_alltoall(latVecSend, latVecRecv)
+    call mmpi_alltoall(lonVecSend, lonVecRecv)
+
+    ! Allocate arrays to store the halo information
+    intInfo%yourHaloSize = count(latVecRecv(:,:) > 0)
+    allocate(intInfo%yourHaloLatIndex(intInfo%yourHaloSize))
+    allocate(intInfo%yourHaloLonIndex(intInfo%yourHaloSize))
+    allocate(intInfo%yourHaloMpiIdDst(intInfo%yourHaloSize))
+    allocate(intInfo%yourHaloMpiTag(intInfo%yourHaloSize))
+
+    haloIndex = 0
+    do procIndex = 1, mmpi_nprocs
+      do msgIndex = 1, yourHaloSizeMpi(procIndex)
+        haloIndex = haloIndex + 1
+
+        ! Set the mpi id
+        intInfo%yourHaloMpiIdDst(haloIndex) = procIndex - 1
+
+        ! Lat and lon received from allToAll communication
+        intInfo%yourHaloLatIndex(haloIndex) = latVecRecv(msgIndex,procIndex)
+        intInfo%yourHaloLonIndex(haloIndex) = lonVecRecv(msgIndex,procIndex)
+
+        ! Set mpi tag to distinguish between multiple messages received from the same mpi task
+        intInfo%yourHaloMpiTag(haloIndex) = count(intInfo%yourHaloMpiIdDst(1:haloIndex) == &
+                                                  intInfo%yourHaloMpiIdDst(haloIndex))
+
+      end do
+    end do
+
+    deallocate(latVecSend)
+    deallocate(lonVecSend)
+    deallocate(latVecRecv)
+    deallocate(lonVecRecv)
+
+  end subroutine getMyHalo
+
+  !---------------------------------------------------------
+  ! getMyInterpWeights (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyInterpWeights(intInfo, stateVector)
+    !
+    ! :Purpose: Compute the interpolation weights and lat-lon indexes
+    !           for each grid point involved in the interpolation to each
+    !           observation location within my tile.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo     ! Interpolation info structure
+    type(struct_gsv), target    , intent(in)    :: stateVector ! stateVector object
+
+    ! Locals:
+    integer :: myHeaderIndex, varLevIndex, depotIndex, depotSize
+    integer :: gridIndex, latIndex, lonIndex, numGridpt, numVarLev
+    real(8) :: lat, lon
+    real(4) :: footprintRadius_r4
+    real(kdkind), allocatable :: positionArray(:,:)
+    type(kdtree2), pointer  :: tree
+
+    numVarLev = intInfo%numVarLevState
+
+    ! create kdtree to use in footprint operator, if any footprint radius > 0.
+    if ( any(intInfo%myInterpObsFootprint_r4(:,:) > 0.0) ) then
+      write(*,*) 'getMyInterpWeights (s2c): footPrint operator is used for inputStateVectorType=', &
+                 intInfo%inputStateVectorType
+
+      if ( (intInfo%inputStateVectorType == 'nl' .and. .not. associated(tree_nl))   .or. &
+           (intInfo%inputStateVectorType == 'tl' .and. .not. associated(tree_tlad)) .or. &
+           (intInfo%inputStateVectorType == 'ad' .and. .not. associated(tree_tlad)) ) then
+
+        write(*,*) 'getMyInterpWeights (s2c): start creating kdtree for inputStateVectorType=', &
+                   intInfo%inputStateVectorType
+        call msg_memUsage('getMyInterpWeights')
+
+        allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
+
+        gridIndex = 0
+        do latIndex = 1, statevector%hco%nj
+          do lonIndex = 1, statevector%hco%ni
+            gridIndex = gridIndex + 1
+            lat = real(stateVector % hco % lat2d_4(lonIndex,latIndex), 8)
+            lon = real(stateVector % hco % lon2d_4(lonIndex,latIndex), 8)
+
+            positionArray(:,gridIndex) = kdtree2_3dPosition(lon, lat)
+
+          end do
+        end do
+
+        nullify(tree)
+        tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.)
+
+        if ( intInfo%inputStateVectorType == 'nl' ) then
+          tree_nl => tree
+        else
+          tree_tlad => tree
+        end if
+
+        deallocate(positionArray)
+
+        write(*,*) 'getMyInterpWeights (s2c): done creating kdtree for inputStateVectorType = ', &
+                   intInfo%inputStateVectorType
+        call msg_memUsage('getMyInterpWeights')
+
+      end if
+    end if
+
+    ! Allocate index pointer arrays into depot
+    allocate(intInfo%depotIndexBeg(numVarLev,intInfo%myInterpNumHeader))
+    allocate(intInfo%depotIndexEnd(numVarLev,intInfo%myInterpNumHeader))
+
+    ! First determine the size of the depot and set the index pointer arrays
+    depotSize = 0
+    do myHeaderIndex = 1, intInfo%myInterpNumHeader
+
+      do varLevIndex = 1, numVarLev
+        ! Set the starting index for this myHeaderIndex
+        intInfo%depotIndexBeg(varLevIndex,myHeaderIndex) = depotSize + 1
+
+        footprintRadius_r4 = intInfo%myInterpObsFootprint_r4(varLevIndex,myHeaderIndex)
+        if ( footprintRadius_r4 > 0.0 ) then
+
+          call getMyInterpWeightsFootprint(footPrintRadius_r4, myHeaderIndex, &
+                                           varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == bilinearFootprint ) then
+
+          call getMyInterpWeightsBilinear(myHeaderIndex, varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == lakeFootprint ) then
+
+          call getMyInterpWeightsLake(myHeaderIndex, varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+
+          call getMyInterpWeightsNearestNeighbor(myHeaderIndex, varLevIndex, numGridpt)
+
+        else
+
+          write(*,*) 'footPrintRadius_r4 = ', footPrintRadius_r4
+          call utl_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
+
+        end if
+        depotSize = depotSize + numGridpt
+
+        ! Set the ending index for this myHeaderIndex
+        intInfo%depotIndexEnd(varLevIndex,myHeaderIndex) = depotSize
+      end do
+
+    end do
+    write(*,*) 'getMyInterpWeights (s2c): myInterpNumHeader, depotSize = ',  &
+                                  intInfo%myInterpNumHeader, depotSize
+
+    ! Allocate the depot variables
+    allocate(intInfo%latIndexDepot(depotSize))
+    allocate(intInfo%lonIndexDepot(depotSize))
+    allocate(intInfo%interpWeightDepot(depotSize))
+
+    ! Now assign the values in the depot
+    do myHeaderIndex = 1, intInfo%myInterpNumHeader
+
+      do varLevIndex = 1, numVarLev
+
+        footprintRadius_r4 = intInfo%myInterpObsFootprint_r4(varLevIndex,myHeaderIndex)
+        if ( footprintRadius_r4 > 0.0 ) then
+
+          call getMyInterpWeightsFootprint(footPrintRadius_r4, myHeaderIndex, &
+                                           varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == bilinearFootprint ) then
+
+          call getMyInterpWeightsBilinear(myHeaderIndex, varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == lakeFootprint ) then
+
+          call getMyInterpWeightsLake(myHeaderIndex, varLevIndex, numGridpt)
+
+        else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+
+          call getMyInterpWeightsNearestNeighbor(myHeaderIndex, varLevIndex, numGridpt)
+
+        else
+
+          write(*,*) 'footPrintRadius_r4 = ', footPrintRadius_r4
+          call utl_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
+
+        end if
+
+      end do ! varLevIndex
+    end do ! myHeaderIndex
+
+  contains
+
+    !--------------------------------------------------------------------------
+    ! getMyInterpWeightsBilinear (contained in getMyInterpWeights)
+    !--------------------------------------------------------------------------
+    subroutine getMyInterpWeightsBilinear(myHeaderIndex, varLevIndex, numGridpt)
+      !
+      ! :Purpose: Either just count or also assign interpolation weights and indexes.
+      !
+      implicit none
+
+      ! Arguments:
+      integer, intent(in)  :: myHeaderIndex ! headerIndex to be treated
+      integer, intent(in)  :: varLevIndex   ! varLevIndex to be treated
+      integer, intent(out) :: numGridpt     ! return total number of grid points
+
+      ! Locals:
+      integer, parameter :: leftIndex = 1, rightIndex = 2, bottomIndex = 1, topIndex = 2
+      integer :: niP1, lonIndex, latIndex, lonIndexP1, lonIndexP1ForMask, iPoint
+      integer :: latIndexVec(4), lonIndexVec(4)
+      real(4) :: xpos_r4, ypos_r4
+      real(8) :: WeightVec(4), dldx, dldy, weightsSum
+      logical :: mask(2,2)
+
+      xpos_r4 = intInfo%myInterpObsXpos_r4(varLevIndex,myHeaderIndex)
+      ypos_r4 = intInfo%myInterpObsYpos_r4(varLevIndex,myHeaderIndex)
+
+      ! Allow for periodicity in Longitude for global Gaussian grid
+      if (intInfo%periodic) then
+        niP1 = statevector%ni + 1
+      else
+        niP1 = statevector%ni
+      end if
+
+      ! Find the lower-left grid point next to the observation
+      if ( xpos_r4 >= real(niP1) ) then
+        xpos_r4 = real(niP1)
+        lonIndex = niP1 - 1
+      else if ( xpos_r4 < 1.0 ) then
+        xpos_r4 = 1.0
+        lonIndex = 1
+      else
+        lonIndex = floor(xpos_r4)
+      end if
+
+      if ( ypos_r4 >= real(statevector%nj) ) then
+        ypos_r4 = real(statevector%nj)
+        latIndex = statevector%nj - 1
+      else if ( ypos_r4 < 1.0 ) then
+        ypos_r4 = 1.0
+        latIndex = 1
+      else
+        latIndex = floor(ypos_r4)
+      end if
+
+      if ( stateVector%hco%grtyp == 'U' ) then
+        if ( ypos_r4 == real(stateVector%nj/2) ) then
+          latIndex = floor(ypos_r4) - 1
+        end if
+      end if
+
+      lonIndexP1 = lonIndex + 1
+
+      ! Check if location is in between Yin and Yang (should not happen)
+      if ( stateVector%hco%grtyp == 'U' ) then
+        if ( ypos_r4 > real(stateVector%nj/2) .and.  &
+             ypos_r4 < real((stateVector%nj/2)+1) ) then
+          write(*,*) 'getMyInterpWeightsBilinear (s2c): WARNING, obs position between Yin and Yang!'
+          write(*,*) '   xpos, ypos = ', xpos_r4, ypos_r4
+        end if
+      end if
+
+      if ( stateVector%oceanMask%maskPresent ) then
+        ! abort if 3D mask is present, since we may not handle this situation correctly
+        if ( stateVector%oceanMask%nLev > 1 ) then
+          call utl_abort('getMyInterpWeightsBilinear (s2c): 3D mask present - this case not properly handled')
+        end if
+        ! Handle periodicity in longitude for ocean mask value
+        if (lonIndexP1 == stateVector%ni + 1) then
+          lonIndexP1ForMask = 1
+        else
+          lonIndexP1ForMask = lonIndexP1
+        end if
+        mask(leftIndex ,bottomIndex) = stateVector%oceanMask%mask(lonIndex         ,latIndex    ,1)
+        mask(rightIndex,bottomIndex) = stateVector%oceanMask%mask(lonIndexP1ForMask,latIndex    ,1)
+        mask(leftIndex ,topIndex   ) = stateVector%oceanMask%mask(lonIndex         ,latIndex + 1,1)
+        mask(rightIndex,topIndex   ) = stateVector%oceanMask%mask(lonIndexP1ForMask,latIndex + 1,1)
+      else
+        mask(:,:) = .true.
+      end if
+
+      WeightVec(:) = 0
+      numGridpt = 0
+
+      ! Compute the 4 weights of the bilinear interpolation
+      dldx = real(xpos_r4,8) - real(lonIndex,8)
+      dldy = real(ypos_r4,8) - real(latIndex,8)
+      if (NNInterpForCloudVars) then
+        call utl_abort('getMyInterpWeightsBilinear (s2c): NNInterpForCloudVars true is not supported')
+      end if
+
+      if ( mask(leftIndex ,bottomIndex) ) then
+        numGridpt = numGridpt + 1
+        latIndexVec(numGridpt) = latIndex
+        lonIndexVec(numGridpt) = lonIndex
+        WeightVec(numGridpt) = (1.d0-dldx) * (1.d0-dldy)
+      end if
+
+      if ( mask(rightIndex,bottomIndex) ) then
+        numGridpt = numGridpt + 1
+        latIndexVec(numGridpt) = latIndex
+        lonIndexVec(numGridpt) = lonIndexP1
+        WeightVec(numGridpt) =       dldx  * (1.d0-dldy)
+      end if
+
+      if ( mask(leftIndex ,topIndex   ) ) then
+        numGridpt = numGridpt + 1
+        latIndexVec(numGridpt) = latIndex + 1
+        lonIndexVec(numGridpt) = lonIndex
+        WeightVec(numGridpt) = (1.d0-dldx) *       dldy
+      end if
+
+      if ( mask(rightIndex,topIndex   ) ) then
+        numGridpt = numGridpt + 1
+        latIndexVec(numGridpt) = latIndex + 1
+        lonIndexVec(numGridpt) = lonIndexP1
+        WeightVec(numGridpt) =       dldx  *       dldy
+      end if
+
+      weightsSum = sum(WeightVec(1:numGridpt))
+      if ( weightsSum > 0.d0 ) then
+        WeightVec(1:numGridpt) = WeightVec(1:numGridpt) / weightsSum
+      end if
+
+      ! If the depot is allocated, then we fill in the values
+      if ( allocated(intInfo%interpWeightDepot) ) then
+
+        depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex)
+
+        do ipoint = 1, numGridpt
+
+          intInfo%interpWeightDepot(depotIndex) = WeightVec(ipoint)
+          intInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+          intInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+
+          depotIndex = depotIndex + 1
+
+        end do
+
+      end if
+
+    end subroutine getMyInterpWeightsBilinear
+
+    !--------------------------------------------------------------------------
+    ! getMyInterpWeightsFootprint (contained in getMyInterpWeights)
+    !--------------------------------------------------------------------------
+    subroutine getMyInterpWeightsFootprint(fpr, myHeaderIndex, varLevIndex, numGridpt)
+      !
+      !:Purpose: To determine the grid points and their associated weights
+      !          for the footprint horizontal interpolation.
+      !
+      implicit none
+
+      ! Arguments:
+      real(4)                , intent(in)    :: fpr            ! footprint radius (metres)
+      integer                , intent(in)    :: myHeaderIndex  ! headerIndex to be treated
+      integer                , intent(in)    :: varLevIndex    ! varLevIndex to be treated
+      integer                , intent(out)   :: numGridpt      ! return total number of grid points
+
+      ! Locals:
+      integer :: depotIndex, latIndexCentre, lonIndexCentre
+      integer :: subGridIndex, numLocalGridptsFoundSearch
+      integer :: ipoint, gridptCount
+      integer :: lonIndex, latIndex, resultsIndex, gridIndex
+      integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
+      real(8) :: lonObs, latObs
+      real(4) :: xpos_r4, ypos_r4, lonObs_deg_r4, latObs_deg_r4
+      type(kdtree2_result)   :: searchResults(maxNumLocalGridptsSearch)
+      real(kdkind)           :: refPosition(3), maxRadiusSquared
+      type(kdtree2), pointer :: tree
+
+      numGridpt = 0
+
+      ! Determine the grid point nearest the observation.
+
+      latObs       = intInfo%myInterpObsLat(varLevIndex,myHeaderIndex)
+      lonObs       = intInfo%myInterpObsLon(varLevIndex,myHeaderIndex)
+      xpos_r4      = intInfo%myInterpObsXpos_r4(varLevIndex,myHeaderIndex)
+      ypos_r4      = intInfo%myInterpObsYpos_r4(varLevIndex,myHeaderIndex)
+      subGridIndex = intInfo%myInterpObsSubGridIndex(varLevIndex,myHeaderIndex)
+
+      lonIndexCentre = nint(xpos_r4)
+      latIndexCentre = nint(ypos_r4)
+
+      if ( subGridIndex == 3 ) then
+        call utl_abort('getMyInterpWeightsFootprint: two subGrids involved is not supported')
+      end if
+
+      ! Return if observation is not on the grid, or masked.
+      if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%hco%ni .or.  &
+           latIndexCentre < 1 .or. latIndexCentre > statevector%hco%nj ) return
+
+      if ( stateVector%oceanMask%maskPresent ) then
+        ! abort if 3D mask is present, since we may not handle this situation correctly
+        if ( stateVector%oceanMask%nLev > 1 ) then
+          call utl_abort('getMyInterpWeightsFootprint: 3D mask present - this case not properly handled')
+        end if
+
+        if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
+      end if
+
+      ! do the search
+      maxRadiusSquared = real(fpr,8) ** 2
+      refPosition(:) = kdtree2_3dPosition(lonObs, latObs)
+      nullify(tree)
+      if ( intInfo%inputStateVectorType == 'nl' ) then
+        if ( associated(tree_nl) ) then
+          tree => tree_nl
+        else
+          call utl_abort('getMyInterpWeightsFootprint: tree_nl is not allocated!')
+        end if
+      else if ( intInfo%inputStateVectorType == 'tl' .or. &
+           intInfo%inputStateVectorType == 'ad' ) then
+        if ( associated(tree_tlad) ) then
+          tree => tree_tlad
+        else
+          call utl_abort('getMyInterpWeightsFootprint: tree_tlad is not allocated!')
+        end if
+      end if
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
+                             nfound=numLocalGridptsFoundSearch, &
+                             nalloc=maxNumLocalGridptsSearch, &
+                             results=searchResults)
+
+      if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
+        call utl_abort('getMyInterpWeightsFootprint: the parameter maxNumLocalGridptsSearch must be increased')
+      else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
+        write(*,*) 'getMyInterpWeightsFootprint: Warning! For TOVS headerIndex=', myHeaderIndex, &
+                   ' number of grid points found within footprint radius=', fpr, ' is less than ', &
+                   minNumLocalGridptsSearch
+      end if
+
+      ! ensure at least the nearest neighbor is included in lonIndexVec/latIndexVec
+      ! if footprint size is smaller than the grid spacing.
+      gridptCount = 1
+      lonIndexVec(gridptCount) = lonIndexCentre
+      latIndexVec(gridptCount) = latIndexCentre
+
+      ! fill the rest of lonIndexVec/latIndexVec
+      gridLoop1: do resultsIndex = 1, numLocalGridptsFoundSearch
+
+        gridIndex = searchResults(resultsIndex)%idx
+        if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
+          write(*,*) 'getMyInterpWeightsFootprint: gridIndex=', gridIndex
+          call utl_abort('getMyInterpWeightsFootprint: gridIndex out of bound.')
+        end if
+
+        latIndex = (gridIndex - 1) / statevector%hco%ni + 1
+        lonIndex = gridIndex - (latIndex - 1) * statevector%hco%ni
+        if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
+             latIndex < 1 .or. latIndex > statevector%hco%nj ) then
+          write(*,*) 'getMyInterpWeightsFootprint: lonIndex=', lonIndex, ',latIndex=', latIndex
+          call utl_abort('getMyInterpWeightsFootprint: lonIndex/latIndex out of bound.')
+        end if
+
+        if ( stateVector%oceanMask%maskPresent ) then
+          if ( .not. stateVector%oceanMask%mask(lonIndex,latIndex,1) ) cycle gridLoop1
+        end if
+
+        if ( lonIndex == lonIndexCentre .and. latIndex == latIndexCentre ) cycle gridLoop1
+
+        gridptCount = gridptCount + 1
+        lonIndexVec(gridptCount) = lonIndex
+        latIndexVec(gridptCount) = latIndex
+
+      end do gridLoop1
+
+      ! If the depot is allocated, then we fill in the values
+      if ( allocated(intInfo%interpWeightDepot) ) then
+
+        depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex)
+
+        do ipoint = 1, gridptCount
+
+          intInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
+          intInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+          intInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+          depotIndex = depotIndex + 1
+
+        end do
+
+      end if
+
+      numGridpt = gridptCount
+
+    end subroutine getMyInterpWeightsFootprint
+
+    !--------------------------------------------------------------------------
+    ! getMyInterpWeightsLake (contained in getMyInterpWeights)
+    !--------------------------------------------------------------------------
+    subroutine getMyInterpWeightsLake(myHeaderIndex, varLevIndex, numGridpt)
+      !
+      !:Purpose: To determine the grid points and their associated weights
+      !          for the lake horizontal interpolation.
+      !
+      implicit none
+
+      ! Arguments:
+      integer                , intent(in)    :: myHeaderIndex
+      integer                , intent(in)    :: varLevIndex
+      integer                , intent(out)   :: numGridpt
+
+      ! Locals:
+      integer :: depotIndex, latIndexCentre, lonIndexCentre, subGridIndex
+      integer :: ipoint, gridptCount
+      integer :: lakeCount, latIndexCurrent, lonIndexCurrent
+      integer :: lonIndex, latIndex, lakeIndex
+      integer :: lonIndexVec(statevector%ni*statevector%nj), latIndexVec(statevector%ni*statevector%nj)
+      real(8) :: lonObs, latObs
+      real(4) :: xpos_r4, ypos_r4
+      logical :: lake(statevector%ni,statevector%nj)
+
+      if ( stateVector%hco%grtyp == 'U' ) then
+        call utl_abort('getMyInterpWeightsLake (s2c): Yin-Yang grid not supported')
+      end if
+
+      if ( .not.stateVector%oceanMask%maskPresent ) then
+        call utl_abort('getMyInterpWeightsLake (s2c): Only compatible when mask present')
+      end if
+
+      numGridpt = 0
+
+      ! Determine the grid point nearest the observation.
+
+      latObs       = intInfo%myInterpObsLat(varLevIndex,myHeaderIndex)
+      lonObs       = intInfo%myInterpObsLon(varLevIndex,myHeaderIndex)
+      xpos_r4      = intInfo%myInterpObsXpos_r4(varLevIndex,myHeaderIndex)
+      ypos_r4      = intInfo%myInterpObsYpos_r4(varLevIndex,myHeaderIndex)
+      subGridIndex = intInfo%myInterpObsSubGridIndex(varLevIndex,myHeaderIndex)
+
+      lonIndexCentre = nint(xpos_r4)
+      latIndexCentre = nint(ypos_r4)
+
+      if ( subGridIndex == 3 ) then
+        call utl_abort('getMyInterpWeightsLake (s2c): two subGrids involved is not supported')
+      end if
+
+      gridptCount = 0
+
+      ! It can happen that the lake location is closest to a grid point
+      ! where MASK(I,J) = .false. while there are other grid points for the
+      ! same lake where MASK(I,J) = .true.. Code needs modifications
+      ! for this case.
+
+      ! If observation is not on the grid, don't use it.
+      if ( lonIndexCentre < 1 .or. lonIndexCentre > statevector%ni .or.  &
+           latIndexCentre < 1 .or. latIndexCentre > statevector%nj ) return
+
+      if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
+
+      lake(:,:) = .false.
+      lake(lonIndexCentre,latIndexCentre) = .true.
+      gridptCount = 1
+      lonIndexVec(gridptCount) = lonIndexCentre
+      latIndexVec(gridptCount) = latIndexCentre
+
+      lakeCount = 0
+
+      do while(lakeCount /= gridptCount)
+
+        do lakeIndex = lakeCount+1, gridptCount
+
+          if(lakeIndex == lakeCount+1) lakeCount = gridptCount
+
+          lonIndexCurrent = lonIndexVec(lakeIndex)
+          latIndexCurrent = latIndexVec(lakeIndex)
+
+          do latIndex = max(1,latIndexCurrent-1), min(latIndexCurrent+1,statevector%nj)
+            do lonIndex = max(1,lonIndexCurrent-1), min(lonIndexCurrent+1,statevector%ni)
+              if(stateVector%oceanMask%mask(lonIndex,latIndex,1) .and. .not. lake(lonIndex,latIndex)) then
+                lake(lonIndex,latIndex) = .true.
+                gridptCount = gridptCount + 1
+                lonIndexVec(gridptCount) = lonIndex
+                latIndexVec(gridptCount) = latIndex
+              end if
+            end do
+          end do
+
+        end do
+
+      end do
+
+      ! If the depot is allocated, then we fill in the values
+      if ( allocated(intInfo%interpWeightDepot) ) then
+
+        depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex)
+
+        do ipoint=1,gridptCount
+
+          intInfo%interpWeightDepot(depotIndex) = 1.0d0 / real(gridptCount,8)
+          intInfo%latIndexDepot(depotIndex)     = latIndexVec(ipoint)
+          intInfo%lonIndexDepot(depotIndex)     = lonIndexVec(ipoint)
+          depotIndex = depotIndex + 1
+
+        end do
+
+      end if
+
+      numGridpt = gridptCount
+
+    end subroutine getMyInterpWeightsLake
+
+    !--------------------------------------------------------------------------
+    ! getMyInterpWeightsNearestNeighbor (contained in getMyInterpWeights)
+    !--------------------------------------------------------------------------
+    subroutine getMyInterpWeightsNearestNeighbor(myHeaderIndex, varLevIndex, &
+                                                 numGridpt)
+      !
+      !:Purpose: Determine the nearest grid points to the observations location
+      !
+      implicit none
+
+      ! Arguments:
+      integer                , intent(in)    :: myHeaderIndex
+      integer                , intent(in)    :: varLevIndex
+      integer                , intent(out)   :: numGridpt
+
+      ! Locals:
+      integer :: depotIndex
+      integer :: latIndex, lonIndex
+      integer :: subGridIndex
+      real(4) :: xpos_r4, ypos_r4
+
+      if ( stateVector%hco%grtyp == 'U' ) then
+        call utl_abort('getMyInterpWeightsNearestNeighbor (s2c): Yin-Yang grid not supported')
+      end if
+
+      numGridpt = 0
+
+      xpos_r4      = intInfo%myInterpObsXpos_r4(varLevIndex,myHeaderIndex)
+      ypos_r4      = intInfo%myInterpObsYpos_r4(varLevIndex,myHeaderIndex)
+
+      latIndex = nint(ypos_r4)
+      lonIndex = nint(xpos_r4)
+
+      ! Handle periodicity in longitude
+      if ( lonIndex == statevector%ni+1 .and. intInfo%periodic ) lonIndex = 1
+
+      ! Test bounds
+      if ( lonIndex < 1 .or. lonIndex > statevector%ni .or. &
+           latIndex < 1 .or. latIndex > statevector%nj  ) then
+
+        write(*,*) 'getMyInterpWeightsNearestNeighbor (s2c): observation out of bounds'
+        write(*,*) 'lonIndex. latIndex = ', lonIndex, latIndex
+
+      else
+
+        ! If the depot is allocated, then we fill in the value
+        if ( allocated(intInfo%interpWeightDepot) ) then
+
+          depotIndex = intInfo%depotIndexBeg(varLevIndex,myHeaderIndex)
+
+          intInfo%interpWeightDepot(depotIndex) = 1.0d0
+          intInfo%latIndexDepot(depotIndex)     = latIndex
+          intInfo%lonIndexDepot(depotIndex)     = lonIndex
+
+        end if
+
+        numGridpt = 1
+
+      end if
+
+    end subroutine getMyInterpWeightsNearestNeighbor
+
+  end subroutine getMyInterpWeights
+
+  !---------------------------------------------------------
+  ! getMyInterpObsLatLon (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyInterpObsLatLon(intInfo, stateVector)
+    !
+    ! :Purpose: Define lat-lon, mpiIdSrc and headerIndex of observations on my
+    !           lat-lon tile where the interpolation will be performed.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo       ! Interpolation info structure
+    type(struct_gsv), target    , intent(in)    :: stateVector   ! stateVector object
+
+    ! Locals:
+    integer :: headerIndex, myHeaderIndex, yourNumHeader
+    integer :: procIndex
+    integer :: varLevIndex, numVarLev
+    integer :: offset
+    integer :: sendCounts(mmpi_nprocs), recvCounts(mmpi_nprocs)
+    integer :: sendDispls(mmpi_nprocs), recvDispls(mmpi_nprocs)
+    real(8), allocatable :: sendObsLat(:), sendObsLon(:), recvObsLat(:), recvObsLon(:)
+
+    yourNumHeader = intInfo%yourNumHeader
+    numVarLev = intInfo%numVarLevState
+
+    ! Allocate myInterpObs in object: lat-lon, mpiIdSrc, headerIndex
+    allocate(intInfo%myInterpObsLat(numVarLev,intInfo%myInterpNumHeader))
+    allocate(intInfo%myInterpObsLon(numVarLev,intInfo%myInterpNumHeader))
+    allocate(intInfo%myInterpObsMpiIdSrc(intInfo%myInterpNumHeader))
+    allocate(intInfo%myInterpObsHeaderIndex(intInfo%myInterpNumHeader))
+
+    ! Determine the number of observations each process will send
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Compute displacements for send buffers
+    sendDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      sendDispls(procIndex) = sendDispls(procIndex-1) + sendCounts(procIndex-1)
+    end do
+
+    ! Allocate arrays needed for MPI communication
+    allocate(sendObsLat(sum(sendCounts)))
+    allocate(sendObsLon(sum(sendCounts)))
+
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      offset = sendDispls(procIndex) + sendCounts(procIndex)
+      do varLevIndex = 1, numVarLev
+        sendObsLat(offset + varLevIndex) = intInfo%yourObsLat(varLevIndex, headerIndex)
+        sendObsLon(offset + varLevIndex) = intInfo%yourObsLon(varLevIndex, headerIndex)
+      end do
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Exchange observation counts
+    call mmpi_alltoall(sendCounts, recvCounts)
+
+    ! Compute displacements for receive buffers
+    recvDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      recvDispls(procIndex) = recvDispls(procIndex-1) + recvCounts(procIndex-1)
+    end do
+
+    ! Allocate arrays needed for MPI communication
+    allocate(recvObsLat(sum(recvCounts)))
+    allocate(recvObsLon(sum(recvCounts)))
+
+    ! Perform 'mmpi_alltoallv' communication
+    call mmpi_alltoallv(sendObsLat, sendCounts, sendDispls, &
+                        recvObsLat, recvCounts, recvDispls)
+    call mmpi_alltoallv(sendObsLon, sendCounts, sendDispls, &
+                        recvObsLon, recvCounts, recvDispls)
+
+    ! Shuffle received lat-lon values into correct arrays
+    recvCounts(:) = 0
+    myHeaderIndex = 0
+    do procIndex = 1, mmpi_nprocs
+      do headerIndex = 1, intInfo%allNumHeader(procIndex)
+
+        if (intInfo%allObsTileMpiId(headerIndex, procIndex) /= mmpi_myid) cycle
+        myHeaderIndex = myHeaderIndex + 1
+
+        intInfo%myInterpObsMpiIdSrc(myHeaderIndex) = procIndex - 1
+        intInfo%myInterpObsHeaderIndex(myHeaderIndex) = headerIndex
+
+        offset = recvDispls(procIndex) + recvCounts(procIndex)
+        do varLevIndex = 1, numVarLev
+          intInfo%myInterpObsLat(varLevIndex, myHeaderIndex) = recvObsLat(offset + varLevIndex)
+          intInfo%myInterpObsLon(varLevIndex, myHeaderIndex) = recvObsLon(offset + varLevIndex)
+        end do
+        recvCounts(procIndex) = recvCounts(procIndex) + numVarLev
+
+      end do
+    end do
+
+    ! Deallocate local arrays
+    deallocate(sendObsLat)
+    deallocate(sendObsLon)
+    deallocate(recvObsLat)
+    deallocate(recvObsLon)
+
+  end subroutine getMyInterpObsLatLon
+
+  !---------------------------------------------------------
+  ! getMyInterpObsXYposSubGridIndex (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyInterpObsXYposSubGridIndex(intInfo, obsSpaceData, stateVector)
+    !
+    ! :Purpose: Define x/y position, subGridIndex and Footprint of observations on my
+    !           lat-lon tile where the interpolation will be performed.
+    !           Also store yourObsSubGridIndex for use elsewhere.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo       ! Interpolation info structure
+    type(struct_obs)            , intent(inout) :: obsSpaceData  ! obs space object
+    type(struct_gsv), target    , intent(in)    :: stateVector   ! stateVector object
+
+    ! Locals:
+    integer :: headerIndex, myHeaderIndex, myNumHeader, yourNumHeader
+    integer :: procIndex
+    integer :: varLevIndex, numVarLev
+    integer :: offset, ierr
+    integer :: sendCounts(mmpi_nprocs), recvCounts(mmpi_nprocs)
+    integer :: sendDispls(mmpi_nprocs), recvDispls(mmpi_nprocs)
+    real(8) :: lat, lon
+    integer, allocatable :: sendSubGridIndex(:), recvSubGridIndex(:)
+    real(4), allocatable :: lat_deg_r4(:), lon_deg_r4(:)
+    real(4), allocatable :: xpos_r4(:,:), ypos_r4(:,:), xpos2_r4(:), ypos2_r4(:)
+    real(4), allocatable :: sendXpos_r4(:), sendYpos_r4(:), recvXpos_r4(:), recvYpos_r4(:)
+    real(4), allocatable :: sendFoot_r4(:), recvFoot_r4(:)
+
+    yourNumHeader = intInfo%yourNumHeader
+    myNumHeader = intInfo%myInterpNumHeader
+    numVarLev = intInfo%numVarLevState
+
+    ! Allocate myInterpObs in object: lat-lon, x/ypos, SubGridIndex, Footprint
+    allocate(intInfo%myInterpObsXpos_r4(numVarLev,myNumHeader))
+    allocate(intInfo%myInterpObsYpos_r4(numVarLev,myNumHeader))
+    allocate(intInfo%myInterpObsSubGridIndex(numVarLev,myNumHeader))
+    allocate(intInfo%myInterpObsFootprint_r4(numVarLev,myNumHeader))
+
+    ! Allocate yourObsSubGridIndex needed for later (original obs distribution)
+    allocate(intInfo%yourObsSubGridIndex(numVarLev,yourNumHeader))
+
+    ! Determine the number of observations each process will send
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Compute displacements for send buffers
+    sendDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      sendDispls(procIndex) = sendDispls(procIndex-1) + sendCounts(procIndex-1)
+    end do
+
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Exchange observation counts
+    call mmpi_alltoall(sendCounts, recvCounts)
+
+    ! Compute displacements for receive buffers
+    recvDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      recvDispls(procIndex) = recvDispls(procIndex-1) + recvCounts(procIndex-1)
+    end do
+
+    ! Now compute x/y position, subGridIndex
+
+    allocate(lat_deg_r4(numVarLev))
+    allocate(lon_deg_r4(numVarLev))
+    allocate(xpos2_r4(numVarLev)) ! not used
+    allocate(ypos2_r4(numVarLev)) ! not used
+    allocate(xpos_r4(numVarLev,yourNumHeader))
+    allocate(ypos_r4(numVarLev,yourNumHeader))
+
+    ! Compute and define x/ypos, subGridIndex and rotated lat-lon
+    do headerIndex = 1, yourNumHeader
+
+      do varLevIndex = 1, numVarLev
+
+        ! Compute x-y position and subGridIndex
+        lat = intInfo%yourObsLat(varLevIndex, headerIndex)
+        lon = intInfo%yourObsLon(varLevIndex, headerIndex)
+        lat_deg_r4(varLevIndex) = real(lat * MPC_DEGREES_PER_RADIAN_R8, 4) ! Radian To Degree
+        lon_deg_r4(varLevIndex) = real(lon * MPC_DEGREES_PER_RADIAN_R8, 4)
+
+      end do
+
+      ! Determine the xpos/ypos for this observation on the stateVector grid
+      ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &              ! IN
+                                xpos_r4(:,headerIndex),      &              ! OUT
+                                ypos_r4(:,headerIndex),      &              ! OUT
+                                xpos2_r4, ypos2_r4,          &              ! OUT
+                                lat_deg_r4, lon_deg_r4,      &              ! IN
+                                intInfo%yourObsSubGridIndex(:,headerIndex)) ! OUT
+
+      do varLevIndex = 1, numVarLev
+        ! Check returned value of subGridIndex
+        if (intInfo%yourObsSubGridIndex(varLevIndex,headerIndex) /=1 .and.  &
+            intInfo%yourObsSubGridIndex(varLevIndex,headerIndex) /=2) then
+          call utl_abort('getMyInterpObs (s2c): invalid value of subGridIndex')
+        end if
+
+      end do
+
+    end do ! myHeaderIndex
+
+    ! Allocate arrays needed for MPI communication
+    allocate(sendXpos_r4(sum(sendCounts)))
+    allocate(sendYpos_r4(sum(sendCounts)))
+    allocate(sendSubGridIndex(sum(sendCounts)))
+    allocate(sendFoot_r4(sum(sendCounts)))
+    allocate(recvXpos_r4(sum(recvCounts)))
+    allocate(recvYpos_r4(sum(recvCounts)))
+    allocate(recvSubGridIndex(sum(recvCounts)))
+    allocate(recvFoot_r4(sum(recvCounts)))
+
+    ! Shuffle rotated x/y position and subGridIndex arrays in preparation for mpi communication
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      offset = sendDispls(procIndex) + sendCounts(procIndex)
+      do varLevIndex = 1, numVarLev
+        sendXpos_r4(offset + varLevIndex)      = xpos_r4(varLevIndex, headerIndex)
+        sendYpos_r4(offset + varLevIndex)      = ypos_r4(varLevIndex, headerIndex)
+        sendSubGridIndex(offset + varLevIndex) = intInfo%yourObsSubGridIndex(varLevIndex, headerIndex)
+        sendFoot_r4(offset + varLevIndex)      = s2c_getFootprintRadius( &
+                                                              obsSpaceData, &
+                                                              stateVector, headerIndex)
+      end do
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Perform 'mmpi_alltoallv' communication
+    call mmpi_alltoallv(sendXpos_r4, sendCounts, sendDispls, &
+                        recvXpos_r4, recvCounts, recvDispls)
+    call mmpi_alltoallv(sendYpos_r4, sendCounts, sendDispls, &
+                        recvYpos_r4, recvCounts, recvDispls)
+    call mmpi_alltoallv(sendSubGridIndex, sendCounts, sendDispls, &
+                        recvSubGridIndex, recvCounts, recvDispls)
+    call mmpi_alltoallv(sendFoot_r4, sendCounts, sendDispls, &
+                        recvFoot_r4, recvCounts, recvDispls)
+
+    ! Shuffle received lat-lon values into correct arrays
+    recvCounts(:) = 0
+    myHeaderIndex = 0
+    do procIndex = 1, mmpi_nprocs
+      do headerIndex = 1, intInfo%allNumHeader(procIndex)
+
+        if (intInfo%allObsTileMpiId(headerIndex, procIndex) /= mmpi_myid) cycle
+        myHeaderIndex = myHeaderIndex + 1
+
+        offset = recvDispls(procIndex) + recvCounts(procIndex)
+        do varLevIndex = 1, numVarLev
+          intInfo%myInterpObsXpos_r4(varLevIndex, myHeaderIndex) =  &
+               recvXpos_r4(offset + varLevIndex)
+          intInfo%myInterpObsYpos_r4(varLevIndex, myHeaderIndex) =  &
+               recvYpos_r4(offset + varLevIndex)
+          intInfo%myInterpObsSubGridIndex(varLevIndex, myHeaderIndex) =  &
+               recvSubGridIndex(offset + varLevIndex)
+          intInfo%myInterpObsFootprint_r4(varLevIndex, myHeaderIndex) =  &
+               recvFoot_r4(offset + varLevIndex)
+        end do
+        recvCounts(procIndex) = recvCounts(procIndex) + numVarLev
+
+      end do
+    end do
+
+    ! Deallocate local arrays
+    deallocate(lat_deg_r4)
+    deallocate(lon_deg_r4)
+    deallocate(xpos_r4)
+    deallocate(ypos_r4)
+    deallocate(xpos2_r4)
+    deallocate(ypos2_r4)
+
+    deallocate(sendXpos_r4)
+    deallocate(sendYpos_r4)
+    deallocate(sendSubGridIndex)
+    deallocate(sendFoot_r4)
+    deallocate(recvXpos_r4)
+    deallocate(recvYpos_r4)
+    deallocate(recvSubGridIndex)
+    deallocate(recvFoot_r4)
+
+  end subroutine getMyInterpObsXYposSubGridIndex
+
+  !---------------------------------------------------------
+  ! getMyInterpObsRotLatLon (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getMyInterpObsRotLatLon(intInfo, stateVector)
+    !
+    ! :Purpose: Define rotated lat-lon (if needed) of observations on my
+    !           lat-lon tile where the interpolation will be performed.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo       ! Interpolation info structure
+    type(struct_gsv), target    , intent(in)    :: stateVector   ! stateVector object
+
+    ! Locals:
+    integer :: headerIndex, myHeaderIndex, yourNumHeader
+    integer :: procIndex, offset
+    integer :: varLevIndex, numVarLev
+    integer :: sendCounts(mmpi_nprocs), recvCounts(mmpi_nprocs)
+    integer :: sendDispls(mmpi_nprocs), recvDispls(mmpi_nprocs)
+    real(8), allocatable :: latRot(:,:), lonRot(:,:)
+    real(8), allocatable :: sendObsLat(:), sendObsLon(:), recvObsLat(:), recvObsLon(:)
+
+    yourNumHeader = intInfo%yourNumHeader
+    numVarLev = intInfo%numVarLevState
+
+    ! Allocate myInterpObs in object: rotated lat-lon
+    allocate(intInfo%myInterpObsLatRot(numVarLev,intInfo%myInterpNumHeader))
+    allocate(intInfo%myInterpObsLonRot(numVarLev,intInfo%myInterpNumHeader))
+
+    ! Determine the number of observations each process will send
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Compute displacements for send buffers
+    sendDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      sendDispls(procIndex) = sendDispls(procIndex-1) + sendCounts(procIndex-1)
+    end do
+
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Exchange observation counts
+    call mmpi_alltoall(sendCounts, recvCounts)
+
+    ! Compute displacements for receive buffers
+    recvDispls(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      recvDispls(procIndex) = recvDispls(procIndex-1) + recvCounts(procIndex-1)
+    end do
+
+    ! Allocate arrays needed for MPI communication
+    allocate(sendObsLat(sum(sendCounts)))
+    allocate(sendObsLon(sum(sendCounts)))
+    allocate(recvObsLat(sum(recvCounts)))
+    allocate(recvObsLon(sum(recvCounts)))
+
+    ! Compute rotated lat/lon
+    allocate(latRot(numVarLev,yourNumHeader))
+    allocate(lonRot(numVarLev,yourNumHeader))
+
+    ! Compute and define x/ypos, subGridIndex and rotated lat-lon
+    do headerIndex = 1, yourNumHeader
+
+      call uvr_RotateLatLonVec(intInfo%uvr,                                 & ! INOUT
+                               intInfo%yourObsSubGridIndex(:,headerIndex),  & ! IN
+                               latRot(:,headerIndex),                       & ! OUT (radians)
+                               lonRot(:,headerIndex),                       & ! OUT (radians)
+                               intInfo%yourObsLat(:,headerIndex),           & ! IN  (radians)
+                               intInfo%yourObsLon(:,headerIndex),           & ! IN  (radians)
+                               'ToLatLonRot')                                 ! IN
+
+    end do ! myHeaderIndex
+
+    ! Shuffle rotated lat/lon arrays in preparation for mpi communication
+    sendCounts(:) = 0
+    do headerIndex = 1, yourNumHeader
+      procIndex = intInfo%allObsTileMpiId(headerIndex, mmpi_myid+1) + 1
+      offset = sendDispls(procIndex) + sendCounts(procIndex)
+      do varLevIndex = 1, numVarLev
+        sendObsLat(offset + varLevIndex) = latRot(varLevIndex, headerIndex)
+        sendObsLon(offset + varLevIndex) = lonRot(varLevIndex, headerIndex)
+      end do
+      sendCounts(procIndex) = sendCounts(procIndex) + numVarLev
+    end do
+
+    ! Perform 'mmpi_alltoallv' communication
+    call mmpi_alltoallv(sendObsLat, sendCounts, sendDispls, &
+                        recvObsLat, recvCounts, recvDispls)
+    call mmpi_alltoallv(sendObsLon, sendCounts, sendDispls, &
+                        recvObsLon, recvCounts, recvDispls)
+
+    ! Shuffle received lat-lon values into correct arrays
+    recvCounts(:) = 0
+    myHeaderIndex = 0
+    do procIndex = 1, mmpi_nprocs
+      do headerIndex = 1, intInfo%allNumHeader(procIndex)
+
+        if (intInfo%allObsTileMpiId(headerIndex, procIndex) /= mmpi_myid) cycle
+        myHeaderIndex = myHeaderIndex + 1
+
+        offset = recvDispls(procIndex) + recvCounts(procIndex)
+        do varLevIndex = 1, numVarLev
+          intInfo%myInterpObsLatRot(varLevIndex, myHeaderIndex) = recvObsLat(offset + varLevIndex)
+          intInfo%myInterpObsLonRot(varLevIndex, myHeaderIndex) = recvObsLon(offset + varLevIndex)
+        end do
+        recvCounts(procIndex) = recvCounts(procIndex) + numVarLev
+
+      end do
+    end do
+
+    ! Deallocate local arrays
+    deallocate(sendObsLat)
+    deallocate(sendObsLon)
+    deallocate(recvObsLat)
+    deallocate(recvObsLon)
+    deallocate(latRot)
+    deallocate(lonRot)
+
+  end subroutine getMyInterpObsRotLatLon
+
+  !---------------------------------------------------------
+  ! getObsTileMpiId (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getObsTileMpiId(intInfo, obsSpaceData, stateVector)
+    !
+    ! :Purpose: Compute the mpi ID for each observation with respect to
+    !           the lat-lon tiles - communicate globally to all MPI tasks.
+    !           Note: the original lat-lon in obsSpaceData is used to
+    !           determine the lat-lon tile mpi task and not the vertically
+    !           varying lat-lon (slant path).
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo      ! Interpolation info structure
+    type(struct_obs),             intent(in)    :: obsSpaceData ! obs space object
+    type(struct_gsv),    target,  intent(in)    :: stateVector  ! stateVector object
+
+    ! Locals:
+    integer :: numHeader, numHeaderMaxMpi, headerIndex, subGridIndex, procIndex
+    integer :: obsTileMpiIdX, obsTileMpiIdY, ierr
+    integer, allocatable :: obsTileMpiId(:)
+    real(8) :: obsLat, obsLon
+    real(4) :: lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    logical :: outsideObs
+
+    ! Allocation
+    numHeader = obs_numHeader(obsSpaceData)
+    numHeaderMaxMpi = maxval(intInfo%allNumHeader(:))
+
+    ! Allocate local arrays
+    allocate(obsTileMpiId(numHeaderMaxMpi))
+
+    ! Allocate arrays in structure
+    allocate(intInfo%allObsTileMpiId(numHeaderMaxMpi,mmpi_nprocs))
+    allocate(intInfo%yourObsTileMpiId(numHeader))
+    intInfo%allObsTileMpiId(:,:) = -99
+    intInfo%yourObsTileMpiId(:) = -99
+
+    ! Loop over all obs local headers to determine the mpi tile of each obs location
+    do headerIndex = 1, numHeader
+
+      ! Get lat/lon in degrees (from obsSpaceData)
+      obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+      obsLon = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
+      if (obsLon <  0.0         ) then
+        obsLon = obsLon + 2.0*MPC_PI_R4
+      end if
+      if (obsLon >= 2.*MPC_PI_R4) then
+        obsLon = obsLon - 2.0*MPC_PI_R4
+      end if
+      lat_deg_r4 = real(obsLat * MPC_DEGREES_PER_RADIAN_R8) ! Radian To Degree
+      lon_deg_r4 = real(obsLon * MPC_DEGREES_PER_RADIAN_R8)
+
+      ! Determine the xpos/ypos for this observation on the stateVector grid
+      ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &  ! IN
+                                xpos_r4, ypos_r4,            &  ! OUT
+                                xpos2_r4, ypos2_r4,          &  ! OUT
+                                lat_deg_r4, lon_deg_r4,      &  ! IN
+                                subGridIndex)                   ! OUT
+
+      ! Check returned value of subGridIndex
+      if (subGridIndex /=1 .and. subGridIndex /=2) then
+        call utl_abort('getObsTileMpiId (s2c): invalid value of subGridIndex')
+      end if
+
+      ! Use findloc to find the tile id in X, Y directions and global tile id
+      obsTileMpiIdX = utl_findloc(nint(xpos_r4) >= stateVector%allLonBeg(:) .and. &
+                                  nint(xpos_r4) <= stateVector%allLonEnd(:)) - 1
+      obsTileMpiIdY = utl_findloc(nint(ypos_r4) >= stateVector%allLatBeg(:) .and. &
+                                  nint(ypos_r4) <= stateVector%allLatEnd(:)) - 1
+      obsTileMpiId(headerIndex) = obsTileMpiIdX + obsTileMpiIdY*mmpi_npex
+
+      ! Check values of mpiIdX/mpiIdY
+      outsideObs = .false.
+      if (obsTileMpiIdX < 0 .or. obsTileMpiIdX >= mmpi_npex) then
+        outsideObs = .true.
+      end if
+      if (obsTileMpiIdY < 0 .or. obsTileMpiIdY >= mmpi_npey) then
+        outsideObs = .true.
+      end if
+
+      if (outsideObs) then
+        obsTileMpiId(headerIndex) = 0
+      end if
+
+      intInfo%yourObsTileMpiId(headerIndex) = obsTileMpiId(headerIndex)
+
+    end do ! headerIndex
+
+    ! Communicate tile MPI ID, lat-lon and X-Y positions to all MPI tasks
+    call mmpi_allGather(obsTileMpiId, intInfo%allObsTileMpiId)
+    call msg_memUsage('After allgather of obsTileMpiId')
+
+    deallocate(obsTileMpiId)
+
+    ! Compute myInterpNumHeader based on allObsTileMpiId
+    intInfo%myInterpNumHeader = 0
+    do procIndex = 1, mmpi_nprocs
+      intInfo%myInterpNumHeader = intInfo%myInterpNumHeader + &
+           count(intInfo%allObsTileMpiId(1:intInfo%allNumHeader(procIndex),procIndex) == mmpi_myid)
+    end do
+
+  end subroutine getObsTileMpiId
+
+  !---------------------------------------------------------
+  ! getObsLatLon (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine getObsLatLon(intInfo, obsSpaceData, stateVector)
+    !
+    ! :Purpose: Compute the lat-lon for each observations and
+    !           each level/variable, including for slant path.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo      ! Interpolation info structure
+    type(struct_obs),             intent(inout) :: obsSpaceData ! obs space object
+    type(struct_gsv),             intent(in)    :: stateVector  ! Reference stateVector object
+
+    ! Locals:
+    type(struct_gsv) :: stateVector3dHeights, stateVector3dHeights_mpiGlb
+    integer :: numHeader, numVarLev, headerIndex, varLevIndex
+    integer :: codeType, nlev_T, nlev_M, levIndex
+    real(4) :: lon_r4, lat_r4
+    real(4), pointer :: height3D_r4_ptr2(:,:,:)
+    real(8), pointer :: height3D_r8_ptr1(:,:,:)
+    real(4), pointer :: height3D_M_r4(:,:,:), height3D_T_r4(:,:,:)
+    logical :: rejectOutsideObs
+    logical :: doSlantPath, SlantTO, SlantRO, SlantRA, doSetup3dHeights
+    real(8), allocatable :: latLev_T(:), lonLev_T(:), latLev_M(:), lonLev_M(:)
+    real(8) :: latLev_S, lonLev_S
+    logical :: firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
+    character(len=4)          :: varLevel
+
+    if (intInfo%inputStateVectorType == 'nl' .and. rejectObsOutsideGlobalGrid) then
+      rejectOutsideObs = .true.
+    end if
+
+    doSlantPath = .false.
+    SlantTO     = .false.
+    SlantRO     = .false.
+    SlantRA     = .false.
+    if (slantPath_TO_nl   .and. intInfo%inputStateVectorType == 'nl') then
+      doSlantPath = .true.
+      SlantTO     = .true.
+    endif
+    if (slantPath_TO_tlad .and. intInfo%inputStateVectorType /= 'nl') then
+      doSlantPath = .true.
+      SlantTO     = .true.
+    endif
+    if (slantPath_RO_nl   .and. intInfo%inputStateVectorType == 'nl') then
+      doSlantPath = .true.
+      SlantRO     = .true.
+    endif
+    if (slantPath_RA_nl   .and. intInfo%inputStateVectorType == 'nl') then
+      doSlantPath = .true.
+      SlantRA     = .true.
+    endif
+    write(*,*) 'getObsLatLon (s2c): doSlantPath, SlantTO, SlantRO, SlantRA = ', &
+                                    doSlantPath, SlantTO, SlantRO, SlantRA
+
+    doSetup3dHeights = doSlantPath .and.  &
+                       gsv_varExist(stateVector,'Z_T') .and. &
+                       gsv_varExist(stateVector,'Z_M')
+
+    ! Extract 3D heights and make mpi global
+    if (doSetup3dHeights) then
+
+      ! Create state vector with only 3D heights on tiles
+      if ( intInfo%inputStateVectorType == 'nl' ) then
+
+        call gsv_allocate(stateVector3dHeights, 1, &
+                          stateVector%hco, stateVector%vco, &
+                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                          dataKind_opt=4, varNames_opt=['Z_M','Z_T'])
+
+        call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_T')
+        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_T')
+        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+
+        call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_M')
+        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_M')
+        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+
+      else
+
+        call utl_abort('getObsLatLon (s2c): only "nl" supported so far')
+
+      end if
+
+      ! Communicate 3D height fields onto all mpi tasks
+      call gsv_allocate(stateVector3dHeights_mpiGlb, 1, &
+                        stateVector%hco, stateVector%vco, &
+                        mpi_local_opt=.false., &
+                        dataKind_opt=4, varNames_opt=['Z_M','Z_T'])
+      call gsv_transposeTilesToMpiGlobal(stateVector3dHeights_mpiGlb, stateVector3dHeights)
+      call gsv_getField(stateVector3dHeights_mpiGlb,height3D_T_r4,'Z_T')
+      call gsv_getField(stateVector3dHeights_mpiGlb,height3D_M_r4,'Z_M')
+
+      write(*,*) 'getObsLatLon (s2c): height3D_T_r4='
+      write(*,*) height3D_T_r4(1,1,:)
+      write(*,*) 'getObsLatLon (s2c): height3D_M_r4='
+      write(*,*) height3D_M_r4(1,1,:)
+
+      call gsv_deallocate(stateVector3dHeights)
+
+    end if ! doSetup3dHeights
+    call msg_memUsage('After setup 3D heights')
+
+    ! Compute lat-lon of each local obs on each varLevIndex
+
+    ! Allocation
+    numVarLev = intInfo%numVarLevState
+    numHeader = obs_numHeader(obsSpaceData)
+    allocate(intInfo%allNumHeader(mmpi_nprocs))
+    call mmpi_allGather(numHeader, intInfo%allNumHeader)
+    allocate(intInfo%yourObsLat(numVarLev,numHeader))
+    allocate(intInfo%yourObsLon(numVarLev,numHeader))
+    intInfo%yourObsLat(:,:) =0.0d0
+    intInfo%yourObsLon(:,:) =0.0d0
+
+    if (doSlantPath .and. &
+        gsv_varExist(stateVector,'Z_T') .and. &
+        gsv_varExist(stateVector,'Z_M')) then
+
+      nlev_T = gsv_getNumLev(stateVector,'TH')
+      nlev_M = gsv_getNumLev(stateVector,'MM')
+
+      allocate(latLev_T(nlev_T))
+      allocate(lonLev_T(nlev_T))
+      allocate(latLev_M(nlev_M))
+      allocate(lonLev_M(nlev_M))
+      latLev_T(:) = 0.0d0
+      lonLev_T(:) = 0.0d0
+      latLev_M(:) = 0.0d0
+      lonLev_M(:) = 0.0d0
+
+      firstHeaderSlantPathTO = .true.
+      firstHeaderSlantPathRO = .true.
+      firstHeaderSlantPathRA = .true.
+      header_loop: do headerIndex = 1, numHeader
+
+        !- Get LatLon of observation location
+        lat_r4 = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex), 4)
+        lon_r4 = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex), 4)
+        if (lon_r4 <  0.0            ) lon_r4 = lon_r4 + 2.0 * MPC_PI_R4
+        if (lon_r4 >= 2.0 * MPC_PI_R4) lon_r4 = lon_r4 - 2.0 * MPC_PI_R4
+
+        codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+
+        if (tvs_isIdBurpTovs(codeType) .and. SlantTO) then
+          if (firstHeaderSlantPathTO) then
+            write(*,*) 'getObsLatLon (s2c): start slant-path for TOVS. ', &
+                 'numHeader = ',numHeader
+            firstHeaderSlantPathTO = .false.
+          end if
+
+          ! calculate lat/lon along the line of sight
+          call utl_tmg_start(32,'------s2c_Slant')
+          call slp_calcLatLonTovs(obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                  height3D_T_r4, height3D_M_r4,               & ! IN
+                                  latLev_T, lonLev_T,                         & ! OUT
+                                  latLev_M, lonLev_M,                         & ! OUT
+                                  latLev_S, lonLev_S             )              ! OUT
+          call utl_tmg_stop(32)
+
+        else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
+          if (firstHeaderSlantPathRO) then
+            write(*,*) 'getObsLatLon (s2c): start slant-path for RO. ', &
+                 'numHeader = ',numHeader
+            firstHeaderSlantPathRO = .false.
+          end if
+
+          ! Calculate lat/lon along the GPSRO obs
+          call utl_tmg_start(32,'------s2c_Slant')
+          call slp_calcLatLonRO(obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                height3D_T_r4, height3D_M_r4,               & ! IN
+                                latLev_T, lonLev_T,                         & ! OUT
+                                latLev_M, lonLev_M,                         & ! OUT
+                                latLev_S, lonLev_S                          ) ! OUT
+          call utl_tmg_stop(32)
+        else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
+          if ( firstHeaderSlantPathRA ) then
+            write(*,*) 'getObsLatLon (s2c): start slant-path for RADAR. ', &
+                 'numHeader=',numHeader
+            firstHeaderSlantPathRA = .false.
+          end if
+
+          ! calculate lat/lon along the radar beam obs
+          call slp_calcLatLonRadar(obsSpaceData, stateVector%hco, headerIndex, & ! IN
+                                   height3D_T_r4, height3D_M_r4,                 & ! IN
+                                   latLev_T, lonLev_T,                           & ! OUT
+                                   latLev_M, lonLev_M,                           & ! OUT
+                                   latLev_S, lonLev_S                           ) ! OUT
+        else
+
+          latLev_T(:) = real(lat_r4,8)
+          lonLev_T(:) = real(lon_r4,8)
+          latLev_M(:) = real(lat_r4,8)
+          lonLev_M(:) = real(lon_r4,8)
+          latLev_S = real(lat_r4,8)
+          lonLev_S = real(lon_r4,8)
+
+        end if
+
+        ! check if the slanted lat/lon is inside the domain
+        call latlonChecks (obsSpaceData, stateVector%hco, & ! IN
+                           headerIndex, rejectOutsideObs, & ! IN
+                           latLev_T, lonLev_T,            & ! IN/OUT
+                           latLev_M, lonLev_M,            & ! IN/OUT
+                           latLev_S, lonLev_S )             ! IN/OUT
+
+        ! put the lat/lon from TH/MM levels to varLevIndex
+        do varLevIndex = 1, numVarLev
+          levIndex = gsv_getLevFromVarLev(stateVector,varLevIndex)
+          varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromVarLev(stateVector,varLevIndex))
+
+          if ( varLevel == 'TH' ) then
+            intInfo%yourObsLat(varLevIndex,headerIndex) = latLev_T(levIndex)
+            intInfo%yourObsLon(varLevIndex,headerIndex) = lonLev_T(levIndex)
+          else if ( varLevel == 'MM' ) then
+            intInfo%yourObsLat(varLevIndex,headerIndex) = latLev_M(levIndex)
+            intInfo%yourObsLon(varLevIndex,headerIndex) = lonLev_M(levIndex)
+          else if ( varLevel == 'SF' ) then
+            intInfo%yourObsLat(varLevIndex,headerIndex) = latLev_S
+            intInfo%yourObsLon(varLevIndex,headerIndex) = lonLev_S
+          else
+            call utl_abort('getObsLatLon (s2c): unknown value of varLevel')
+          end if
+
+        end do
+
+      end do header_loop
+
+      write(*,*) 'getObsLatLon (s2c): min/max(yourObsLat) = ',  &
+           minval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8,  &
+           maxval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8
+      write(*,*) 'getObsLatLon (s2c): min/max(yourObsLon) = ',  &
+           minval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8,  &
+           maxval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8
+
+      call gsv_deallocate(stateVector3dHeights_mpiGlb)
+
+    else ! doSlantPath
+
+      do headerIndex = 1, numHeader
+
+        ! Get obs lat/lon and copy to all levels
+        do varLevIndex = 1, numVarLev
+          intInfo%yourObsLat(varLevIndex,headerIndex) = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+          intInfo%yourObsLon(varLevIndex,headerIndex) = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
+        end do
+
+      end do
+
+    end if ! doSlantPath
+
+    ! Loop over all obs headers to adjust/check the lat-lon of each obs location
+    do headerIndex = 1, numHeader
+
+      ! Get obs lat/lon and copy to all levels
+      do varLevIndex = 1, numVarLev
+
+        if (intInfo%yourObsLon(varLevIndex,headerIndex) <  0.0         ) then
+          intInfo%yourObsLon(varLevIndex,headerIndex) =  &
+               intInfo%yourObsLon(varLevIndex,headerIndex) + 2.0*MPC_PI_R4
+        end if
+        if (intInfo%yourObsLon(varLevIndex,headerIndex) >= 2.*MPC_PI_R4) then
+          intInfo%yourObsLon(varLevIndex,headerIndex) =  &
+               intInfo%yourObsLon(varLevIndex,headerIndex) - 2.0*MPC_PI_R4
+        end if
+      end do
+
+!      ! check if the lat/lon is inside the domain
+!      call latlonChecks(obsSpaceData, stateVector%hco, & ! IN
+!                        headerIndex, rejectOutsideObs, & ! IN
+!                        latLev_T, lonLev_T,            & ! IN/OUT
+!                        latLev_M, lonLev_M )             ! IN/OUT
+
+    end do
+
+  end subroutine getObsLatLon
+
+  !---------------------------------------------------------
+  ! setSfcVarLevIndex (called by setupInterpInfoTiles)
+  !---------------------------------------------------------
+  subroutine setSfcVarLevIndex(intInfo,stateVector)
+    !
+    ! :Purpose: Set the varLevIndex for specifying the lat-lon
+    !           at the surface for GZsfc.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(inout) :: intInfo      ! Interpolation info structure
+    type(struct_gsv),             intent(in)    :: stateVector  ! Reference stateVector object
+
+    ! Locals:
+    integer :: varLevIndex
+
+    if (stateVector%HeightSfcPresent) then
+      if (gsv_varExist(stateVector,'P0')) then
+        varLevLoop: do varLevIndex = 1, intInfo%numVarLevState
+
+          ! Use varLevIndex for P0
+          if (trim(gsv_getVarNameFromVarLev(stateVector,varLevIndex)) == 'P0') then
+            intInfo%sfcVarLevIndex = varLevIndex
+            exit varLevLoop
+          end if
+
+        end do varLevLoop
+
+      else
+
+        ! No P0, assume the last value of varLevIndex is at the surface
+        intInfo%sfcVarLevIndex = intInfo%numVarLevState
+
+      end if
+
+    else
+
+      ! No GZsfc, so probably don't need sfcVarLevIndex, set to 1
+      intInfo%sfcVarLevIndex = 1
+
+    end if
+
+  end subroutine setSfcVarLevIndex
+
+  !---------------------------------------------------------
+  ! nlTiles (called by s2c_nl)
+  !---------------------------------------------------------
+  subroutine nlTiles(stateVector, obsSpaceData, column, timeInterpType, &
+                     rejectOutsideObs, beSilent, dealloc_opt)
+    !
+    ! :Purpose: Non-linear version of the horizontal interpolation,
+    !           used for a full field (usually the background state when computing
+    !           the innovation vector).
+    !
+    !           This version uses the newer mpi strategy that leaves the
+    !           gridded data mostly in the original latitude-longitude mpi
+    !           distribution to minimize communication.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),        intent(inout) :: stateVector       ! Input stateVector object
+    type(struct_obs),        intent(inout) :: obsSpaceData      ! obs space data object
+    type(struct_columnData), intent(inout) :: column            ! Output columnData object
+    character(len=*),        intent(in)    :: timeInterpType    ! Type of temporal interpolation
+    logical,                 intent(inout) :: rejectOutsideObs  ! Choose to reject obs outside domain
+    logical,                 intent(in)    :: beSilent          ! Choose to print nothing
+    logical,       optional, intent(in)    :: dealloc_opt
+
+    ! Locals:
+    logical :: dealloc
+    type(real48_3d)       :: myHaloValues_r48
+    type(real48_2d)       :: myColumnData
+
+    call utl_tmg_start(36,'------s2c_barrier_NL')
+    call mmpi_barrier
+    call utl_tmg_stop(36)
+
+    if (.not. beSilent) then
+      write(*,*) 'nlTiles (s2c): Starting'
+    end if
+
+    if (present(dealloc_opt)) then
+      dealloc = dealloc_opt
+    else
+      dealloc = .true.
+    end if
+
+    ! check the column and statevector have same nk/varNameList
+    call checkColumnStatevectorMatch(column,statevector)
+
+    ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
+    call gvt_transform(statevector, 'ZandP_nl')
+
+    if (interpInfoTiles_nl%initialized) then
+      if (.not. hco_equal(interpInfoTiles_nl%hco,stateVector%hco) .or.  &
+          interpInfoTiles_nl%oti%numStep /= stateVector%numStep) then
+        write(*,*) 'nlTiles: WARNING! Current hco grid parameters differ from allocated interpInfo!'
+        write(*,*) 'nlTiles: InterpInfo will be deallocated.'
+        call s2c_deallocInterpInfo(inputStateVectorType = 'nl')
+      end if
+    end if
+
+    if (.not. interpInfoTiles_nl%initialized) then
+      call utl_tmg_stop(34)
+      call utl_tmg_start(31,'----s2c_Setups')
+
+      ! distribute obs over the lat-lon tiles and set interpolation weights
+      call setupInterpInfoTiles(interpInfoTiles_nl, obsSpaceData, stateVector, &
+                                column, timeInterpType, rejectOutsideObs, &
+                                inputStateVectorType = 'nl', beSilent=beSilent)
+
+      call utl_tmg_stop(31)
+      call utl_tmg_start(34,'----s2c_NL')
+    else
+      if (.not. beSilent) then
+        write(*,*) 'nlTiles (s2c): using existing setup of interpInfoTiles_nl'
+      end if
+    end if
+
+    ! Communicate the list of extra grid-points needed on each MPI tile
+    call sendRecvHalo(stateVector, interpInfoTiles_nl, beSilent,  &
+                      myHaloValues_r48)
+    if (.not. beSilent) then
+      call msg_memUsage('nlTiles')
+    end if
+
+    ! Do interpolation to compute myColumnData from stateVector and myHaloValues
+    call utl_tmg_start(35,'------s2c_NL_Hinterp')
+    call tileToColumn(stateVector, myHaloValues_r48, interpInfoTiles_nl,  &
+                      myColumnData, beSilent)
+    call utl_tmg_stop(35)
+
+    ! Send columns to the original mpi tasks and put in column object
+    call sendRecvColumns(myColumnData, column, interpInfoTiles_nl, beSilent)
+
+    ! Impose limits on some variables (e.g. humidity)
+    call imposeLimits(column, beSilent)
+
+    ! Ensure pressure is monotonically increasing with level index in the columns
+    if (slantPath_TO_nl) call pressureProfileMonotonicityCheck(obsSpaceData, column)
+
+    ! Deallocate interpInfo structure, if requested
+    if (dealloc) call s2c_deallocInterpInfo(inputStateVectorType='nl')
+
+    ! Deallocate myHaloValues_r48
+    if (allocated(myHaloValues_r48%r4)) deallocate(myHaloValues_r48%r4)
+    if (allocated(myHaloValues_r48%r8)) deallocate(myHaloValues_r48%r8)
+    if (allocated(myHaloValues_r48%GZsfc)) deallocate(myHaloValues_r48%GZsfc)
+
+    ! Deallocate myColumnData
+    if (allocated(myColumnData%r4)) deallocate(myColumnData%r4)
+    if (allocated(myColumnData%r8)) deallocate(myColumnData%r8)
+    if (allocated(myColumnData%GZsfc)) deallocate(myColumnData%GZsfc)
+
+    if (.not. beSilent) then
+      write(*,*) 'nlTiles (s2c): Finished'
+    end if
+
+  end subroutine nlTiles
+
+  !---------------------------------------------------------
+  ! tlTiles (called by s2c_tl)
+  !---------------------------------------------------------
+  subroutine tlTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
+    !
+    ! :Purpose: Tangent-linear version of the horizontal interpolation,
+    !           used for increments or perturbations.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),           intent(inout) :: stateVector
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    type(struct_columnData),    intent(inout) :: columnAnlInc
+    logical,          optional, intent(in)    :: beSilent_opt
+
+    ! Locals:
+    logical              :: rejectOutsideObs, beSilent
+    type(real48_3d)      :: myHaloValues_r48
+    type(real48_2d)      :: myColumnData
+
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. interpInfoTiles_tlad%initialized ) then
+      rejectOutsideObs = .false.
+      call utl_tmg_stop(38)
+      call utl_tmg_start(31,'----s2c_Setups')
+      call setupInterpInfoTiles(interpInfoTiles_tlad, obsSpaceData, stateVector,  &
+                                columnAnlInc, timeInterpType_tlad,  rejectOutsideObs, &
+                                inputStateVectorType='tl', beSilent=beSilent)
+      call utl_tmg_stop(31)
+      call utl_tmg_start(38,'----s2c_TL')
+    end if
+
+    ! set contents of column to zero
+    call col_zero(columnAnlInc)
+
+    ! Communicate the list of extra grid-points needed on each MPI tile
+    call sendRecvHalo(stateVector, interpInfoTiles_tlad, beSilent,  &
+                      myHaloValues_r48)
+
+    ! Do interpolation to compute myColumnData from stateVector and myHaloValues
+    call utl_tmg_start(39,'------s2c_TL_Hinterp')
+    call tileToColumn(stateVector, myHaloValues_r48, interpInfoTiles_tlad,  &
+                      myColumnData, beSilent)
+    call utl_tmg_stop(39)
+
+    ! Send columns to the original mpi tasks and put in column object
+    call sendRecvColumns(myColumnData, columnAnlInc, interpInfoTiles_tlad, beSilent)
+
+  end subroutine tlTiles
+
+  !---------------------------------------------------------
+  ! adTiles (called by s2c_ad)
+  !---------------------------------------------------------
+  subroutine adTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
+    !
+    ! :Purpose: Adjoint version of the horizontal interpolation,
+    !           used for the cost function gradient with respect to the increment.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),        intent(inout) :: stateVector
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnAnlInc
+    logical,       optional, intent(in)    :: beSilent_opt
+
+    ! Locals:
+    logical              :: rejectOutsideObs, beSilent
+    type(real48_3d)      :: myHaloValuesAd_r48
+    type(real48_2d)      :: myColumnDataAd
+
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. interpInfoTiles_tlad%initialized ) then
+      rejectOutsideObs = .false.
+      call utl_tmg_stop(41)
+      call utl_tmg_start(31,'----s2c_Setups')
+      call setupInterpInfoTiles(interpInfoTiles_tlad, obsSpaceData, stateVector,  &
+                                columnAnlInc, timeInterpType_tlad,  rejectOutsideObs, &
+                                inputStateVectorType='tl', beSilent=beSilent)
+      call utl_tmg_stop(31)
+      call utl_tmg_start(41,'----s2c_AD')
+    end if
+
+    ! Set stateVector to zero
+    call gsv_zero(stateVector)
+
+    ! Send columns from column object on the original mpi tasks back to mpi task with tile
+    call sendRecvColumnsAd(myColumnDataAd, columnAnlInc, interpInfoTiles_tlad, beSilent)
+
+    ! Do adjoint of interpolation to update stateVector and myHaloValuesAd from myColumnDataAd
+    call utl_tmg_start(42,'------s2c_AD_Hinterp')
+    call tileToColumnAd(stateVector, myHaloValuesAd_r48, interpInfoTiles_tlad,  &
+                        myColumnDataAd, beSilent)
+    call utl_tmg_stop(42)
+
+    ! Communicate the list of extra grid-points needed on each MPI tile
+    call sendRecvHaloAd(stateVector, interpInfoTiles_tlad, beSilent,  &
+                        myHaloValuesAd_r48)
+
+  end subroutine adTiles
+
+  !---------------------------------------------------------
+  ! imposeLimits
+  !---------------------------------------------------------
+  subroutine imposeLimits(column, beSilent)
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: column    ! columnData object
+    logical,                 intent(in)    :: beSilent  ! Choose to print nothing
+
+    ! Locals:
+    integer          :: columnIndex, varNameIndex
+    real(8), pointer :: column_ptr(:)
+
+    if (.not. beSilent) write(*,*) 'imposeLimits (s2c): Starting'
+
+    ! Impose a lower limit on HU
+    if(col_varExist(column,'HU')) then
+      do columnIndex = 1, col_getNumCol(column)
+        column_ptr => col_getColumn(column, columnIndex, 'HU')
+        column_ptr(:) = max(column_ptr(:), col_rhumin)
+      end do
+    end if
+
+    ! Impose a lower/upper limits on ALL cloud variables
+    do varNameIndex = 1, vnl_numvarmaxCloud
+      if(.not. col_varExist(column, vnl_varNameListCloud(varNameIndex))) cycle
+      do columnIndex = 1, col_getNumCol(column)
+        column_ptr => col_getColumn(column, columnIndex, vnl_varNameListCloud(varNameIndex))
+        column_ptr(:) = max(column_ptr(:), qlim_getMinValueCloud(vnl_varNameListCloud(varNameIndex)))
+        column_ptr(:) = min(column_ptr(:), qlim_getMaxValueCloud(vnl_varNameListCloud(varNameIndex)))
+      end do
+    end do
+
+    if (.not. beSilent) write(*,*) 'imposeLimits (s2c): Finished'
+
+  end subroutine imposeLimits
+
+  !---------------------------------------------------------
+  ! sendRecvColumns
+  !---------------------------------------------------------
+  subroutine sendRecvColumns(myColumnData, column, intInfo, beSilent)
+    !
+    ! :Purpose: Send columns from lat-lon tiles back to original mpi tasks
+    !           where the observations are located.
+    !
+    implicit none
+
+    ! Arguments:
+    type(real48_2d),              intent(in)    :: myColumnData  ! Column values for the lat-lon tiles
+    type(struct_columnData),      intent(inout) :: column        ! columnData object
+    type(struct_interpInfoTiles), intent(in)    :: intInfo       ! Interpolation info structure
+    logical,                      intent(in)    :: beSilent      ! Choose to print nothing
+
+    ! Locals:
+    integer :: myNumCol, yourNumCol, numVarLev, varLevIndex, varLevIndexCol, columnIndex
+    integer :: indexBeg, indexEnd, nsize, procSrc, procDest
+    integer, allocatable :: sendCounts(:), recvCounts(:), sendDispls(:), recvDispls(:)
+    real(8)              :: gzSfc
+    real(8), allocatable :: sendBuffer(:), recvBuffer(:)
+    real(8), pointer :: colPtr(:,:)
+
+    if (.not. beSilent) write(*,*) 'sendRecvColumns (s2c): Starting'
+
+    myNumCol   = col_getNumCol(column)
+    yourNumCol = intInfo%myInterpNumHeader
+
+    if (.not. beSilent) then
+      write(*,*) 'sendRecvColumns (s2c): myNumCol, yourNumCol = ', myNumCol, yourNumCol
+    end if
+
+    HeightSfcPresent: if (allocated(myColumnData%GZsfc)) then
+      nsize = 1
+
+      ! Allocate send/recv metadata arrays
+      allocate(sendCounts(mmpi_nprocs))
+      allocate(recvCounts(mmpi_nprocs))
+      allocate(sendDispls(mmpi_nprocs))
+      allocate(recvDispls(mmpi_nprocs))
+      sendCounts(:) = 0
+      recvCounts(:) = 0
+
+      ! Count how much data each process will send/receive
+      do columnIndex = 1, myNumCol
+        procSrc = intInfo%yourObsTileMpiId(columnIndex)
+        recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+      end do
+
+      do columnIndex = 1, yourNumCol
+        procDest = intInfo%myInterpObsMpiIdSrc(columnIndex)
+        sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+      end do
+
+      sendDispls(1) = 0
+      recvDispls(1) = 0
+      do columnIndex = 2, mmpi_nprocs
+        sendDispls(columnIndex) = sendDispls(columnIndex-1) +  &
+                                       sendCounts(columnIndex-1)
+        recvDispls(columnIndex) = recvDispls(columnIndex-1) +  &
+                                       recvCounts(columnIndex-1)
+      end do
+
+      allocate(sendBuffer(sum(sendCounts)))
+      allocate(recvBuffer(sum(recvCounts)))
+
+      ! Fill the send buffer (need to reset counts)
+      sendCounts(:) = 0
+      do columnIndex = 1, yourNumCol
+        ! Range of index values for this column
+        procDest = intInfo%myInterpObsMpiIdSrc(columnIndex)
+        indexBeg = 1 + sendDispls(procDest+1) + sendCounts(procDest+1)
+        ! Copy this column into correct slot of the sendBuffer and increment count
+        sendBuffer(indexBeg) = myColumnData%GZsfc(columnIndex)
+        sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+      end do
+
+      ! Perform 'mmpi_alltoallv' communication for GZsfc
+      call mmpi_alltoallv(sendBuffer, sendCounts, sendDispls, &
+                          recvBuffer, recvCounts, recvDispls)
+
+      ! Copy received GZsfc data (need to reset counts)
+      recvCounts(:) = 0
+      do columnIndex = 1, myNumCol
+        ! Range of index values for this column
+        procSrc = intInfo%yourObsTileMpiId(columnIndex)
+        indexBeg = 1 + recvDispls(procSrc+1) + recvCounts(procSrc+1)
+        ! Copy from correct slot of recvBuffer into column and increment count
+        gzSfc = recvBuffer(indexBeg)
+        call col_setHeightSfc(column, columnIndex, gzSfc)
+        recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+      end do
+
+      ! Deallocate memory
+      deallocate(sendCounts)
+      deallocate(recvCounts)
+      deallocate(sendDispls)
+      deallocate(recvDispls)
+      deallocate(sendBuffer)
+      deallocate(recvBuffer)
+
+    end if HeightSfcPresent
+
+    numVarLev  = intInfo%numVarLevState
+    nsize      = numVarLev
+
+    ! Allocate send/recv metadata arrays
+    allocate(sendCounts(mmpi_nprocs))
+    allocate(recvCounts(mmpi_nprocs))
+    allocate(sendDispls(mmpi_nprocs))
+    allocate(recvDispls(mmpi_nprocs))
+    sendCounts(:) = 0
+    recvCounts(:) = 0
+    sendDispls(:) = 0
+    recvDispls(:) = 0
+
+    ! Set the counts for send and receive
+    do columnIndex = 1, myNumCol
+      procSrc = intInfo%yourObsTileMpiId(columnIndex)
+      recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+    end do
+    do columnIndex = 1, yourNumCol
+      procDest = intInfo%myInterpObsMpiIdSrc(columnIndex)
+      sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+    end do
+
+    ! Calculate displacements
+    do columnIndex = 2, mmpi_nprocs
+      sendDispls(columnIndex) = sendDispls(columnIndex-1) + sendCounts(columnIndex-1)
+      recvDispls(columnIndex) = recvDispls(columnIndex-1) + recvCounts(columnIndex-1)
+    end do
+
+    ! Allocate send/recv buffers
+    allocate(sendBuffer(sum(sendCounts)))
+    allocate(recvBuffer(sum(recvCounts)))
+
+    ! Fill the send buffer (need to reset counts)
+    sendCounts(:) = 0
+    do columnIndex = 1, yourNumCol
+      ! Range of index values for this column
+      procDest = intInfo%myInterpObsMpiIdSrc(columnIndex)
+      indexBeg = 1 + sendDispls(procDest+1) + sendCounts(procDest+1)
+      indexEnd = indexBeg + nsize - 1
+      ! Copy this column into correct slot of the sendBuffer and increment count
+      sendBuffer(indexBeg:indexEnd) = myColumnData%r8(:,columnIndex)
+      sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+    end do
+
+    ! Perform 'mmpi_alltoallv' communication for main data
+    call mmpi_alltoallv(sendBuffer, sendCounts, sendDispls, &
+                        recvBuffer, recvCounts, recvDispls)
+
+    ! Copy received data to output structure (need to reset counts
+    colPtr => col_getAllColumns(column)
+    recvCounts(:) = 0
+    do columnIndex = 1, myNumCol
+      ! Range of index values for this column
+      procSrc = intInfo%yourObsTileMpiId(columnIndex)
+      indexBeg = 1 + recvDispls(procSrc+1) + recvCounts(procSrc+1)
+      ! Copy from correct slot of recvBuffer into column and increment count
+      do varLevIndex = 1, numVarLev
+        varLevIndexCol = intInfo%varLevColFromVarLevState(varLevIndex)
+        colPtr(varLevIndexCol,columnIndex) = recvBuffer(indexBeg+varLevIndex-1)
+      end do
+      recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+    end do
+
+    ! Deallocate memory
+    deallocate(sendCounts)
+    deallocate(recvCounts)
+    deallocate(sendDispls)
+    deallocate(recvDispls)
+    deallocate(sendBuffer)
+    deallocate(recvBuffer)
+
+    if (.not. beSilent) write(*,*) 'sendRecvColumns (s2c): Finished'
+
+  end subroutine sendRecvColumns
+
+  !---------------------------------------------------------
+  ! sendRecvColumnsAd
+  !---------------------------------------------------------
+  subroutine sendRecvColumnsAd(myColumnDataAd, column, intInfo, beSilent)
+    !
+    ! :Purpose: Send columns from original mpi tasks where the observations
+    !           are located to lat-lon tiles.
+    !
+    implicit none
+
+    ! Arguments:
+    type(real48_2d),              intent(inout) :: myColumnDataAd  ! Column values for the lat-lon tiles
+    type(struct_columnData),      intent(inout) :: column          ! columnData object
+    type(struct_interpInfoTiles), intent(in)    :: intInfo         ! Interpolation info structure
+    logical,                      intent(in)    :: beSilent        ! Choose to print nothing
+
+    ! Locals:
+    integer :: myNumCol, yourNumCol, numVarLev, varLevIndex, varLevIndexCol, columnIndex
+    integer :: indexBeg, indexEnd, nsize, procSrc, procDest
+    integer, allocatable :: sendCounts(:), recvCounts(:), sendDispls(:), recvDispls(:)
+    real(8)              :: gzSfc
+    real(8), allocatable :: sendBuffer(:), recvBuffer(:)
+    real(8), pointer :: colPtr(:,:)
+
+    if (.not. beSilent) write(*,*) 'sendRecvColumnsAd (s2c): Starting'
+
+    myNumCol   = col_getNumCol(column)
+    yourNumCol = intInfo%myInterpNumHeader
+
+    if (.not. beSilent) then
+      write(*,*) 'sendRecvColumnsAd (s2c): myNumCol, yourNumCol = ', myNumCol, yourNumCol
+    end if
+
+    HeightSfcPresent: if (allocated(myColumnDataAd%GZsfc)) then
+      nsize = 1
+
+      if (.not. allocated(myColumnDataAd%GZsfc)) then
+        allocate(myColumnDataAd%GZsfc(yourNumCol))
+      end if
+      myColumnDataAd%GZsfc(:) = 0.0d0
+
+      ! Allocate send/recv metadata arrays
+      allocate(sendCounts(mmpi_nprocs))
+      allocate(recvCounts(mmpi_nprocs))
+      allocate(sendDispls(mmpi_nprocs))
+      allocate(recvDispls(mmpi_nprocs))
+      sendCounts(:) = 0
+      recvCounts(:) = 0
+
+      ! Count how much data each process will send/receive
+      do columnIndex = 1, myNumCol
+        procDest = intInfo%yourObsTileMpiId(columnIndex)
+        sendCounts(procSrc+1) = sendCounts(procDest+1) + nsize
+      end do
+
+      do columnIndex = 1, yourNumCol
+        procSrc = intInfo%myInterpObsMpiIdSrc(columnIndex)
+        recvCounts(procDest+1) = recvCounts(procSrc+1) + nsize
+      end do
+
+      sendDispls(1) = 0
+      recvDispls(1) = 0
+      do columnIndex = 2, mmpi_nprocs
+        sendDispls(columnIndex) = sendDispls(columnIndex-1) +  &
+                                       sendCounts(columnIndex-1)
+        recvDispls(columnIndex) = recvDispls(columnIndex-1) +  &
+                                       recvCounts(columnIndex-1)
+      end do
+
+      allocate(sendBuffer(sum(sendCounts)))
+      allocate(recvBuffer(sum(recvCounts)))
+      sendBuffer(:) = 0.0d0
+      recvBuffer(:) = 0.0d0
+
+      ! Fill the send buffer (need to reset counts)
+      sendCounts(:) = 0
+      do columnIndex = 1, myNumCol
+        ! Range of index values for this column
+        procDest = intInfo%yourObsTileMpiId(columnIndex)
+        indexBeg = 1 + sendDispls(procDest+1) + sendCounts(procDest+1)
+        ! Copy from column into correct slot of sendBuffer and increment count
+        gzSfc = col_getHeight(column, 1, columnIndex, 'SF')
+        sendBuffer(indexBeg) = gzSfc
+        sendCounts(procSrc+1) = sendCounts(procDest+1) + nsize
+      end do
+
+      ! Perform 'mmpi_alltoallv' communication for GZsfc
+      call mmpi_alltoallv(sendBuffer, sendCounts, sendDispls, &
+                          recvBuffer, recvCounts, recvDispls)
+
+      ! Copy received GZsfc data (need to reset counts)
+      recvCounts(:) = 0
+      do columnIndex = 1, yourNumCol
+        ! Range of index values for this column
+        procSrc = intInfo%myInterpObsMpiIdSrc(columnIndex)
+        indexBeg = 1 + recvDispls(procDest+1) + recvCounts(procSrc+1)
+        ! Copy from correct slot of recvBuffer into column and increment count
+        myColumnDataAd%GZsfc(columnIndex) = recvBuffer(indexBeg)
+        recvCounts(procDest+1) = recvCounts(procSrc+1) + nsize
+      end do
+
+      ! Deallocate memory
+      deallocate(sendCounts)
+      deallocate(recvCounts)
+      deallocate(sendDispls)
+      deallocate(recvDispls)
+      deallocate(sendBuffer)
+      deallocate(recvBuffer)
+
+    end if HeightSfcPresent
+
+    numVarLev  = intInfo%numVarLevState
+    nsize      = numVarLev
+
+    if (.not. allocated(myColumnDataAd%r8)) then
+      allocate(myColumnDataAd%r8(numVarLev,yourNumCol))
+    end if
+    myColumnDataAd%r8(:,:) = 0.0d0
+
+    ! Allocate send/recv metadata arrays
+    allocate(sendCounts(mmpi_nprocs))
+    allocate(recvCounts(mmpi_nprocs))
+    allocate(sendDispls(mmpi_nprocs))
+    allocate(recvDispls(mmpi_nprocs))
+    sendCounts(:) = 0
+    recvCounts(:) = 0
+    sendDispls(:) = 0
+    recvDispls(:) = 0
+
+    ! Set the counts for send and receive
+    do columnIndex = 1, myNumCol
+      procDest = intInfo%yourObsTileMpiId(columnIndex)
+      sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+    end do
+    do columnIndex = 1, yourNumCol
+      procSrc = intInfo%myInterpObsMpiIdSrc(columnIndex)
+      recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+    end do
+
+    ! Calculate displacements
+    do columnIndex = 2, mmpi_nprocs
+      sendDispls(columnIndex) = sendDispls(columnIndex-1) + sendCounts(columnIndex-1)
+      recvDispls(columnIndex) = recvDispls(columnIndex-1) + recvCounts(columnIndex-1)
+    end do
+
+    ! Allocate send/recv buffers
+    allocate(sendBuffer(sum(sendCounts)))
+    allocate(recvBuffer(sum(recvCounts)))
+    sendBuffer(:) = 0.0d0
+    recvBuffer(:) = 0.0d0
+
+    ! Fill the send buffer (need to reset counts)
+    colPtr => col_getAllColumns(column)
+    sendCounts(:) = 0
+    do columnIndex = 1, myNumCol
+      ! Range of index values for this column
+      procDest = intInfo%yourObsTileMpiId(columnIndex)
+      indexBeg = 1 + sendDispls(procDest+1) + sendCounts(procDest+1)
+      ! Copy from column into correct slot of sendBuffer and increment count
+      do varLevIndex = 1, numVarLev
+        varLevIndexCol = intInfo%varLevColFromVarLevState(varLevIndex)
+        sendBuffer(indexBeg+varLevIndex-1) = colPtr(varLevIndexCol,columnIndex)
+      end do
+      sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
+    end do
+
+    ! Perform 'mmpi_alltoallv' communication for main data
+    call mmpi_alltoallv(sendBuffer, sendCounts, sendDispls, &
+                        recvBuffer, recvCounts, recvDispls)
+
+    ! Copy received data to output structure (need to reset counts
+    recvCounts(:) = 0
+    do columnIndex = 1, yourNumCol
+      ! Range of index values for this column
+      procSrc = intInfo%myInterpObsMpiIdSrc(columnIndex)
+      indexBeg = 1 + recvDispls(procSrc+1) + recvCounts(procSrc+1)
+      indexEnd = indexBeg + nsize - 1
+      ! Copy from correct slot of recvBuffer into column and increment count
+      myColumnDataAd%r8(:,columnIndex) = recvBuffer(indexBeg:indexEnd)
+      recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
+    end do
+
+    ! Deallocate memory
+    deallocate(sendCounts)
+    deallocate(recvCounts)
+    deallocate(sendDispls)
+    deallocate(recvDispls)
+    deallocate(sendBuffer)
+    deallocate(recvBuffer)
+
+    if (.not. beSilent) write(*,*) 'sendRecvColumnsAd (s2c): Finished'
+
+  end subroutine sendRecvColumnsAd
+
+  !---------------------------------------------------------
+  ! tileToColumn
+  !---------------------------------------------------------
+  subroutine tileToColumn(stateVector, myHaloValues_r48, intInfo,  &
+                          myColumnData, beSilent)
+    !
+    ! :Purpose: Interpolate horizontally and in time from 4D tile to 1D columns.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)       ,        intent(in)    :: stateVector     ! stateVector object
+    type(real48_3d),                intent(in)    :: myHaloValues_r48 ! Halo values
+    type(struct_interpInfoTiles),   intent(in)    :: intInfo         ! Interpolation info structure
+    type(real48_2d),                intent(inout) :: myColumnData    ! Column values for this lat-lon tile
+    logical,                        intent(in)    :: beSilent        ! Choose to print nothing
+
+    ! Locals:
+    integer :: numColumn, numStep, numVarLev
+
+    if (.not. beSilent) write(*,*) 'tileToColumn (s2c): Starting'
+
+    numColumn = intInfo%myInterpNumHeader
+    numStep   = stateVector%numStep
+    numVarLev = intInfo%numVarLevState
+
+    heightSfcPresent: if (stateVector%HeightSfcPresent) then
+
+      if (.not. allocated(myColumnData%GZsfc)) then
+        allocate(myColumnData%GZsfc(numColumn))
+      end if
+      myColumnData%GZsfc(:) = 0.0d0
+
+      ! Interpolate horizontally (input r8, output r8)
+      call hInterpGZ_nl(intInfo, myColumnData, &
+                        stateVector, myHaloValues_r48)
+
+    end if heightSfcPresent
+
+    if (.not. allocated(myColumnData%r8)) then
+      allocate(myColumnData%r8(numVarLev,numColumn))
+    end if
+    myColumnData%r8(:,:) = 0.0d0
+
+    ! Interpolate horizontally (input r4/r8, output r8)
+    call interp_nl(intInfo, myColumnData, &
+                   stateVector, myHaloValues_r48)
+
+    if (.not. beSilent) write(*,*) 'tileToColumn (s2c): Finished'
+
+  end subroutine tileToColumn
+
+  !---------------------------------------------------------
+  ! tileToColumnAd
+  !---------------------------------------------------------
+  subroutine tileToColumnAd(stateVector, myHaloValuesAd_r48, intInfo,  &
+                            myColumnDataAd, beSilent)
+    !
+    ! :Purpose: Adjoint of interpolate horizontally and in time from 4D tile to 1D columns.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),             intent(inout) :: stateVector       ! stateVector object
+    type(real48_3d),              intent(inout) :: myHaloValuesAd_r48 ! Halo values
+    type(struct_interpInfoTiles), intent(in)    :: intInfo           ! Interpolation info structure
+    type(real48_2d),              intent(inout) :: myColumnDataAd    ! Column values for this lat-lon tile
+    logical,                      intent(in)    :: beSilent          ! Choose to print nothing
+
+    ! Locals:
+    integer :: numColumn, numStep, numVarLev, numHalo
+
+    if (.not. beSilent) write(*,*) 'tileToColumnAd (s2c): Starting'
+
+    numColumn = intInfo%myInterpNumHeader
+    numHalo   = intInfo%myHaloSize
+    numStep   = stateVector%numStep
+    numVarLev = intInfo%numVarLevState
+
+    heightSfcPresent: if (stateVector%HeightSfcPresent) then
+
+      if (.not. allocated(myHaloValuesAd_r48%GZsfc)) then
+        allocate(myHaloValuesAd_r48%GZsfc(numHalo))
+      end if
+      myHaloValuesAd_r48%GZsfc(:) = 0.0d0
+
+      ! Interpolate horizontally (input r8, output r8)
+      call hInterpGZ_ad(intInfo, myColumnDataAd, &
+                        stateVector, myHaloValuesAd_r48)
+
+    end if heightSfcPresent
+
+    if (stateVector%dataKind == 4) then
+      if (.not. allocated(myHaloValuesAd_r48%r4)) then
+        myHaloValuesAd_r48%dataKind = 4
+        allocate(myHaloValuesAd_r48%r4(numVarLev,numStep,numHalo))
+      end if
+      myHaloValuesAd_r48%r4(:,:,:) = 0.0
+    else
+      if (.not. allocated(myHaloValuesAd_r48%r8)) then
+        myHaloValuesAd_r48%dataKind = 8
+        allocate(myHaloValuesAd_r48%r8(numVarLev,numStep,numHalo))
+      end if
+      myHaloValuesAd_r48%r8(:,:,:) = 0.0d0
+    end if
+
+    ! Interpolate horizontally (input r4/r8, output r8)
+    call interp_ad(intInfo, myColumnDataAd, &
+                   stateVector, myHaloValuesAd_r48)
+
+    if (.not. beSilent) write(*,*) 'tileToColumnAd (s2c): Finished'
+
+  end subroutine tileToColumnAd
+
+  !---------------------------------------------------------
+  ! interp_nl:
+  !---------------------------------------------------------
+  subroutine interp_nl(intInfo, myColumnData, stateVector, myHaloValues_r48)
+    !
+    ! :Purpose: Horizontal and temporal interpolation of both scalar
+    !           and vector fields.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(in)    :: intInfo          ! Interpolation info structure
+    type(real48_2d),              intent(inout) :: myColumnData     ! Output column data
+    type(struct_gsv),             intent(in)    :: stateVector      ! stateVector object
+    type(real48_3d),              intent(in)    :: myHaloValues_r48 ! Halo values
+
+    ! Locals:
+    integer :: columnIndex, headerIndex, procIndex, numStep, stepIndex
+    integer :: numColumn, numVarLev, lonIndex, latIndex, haloIndex
+    integer :: varLevIndex, levIndex, depotIndex
+    integer :: offsetUU, offsetVV, levIndexUU, levIndexVV, subGridIndex
+    real(8) :: timeWeight, lat, lon, latRot, lonRot, gridWeight
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+
+    numColumn = intInfo%myInterpNumHeader
+    numStep   = stateVector%numStep
+    numVarLev = intInfo%numVarLevState
+
+    if (stateVector%dataKind == 4) then
+      call gsv_getField(stateVector, ptr4d_r4)
+    else
+      call gsv_getField(stateVector, ptr4d_r8)
+    end if
+
+    !$OMP PARALLEL DO PRIVATE (columnIndex, stepIndex, headerIndex, procIndex,  &
+    !$OMP timeWeight, varLevIndex, depotIndex, lonIndex, latIndex, gridWeight, haloIndex)
+    do columnIndex = 1, numColumn
+
+      ! For this columnIndex, interpolate gridded state to obs location/time
+      myColumnData%r8(:,columnIndex) = 0.0d0
+
+      stepLoop: do stepIndex = 1, numStep
+
+        ! Extract the temporal interpolation weight
+        headerIndex = intInfo%myInterpObsHeaderIndex(columnIndex)
+        procIndex   = intInfo%myInterpObsMpiIdSrc(columnIndex) + 1
+        timeWeight = oti_getTimeInterpWeightMpiGlobal(intInfo%oti, headerIndex,  &
+                                                      stepIndex,procIndex)
+
+        ! skip this time step if weight is zero
+        if (timeWeight == 0.0d0) cycle
+
+        do varLevIndex = 1, numVarLev
+          do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
+                          intInfo%depotIndexEnd(varLevIndex,columnIndex)
+
+            lonIndex   = intInfo%lonIndexDepot(depotIndex)
+            latIndex   = intInfo%latIndexDepot(depotIndex)
+            gridWeight = intInfo%interpWeightDepot(depotIndex)
+
+            if (stateVector%dataKind == 4) then
+
+              if (latIndex == valueIsInHalo) then
+                ! This location is in the halo
+                haloIndex = lonIndex
+                myColumnData%r8(varLevIndex,columnIndex) =  &
+                     myColumnData%r8(varLevIndex,columnIndex) +  &
+                     timeWeight * gridWeight * &
+                     real(myHaloValues_r48%r4(varLevIndex,stepIndex,haloIndex),8)
+              else
+                ! This location is in the tile interior
+                myColumnData%r8(varLevIndex,columnIndex) =  &
+                     myColumnData%r8(varLevIndex,columnIndex) +  &
+                     timeWeight * gridWeight * &
+                     real(ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex),8)
+              end if
+
+            else
+
+              if (latIndex == valueIsInHalo) then
+                ! This location is in the halo
+                haloIndex = lonIndex
+                myColumnData%r8(varLevIndex,columnIndex) =  &
+                     myColumnData%r8(varLevIndex,columnIndex) +  &
+                     timeWeight * gridWeight * &
+                     myHaloValues_r48%r8(varLevIndex,stepIndex,haloIndex)
+              else
+                ! This location is in the tile interior
+                myColumnData%r8(varLevIndex,columnIndex) =  &
+                     myColumnData%r8(varLevIndex,columnIndex) +  &
+                     timeWeight * gridWeight * &
+                     ptr4d_r8(lonIndex, latIndex, varLevIndex, stepIndex)
+              end if
+
+            end if
+
+          end do ! depotIndex
+        end do ! varLevIndex
+
+      end do stepLoop
+
+    end do ! columnIndex
+    !$OMP END PARALLEL DO
+
+    ! Rotate any vector variables
+    if (intInfo%rotatedWinds) then
+      offsetUU = gsv_getOffsetFromVarName(statevector,'UU')
+      offsetVV = gsv_getOffsetFromVarName(statevector,'VV')
+
+      !$OMP PARALLEL DO PRIVATE (columnIndex, levIndex, levIndexUU, levIndexVV, lat, lon, latRot, lonRot, subGridIndex)
+      do columnIndex = 1, numColumn
+        do levIndex = 1, gsv_getNumLev(statevector,'MM')
+          levIndexUU = offsetUU + levIndex
+          levIndexVV = offsetVV + levIndex
+
+          lat          = intInfo%myInterpObsLat(levIndexUU,columnIndex)
+          lon          = intInfo%myInterpObsLon(levIndexUU,columnIndex)
+          latRot       = intInfo%myInterpObsLatRot(levIndexUU,columnIndex)
+          lonRot       = intInfo%myInterpObsLonRot(levIndexUU,columnIndex)
+          subGridIndex = intInfo%myInterpObsSubGridIndex(levIndexUU,columnIndex)
+
+          call uvr_rotateWind_nl(intInfo%uvr,                              & ! IN
+                                 subGridIndex,                             & ! IN
+                                 myColumnData%r8(levIndexUU,columnIndex),  & ! INOUT
+                                 myColumnData%r8(levIndexVV,columnIndex),  & ! INOUT
+                                 lat, lon, latRot, lonRot,                 & ! IN
+                                 'ToMetWind' )                               ! IN
+
+        end do ! levIndex
+      end do ! columnIndex
+      !$OMP END PARALLEL DO
+
+    end if
+
+  end subroutine interp_nl
+
+  !---------------------------------------------------------
+  ! interp_ad:
+  !---------------------------------------------------------
+  subroutine interp_ad(intInfo, myColumnDataAd, stateVector, myHaloValuesAd_r48)
+    !
+    ! :Purpose: Adjoint of horizontal and temporal interpolation of both scalar
+    !           and vector fields.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(in)    :: intInfo            ! Interpolation info structure
+    type(real48_2d),              intent(inout) :: myColumnDataAd     ! Output column data
+    type(struct_gsv),             intent(inout) :: stateVector        ! stateVector object
+    type(real48_3d),              intent(inout) :: myHaloValuesAd_r48 ! Halo values
+
+    ! Locals:
+    integer :: columnIndex, headerIndex, procIndex, numStep, stepIndex
+    integer :: numColumn, numVarLev, lonIndex, latIndex, haloIndex
+    integer :: varLevIndex, levIndex, depotIndex
+    integer :: offsetUU, offsetVV, levIndexUU, levIndexVV, subGridIndex
+    real(8) :: timeWeight, lat, lon, latRot, lonRot, gridWeight
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+
+    numColumn = intInfo%myInterpNumHeader
+    numStep   = stateVector%numStep
+    numVarLev = intInfo%numVarLevState
+
+    ! Adjoint of rotate any vector variables
+    if (intInfo%rotatedWinds) then
+      offsetUU = gsv_getOffsetFromVarName(statevector,'UU')
+      offsetVV = gsv_getOffsetFromVarName(statevector,'VV')
+
+      !$OMP PARALLEL DO PRIVATE (columnIndex, levIndex, levIndexUU, levIndexVV, lat, lon, latRot, lonRot, subGridIndex)
+      do columnIndex = 1, numColumn
+        do levIndex = 1, gsv_getNumLev(statevector,'MM')
+          levIndexUU = offsetUU + levIndex
+          levIndexVV = offsetVV + levIndex
+
+          lat          = intInfo%myInterpObsLat(levIndexUU,columnIndex)
+          lon          = intInfo%myInterpObsLon(levIndexUU,columnIndex)
+          latRot       = intInfo%myInterpObsLatRot(levIndexUU,columnIndex)
+          lonRot       = intInfo%myInterpObsLonRot(levIndexUU,columnIndex)
+          subGridIndex = intInfo%myInterpObsSubGridIndex(levIndexUU,columnIndex)
+
+          call uvr_rotateWind_ad(intInfo%uvr,                                & ! IN
+                                 subGridIndex,                               & ! IN
+                                 myColumnDataAd%r8(levIndexUU,columnIndex),  & ! INOUT
+                                 myColumnDataAd%r8(levIndexVV,columnIndex),  & ! INOUT
+                                 lat, lon, latRot, lonRot,                   & ! IN
+                                 'ToMetWind' )                                 ! IN
+
+        end do ! levIndex
+      end do ! columnIndex
+      !$OMP END PARALLEL DO
+
+    end if
+
+    if (stateVector%dataKind == 4) then
+      call gsv_getField(stateVector, ptr4d_r4)
+    else
+      call gsv_getField(stateVector, ptr4d_r8)
+    end if
+
+    !$OMP PARALLEL DO PRIVATE (stepIndex, columnIndex, headerIndex, procIndex,  &
+    !$OMP timeWeight, varLevIndex, depotIndex, lonIndex, latIndex, gridWeight, haloIndex)
+    stepLoop: do stepIndex = 1, numStep
+
+      ! For this columnIndex, adjoint of interpolate gridded state to obs location/time
+      do columnIndex = 1, numColumn
+
+        ! Extract the temporal interpolation weight
+        headerIndex = intInfo%myInterpObsHeaderIndex(columnIndex)
+        procIndex   = intInfo%myInterpObsMpiIdSrc(columnIndex) + 1
+        timeWeight = oti_getTimeInterpWeightMpiGlobal(intInfo%oti, headerIndex,  &
+                                                      stepIndex,procIndex)
+
+        ! skip this time step if weight is zero
+        if (timeWeight == 0.0d0) cycle
+
+        do varLevIndex = 1, numVarLev
+          do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
+                          intInfo%depotIndexEnd(varLevIndex,columnIndex)
+
+            lonIndex   = intInfo%lonIndexDepot(depotIndex)
+            latIndex   = intInfo%latIndexDepot(depotIndex)
+            gridWeight = intInfo%interpWeightDepot(depotIndex)
+
+            if (stateVector%dataKind == 4) then
+
+              if (latIndex == valueIsInHalo) then
+                ! This location is in the halo
+                haloIndex = lonIndex
+                myHaloValuesAd_r48%r4(varLevIndex,stepIndex,haloIndex) =  &
+                     real(myHaloValuesAd_r48%r4(varLevIndex,stepIndex,haloIndex),8) +  &
+                     timeWeight * gridWeight *  &
+                     myColumnDataAd%r8(varLevIndex,columnIndex)
+              else
+                ! This location is in the tile interior
+                ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex) =  &
+                     real(ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex),8) +  &
+                     timeWeight * gridWeight * &
+                     myColumnDataAd%r8(varLevIndex,columnIndex)
+              end if
+
+            else
+
+              if (latIndex == valueIsInHalo) then
+                ! This location is in the halo
+                haloIndex = lonIndex
+                myHaloValuesAd_r48%r8(varLevIndex,stepIndex,haloIndex) =  &
+                     myHaloValuesAd_r48%r8(varLevIndex,stepIndex,haloIndex) +  &
+                     timeWeight * gridWeight *  &
+                     myColumnDataAd%r8(varLevIndex,columnIndex)
+              else
+                ! This location is in the tile interior
+                ptr4d_r8(lonIndex, latIndex, varLevIndex, stepIndex) =  &
+                     ptr4d_r8(lonIndex, latIndex, varLevIndex, stepIndex) +  &
+                     timeWeight * gridWeight * &
+                     myColumnDataAd%r8(varLevIndex,columnIndex)
+              end if
+
+            end if
+
+          end do ! depotIndex
+        end do ! varLevIndex
+
+      end do ! columnIndex
+
+    end do stepLoop
+    !$OMP END PARALLEL DO
+
+  end subroutine interp_ad
+
+  !---------------------------------------------------------
+  ! hInterpGZ_nl:
+  !---------------------------------------------------------
+  subroutine hInterpGZ_nl(intInfo, myColumnData, stateVector, myHaloValues_r48)
+    !
+    ! :Purpose: Scalar horizontal interpolation of GZsfc field.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(in)    :: intInfo          ! Interpolation info structure
+    type(real48_2d),              intent(inout) :: myColumnData     ! Output column data
+    type(struct_gsv),             intent(in)    :: stateVector      ! stateVector object
+    type(real48_3d),              intent(in)    :: myHaloValues_r48 ! Halo values
+
+    ! Locals:
+    integer :: numColumn, columnIndex, lonIndex, latIndex, depotIndex, varLevIndex, haloIndex
+    real(8) :: interpValue, weight
+    real(8), pointer :: ptr2d_r8(:,:)
+
+    numColumn = intInfo%myInterpNumHeader
+    varLevIndex = intInfo%sfcVarLevIndex
+    ptr2d_r8 => gsv_getHeightSfc(stateVector)
+
+    do columnIndex = 1, numColumn
+
+      ! Interpolate the model state to the obs point
+      interpValue = 0.0d0
+
+      do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
+                      intInfo%depotIndexEnd(varLevIndex,columnIndex)
+
+        lonIndex = intInfo%lonIndexDepot(depotIndex)
+        latIndex = intInfo%latIndexDepot(depotIndex)
+        weight   = intInfo%interpWeightDepot(depotIndex)
+
+        if (latIndex == valueIsInHalo) then
+          ! This location is in the halo
+          haloIndex = lonIndex
+          interpValue = interpValue + weight *  &
+                        myHaloValues_r48%GZsfc(haloIndex)
+        else
+          ! This location is in the tile interior
+          interpValue = interpValue + weight *  &
+                        ptr2d_r8(lonIndex, latIndex)
+        end if
+
+      end do ! depotIndex
+      myColumnData%GZsfc(columnIndex) = interpValue
+
+    end do ! columnIndex
+
+  end subroutine hInterpGZ_nl
+
+  !---------------------------------------------------------
+  ! hInterpGZ_ad:
+  !---------------------------------------------------------
+  subroutine hInterpGZ_ad(intInfo, myColumnDataAd, stateVector, myHaloValuesAd_r48)
+    !
+    ! :Purpose: Scalar horizontal interpolation of GZsfc field.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_interpInfoTiles), intent(in)    :: intInfo            ! Interpolation info structure
+    type(real48_2d),              intent(inout) :: myColumnDataAd     ! Output column data
+    type(struct_gsv),             intent(inout) :: stateVector        ! stateVector object
+    type(real48_3d),              intent(inout) :: myHaloValuesAd_r48 ! Halo values
+
+    ! Locals:
+    integer :: numColumn, columnIndex, lonIndex, latIndex, depotIndex, varLevIndex, haloIndex
+    real(8) :: weight
+    real(8), pointer :: ptr2d_r8(:,:)
+
+    numColumn = intInfo%myInterpNumHeader
+    varLevIndex = intInfo%sfcVarLevIndex
+    ptr2d_r8 => gsv_getHeightSfc(stateVector)
+
+    do columnIndex = 1, numColumn
+
+      ! Adjoint of interpolate the model state to the obs point
+
+      do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
+                      intInfo%depotIndexEnd(varLevIndex,columnIndex)
+
+        lonIndex = intInfo%lonIndexDepot(depotIndex)
+        latIndex = intInfo%latIndexDepot(depotIndex)
+        weight   = intInfo%interpWeightDepot(depotIndex)
+
+        if (latIndex == valueIsInHalo) then
+          ! This location is in the halo
+          haloIndex = lonIndex
+          myHaloValuesAd_r48%GZsfc(haloIndex) = myHaloValuesAd_r48%GZsfc(haloIndex) +  &
+                                                weight * myColumnDataAd%GZsfc(columnIndex)
+        else
+          ! This location is in the tile interior
+          ptr2d_r8(lonIndex, latIndex) = ptr2d_r8(lonIndex, latIndex) +  &
+                                         weight * myColumnDataAd%GZsfc(columnIndex)
+        end if
+
+      end do ! depotIndex
+
+    end do ! columnIndex
+
+  end subroutine hInterpGZ_ad
+
+  !---------------------------------------------------------
+  ! sendRecvHalo
+  !---------------------------------------------------------
+  subroutine sendRecvHalo(stateVector, intInfo, beSilent, &
+                          myHaloValues_r48)
+    !
+    ! :Purpose: Exchange data between mpi tasks to provide a list of the
+    !           data values within the halo.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)       ,        intent(in)  :: stateVector                ! stateVector object
+    type(struct_interpInfoTiles),   intent(in)  :: intInfo                    ! Interpolation info structure
+    logical,                        intent(in)  :: beSilent                   ! Choose to print nothing
+    type(real48_3d),                intent(out) :: myHaloValues_r48           ! Halo values
+
+    ! Locals:
+    integer :: haloIndex, numRecv, numSend, recvTag, sendTag, nsize, ierr
+    integer :: lonIndex, latIndex
+    integer :: procSrc, procDest
+    type(mpi_request), allocatable :: requestIdRecv(:), requestIdSend(:)
+    real(4), allocatable :: haloSend_r4(:,:,:)
+    real(8), allocatable :: haloSend_r8(:,:,:)
+    real(8), allocatable :: haloSendGZsfc(:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
+    real(8), pointer     :: ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: ptr2d_r8(:,:)
+
+    if (.not. beSilent) write(*,*) 'sendRecvHalo (s2c): Starting'
+
+    allocate(requestIdSend(intInfo%yourHaloSize))
+    allocate(requestIdRecv(intInfo%myHaloSize))
+
+    if (.not. beSilent) then
+      write(*,*) 'sendRecvHalo (s2c): myHaloSize, yourHaloSize = ', intInfo%myHaloSize, intInfo%yourHaloSize
+    end if
+
+    heightSfcPresent: if (stateVector%HeightSfcPresent) then
+
+      ! Allocate halo and other arrays
+      allocate(myHaloValues_r48%GZsfc(intInfo%myHaloSize))
+      allocate(haloSendGZsfc(intInfo%yourHaloSize))
+      myHaloValues_r48%GZsfc(:) = 0.0d0
+      haloSendGZsfc(:) = 0.0d0
+
+      nsize   = 1
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        recvTag = intInfo%myHaloMpiTag(haloIndex)
+        procSrc = intInfo%myHaloMpiIdSrc(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(myHaloValues_r48%GZsfc(haloIndex),    &
+                       nsize, mmpi_real8, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numRecv))
+      end do
+
+      ! Prepare the data for sending to other tiles
+      numSend = 0
+      ptr2d_r8 => gsv_getHeightSfc(stateVector)
+      do haloIndex = 1, intInfo%yourHaloSize
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        haloSendGZsfc(haloIndex) = ptr2d_r8(lonIndex,latIndex)
+
+        ! Post the send commands
+        sendTag  = intInfo%yourHaloMpiTag(haloIndex)
+        procDest = intInfo%yourHaloMpiIdDst(haloIndex)
+        numSend = numSend + 1
+        call mpi_isend(haloSendGZsfc(haloIndex),             &
+                       nsize, mmpi_real8, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numSend))
+      end do
+
+      ! Wait for all previous RECV communications to finish before continuing
+      if (numRecv > 0) then
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+      end if
+      if (numSend > 0) then
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+      end if
+
+      deallocate(haloSendGZsfc)
+
+    end if HeightSfcPresent
+
+    nsize   = intInfo%numVarLevState * stateVector%numStep
+
+    if (stateVector%dataKind == 4) then
+
+      ! Allocate halo and other arrays
+      myHaloValues_r48%dataKind = 4
+      allocate(myHaloValues_r48%r4(intInfo%numVarLevState,stateVector%numStep,intInfo%myHaloSize))
+      allocate(haloSend_r4(intInfo%numVarLevState,stateVector%numStep,intInfo%yourHaloSize))
+      myHaloValues_r48%r4(:,:,:) = 0.0
+      haloSend_r4(:,:,:) = 0.0
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        recvTag = intInfo%myHaloMpiTag(haloIndex)
+        procSrc = intInfo%myHaloMpiIdSrc(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(myHaloValues_r48%r4(:,:,haloIndex),   &
+                       nsize, mmpi_real4, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numRecv))
+      end do
+
+      ! Send the data
+      numSend = 0
+      call gsv_getField(stateVector, ptr4d_r4)
+      do haloIndex = 1, intInfo%yourHaloSize
+        ! Prepare the data for sending to other tiles
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        haloSend_r4(:,:,haloIndex) = ptr4d_r4(lonIndex,latIndex,:,:)
+
+        ! Post the send commands
+        sendTag  = intInfo%yourHaloMpiTag(haloIndex)
+        procDest = intInfo%yourHaloMpiIdDst(haloIndex)
+        numSend = numSend + 1
+        call mpi_isend(haloSend_r4(:,:,haloIndex),           &
+                       nsize, mmpi_real4, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numSend))
+      end do
+
+    else ! For dataKind=8
+
+      ! Allocate halo and other arrays
+      myHaloValues_r48%dataKind = 8
+      allocate(myHaloValues_r48%r8(intInfo%numVarLevState,stateVector%numStep,intInfo%myHaloSize))
+      allocate(haloSend_r8(intInfo%numVarLevState,stateVector%numStep,intInfo%yourHaloSize))
+      myHaloValues_r48%r8(:,:,:) = 0.0d0
+      haloSend_r8(:,:,:) = 0.0d0
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        recvTag = intInfo%myHaloMpiTag(haloIndex)
+        procSrc = intInfo%myHaloMpiIdSrc(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(myHaloValues_r48%r8(:,:,haloIndex),   &
+                       nsize, mmpi_real8, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numRecv))
+      end do
+
+      ! Send the data
+      numSend = 0
+      call gsv_getField(stateVector, ptr4d_r8)
+      do haloIndex = 1, intInfo%yourHaloSize
+        ! Prepare the data for sending to other tiles
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        haloSend_r8(:,:,haloIndex) = ptr4d_r8(lonIndex,latIndex,:,:)
+
+        ! Post the send commands
+        sendTag  = intInfo%yourHaloMpiTag(haloIndex)
+        procDest = intInfo%yourHaloMpiIdDst(haloIndex)
+        numSend = numSend + 1
+        call mpi_isend(haloSend_r8(:,:,haloIndex),           &
+                       nsize, mmpi_real8, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numSend))
+      end do
+
+    end if
+
+    ! Wait for all previous RECV communications to finish before continuing
+    if (numRecv > 0) then
+      call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+    end if
+    if (numSend > 0) then
+      call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+    end if
+
+    if (.not. beSilent) write(*,*) 'sendRecvHalo (s2c): Finished'
+
+  end subroutine sendRecvHalo
+
+  !---------------------------------------------------------
+  ! sendRecvHaloAd
+  !---------------------------------------------------------
+  subroutine sendRecvHaloAd(stateVector, intInfo, beSilent, &
+                            myHaloValuesAd_r48)
+    !
+    ! :Purpose: Adjoint of exchange data between mpi tasks to provide a list of the
+    !           data values within the halo. That is, the values in the halo list
+    !           are communicated back to the tiles where they originate and added to
+    !           the interior tile values in stateVector.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)       ,      intent(inout) :: stateVector         ! stateVector object
+    type(struct_interpInfoTiles), intent(in)    :: intInfo             ! Interpolation info structure
+    logical,                      intent(in)    :: beSilent            ! Choose to print nothing
+    type(real48_3d),              intent(in)    :: myHaloValuesAd_r48  ! Halo values
+
+    ! Locals:
+    integer :: haloIndex, numRecv, numSend, recvTag, sendTag, nsize, ierr
+    integer :: lonIndex, latIndex
+    integer :: procSrc, procDest
+    type(mpi_request), allocatable :: requestIdRecv(:), requestIdSend(:)
+    real(4), allocatable :: haloRecv_r4(:,:,:)
+    real(8), allocatable :: haloRecv_r8(:,:,:)
+    real(8), allocatable :: haloRecvGZsfc(:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
+    real(8), pointer     :: ptr4d_r8(:,:,:,:)
+    real(8), pointer     :: ptr2d_r8(:,:)
+
+    if (.not. beSilent) write(*,*) 'sendRecvHaloAd (s2c): Starting'
+
+    allocate(requestIdSend(intInfo%myHaloSize))
+    allocate(requestIdRecv(intInfo%yourHaloSize))
+
+    if (.not. beSilent) then
+      write(*,*) 'sendRecvHaloAd (s2c): myHaloSize, yourHaloSize = ', intInfo%myHaloSize, intInfo%yourHaloSize
+    end if
+
+    heightSfcPresent: if (stateVector%HeightSfcPresent) then
+
+      ! Allocate halo and other arrays
+      allocate(haloRecvGZsfc(intInfo%yourHaloSize))
+
+      nsize   = 1
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%yourHaloSize
+        recvTag = intInfo%yourHaloMpiTag(haloIndex)
+        procSrc = intInfo%yourHaloMpiIdDst(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(haloRecvGZsfc(haloIndex),             &
+                       nsize, mmpi_real8, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numSend))
+      end do
+
+      ! Post the send commands
+      numSend = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        sendTag  = intInfo%myHaloMpiTag(haloIndex)
+        procDest = intInfo%myHaloMpiIdSrc(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_isend(myHaloValuesAd_r48%GZsfc(haloIndex),  &
+                       nsize, mmpi_real8, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numRecv))
+      end do
+
+      ! Wait for all previous RECV communications to finish before continuing
+      if (numRecv > 0) then
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+      end if
+      if (numSend > 0) then
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+      end if
+
+      ! Copy recv'ed data into stateVector object
+      ptr2d_r8 => gsv_getHeightSfc(stateVector)
+      do haloIndex = 1, intInfo%yourHaloSize
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        ptr2d_r8(lonIndex,latIndex) = ptr2d_r8(lonIndex,latIndex) +  &
+                                      haloRecvGZsfc(haloIndex)
+      end do
+
+      deallocate(haloRecvGZsfc)
+
+    end if HeightSfcPresent
+
+    nsize   = intInfo%numVarLevState * stateVector%numStep
+
+    if (stateVector%dataKind == 4) then
+
+      ! Allocate halo and other arrays
+      allocate(haloRecv_r4(intInfo%numVarLevState,stateVector%numStep,intInfo%yourHaloSize))
+      haloRecv_r4(:,:,:) = 0.0
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%yourHaloSize
+        recvTag = intInfo%yourHaloMpiTag(haloIndex)
+        procSrc = intInfo%yourHaloMpiIdDst(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(haloRecv_r4(:,:,haloIndex),           &
+                       nsize, mmpi_real4, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numRecv))
+      end do
+
+      ! Send the data
+      numSend = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        sendTag = intInfo%myHaloMpiTag(haloIndex)
+        procDest = intInfo%myHaloMpiIdSrc(haloIndex)
+        numSend = numSend + 1
+        call mpi_isend(myHaloValuesAd_r48%r4(:,:,haloIndex), &
+                       nsize, mmpi_real4, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numSend))
+      end do
+
+    else ! For dataKind=8
+
+      ! Allocate halo and other arrays
+      allocate(haloRecv_r8(intInfo%numVarLevState,stateVector%numStep,intInfo%yourHaloSize))
+      haloRecv_r8(:,:,:) = 0.0d0
+
+      ! First post the recv commands
+      numRecv = 0
+      do haloIndex = 1, intInfo%yourHaloSize
+        recvTag = intInfo%yourHaloMpiTag(haloIndex)
+        procSrc = intInfo%yourHaloMpiIdDst(haloIndex)
+        numRecv = numRecv + 1
+        call mpi_irecv(haloRecv_r8(:,:,haloIndex),           &
+                       nsize, mmpi_real8, procSrc, recvTag,  &
+                       mmpi_comm_grid, requestIdRecv(numRecv))
+      end do
+
+      ! Send the data
+      numSend = 0
+      do haloIndex = 1, intInfo%myHaloSize
+        sendTag = intInfo%myHaloMpiTag(haloIndex)
+        procDest = intInfo%myHaloMpiIdSrc(haloIndex)
+        numSend = numSend + 1
+        call mpi_isend(myHaloValuesAd_r48%r8(:,:,haloIndex), &
+                       nsize, mmpi_real8, procDest, sendTag, &
+                       mmpi_comm_grid, requestIdSend(numSend))
+      end do
+
+    end if
+
+    ! Wait for all previous RECV communications to finish before continuing
+    if (numRecv > 0) then
+      call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+    end if
+    if (numSend > 0) then
+      call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+    end if
+
+    ! Copy recv'ed data into stateVector object
+    if (stateVector%dataKind == 4) then
+
+      call gsv_getField(stateVector, ptr4d_r4)
+      do haloIndex = 1, intInfo%yourHaloSize
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        ptr4d_r4(lonIndex,latIndex,:,:) = ptr4d_r4(lonIndex,latIndex,:,:) +  &
+                                          haloRecv_r4(:,:,haloIndex)
+      end do
+
+    else
+
+      call gsv_getField(stateVector, ptr4d_r8)
+      do haloIndex = 1, intInfo%yourHaloSize
+        lonIndex = intInfo%yourHaloLonIndex(haloIndex)
+        latIndex = intInfo%yourHaloLatIndex(haloIndex)
+        ! Handle periodicity in longitude
+        if (lonIndex > stateVector%ni) lonIndex = 1
+        ptr4d_r8(lonIndex,latIndex,:,:) = ptr4d_r8(lonIndex,latIndex,:,:) +  &
+                                          haloRecv_r8(:,:,haloIndex)
+      end do
+
+    end if
+
+    if (.not. beSilent) write(*,*) 'sendRecvHaloAd (s2c): Finished'
+
+  end subroutine sendRecvHaloAd
+
+  !-------------------------------------------------------------
+  ! End of subroutines for the newer "TILES" mpiMode
+  !-------------------------------------------------------------
 
   !---------------------------------------------------------
   ! pressureProfileMonotonicityCheck
@@ -130,7 +3795,6 @@ contains
     write(*,*) ' '
     write(*,*) 'pressureProfileMonotonicityCheck: START'
     write(*,*) ' '
-    call msg_memUsage('pressureProfileMonotonicityCheck')
 
     numWrites = 0
 
@@ -249,9 +3913,9 @@ contains
       !
       !- Find the position in the analysis grid
       !
-      ierr = gpos_getPositionXY( hco_core % EZscintID,  &
+      ierr = gpos_getPositionXY(hco_core % EZscintID,  &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                lat_deg_r4, lon_deg_r4, subGridIndex )
+                                lat_deg_r4, lon_deg_r4, subGridIndex)
 
       !- Test if the obs is outside the analysis grid
       if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
@@ -315,19 +3979,20 @@ contains
   end subroutine latlonChecksAnlGrid
 
   !---------------------------------------------------------
-  ! s2c_setupInterpInfo
+  ! setupInterpInfo2dFields
   !---------------------------------------------------------
-  subroutine s2c_setupInterpInfo( interpInfo, obsSpaceData, stateVector,  &
-                                  headerIndexBeg, headerIndexEnd, &
-                                  timeInterpType, rejectOutsideObs, &
-                                  inputStateVectorType, lastCall_opt )
+  subroutine setupInterpInfo2dFields(interpInfo, obsSpaceData, stateVector,  &
+                                     headerIndexBeg, headerIndexEnd, &
+                                     timeInterpType, rejectOutsideObs, &
+                                     inputStateVectorType, lastCall_opt)
+    !
     ! :Purpose: Setup all of the information needed to quickly
     !           perform the horizontal interpolation to the observation
     !           locations.
     !
     implicit none
 
-    ! Arguments:
+    ! Arguments
     type(struct_interpInfo),   intent(out)   :: interpInfo
     type(struct_obs)        ,  intent(inout) :: obsSpaceData
     type(struct_gsv), target,  intent(in)    :: stateVector
@@ -336,7 +4001,7 @@ contains
     logical                 ,  intent(inout) :: rejectOutsideObs
     character(len=*)        ,  intent(in)    :: timeInterpType
     character(len=*)        ,  intent(in)    :: inputStateVectorType
-    logical, optional       ,  intent(in)    :: lastCall_opt
+    logical,       optional ,  intent(in)    :: lastCall_opt
 
     ! Locals:
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
@@ -346,7 +4011,7 @@ contains
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
     integer :: varLevIndex, varLevIndexCount, myVarLevBeg
     integer :: numStep, stepIndex, ierr
-    integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
+    integer :: procIndex, niP1, numGridptTotal, numGridptTotalMpi, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: latRot, lonRot, lat, lon
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
@@ -372,55 +4037,18 @@ contains
     integer :: codeType, nlev_T, nlev_M, levIndex
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numVarLevToSend, numTovsUsingFootprint, numAllTovs
-    logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
+    logical :: doSlantPath, SlantTO, SlantRO, SlantRA
+    logical :: firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
-    logical, save :: nmlAlreadyRead = .false.
     type(kdtree2), pointer  :: tree
 
-    namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
-    namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
-    namelist /nams2c/ NNInterpForCloudVars, NNInterpForAllVars
-
-    write(*,*) 's2c_setupInterpInfo: STARTING'
-    call msg_memUsage('s2c_setupInterpInfo')
-
-    write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
+    write(*,*) 'setupInterpInfo2dFields: STARTING'
+    call msg_memUsage('setupInterpInfo2dFields')
 
     if (present(lastCall_opt)) then
       lastCall = lastCall_opt
     else
       lastCall = .false.
-    end if
-
-    if (.not. nmlAlreadyRead) then
-      nmlAlreadyRead = .true.
-
-      ! default values
-      slantPath_TO_nl   = .false.
-      slantPath_TO_tlad = .false.
-      slantPath_RO_nl   = .false.
-      slantPath_RA_nl   = .false.
-      calcHeightPressIncrOnColumn = .false.
-      useFootprintForTovs = .false.
-      rejectObsNonMonotonicPressure =.true.
-      rejectObsOutsideGlobalGrid = .false.
-      NNInterpForCloudVars = .false.
-      NNInterpForAllVars = .false.
-
-      if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
-        if ( mmpi_myid == 0 ) then
-          write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
-          write(*,*) '                     The default values will be taken.'
-        end if
-
-      else
-        ! reading namelist variables
-        call utl_tmg_start(181,'low-level--readNML')
-        read(utl_flnml, nml = nams2c, iostat = ierr)
-        if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
-        call utl_tmg_stop(181)
-      end if
-      if (mmpi_myid == 0) write(*, nml = nams2c)
     end if
 
     if (inputStateVectorType == 'nl' .and. rejectObsOutsideGlobalGrid) then
@@ -430,6 +4058,7 @@ contains
     doSlantPath = .false.
     SlantTO     = .false.
     SlantRO     = .false.
+    SlantRA     = .false.
     if (slantPath_TO_nl   .and. inputStateVectorType == 'nl') then
       doSlantPath = .true.
       SlantTO     = .true.
@@ -446,7 +4075,7 @@ contains
       doSlantPath = .true.
       SlantRA     = .true.
     endif
-    write(*,*) 's2c_setupInterpInfo: doSlantPath, SlantTO, SlantRO, SlantRA = ', &
+    write(*,*) 'setupInterpInfo2dFields: doSlantPath, SlantTO, SlantRO, SlantRA = ', &
                doSlantPath, SlantTO, SlantRO, SlantRA
 
     numStep = stateVector%numStep
@@ -494,7 +4123,7 @@ contains
     end do
 
     numHeaderUsedMax = maxval(allNumHeaderUsed(:,:))
-    write(*,*) 's2c_setupInterpInfo: numHeaderUsedMax = ', numHeaderUsedMax
+    write(*,*) 'setupInterpInfo2dFields: numHeaderUsedMax = ', numHeaderUsedMax
 
     ! temporary arrays
     allocate(headerIndexVec(numHeaderUsedMax,numStep))
@@ -505,8 +4134,9 @@ contains
     interpInfo%hco => stateVector%hco
 
     ! setup the information for wind rotation
-    if ((gsv_varExist(varName='UU') .or. gsv_varExist(varName='VV')) .and.  &
-         stateVector%hco%rotated ) then
+    if (gsv_varExist(varName='UU') .and. &
+        gsv_varExist(varName='VV') .and. &
+        interpInfo%hco%rotated) then
       call uvr_Setup(interpInfo%uvr, & ! INOUT
                      stateVector%hco)  ! IN
     end if
@@ -560,7 +4190,7 @@ contains
     ! prepare for extracting the 3D height for slant-path calculation
     if ( doSetup3dHeights ) then
 
-      write(*,*) 's2c_setupInterpInfo: extracting 3D heights for slant-path for ', inputStateVectorType
+      write(*,*) 'setupInterpInfo2dFields: extracting 3D heights for slant-path for ', inputStateVectorType
 
       if ( inputStateVectorType == 'nl' ) then
         nullify(varNames)
@@ -626,13 +4256,13 @@ contains
       call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
       call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
 
-      write(*,*) 's2c_setupInterpInfo, height3D_T_r4='
+      write(*,*) 'setupInterpInfo2dFields, height3D_T_r4='
       write(*,*) height3D_T_r4(1,1,:)
-      write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
+      write(*,*) 'setupInterpInfo2dFields, height3D_M_r4='
       write(*,*) height3D_M_r4(1,1,:)
 
-      call msg_memUsage('s2c_setupInterpInfo')
-    end if ! doSlantPath
+      call msg_memUsage('setupInterpInfo2dFields')
+    end if ! doSetup3dHeights
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
     step_loop2: do stepIndex = 1, numStep
@@ -691,7 +4321,7 @@ contains
 
           if (tvs_isIdBurpTovs(codeType) .and. SlantTO) then
             if (firstHeaderSlantPathTO) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for TOVS. stepIndex = ', &
+              write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for TOVS. stepIndex = ', &
                    stepIndex,' and numHeaderUsed = ',numHeaderUsed
               firstHeaderSlantPathTO = .false.
             end if
@@ -707,7 +4337,7 @@ contains
 
           else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if (firstHeaderSlantPathRO) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RO. stepIndex = ', &
+              write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for RO. stepIndex = ', &
                    stepIndex,' and numHeaderUsed = ',numHeaderUsed
               firstHeaderSlantPathRO = .false.
             end if
@@ -722,7 +4352,7 @@ contains
             call utl_tmg_stop(32)
           else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
-              write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RADAR. stepIndex=', &
+              write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for RADAR. stepIndex=', &
                    stepIndex,' and numHeaderUsed=',numHeaderUsed
               firstHeaderSlantPathRA = .false.
             end if
@@ -769,7 +4399,7 @@ contains
               latColumn(headerUsedIndex,varLevIndex) = latLev_S
               lonColumn(headerUsedIndex,varLevIndex) = lonLev_S
             else
-              call utl_abort('s2c_setupInterpInfo: unknown value of varLevel')
+              call utl_abort('setupInterpInfo2dFields: unknown value of varLevel')
             end if
 
           end do
@@ -925,12 +4555,12 @@ contains
     end do step_loop2
 
     if ( gsv_isAllocated(stateVector_1Step) .and. lastCall ) then
-      write(*,*) 's2c_setupInterpInfo: deallocate height3D fields'
+      write(*,*) 'setupInterpInfo2dFields: deallocate height3D fields'
       call gsv_deallocate(stateVector_1Step)
     end if
     deallocate(footprintRadiusVec_r4)
 
-    write(*,*) 's2c_setupInterpInfo: latlonChecks and lat/lon MPI comm finished.'
+    write(*,*) 'setupInterpInfo2dFields: latlonChecks and lat/lon MPI comm finished.'
 
     allocate(allHeaderIndex(numHeaderUsedMax,numStep,mmpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
@@ -951,9 +4581,9 @@ contains
            (inputStateVectorType == 'tl' .and. .not. associated(tree_tlad)) .or. &
            (inputStateVectorType == 'ad' .and. .not. associated(tree_tlad)) ) then
 
-        write(*,*) 's2c_setupInterpInfo: start creating kdtree for inputStateVectorType=', &
+        write(*,*) 'setupInterpInfo2dFields: start creating kdtree for inputStateVectorType=', &
                    inputStateVectorType
-        call msg_memUsage('s2c_setupInterpInfo')
+        call msg_memUsage('setupInterpInfo2dFields')
 
         allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
 
@@ -980,9 +4610,9 @@ contains
 
         deallocate(positionArray)
 
-        write(*,*) 's2c_setupInterpInfo: done creating kdtree for inputStateVectorType = ', &
+        write(*,*) 'setupInterpInfo2dFields: done creating kdtree for inputStateVectorType = ', &
                    inputStateVectorType
-        call msg_memUsage('s2c_setupInterpInfo')
+        call msg_memUsage('setupInterpInfo2dFields')
 
       end if
     end if
@@ -1001,9 +4631,9 @@ contains
                          MPC_DEGREES_PER_RADIAN_R8)
             lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,varLevIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                       lat_deg_r4, lon_deg_r4, subGridIndex )
+            ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &
+                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                      lat_deg_r4, lon_deg_r4, subGridIndex)
 
             if ( subGridIndex == 3 ) then
               ! both subGrids involved in interpolation, so first treat subGrid 1
@@ -1023,9 +4653,9 @@ contains
                 subGridIndex = 2
               end if
 
-              if ( interpInfo%hco%rotated .and.  &
-                   (gsv_varExist(varName='UU') .or.  &
-                    gsv_varExist(varName='VV')) ) then
+              if (interpInfo%hco%rotated .and.  &
+                  gsv_varExist(varName='UU') .and.  &
+                  gsv_varExist(varName='VV')) then
                 lat = interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,varLevIndex)
                 lon = interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,varLevIndex)
                 call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
@@ -1086,10 +4716,14 @@ contains
 
     deallocate(allHeaderIndex)
 
-    call msg_memUsage('s2c_setupInterpInfo')
+    call msg_memUsage('setupInterpInfo2dFields')
 
     ! now that we know the size, allocate main arrays for storing interpolation information
-    write(*,*) 's2c_setupInterpInfo: numGridptTotal = ', numGridptTotal
+    write(*,*) 'setupInterpInfo2dFields: numGridptTotal = ', numGridptTotal
+    call mmpi_allReduce(numGridptTotal, numGridptTotalMpi, mmpi_sum)
+    write(*,*) 'setupInterpInfo2dFields: numGridptTotal, numGridptTotalMpi = ',  &
+                                         numGridptTotal, numGridptTotalMpi
+
     allocate(interpInfo%latIndexDepot(numGridptTotal))
     allocate(interpInfo%lonIndexDepot(numGridptTotal))
     allocate(interpInfo%interpWeightDepot(numGridptTotal))
@@ -1150,7 +4784,7 @@ contains
       end do
 
       if ( numAllTovs > 0 ) then
-        write(*,'(A,2(I5,A2),F5.1,A)') 's2c_setupInterpInfo: numTovsUsingFootprint/numAllTovs=', &
+        write(*,'(A,2(I5,A2),F5.1,A)') 'setupInterpInfo2dFields: numTovsUsingFootprint/numAllTovs=', &
                        numTovsUsingFootprint, ' /', numAllTovs, ' (', &
                        real(numTovsUsingFootprint) / real(numAllTovs) * 100.0, '%)'
       end if
@@ -1165,15 +4799,16 @@ contains
 
     interpInfo%initialized = .true.
 
-    call msg_memUsage('s2c_setupInterpInfo')
-    write(*,*) 's2c_setupInterpInfo: FINISHED'
+    call msg_memUsage('setupInterpInfo2dFields')
+    write(*,*) 'setupInterpInfo2dFields: FINISHED'
 
-  end subroutine s2c_setupInterpInfo
+  end subroutine setupInterpInfo2dFields
 
   !---------------------------------------------------------
   ! s2c_tl
   !---------------------------------------------------------
-  subroutine s2c_tl(statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
+  subroutine s2c_tl(statevector_in, columnAnlInc, columnTrlOnAnlIncLev,  &
+                    obsSpaceData, beSilent_opt)
     !
     ! :Purpose: Tangent linear version of the horizontal
     !           interpolation, used for the increment (or perturbations).
@@ -1185,42 +4820,42 @@ contains
     type(struct_obs)        , intent(inout) :: obsSpaceData
     type(struct_columnData) , intent(inout) :: columnAnlInc
     type(struct_columnData) , intent(inout) :: columnTrlOnAnlIncLev
+    logical,        optional, intent(in)    :: beSilent_opt
 
     ! Locals:
-    type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
-    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, headerUsedIndex
-    real(8) :: weight
-    real(8), pointer     :: allCols_ptr(:,:)
-    real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
-    real(pre_incrReal), pointer :: ptr3d_UV(:,:,:)
-    real(8), allocatable :: cols_hint(:,:,:)
-    real(8), allocatable :: cols_send(:,:)
-    real(8), allocatable :: cols_recv(:,:)
-    real(8), allocatable :: cols_send_1proc(:)
-    logical              :: rejectOutsideObs
-    character(len=4)     :: varName
-    character(len=4), pointer :: varNames(:)
 
     call utl_tmg_start(30,'--StateToColumn')
-
-    if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(38,'----s2c_TL')
 
+    call utl_tmg_start(40,'------s2c_barrier_TL')
     call mmpi_barrier
+    call utl_tmg_stop(40)
+
+    if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
+
+    call readNml()
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then
       call utl_abort('s2c_tl: stateVector must be allocated')
     end if
 
-    if (interpInfo_tlad%initialized) then
+    if (trim(mpiMode) == '2DFIELDS' .and. interpInfo_tlad%initialized) then
+
       if (.not. hco_equal(interpInfo_tlad%hco,stateVector_in%hco)) then
         write(*,*) 's2c_tl: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
         write(*,*) 's2c_tl: InterpInfo_tlad will be deallocated.'
         call s2c_deallocInterpInfo(inputStateVectorType='tlad')
       end if
+
+    else if(trim(mpiMode) == 'TILES' .and. interpInfoTiles_tlad%initialized) then
+
+      if (.not. hco_equal(interpInfoTiles_tlad%hco,stateVector_in%hco)) then
+        write(*,*) 's2c_tl: WARNING! Current hco grid parameters differ from allocated interpInfoTiles_tlad!'
+        write(*,*) 's2c_tl: InterpInfoTiles_tlad will be deallocated.'
+        call s2c_deallocInterpInfo(inputStateVectorType='tlad')
+      end if
+
     end if
 
     ! check the column and statevector have same nk/varNameList
@@ -1241,6 +4876,65 @@ contains
       ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
       call gvt_transform( statevector, 'ZandP_tl' )
     end if
+
+    if (trim(mpiMode) == '2DFIELDS') then
+      call tl2dFields(stateVector, obsSpaceData, columnAnlInc)
+    else if (trim(mpiMode) == 'TILES') then
+      call tlTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
+    else
+      call utl_abort('s2c_tl: invalid value of mpiMode = '//trim(mpiMode))
+    end if
+
+    if (calcHeightPressIncrOnColumn) then
+      ! calculate delP_T/delP_M and  del Z_T/Z_M on the columns
+      call czp_calcZandP_tl(columnAnlInc, columnTrlOnAnlIncLev)
+    end if
+
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_deallocate(stateVector)
+      deallocate(stateVector)
+    end if
+
+    if (slantPath_TO_tlad) then
+      call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
+    end if
+
+    call utl_tmg_stop(38)
+    call utl_tmg_stop(30)
+
+  end subroutine s2c_tl
+
+  !---------------------------------------------------------
+  ! tl2dFields
+  !---------------------------------------------------------
+  subroutine tl2dFields(stateVector, obsSpaceData, columnAnlInc)
+    !
+    ! :Purpose: Tangent-linear version of the horizontal interpolation,
+    !           used for increments or perturbations.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),           intent(inout) :: stateVector
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    type(struct_columnData),    intent(inout) :: columnAnlInc
+
+    ! Locals:
+    type(struct_gsv) :: stateVector_VarsLevs
+    integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
+    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
+    integer :: procIndex, headerUsedIndex
+    real(8) :: weight
+    real(8), pointer     :: allCols_ptr(:,:)
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:)
+    real(pre_incrReal), pointer :: ptr3d_UV(:,:,:)
+    real(8), allocatable :: cols_hint(:,:,:)
+    real(8), allocatable :: cols_send(:,:)
+    real(8), allocatable :: cols_recv(:,:)
+    real(8), allocatable :: cols_send_1proc(:)
+    logical              :: rejectOutsideObs
+    character(len=4)     :: varName
+    character(len=4), pointer :: varNames(:)
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
@@ -1268,9 +4962,9 @@ contains
       rejectOutsideObs = .false.
       call utl_tmg_stop(38)
       call utl_tmg_start(31,'----s2c_Setups')
-      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
-                                inputStateVectorType='tl' )
+      call setupInterpInfo2dFields( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
+                                    1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
+                                    inputStateVectorType='tl' )
       call utl_tmg_stop(31)
       call utl_tmg_start(38,'----s2c_TL')
     end if
@@ -1361,8 +5055,6 @@ contains
 
       end if ! if varLevIndex <= myVarLevEnd
 
-      call mmpi_barrier
-
       ! mpi communication: alltoall for one level/variable
       if(mmpi_nprocs > 1) then
         call mmpi_alltoall(cols_send, cols_recv)
@@ -1390,34 +5082,20 @@ contains
 
     end do k_loop
 
-    if (calcHeightPressIncrOnColumn) then
-      ! calculate delP_T/delP_M and  del Z_T/Z_M on the columns
-      call czp_calcZandP_tl(columnAnlInc, columnTrlOnAnlIncLev)
-    end if
-
     deallocate(cols_hint)
     deallocate(cols_send)
     deallocate(cols_recv)
     deallocate(cols_send_1proc)
 
     call gsv_deallocate( statevector_VarsLevs )
-    if (calcHeightPressIncrOnColumn) then
-      call gsv_deallocate( stateVector )
-      deallocate(stateVector)
-    end if
 
-    if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
-
-    call utl_tmg_stop(38)
-
-    call utl_tmg_stop(30)
-
-  end subroutine s2c_tl
+  end subroutine tl2dFields
 
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
-  subroutine s2c_ad(statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
+  subroutine s2c_ad(statevector_out, columnAnlInc, columnTrlOnAnlIncLev,  &
+                    obsSpaceData, beSilent_opt)
     !
     ! :Purpose: Adjoint version of the horizontal interpolation,
     !           used for the cost function gradient with respect to the increment.
@@ -1429,56 +5107,115 @@ contains
     type(struct_obs)        , intent(inout) :: obsSpaceData
     type(struct_columnData) , intent(inout) :: columnAnlInc
     type(struct_columnData) , intent(inout) :: columnTrlOnAnlIncLev
+    logical,        optional, intent(in)    :: beSilent_opt
 
     ! Locals:
-    type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
-    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
-    integer :: procIndex, headerUsedIndex
-    character(len=4)     :: varName
-    real(8) :: weight
-    real(8), pointer     :: allCols_ptr(:,:)
-    real(pre_incrReal), pointer :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
-    real(8), allocatable :: cols_hint(:,:,:)
-    real(8), allocatable :: cols_send(:,:)
-    real(8), allocatable :: cols_recv(:,:)
-    logical              :: rejectOutsideObs
-    character(len=4), pointer :: varNames(:)
 
     call utl_tmg_start(30,'--StateToColumn')
+    call utl_tmg_start(41,'----s2c_AD')
+
+    call utl_tmg_start(43,'------s2c_barrier_AD')
+    call mmpi_barrier
+    call utl_tmg_stop(43)
 
     if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(40,'----s2c_AD')
-
-    call mmpi_barrier
 
     if ( .not. gsv_isAllocated(stateVector_out) ) then
       call utl_abort('s2c_ad: stateVector must be allocated')
     end if
 
-    if (interpInfo_tlad%initialized) then
+    if (trim(mpiMode) == '2DFIELDS' .and. interpInfo_tlad%initialized) then
+
       if (.not. hco_equal(interpInfo_tlad%hco,stateVector_out%hco)) then
         write(*,*) 's2c_ad: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
         write(*,*) 's2c_ad: InterpInfo_tlad will be deallocated.'
         call s2c_deallocInterpInfo(inputStateVectorType='tlad')
       end if
-    end if
 
+    else if(trim(mpiMode) == 'TILES' .and. interpInfoTiles_tlad%initialized) then
+
+      if (.not. hco_equal(interpInfoTiles_tlad%hco,stateVector_out%hco)) then
+        write(*,*) 's2c_ad: WARNING! Current hco grid parameters differ from allocated interpInfoTiles_tlad!'
+        write(*,*) 's2c_ad: InterpInfoTiles_tlad will be deallocated.'
+        call s2c_deallocInterpInfo(inputStateVectorType='tlad')
+      end if
+
+    end if
 
     ! if we only compute Height and Pressure on column, make copy without them
     if (calcHeightPressIncrOnColumn) then
       allocate(stateVector)
-      call gsv_allocate( stateVector, statevector_out%numstep, &
-                         statevector_out%hco, statevector_out%vco, &
-                         mpi_local_opt=.true., &
-                         dataKind_opt=gsv_getDataKind(statevector_out), &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVector, statevector_out%numstep, &
+                        statevector_out%hco, statevector_out%vco, &
+                        mpi_local_opt=.true., &
+                        dataKind_opt=gsv_getDataKind(statevector_out), &
+                        allocHeight_opt=.false., allocPressure_opt=.false.)
       ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the columns
       call czp_calcZandP_ad(columnAnlInc, columnTrlOnAnlIncLev)
     else
       stateVector => stateVector_out
     end if
+
+    if (trim(mpiMode) == '2DFIELDS') then
+      call ad2dFields(stateVector, obsSpaceData, columnAnlInc)
+    else if (trim(mpiMode) == 'TILES') then
+      call adTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
+    else
+      call utl_abort('s2c_ad: invalid value of mpiMode = '//trim(mpiMode))
+    end if
+
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_zero(statevector_out)
+      call gsv_copy(stateVector, stateVector_out, allowVarMismatch_opt=.true.)
+    else
+      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the grid
+      call gvt_transform( statevector, 'ZandP_ad' )
+    end if
+
+    if (slantPath_TO_tlad) then
+      call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
+    end if
+
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_deallocate( statevector )
+      deallocate(stateVector)
+    end if
+
+    call utl_tmg_stop(41)
+    call utl_tmg_stop(30)
+
+  end subroutine s2c_ad
+
+  !---------------------------------------------------------
+  ! ad2dFields
+  !---------------------------------------------------------
+  subroutine ad2dFields(stateVector, obsSpaceData, columnAnlInc)
+    !
+    ! :Purpose: Adjoint version of the horizontal interpolation,
+    !           used for the cost function gradient with respect to the increment.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),        intent(inout) :: stateVector
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnAnlInc
+
+    ! Locals:
+    type(struct_gsv) :: stateVector_VarsLevs
+    integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
+    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
+    integer :: procIndex, headerUsedIndex
+    character(len=4)     :: varName
+    real(8) :: weight
+    real(pre_incrReal), pointer :: ptr4d(:,:,:,:), ptr3d_UV(:,:,:)
+    real(8), pointer     :: allCols_ptr(:,:)
+    real(8), allocatable :: cols_hint(:,:,:)
+    real(8), allocatable :: cols_send(:,:)
+    real(8), allocatable :: cols_recv(:,:)
+    logical              :: rejectOutsideObs
+    character(len=4), pointer :: varNames(:)
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
@@ -1496,13 +5233,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(40)
+      call utl_tmg_stop(41)
       call utl_tmg_start(31,'----s2c_Setups')
-      call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
-                                1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
-                                inputStateVectorType='ad' )
+      call setupInterpInfo2dFields( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
+                                    1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
+                                    inputStateVectorType='ad' )
       call utl_tmg_stop(31)
-      call utl_tmg_start(40,'----s2c_AD')
+      call utl_tmg_start(41,'----s2c_AD')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1542,8 +5279,6 @@ contains
       end do proc_loop
       !$OMP END PARALLEL DO
 
-      call mmpi_barrier
-
       ! mpi communication: alltoall for one level/variable
       if(mmpi_nprocs > 1) then
         call mmpi_alltoall(cols_send, cols_recv)
@@ -1576,7 +5311,7 @@ contains
           end do
         end do
 
-        call utl_tmg_start(41,'------s2c_AD_Hinterp')
+        call utl_tmg_start(42,'------s2c_AD_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1603,7 +5338,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(41)
+        call utl_tmg_stop(42)
 
       end if ! if varLevIndex <= myVarLevEnd
 
@@ -1613,31 +5348,11 @@ contains
     deallocate(cols_send)
     deallocate(cols_recv)
 
-    call mmpi_barrier
-
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
-    if (calcHeightPressIncrOnColumn) then
-      call gsv_zero(statevector_out)
-      call gsv_copy(stateVector, stateVector_out, allowVarMismatch_opt=.true.)
-    else
-      ! Adjoint of calculate del Z_T/Z_M and delP_T/delP_M on the grid
-      call gvt_transform( statevector, 'ZandP_ad' )
-    end if
-
     call gsv_deallocate( statevector_VarsLevs )
-    if (calcHeightPressIncrOnColumn) then
-      call gsv_deallocate( statevector )
-      deallocate(stateVector)
-    end if
 
-    if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
-
-    call utl_tmg_stop(40)
-
-    call utl_tmg_stop(30)
-
-  end subroutine s2c_ad
+  end subroutine ad2dFields
 
   !---------------------------------------------------------
   ! s2c_nl
@@ -1664,6 +5379,83 @@ contains
     logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals:
+    logical :: moveObsAtPole, rejectOutsideObs, beSilent
+
+    call utl_tmg_start(30,'--StateToColumn')
+    call utl_tmg_start(34,'----s2c_NL')
+
+    ! Read the namelist
+    call readNml()
+
+    if (present(moveObsAtPole_opt)) then
+      moveObsAtPole = moveObsAtPole_opt
+    else
+      moveObsAtPole = .false.
+    end if
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if (.not. interpInfo_nl%initialized .and. &
+        .not. interpInfoTiles_nl%initialized) then
+
+      call utl_tmg_start(31,'----s2c_Setups')
+      ! Reject obs outside (LAM) domain and optionally move obs near
+      ! numerical pole to first/last analysis grid latitude
+      call latlonChecksAnlGrid(obsSpaceData, hco_core, moveObsAtPole)
+
+      ! Do not reject obs for global domain
+      rejectOutsideObs = .not. stateVector%hco%global
+      write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
+      call utl_tmg_stop(31)
+
+    end if
+
+    if (.not. beSilent) then
+      write(*,*) 's2c_nl: oceanMaskPresent = ', stateVector%oceanMask%maskPresent
+    end if
+
+    if (trim(mpiMode) == '2DFIELDS') then
+      call nl2dFields(stateVector, obsSpaceData, column, timeInterpType, &
+                      rejectOutsideObs, beSilent, numObsBatches_opt, dealloc_opt)
+    else if (trim(mpiMode) == 'TILES') then
+      call nlTiles(stateVector, obsSpaceData, column, timeInterpType, &
+                   rejectOutsideObs, beSilent, dealloc_opt)
+    else
+      call utl_abort('s2c_nl: invalid value of mpiMode = '//trim(mpiMode))
+    end if
+
+    call utl_tmg_stop(34)
+    call utl_tmg_stop(30)
+
+  end subroutine s2c_nl
+
+  !---------------------------------------------------------
+  ! nl2dFields
+  !---------------------------------------------------------
+  subroutine nl2dFields(stateVector, obsSpaceData, column, timeInterpType, &
+                        rejectOutsideObs, beSilent, numObsBatches_opt, dealloc_opt)
+    !
+    ! :Purpose: Non-linear version of the horizontal interpolation,
+    !           used for a full field (usually the background state when computing
+    !           the innovation vector).
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)       ,    intent(inout) :: stateVector
+    type(struct_obs)       ,    intent(inout) :: obsSpaceData
+    type(struct_columnData),    intent(inout) :: column
+    character(len=*)          , intent(in)    :: timeInterpType
+    logical,                    intent(inout) :: rejectOutsideObs
+    logical,                    intent(in)    :: beSilent
+    integer,          optional, intent(in)    :: numObsBatches_opt
+    logical,          optional, intent(in)    :: dealloc_opt
+
+    ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs
     integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
@@ -1681,30 +5473,17 @@ contains
     integer              :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     integer              :: senddispls(mmpi_nprocs), sendsizes(mmpi_nprocs)
     integer              :: recvdispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
-    logical              :: dealloc, moveObsAtPole, rejectOutsideObs, beSilent
+    logical              :: dealloc
     logical, save        :: firstCall = .true.
     character(len=4), pointer :: varNames(:)
 
-    call utl_tmg_start(30,'--StateToColumn')
-    call utl_tmg_start(34,'----s2c_NL')
-
-    call utl_tmg_start(37,'------s2c_NL_barrier')
-    call mmpi_barrier
-    call utl_tmg_stop(37)
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .false.
-    end if
-
     if (.not. beSilent) then
-      write(*,*) 's2c_nl: STARTING'
+      write(*,*) 'nl2dFields: STARTING'
       call msg_memUsage('s2c_nl')
     end if
 
     if (.not. gsv_isAllocated(stateVector)) then
-      call utl_abort('s2c_nl: stateVector must be allocated')
+      call utl_abort('nl2dFields: stateVector must be allocated')
     end if
 
     if (present(dealloc_opt)) then
@@ -1730,20 +5509,14 @@ contains
 
     if (interpInfo_nl%initialized) then
       if (.not. hco_equal(interpInfo_nl%hco,stateVector%hco) .or. numObsBatches > 1) then
-        write(*,*) 's2c_nl: WARNING! Current hco grid parameters differ from allocated interpInfo!'
-        write(*,*) 's2c_nl: InterpInfo will be deallocated.'
+        write(*,*) 'nl2dFields: WARNING! Current hco grid parameters differ from allocated interpInfo!'
+        write(*,*) 'nl2dFields: InterpInfo will be deallocated.'
         call s2c_deallocInterpInfo(inputStateVectorType = 'nl')
       end if
     end if
 
     if (stateVector%mpi_distribution /= 'Tiles') then
-      call utl_abort('s2c_nl: stateVector must by Tiles distributed')
-    end if
-
-    if (present(moveObsAtPole_opt)) then
-      moveObsAtPole = moveObsAtPole_opt
-    else
-      moveObsAtPole = .false.
+      call utl_abort('nl2dFields: stateVector must by Tiles distributed')
     end if
 
     ! check the column and statevector have same nk/varNameList
@@ -1761,7 +5534,7 @@ contains
                         allocHeightSfc_opt = .true., varNames_opt = varNames )
       deallocate(varNames)
     else
-      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
+      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'nl2dFields: avoid re-allocating statevector_VarsLevs'
       call gsv_zero(statevector_VarsLevs)
     end if
 
@@ -1769,21 +5542,6 @@ contains
                                       beSilent_opt=beSilent)
 
     numStep = stateVector_VarsLevs%numStep
-
-    if (.not. interpInfo_nl%initialized) then
-      call utl_tmg_stop(34)
-      call utl_tmg_start(31,'----s2c_Setups')
-      ! also reject obs outside (LAM) domain and optionally move obs near
-      ! numerical pole to first/last analysis grid latitude
-      call latlonChecksAnlGrid(obsSpaceData, hco_core, moveObsAtPole)
-
-      ! Do not reject obs for global domain
-      rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
-      write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
-      call utl_tmg_stop(31)
-      call utl_tmg_start(34,'----s2c_NL')
-
-    end if
 
     ! set contents of column to zero
     call col_zero(column)
@@ -1801,10 +5559,10 @@ contains
       call mmpi_allGather(numHeader,      allNumHeader)
       call mmpi_allGather(headerIndexBeg, allHeaderIndexBeg)
       if ( .not. beSilent ) then
-        write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
+        write(*,*) 'nl2dFields: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
              headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
         if (mmpi_myid == 0) then
-           write(*,*) 's2c_nl: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
+           write(*,*) 'nl2dFields: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
         end if
       end if
 
@@ -1813,14 +5571,14 @@ contains
         call utl_tmg_start(31,'----s2c_Setups')
 
         ! compute and collect all obs grids onto all mpi tasks
-        call s2c_setupInterpInfo(interpInfo_nl, obsSpaceData, stateVector_VarsLevs, &
-                                 headerIndexBeg, headerIndexEnd, &
-                                 timeInterpType, rejectOutsideObs, &
-                                 inputStateVectorType = 'nl', &
-                                 lastCall_opt = (obsBatchIndex == numObsBatches))
+        call setupInterpInfo2dFields(interpInfo_nl, obsSpaceData, stateVector_VarsLevs, &
+                                     headerIndexBeg, headerIndexEnd, &
+                                     timeInterpType, rejectOutsideObs, &
+                                     inputStateVectorType = 'nl', &
+                                     lastCall_opt = (obsBatchIndex == numObsBatches))
         if (mmpi_myid == 0 .and. verbose) then
           do stepIndex = 1, numStep
-            write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
+            write(*,*) 'nl2dFields: stepIndex, allNumHeaderUsed = ',  &
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
           end do
         end if
@@ -1910,12 +5668,7 @@ contains
 
         end if ! if varLevIndex <= myVarLevEnd
 
-        call utl_tmg_start(37,'------s2c_NL_barrier')
-        call mmpi_barrier
-        call utl_tmg_stop(37)
-
         ! mpi communication: alltoallv for one level/variable
-        call utl_tmg_start(36,'------s2c_NL_allToAll')
 
         ! only receive the data from tasks with data, same amount from all of those
         recvsizes(:) = 0
@@ -1948,7 +5701,6 @@ contains
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
-        call utl_tmg_stop(36)
 
         ! reorganize ensemble of distributed columns
         !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, headerIndex, headerIndex2, varName, &
@@ -1995,8 +5747,9 @@ contains
       HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
         if (mmpi_myid == 0) then
-          varName = 'GZ'
+          !varName = 'GZ'
           varLevIndexHeightSfc = 0
+
           step_loop_height: do stepIndex = 1, numStep
 
             if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_height
@@ -2050,6 +5803,65 @@ contains
 
       end if HeightSfcPresent
 
+      ! Interpolate surface height LS separately, only exists on mpi task 0
+      HeightSfcLsPresent: if ( stateVector_VarsLevs%HeightSfcLsPresent ) then
+
+        if (mmpi_myid == 0) then
+          !varName = 'MELS'
+          varLevIndexHeightSfc = 0
+          step_loop_heightLs: do stepIndex = 1, numStep
+
+            if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_heightLs
+
+            ! interpolate to the columns destined for all procs for all steps and one lev/var
+            !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
+            do procIndex = 1, mmpi_nprocs
+              yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+              if ( yourNumHeader > 0 ) then
+                ptr2d_r8 => gsv_getHeightSfcLS(stateVector_VarsLevs)
+                call myezsint_r8_nl( cols_hint(1:yourNumHeader, stepIndex, procIndex), &
+                                     ptr2d_r8(:,:), interpInfo_nl, varLevIndexHeightSfc, stepIndex, procIndex )
+              end if
+            end do
+            !$OMP END PARALLEL DO
+
+          end do step_loop_heightLs
+
+          ! interpolate in time to the columns destined for all procs and one level/variable
+          do procIndex = 1, mmpi_nprocs
+            cols_send(:,procIndex) = 0.0d0
+            do stepIndex = 1, numStep
+              !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex)
+              do headerUsedIndex = 1, interpInfo_nl%allNumHeaderUsed(stepIndex, procIndex)
+                headerIndex = interpInfo_nl%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerUsedIndex)
+                ! just copy, since surface height same for all time steps
+                headerIndex2 = headerIndex - allHeaderIndexBeg(procIndex) + 1
+                cols_send(headerIndex2,procIndex) = cols_hint(headerUsedIndex, stepIndex, procIndex)
+              end do
+              !$OMP END PARALLEL DO
+            end do
+          end do
+
+        end if
+
+        ! mpi communication: scatter data from task 0
+        if(mmpi_nprocs > 1) then
+          do procIndex = 1, mmpi_nprocs
+            displs(procIndex) = (procIndex - 1) * numHeaderMax
+            nsizes(procIndex) = allNumHeader(procIndex)
+          end do
+          call mmpi_scatterv(cols_send, cols_recv, nsizes, displs, numHeader)
+        else
+          cols_recv(:,1) = cols_send(:,1)
+        end if
+
+        do headerIndex = headerIndexBeg, headerIndexEnd
+          headerIndex2 = headerIndex - headerIndexBeg + 1
+          call col_setHeightSfcLs(column, headerIndex, cols_recv(headerIndex2,1))
+        end do
+
+      end if HeightSfcLsPresent
+
       deallocate(cols_hint)
       deallocate(cols_send)
       deallocate(cols_recv)
@@ -2059,22 +5871,18 @@ contains
 
     end do OBSBATCH
 
-    if ( dealloc) call gsv_deallocate( statevector_VarsLevs )
+    if (dealloc) call gsv_deallocate( statevector_VarsLevs )
 
     if (slantPath_TO_nl) call pressureProfileMonotonicityCheck(obsSpaceData, column)
 
     firstCall = .false.
 
     if ( .not. beSilent ) then
-      write(*,*) 's2c_nl: FINISHED'
+      write(*,*) 'nl2dFields: FINISHED'
       call msg_memUsage('s2c_nl')
     end if
 
-    call utl_tmg_stop(34)
-
-    call utl_tmg_stop(30)
-
-  end subroutine s2c_nl
+  end subroutine nl2dFields
 
   ! -------------------------------------------------
   ! myezsint_nl: Scalar field horizontal interpolation
@@ -2601,9 +6409,9 @@ contains
       if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
-      ierr = gpos_getPositionXY( stateVector % hco % EZscintID,   &
+      ierr = gpos_getPositionXY(stateVector % hco % EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                lat_deg_r4, lon_deg_r4, subGridIndex )
+                                lat_deg_r4, lon_deg_r4, subGridIndex)
       xpos = real(xpos_r4,8)
       ypos = real(ypos_r4,8)
 
@@ -2951,9 +6759,9 @@ contains
                  MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                              lat_deg_r4, lon_deg_r4, subGridIndex)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( stateVector%hco%grtyp == 'G' .or. &
@@ -3168,7 +6976,7 @@ contains
     ! Locals:
     integer :: depotIndex
     integer :: ierr
-    integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
+    integer :: latIndexCentre, lonIndexCentre
     integer :: subGridIndex, numLocalGridptsFoundSearch
     real(4) :: lonObs_deg_r4, latObs_deg_r4
     real(8) :: lonObs, latObs
@@ -3189,14 +6997,12 @@ contains
 
     latObs_deg_r4 = real(latObs * MPC_DEGREES_PER_RADIAN_R8)
     lonObs_deg_r4 = real(lonObs * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              latObs_deg_r4, lonObs_deg_r4, subGridIndex )
+                              latObs_deg_r4, lonObs_deg_r4, subGridIndex)
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
-    lonIndexCentre2 = nint(xpos2_r4)
-    latIndexCentre2 = nint(ypos2_r4)
 
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupFootprintInterp: revise code'
@@ -3320,7 +7126,7 @@ contains
     ! Locals:
     integer :: depotIndex
     integer :: ierr
-    integer :: latIndexCentre, lonIndexCentre, latIndexCentre2, lonIndexCentre2
+    integer :: latIndexCentre, lonIndexCentre
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(4) :: lon_deg_r4, lat_deg_r4
     real(8) :: lon_rad, lat_rad
@@ -3352,14 +7158,12 @@ contains
     lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
-    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                               lat_deg_r4, lon_deg_r4, subGridIndex )
+    ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &
+                              xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                              lat_deg_r4, lon_deg_r4, subGridIndex)
 
     lonIndexCentre = nint(xpos_r4)
     latIndexCentre = nint(ypos_r4)
-    lonIndexCentre2 = nint(xpos2_r4)
-    latIndexCentre2 = nint(ypos2_r4)
 
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupLakeInterp: revise code'
@@ -3478,9 +7282,9 @@ contains
     lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
-    ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
+    ierr = gpos_getPositionXY(stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                              lat_deg_r4, lon_deg_r4, subGridIndex)
 
     latIndex = nint(ypos_r4)
     lonIndex = nint(xpos_r4)
@@ -3597,9 +7401,9 @@ contains
     !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
     lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
     lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
-    ierr = gpos_getPositionXY( hco%EZscintID,   &
+    ierr = gpos_getPositionXY(hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                              lat_deg_r4, lon_deg_r4, subGridIndex )
+                              lat_deg_r4, lon_deg_r4, subGridIndex)
 
     latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
                           xpos_r4 > real(niP1) .or. &
@@ -3620,9 +7424,9 @@ contains
       !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
       lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
-      ierr = gpos_getPositionXY( hco%EZscintID,   &
+      ierr = gpos_getPositionXY(hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                lat_deg_r4, lon_deg_r4, subGridIndex )
+                                lat_deg_r4, lon_deg_r4, subGridIndex)
 
       latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
                             xpos_r4 > real(niP1) .or. &
@@ -3644,9 +7448,9 @@ contains
       !     lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R4
       lat_deg_r4 = real( real(lat_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
       lon_deg_r4 = real( real(lon_r4,8) * MPC_DEGREES_PER_RADIAN_R8, 4)
-      ierr = gpos_getPositionXY( hco%EZscintID,   &
+      ierr = gpos_getPositionXY(hco%EZscintID,   &
                                 xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                lat_deg_r4, lon_deg_r4, subGridIndex )
+                                lat_deg_r4, lon_deg_r4, subGridIndex)
 
       latlonOutsideGrid = ( xpos_r4 < 1.0        .or. &
                             xpos_r4 > real(niP1) .or. &
@@ -3845,46 +7649,108 @@ contains
     character(len=*), intent(in) :: inputStateVectorType
 
     ! Locals:
-    type(struct_interpInfo), pointer :: interpInfo
+    type(struct_interpInfo),      pointer :: interpInfo
+    type(struct_interpInfoTiles), pointer :: intInfoTiles
     integer :: stepIndex, procIndex, numStep
 
-    select case( trim(inputStateVectorType) )
-      case('nl')
-        interpInfo => interpInfo_nl
-      case('tlad')
-        interpInfo => interpInfo_tlad
-      case default
-        call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
-    end select
+    if (trim(mpiMode) == '2DFIELDS') then
 
-    if ( .not. interpInfo%initialized ) return
+      select case( trim(inputStateVectorType) )
+        case('nl')
+          interpInfo => interpInfo_nl
+        case('tlad')
+          interpInfo => interpInfo_tlad
+        case default
+          call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+      end select
 
-    write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
-                inputStateVectorType
+      if ( .not. interpInfo%initialized ) return
 
-    numStep = size(interpInfo%stepProcData,2)
+      write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
+           inputStateVectorType
 
-    deallocate(interpInfo%interpWeightDepot)
-    deallocate(interpInfo%latIndexDepot)
-    deallocate(interpInfo%lonIndexDepot)
-    do stepIndex = 1, numStep
-      do procIndex = 1, mmpi_nprocs
-        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat)
-        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon)
-        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex)
-        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg)
-        deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd)
-        if ( interpInfo%hco%rotated ) then
-          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot)
-          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot)
-        end if
+      numStep = size(interpInfo%stepProcData,2)
+
+      deallocate(interpInfo%interpWeightDepot)
+      deallocate(interpInfo%latIndexDepot)
+      deallocate(interpInfo%lonIndexDepot)
+      do stepIndex = 1, numStep
+        do procIndex = 1, mmpi_nprocs
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg)
+          deallocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd)
+          if ( interpInfo%hco%rotated ) then
+            deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot)
+            deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot)
+          end if
+        end do
       end do
-    end do
-    deallocate(interpInfo%stepProcData)
-    deallocate(interpInfo%allNumHeaderUsed)
-    call oti_deallocate(interpInfo%oti)
+      deallocate(interpInfo%stepProcData)
+      deallocate(interpInfo%allNumHeaderUsed)
+      call oti_deallocate(interpInfo%oti)
 
-    interpInfo%initialized = .false.
+      interpInfo%initialized = .false.
+
+    else if(trim(mpiMode) == 'TILES') then
+
+      select case( trim(inputStateVectorType) )
+        case('nl')
+          intInfoTiles => interpInfoTiles_nl
+        case('tlad')
+          intInfoTiles => interpInfoTiles_tlad
+        case default
+          call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+      end select
+
+      if ( .not. intInfoTiles%initialized ) return
+
+      write(*,*) 's2c_deallocInterpInfo: deallocating interpInfo for inputStateVectorType=', &
+           inputStateVectorType
+
+      deallocate(intInfoTiles%varLevColFromVarLevState)
+
+      deallocate(intInfoTiles%allObsTileMpiId)
+      deallocate(intInfoTiles%allNumHeader)
+      deallocate(intInfoTiles%yourObsTileMpiId)
+      deallocate(intInfoTiles%yourObsSubGridIndex)
+      deallocate(intInfoTiles%yourObsLat)
+      deallocate(intInfoTiles%yourObsLon)
+
+      deallocate(intInfoTiles%myInterpObsLat)
+      deallocate(intInfoTiles%myInterpObsLon)
+      deallocate(intInfoTiles%myInterpObsXpos_r4)
+      deallocate(intInfoTiles%myInterpObsYpos_r4)
+      deallocate(intInfoTiles%myInterpObsSubGridIndex)
+      deallocate(intInfoTiles%myInterpObsFootprint_r4)
+      deallocate(intInfoTiles%myInterpObsMpiIdSrc)
+      deallocate(intInfoTiles%myInterpObsHeaderIndex)
+      if (intInfoTiles%rotatedWinds) then
+        deallocate(intInfoTiles%myInterpObsLatRot)
+        deallocate(intInfoTiles%myInterpObsLonRot)
+      end if
+
+      deallocate(intInfoTiles%depotIndexBeg)
+      deallocate(intInfoTiles%depotIndexEnd)
+      deallocate(intInfoTiles%latIndexDepot)
+      deallocate(intInfoTiles%lonIndexDepot)
+      deallocate(intInfoTiles%interpWeightDepot)
+
+      deallocate(intInfoTiles%myHaloLatIndex)
+      deallocate(intInfoTiles%myHaloLonIndex)
+      deallocate(intInfoTiles%myHaloMpiIdSrc)
+      deallocate(intInfoTiles%myHaloMpiTag)
+      deallocate(intInfoTiles%yourHaloLatIndex)
+      deallocate(intInfoTiles%yourHaloLonIndex)
+      deallocate(intInfoTiles%yourHaloMpiIdDst)
+      deallocate(intInfoTiles%yourHaloMpiTag)
+
+      call oti_deallocate(intInfoTiles%oti)
+
+      intInfoTiles%initialized = .false.
+
+    end if
 
   end subroutine s2c_deallocInterpInfo
 

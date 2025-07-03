@@ -141,6 +141,10 @@ contains
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
+    if (statevector%mpi_distribution == 'VarsLevs') then
+      call utl_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
+    end if
+
     Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
@@ -348,8 +352,6 @@ contains
       end if
 
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -476,30 +478,41 @@ contains
 
     ! Locals:
     integer ::  numStep, stepIndex
-    real(kind=8), pointer       :: Hsfc(:,:)
-    real(kind=4), allocatable   :: Hsfc4(:,:)
+    real(kind=8), pointer       :: Hsfc(:,:), HsfcLS(:,:)
+    real(kind=4), allocatable   :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
     real(kind=4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
-    allocate(Hsfc4(statevector%myLonBeg:statevector%myLonEnd, &
-                   statevector%myLatBeg:statevector%myLatEnd))
+    allocate(Hsfc_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                     statevector%myLatBeg:statevector%myLatEnd))
     Hsfc => gsv_getHeightSfc(statevector)
-    Hsfc4 = real(Hsfc,4)
+    Hsfc_r4 = real(Hsfc,4)
 
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
+      if (gsv_getVco(statevector)%sleveCoord) then
+        allocate(HsfcLS_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                           statevector%myLatBeg:statevector%myLatEnd))
+        HsfcLS => gsv_getHeightSfcLS(statevector)
+        HsfcLS_r4 = real(HsfcLS,4)
 
-      call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc4, &
-                            fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+        call fetch3DLevels_r4(gsv_getVco(statevector), sfcFld=Hsfc_r4, sfcFldLS_opt=HsfcLS_r4, &
+                              fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+
+        deallocate(HsfcLS_r4)
+      else
+        call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc_r4, &
+                              fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      end if
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out, skipDiagLevel=.true.)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out, skipDiagLevel=.true.)
       deallocate(GZHeightM_out, GZHeightT_out)
 
     end do
 
-    deallocate(Hsfc4)
+    deallocate(Hsfc_r4)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r4
@@ -584,7 +597,8 @@ contains
 
     ! Locals:
     integer ::  numStep, stepIndex
-    real(kind=8),     pointer :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    real(kind=8),     pointer :: Hsfc(:,:), HsfcLS(:,:)
+    real(kind=8),     pointer :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
     type(struct_vco), pointer :: vco_ptr
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
@@ -596,7 +610,8 @@ contains
     do stepIndex = 1, numStep
       if (vco_ptr%sleveCoord) then
         ! Need to get MELS!
-        call fetch3DLevels_r8(vco_ptr, sfcFld=Hsfc, sfcFldLS_opt=Hsfc, &
+        HsfcLS => gsv_getHeightSfcLS(statevector)
+        call fetch3DLevels_r8(vco_ptr, sfcFld=Hsfc, sfcFldLS_opt=HsfcLS, &
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       else
         call fetch3DLevels_r8(vco_ptr, sfcFld=Hsfc, &
@@ -1707,8 +1722,6 @@ contains
                                               ptr_PT_r8, ptr_PM_r8)
       end if
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -3200,7 +3213,7 @@ contains
     real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Locals:
-    real(8), allocatable      :: hSfc(:,:)
+    real(8), allocatable      :: hSfc(:,:), hSfcLS(:,:)
     real(8), pointer          :: hPtrM(:,:,:), hPtrT(:,:,:)
     type(struct_vco), pointer :: vco_ptr
     integer                   :: numCol, colIndex
@@ -3221,12 +3234,18 @@ contains
     vco_ptr => col_getVco(column)
     if (vco_ptr%sleveCoord) then
       ! Need to get MELS
-      call fetch3DLevels_r8(vco_ptr, sfcFld=hSfc, sfcFldLS_opt=hSfc, &
+      allocate(hSfcLS(1, numCol))
+      do colIndex = 1, numCol
+        hSfcLS(1,colIndex) = col_getHeightLS(column,colIndex, 'SF')
+      end do
+      call fetch3DLevels_r8(vco_ptr, sfcFld=hSfc, sfcFldLS_opt=hSfcLS, &
                             fldM_opt=hPtrM, fldT_opt=hPtrT)
+      deallocate(hSfcLS)
     else
       call fetch3DLevels_r8(vco_ptr, sfcFld=hSfc, &
                             fldM_opt=hPtrM, fldT_opt=hPtrT)
     end if
+
     Z_M(:,:) = transpose(hPtrM(1,:,:))
     Z_T(:,:) = transpose(hPtrT(1,:,:))
     deallocate(hPtrM, hPtrT)
@@ -4912,7 +4931,7 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+      if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
         call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
@@ -4926,7 +4945,7 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+      if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
         call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
@@ -4974,7 +4993,7 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+      if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
         call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
@@ -4988,7 +5007,7 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+      if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
         call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &

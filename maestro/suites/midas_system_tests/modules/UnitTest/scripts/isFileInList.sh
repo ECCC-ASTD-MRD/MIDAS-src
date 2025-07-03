@@ -1,1 +1,1 @@
-../../../../../../tools/midas_scripts/midas.launch_program
+../../../../../../tools/midas_scripts/midas.isFileInList

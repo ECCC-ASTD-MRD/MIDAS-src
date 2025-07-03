@@ -94,10 +94,11 @@ program midas_analysisErrorOI
   ! ``analysisErrorOI_mod`` ``NAMAER``          set the maximum analysis-error std dev. allowed
   !======================== ================== ==============================================================
   !
+  use rpn_comm
+  use midasMpi_mod
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod

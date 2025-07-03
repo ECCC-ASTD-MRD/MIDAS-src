@@ -7,6 +7,7 @@ MODULE bMatrixDiff_mod
   !           covariance matrix based on correlations modelled using a
   !           diffusion operator.
   !
+  use rpn_comm
   use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

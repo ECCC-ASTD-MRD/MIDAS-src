@@ -139,8 +139,9 @@ program midas_ensPostProcess
   !========================== ========================== ==============================================================
   !
 
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use message_mod
   use fileNames_mod
   use ensembleStateVector_mod

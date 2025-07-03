@@ -3,6 +3,9 @@
   DSTEPOBSINC = 48.0d0
   DWINDOWSIZE = 48.0d0
 /
+ &NAMS2C
+  mpiMode = 'TILES'
+/
  &NAMSTATE
   ANLVAR(1) = 'TM'
 /

@@ -76,8 +76,9 @@ program midas_calcStats
   !======================== ============ ==============================================================
   !
  
-  use version_mod
+  use rpn_comm
   use midasMpi_mod
+  use version_mod
   use fileNames_mod
   use horizontalCoord_mod
   use verticalCoord_mod

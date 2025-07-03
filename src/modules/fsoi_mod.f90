@@ -4,6 +4,7 @@ module fsoi_mod
   !
   !:Purpose: Observation impact (FSOI) library.
   !
+  use rpn_comm
   use midasMpi_mod
   use message_mod
   use codePrecision_mod

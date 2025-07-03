@@ -16,6 +16,7 @@ module diffusion_mod
   !:Basic equations: * Lcorr^2 = 2*k*dt*numt   (1)
   !                  * stab    = k*dt/dx^2     (2)
   !
+  use rpn_comm
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -818,7 +819,6 @@ contains
       myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
       xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
     end if
-    write(*,*) 'diff_Csqrt: min/maxval xout=', minval(xout),maxval(xout)
 
     allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
     if ( diff(diffID)%useImplicit ) then

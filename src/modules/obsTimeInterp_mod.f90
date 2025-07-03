@@ -5,6 +5,7 @@ module obsTimeInterp_mod
   !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
+  use rpn_comm
   use midasMpi_mod
   use utilities_mod
   use message_mod
@@ -26,6 +27,7 @@ module obsTimeInterp_mod
   public :: oti_timeInterpWeightAllZero
 
   type struct_oti
+    integer          :: numStep
     real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for temporal interpolation to obs times
     real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
   end type struct_oti
@@ -195,6 +197,7 @@ contains
 
     if (mmpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
 
+    oti%numStep = numStep
     allocate(oti%timeInterpWeight(headerIndexBeg:headerIndexEnd,numStep))
     oti%timeInterpWeight(:,:) = 0.0d0
     do headerIndex = headerIndexBeg, headerIndexEnd

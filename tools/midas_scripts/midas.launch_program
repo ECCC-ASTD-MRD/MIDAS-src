@@ -66,6 +66,12 @@ while [ $# -ne 0 ]; do
     shift
 done
 
+# check to insure the interactive environement has been loaded and prevent unwanted deletion
+if [ ! -f "./localFilesNotToErase" ]; then
+    echo './localFilesNotToErase absent, probably not in a working directory appropriate for interactive launnching'
+    exit 1
+fi
+
 if [ -z "${run_pgm}" ]; then
     echo 'You must provide a program to launch' >&2
     exit 1

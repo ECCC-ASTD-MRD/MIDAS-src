@@ -100,6 +100,7 @@
    ANLVAR(10)  ='O3L'
 /
  &NAMS2C
+   mpiMode = 'TILES'
    SLANTPATH_TO_NL   = .TRUE.,
    SLANTPATH_TO_TLAD = .FALSE.,
    SLANTPATH_RO_NL   = .TRUE.,

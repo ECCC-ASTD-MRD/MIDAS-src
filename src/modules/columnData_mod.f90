@@ -27,15 +27,16 @@ module columnData_mod
 
   ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
-  public :: col_varExist, col_getOffsetFromVarno
+  public :: col_varExist, col_getOffsetFromVarno, col_getOffsetFromVarName
   public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromVarLev
   public :: col_addHeightSfcOffset
-  public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
+  public :: col_getPressure, col_getHeight, col_getHeightLS
+  public :: col_setHeightSfc, col_setHeightSfcLS, col_copyHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
   public :: col_getLat, col_setLat, col_getOltv, col_setOltv
   public :: col_getVco, col_setVco
   public :: col_getLevFromVarLev, col_add, col_copy, col_copyLat
-            
+
   type struct_columnData
     private
     integer                   :: numVarLev
@@ -44,6 +45,7 @@ module columnData_mod
     logical                   :: addHeightSfcOffset = .false.
     real(8),          pointer :: all(:,:)
     real(8),          pointer :: heightSfc(:)
+    real(8),          pointer :: heightSfcLS(:)
     real(8),          pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     integer,          pointer :: varOffset(:)
     integer,          pointer :: varNumLev(:)
@@ -288,11 +290,6 @@ contains
       column%varExistList(vnl_varListIndex('P0LS')) = .true.
     end if
 
-    ! add MELS to the varExistList if vcode=21001 and SLEVE is active
-    if (column%vco%vcode == 21001 .and. column%vco%sleveCoord) then
-      column%varExistList(vnl_varListIndex('MELS')) = .true.
-    end if
-
     column%numCol = numCol
 
     if(.not.column%vco%initialized) then
@@ -352,6 +349,11 @@ contains
       allocate(column%heightSfc(column%numCol))
       column%heightSfc(:)=0.0d0
 
+      if (column%vco%vcode == 21001 .and. column%vco%sleveCoord) then
+        allocate(column%heightSfcLS(column%numCol))
+        column%heightSfcLS(:)=0.0d0
+      end if
+      
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
@@ -387,6 +389,9 @@ contains
     if(column%numCol > 0) then
       deallocate(column%all)
       deallocate(column%heightSfc)
+      if (column%vco%vcode == 21001 .and. column%vco%sleveCoord) then
+        deallocate(column%heightSfcLS)
+      end if
       deallocate(column%oltv)
       deallocate(column%lat)
     end if
@@ -465,6 +470,26 @@ contains
     offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
 
   end function col_getOffsetFromVarno
+
+  !--------------------------------------------------------------------------
+  ! col_getOffsetFromVarName
+  !--------------------------------------------------------------------------
+  function col_getOffsetFromVarName(column,varName) result(offset)
+    !
+    !:Purpose: Return the "offset" for a given variable name within the
+    !          "varsLevs" list of variables and levels.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column   ! The `columnData` object
+    character(len=*),        intent(in) :: varName  ! Variable name
+    ! Result:
+    integer                             :: offset   ! The returned offset value within "varsLevs"
+
+    offset=column%varOffset(vnl_varListIndex(trim(varName)))
+
+  end function col_getOffsetFromVarName
 
   !--------------------------------------------------------------------------
   ! col_getLevFromVarLev
@@ -622,7 +647,37 @@ contains
   end function col_getHeight
 
   !--------------------------------------------------------------------------
-  ! col_setHeightsSfc
+  ! col_getHeightLS
+  !--------------------------------------------------------------------------
+  function col_getHeightLS(column,headerIndex,varLevel) result(heightLS)
+    !
+    !:Purpose: Return the height LS (large scale) for a given level index, header/column
+    !          index and type of levels.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column      ! The `columnData` object
+    integer,                 intent(in) :: headerIndex ! The column/header index
+    character(len=*),        intent(in) :: varLevel    ! The type of vertical level
+    ! Result:
+    real(8)                             :: heightLS    ! The returned height value
+
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getHeightLS: headerIndex out of range')
+    end if
+
+    if (varLevel == 'SF' ) then
+      heightLS = column%heightSfcLS(headerIndex)
+    else
+      call utl_abort('col_getHeightLS: unknown varLevel! ' // varLevel)
+    end if
+
+  end function col_getHeightLS
+  
+  !--------------------------------------------------------------------------
+  ! col_setHeightSfc
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
     !
@@ -644,6 +699,29 @@ contains
 
   end subroutine col_setHeightSfc
 
+  !--------------------------------------------------------------------------
+  ! col_setHeightSfcLS
+  !--------------------------------------------------------------------------
+  subroutine col_setHeightSfcLS(column,headerIndex,heightLS)
+    !
+    !:Purpose: Set the height LS (large scale) of the surface for a given header/column index.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: column      ! The `columnData` object
+    integer,                 intent(in)    :: headerIndex ! The column/header index
+    real(8),                 intent(in)    :: heightLS    ! The supplied height value
+
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_setHeightSfcLS: headerIndex out of range')
+    end if
+    
+    column%heightSfcLS(headerIndex) = heightLS
+
+  end subroutine col_setHeightSfcLS
+  
   !--------------------------------------------------------------------------
   ! col_getOltv
   !--------------------------------------------------------------------------
@@ -702,7 +780,7 @@ contains
   !--------------------------------------------------------------------------
   ! col_getAllColumns
   !--------------------------------------------------------------------------
-  function col_getAllColumns(column,varName) result(allColumns)
+  function col_getAllColumns(column,varName_opt) result(allColumns)
     !
     !:Purpose: Return a pointer to either a portion of the main `column`
     !          object data array for a given variable or to the entire array.
@@ -710,21 +788,28 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column  ! The `columnData` object
-    character(len=*),        intent(in) :: varName ! The variable name
+    type(struct_columnData),    intent(in) :: column      ! The `columnData` object
+    character(len=*), optional, intent(in) :: varName_opt ! The variable name
     ! Result:
-    real(8), pointer                    :: allColumns(:,:) ! Resulting pointer to complete array
+    real(8), pointer                       :: allColumns(:,:) ! Resulting pointer to complete array
 
     ! Locals:
-    integer                             :: ilev1, ilev2
+    integer :: ilev1, ilev2
 
     if ( column%numCol > 0 ) then
-      if ( col_varExist(column,varName) ) then
-        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
-        allColumns => column%all(ilev1:ilev2,:)
+      if (present(varName_opt)) then
+        if ( col_varExist(column,varName_opt) ) then
+          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
+          allColumns => column%all(ilev1:ilev2,:)
+        else
+          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
+        end if
       else
-        call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
+        ! No variable name specified, return full columns
+        ilev1 = 1
+        ilev2 = column%numVarLev
+        allColumns => column%all(ilev1:ilev2,:)
       end if
     else
       allColumns => null()
@@ -1068,6 +1153,10 @@ contains
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
     columnOut%all(:,:) =  columnIn%all(:,:)
     columnOut%heightSfc(:) = columnIn%heightSfc(:)
+    if (columnIn%vco%vcode == 21001 .and. columnIn%vco%sleveCoord .and. &
+        columnOut%vco%vcode == 21001 .and. columnOut%vco%sleveCoord) then
+      columnOut%heightSfcLS(:) = columnIn%heightSfcLS(:)
+    end if
     columnOut%oltv(:,:,:) = columnIn%oltv(:,:,:)
     columnOut%lat(:) = columnIn%lat(:)
 
@@ -1128,8 +1217,12 @@ contains
       call utl_abort('col_copyHeightSfc: columnOut is not allocated')
     end if
 
-    ! Copy latitude
+    ! Copy surface height
     columnOut%heightSfc(:) = columnIn%heightSfc(:)
+    if (columnIn%vco%vcode == 21001 .and. columnIn%vco%sleveCoord .and. &
+        columnOut%vco%vcode == 21001 .and. columnOut%vco%sleveCoord) then
+      columnOut%heightSfcLS(:) = columnIn%heightSfcLS(:)
+    end if
 
   end subroutine col_copyHeightSfc
 

@@ -40,7 +40,7 @@ module gridStateVector_mod
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
   public :: gsv_transposeVarsLevsToTiles
   public :: gsv_getField, gsv_getFieldUV
-  public :: gsv_getHeightSfc, gsv_isAssocHeightSfc
+  public :: gsv_getHeightSfc, gsv_getHeightSfcLs, gsv_isAssocHeightSfc, gsv_isAssocHeightSfcLs
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
   public :: gsv_copyHeightSfc, gsv_copyMask
@@ -83,7 +83,9 @@ module gridStateVector_mod
     real(4), pointer, private :: gd3d_r4(:,:,:) => null()
     type(struct_ocm)    :: oceanMask
     logical             :: heightSfcPresent = .false.
-    real(8), pointer, private :: heightSfc(:,:) => null()  ! for VarsLevs, heightSfc only on proc 0
+    logical             :: heightSfcLsPresent = .false.
+    real(8), pointer, private :: heightSfc(:,:)   => null() ! for VarsLevs, heightSfc only on proc 0
+    real(8), pointer, private :: heightSfcLs(:,:) => null() ! for VarsLevs, heightSfcLs only on proc 0
 
     ! These are used when distribution is VarLevs to keep corresponding UV
     ! components together on each mpi task to facilitate horizontal interpolation
@@ -551,7 +553,10 @@ module gridStateVector_mod
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
 
     if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
-    if (varneed('P_T') .or. varneed('P_M')) call utl_abort('gsv_setup: pressure can not be specified as analysis variable in namelist!')
+    if (varneed('P_T') .or. varneed('P_M')) then
+      write(*,*)
+      write(*,*) 'gsv_setup: WARNING: Pressure as an analysis variable is not fully supported. Be careful!'
+    end if
 
     do varIndex = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(varIndex))) then
@@ -712,7 +717,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,varLevIndex,varLevIndex2,levUV
     character(len=4) :: UVname
-    logical :: beSilent, allocPressure, allocHeight, uuExist, vvExist
+    logical :: beSilent, allocPressure, allocHeight, allocHeightSfc, uuExist, vvExist
     integer :: verbLevel
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
@@ -796,10 +801,12 @@ module gridStateVector_mod
         statevector%varExistList(vnl_varListIndex('P0LS')) = .true.
       end if
 
-      ! add MELS to the varExistList if vcode=21001 and SLEVE is active
-      if (statevector%vco%vcode == 21001 .and. statevector%vco%sleveCoord) then
-        statevector%varExistList(vnl_varListIndex('MELS')) = .true.
-      end if
+    end if
+
+    if (present(allocHeightSfc_opt)) then
+      allocHeightSfc=allocHeightSfc_opt
+    else
+      allocHeightSfc=.false.
     end if
 
     if (statevector%vco%vcode == 5100) then
@@ -1151,15 +1158,22 @@ module gridStateVector_mod
       call utl_abort('gsv_allocate: Problem allocating memory! id=1 '//str(ierr))
     end if
 
-    if (present(allocHeightSfc_opt)) then
-      if (allocHeightSfc_opt) then
-        ! if VarsLevs, then only proc 0 allocates surface height, otherwise all procs do
-        statevector%heightSfcPresent = .true.
+    if (allocHeightSfc) then
+      ! if VarsLevs, then only proc 0 allocates surface height, otherwise all procs do
+      statevector%heightSfcPresent = .true.
+      if ((statevector%mpi_distribution == 'VarsLevs' .and. mmpi_myid == 0) .or. &
+           statevector%mpi_distribution /= 'VarsLevs') then
+        allocate(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd,  &
+                                       statevector%myLatBeg:statevector%myLatEnd))
+        statevector%HeightSfc(:,:) = 0.0d0
+      end if
+      if (statevector%vco%vCode == 21001 .and. statevector%vco%sleveCoord) then
+        statevector%heightSfcLsPresent = .true.
         if ((statevector%mpi_distribution == 'VarsLevs' .and. mmpi_myid == 0) .or. &
              statevector%mpi_distribution /= 'VarsLevs') then
-          allocate(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd,  &
-                                     statevector%myLatBeg:statevector%myLatEnd))
-          statevector%HeightSfc(:,:) = 0.0d0
+          allocate(statevector%HeightSfcLs(statevector%myLonBeg:statevector%myLonEnd,  &
+                                           statevector%myLatBeg:statevector%myLatEnd))
+          statevector%HeightSfcLs(:,:) = 0.0d0
         end if
       end if
     end if
@@ -1444,7 +1458,8 @@ module gridStateVector_mod
     k1UV = statevector%myUVvarLevBeg
     k2UV = statevector%myUVvarLevEnd
 
-    if (associated(statevector%HeightSfc)) statevector%HeightSfc(:,:) = 0.0d0
+    if (associated(statevector%HeightSfc))   statevector%HeightSfc  (:,:) = 0.0d0
+    if (associated(statevector%HeightSfcLs)) statevector%HeightSfcLs(:,:) = 0.0d0
 
     if (statevector%dataKind == 8) then
 
@@ -1620,7 +1635,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_schurProduct
   !--------------------------------------------------------------------------
-  subroutine gsv_schurProduct(statevector_in,statevector_inout)
+  subroutine gsv_schurProduct(statevector_in,statevector_inout,inv_opt)
     !
     ! :Purpose: Applies the Schur product of two statevector
     !           statevector_inout(i,j,k,l) = statevector_inout(i,j,k,l) * statevector_in(i,j,k,l)
@@ -1628,17 +1643,32 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in     ! first operand
-    type(struct_gsv),  intent(inout)  :: statevector_inout  ! second operand, will receive the result
+    type(struct_gsv),  intent(in)    :: statevector_in    ! first operand
+    type(struct_gsv),  intent(inout) :: statevector_inout ! second operand, will receive the result
+    logical, optional, intent(in)    :: inv_opt           ! compute statevector_inout / statevector_in
 
     ! Locals:
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+    integer :: power
+    logical :: inv
 
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated')
+    end if
+
+    if (present(inv_opt)) then
+      inv = inv_opt
+    else
+      inv = .false.
+    end if
+
+    if (inv) then
+      power = -1
+    else
+      power = 1
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1657,13 +1687,12 @@ module gridStateVector_mod
             do lonIndex = lon1, lon2
               statevector_inout%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex) = &
                    statevector_inout%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex) *  &
-                   statevector_in%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex)
+                   statevector_in%gd_r8(lonIndex,latIndex,varLevIndex,stepIndex)**power
             end do
           end do
         end do
         !$OMP END PARALLEL DO
       end do
-
 
     else if (statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4) then
 
@@ -1674,7 +1703,7 @@ module gridStateVector_mod
             do lonIndex = lon1, lon2
               statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) = &
                    statevector_inout%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex) *  &
-                   statevector_in%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                   statevector_in%gd_r4(lonIndex,latIndex,varLevIndex,stepIndex)**power
             end do
           end do
         end do
@@ -1861,6 +1890,9 @@ module gridStateVector_mod
 
     if (associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc)) then
       statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
+    end if
+    if (associated(statevector_in%HeightSfcLs) .and. associated(statevector_out%HeightSfcLs)) then
+      statevector_out%HeightSfcLs(:,:) = statevector_in%HeightSfcLs(:,:)
     end if
 
     if (statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8) then
@@ -2189,6 +2221,9 @@ module gridStateVector_mod
     if (associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc)) then
       statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
+    if (associated(statevector_in%HeightSfcLs) .and. associated(statevector_out%HeightSfcLs)) then
+      statevector_out%HeightSfcLs(:,:) = statevector_in%HeightSfcLs(:,:)
+    end if
 
     if (statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8) then
 
@@ -2258,6 +2293,9 @@ module gridStateVector_mod
     end if
 
     statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
+    if (associated(statevector_in%HeightSfcLs) .and. associated(statevector_out%HeightSfcLs)) then
+      statevector_out%HeightSfcLs(:,:) = statevector_in%HeightSfcLs(:,:)
+    end if
 
   end subroutine gsv_copyHeightSfc
 
@@ -2324,6 +2362,11 @@ module gridStateVector_mod
         statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = &
              statevector_in%HeightSfc(:,:)
       end if
+      if (associated(statevector_in%HeightSfcLs) .and. associated(statevector_out%HeightSfcLs)) then
+        statevector_out%HeightSfcLs(:,:) = 0.d0
+        statevector_out%HeightSfcLs(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = &
+             statevector_in%HeightSfcLs(:,:)
+      end if
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,paddingValue_r8)
       do varLevIndex = kBeg, kEnd
@@ -2349,6 +2392,10 @@ module gridStateVector_mod
       if (associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc)) then
         statevector_out%HeightSfc(:,:) = 0.0
         statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%HeightSfc(:,:)
+      end if
+      if (associated(statevector_in%HeightSfcLs) .and. associated(statevector_out%HeightSfcLs)) then
+        statevector_out%HeightSfcLs(:,:) = 0.0
+        statevector_out%HeightSfcLs(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%HeightSfcLs(:,:)
       end if
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,paddingValue_r4)
@@ -2868,6 +2915,11 @@ module gridStateVector_mod
       deallocate(statevector%HeightSfc)
       nullify(statevector%HeightSfc)
     end if
+    statevector%heightSfcLsPresent = .false.
+    if (associated(statevector%HeightSfcLs)) then
+      deallocate(statevector%HeightSfcLs)
+      nullify(statevector%HeightSfcLs)
+    end if
 
     if (associated(statevector%dateStampList)) then
       deallocate(statevector%dateStampList)
@@ -3159,6 +3211,27 @@ module gridStateVector_mod
   end function gsv_isAssocHeightSfc
 
   !--------------------------------------------------------------------------
+  ! gsv_isAssocHeightSfcLs
+  !--------------------------------------------------------------------------
+  function gsv_isAssocHeightSfcLs(statevector) result(isAssociated)
+    !
+    ! :Purpose: Returns .true. if HeightSfcLs is associated
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in)        :: statevector
+    ! Result:
+    logical                             :: isAssociated
+
+    isAssociated = .false.
+    if (associated(statevector%HeightSfcLs)) then
+      isAssociated = .true.
+    end if
+
+  end function gsv_isAssocHeightSfcLs
+
+  !--------------------------------------------------------------------------
   ! gsv_getHeightSfc
   !--------------------------------------------------------------------------
   function gsv_getHeightSfc(statevector) result(field)
@@ -3187,6 +3260,38 @@ module gridStateVector_mod
     end if
 
   end function gsv_getHeightSfc
+
+  !--------------------------------------------------------------------------
+  ! gsv_getHeightSfcLs
+  !--------------------------------------------------------------------------
+  function gsv_getHeightSfcLs(statevector) result(field)
+    !
+    ! :Purpose: Returns an access pointer to HeightSfcLs
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in)           :: statevector
+    ! Result:
+    real(8),pointer                        :: field(:,:)
+
+    ! Locals:
+    integer                                :: lon1,lat1
+
+    lon1 = statevector%myLonBeg
+    lat1 = statevector%myLatBeg
+
+    if (.not. stateVector%heightSfcLsPresent) then
+      call utl_abort('gsv_getHeightSfcLs: data not allocated')
+    end if
+
+    if (associated(statevector%HeightSfcLs)) then
+      field(lon1:,lat1:) => statevector%HeightSfcLs(:,:)
+    else
+      nullify(field)
+    end if
+
+  end function gsv_getHeightSfcLs
 
   !--------------------------------------------------------------------------
   ! gsv_getDateStamp
@@ -3465,6 +3570,8 @@ module gridStateVector_mod
     if (statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent) then
       allocate(gd_send_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mmpi_nprocs))
       allocate(gd_recv_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
+
+      ! HeightSfc
       gd_send_height(:,:,:) = 0.0d0
       gd_recv_height(:,:) = 0.0d0
       field_height_in_ptr => gsv_getHeightSfc(statevector_in)
@@ -3495,6 +3602,40 @@ module gridStateVector_mod
                            statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
         gd_recv_height(1:statevector_out%lonPerPE,  &
                        1:statevector_out%latPerPE)
+
+      ! HeightSfcLs
+      if (stateVector_in%heightSfcLsPresent .and. statevector_out%heightSfcPresent) then
+        gd_send_height(:,:,:) = 0.0d0
+        gd_recv_height(:,:) = 0.0d0
+        field_height_in_ptr => gsv_getHeightSfcLs(statevector_in)
+        field_height_out_ptr => gsv_getHeightSfcLs(statevector_out)
+
+        if (mmpi_myid == 0) then
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              gd_send_height(1:statevector_out%allLonPerPE(youridx+1),  &
+                             1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
+              field_height_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                  statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
+
+        nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
+        do yourid = 0, (mmpi_nprocs-1)
+          displs(yourid+1) = yourid*nsize
+          nsizes(yourid+1) = nsize
+        end do
+        call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
+
+        field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
+        gd_recv_height(1:statevector_out%lonPerPE,  &
+                       1:statevector_out%latPerPE)
+      end if
 
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
@@ -3805,6 +3946,8 @@ module gridStateVector_mod
     if (statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent) then
       allocate(gd_send_height(statevector_in%lonPerPEmax,statevector_in%latPerPEmax))
       allocate(gd_recv_height(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,mmpi_nprocs))
+
+      ! HeightSfc
       field_height_in_ptr => gsv_getHeightSfc(statevector_in)
       field_height_out_ptr => gsv_getHeightSfc(statevector_out)
 
@@ -3819,12 +3962,39 @@ module gridStateVector_mod
           do youridx = 0, (mmpi_npex-1)
             yourid = youridx + youridy*mmpi_npex
             field_height_out_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
-                             statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1)) = &
-                gd_recv_height(1:statevector_in%allLonPerPE(youridx+1),  &
-                           1:statevector_in%allLatPerPE(youridy+1), yourid+1)
+                                 statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1)) = &
+                      gd_recv_height(1:statevector_in%allLonPerPE(youridx+1),  &
+                                     1:statevector_in%allLatPerPE(youridy+1), yourid+1)
           end do
         end do
         !$OMP END PARALLEL DO
+      end if
+
+      ! HeightSfcLs
+      if (statevector_in%heightSfcLsPresent .and. statevector_out%heightSfcLsPresent) then
+        field_height_in_ptr => gsv_getHeightSfcLs(statevector_in)
+        field_height_out_ptr => gsv_getHeightSfcLs(statevector_out)
+
+        gd_send_height(:,:) = 0.0D0
+        gd_send_height(1:statevector_in%lonPerPE,1:statevector_in%latPerPE) = field_height_in_ptr(:,:)
+
+        nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax
+
+        call mmpi_gather(gd_send_height, gd_recv_height)
+
+        if (mmpi_myid == 0) then
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              field_height_out_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
+                                   statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1)) = &
+                        gd_recv_height(1:statevector_in%allLonPerPE(youridx+1),  &
+                                       1:statevector_in%allLatPerPE(youridy+1), yourid+1)
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
       end if
 
       deallocate(gd_send_height)
@@ -4157,6 +4327,8 @@ module gridStateVector_mod
     if (statevector_in%heightSfcPresent .and. statevector_out%heightSfcPresent) then
       allocate(gd_send_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mmpi_nprocs))
       allocate(gd_recv_height(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
+
+      ! HeightSfc
       gd_send_height(:,:,:) = 0.0d0
       gd_recv_height(:,:) = 0.0d0
       field_height_in_ptr => gsv_getHeightSfc(statevector_in)
@@ -4187,6 +4359,40 @@ module gridStateVector_mod
                        statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
         gd_recv_height(1:statevector_out%lonPerPE,  &
                    1:statevector_out%latPerPE)
+
+      ! HeightSfcLs
+      if (statevector_in%heightSfcLsPresent .and. statevector_out%heightSfcLsPresent) then
+        gd_send_height(:,:,:) = 0.0d0
+        gd_recv_height(:,:) = 0.0d0
+        field_height_in_ptr => gsv_getHeightSfcLs(statevector_in)
+        field_height_out_ptr => gsv_getHeightSfcLs(statevector_out)
+
+        if (mmpi_myid == 0) then
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              gd_send_height(1:statevector_out%allLonPerPE(youridx+1),  &
+                             1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
+              field_height_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                                  statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
+
+        nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
+        do yourid = 0, (mmpi_nprocs-1)
+          displs(yourid+1) = yourid*nsize
+          nsizes(yourid+1) = nsize
+        end do
+        call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
+
+        field_height_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                             statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
+          gd_recv_height(1:statevector_out%lonPerPE,  &
+                         1:statevector_out%latPerPE)
+      end if
 
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
@@ -4384,6 +4590,9 @@ module gridStateVector_mod
         call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
       end if
       stateVector_VarsLevs%HeightSfc(:,:) = stateVector_1step_r4%HeightSfc(:,:)
+      if (stateVector_VarsLevs%heightSfcLsPresent) then
+        stateVector_VarsLevs%HeightSfcLs(:,:) = stateVector_1step_r4%HeightSfcLs(:,:)
+      end if
     end if
 
     ! determine which tasks have something to send and let everyone know
@@ -4791,10 +5000,12 @@ module gridStateVector_mod
       deallocate(gd_send_1d_r8)
     end if
 
-    ! now send HeightSfc from task 0 to all others
+    ! now send HeightSfc and HeightSfcLs from task 0 to all others
     if (stateVector_tiles%heightSfcPresent) then
 
       allocate(gd_recv_height(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
+
+      ! HeightSfc
       gd_recv_height(:,:) = 0.0d0
 
       ! prepare data to send from task 0
@@ -4835,6 +5046,46 @@ module gridStateVector_mod
                 stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
                 stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd) =  &
           gd_recv_height(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE)
+
+      ! HeightSfcLs
+      if (stateVector_tiles%heightSfcLsPresent) then
+        gd_recv_height(:,:) = 0.0d0
+
+        ! prepare data to send from task 0
+        if (mmpi_myid == 0) then
+          if (.not. stateVector_1step%allocated) then
+            call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfcLs')
+          end if
+
+          gd_send_height(:,:,:) = 0.0d0
+
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              gd_send_height(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                             1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
+                real(stateVector_1step%HeightSfcLs(&
+                     stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                     stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1)), 8)
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
+
+        ! distribute from task 0 to all tasks
+        nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
+        do procIndex = 1, mmpi_nprocs
+          displs(procIndex) = (procIndex-1)*nsize
+          nsizes(procIndex) = nsize
+        end do
+        call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes, displs)
+
+        stateVector_tiles%HeightSfcLs(&
+                stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
+                stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd) =  &
+          gd_recv_height(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE)
+      end if
 
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
@@ -5087,16 +5338,18 @@ module gridStateVector_mod
       deallocate(gd_send_r8)
     end if
 
-    ! now gather the same HeightSfc onto each task that is a receiver
+    ! now gather the same HeightSfc and HeightSfcLs onto each task that is a receiver
     if (stateVector_tiles%heightSfcPresent) then
 
       allocate(gd_send_height(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
-      gd_send_height(:,:) = 0.0d0
       if (stateVector_1step%allocated) then
         allocate(gd_recv_height(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mmpi_nprocs))
       else
         allocate(gd_recv_height(1,1,1))
       end if
+
+      ! HeightSfc
+      gd_send_height(:,:) = 0.0d0
       gd_recv_height(:,:,:) = 0.0d0
 
       ! prepare tile to send on each task
@@ -5129,6 +5382,44 @@ module gridStateVector_mod
         end if
 
       end do ! procIndex
+
+      ! HeightSfcLs
+      if (stateVector_tiles%heightSfcLsPresent) then
+        gd_send_height(:,:) = 0.0d0
+        gd_recv_height(:,:,:) = 0.0d0
+
+        ! prepare tile to send on each task
+        gd_send_height(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
+             stateVector_tiles%HeightSfcLs(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
+                                           stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
+
+        ! gather from all tasks onto each task with a receiving statevector
+        do procIndex = 1, mmpi_nprocs
+
+          ! skip if this task has nothing to receive
+          if (.not. thisProcIsAreceiver(procIndex)) cycle
+
+          nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
+          call mmpi_gather(gd_send_height, gd_recv_height, procID_opt=procIndex-1)
+
+          ! copy over the complete 1 timestep received
+          if (mmpi_myid == procIndex-1) then
+            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mmpi_npey-1)
+              do youridx = 0, (mmpi_npex-1)
+                yourid = youridx + youridy*mmpi_npex
+                stateVector_1step%HeightSfcLs(&
+                     stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                     stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1)) = &
+                   gd_recv_height(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                                  1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
+              end do
+            end do
+            !$OMP END PARALLEL DO
+          end if
+
+        end do ! procIndex
+      end if
 
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
@@ -5253,12 +5544,14 @@ module gridStateVector_mod
     deallocate(gd_recv_r4)
     deallocate(gd_send_r4)
 
-    ! now gather the same HeightSfc onto each task that is a receiver
+    ! now gather the same HeightSfc and HeightSfcLs onto each task that is a receiver
     if (stateVector_tiles%heightSfcPresent) then
 
       allocate(gd_send_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
-      gd_send_r8(:,:) = 0.0d0
       allocate(gd_recv_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mmpi_nprocs))
+
+      ! HeightSfc
+      gd_send_r8(:,:) = 0.0d0
       gd_recv_r8(:,:,:) = 0.0d0
 
       ! prepare tile to send on each task
@@ -5282,6 +5575,36 @@ module gridStateVector_mod
           end do
         end do
         !$OMP END PARALLEL DO
+
+      end if
+
+      ! HeightSfcLs
+      if (stateVector_tiles%heightSfcLsPresent) then
+        gd_send_r8(:,:) = 0.0d0
+        gd_recv_r8(:,:,:) = 0.0d0
+
+        ! prepare tile to send on each task
+        gd_send_r8(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
+             stateVector_tiles%HeightSfcLs(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
+                                           stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
+
+        call mmpi_allGather(gd_send_r8, gd_recv_r8)
+
+        if (stateVector_mpiGlobal%allocated) then
+
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              stateVector_mpiGlobal%HeightSfcLs(&
+                   stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
+                   stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1)) = &
+                gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
+                           1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
 
       end if
 
@@ -5832,6 +6155,7 @@ module gridStateVector_mod
     write(*,*) message
     write(*,*) '------------------- START -------------------'
     write(*,*) 'heightSfcPresent = ',stateVector%heightSfcPresent
+    write(*,*) 'heightSfcLsPresent = ',stateVector%heightSfcLsPresent
     write(*,*) 'UVComponentPresent = ',stateVector%UVComponentPresent
     write(*,*) 'extraUVallocated = ',stateVector%extraUVallocated
     write(*,*) 'myUVvarLevBeg = ',stateVector%myUVvarLevBeg

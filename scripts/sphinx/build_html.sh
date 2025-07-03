@@ -210,7 +210,7 @@ EOF
 
 done
 
-revision=$(${toplevel}/midas.version.sh)
+revision=$(${toplevel}/midas.version)
 
 # GENERATE THE MAIN PAGE
 
@@ -355,9 +355,8 @@ echo "Building dependency tree"
 echo "Sourcing config"
 cd ${toplevel}/src
 source ./config.dot.sh
-GITDESC=$(cd ${toplevel}; ./midas.version.sh)
 if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-    OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
+    OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${revision}/${ARCH}/
 else
     OBJBLD_PATH=${toplevel}/compiledir/midas_bld/${ARCH}/
 fi

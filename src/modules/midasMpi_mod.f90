@@ -8,7 +8,7 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  !use rpn_comm, only: rpn_comm_mype, rpn_comm_init, rpn_comm_finalize
+  use rpn_comm
   use utilities_mod
 
   implicit none
@@ -423,7 +423,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumreal8scalar(sendRecvValue)
+  subroutine mmpi_allreduce_sumreal8scalar(sendRecvValue, allReduceForward_opt)
     !
     !:Purpose: Version of mpi_allReduce that always performs sum in
     !          the same order.
@@ -431,11 +431,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
+    real(8),           intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
+    logical, optional, intent(in)    :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: root
     real(8), allocatable :: allvalues(:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -451,8 +459,16 @@ contains
     call mmpi_gather(sendRecvValue, allvalues, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if( mmpi_myid == root ) sendRecvValue = sum(allvalues(:))
+    if( mmpi_myid == root ) then
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        allvalues(:) = allvalues(mmpi_nprocs:1:-1)
+      end if
+
+      sendRecvValue = sum(allvalues(:))
+    end if
     deallocate(allvalues)
+
     call mmpi_bcast(sendRecvValue, procID_opt = root)
 
     call utl_tmg_stop(170)
@@ -462,7 +478,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allReduce_sumR8_1d
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumR8_1d(sendRecvVector)
+  subroutine mmpi_allreduce_sumR8_1d(sendRecvVector, allReduceForward_opt)
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks, guaranteed to
     !           always be in the same order.
@@ -471,10 +487,18 @@ contains
 
     ! Arguments:
     real(8), intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
+    logical, optional, intent(in)    :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: numElements, root
     real(8), allocatable :: all_sendRecvVector(:,:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -488,11 +512,18 @@ contains
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
+    allocate(all_sendRecvVector(numElements,mmpi_nprocs))
     call mmpi_gather(sendRecvVector, all_sendRecvVector, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if ( mmpi_myid == root ) sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    if( mmpi_myid == root ) then
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        all_sendRecvVector(:,:) = all_sendRecvVector(:,mmpi_nprocs:1:-1)
+      end if
+
+      sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    end if
     deallocate(all_sendRecvVector)
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
@@ -531,7 +562,7 @@ contains
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
+    allocate(all_sendRecvVector(numElements1,numElements2,mmpi_nprocs))
     call mmpi_gather(sendRecvVector, all_sendRecvVector, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
@@ -574,7 +605,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1))
     end if
@@ -619,7 +650,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1,1))
     end if
@@ -665,7 +696,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1,1,1))
     end if

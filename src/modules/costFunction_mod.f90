@@ -4,6 +4,7 @@ module costFunction_mod
   !
   !:Purpose: To compute Jo term.
   !
+  use rpn_comm
   use midasMpi_mod
   use obsSpaceData_mod
   use rttov_const, only : inst_name, platform_name
@@ -21,6 +22,7 @@ module costFunction_mod
 
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
+  logical                        :: allReduceForward
 
 contains
 
@@ -243,36 +245,36 @@ contains
       end do
     end if
 
-    call mmpi_allreduce_sumreal8scalar(pjo)
-    call mmpi_allreduce_sumreal8scalar(dljoraob)
-    call mmpi_allreduce_sumreal8scalar(dljoairep)
-    call mmpi_allreduce_sumreal8scalar(dljosatwind)
-    call mmpi_allreduce_sumreal8scalar(dljosurfc)
-    call mmpi_allreduce_sumreal8scalar(dljoscat)
-    call mmpi_allreduce_sumreal8scalar(dljotov)
-    call mmpi_allreduce_sumreal8scalar(dljogpsro)
-    call mmpi_allreduce_sumreal8scalar(dljoprof)
-    call mmpi_allreduce_sumreal8scalar(dljogpsztd)
-    call mmpi_allreduce_sumreal8scalar(dljochm)
-    call mmpi_allreduce_sumreal8scalar(dljosst)
-    call mmpi_allreduce_sumreal8scalar(dljoaladin)
-    call mmpi_allreduce_sumreal8scalar(dljoice)
-    call mmpi_allreduce_sumreal8scalar(dljohydro)
-    call mmpi_allreduce_sumreal8scalar(dljoradar)
+    call mmpi_allreduce_sumreal8scalar(pjo,         allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoraob,    allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoairep,   allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosatwind, allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosurfc,   allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoscat,    allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljotov,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljogpsro,   allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoprof,    allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljogpsztd,  allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljochm,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljosst,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoaladin,  allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoice,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljohydro,   allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoradar,   allReduceForward_opt = allReduceForward)
     do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex))
+      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), allReduceForward_opt = allReduceForward)
     end do
     if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex))
+        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), allReduceForward_opt = allReduceForward)
       end do loopSensor2
     end if
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex))
+      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), allReduceForward_opt = allReduceForward)
       call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), mmpi_sum)
     end do
 
@@ -364,7 +366,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMCFN/ sensorNameList, channelNumberList
+    NAMELIST /NAMCFN/ sensorNameList, channelNumberList, allReduceForward
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -372,6 +374,7 @@ contains
       !- Setting default values
       sensorNameList(:) = ''
       channelNumberList(:,:) = 0
+      allReduceForward = .true.
 
       if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
         if ( mmpi_myid == 0 ) then

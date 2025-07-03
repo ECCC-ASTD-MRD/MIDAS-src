@@ -2,6 +2,9 @@
   DSTEPOBS = 3.0d0
   DSTEPOBSINC = 6.0d0
 /
+ &NAMS2C
+  mpiMode = 'TILES'
+/
  &NAMSTATE
   ANLVAR(1) = 'GL'
 /

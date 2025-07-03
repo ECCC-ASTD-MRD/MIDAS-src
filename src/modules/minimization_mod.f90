@@ -580,9 +580,19 @@ CONTAINS
     real(8) :: dl_Jb, dl_Jo
     type(struct_gsv), save :: statevector
     type(struct_vco), pointer :: vco_anl
+    logical, save :: firstCall = .true.
+    logical       :: beSilent
 
     call utl_tmg_stop(91)
     call utl_tmg_stop(90)
+
+    ! Be silent after the first call
+    if (firstCall) then
+      firstCall = .false.
+      beSilent = .false.
+    else
+      beSilent = .true.
+    end if
 
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
@@ -615,7 +625,8 @@ CONTAINS
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
          ! put in columnAnlInc H_horiz dx
-         call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
+         call s2c_tl(statevector, columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr, &
+                     obsSpaceData_ptr, beSilent_opt=beSilent)
        end if
 
        ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
@@ -685,7 +696,8 @@ CONTAINS
        if (oneDVarMode) then
          ! no interpolation needed for 1Dvar case
        else
-         call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
+         call s2c_ad(statevector, columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr,  &
+                     obsSpaceData_ptr, beSilent_opt=beSilent)
        end if
 
        da_gradJ(:) = 0.d0

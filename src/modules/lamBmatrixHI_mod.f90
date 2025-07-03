@@ -6,6 +6,7 @@ module lamBmatrixHI_mod
   !           using the homogeneous and isotropic background error covariance
   !           matrix.
   !
+  use rpn_comm
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod

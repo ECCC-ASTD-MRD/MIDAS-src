@@ -5,7 +5,7 @@ module getGridPosition_mod
   !:Purpose:  A place to collect numerous interpolation related routines.
   !           The main task of the module is to compute the grid XY position from a lat-lon.
   !           This simply calls the ezsint routine gdxyfll for simple grids. For
-  !           Yin-Yan grids it calls the function gpos_xyfll_yinYangGrid
+  !           Yin-Yan grids it calls the function gpos_xyfll_yinYanGrid
   !           (see below in this module). There is also support for
   !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
   !
@@ -22,21 +22,25 @@ module getGridPosition_mod
   ! Public procedures
   public :: gpos_getPositionXY, gpos_gridIsOrca
 
+  interface gpos_getPositionXY
+    module procedure gpos_getPosXY_vector
+    module procedure gpos_getPosXY_scalar
+  end interface gpos_getPositionXY
+
   integer, parameter :: maxNumLocalGridPointsSearch = 3000
 
   type(kdtree2), pointer :: tree => null()
 
 contains
-
   !---------------------------------------------------------
-  ! gpos_getPositionXY
+  ! gpos_getPosXY_vector
   !---------------------------------------------------------
-  function gpos_getPositionXY( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
-                          lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
+  function gpos_getPosXY_vector(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
+                                lat_deg_r4, lon_deg_r4, subGridIndex) result(ierr)
     !
     ! :Purpose: Compute the grid XY position from a lat-lon. This
     !           simply calls the ezsint routine gdxyfll for simple grids. For
-    !           Yin-Yan grids it calls the function gpos_xyfll_yinYangGrid
+    !           Yin-Yan grids it calls the function gpos_xyfll_yinYanGrid
     !           (see below in this module). There is also support for
     !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
     !
@@ -44,13 +48,91 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: gdid
-    integer, intent(out) :: subGridIndex
+    real(4), intent(out) :: xpos_r4(:)
+    real(4), intent(out) :: ypos_r4(:)
+    real(4), intent(out) :: xpos2_r4(:)
+    real(4), intent(out) :: ypos2_r4(:)
+    real(4), intent(in)  :: lat_deg_r4(:)
+    real(4), intent(in)  :: lon_deg_r4(:)
+    integer, intent(out) :: subGridIndex(:)
+    ! Result:
+    integer :: ierr  ! returned value of function
+
+    ! Locals:
+    integer :: numSubGrids, numPoints, pointIndex
+    integer :: ezget_nsubGrids, gdxyfll, ezgprm
+    character(len=1) :: grtyp
+    integer :: ni, nj, ig1, ig2, ig3, ig4
+
+    numPoints = size(xpos_r4)
+    numSubGrids = ezget_nsubGrids(gdid)
+    xpos2_r4 = mpc_missingValue_R4
+    ypos2_r4 = mpc_missingValue_R4
+
+    if (numSubGrids == 1) then
+
+      ierr = ezgprm(gdid, grtyp, ni, nj, ig1, ig2, ig3, ig4)
+
+      if (grtyp == 'Y') then
+
+        !$omp critical
+        do pointIndex = 1, numPoints
+          ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4(pointIndex), ypos_r4(pointIndex),  &
+                                         lat_deg_r4(pointIndex), lon_deg_r4(pointIndex))
+        end do
+        !$omp end critical
+
+      else
+
+        ! Not an unstructured grid, nor a Yin-Yan grid, call the standard ezscint routine
+        ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, numPoints)
+
+      end if
+
+      subGridIndex = 1
+
+    else
+
+      ! This is a Yin-Yan grid, do something different
+      !$omp critical
+      ierr = gpos_xyfll_yinYanGrid(gdid, xpos_r4, ypos_r4, &
+                                   xpos2_r4, ypos2_r4, &
+                                   lat_deg_r4, lon_deg_r4, subGridIndex)
+      !$omp end critical
+
+    end if
+
+    if ( all(subGridIndex(:) /= 3) ) then
+      ! when only returning 1 position, copy values to pos2
+      xpos2_r4(:) = xpos_r4(:)
+      ypos2_r4(:) = ypos_r4(:)
+    end if
+
+  end function gpos_getPosXY_vector
+
+  !---------------------------------------------------------
+  ! gpos_getPosXY_scalar
+  !---------------------------------------------------------
+  function gpos_getPosXY_scalar(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
+                                lat_deg_r4, lon_deg_r4, subGridIndex) result(ierr)
+    !
+    ! :Purpose: Compute the grid XY position from a lat-lon. This
+    !           simply calls the ezsint routine gdxyfll for simple grids. For
+    !           Yin-Yan grids it calls the function gpos_xyfll_yinYanGrid
+    !           (see below in this module). There is also support for
+    !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: gdid
     real(4), intent(out) :: xpos_r4
     real(4), intent(out) :: ypos_r4
     real(4), intent(out) :: xpos2_r4
     real(4), intent(out) :: ypos2_r4
     real(4), intent(in)  :: lat_deg_r4
     real(4), intent(in)  :: lon_deg_r4
+    integer, intent(out) :: subGridIndex
     ! Result:
     integer :: ierr  ! returned value of function
 
@@ -59,10 +141,13 @@ contains
     integer :: ezget_nsubGrids, gdxyfll, ezgprm
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
+    real(4) :: xpos_r4_vec(1), ypos_r4_vec(1), xpos2_r4_vec(1), ypos2_r4_vec(1)
+    real(4) :: lat_deg_r4_vec(1),lon_deg_r4_vec(1)
+    integer :: subGridIndex_vec(1)
 
     numSubGrids = ezget_nsubGrids(gdid)
-    xpos2_r4 = -999.0
-    ypos2_r4 = -999.0
+    xpos2_r4 = mpc_missingValue_R4
+    ypos2_r4 = mpc_missingValue_R4
 
     if (numSubGrids == 1) then
 
@@ -76,7 +161,7 @@ contains
 
       else
 
-        ! Not an unstructured grid, nor a Yin-Yang grid, call the standard ezscint routine
+        ! Not an unstructured grid, nor a Yin-Yan grid, call the standard ezscint routine
         ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
       end if
@@ -85,10 +170,17 @@ contains
 
     else
 
-      ! This is a Yin-Yang grid, do something different
+      ! This is a Yin-Yan grid, do something different
       !$omp critical
-      ierr = gpos_xyfll_yinYangGrid(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                    lat_deg_r4, lon_deg_r4, subGridIndex)
+      lat_deg_r4_vec(1) = lat_deg_r4
+      lon_deg_r4_vec(1) = lon_deg_r4
+      ierr = gpos_xyfll_yinYanGrid(gdid, xpos_r4_vec, ypos_r4_vec, xpos2_r4_vec, ypos2_r4_vec, &
+                                   lat_deg_r4_vec, lon_deg_r4_vec, subGridIndex_vec)
+      xpos_r4 = xpos_r4_vec(1)
+      ypos_r4 = ypos_r4_vec(1)
+      xpos2_r4 = xpos2_r4_vec(1)
+      ypos2_r4 = ypos2_r4_vec(1)
+      subGridIndex = subGridIndex_vec(1)
       !$omp end critical
 
     end if
@@ -99,134 +191,121 @@ contains
       ypos2_r4 = ypos_r4
     end if
 
-  end function gpos_getPositionXY
+  end function gpos_getPosXY_scalar
 
   !---------------------------------------------------------
-  ! gpos_xyfll_yinYangGrid
+  ! gpos_xyfll_yinYanGrid
   !---------------------------------------------------------
-  function gpos_xyfll_yinYangGrid( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
-                          lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
+  function gpos_xyfll_yinYanGrid(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
+                                 lat_deg_r4, lon_deg_r4, subGridIndex) result(ierr)
     !
-    ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yang grid.
-    !           It returns locations from both the Yin and Yang
-    !           subgrids when in the overlap region, depending on the logical
-    !           variable `useSingleValueOverlap`.
+    ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yan grid.
+    !           It returns locations from both the Yin and Yan
+    !           subgrids when in the overlap region.
     !
     implicit none
 
     ! Arguments:
     integer, intent(in)  :: gdid
-    integer, intent(out) :: subGridIndex
-    real(4), intent(in)  :: lat_deg_r4
-    real(4), intent(in)  :: lon_deg_r4
-    real(4), intent(out) :: xpos_r4
-    real(4), intent(out) :: ypos_r4
-    real(4), intent(out) :: xpos2_r4
-    real(4), intent(out) :: ypos2_r4
+    integer, intent(out) :: subGridIndex(:)
+    real(4), intent(in)  :: lat_deg_r4(:)
+    real(4), intent(in)  :: lon_deg_r4(:)
+    real(4), intent(out) :: xpos_r4(:)
+    real(4), intent(out) :: ypos_r4(:)
+    real(4), intent(out) :: xpos2_r4(:)
+    real(4), intent(out) :: ypos2_r4(:)
     ! Result:
     integer :: ierr  ! returned value of function
 
     ! Locals:
     integer :: ezget_subGridids, gdgaxes, gdxyfll, ezgprm
     integer :: EZscintIDvec(2)
-    integer, save :: EZscintIDvec1_old = -999
-    integer :: lonIndex, latIndex
-    real :: lonrot, latrot
-    real, allocatable, save :: ax_yin(:), ay_yin(:), ax_yan(:), ay_yan(:)
+    integer :: lonIndex, latIndex, numPoints, pointIndex
+    integer :: ig1, ig2, ig3, ig4
     logical :: axesDifferent
     character(len=1) :: grtyp
-    integer :: ni, nj, ig1, ig2, ig3, ig4
-    ! this controls which approach to use for interpolation within the YIN-YAN overlap
-    logical :: useSingleValueOverlap = .true.
+    real(4), allocatable :: lonrot(:), latrot(:)
+    real(4), allocatable :: xposYan_r4(:), yposYan_r4(:)
+    ! Save some variables to reduce execution time
+    integer, save :: EZscintIDvec1_old = MPC_missingValue_INT
+    integer, save :: ni, nj
+    real(4), allocatable, save :: ax_yin(:), ay_yin(:)
 
+    numPoints = size(lat_deg_r4)
     ierr = ezget_subGridids(gdid, EZscintIDvec)
-    ! get ni nj of subGrid, assume same for both YIN and YANG
-    ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
+    allocate(xposYan_r4(numPoints))
+    allocate(yposYan_r4(numPoints))
+    allocate(latrot(numPoints))
+    allocate(lonrot(numPoints))
 
-    ! first check YIN
-    ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+    ! Compute positions on YIN
+    ierr = gdxyfll(EZscintIDvec(1), xpos_r4,    ypos_r4,    lat_deg_r4, lon_deg_r4, numPoints)
 
     ! compute rotated lon and lat at obs location
     axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
     if (axesDifferent) then
       write(*,*) 'gpos_getPositionXY: axesDifferent, compute needed parameters'
+      ! get ni nj of subGrid, assume same for both YIN and YAN
+      ierr = ezgprm(EZscintIDvec(1), grtyp, ni, nj, ig1, ig2, ig3, ig4)
       if (allocated(ax_yin)) deallocate(ax_yin,ay_yin)
       allocate(ax_yin(ni),ay_yin(nj))
       ierr = gdgaxes(EZscintIDvec(1), ax_yin, ay_yin)
       EZscintIDvec1_old = EZscintIDvec(1)
     end if
-    lonIndex = floor(xpos_r4)
-    if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-      lonrot = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
-           (xpos_r4 - lonIndex)
-    else
-      lonrot = -999.0
-    end if
-    latIndex = floor(ypos_r4)
-    if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-      latrot = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
-           (ypos_r4 - latIndex)
-    else
-      latrot = -999.0
-    end if
-    subGridIndex = 1
 
-    if ( useSingleValueOverlap ) then
+    pointLoop: do pointIndex = 1, numPoints
 
-      ! this approach is most similar to how ezsint works, preferentially take YIN
-
-      if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-        ! Outside YIN, therefore use YANG (assume it is inside YANG)
-        ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-        ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-        subGridIndex = 2
+      lonIndex = floor(xpos_r4(pointIndex))
+      if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
+        lonrot(pointIndex) = ax_yin(lonIndex) + (ax_yin(lonIndex+1) - ax_yin(lonIndex)) *  &
+             (xpos_r4(pointIndex) - lonIndex)
       else
-        subGridIndex = 1
+        lonrot(pointIndex) = MPC_missingValue_R4
       end if
 
-    else ! not useSingleValueOverlap
-
-      ! this approach returns both the YIN and YAN locations when point is inside both
-
-      if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-        ! Outside YIN, therefore use YANG (assume it is inside YANG)
-        ierr = gdxyfll(EZscintIDvec(2), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-        ypos_r4 = ypos_r4 + real(nj) ! shift from YANG position to Supergrid position
-        subGridIndex = 2
+      latIndex = floor(ypos_r4(pointIndex))
+      if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
+        latrot(pointIndex) = ay_yin(latIndex) + (ay_yin(latIndex+1) - ay_yin(latIndex)) *  &
+             (ypos_r4(pointIndex) - latIndex)
       else
-        ! inside YIN, check if also inside YANG
-        allocate(ax_yan(ni),ay_yan(nj))
-        ierr = gdgaxes(EZscintIDvec(2), ax_yan, ay_yan)
-        ierr = gdxyfll(EZscintIDvec(2), xpos2_r4, ypos2_r4, lat_deg_r4, lon_deg_r4, 1)
-        if ( lonIndex >= 1 .and. (lonIndex+1) <= ni ) then
-          lonrot = ax_yan(lonIndex) + (ax_yan(lonIndex+1) - ax_yan(lonIndex)) *  &
-               (xpos2_r4 - lonIndex)
-        else
-          lonrot = -999.0
-        end if
-        latIndex = floor(ypos2_r4)
-        if ( latIndex >= 1 .and. (latIndex+1) <= nj ) then
-          latrot = ay_yan(latIndex) + (ay_yan(latIndex+1) - ay_yan(latIndex)) *  &
-               (ypos2_r4 - latIndex)
-        else
-          latrot = -999.0
-        end if
-        deallocate(ax_yan,ay_yan)
-        if ( lonrot < 45.0 .or. lonrot > 315.0 .or. latrot < -45.0 .or. latrot > 45.0 ) then
-          ! outside YANG, only inside YIN
-          xpos2_r4 = -999.0
-          ypos2_r4 = -999.0
-          subGridIndex = 1
-        else
-          ! inside both YIN and YANG
-          ypos2_r4 = ypos2_r4 + real(nj) ! shift from YANG position to Supergrid position
-          subGridIndex = 3
-        end if
+        latrot(pointIndex) = MPC_missingValue_R4
       end if
+      subGridIndex(pointIndex) = 1
+
+    end do pointLoop
+
+    if ( any( lonrot(:) < 45.0 .or. lonrot(:) > 315.0 .or.  &
+              latrot(:) < -45.0 .or. latrot(:) > 45.0 ) ) then
+
+      ierr = gdxyfll(EZscintIDvec(2), xposYan_r4, yposYan_r4, lat_deg_r4, lon_deg_r4, numPoints)
+
+      pointLoop2: do pointIndex = 1, numPoints
+
+        if ( lonrot(pointIndex) < 45.0 .or. lonrot(pointIndex) > 315.0 .or.  &
+             latrot(pointIndex) < -45.0 .or. latrot(pointIndex) > 45.0 ) then
+          ! this approach is most similar to how ezsint works, preferentially take YIN
+          ! Outside YIN, therefore use YAN (assume it is inside YAN)
+          xpos_r4(pointIndex) = xposYan_r4(pointIndex)
+          ypos_r4(pointIndex) = yposYan_r4(pointIndex) + real(nj) ! shift from YAN position to Supergrid position
+          subGridIndex(pointIndex) = 2
+        else
+          subGridIndex(pointIndex) = 1
+        end if
+
+      end do pointLoop2
 
     end if
 
-  end function gpos_xyfll_yinYangGrid
+    ! These arguments should probably be removed
+    xpos2_r4(:) = xpos_r4(:)
+    ypos2_r4(:) = ypos_r4(:)
+
+    deallocate(xposYan_r4)
+    deallocate(yposYan_r4)
+    deallocate(latrot)
+    deallocate(lonrot)
+
+  end function gpos_xyfll_yinYanGrid
 
   !---------------------------------------------------------
   ! gpos_xyfll_unstructGrid
@@ -257,7 +336,7 @@ contains
     real(8) :: gridSpacing
     real(8) :: gridSpacingSquared, lowerLeftCornerDistSquared
     real(8) :: lowerRightCornerDistSquared, upperLeftCornerDistSquared
-    integer, save :: gdidOld = -999
+    integer, save :: gdidOld = MPC_missingValue_INT
     integer :: nx, ny
     integer, save :: ni, nj
     real(8), allocatable, save :: grid_lon_rad(:,:), grid_lat_rad(:,:)
@@ -371,8 +450,8 @@ contains
       write(*,*) 'gpos_xyfll_unstructGrid: obs lon, lat = ', lon_deg_r4, lat_deg_r4
       write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING: the search did not find 4 close points.'
       write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-      xpos_r4 = -999.0
-      ypos_r4 = -999.0
+      xpos_r4 = MPC_missingValue_R4
+      ypos_r4 = MPC_missingValue_R4
       return
     end if
 
@@ -380,8 +459,8 @@ contains
       write(*,*) 'gpos_xyfll_unstructGrid: No grid point found within ', maxGridSpacing, ' meters'
       write(*,*) 'of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
       write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-      xpos_r4 = -999.0
-      ypos_r4 = -999.0
+      xpos_r4 = MPC_missingValue_R4
+      ypos_r4 = MPC_missingValue_R4
       return
     end if
 
@@ -431,8 +510,8 @@ contains
                      lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (1): the reference point is outside the grid.'
           write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-          xpos_r4 = -999.0
-          ypos_r4 = -999.0
+          xpos_r4 = MPC_missingValue_R4
+          ypos_r4 = MPC_missingValue_R4
           return
         end if
       end if
@@ -467,8 +546,8 @@ contains
         write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (2): of the reference location lat-lon (degrees): ', &
                    lat_deg_r4, lon_deg_r4
         write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-        xpos_r4 = -999.0
-        ypos_r4 = -999.0
+        xpos_r4 = MPC_missingValue_R4
+        ypos_r4 = MPC_missingValue_R4
         return
       end if
 
@@ -510,8 +589,8 @@ contains
           write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (3): the reference point is outside the grid.'
           write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
-          xpos_r4 = -999.0
-          ypos_r4 = -999.0
+          xpos_r4 = MPC_missingValue_R4
+          ypos_r4 = MPC_missingValue_R4
           return
         end if
       end if
@@ -545,8 +624,8 @@ contains
         write(*,*) 'Perturbed distance = ', gridSpacingSquared
         write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
         write(*,*) 'ORCA025 WARNING 4: the reference point is outside the grid. We will set the positions to -999.!!!'
-        xpos_r4 = -999.0
-        ypos_r4 = -999.0
+        xpos_r4 = MPC_missingValue_R4
+        ypos_r4 = MPC_missingValue_R4
         return
       end if
 

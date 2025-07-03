@@ -52,6 +52,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [4.1.2]
+
+### Added
+
+ * Added thinning for chemical constituent observations with new namelist thin_CH (#945 and !990)
+ * Added `allReduceForward` to `&NAMCFN` (#1079 and !985)
+ * Added more efficient method for interpolating to observation locations/times (#568 and !979)
+   * Small impact on results when interpolating to obs locations/times with new method activated
+ * Added piecewise linear interpolation of the letkf horizontal localization radius (#1024 and !978)
+ * Complete vertical-scale-dependent vertical localization in bMatrixEnsemble_mod, i.e., including surface pressure, is now possible with GEM-H ensembles (#1033 and !969)
+
+### Changed
+
+ * Updating `rpn/libs` and `rpn/utils` to `20250604-beta` (#1071 and !995)
+   * Major impact on the results when using RSF files as input.  Any near-operational configuration is not affected though.
+
+### Fixed
+
+ * Several fixes for GEM-H, including changing treatment of MELS (#1074 and !984)
+ * Fix bug related to surface variables in bMatrixEnsemble_mod with GEM-H (#1060 and !965)
+ * Fix missing SSM for interactive debugging (#1059 and !964)
+
 ## [4.1.1]
 
 ### Added
@@ -307,6 +329,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve `midas.version` to find the highest reachable semantic version tag in the history line (#1087 and !997)
  * Updating `midas.splitobs.Abs` to `rpn/libs/20231219` (#908 and !822)
  * Updating `rpn/libs` and `rpn/utils` to `20231219` (#906 and !815)
    * Adapting scripts/fortran for the new file type code for sqlite files.
@@ -324,12 +347,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
 
+## [3.9.7]
+
+### Fixed
+
+ * Fixed bug in RttovScatt that was present from the beginning. Major impact when allSky assimilation of microwave humidity channels is involved (#1049 and !973)
+
+## [3.9.6]
+
+### Added
+
+ * Small modifications are included to enable handling observations from the mwhs2 FY3-D and FY3-E within the assimilation system (#1029 and !974)
+ * Add `rarsDetectionCriterium` in `thin_tovs` namelist section to control how to distinguish RARS vs global obs (#1056 and !972)
+
+### Fixed
+
+ * Up to 20 data sources can be specified in the namelist NAMICEBGCHECK (#1055 and !954)
+
 ## [3.9.5]
 
 ### Changed
 
-* Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
-  * Adapting scripts and fortran code for the new file type code for SQLite files.
+ * Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
+ * Adapting scripts and fortran code for the new file type code for SQLite files.
 
 ## [3.9.4]
 
@@ -1486,14 +1526,17 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...HEAD
+[4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
 [4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1
 [4.1.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0
 [4.0.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.3...v_4.0.4
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
-[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_4.0.0
+[3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
+[3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
 [3.9.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_3.9.4
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3

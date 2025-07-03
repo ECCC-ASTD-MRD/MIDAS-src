@@ -19,7 +19,8 @@ module windRotation_mod
   public :: struct_uvr
 
   ! Public Subroutines
-  public :: uvr_setup, uvr_rotateWind_nl, uvr_rotateWind_tl, uvr_rotateWind_ad, uvr_rotateLatLon
+  public :: uvr_setup, uvr_rotateWind_nl, uvr_rotateWind_tl, uvr_rotateWind_ad
+  public :: uvr_rotateLatLon, uvr_rotateLatLonVec
 
   integer, parameter :: msize = 3
   integer, parameter :: maxNumSubGrid = 2
@@ -550,6 +551,80 @@ module windRotation_mod
     LatOut = LatOut * MPC_RADIANS_PER_DEGREE_R8 ! To radians
 
   end subroutine uvr_rotateLatLon
+
+
+  subroutine uvr_rotateLatLonVec(uvr, subGridIndex, LatOut, LonOut, LatIn, LonIn, mode)
+    !
+    ! :Purpose: Go from (lat,lon) of one Cartesian frame to (lat,lon) of another
+    !           Cartesian frame given the rotation matrix.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_uvr), pointer, intent(in)  :: uvr             ! Wind rotation object
+    integer,                   intent(in)  :: subGridIndex(:) ! Current subgrid index
+    real(8),                   intent(in)  :: LatIn(:)        ! Input latitude in radians
+    real(8),                   intent(in)  :: LonIn(:)        ! Input longitude in radians
+    real(8),                   intent(out) :: LatOut(:)       ! Output latitude in radians
+    real(8),                   intent(out) :: LonOut(:)       ! Output longitude in radians
+    character(*),              intent(in)  :: mode            ! ToLatLonRot or ToLatLon
+
+    ! Locals:
+    integer :: jj, ji, numPoints, pointIndex
+    real(8) :: CartIn(msize), CartOut(msize)
+    real(8) :: cosLat
+
+    numPoints = size(LatIn)
+
+    if ( .not. uvr%initialized ) then
+      write(*,*)
+      call utl_abort('uvr_rotateLatLon: WindRotation module is not initialize')
+    endif
+
+    do pointIndex = 1, numPoints
+      cosLat = cos(LatIn(pointIndex))
+      CartIn(1) = cosLat * cos(LonIn(pointIndex))
+      CartIn(2) = cosLat * sin(LonIn(pointIndex))
+      CartIn(3) = sin(LatIn(pointIndex))
+
+      CartOut(:) = 0.0d0
+      if ( trim(mode) == 'ToLatLonRot' ) then
+        do jj = 1,msize
+          do ji = 1,msize
+            CartOut(ji) = CartOut(ji) + uvr%grd_rot_8(ji,jj,subGridIndex(pointIndex)) * CartIn(jj)
+          end do
+        end do
+      else if ( trim(mode) == 'ToLatLon' ) then
+        do jj = 1,msize
+          do ji = 1,msize
+            CartOut(ji) = CartOut(ji) + uvr%grd_rotinv_8(ji,jj,subGridIndex(pointIndex)) * CartIn(jj)
+          end do
+        end do
+      else
+        write(*,*)
+        write(*,*) 'uvr_rotateLatLon: Unknown transform name: ', trim(mode)
+        write(*,*) '                  mode = ToLatLonRot or ToLatLon'
+        call utl_abort('uvr_rotateLatLon')
+      end if
+
+      LatOut(pointIndex) = asin(CartOut(3))
+
+      if ( CartOut(1) == 0.d0 ) then
+        if ( CartOut(2) == 0.d0 ) then  ! point is located at the pole
+          LonOut(pointIndex) = 0.0d0  ! can be any longitude... set it to zero simply.
+        else if ( CartOut(2) > 0.0d0 ) then
+          LonOut(pointIndex) = 90.0d0 * MPC_RADIANS_PER_DEGREE_R8
+        else if ( CartOut(2) < 0.0d0 ) then
+          LonOut(pointIndex) = 270.0d0 * MPC_RADIANS_PER_DEGREE_R8
+        end if
+      else
+        LonOut(pointIndex) = atan2(CartOut(2),CartOut(1))
+        if (LonOut(pointIndex) < 0.0d0) LonOut(pointIndex) = LonOut(pointIndex) + 2.d0 * MPC_PI_R8
+      end if
+
+    end do ! pointIndex
+
+  end subroutine uvr_rotateLatLonVec
 
 
   subroutine carall( plon, plat, pcart )

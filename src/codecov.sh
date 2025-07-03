@@ -14,7 +14,7 @@ typeset -r defautCovDir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
 typeset -r toplevelCmd=$"git rev-parse --show-toplevel"
 typeset -r toplevel=$(eval ${toplevelCmd})
 typeset -r defautSrcDir=${toplevel}/src
-typeset -r revstring=$(${toplevel}/midas.version.sh)
+typeset -r revstring=$(${toplevel}/midas.version)
 typeset -r defaultWebDir=~/public_html/midas/codecoverage-${revstring}
 
 set +u
@@ -27,7 +27,7 @@ eval `cclargs_lite                                                  \
  ++ $*`
 
 ## load Intel compiler so gain access to 'codecov' and 'profmerge':
-. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
+. r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
 ## Or, we could just source the 'config.dot.sh'
 
 ## On met 'set -u' apres le 'cclargs' et le 'r.load.dot' parce que

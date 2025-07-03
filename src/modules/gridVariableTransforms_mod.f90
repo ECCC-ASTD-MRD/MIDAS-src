@@ -478,6 +478,8 @@ CONTAINS
       call UVtoPsiChi_ens(ens)
     case ('UVtoVortDiv')
       call UVtoVortDiv_ens(ens)
+    case ('ZandP_nl')
+      call calcZandP_nl_ens(ens)
     case ('logCH')
       if ( .not.present(varName_opt) ) then
         call utl_abort('gvt_transform: for logCH missing variable name')
@@ -1550,7 +1552,6 @@ CONTAINS
     integer, save, pointer :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
 
     write(*,*) 'UVtoPsiChi_gsv: starting'
-    flush(6)
 
     if ( .not. statevector%hco%global ) then
 
@@ -1613,14 +1614,12 @@ CONTAINS
       end do
 
       write(*,*) 'deallocate'
-      flush(6)
       deallocate(gridState)
       deallocate(spectralState)
 
     end if
 
     write(*,*) 'UVtoPsiChi_gsv: finished'
-    flush(6)
 
   end subroutine UVtoPsiChi_gsv
 
@@ -1737,6 +1736,63 @@ CONTAINS
     write(*,*) 'gvt_UVtoVortDiv_ens: finished'
 
   end subroutine UVtoVortDiv_ens
+
+  !--------------------------------------------------------------------------
+  ! calcZandP_nl_ens
+  !--------------------------------------------------------------------------
+  subroutine calcZandP_nl_ens(ens)
+    ! 
+    ! :Purpose: Compute 3D pressure (ensemble processing)
+    !
+    implicit none
+   
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+
+    ! Locals:
+    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_gsv)          :: gridStateVector_oneMember
+    integer                   :: memberIndex
+
+    write(*,*)
+    write(*,*) 'calcZandP_nl_ens: starting'
+
+    hco_ens => ens_getHco(ens)
+
+    !
+    !- 1.  Create a working stateVector
+    !
+    call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ens), hco_ens, ens_getVco(ens), &
+                      varNames_opt=(/'TT ','HU ','P0 ','Z_T','Z_M','P_T','P_M'/),                  &
+                      datestamp_opt=tim_getDatestamp(), allocHeightSfc_opt=.true.,              &
+                      mpi_local_opt=.true., dataKind_opt=8)
+
+    ! Add HeighSfc and, if existing, HeightSfcLs
+    call ens_copyHeightSfcToGsv(ens, gridStateVector_oneMember)
+    
+    !
+    !- 2.  Loop on members
+    !
+    do memberIndex = 1, ens_getNumMembers(ens)
+
+      !- 2.1 Copy to a stateVector
+      call ens_copyMember(ens, gridStateVector_oneMember, memberIndex)
+
+      !- 2.2 Do the transform
+      call czp_calcZandP_nl(gridStateVector_oneMember)
+
+      !- 2.3 Put the result back in the input ensembleStateVector
+      call ens_insertMember(ens, gridStateVector_oneMember, memberIndex)
+    end do
+
+    !
+    !- 3. Cleaning
+    !
+    call gsv_deallocate(gridStateVector_oneMember)
+
+    write(*,*) 'calcZandP_nl_ens: finished'
+
+  end subroutine calcZandP_nl_ens
 
   !--------------------------------------------------------------------------
   ! logCH_ens

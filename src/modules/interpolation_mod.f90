@@ -311,9 +311,15 @@ contains
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       call msg('int_hInterp_gsv','interpolating surface height')
-      ierr = int_hInterpScalar( statevector_out, statevector_in, 'ZSFC', 1, 1, &
-                                interpDegree=trim(interpolationDegree), &
-                                extrapDegree_opt=trim(extrapolationDegree) )
+      ierr = int_hInterpScalar(statevector_out, statevector_in, 'ZSFC', 1, 1, &
+                               interpDegree=trim(interpolationDegree), &
+                               extrapDegree_opt=trim(extrapolationDegree))
+      if ( gsv_isAssocHeightSfcLS(statevector_in) .and. gsv_isAssocHeightSfcLS(statevector_out) ) then
+        call msg('int_hInterp_gsv','interpolating surface height LS')
+        ierr = int_hInterpScalar(statevector_out, statevector_in, 'ZSFCLS', 1, 1, &
+                                 interpDegree=trim(interpolationDegree), &
+                                 extrapDegree_opt=trim(extrapolationDegree))
+      end if
     end if
 
     call msg('int_hInterp_gsv', 'END', verb_opt=2)
@@ -406,7 +412,10 @@ contains
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
-        call utl_abort('vInterp_gsv_r8: reference must have input vertical structure')
+        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same vertical grid')
+      end if
+      if ( .not. hco_equal(statevectorRef_opt%hco, statevector_in%hco) ) then
+        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same horizontal grid')
       end if
       statevectorRef => statevectorRef_opt
     else
@@ -420,7 +429,7 @@ contains
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
@@ -431,6 +440,11 @@ contains
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       heightSfcOut(:,:) = heightSfcIn(:,:)
+      if (gsv_isAssocHeightSfcLs(statevector_in) .and. gsv_isAssocHeightSfcLs(statevector_out) ) then
+        heightSfcIn => gsv_getHeightSfcLs(statevector_in)
+        heightSfcOut => gsv_getHeightSfcLs(statevector_out)
+        heightSfcOut(:,:) = heightSfcIn(:,:)
+      end if
     end if
 
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid
@@ -606,7 +620,7 @@ contains
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in
         real(8) :: zwb, zwt
-
+        
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
@@ -736,6 +750,11 @@ contains
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       heightSfcOut(:,:) = heightSfcIn(:,:)
+      if (gsv_isAssocHeightSfcLs(statevector_in) .and. gsv_isAssocHeightSfcLs(statevector_out) ) then
+        heightSfcIn => gsv_getHeightSfcLs(statevector_in)
+        heightSfcOut => gsv_getHeightSfcLs(statevector_out)
+        heightSfcOut(:,:) = heightSfcIn(:,:)
+      end if
     end if
 
     ! DBGmad move to int_vInterp_gsv?
@@ -1469,6 +1488,19 @@ contains
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
 
+    else if (trim(varName) == 'ZSFCLS') then
+
+      heightSfcIn  => gsv_getHeightSfcLs(stateVectorIn)
+      heightSfcOut => gsv_getHeightSfcLs(stateVectorOut)
+
+      ! allocate real(4) buffers and copy to/from for interpolation
+      allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      fieldIn_r4(:,:,1,1) = heightSfcIn(:,:)
+      ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
+      heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
+      deallocate(fieldIn_r4,fieldOut_r4)
+      
     else if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'ALL') then

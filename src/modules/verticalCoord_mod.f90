@@ -6,6 +6,7 @@ module verticalCoord_mod
   !           The derived type includes a pointer to the associated VGRID
   !           descriptor.
   !
+  use rpn_comm
   use midasMpi_mod
   use Vgrid_Descriptors
   use varNameList_mod

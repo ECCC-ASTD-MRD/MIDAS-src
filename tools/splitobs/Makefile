@@ -24,18 +24,17 @@ DEBUG_OPTIONS =
 
 OPT_LEVEL = 2
 
-BURPTOOLS = /fs/ssm/eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5
+BURPTOOLS = /fs/ssm/eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2
 
 install : # defining default target
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2; \
+	. r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20250129-alpha; \
+	. r.load.dot eccc/mrd/rpn/libs/20250604-beta; \
 	. r.load.dot $(BURPTOOLS)-${COMP_ARCH}_${ORDENV_PLAT}; \
-	. ssmuse-sh -d eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}; \
 	make splitobs
 
 splitobs: version.h $(SRC)

@@ -149,12 +149,19 @@ contains
       call utl_abort('epp_postProcess')
     end if
 
+    ! Optional argument settings
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
     else
       outputOnlyEnsMean = .false.
     end if
 
+    if (present(writeHeightSfc_opt)) then
+      writeHeightSfc = writeHeightSfc_opt
+    else
+      writeHeightSfc = .false.
+    end if
+    
     !- Extract the grid definitions and ensemble size
     if (ens_isAllocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
@@ -702,11 +709,6 @@ contains
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble .and. .not. outputOnlyEnsMean) then
         call utl_tmg_start(3,'--WriteEnsemble')
-        if (present(writeHeightSfc_opt)) then
-          writeHeightSfc = writeHeightSfc_opt
-        else
-          writeHeightSfc = .false.
-        end if
         if (writeHeightSfc) then
           call ens_copyHeightSfc(ensembleTrl,stateVectorHeightSfc)
         end if
@@ -758,7 +760,7 @@ contains
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
-                             typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                             typvar_opt = 'A', writeHeightSfc_opt = writeHeightSfc, numBits_opt = numBits, &
                              numBits2D_opt = numBits2D, stepIndex_opt = stepIndex,  &
                              containsFullField_opt = .true.)
       end do
@@ -1243,7 +1245,8 @@ contains
     type(struct_gsv)         :: stateVectorPerturbation
     type(struct_gsv)         :: stateVectorPerturbationInterp
     type(struct_gsv)         :: stateVectorHuRefState
-    type(struct_gsv)         :: stateVectorHuRefStateInterp
+    type(struct_gsv)         :: stateVectorHuRefStateInterpHV
+    type(struct_gsv)         :: stateVectorHuRefStateInterpV
     type(struct_gsv)         :: stateVectorP0Ref
     type(struct_vco), pointer :: vco_randomPert, vco_ens
     type(struct_hco), pointer :: hco_randomPert, hco_ens, hco_core
@@ -1261,7 +1264,7 @@ contains
     character(len=4) :: varName
 
     call utl_tmg_start(4,'--AddEnsRandomPert')
-
+    
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensemble)
     numVarLev = ens_getNumVarLev(ensemble)
@@ -1342,8 +1345,7 @@ contains
                       varNames_opt=(/'P0'/))
     call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
     PsfcRef(:,:,:,:) = 100000.0D0
-
-
+    
     ! prepare the reference state HU field for transforming LQ to HU perturbations
     if (ens_varExist(ensemble,'HU')) then
       call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
@@ -1351,17 +1353,27 @@ contains
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         hExtrapolateDegree_opt='MINIMUM', &
                         varNames_opt=(/'HU','TT','P0'/) )
+      
       if (.not. useMemberAsHuRefState) then
         ! use the single provided state as the reference state and interpolate to perturbation grid
         call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
-        call gsv_allocate(stateVectorHuRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
+        call gsv_allocate(stateVectorHuRefStateInterpHV, 1, hco_randomPert, vco_randomPert,   &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           hExtrapolateDegree_opt='MINIMUM', &
                           varNames_opt=(/'HU','TT','P0'/) )
-        call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterp)
+        call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterpHV)
+        if (vco_ens%vcode == 21001 .and. vco_randomPert%vcode /= 21001) then
+          call gsv_allocate(stateVectorHuRefStateInterpV, 1, hco_ens, vco_randomPert,   &
+                            dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                            allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
+                            hExtrapolateDegree_opt='MINIMUM', &
+                            varNames_opt=(/'HU','TT','P0'/) )
+          call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterpV)
+        end if
         call gsv_deallocate(stateVectorHuRefState)
       end if
+      
     end if
 
     do memberIndex = 1, nEns
@@ -1382,17 +1394,17 @@ contains
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
-                        stateVectorRef_opt=stateVectorHuRefStateInterp) ! IN
+                        stateVectorRef_opt=stateVectorHuRefStateInterpHV) ! IN
       else
         ! No conversion from LQ to HU done in bmat_sqrtB
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
                         stateVectorPerturbation)       ! OUT
       end if
       call utl_tmg_start(4,'--AddEnsRandomPert')
-
-      if (vco_ens%vcode == 21001) then
+      
+      if (vco_ens%vcode == 21001 .and. vco_randomPert%vcode /= 21001) then
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
-                            statevectorRef_opt=stateVectorHuRefStateInterp)
+                            statevectorRef_opt=stateVectorHuRefStateInterpV)
       else
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
                             statevectorRef_opt=stateVectorP0Ref)
@@ -1466,8 +1478,11 @@ contains
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
     call gsv_deallocate(stateVectorP0Ref)
-    if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
-      call gsv_deallocate(stateVectorHuRefStateInterp)
+    if (gsv_isAllocated(stateVectorHuRefStateInterpHV)) then
+      call gsv_deallocate(stateVectorHuRefStateInterpHV)
+    end if
+    if (gsv_isAllocated(stateVectorHuRefStateInterpV)) then
+      call gsv_deallocate(stateVectorHuRefStateInterpV)
     end if
 
     call utl_tmg_stop(4)

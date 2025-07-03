@@ -10,6 +10,7 @@ module obsFiles_mod
   !              2. SQLITE (burp2rdb format)
   !              3. SQLITE (obsDB format)
   !
+  use rpn_comm
   use midasMpi_mod
   use ramDisk_mod
   use utilities_mod

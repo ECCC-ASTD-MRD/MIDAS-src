@@ -6,6 +6,7 @@ module globalSpectralTransform_mod
   !           with grid-point field on a standard global Gaussian grid).
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use codePrecision_mod
   use midasMpi_mod
   use codePrecision_mod
   use MathPhysConstants_mod
