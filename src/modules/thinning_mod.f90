@@ -7668,7 +7668,7 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_thinning
-    integer :: headerIndexBeg, headerIndexEnd
+    integer :: headerIndexBeg, headerIndexEnd, bodyIndexBeg, bodyIndexEnd
     integer :: lonIndex, latIndex, stepIndex, codeType
     integer :: obsLonIndex, obsLatIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
@@ -7679,6 +7679,7 @@ contains
     real(8) :: deltaLon, deltaLat, deltaLatCell, deltaLonCell
     real(4) :: obsDistance, sizeGridCell
     integer :: medianIndex
+    logical :: sstFound
     real(4), allocatable :: lonGrid(:), latGrid(:)
     logical, allocatable :: valid(:), validMpi(:)
     integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
@@ -7706,16 +7707,27 @@ contains
     ! count satellite SST data of the current sensor (id_stn)
     satSSTCount = 0
     HEADER0: do headerIndex = 1, numHeader
-      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
-
-      ! Check values of obs_flg, obs_vnm, obs_ity and stid
-      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER0
-      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle HEADER0
+      ! Check values of obs_ity and stid
       codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER0
       stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
       if (trim(stnID) /= trim(dataSet)) cycle HEADER0
+
+      ! Find bodyIndex for SST obs
+      bodyIndexBeg = obs_headElem_i(obsdat, obs_rln, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsdat, obs_nlv, headerIndex) + bodyIndexBeg - 1
+      sstFound = .false.
+      BODY0: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+        if (obsVarno == bufr_sst) then
+          sstFound = .true.
+          exit BODY0
+        end if
+      end do BODY0
+      if (.not. sstFound) cycle HEADER0
+
+      ! Check values of obs_flg
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER0
 
       satSSTCount = satSSTCount + 1
       valid(headerIndex) = .true.
@@ -7768,16 +7780,27 @@ contains
     obsSST(:) = 0.
 
     HEADER1: do headerIndex = 1, numHeader
-      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
-
-      ! Check values of obs_flg, obs_vnm, obs_ity and stid
-      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER1
-      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle HEADER1
+      ! Check values of obs_ity and stid
       codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER1
       stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
       if (trim(stnID) /= trim(dataSet)) cycle HEADER1
+
+      ! Find bodyIndex for SST obs
+      bodyIndexBeg = obs_headElem_i(obsdat, obs_rln, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsdat, obs_nlv, headerIndex) + bodyIndexBeg - 1
+      sstFound = .false.
+      BODY1: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+        if (obsVarno == bufr_sst) then
+          sstFound = .true.
+          exit BODY1
+        end if
+      end do BODY1
+      if (.not. sstFound) cycle HEADER1
+
+      ! Check values of obs_flg
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER1
 
       ! find time difference
       obsDate = obs_headElem_i(obsdat, obs_dat, headerIndex)
@@ -7803,8 +7826,6 @@ contains
         valid(headerIndex) = .false.
         cycle HEADER1
       end if
-
-      obsVarno = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
 
       obsSST(headerIndex) = real(obs_bodyElem_r(obsdat, obs_var, bodyIndex),4)
 
@@ -7921,16 +7942,27 @@ contains
 
     ! Modify the flags for rejected observations
     HEADER3: do headerIndex = 1, numHeader
-      bodyIndex = obs_headElem_i(obsdat, obs_rln, headerIndex)
-
-      ! Check values of obs_flg, obs_vnm, obs_ity and stid
-      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER3
-      obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle HEADER3
+      ! Check values of obs_ity and stid
       codeType = obs_headElem_i(obsdat, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER3
       stnID = obs_elem_c(obsdat, 'STID' , headerIndex)
       if (trim(stnID) /= trim(dataSet)) cycle HEADER3
+
+      ! Find bodyIndex for SST obs
+      bodyIndexBeg = obs_headElem_i(obsdat, obs_rln, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsdat, obs_nlv, headerIndex) + bodyIndexBeg - 1
+      sstFound = .false.
+      BODY3: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsVarno  = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
+        if (obsVarno == bufr_sst) then
+          sstFound = .true.
+          exit BODY3
+        end if
+      end do BODY3
+      if (.not. sstFound) cycle HEADER3
+
+      ! Check values of obs_flg
+      if (flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck)) cycle HEADER3
 
       if (.not. valid(headerIndex)) then
         call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
