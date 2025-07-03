@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Added ability to compute superobs for SST satellite observations (#1089 and !1003)
+   * Results affected by bug fix for SST satellite data thinning
  * Added ability to compute superobs for microwave radiances (#975 and !1000)
  * Reject and/or exclude obs from bcorr when obs and trial clouds mismatch (#1084 and !994)
    * Activated using several variables in `nambgck` namelist for AMSUA[B]/ATMS.
