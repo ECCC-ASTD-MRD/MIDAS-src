@@ -7813,6 +7813,7 @@ contains
       obsLat = obs_headElem_r(obsdat, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       ! latitude index
       deltaLat = abs(latGrid(1) - obsLat)
+      deltaLatCell = abs(latGrid(2) - latGrid(1))
       obsLatIndex = 1
       do latIndex = 2, hco_thinning%nj
         if (abs(latGrid(latIndex) - obsLat) < deltaLat) then
@@ -7824,6 +7825,7 @@ contains
 
       ! longitude index
       deltaLon = abs(lonGrid(1) - obsLon)
+      deltaLonCell = abs(lonGrid(2) - lonGrid(1))
       obsLonIndex = 1
       do lonIndex = 2, hco_thinning%ni
         if (abs(lonGrid(lonIndex) - obsLon) < deltaLon) then
