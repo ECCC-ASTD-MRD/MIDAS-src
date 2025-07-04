@@ -2004,11 +2004,11 @@ contains
 
         call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_T')
         call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_T')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
         call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_M')
         call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_M')
-        height3D_r4_ptr2(:,:,:) = height3D_r8_ptr1(:,:,:)
+        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
 
       else
 
@@ -3241,15 +3241,15 @@ contains
                 ! This location is in the halo
                 haloIndex = lonIndex
                 myHaloValuesAd_r48%r4(varLevIndex,stepIndex,haloIndex) =  &
-                     real(myHaloValuesAd_r48%r4(varLevIndex,stepIndex,haloIndex),8) +  &
-                     timeWeight * gridWeight *  &
-                     myColumnDataAd%r8(varLevIndex,columnIndex)
+                     real(real(myHaloValuesAd_r48%r4(varLevIndex,stepIndex,haloIndex),8) +  &
+                          timeWeight * gridWeight *  &
+                          myColumnDataAd%r8(varLevIndex,columnIndex), 4)
               else
                 ! This location is in the tile interior
                 ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex) =  &
-                     real(ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex),8) +  &
-                     timeWeight * gridWeight * &
-                     myColumnDataAd%r8(varLevIndex,columnIndex)
+                     real(real(ptr4d_r4(lonIndex, latIndex, varLevIndex, stepIndex),8) +  &
+                          timeWeight * gridWeight * &
+                          myColumnDataAd%r8(varLevIndex,columnIndex), 4)
               end if
 
             else
