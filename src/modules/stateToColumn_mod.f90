@@ -2750,12 +2750,12 @@ contains
       ! Count how much data each process will send/receive
       do columnIndex = 1, myNumCol
         procDest = intInfo%yourObsTileMpiId(columnIndex)
-        sendCounts(procSrc+1) = sendCounts(procDest+1) + nsize
+        sendCounts(procDest+1) = sendCounts(procDest+1) + nsize
       end do
 
       do columnIndex = 1, yourNumCol
         procSrc = intInfo%myInterpObsMpiIdSrc(columnIndex)
-        recvCounts(procDest+1) = recvCounts(procSrc+1) + nsize
+        recvCounts(procSrc+1) = recvCounts(procSrc+1) + nsize
       end do
 
       sendDispls(1) = 0
