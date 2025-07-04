@@ -1496,7 +1496,7 @@ contains
       ! allocate real(4) buffers and copy to/from for interpolation
       allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
       allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
-      fieldIn_r4(:,:,1,1) = heightSfcIn(:,:)
+      fieldIn_r4(:,:,1,1) = real(heightSfcIn(:,:),4)
       ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
