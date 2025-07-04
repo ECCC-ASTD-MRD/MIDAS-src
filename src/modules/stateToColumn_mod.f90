@@ -854,15 +854,15 @@ contains
           call getMyInterpWeightsFootprint(footPrintRadius_r4, myHeaderIndex, &
                                            varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == bilinearFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, bilinearFootprint) ) then
 
           call getMyInterpWeightsBilinear(myHeaderIndex, varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == lakeFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, lakeFootprint) ) then
 
           call getMyInterpWeightsLake(myHeaderIndex, varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, nearestNeighbourFootprint) ) then
 
           call getMyInterpWeightsNearestNeighbor(myHeaderIndex, varLevIndex, numGridpt)
 
@@ -898,15 +898,15 @@ contains
           call getMyInterpWeightsFootprint(footPrintRadius_r4, myHeaderIndex, &
                                            varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == bilinearFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, bilinearFootprint) ) then
 
           call getMyInterpWeightsBilinear(myHeaderIndex, varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == lakeFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, lakeFootprint) ) then
 
           call getMyInterpWeightsLake(myHeaderIndex, varLevIndex, numGridpt)
 
-        else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
+        else if ( utl_isEqual(footprintRadius_r4, nearestNeighbourFootprint) ) then
 
           call getMyInterpWeightsNearestNeighbor(myHeaderIndex, varLevIndex, numGridpt)
 
@@ -976,7 +976,7 @@ contains
       end if
 
       if ( stateVector%hco%grtyp == 'U' ) then
-        if ( ypos_r4 == real(stateVector%nj/2) ) then
+        if ( utl_isEqual(ypos_r4, real(stateVector%nj/2)) ) then
           latIndex = floor(ypos_r4) - 1
         end if
       end if
@@ -3060,7 +3060,7 @@ contains
                                                       stepIndex,procIndex)
 
         ! skip this time step if weight is zero
-        if (timeWeight == 0.0d0) cycle
+        if ( utl_isEqual(timeWeight, 0.0d0) ) cycle
 
         do varLevIndex = 1, numVarLev
           do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
@@ -3225,7 +3225,7 @@ contains
                                                       stepIndex,procIndex)
 
         ! skip this time step if weight is zero
-        if (timeWeight == 0.0d0) cycle
+        if ( utl_isEqual(timeWeight, 0.0d0) ) cycle
 
         do varLevIndex = 1, numVarLev
           do depotIndex = intInfo%depotIndexBeg(varLevIndex,columnIndex), &
