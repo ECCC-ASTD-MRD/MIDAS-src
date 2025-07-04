@@ -161,9 +161,12 @@ contains
 
       else
 
+        lat_deg_r4_vec(1) = lat_deg_r4
+        lon_deg_r4_vec(1) = lon_deg_r4
         ! Not an unstructured grid, nor a Yin-Yan grid, call the standard ezscint routine
-        ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
-
+        ierr = gdxyfll(gdid, xpos_r4_vec, ypos_r4_vec, lat_deg_r4_vec, lon_deg_r4_vec, 1)
+        xpos_r4 = xpos_r4_vec(1)
+        ypos_r4 = ypos_r4_vec(1)
       end if
 
       subGridIndex = 1
@@ -239,7 +242,7 @@ contains
     allocate(lonrot(numPoints))
 
     ! Compute positions on YIN
-    ierr = gdxyfll(EZscintIDvec(1), xpos_r4,    ypos_r4,    lat_deg_r4, lon_deg_r4, numPoints)
+    ierr = gdxyfll(EZscintIDvec(1), xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, numPoints)
 
     ! compute rotated lon and lat at obs location
     axesDifferent = (EZscintIDvec1_old /= EZscintIDvec(1))
