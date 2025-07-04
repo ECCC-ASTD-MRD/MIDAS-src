@@ -721,8 +721,8 @@ contains
     if (.not. obs_famExist(obsdat,'CH')) return
 
     ! Default values for namelist variables
-    deltemps(:)   = 1        ! default is a single time bin for thinning time intervals
-    deldist(:)    = 111.2d0  ! default value is for 1 degree of arc on the Earth's surface at the equator
+    deltemps(:)   = 1   ! default is a single time bin for thinning time intervals
+    deldist(:)    = 111 ! default value is for 1 degree of arc on the Earth's surface at the equator
     stnIdList(:)  = ''
     methodList(:) = ''
     maxSunList(:) = 90.0d0
