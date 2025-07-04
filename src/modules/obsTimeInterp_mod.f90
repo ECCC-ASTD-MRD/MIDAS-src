@@ -328,10 +328,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
-    real(8),                   intent(in)    :: weight_in
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
+    real(8),                   intent(in) :: weight_in
 
     oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
@@ -343,9 +343,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
     ! Result:
     real(8)                   :: weight_out
 
@@ -359,10 +359,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
-    integer,                   intent(in)    :: procIndex
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
+    integer,                   intent(in) :: procIndex
     ! Result:
     real(8)                   :: weight_out
 
@@ -376,8 +376,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
     ! Result:
     logical :: allZero
 
