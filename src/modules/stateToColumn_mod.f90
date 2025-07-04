@@ -362,10 +362,10 @@ contains
       write(*,*) 'setupInterpInfoTiles (s2c): Collect information on obs in my tile'
       call msg_memUsage('setupInterpInfoTiles')
     end if
-    call getMyInterpObsLatLon(intInfo, stateVector)
+    call getMyInterpObsLatLon(intInfo)
     call getMyInterpObsXYposSubGridIndex(intInfo, obsSpaceData, stateVector)
     if (intInfo%rotatedWinds) then
-      call getMyInterpObsRotLatLon(intInfo, stateVector)
+      call getMyInterpObsRotLatLon(intInfo)
     end if
 
     if (.not. beSilent) then
@@ -1398,7 +1398,7 @@ contains
   !---------------------------------------------------------
   ! getMyInterpObsLatLon (called by setupInterpInfoTiles)
   !---------------------------------------------------------
-  subroutine getMyInterpObsLatLon(intInfo, stateVector)
+  subroutine getMyInterpObsLatLon(intInfo)
     !
     ! :Purpose: Define lat-lon, mpiIdSrc and headerIndex of observations on my
     !           lat-lon tile where the interpolation will be performed.
@@ -1407,7 +1407,6 @@ contains
 
     ! Arguments:
     type(struct_interpInfoTiles), intent(inout) :: intInfo       ! Interpolation info structure
-    type(struct_gsv), target    , intent(in)    :: stateVector   ! stateVector object
 
     ! Locals:
     integer :: headerIndex, myHeaderIndex, yourNumHeader
@@ -1699,7 +1698,7 @@ contains
   !---------------------------------------------------------
   ! getMyInterpObsRotLatLon (called by setupInterpInfoTiles)
   !---------------------------------------------------------
-  subroutine getMyInterpObsRotLatLon(intInfo, stateVector)
+  subroutine getMyInterpObsRotLatLon(intInfo)
     !
     ! :Purpose: Define rotated lat-lon (if needed) of observations on my
     !           lat-lon tile where the interpolation will be performed.
@@ -1708,7 +1707,6 @@ contains
 
     ! Arguments:
     type(struct_interpInfoTiles), intent(inout) :: intInfo       ! Interpolation info structure
-    type(struct_gsv), target    , intent(in)    :: stateVector   ! stateVector object
 
     ! Locals:
     integer :: headerIndex, myHeaderIndex, yourNumHeader
