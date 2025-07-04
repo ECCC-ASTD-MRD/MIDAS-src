@@ -3350,7 +3350,7 @@ contains
     end if
 
     ! radius is constant
-    if ( all(hLocalize(:) == hLocalize(1)) ) then
+    if ( all( utl_isEqual(hLocalize(:), hLocalize(1)) ) ) then
       hLoc = hLocalize(1)
 
     ! radius varies vertically, and is linearly interpolated with log(P)
