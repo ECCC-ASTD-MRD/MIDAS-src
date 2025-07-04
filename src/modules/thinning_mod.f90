@@ -3562,7 +3562,7 @@ contains
     integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsInMpi, countObsOutMpi
     integer :: countRejectedInObs, countRejectedInObsMpi
-    integer :: obsDate, obsTime, obsFlag
+    integer :: obsDate, obsTime
     integer :: flagCount, badFlagCount
     integer :: badTimeCount, badTimeCountMpi
     integer :: numSelected, middleStep
@@ -3610,11 +3610,9 @@ contains
           if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
               BUFR_SCALE_EXPONENT) cycle BODY01
           flagCount = flagCount + 1
-          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          if (btest(obsFlag,18) .or. btest(obsFlag,16) .or. &
-              btest(obsFlag,9) .or. btest(obsFlag,8) .or. &
-              btest(obsFlag,4) .or. btest(obsFlag,3) .or. &
-              btest(obsFlag,2)) then
+          if ( flg_flagIsOn('OR', obsdat, bodyIndex, [flg_18rejOro, flg_16rejOmP, flg_09rejBgck, &
+                                                      flg_08rejBlackL, flg_04doubtful, flg_03,   &
+                                                      flg_02erroneous]) ) then
             badFlagCount = badFlagCount + 1
           end if
         end do BODY01
@@ -3627,8 +3625,7 @@ contains
           BODY01b: do
             bodyIndex = obs_getBodyIndex(obsdat)
             if (bodyIndex < 0) exit BODY01b
-            obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+            call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
           end do BODY01b
         end if
       else
@@ -3638,8 +3635,7 @@ contains
         BODY02: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY02
-          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY02
       end if
     end do HEADER0
@@ -3813,8 +3809,7 @@ contains
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-          obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY3
         cycle HEADER3
       end if
