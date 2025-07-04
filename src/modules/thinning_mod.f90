@@ -703,7 +703,6 @@ contains
     ! Locals:
     integer :: ierr                       ! status flag
     integer, parameter :: maxStnIdNum=100 ! Max allowed stnid for thinning
-    integer, parameter :: maxLayerNum=100 ! Max allowed number of averaging layer boundaries
     integer :: stnIdIndex                 ! Station ID loop index
 
     ! Namelist variables:
