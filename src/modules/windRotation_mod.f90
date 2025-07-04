@@ -609,8 +609,8 @@ module windRotation_mod
 
       LatOut(pointIndex) = asin(CartOut(3))
 
-      if ( CartOut(1) == 0.d0 ) then
-        if ( CartOut(2) == 0.d0 ) then  ! point is located at the pole
+      if ( utl_isEqual(CartOut(1), 0.d0) ) then
+        if ( utl_isEqual(CartOut(2), 0.d0) ) then  ! point is located at the pole
           LonOut(pointIndex) = 0.0d0  ! can be any longitude... set it to zero simply.
         else if ( CartOut(2) > 0.0d0 ) then
           LonOut(pointIndex) = 90.0d0 * MPC_RADIANS_PER_DEGREE_R8
