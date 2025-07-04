@@ -620,7 +620,7 @@ contains
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in
         real(8) :: zwb, zwt
-        
+
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
@@ -1500,7 +1500,7 @@ contains
       ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
-      
+
     else if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'ALL') then
