@@ -6,7 +6,6 @@ module obsDiagFiles_mod
   !           obsSpaceData object.
   !
   use midasMpi_mod
-  use obsSpaceData_mod
   use fSQLite
   use codePrecision_mod
   use mathPhysConstants_mod
