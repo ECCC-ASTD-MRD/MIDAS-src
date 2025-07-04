@@ -5267,7 +5267,7 @@ contains
 
     ! Locals:
     integer              :: headerIndex, bodyIndex
-    integer              :: flag, countObs, countReject
+    integer              :: countObs, countReject
     integer              :: countKeepN ! count to keep every Nth observation in the column
     logical              :: exponentPresent
     logical, allocatable :: flagged(:)
@@ -5324,7 +5324,7 @@ contains
           ! Reject this observation
           flagged(countObs) = .true.
           countReject = countReject + 1
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(flag,11))
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end if
 
       end do BODY
