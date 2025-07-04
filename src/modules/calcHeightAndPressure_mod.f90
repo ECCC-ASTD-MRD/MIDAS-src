@@ -478,9 +478,10 @@ contains
 
     ! Locals:
     integer ::  numStep, stepIndex
-    real(kind=8), pointer       :: Hsfc(:,:), HsfcLS(:,:)
-    real(kind=4), allocatable   :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
-    real(kind=4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    real(kind=8),     pointer :: Hsfc(:,:), HsfcLS(:,:)
+    real(kind=4), allocatable :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
+    real(kind=4),     pointer :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    type(struct_vco), pointer :: vco_ptr
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
@@ -489,10 +490,11 @@ contains
     Hsfc => gsv_getHeightSfc(statevector)
     Hsfc_r4 = real(Hsfc,4)
 
+    vco_ptr => gsv_getVco(statevector)
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
-      if (gsv_getVco(statevector)%sleveCoord) then
+      if (vco_ptr%sleveCoord) then
         allocate(HsfcLS_r4(statevector%myLonBeg:statevector%myLonEnd, &
                            statevector%myLatBeg:statevector%myLatEnd))
         HsfcLS => gsv_getHeightSfcLS(statevector)
