@@ -1096,7 +1096,7 @@ contains
       integer :: lonIndex, latIndex, resultsIndex, gridIndex
       integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
       real(8) :: lonObs, latObs
-      real(4) :: xpos_r4, ypos_r4, lonObs_deg_r4, latObs_deg_r4
+      real(4) :: xpos_r4, ypos_r4
       type(kdtree2_result)   :: searchResults(maxNumLocalGridptsSearch)
       real(kdkind)           :: refPosition(3), maxRadiusSquared
       type(kdtree2), pointer :: tree
@@ -1350,7 +1350,6 @@ contains
       ! Locals:
       integer :: depotIndex
       integer :: latIndex, lonIndex
-      integer :: subGridIndex
       real(4) :: xpos_r4, ypos_r4
 
       if ( stateVector%hco%grtyp == 'U' ) then
