@@ -983,9 +983,10 @@ module gridStateVectorFileIO_mod
             write(*,*) 'typvar_var = ', typvar_var
             call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
           end if
+          hco_file => gsv_getHco(statevector)
           heightSfcLS_ptr => gsv_getHeightSfcLS(statevector)
-          heightSfcLS_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-               1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
+          heightSfcLS_ptr = real(gd2d_file_r4(1:hco_file%ni, 1:hco_file%nj), 8) &
+                                 * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
 
           deallocate(gd2d_file_r4)
         end if
