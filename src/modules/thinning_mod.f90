@@ -3731,7 +3731,7 @@ contains
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! obs is outside time window
-      if(obsStepIndex(headerIndex) == -1.0d0) quality(headerIndex) =  nullValue
+      if( obsStepIndex(headerIndex) == -1 ) quality(headerIndex) =  nullValue
 
     end do HEADER1
 
