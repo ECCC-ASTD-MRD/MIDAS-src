@@ -1637,7 +1637,7 @@ CONTAINS
     type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_hco), pointer :: hco_ens
     type(struct_gsv)          :: gridStateVector_oneMember
     integer                   :: memberIndex
 
@@ -1692,7 +1692,7 @@ CONTAINS
     type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_hco), pointer :: hco_ens
     type(struct_gsv)          :: gridStateVector_oneMember
     integer                   :: memberIndex
 
@@ -1741,16 +1741,16 @@ CONTAINS
   ! calcZandP_nl_ens
   !--------------------------------------------------------------------------
   subroutine calcZandP_nl_ens(ens)
-    ! 
+    !
     ! :Purpose: Compute 3D pressure (ensemble processing)
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
     ! Locals:
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_hco), pointer :: hco_ens
     type(struct_gsv)          :: gridStateVector_oneMember
     integer                   :: memberIndex
 
@@ -1769,7 +1769,7 @@ CONTAINS
 
     ! Add HeighSfc and, if existing, HeightSfcLs
     call ens_copyHeightSfcToGsv(ens, gridStateVector_oneMember)
-    
+
     !
     !- 2.  Loop on members
     !
