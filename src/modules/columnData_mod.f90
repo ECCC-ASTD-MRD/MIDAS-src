@@ -149,7 +149,7 @@ contains
     end do
 
     ! Setup to assign min values to apply
-    
+
     ! Check for input values only for variables of CH kind
     do varIndex = 1, vnl_numvarmax
       if ( trim(AnlVar(varIndex)) == '' ) exit
@@ -175,7 +175,7 @@ contains
           if ( trim(vnl_varNameList(varIndex)) == trim(AnlVar(loopIndex)) ) &
              col_minValVarKindCH(varIndex) = minValVarKindCH(loopIndex)
         end do
-      end if 
+      end if
     end do
 
     if(mmpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D, numVarOther = ', numVar3D, numVar2D, numVarOther
@@ -193,7 +193,7 @@ contains
         character(len=*), intent(in) :: varName
         ! Locals:
         integer :: jvar
- 
+
         varneed = .false.
         NEED_LOOP: do jvar = 1, vnl_numVarMax
           if (trim(varName) == trim(anlvar(jvar))) then
@@ -259,9 +259,9 @@ contains
       setToZero = .true.
     end if
 
-    if ( present(varNames_opt) ) then      
+    if ( present(varNames_opt) ) then
       column%varExistList(:) = .false.
-      numVar = size( varNames_opt ) 
+      numVar = size( varNames_opt )
       do varIndex2 = 1, numVar
         varIndex = vnl_varListIndex(varNames_opt(varIndex2))
         column%varExistList(varIndex) = .true.
@@ -342,7 +342,7 @@ contains
 
     if(column%numCol.le.0) then
       if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
-    else         
+    else
       allocate(column%all(column%numVarLev,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
@@ -353,14 +353,14 @@ contains
         allocate(column%heightSfcLS(column%numCol))
         column%heightSfcLS(:)=0.0d0
       end if
-      
+
       allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
       if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
       allocate(column%lat(numCol))
       if ( setToZero ) column%lat(:)=0.0d0
     end if
- 
+
     if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%numVarLev = ', column%numVarLev
     if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
     if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
@@ -445,7 +445,7 @@ contains
         varExist = varExistList(vnl_varListIndex(varName))
       end if
     end if
-  
+
   end function col_varExist
 
   !--------------------------------------------------------------------------
@@ -599,7 +599,7 @@ contains
     end if
 
   end function col_getPressure
- 
+
   !--------------------------------------------------------------------------
   ! col_getHeight
   !--------------------------------------------------------------------------
@@ -635,7 +635,7 @@ contains
     else if (varLevel == 'MM') then
       if (.not. col_varExist(column,'Z_M') ) then
         call utl_abort('col_getHeight: Z_M not found!')
-      end if 
+      end if
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
     else if (varLevel == 'SF' ) then
@@ -675,7 +675,7 @@ contains
     end if
 
   end function col_getHeightLS
-  
+
   !--------------------------------------------------------------------------
   ! col_setHeightSfc
   !--------------------------------------------------------------------------
@@ -717,11 +717,11 @@ contains
       write(*,*) 'headerIndex = ', headerIndex
       call utl_abort('col_setHeightSfcLS: headerIndex out of range')
     end if
-    
+
     column%heightSfcLS(headerIndex) = heightLS
 
   end subroutine col_setHeightSfcLS
-  
+
   !--------------------------------------------------------------------------
   ! col_getOltv
   !--------------------------------------------------------------------------
@@ -749,7 +749,7 @@ contains
     value = column%oltv(varIndex, levIndex, headerIndex)
 
   end function col_getOltv
-  
+
   !--------------------------------------------------------------------------
   ! col_setOltv
   !--------------------------------------------------------------------------
@@ -776,7 +776,7 @@ contains
     column%oltv(varIndex, levIndex, headerIndex) = value
 
   end subroutine col_setOltv
-  
+
   !--------------------------------------------------------------------------
   ! col_getAllColumns
   !--------------------------------------------------------------------------
@@ -812,7 +812,7 @@ contains
         allColumns => column%all(ilev1:ilev2,:)
       end if
     else
-      allColumns => null()
+      nullify(allColumns)
     end if
 
   end function col_getAllColumns
@@ -1069,7 +1069,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)     :: columnIn        ! First operand 
+    type(struct_columnData), intent(in)     :: columnIn        ! First operand
     type(struct_columnData), intent(inout)  :: columnInout     ! Second operand, will receive the result
     real(8), optional,       intent(in)     :: scaleFactor_opt ! Optional scaling of second operand before addition
 
@@ -1096,7 +1096,7 @@ contains
     if (any(columnIn%varNumLev(:) /= columnInout%varNumLev(:))) then
       call utl_abort('col_add: varNumLev in columnIn and columnInout are not equal')
     end if
-   
+
     if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnInout))) then
       call utl_abort('col_add: Vco in columnIn and columnInout are not equal')
     end if
@@ -1144,11 +1144,11 @@ contains
     if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) then
       call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
     end if
-   
+
     if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) then
       call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
     end if
-    
+
     ! Copy content
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
     columnOut%all(:,:) =  columnIn%all(:,:)
