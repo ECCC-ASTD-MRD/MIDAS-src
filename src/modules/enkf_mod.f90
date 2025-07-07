@@ -38,7 +38,7 @@ module enkf_mod
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
 
-  ! Constants (private)(
+  ! Constants (private)
   integer, parameter :: maxNumLocalize = 10 ! hLocalize size
 
   ! for weight interpolation
