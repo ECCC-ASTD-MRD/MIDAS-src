@@ -55,11 +55,11 @@ module oMinusF_mod
 
       ! Locals:
       type(struct_gsv) :: stateVectorTrialHighRes
-      type(struct_vco),       pointer :: vco_anl  => null()
-      type(struct_hco),       pointer :: hco_anl  => null()
-      type(struct_hco),       pointer :: hco_trl => null()
-      type(struct_vco),       pointer :: vco_trl => null()
-      type(struct_hco),       pointer :: hco_core => null()
+      type(struct_vco),       pointer :: vco_anl
+      type(struct_hco),       pointer :: hco_anl
+      type(struct_hco),       pointer :: hco_trl
+      type(struct_vco),       pointer :: vco_trl
+      type(struct_hco),       pointer :: hco_core
       logical           :: allocHeightSfc
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
@@ -78,6 +78,12 @@ module oMinusF_mod
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
+
+      nullify(vco_anl)
+      nullify(hco_anl)
+      nullify(vco_trl)
+      nullify(hco_trl)
+      nullify(hco_core)
 
       !- 1.3 RAM disk usage
       call ram_setup
@@ -211,11 +217,11 @@ module oMinusF_mod
       type(struct_gsv)          :: stateVectorWithZandP4D
       type(struct_gsv)          :: stateVectorHeightSfc
       type(struct_gsv)          :: stateVectorMember0
-      type(struct_vco), pointer :: vco_anl  => null()
-      type(struct_hco), pointer :: hco_anl  => null()
-      type(struct_hco), pointer :: hco_ens  => null()
-      type(struct_vco), pointer :: vco_ens  => null()
-      type(struct_hco), pointer :: hco_core => null()
+      type(struct_vco), pointer :: vco_anl
+      type(struct_hco), pointer :: hco_anl
+      type(struct_hco), pointer :: hco_ens
+      type(struct_vco), pointer :: vco_ens
+      type(struct_hco), pointer :: hco_core
       character(len=256) :: ensFileName
       character(len=48)  :: obsMpiStrategy
       character(len=3)   :: obsColumnMode

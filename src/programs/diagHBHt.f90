@@ -15,7 +15,7 @@ program midas_diagHBHt
   !            1. Compute random values for the control vector with each element
   !               drawn from independent Gaussian distribution with variance of one
   !               and bias of zero.
-  !            
+  !
   !            2. Multiply random vector by sqrt of B matrix.
   !
   !            3. Apply observation operator to obtain random perturbation in
@@ -125,7 +125,7 @@ program midas_diagHBHt
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            diagHBHt calculation are listed in the following table:
-  ! 
+  !
   !======================== ============ ==============================================================
   ! Module                   Namelist     Description of what is controlled
   !======================== ============ ==============================================================
@@ -150,7 +150,7 @@ program midas_diagHBHt
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use controlVector_mod
@@ -188,7 +188,7 @@ program midas_diagHBHt
   call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
 
   ! MPI initilization
-  call mmpi_initialize 
+  call mmpi_initialize
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
@@ -241,7 +241,7 @@ program midas_diagHBHt
   call bmat_finalize()
 
   ! Now write out the observation data files
-  if ( .not. obsf_filesSplit() ) then 
+  if ( .not. obsf_filesSplit() ) then
     write(*,*) 'We read/write global observation files'
     call obs_expandToMpiGlobal(obsSpaceData)
     if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
@@ -282,19 +282,21 @@ contains
 
     ! Locals:
     integer :: dateStampFromObs
-    type(struct_vco),pointer :: vco_anl => null()
+    type(struct_vco), pointer :: vco_anl
 
     write(*,*)
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
     write(*,*) '-----------------------------------'
 
+    nullify(vco_anl)
+
     !
     !- Initialize the Temporal grid and set dateStamp from env variable
     !
     call tim_setup()
 
-    !     
+    !
     !- Initialize burp file names and set datestamp if not already
     !
     call obsf_setup(dateStampFromObs, 'analysis')
@@ -334,7 +336,7 @@ contains
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
     end if
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile( vco_anl,        & ! OUT
@@ -375,11 +377,11 @@ contains
     !
     ! - Initialize the gridded variable transform module
     !
-   
+
     call gvt_setup(hco_anl,hco_core,vco_anl)
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
-    
+
     call msg_memUsage('midas-diagHBHt')
 
   end subroutine var_setup
@@ -439,7 +441,7 @@ contains
 
     !- Initialize random number generator
     ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
-    nrandseed=100*dateprnt + int(timeprnt/100.0) 
+    nrandseed=100*dateprnt + int(timeprnt/100.0)
     write(*,*) 'diagHBHt: Random seed set to ',nrandseed
     call rng_setup(nrandseed)
     ! Generate a random vector from N(0,1)

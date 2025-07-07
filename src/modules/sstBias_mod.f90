@@ -181,7 +181,7 @@ module sstBias_mod
 
     ! Locals:
     integer, parameter        :: maxPointsSearch = 200000
-    type(kdtree2), pointer    :: tree => null()
+    type(kdtree2), pointer    :: tree
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxPointsSearch)
     real(kdkind)              :: refPosition(3)
@@ -197,6 +197,7 @@ module sstBias_mod
     real(8)                   :: currentObs
     character(len=50)         :: instrumentString
 
+    nullify(tree)
     countObsLoc = 0
 
     ! count local observations for the given instrument
@@ -363,7 +364,7 @@ module sstBias_mod
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
 
     ! Locals:
-    type(kdtree2), pointer      :: tree => null()
+    type(kdtree2), pointer      :: tree
     real(kdkind), allocatable   :: positionArray(:,:)
     integer, parameter          :: maxPointsSearch = 200000
     type(kdtree2_result)        :: searchResults(maxPointsSearch)
@@ -388,6 +389,8 @@ module sstBias_mod
     write(*,*) ''
     write(*,*) 'sstb_getGriddedBias: computing bias for: '//trim(sensor)//' '//trim(dayOrNight)
     write(*,*) 'sstb_getGriddedBias: the current processor contains ', nobsLoc, ' data out of ', nobsGlob
+
+    nullify(tree)
 
     if (dayOrNight == 'day') then
       extension = 'D'

@@ -5891,7 +5891,7 @@ module gridStateVector_mod
     character(len=10) :: horizSmoothShape
     integer                   :: numLocalGridPointsFound, gridFoundIndex
     integer, parameter        :: maxNumLocalGridPointsSearch = 10000
-    type(kdtree2), pointer    :: tree => null()
+    type(kdtree2), pointer    :: tree
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
     real(kdkind)              :: searchRadiusSquared
@@ -5903,6 +5903,8 @@ module gridStateVector_mod
       call msg('gsv_smoothHorizontal', 'specified scale <= 0, returning')
       return
     end if
+
+    nullify(tree)
 
     if (present(binInteger_opt)) then
       binIntegerTest= .true.

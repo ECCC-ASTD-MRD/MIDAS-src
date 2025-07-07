@@ -1389,7 +1389,7 @@ CONTAINS
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
+    real(8), pointer     :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: cvDim_allMpilocal(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
@@ -1616,7 +1616,7 @@ CONTAINS
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
-    real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
+    real(4), pointer     :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: cvDim_allMpilocal(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)

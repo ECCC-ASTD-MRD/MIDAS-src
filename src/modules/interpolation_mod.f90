@@ -1609,7 +1609,7 @@ contains
     real(8) :: extrapValue
     integer, parameter        :: maxNumLocalGridPointsSearch = 200000
     integer                   :: numLocalGridPointsFound, gridIndex
-    type(kdtree2), pointer    :: tree => null()
+    type(kdtree2), pointer    :: tree
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
     real(kdkind)              :: searchRadiusSquared
@@ -1618,6 +1618,7 @@ contains
     call utl_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
     call msg('int_sintCloudToGrid_gsv', 'START', verb_opt=2)
 
+    nullify(tree)
     niCloud = stateVectorCloud%hco%ni
     njCloud = stateVectorCloud%hco%nj
     niGrid  = stateVectorGrid%hco%ni

@@ -20,7 +20,7 @@ module innovation_mod
   use gridStateVector_mod
   use utilities_mod
   use message_mod
-  use obsFilter_mod  
+  use obsFilter_mod
   use gps_mod
   use tovs_mod
   use multiIRbgck_mod
@@ -97,7 +97,7 @@ contains
       ierr = fnom( unitDimFile, trim(nameDimFile), 'FTN+SEQ+R/O', 0 )
       read(unitDimFile,*) mxstn
       read(unitDimFile,*) mxobs
-      ierr=fclos(unitDimFile)  
+      ierr=fclos(unitDimFile)
       call obs_initialize(obsSpaceData, numHeader_max_opt=mxstn, numBody_max_opt=mxobs, &
                           mpi_local_opt=obsf_filesSplit())
     else
@@ -133,7 +133,7 @@ contains
     !
     call filt_suprep(obsSpaceData)
 
-    ! Additional filtering for bias correction if requested 
+    ! Additional filtering for bias correction if requested
     if (trim(innovationMode) /= 'thinning') then
       call bcs_setup()
       call bcs_filterObs(obsSpaceData)
@@ -161,7 +161,7 @@ contains
     !
     !- Check if burp files already split
     !
-    if ( obsf_filesSplit() ) then 
+    if ( obsf_filesSplit() ) then
       ! local observations files, so just do reallocation to reduce memory used
       call obs_squeeze(obsSpaceData)
       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) .and. trim(innovationMode) /= 'thinning' ) then
@@ -206,7 +206,7 @@ contains
     logical        , optional, intent(in)    :: deallocInterpInfoNL_opt
 
     ! Locals:
-    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_vco), pointer :: vco_trl
     integer                   :: ierr, headerIndex
     logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
@@ -309,11 +309,11 @@ contains
     !
     !- Data copying from columnTrlOnTrlLev to columnTrlOnAnlIncLev
     !
-    
+
     ! copy latitude and surface height
     call col_copyLat(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
     call col_copyHeightSfc(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
-    
+
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) .or. &
@@ -326,24 +326,24 @@ contains
     end do
 
     ! copy other surface variables
-    do jvar = 1, vnl_numvarmaxOther 
+    do jvar = 1, vnl_numvarmaxOther
       if (.not. col_varExist(columnTrlOnAnlIncLev, vnl_varNameListOther(jvar))) cycle
       if (col_getNumCol(columnTrlOnAnlIncLev) <= 0) cycle
-       
+
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameListOther(jvar))
         columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameListOther(jvar))
         columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
         end do
     end do
-    
+
     !
     !- Vertical interpolation of 3D variables from trials levels to analysis increment levels
     !
     do jvar = 1, vnl_numvarmax3D
 
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
-      
+
       call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, &
                             vnl_varNameList3D(jvar))
 
@@ -395,7 +395,7 @@ contains
     !
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
-    if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.col_addHeightSfcOffset(columnTrlOnAnlIncLev) ) then 
+    if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.col_addHeightSfcOffset(columnTrlOnAnlIncLev) ) then
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_T')
         columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'TH')) = col_getHeight(columnTrlOnAnlIncLev,1,columnIndex,'SF')
@@ -416,7 +416,7 @@ contains
             //new_line('')//'Z_T (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
             //new_line('')//'Z_T (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
     end if
-    
+
     if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_M') ) then
       columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
       columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_M')
@@ -453,7 +453,7 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
-    
+
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn
@@ -492,18 +492,18 @@ contains
     else
       destObsColumn = obs_omp
     end if
-    
+
     if (present(callFiltTopo_opt)) then
       callFiltTopo = callFiltTopo_opt
     else
       callFiltTopo = .true.
-    end if   
+    end if
 
     if (present(callSetErrGpsgb_opt)) then
       callSetErrGpsgb = callSetErrGpsgb_opt
     else
       callSetErrGpsgb = .true.
-    end if    
+    end if
 
     if (present(analysisMode_opt)) then
       analysisMode = analysisMode_opt
@@ -525,7 +525,7 @@ contains
     else
       if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
-   
+
     ! Remove surface station wind observations
     if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
       if ( filterObsAndInitOer ) then
@@ -542,7 +542,7 @@ contains
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
     call utl_tmg_start(17,'----ObsOper_NL')
-    
+
     ! Radiosondes
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
 
@@ -555,7 +555,7 @@ contains
     else
       if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
-    
+
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
@@ -573,7 +573,7 @@ contains
       if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
     end if
 
-    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)  
+    call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! Sea surface temperature
     call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
@@ -629,7 +629,7 @@ contains
         if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
       end if
       if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
-                                     destObsColumn, analysisMode_opt=analysisMode)   
+                                     destObsColumn, analysisMode_opt=analysisMode)
     end if
 
     call utl_tmg_stop(17)
@@ -733,7 +733,7 @@ contains
           lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
           lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
           lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
-          ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
+          ierr = gdxyfll( hco_anl%EZscintID,   & ! IN
                xpos_r4, ypos_r4,    & ! OUT
                lat_r4, lon_r4, 1 )    ! IN
 
@@ -798,7 +798,7 @@ contains
     familyList(7)='PR' ; scaleFactor(7)=1.00d0
     familyList(8)='RO' ; scaleFactor(8)=1.00d0
     familyList(9)='GP' ; scaleFactor(9)=1.00d0
-    familyList(10)='RA'; scaleFactor(10)=1.00d0    
+    familyList(10)='RA'; scaleFactor(10)=1.00d0
 
     numPerturbations = numAnalyses
 
@@ -824,7 +824,7 @@ contains
 
        ! apply scale factor
        do indexFamily = 1,numFamily
-          do indexBody = 1,obs_numBody(obsSpaceData)      
+          do indexBody = 1,obs_numBody(obsSpaceData)
              if (obs_getFamily(obsSpaceData,bodyIndex_opt=indexBody).eq.familyList(indexFamily)) then
                 do indexAnalysis2 = 1,numPerturbations
                    obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)*scaleFactor(indexFamily)
@@ -834,7 +834,7 @@ contains
        end do
 
        ! remove ensemble mean
-       do indexBody = 1,obs_numBody(obsSpaceData)      
+       do indexBody = 1,obs_numBody(obsSpaceData)
           zmean=0.0d0
           do indexAnalysis2 = 1,numPerturbations
              zmean=zmean+obsPerturbations(indexBody,indexAnalysis2)
@@ -851,7 +851,7 @@ contains
 
     ! apply perturbation for current analysis
     write(*,*) 'perturbObs: applying perturbation for analysis number: ',indexAnalysis
-    do indexBody = 1,obs_numBody(obsSpaceData)      
+    do indexBody = 1,obs_numBody(obsSpaceData)
        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody) == obs_assimilated) then
           originalOmp = obs_bodyElem_r(obsSpaceData,obs_column_index_src,indexBody)
           call obs_bodySet_r(obsSpaceData,obs_column_index_dest,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
@@ -889,7 +889,7 @@ contains
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
-    
+
     call hco_SetupFromFile(hco_trl, trim(trialFileName), ' ', 'Trial', varName_opt = anlVar(1))
     call vco_SetupFromFile(vco_trl, trim(trialFileName))
 

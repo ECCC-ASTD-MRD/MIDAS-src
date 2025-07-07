@@ -3121,8 +3121,8 @@ contains
 
     ! Locals:
     type(struct_columnData)   :: columnTrlOnTrlLev
-    type(struct_hco), pointer :: hco_trl => null()
-    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_hco), pointer :: hco_trl
+    type(struct_vco), pointer :: vco_trl
     type(struct_gsv) :: stateVector
     integer :: headerIndex, bodyIndex
     integer :: idate, imonth, varno
@@ -3132,6 +3132,9 @@ contains
     character(len=8)            :: ccyymmdd
 
     if (.not. beSilent) write(*,*) 'ENTER '//myName
+
+    nullify(vco_trl)
+    nullify(hco_trl)
 
     if (.not.present(columnTrlOnTrlLev_opt)) then
       ! Need background ice concentration

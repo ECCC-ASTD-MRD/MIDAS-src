@@ -273,14 +273,14 @@ contains
     ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm
 
     if (all(familyList(1:numFamily) == 'CH').or.(.not.cvm_subVectorExists('B_HI'))) then
-       cvBhi => null()
-    else
+       nullify(cvBhi)
+     else
        cvBhi => cvm_getSubVector(controlVector,'B_HI')
     end if
     if (any(familyList(1:numFamily) == 'CH').and.obs_famExist(obsSpaceData,'CH').and.cvm_subVectorExists('B_CHM')) then
        cvBChm => cvm_getSubVector(controlVector,'B_CHM')
     else
-       cvBChm => null()
+      nullify(cvBChm)
     end if
 
     HxBhi(:) = 0.0d0
@@ -400,8 +400,8 @@ contains
           HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo
     else
-       cvBen => null()
-       HxBen(:) = 0.0d0
+      nullify(cvBen)
+      HxBen(:) = 0.0d0
     end if
 
     deallocate(scaleFactor)

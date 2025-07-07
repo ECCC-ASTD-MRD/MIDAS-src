@@ -161,7 +161,7 @@ contains
     else
       writeHeightSfc = .false.
     end if
-    
+
     !- Extract the grid definitions and ensemble size
     if (ens_isAllocated(ensembleTrl)) then
       hco_ens => ens_getHco(ensembleTrl)
@@ -1264,7 +1264,7 @@ contains
     character(len=4) :: varName
 
     call utl_tmg_start(4,'--AddEnsRandomPert')
-    
+
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensemble)
     numVarLev = ens_getNumVarLev(ensemble)
@@ -1345,7 +1345,7 @@ contains
                       varNames_opt=(/'P0'/))
     call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
     PsfcRef(:,:,:,:) = 100000.0D0
-    
+
     ! prepare the reference state HU field for transforming LQ to HU perturbations
     if (ens_varExist(ensemble,'HU')) then
       call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
@@ -1353,7 +1353,7 @@ contains
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         hExtrapolateDegree_opt='MINIMUM', &
                         varNames_opt=(/'HU','TT','P0'/) )
-      
+
       if (.not. useMemberAsHuRefState) then
         ! use the single provided state as the reference state and interpolate to perturbation grid
         call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
@@ -1373,7 +1373,7 @@ contains
         end if
         call gsv_deallocate(stateVectorHuRefState)
       end if
-      
+
     end if
 
     do memberIndex = 1, nEns
@@ -1401,7 +1401,7 @@ contains
                         stateVectorPerturbation)       ! OUT
       end if
       call utl_tmg_start(4,'--AddEnsRandomPert')
-      
+
       if (vco_ens%vcode == 21001 .and. vco_randomPert%vcode /= 21001) then
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
                             statevectorRef_opt=stateVectorHuRefStateInterpV)
@@ -1594,8 +1594,8 @@ contains
     ! Locals:
     type(struct_gsv) :: stateVectorRecenterAnl, stateVectorRecenterAnl4D
     type(struct_gsv) :: stateVectorEnsMean, stateVectorEnsMean4D
-    type(struct_hco), pointer :: hco_ens => null()
-    type(struct_vco), pointer :: vco_ens => null()
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
     character(len=30)    :: recenterAnlFileName = 'recentering_analysis'
     character(len=20)    :: stringArray(100)
     character(len=1000)  :: textLine
