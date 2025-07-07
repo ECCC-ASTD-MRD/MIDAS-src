@@ -55,11 +55,11 @@ module oMinusF_mod
 
       ! Locals:
       type(struct_gsv) :: stateVectorTrialHighRes
-      type(struct_vco),       pointer :: vco_anl
-      type(struct_hco),       pointer :: hco_anl
-      type(struct_hco),       pointer :: hco_trl
-      type(struct_vco),       pointer :: vco_trl
-      type(struct_hco),       pointer :: hco_core
+      type(struct_vco), pointer :: vco_anl
+      type(struct_hco), pointer :: hco_anl
+      type(struct_hco), pointer :: hco_trl
+      type(struct_vco), pointer :: vco_trl
+      type(struct_hco), pointer :: hco_core
       logical           :: allocHeightSfc
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
@@ -222,11 +222,11 @@ module oMinusF_mod
       type(struct_hco), pointer :: hco_ens
       type(struct_vco), pointer :: vco_ens
       type(struct_hco), pointer :: hco_core
-      character(len=256) :: ensFileName
-      character(len=48)  :: obsMpiStrategy
-      character(len=3)   :: obsColumnMode
-      character(len=4), pointer :: varNames(:) => null()
-      integer, allocatable :: dateStampList(:)
+      character(len=256)        :: ensFileName
+      character(len=48)         :: obsMpiStrategy
+      character(len=3)          :: obsColumnMode
+      character(len=4), pointer :: varNames(:)
+      integer,      allocatable :: dateStampList(:)
       integer :: datestamp, memberIndex, stepIndex, firstMember
 
       write(*,*) " -----------------------------------------"
@@ -242,6 +242,13 @@ module oMinusF_mod
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
+
+      nullify(vco_anl)
+      nullify(hco_anl)
+      nullify(vco_ens)
+      nullify(hco_ens)
+      nullify(hco_core)
+      nullify(varNames)
 
       !- 1.3 RAM disk usage
       call ram_setup
