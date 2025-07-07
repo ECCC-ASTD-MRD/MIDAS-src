@@ -253,7 +253,7 @@ contains
     ! Locals:
     integer :: levelIndex
     integer :: Vcode_anl
-    type(struct_vco), pointer :: vco_file => null()
+    type(struct_vco), pointer :: vco_file
     type(struct_vco), target  :: vco_1Dvar
     type(struct_vco), pointer :: vco_anl
     integer :: locationIndex, varIndex
@@ -263,6 +263,7 @@ contains
     real(8), allocatable :: multFactor(:)
     integer :: varListEmiss, nlevEmiss
 
+    nullify(vco_file)
     if (.not. (gsv_varExist(varName='TT') .and.  &
                gsv_varExist(varName='UU') .and.  &
                gsv_varExist(varName='VV') .and.  &
@@ -505,9 +506,9 @@ contains
     ! Locals:
     character(len=256) :: ensPathName = 'ensemble'
     character(len=256) :: ensFileName
-    type(struct_vco), pointer :: vco_file => null()
-    type(struct_vco), pointer :: vco_ens => null()
-    type(struct_hco), pointer :: hco_ens => null()
+    type(struct_vco), pointer :: vco_file
+    type(struct_vco), pointer :: vco_ens
+    type(struct_hco), pointer :: hco_ens
     type(struct_gsv)          :: stateVector, stateVectorMean
     integer, allocatable :: dateStampList(:)
     character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
@@ -537,6 +538,10 @@ contains
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     call msg_memUsage('bmat1D_setupBEns', mpiAll_opt=.false.)
+
+    nullify(vco_file)
+    nullify(vco_ens)
+    nullify(hco_ens)
 
     if (nEns <= 0) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'

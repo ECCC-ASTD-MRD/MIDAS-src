@@ -113,8 +113,8 @@ CONTAINS
     integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl, maxMyNla
     logical                  :: llfound, lExists
     real(8)                  :: pSurfRef, hSurfRef
-    real(8), pointer         :: vertCoordProfile_M(:),vertCoordProfile_T(:)
-    type(struct_vco),pointer :: vco_file => null()
+    real(8),         pointer :: vertCoordProfile_M(:),vertCoordProfile_T(:)
+    type(struct_vco),pointer :: vco_file
     character(len=8)         :: bFileName = './bgcov'
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
@@ -124,6 +124,7 @@ CONTAINS
 
     nullify(vertCoordProfile_T)
     nullify(vertCoordProfile_M)
+    nullify(vco_file)
 
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then

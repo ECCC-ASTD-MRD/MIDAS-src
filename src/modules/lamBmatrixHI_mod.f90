@@ -93,13 +93,15 @@ contains
     integer  :: iu_flnml = 0
     integer  :: ier, fnom, fstouv, fstfrm, fclos, levIndex, nLev
     logical  :: FileExist
-    type(struct_vco), pointer :: vco_file => null()
+    type(struct_vco), pointer :: vco_file
     integer  :: ntrunc
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 
     write(*,*)
     write(*,*) 'lbhi_Setup: Starting...'
+
+    nullify(vco_file)
 
     !
     !- 0.  Read namelist options
