@@ -4,7 +4,7 @@ module verticalCoord_mod
   !
   !:Purpose: Derived type and procedures related to the vertical levels including
   !          a pointer to the associated VGRID descriptor
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use vGrid_Descriptors
   use utilities_mod
@@ -65,7 +65,7 @@ module verticalCoord_mod
     integer :: ip1Sfc
     character(len=10) :: blk_S
 
-    write(*,*) 
+    write(*,*)
     write(*,*) 'vco_setupManual: Creating an adhoc verticalgrid using'
     write(*,*) '                   number of level = ', numLev
     write(*,*) '                   ip1             = ', ip1
@@ -77,7 +77,7 @@ module verticalCoord_mod
     allocate(vco)
 
     vco%setupType = 'Manual'
- 
+
     vco%nlev_T = numLev
     vco%nlev_M = numLev
 
