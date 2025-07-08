@@ -239,6 +239,9 @@ The development workflow will be:
 5. `make -j [${MIDAS_COMPILE_NCORES}]` : build everything using [multiple cores](#calling-make-in-parallel)
 6. iterative development loop which we cover in detail in the [section on incremental builds](#incremental-builds)
 
+One can add `VERBOSE=1` to the `make` command to have the exact
+compilation command done.
+
 ### What does `cmake` do?
 To better understand the process, it is relevant to understand some elements of
 the `cmake` compilation strategy.  **`cmake` does not do the build**, it
@@ -432,21 +435,6 @@ cmake ${MIDAS_SOURCE_DIR}
 make -j
 make install
 ```
-
-Note that, at time of writing, `midas.version` is evaluated by `cmake`, such
-that if you are developping using [the incremental build approach](#incremental-builds),
-it can introduce a discrepancy between the value of `${VERSION}` (and the
-absolute filename) and the actual code version as would be evaluated by
-`midas.version`.  This will happen if you first compile from a clean git
-worktree; `midas.version` would return something like `v_4.0.4-10-g4f03d6d`.
-Then when you make a modification, the suffix `_M` will be appended:
-`v_4.0.4-10-g4f03d6d_M`.  But if you only use `make`, it won't update `${VERSION}`
-and the binaries won't be properly named.  Such that when you recompile a program
-after a modification it will keep the former name and a `make install` would
-overwrite the other binary in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  This could
-in turn confuse maestro who will be looking for the program properly
-suffixed.  This is a pending issue for the incremental build approach that you
-have to be careful with.
 
 ### Calling make in parallel
 
