@@ -6,8 +6,8 @@ typeset -r toplevel=${1:-$(git rev-parse --show-toplevel)}
 
 cat > ${TMPDIR}/abs.dot <<EOF
 MIDAS_toplevel=${toplevel}
-ABS_DIR=${toplevel}/compiledir/midas_abs
-MIDAS_version=\$(cd ${toplevel}; ./midas.version.sh)
+ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${toplevel}/compiledir}/midas_abs >> abs.dot
+MIDAS_version=\$(cd ${toplevel}; ./midas.version)
 EOF
 
 typeset -r absdotfile=${toplevel}/maestro/suites/midas_system_tests/abs.dot

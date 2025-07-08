@@ -131,7 +131,7 @@ program midas_diagBmatrix
   real(8), allocatable :: zonalMeanStddev(:)
   real(8), allocatable :: controlVector(:), controlVector_global(:)
 
-  real(8) :: centralValue, centralValueLocal
+  real(8) :: centralValue, centralValueLocal, multFactor
 
   integer :: fnom, fstopc, newdate
   integer :: ierr, iseed, nultxt
@@ -326,6 +326,8 @@ program midas_diagBmatrix
         nlevs2 = nlevs
       end if
 
+      multfactor = utl_unitConvMultFactor_r8(vnl_varNameList(varIndex),'toFSTfile')
+
       ip3 = 0
       do levIndex = 1, nlevs2
         do lonLatPosIndex = 1, nLonLatPos
@@ -339,9 +341,9 @@ program midas_diagBmatrix
           if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
                lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,1                    ,oneobs_timeStepIndex) = multfactor
             else
-              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = 1.0D0
+              field4d(lonIndex,latIndex,oneobs_levs(levIndex),oneobs_timeStepIndex) = multfactor
             end if
           end if
 
@@ -370,7 +372,9 @@ program midas_diagBmatrix
           end if
           call mmpi_allReduce(centralValueLocal, centralValue, mmpi_sum)
 
-          write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
+          centralValue = centralValue * multfactor
+
+          write(*,*) 'midas-diagBmatrix: (scaled) centralValue found = ', centralValue
 
           if (.not. utl_isEqual(centralValue, 0.d0)) then
             call gsv_scale(statevector,1.d0/centralValue)
@@ -381,7 +385,7 @@ program midas_diagBmatrix
           do stepIndexInc = 1, tim_nstepobsinc
             call gio_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
                                  stepIndex_opt=stepIndexInc, ip3_opt=ip3,  &
-                                 unitConversion_opt=.false.)
+                                 unitConversion_opt=.true.)
           end do
 
           ! Write the ensemble amplitude fields (i.e., the alphas) when Bens is active
@@ -415,10 +419,10 @@ program midas_diagBmatrix
       do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
         loc => ben_getLoc(locIndex,instanceIndex_opt=instanceIndex)
 
-        if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
-          varNameALFA(:) = varNameALFAatm(:)
-        else ! vco_anl%Vcode == -1
+        if (loc%vco%Vcode == -1) then
           varNameALFA(:) = varNameALFAsfc(:)
+        else
+          varNameALFA(:) = varNameALFAatm(:)
         end if
 
         call mmpi_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)

@@ -446,7 +446,7 @@ contains
     integer :: numStepAmplitude, amp3dStepIndex, memberIndex
     type(struct_ens) :: ensAmplitude_x
     type(struct_ens) :: ensAmplitude_Ly
-    type(struct_loc), pointer :: loc => null()
+    type(struct_loc), pointer :: loc
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
     character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
@@ -581,7 +581,7 @@ contains
 !!$    type(struct_ens) :: ensAmplitude_LTx
 !!$    type(struct_ens) :: ensAmplitude_y
 !!$
-!!$    type(struct_loc), pointer :: loc => null()
+!!$    type(struct_loc), pointer :: loc
 !!$
 !!$    real(8), pointer     :: ens_oneLev(:,:,:,:)
 !!$

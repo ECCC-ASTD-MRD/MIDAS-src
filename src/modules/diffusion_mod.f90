@@ -818,7 +818,6 @@ contains
       myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
       xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
     end if
-    write(*,*) 'diff_Csqrt: min/maxval xout=', minval(xout),maxval(xout)
 
     allocate(xout_diffused(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd))
     if ( diff(diffID)%useImplicit ) then

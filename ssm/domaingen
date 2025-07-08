@@ -10,13 +10,13 @@ DO_COMPILE=${4:-yes}
 toplevel=$(git rev-parse --show-toplevel)
 cd ${toplevel}
 
-VERSION=$(./midas.version.sh | cut -c3-)
+VERSION=$(./midas.version | cut -c3-)
 
 if [ "${DO_COMPILE}" = yes ]; then
     cd ${toplevel}/src
     MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS} MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
     cd ${toplevel}/tools/monitor
-    make install PGM=${MIDAS_ABS}/midas.monitor_$(${toplevel}/midas.version.sh).Abs
+    make install PGM=${MIDAS_ABS}/midas.monitor_$(${toplevel}/midas.version).Abs
 fi
 
 cd ${toplevel}/ssm

@@ -29,8 +29,8 @@ INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
 REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
 GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20250129-alpha
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20250129-alpha
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20250604-beta
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20250604-beta
 RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20250129-alpha
 PY39_SSM_DOMAIN=eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
@@ -127,8 +127,8 @@ assert() {
     [ -n "${SET_MX}" ] && ${SET_MX}
 
     thisunittest=$1
-    shift 
-    
+    shift
+
     if "$@"; then
 	## echo "assert(): assertion passed for test ${thisunittest}"
 	printf "\033[0m\033[01;32massert(): assertion passed for test ${thisunittest}\n\033[0m"
@@ -303,7 +303,7 @@ test_burp_regional_with_imax_imin_jmax_jmin () {
 
     echo "test_burp_regional_with_imax_imin_jmax_jmin() begins"
 
-    ## La grille 'regglbgrid' est la meme que 'reggrid' mais avec une extension de 2 points de grille pour chaque direction.  
+    ## La grille 'regglbgrid' est la meme que 'reggrid' mais avec une extension de 2 points de grille pour chaque direction.
     for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
 	rm -f 2011070112_${fam}
 
@@ -878,7 +878,7 @@ test_burp_subdomains () {
     ### Tests pour les UA
     fam=ua
     rm -f 2011070112_${fam}
-    
+
     status=0
     program_status=0
     ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
@@ -889,10 +889,10 @@ test_burp_subdomains () {
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}.south 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
     assert "test_burp_subdomains fam=${fam} south check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
-    
+
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
-    
+
     ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_burp_subdomains fam=${fam} east-west program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
@@ -1346,7 +1346,7 @@ test_ascii_horizontal_vertical () {
 
 
 ##################################################################################################################
-##  Ce code est un exemple pour l'analyse et la comparaison du listing d'une execution.  
+##  Ce code est un exemple pour l'analyse et la comparaison du listing d'une execution.
 ##################################################################################################################
 ##     status=0
 ##     movarch ${CACHEDIR}/test12_movarch.dir darc 2011011918 2011011918 ${CACHEDIR} ${CACHEDIR}/movarch_results \

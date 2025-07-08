@@ -93,13 +93,15 @@ contains
     integer  :: iu_flnml = 0
     integer  :: ier, fnom, fstouv, fstfrm, fclos, levIndex, nLev
     logical  :: FileExist
-    type(struct_vco), pointer :: vco_file => null()
+    type(struct_vco), pointer :: vco_file
     integer  :: ntrunc
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 
     write(*,*)
     write(*,*) 'lbhi_Setup: Starting...'
+
+    nullify(vco_file)
 
     !
     !- 0.  Read namelist options
@@ -1483,7 +1485,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
+    real(8), pointer     :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: cvDim_allMpilocal(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
@@ -1600,7 +1602,7 @@ contains
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
-    real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
+    real(4), pointer     :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: cvDim_allMpilocal(:)
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)

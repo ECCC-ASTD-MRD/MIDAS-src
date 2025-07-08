@@ -109,12 +109,12 @@ program midas_pseudoSSTobs
   ! ``oceanObservations_mod`` ``pseudoSSTobs`` parameters of pseudo SST observations
   !========================== ================ ==============================================================
   !
+  use midasMpi_mod
   use version_mod
   use ramDisk_mod
   use utilities_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use midasMpi_mod
   use oceanObservations_mod
   use gridStateVector_mod
   use obsSpaceData_mod

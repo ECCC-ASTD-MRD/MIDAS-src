@@ -453,6 +453,12 @@ contains
       if (CPLATF == 'FY-3C') THEN
          CPLATF = 'FY3-3'
          CINSTR = 'MWHS2'
+      else if (CPLATF == 'FY-3D') THEN
+         CPLATF = 'FY3-4'
+         CINSTR = 'MWHS2'
+      else if (CPLATF == 'FY-3E') THEN
+         CPLATF = 'FY3-5'
+         CINSTR = 'MWHS2'
       end if
 
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
@@ -3115,8 +3121,8 @@ contains
 
     ! Locals:
     type(struct_columnData)   :: columnTrlOnTrlLev
-    type(struct_hco), pointer :: hco_trl => null()
-    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_hco), pointer :: hco_trl
+    type(struct_vco), pointer :: vco_trl
     type(struct_gsv) :: stateVector
     integer :: headerIndex, bodyIndex
     integer :: idate, imonth, varno
@@ -3126,6 +3132,9 @@ contains
     character(len=8)            :: ccyymmdd
 
     if (.not. beSilent) write(*,*) 'ENTER '//myName
+
+    nullify(vco_trl)
+    nullify(hco_trl)
 
     if (.not.present(columnTrlOnTrlLev_opt)) then
       ! Need background ice concentration

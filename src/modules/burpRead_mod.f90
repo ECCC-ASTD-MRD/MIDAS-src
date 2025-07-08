@@ -6073,8 +6073,8 @@ contains
     real, parameter             :: missingValue = -9999.0
     integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
-    logical                     :: resumeReport, cleanLevels, checkBlock
-    character(len=2)            :: familyTypesToDo(7) = (/'AI','SW','TO','SC','GP','UA','SF'/)
+    logical                     :: resumeReport, cleanLevels, checkBlock, cleanLevelsCH
+    character(len=2)            :: familyTypesToDo(8) = (/'AI','SW','TO','SC','GP','UA','SF','CH'/)
     character(len=9)            :: stnid
     logical                     :: debug = .false.
 
@@ -6143,6 +6143,7 @@ contains
     reports: do reportIndex = 1, numReports
 
       numReject = 0
+      cleanLevelsCH = .false.
 
       call burp_get_report(inputFile,          &
            report    = inputReport,            &
@@ -6188,6 +6189,11 @@ contains
           checkBlock = btest(btyp,13)
         else
           checkBlock = .true.
+          if (trim(familyType) == 'CH' .and. btest(btyp,13)) then
+            cleanLevelsCH = .true.
+          else
+            cleanLevelsCH = .false.
+          end if
         end if
 
         if (isFlagBlock(familyType, btyp) .and. checkBlock) then
@@ -6245,7 +6251,6 @@ contains
             elements: do elemIndex = 1, numElem
               ! skip this element if it is not normally read
               if ( all(elementIdsBlock(elemIndex) /= (200000 + elementIdsRead(:))) ) cycle elements
-
               ! if at least one element in profile is 'good', then cannot reject
               if ( (.not.btest(flagValues(elemIndex,levelIndex,obsProfIndex),11)) .and.  &
                    (.not.utl_isEqual(obsValues(elemIndex,levelIndex,obsProfIndex), missingValue)) ) then
@@ -6264,13 +6269,13 @@ contains
               end if
 
             end do elements
-            if (cleanLevels) then
+            if (cleanLevels .or. cleanLevelsCH) then
               ! count number of individual rejected levels
               if (rejectObs(levelIndex,obsProfIndex)) numReject = numReject + 1
             end if
           end do obsLevels
           if (debug) write(*,*) 'rejectObs = ',obsProfIndex,rejectObs(1,obsProfIndex)
-          if (.not. cleanLevels) then
+          if (.not. cleanLevels .and. .not. cleanLevelsCH) then
             ! count number of rejected complete profiles (all levels must be rejected)
             if (all(rejectObs(:,obsProfIndex))) numReject = numReject + 1
           end if
@@ -6307,12 +6312,18 @@ contains
           checkBlock = btest(btyp,13)
         else
           checkBlock = .true.
+          if (trim(familyType) == 'CH' .and. btest(btyp,13)) then
+            cleanLevelsCH = .true.
+          else
+            cleanLevelsCH = .false.
+          end if
         end if
 
-        if (checkBlock) then
+        if (((numObsProfiles2 == 1 .and. .not.isInfoBlock(btyp)) .or. &
+             numObsProfiles2 > 1) .and. checkBlock) then
 
           if (debug) write(*,*) 'btyp, datyp = ', btyp, datyp
-          if (cleanLevels) then
+          if (cleanLevels .or. cleanLevelsCH) then
             newNumLevels = numLevels2 - numReject
             if (debug) write(*,*) 'ReportIndex = ', reportIndex
             if (debug) write(*,*) 'Reducing the number of levels from ', numLevels2, ' to ', newNumLevels
@@ -6667,6 +6678,12 @@ contains
       if ( .not.isFlag ) then
         isFlag = (btyp10 == btyp10flg-2 .or. btyp10 == btyp10flg-offset-2)
       end if
+    else if (trim(familyType)=='CH') then
+      offset = 256
+      isFlag = (btyp10 == btyp10flg .or. btyp10 == btyp10flg - offset)
+      if ( .not.isFlag ) then
+        isFlag = (btyp10 == btyp10flg-2 .or. btyp10 == btyp10flg-offset-2)
+      end if
     else
       select case(trim(familyType))
       case('AI','SW','SC')
@@ -6705,6 +6722,12 @@ contains
       if ( .not.isObs ) then
         isObs = (btyp10 == btyp10obs-2 .or. btyp10 == btyp10obs-offset-2)
       end if
+    else if (trim(familyType)=='CH') then
+      offset = 256
+      isObs = (btyp10 == btyp10obs .or. btyp10 + offset == btyp10obs)
+      if ( .not.isObs ) then
+        isObs = (btyp10 == btyp10obs-2 .or. btyp10 == btyp10obs-offset-2)
+      end if
     else
       select case(trim(familyType))
       case('AI','SW','SC')
@@ -6720,6 +6743,28 @@ contains
   end function isObsBlock
 
 
+  function isInfoBlock(btyp) result(isInfo)
+    !
+    !:Purpose:  To determine if this is an info block
+    !
+
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: btyp ! BURP block btyp
+    ! Result:
+    logical :: isInfo
+
+    ! Locals:
+    integer :: btyp10, btyp10inf
+
+    btyp10 = ishft(btyp,-5)
+    btyp10inf = 96
+    isInfo = ( (btyp10 == btyp10inf) .or. (btyp10 - btyp10inf == 1) )
+
+  end function isInfoBlock
+
+
   subroutine getElementIdsRead(familyType, elementIds)
     implicit none
 
@@ -6728,7 +6773,8 @@ contains
     integer, allocatable, intent(out) :: elementIds(:)
 
     ! Locals:
-    integer :: elementIndex, elementCount
+    integer :: elementIndex, elementCount, nelemsMax
+    integer, allocatable :: bListElementsMax(:)
 
     if (allocated(elementIds)) deallocate(elementIds)
 
@@ -6765,6 +6811,34 @@ contains
       call brpacma_nml('namburp_filter_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
+
+    case('CH')
+      ! Identify max possible number of elements
+      call brpacma_nml('namburp_filter_chm_sfc', beSilent_opt=.true.)
+      nelemsMax = nelems
+      call brpacma_nml('namburp_filter_chm', beSilent_opt=.true.)
+      nelemsMax = nelemsMax + nelems
+      allocate(bListElementsMax(nelemsMax))
+
+      ! Combine sets, excluding repeated values
+      call brpacma_nml('namburp_filter_chm_sfc', beSilent_opt=.true.)
+      elementCount = 0
+      do elementIndex = 1,nelems
+        if (blistelements(elementIndex) /= BUFR_SCALE_EXPONENT) then
+          elementCount = elementCount + 1
+          bListElementsMax(elementCount) = blistelements(elementIndex)
+        end if
+      end do
+      call brpacma_nml('namburp_filter_chm', beSilent_opt=.true.)
+      do elementIndex = 1, nelems
+        if (any(bListElementsMax(1:elementCount) == blistelements(elementIndex)) .or. &
+            blistelements(elementIndex) == BUFR_SCALE_EXPONENT) cycle
+        elementCount = elementCount + 1
+        bListElementsMax(elementCount) = blistelements(elementIndex)
+      end do
+      allocate(elementIds(elementCount))
+      elementIds(:) = bListElementsMax(1:elementCount)
+      deallocate(bListElementsMax)
 
     case default
       call utl_abort('getElementIdsRead: unknown familyType: ' // trim(familyType))

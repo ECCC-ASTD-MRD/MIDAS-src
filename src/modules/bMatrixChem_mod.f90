@@ -965,7 +965,7 @@ module bMatrixChem_mod
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
+    real(8), pointer :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
@@ -1095,7 +1095,7 @@ module bMatrixChem_mod
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
-    real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
+    real(4), pointer :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: levelIndex, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal

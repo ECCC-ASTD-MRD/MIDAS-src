@@ -357,8 +357,8 @@ CONTAINS
     type(struct_gsv), intent(out)    :: stateVectorAnal
 
     ! Locals:
-    type(struct_vco), pointer :: vco_trl => null()
-    type(struct_hco), pointer :: hco_trl => null()
+    type(struct_vco), pointer :: vco_trl
+    type(struct_hco), pointer :: hco_trl
     character(len=4), allocatable :: varNamesPsfc(:)
 
     logical  :: allocHeightSfc
@@ -492,8 +492,8 @@ CONTAINS
     type(struct_gsv) :: stateVector_1step_r4, stateVectorPsfc_1step_r4
     character(len=4), allocatable :: varNamesPsfc(:)
 
-    type(struct_vco), pointer :: vco_trl => null()
-    type(struct_hco), pointer :: hco_trl => null()
+    type(struct_vco), pointer :: vco_trl
+    type(struct_hco), pointer :: hco_trl
 
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
     integer              :: dateStamp, numBatch, batchIndex, procToWrite

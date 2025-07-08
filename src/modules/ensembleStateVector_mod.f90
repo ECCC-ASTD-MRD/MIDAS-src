@@ -5,8 +5,8 @@ module ensembleStateVector_mod
   !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
-  use ramDisk_mod
   use midasMpi_mod
+  use ramDisk_mod
   use message_mod
   use fileNames_mod
   use gridStateVector_mod
@@ -43,7 +43,7 @@ module ensembleStateVector_mod
   public :: ens_getNumVarLev, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
-  public :: ens_copyHeightSfc
+  public :: ens_copyHeightSfc, ens_copyHeightSfcToGsv
 
   ! Namelist variables
   integer            :: maxVarLevGroups ! Maximum number of groups for parallel writing of ensemble
@@ -187,11 +187,6 @@ CONTAINS
       varNames(:) = varNames_opt(:)
     else
       call gsv_varNamesList(varNames)
-      ! Ensure MELS is part of ensemble
-      if (vco_ens%vCode == 21001 .and. vco_ens%sleveCoord) then
-        write(*,*) 'ens_allocate: Ensuring MELS is part of varNames'
-        call vnl_addToVarNames(varNames, 'MELS', imposeVnlOrder_opt=.true.)
-      end if
     end if
 
     if (present(allocHeightSfc_opt)) then
@@ -1198,6 +1193,11 @@ CONTAINS
     if (.not. gsv_isAllocated(statevector)) then
       call utl_abort('ens_copyMember: statevector not allocated')
     else
+      if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
+        write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
+        write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
+        call utl_abort('ens_copyMember: mpi distibution not compatible')
+      end if
       nullify(varNamesInGsv)
       call gsv_varNamesList(varNamesInGsv, statevector)
     end if
@@ -1315,6 +1315,12 @@ CONTAINS
       call utl_abort('ens_insertMember: ens not allocated')
     end if
 
+    if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
+      write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
+      write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
+      call utl_abort('ens_insertMember: mpi distibution not compatible')
+    end if
+
     numStep = ens%statevector_work%numStep
 
     nullify(varNamesInEns)
@@ -1366,6 +1372,9 @@ CONTAINS
 
       do varIndex = 1, size(varNamesInGsv)
         varName = varNamesInGsv(varIndex)
+
+        if (.not. ens_varExist(ens,varName)) cycle
+
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName),varName)
         if (ens%dataKind == 8) then
           call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
@@ -1459,6 +1468,24 @@ CONTAINS
     call gsv_copyHeightSfc(statevector,ens%statevector_work)
 
   end subroutine ens_copyHeightSfc
+
+  !--------------------------------------------------------------------------
+  ! ens_copyHeightSfcToGsv
+  !--------------------------------------------------------------------------
+  subroutine ens_copyHeightSfcToGsv(ens,statevector)
+    !
+    !:Purpose: Copy the instance of sfc height from the stateVector into the
+    !          ens object to the stateVector
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(in)    :: ens
+    type(struct_gsv), intent(inout) :: statevector
+
+    call gsv_copyHeightSfc(ens%statevector_work,statevector)
+
+  end subroutine ens_copyHeightSfcToGsv
 
   !--------------------------------------------------------------------------
   ! ens_varExist
@@ -2382,6 +2409,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
+    type(struct_gsv) :: statevectorHeightSfc
     type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid
     type(struct_vco), pointer :: vco_file, vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
@@ -2532,7 +2560,8 @@ CONTAINS
     if (present(readHeightSfc_opt)) then
       readHeightSfc  = readHeightSfc_opt
       allocHeightSfc = readHeightSfc
-    else if (verticalInterpNeeded .and. vco_file%vCode == 21001) then
+    else if (ens%statevector_work%heightSfcPresent .or. &
+             (verticalInterpNeeded .and. vco_file%vCode == 21001) ) then
       allocHeightSfc = .true.
       readHeightSfc  = .true.
     else
@@ -2582,6 +2611,13 @@ CONTAINS
     if (mmpi_myid == 0) then
       write(*,*)
       write(*,*) 'ens_readEnsemble: containsFullField = ', containsFullField
+    end if
+
+    if (ens%statevector_work%heightSfcPresent) then
+      call gsv_allocate(statevectorHeightSfc, 1, hco_ens, vco_ens,  &
+                        mpi_local_opt=.false.,                      &
+                        varNames_opt=(/'P0'/), dataKind_opt=4,      &
+                        allocHeightSfc_opt=.true.)
     end if
 
     !
@@ -2694,8 +2730,11 @@ CONTAINS
           ens%statevector_work%onPhysicsGrid(:)          = statevector_member_r4%onPhysicsGrid(:)
           ens%statevector_work%hco_physics              => statevector_member_r4%hco_physics
           ! if it exists, copy over mask from member read on task 0, which should always read
-          if(mmpi_myid == 0) then
+          if (mmpi_myid == 0) then
             call gsv_copyMask(stateVector_member_r4, ens%stateVector_work)
+            if (ens%statevector_work%heightSfcPresent) then
+              call gsv_copyHeightSfc(stateVector_member_r4,statevectorHeightSfc)
+            end if
           end if
 
         end if ! locally read one member
@@ -2823,6 +2862,10 @@ CONTAINS
 
     end do stepLoop
 
+    if (ens%statevector_work%heightSfcPresent) then
+      call scatterHeightSfc(statevectorHeightSfc,ens%statevector_work)
+      call gsv_deallocate(statevectorHeightSfc)
+    end if
     call gsv_communicateTimeParams(ens%statevector_work)
     call ocm_communicateMask(ens%statevector_work%oceanMask)
 
@@ -2840,6 +2883,104 @@ CONTAINS
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
 
   end subroutine ens_readEnsemble
+
+  !--------------------------------------------------------------------------
+  ! scatterHeightSfc
+  !--------------------------------------------------------------------------
+  subroutine scatterHeightSfc(statevector_mpiGlobal, statevector_tiles)
+    !
+    ! :Purpose: Scatter surface height (if it exists) from task 0 to all others, 1 tile per task.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),  intent(in)    :: statevector_mpiGlobal
+    type(struct_gsv),  intent(inout) :: statevector_tiles
+
+    ! Locals:
+    real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
+    real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
+    integer :: displs_height(mmpi_nprocs), nsizes_height(mmpi_nprocs)
+    integer :: yourid, youridx, youridy, nsize
+
+    ! Scatter surface height (if it exists) from task 0 to all others, 1 tile per task.
+    if (statevector_mpiGlobal%heightSfcPresent .and. statevector_tiles%heightSfcPresent) then
+      allocate(gd_send_height(statevector_tiles%lonPerPEmax,statevector_tiles%latPerPEmax,mmpi_nprocs))
+      allocate(gd_recv_height(statevector_tiles%lonPerPEmax,statevector_tiles%latPerPEmax))
+
+      ! HeightSfc
+      gd_send_height(:,:,:) = 0.0d0
+      gd_recv_height(:,:) = 0.0d0
+      field_height_in_ptr => gsv_getHeightSfc(statevector_mpiGlobal)
+      field_height_out_ptr => gsv_getHeightSfc(statevector_tiles)
+
+      if (mmpi_myid == 0) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey-1)
+          do youridx = 0, (mmpi_npex-1)
+            yourid = youridx + youridy*mmpi_npex
+            gd_send_height(1:statevector_tiles%allLonPerPE(youridx+1),  &
+                           1:statevector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
+                        field_height_in_ptr(statevector_tiles%allLonBeg(youridx+1):statevector_tiles%allLonEnd(youridx+1),  &
+                                            statevector_tiles%allLatBeg(youridy+1):statevector_tiles%allLatEnd(youridy+1))
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+
+      nsize = statevector_tiles%lonPerPEmax * statevector_tiles%latPerPEmax
+      do yourid = 0, (mmpi_nprocs-1)
+        displs_height(yourid+1) = yourid*nsize
+        nsizes_height(yourid+1) = nsize
+      end do
+      call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes_height, displs_height)
+
+      field_height_out_ptr(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
+                           statevector_tiles%myLatBeg:statevector_tiles%myLatEnd) =   &
+                    gd_recv_height(1:statevector_tiles%lonPerPE,  &
+                                   1:statevector_tiles%latPerPE)
+
+
+      ! HeightSfcLs
+      if (statevector_mpiGlobal%heightSfcLsPresent .and. statevector_tiles%heightSfcLsPresent) then
+        gd_send_height(:,:,:) = 0.0d0
+        gd_recv_height(:,:) = 0.0d0
+        field_height_in_ptr => gsv_getHeightSfcLs(statevector_mpiGlobal)
+        field_height_out_ptr => gsv_getHeightSfcLs(statevector_tiles)
+
+        if (mmpi_myid == 0) then
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
+              gd_send_height(1:statevector_tiles%allLonPerPE(youridx+1),  &
+                             1:statevector_tiles%allLatPerPE(youridy+1), yourid+1) =  &
+                        field_height_in_ptr(statevector_tiles%allLonBeg(youridx+1):statevector_tiles%allLonEnd(youridx+1),  &
+                                            statevector_tiles%allLatBeg(youridy+1):statevector_tiles%allLatEnd(youridy+1))
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
+
+        nsize = statevector_tiles%lonPerPEmax * statevector_tiles%latPerPEmax
+        do yourid = 0, (mmpi_nprocs-1)
+          displs_height(yourid+1) = yourid*nsize
+          nsizes_height(yourid+1) = nsize
+        end do
+        call mmpi_scatterv(gd_send_height, gd_recv_height, nsizes_height, displs_height)
+
+        field_height_out_ptr(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
+                             statevector_tiles%myLatBeg:statevector_tiles%myLatEnd) =   &
+                    gd_recv_height(1:statevector_tiles%lonPerPE,  &
+                                   1:statevector_tiles%latPerPE)
+      end if
+
+      deallocate(gd_recv_height)
+      deallocate(gd_send_height)
+
+    end if
+
+  end subroutine scatterHeightSfc
 
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble

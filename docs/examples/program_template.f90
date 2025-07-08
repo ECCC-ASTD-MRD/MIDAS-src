@@ -3,9 +3,7 @@ program main_midasprogramtemplate
   !
   !:Purpose: Include here a short description of the purpose of the program
 
-  use topLevelControl_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use controlVector_mod
   use gridStateVector_mod
@@ -43,7 +41,7 @@ program main_midasprogramtemplate
   character(len=3)  :: clmember
   character(len=25) :: clfiname
   character(len=12) :: etiket
-  
+
   ! namelist variables
   integer :: nens ! Ensemble size
   integer :: seed ! Seed for random number generator
@@ -61,15 +59,15 @@ program main_midasprogramtemplate
   !
   !- 0. MPI, tmg initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_MIDASPROGRAMTEMPLATE')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_MIDASPROGRAMTEMPLATE')
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
   !- 1. Set/Read values for the namelist NAMENKF
   !
-  
+
   !- 1.1 Setting default values
   nens = 10
   seed = 1
@@ -93,7 +91,7 @@ program main_midasprogramtemplate
   !
 
   !- 2.1 Decompose ndate(yyyymmddhh) into date(YYYYMMDD) time(HHMMSShh)
-  !      calculate date-time stamp for postproc.ftn 
+  !      calculate date-time stamp for postproc.ftn
   idate = ndate/100
   itime = (ndate-idate*100)*1000000
   ierr = newdate(nstamp, idate, itime, 3)
@@ -110,8 +108,8 @@ program main_midasprogramtemplate
   call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the Analysis grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)' preproc: Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*)''
+  if (mmpi_myid == 0) write(*,*)' preproc: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis')
 
   if (hco_anl%global) then
@@ -123,10 +121,10 @@ program main_midasprogramtemplate
     call agd_SetupFromHCO(hco_anl, hco_core)
   end if
 
-  call mpivar_setup_latbands(hco_anl % nj,                & ! IN
-                             latPerPE, myLatBeg, myLatEnd ) ! OUT
-  call mpivar_setup_lonbands(hco_anl % ni,                & ! IN
-                             lonPerPE, myLonBeg, myLonEnd ) ! OUT
+  call mmpi_setup_latbands(hco_anl % nj,                & ! IN
+                           latPerPE, myLatBeg, myLatEnd ) ! OUT
+  call mmpi_setup_lonbands(hco_anl % ni,                & ! IN
+                           lonPerPE, myLonBeg, myLonEnd ) ! OUT
 
   !- 2.4 Initialize the vertical coordinate from the statistics file
   if (hco_anl % global) then
@@ -135,7 +133,7 @@ program main_midasprogramtemplate
     etiket = 'STDDEV'
   end if
   call vco_SetupFromFile(vco_anl, './bgcov', etiket)
- 
+
   !- 2.5 Initialize the B_hi matrix
   call bmat_setup(hco_anl, vco_anl)
 
@@ -169,7 +167,7 @@ program main_midasprogramtemplate
   write(*,*) 'COMPUTE the mean of the random perturbations' &
               ,' of all the members'
 
-  call rng_setup(abs(seed+mpi_myid))
+  call rng_setup(abs(seed+mmpi_myid))
 
 !!!
 !!! CODE REMOVED FOR THIS DEMONSTRATION
@@ -185,14 +183,14 @@ program main_midasprogramtemplate
   end if
 
   deallocate(ensemble_r4)
-  deallocate(controlVector)  
+  deallocate(controlVector)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
   !- 6.  MPI, tmg finalize
-  !  
-  call tmg_terminate(mpi_myid, 'TMG_MIDASPROGRAMTEMPLATE' )
+  !
+  call tmg_terminate(mmpi_myid, 'TMG_MIDASPROGRAMTEMPLATE' )
   call mmpi_finalize
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

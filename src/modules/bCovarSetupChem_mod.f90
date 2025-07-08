@@ -481,7 +481,9 @@ module bCovarSetupChem_mod
     implicit none
 
     ! Locals:
-    type(struct_vco),pointer :: vco_file => null()
+    type(struct_vco),pointer :: vco_file
+
+    nullify(vco_file)
 
     ! check if analysisgrid and covariance file have the same vertical levels
     call vco_SetupFromFile( vco_file,  & ! OUT

@@ -1,12 +1,15 @@
  &NAMBGCK
   instName = 'MWHS2'
   debug = .false.
-  useUnbiasedObsForClw = .false.
   RESETQC = .false.
   modLSQ = .true.
 /
  &namObsSelection
+  doPreThinning = .true.
   doThinning = .true.
+/
+ &THIN_PRETHIN
+  preThinPercent = 10
 /
  &THIN_TOVS
   delta   = 150
@@ -43,6 +46,10 @@
  &NAMTOV
    CSATID(1)        = 'FY3-3',
    CINSTRUMENTID(1) = 'MWHS2',
+   CSATID(2)        = 'FY3-4',
+   CINSTRUMENTID(2) = 'MWHS2',
+   CSATID(3)        = 'FY3-5',
+   CINSTRUMENTID(3) = 'MWHS2',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
 /

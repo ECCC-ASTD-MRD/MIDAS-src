@@ -28,7 +28,7 @@ module oceanBackground_mod
   ! obgd_computeSSTrial
   !----------------------------------------------------------------------------------------
   subroutine obgd_computeSSTrial(hco, vco, trialDateStamp, analysisDateStamp, &
-                                 nmonthsClim, datestampClim, alphaClim, etiket)
+                                 nmonthsClim, datestampClim, alphaClim, etiket_in)
     !
     !: Purpose: 1) to compute SST analysis anomaly w.r.t. climatology
     !              x_anomaly(t-1) = (xa(t-1) - xclim(t-1))
@@ -44,13 +44,14 @@ module oceanBackground_mod
     integer                  , intent(in) :: nmonthsClim       ! number of climatological fields (= 12)
     integer                  , intent(in) :: datestampClim(:)  ! datestamps of input climatology fields
     real(8)                  , intent(in) :: alphaClim         ! scalling factor to relax towards climatology
-    character(len=10)        , intent(in) :: etiket            ! etiket from namelist and for trial
+    character(len=10)        , intent(in) :: etiket_in         ! etiket from namelist and for trial
 
     ! Locals:
     type(struct_gsv) :: stateVector, stateVectorAnomaly
     real(8), pointer :: stateVector_ptr(:, :, :), stateVectorAnomaly_ptr(:, :, :)
     integer          :: lonIndex, latIndex, status
     real(8)          :: climatology_m1(hco % ni, hco % nj), climatology(hco % ni, hco % nj)
+    character(len=12) :: etiket
 
     write(*,*) 'obgd_computeSSTrial: starting...'
 
@@ -88,14 +89,14 @@ module oceanBackground_mod
     end do
 
     ! save analysis anomaly in RPN standard file
-    stateVectorAnomaly%etiket = 'ANOMALY'
+    etiket = 'ANOMALY'
     call gio_writeToFile(stateVectorAnomaly, './analysisAndAnomaly', etiket, typvar_opt = 'A@')
 
     ! modify dateStamp (from analysis) with trial dateStamp
     call gsv_modifyDate(stateVector, trialDateStamp, modifyDateOrigin_opt = .true.)
 
     ! save trial field in RPN standard file
-    call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
+    call gio_writeToFile(stateVector, './trial', etiket_in, typvar_opt = 'P@')
 
     ! save climatology corresponding to the analysisDateStamps
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
@@ -103,7 +104,7 @@ module oceanBackground_mod
         stateVector_ptr(lonIndex, latIndex, 1) = climatology_m1(lonIndex, latIndex)
       end do
     end do
-    stateVector%etiket = 'CLIMATO'
+    etiket = 'CLIMATO'
     call gio_writeToFile(stateVector, './analysisAndAnomaly', etiket, typvar_opt = 'C@')
 
     call gsv_deallocate(stateVector)

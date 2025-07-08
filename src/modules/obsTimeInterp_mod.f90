@@ -26,6 +26,7 @@ module obsTimeInterp_mod
   public :: oti_timeInterpWeightAllZero
 
   type struct_oti
+    integer          :: numStep
     real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for temporal interpolation to obs times
     real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
   end type struct_oti
@@ -195,6 +196,7 @@ contains
 
     if (mmpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
 
+    oti%numStep = numStep
     allocate(oti%timeInterpWeight(headerIndexBeg:headerIndexEnd,numStep))
     oti%timeInterpWeight(:,:) = 0.0d0
     do headerIndex = headerIndexBeg, headerIndexEnd
@@ -326,10 +328,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
-    real(8),                   intent(in)    :: weight_in
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
+    real(8),                   intent(in) :: weight_in
 
     oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
@@ -341,9 +343,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
     ! Result:
     real(8)                   :: weight_out
 
@@ -357,10 +359,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
-    integer,                   intent(in)    :: procIndex
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
+    integer,                   intent(in) :: procIndex
     ! Result:
     real(8)                   :: weight_out
 
@@ -374,8 +376,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
     ! Result:
     logical :: allZero
 

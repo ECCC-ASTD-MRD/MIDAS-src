@@ -242,11 +242,11 @@ program midas_var
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use midasMpi_mod
   use version_mod
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod

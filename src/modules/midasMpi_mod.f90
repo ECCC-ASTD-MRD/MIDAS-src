@@ -8,7 +8,7 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  !use rpn_comm, only: rpn_comm_mype, rpn_comm_init, rpn_comm_finalize
+  use rpn_comm
   use utilities_mod
 
   implicit none
@@ -96,6 +96,7 @@ module midasMpi_mod
 
   ! general interface for mpi_alltoall
   interface mmpi_alltoall
+    module procedure mmpi_alltoall_logical
     module procedure mmpi_alltoall_integer
     module procedure mmpi_alltoall_integer8
     module procedure mmpi_alltoall_real4
@@ -104,6 +105,7 @@ module midasMpi_mod
 
   ! general interface for mpi_alltoallv
   interface mmpi_alltoallv
+    module procedure mmpi_alltoallv_integer
     module procedure mmpi_alltoallv_real4
     module procedure mmpi_alltoallv_real8
   end interface mmpi_alltoallv
@@ -187,7 +189,6 @@ contains
     ! Locals:
     integer :: mythread, numthread
     integer :: omp_get_thread_num, omp_get_num_threads
-    integer :: rpn_comm_mype
     integer :: ierr, numNodeMasters
     integer :: npex, npey
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
@@ -423,7 +424,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allreduce_sumreal8scalar
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumreal8scalar(sendRecvValue)
+  subroutine mmpi_allreduce_sumreal8scalar(sendRecvValue, allReduceForward_opt)
     !
     !:Purpose: Version of mpi_allReduce that always performs sum in
     !          the same order.
@@ -431,11 +432,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
+    real(8),           intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
+    logical, optional, intent(in)    :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: root
     real(8), allocatable :: allvalues(:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -451,8 +460,16 @@ contains
     call mmpi_gather(sendRecvValue, allvalues, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if( mmpi_myid == root ) sendRecvValue = sum(allvalues(:))
+    if( mmpi_myid == root ) then
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        allvalues(:) = allvalues(mmpi_nprocs:1:-1)
+      end if
+
+      sendRecvValue = sum(allvalues(:))
+    end if
     deallocate(allvalues)
+
     call mmpi_bcast(sendRecvValue, procID_opt = root)
 
     call utl_tmg_stop(170)
@@ -462,7 +479,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_allReduce_sumR8_1d
   !--------------------------------------------------------------------------
-  subroutine mmpi_allreduce_sumR8_1d(sendRecvVector)
+  subroutine mmpi_allreduce_sumR8_1d(sendRecvVector, allReduceForward_opt)
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks, guaranteed to
     !           always be in the same order.
@@ -471,10 +488,18 @@ contains
 
     ! Arguments:
     real(8), intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
+    logical, optional, intent(in)    :: allReduceForward_opt ! order of the sum (defaut .true. so in increasing index order)
 
     ! Locals:
+    logical :: allReduceForward
     integer :: numElements, root
     real(8), allocatable :: all_sendRecvVector(:,:)
+
+    if ( present(allReduceForward_opt) ) then
+      allReduceForward = allReduceForward_opt
+    else
+      allReduceForward = .true.
+    end if
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
@@ -488,11 +513,18 @@ contains
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
+    allocate(all_sendRecvVector(numElements,mmpi_nprocs))
     call mmpi_gather(sendRecvVector, all_sendRecvVector, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
-    if ( mmpi_myid == root ) sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    if( mmpi_myid == root ) then
+      ! if asked, reverse the order of the values
+      if ( .not. allReduceForward ) then
+        all_sendRecvVector(:,:) = all_sendRecvVector(:,mmpi_nprocs:1:-1)
+      end if
+
+      sendRecvVector(:) = sum(all_sendRecvVector(:,:),2)
+    end if
     deallocate(all_sendRecvVector)
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
@@ -531,7 +563,7 @@ contains
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
     ! gather vectors to be added onto 1 processor
-    allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
+    allocate(all_sendRecvVector(numElements1,numElements2,mmpi_nprocs))
     call mmpi_gather(sendRecvVector, all_sendRecvVector, procID_opt = root)
 
     ! sum the values on the "root" mpi task and broadcast to group
@@ -574,7 +606,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1))
     end if
@@ -619,7 +651,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1,1))
     end if
@@ -665,7 +697,7 @@ contains
 
     ! gather vectors to be added onto 1 processor
     if ( mmpi_myid == ROOT ) then
-      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,0:mmpi_nprocs-1))
+      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,mmpi_nprocs))
     else
       allocate(all_sendRecvVector(1,1,1,1))
     end if
@@ -1454,6 +1486,35 @@ contains
   end subroutine mmpi_allGather_real8
 
   !--------------------------------------------------------------------------
+  ! mmpi_alltoall_logical
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoall_logical(sending, receiving, length_opt, communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_alltoall' for a logical scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    logical,        contiguous, intent(in)  :: sending(..)      ! logical data sent to all MPI ranks
+    logical,        contiguous, intent(out) :: receiving(..)    ! logical array which stores the data received
+    integer,        optional,   intent(in)  :: length_opt       ! size of the input data
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr, length
+    type(mpi_comm) :: communicator
+
+    communicator = handleCommunicator(communicator_opt)
+    length = handleLength(sending, communicator, length_opt)
+
+    call mpi_alltoall(sending,   length, mmpi_logical,  &
+                      receiving, length, mmpi_logical, communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoall_logical')
+
+  end subroutine mmpi_alltoall_logical
+
+  !--------------------------------------------------------------------------
   ! mmpi_alltoall_integer
   !--------------------------------------------------------------------------
   subroutine mmpi_alltoall_integer(sending, receiving, length_opt, communicator_opt)
@@ -1568,6 +1629,40 @@ contains
     call handleMpiError(ierr, 'mmpi_alltoall_real8')
 
   end subroutine mmpi_alltoall_real8
+
+  !--------------------------------------------------------------------------
+  ! mmpi_alltoallv_integer
+  !--------------------------------------------------------------------------
+  subroutine mmpi_alltoallv_integer(sending, sendsizes, senddispls, &
+                                    receiving, recvsizes, recvdispls, &
+                                    communicator_opt)
+    !
+    !:Purpose: Calling 'mpi_alltoallv' for a integer scalar or array
+    !
+    implicit none
+
+    ! Arguments:
+    integer,        contiguous, intent(in)  :: sending(..)      ! integer data sent to all MPI ranks
+    integer,                    intent(in)  :: sendsizes(:)     ! array containing the size of each array to be sent
+    integer,                    intent(in)  :: senddispls(:)    ! displacement offsets in the input array
+    integer,        contiguous, intent(out) :: receiving(..)    ! integer array which stores the data received
+    integer,                    intent(in)  :: recvsizes(:)     ! array containing the size of each array to be received
+    integer,                    intent(in)  :: recvdispls(:)    ! displacement offsets in the output array
+    type(mpi_comm), optional,   intent(in)  :: communicator_opt ! the MPI communicator
+
+    ! Locals:
+    integer :: ierr
+    type(mpi_comm) :: communicator
+
+    communicator = handleCommunicator(communicator_opt)
+
+    call mpi_alltoallv(sending,   sendsizes, senddispls, mmpi_integer, &
+                       receiving, recvsizes, recvdispls, mmpi_integer, &
+                       communicator, ierr)
+
+    call handleMpiError(ierr, 'mmpi_alltoallv_integer')
+
+  end subroutine mmpi_alltoallv_integer
 
   !--------------------------------------------------------------------------
   ! mmpi_alltoallv_real4

@@ -103,9 +103,9 @@ program midas_energyNorm
   !========================= ====================== =============================================================
   !
   !
+  use midasMpi_mod
   use version_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
   use timeCoord_mod
   use horizontalCoord_mod

@@ -156,8 +156,8 @@ program midas_letkf
   !                                         the background state and the analysis
   !======================== ============== ==============================================================
   !
-  use version_mod
   use midasMpi_mod
+  use version_mod
   use mathPhysConstants_mod
   use fileNames_mod
   use ensembleObservations_mod
@@ -511,8 +511,8 @@ program midas_letkf
 
       ! Compute and set Yb in ensObs
       call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                  timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false., &
-                  beSilent_opt = .true.)
+                  timeInterpType = enkfNML%obsTimeInterpType, &
+                  dealloc_opt = .false., beSilent_opt = .true.)
 
       ! Compute Y-H(X) in OBS_OMP
       call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
@@ -543,8 +543,8 @@ program midas_letkf
           call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
         end if
         call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                    timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false., &
-                    beSilent_opt = .true.)
+                    timeInterpType = enkfNML%obsTimeInterpType, &
+                    dealloc_opt = .false., beSilent_opt = .true.)
 
         ! Compute Y-H(X) in OBS_OMP
         call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt = .false., &
@@ -596,7 +596,7 @@ program midas_letkf
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
-  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission profiles stored for use in eob_setVertLocation
+  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission for eob_setVertLocation
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
@@ -728,7 +728,8 @@ program midas_letkf
       end if
 
       call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                  timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
+                  timeInterpType = enkfNML%obsTimeInterpType, &
+                  dealloc_opt = .false., beSilent_opt = .true.)
 
       ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified)
       call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMAM, beSilent_opt=.true., &

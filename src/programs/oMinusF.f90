@@ -106,13 +106,13 @@ program midas_oMinusF
   ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
   !=========================== ========================= =========================================
   !
+  use midasMpi_mod
   use version_mod
   use oMinusF_mod
   use obsSpaceData_mod
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
-  use midasMpi_mod
   use biasCorrectionSat_mod
   use ensembleObservations_mod
   use fileNames_mod

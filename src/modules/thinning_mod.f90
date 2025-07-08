@@ -34,7 +34,7 @@ module thinning_mod
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
-  public :: thn_thinSatSST, thn_preThinning
+  public :: thn_thinSatSST, thn_thinCH, thn_preThinning
 
   integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
                                                    flg_16rejOmP, &
@@ -523,8 +523,9 @@ contains
     integer           :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
     integer           :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
     real(8)           :: minDist  ! For distance-based thinning, no observations can be closer to each other than this distance.
+    character(len=10) :: rarsDetectionCriterium ! Criterium to decide if an observation is from RARS
 
-    namelist /thin_tovs/ thinningTechnique, delta, deltrad, minDist
+    namelist /thin_tovs/ thinningTechnique, delta, deltrad, minDist, rarsDetectionCriterium
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
@@ -536,6 +537,7 @@ contains
     delta   = 100
     deltrad = 75
     minDist = -1.0
+    rarsDetectionCriterium = 'centreOrig'
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
@@ -571,28 +573,28 @@ contains
 
     ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'), rarsDetectionCriterium)
 
     ! AMSU-B/MHS observations
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
-                      codtyp2_opt=codtyp_get_codtyp('mhs'))
+                      rarsDetectionCriterium, codtyp2_opt=codtyp_get_codtyp('mhs'))
 
     ! ATMS observations
     call msg_memUsage('thn_thinTovs')
     if (trim(thinningTechnique) == 'grid-based') then
-      call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
+      call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'), rarsDetectionCriterium)
     else
-      call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'))
+      call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'), rarsDetectionCriterium)
     end if
 
     ! MWHS-2 observations
     call msg_memUsage('thn_thinTovs')
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'), rarsDetectionCriterium)
 
     ! SSMIS observations
     call msg_memUsage('thn_thinTovs')
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'), rarsDetectionCriterium)
 
     ! Do super-obing if it is activated through the namelist
 
@@ -684,6 +686,84 @@ contains
     call utl_tmg_stop(114)
 
   end subroutine thn_thinHyper
+
+  !--------------------------------------------------------------------------
+  ! thn_thinCH
+  !--------------------------------------------------------------------------
+  subroutine thn_thinCH(obsdat)
+    !
+    ! :Purpose: Main thinning subroutine for CH family retrieved constituent
+    !           observations.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: ierr                       ! status flag
+    integer, parameter :: maxStnIdNum=100 ! Max allowed stnid for thinning
+    integer :: stnIdIndex                 ! Station ID loop index
+
+    ! Namelist variables:
+    integer           :: deltemps(maxStnIdNum)        ! number of time bins between adjacent observations
+    integer           :: deldist(maxStnIdNum)         ! minimal horizontal distance in km between adjacent observations
+    integer           :: keepNthVertical(maxStnIdNum) ! keep every nth vertical datum
+    real(8)           :: maxSunList(maxStnIdNum)      ! max solar zenith angle (degrees)
+    character(len=9)  :: stnIdList(maxStnIdNum)       ! Station ID of obs sources to be thinned
+    character(len=20) :: methodList(maxStnIdNum)      ! Thinning method
+
+    namelist /thin_CH/deltemps, deldist, stnIdList, methodList, maxSunList, &
+                      keepNthVertical
+
+    ! Return if no CH family obs
+    if (.not. obs_famExist(obsdat,'CH')) return
+
+    ! Default values for namelist variables
+    deltemps(:)   = 1   ! default is a single time bin for thinning time intervals
+    deldist(:)    = 111 ! default value is for 1 degree of arc on the Earth's surface at the equator
+    stnIdList(:)  = ''
+    methodList(:) = ''
+    maxSunList(:) = 90.0d0
+    keepNthVertical(:) = 1
+
+    ! Read the namelist for CH family observations (if it exists)
+    if (utl_isNamelistPresent('thin_CH','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_CH, iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinCH: Error reading thin_CH namelist')
+      if (mmpi_myid == 0) write(*,nml=thin_CH)
+      call utl_tmg_stop(181)
+    else
+      if (mmpi_myid == 0) then
+        write(*,*)
+        write(*,*) 'thn_thinCH: Namelist block thin_CH is missing in the namelist.'
+        write(*,*) '            There will be no thinning.'
+        write(*,nml=thin_CH)
+      end if
+    end if
+
+    STNIDLOOP: do stnIdIndex = 1, maxStnIdNum
+      if (trim(stnidList(stnIdIndex)) == '') exit STNIDLOOP
+      write(*,*) 'Thinning for StnId ',trim(stnidList(stnIdIndex))
+      if (trim(methodList(stnIdIndex)) == 'byDistance') then
+        call utl_tmg_start(114,'--ObsThinning')
+        call thn_CHfamByDistance(obsdat, deltemps(stnIdIndex), deldist(stnIdIndex), &
+                                 maxSunList(stnIdIndex), stnIdList(stnIdIndex))
+        call utl_tmg_stop(114)
+      else if (trim(methodList(stnIdIndex)) == 'byNthLevel' .and. &
+               keepNthVertical(stnIdIndex) > 1) then
+        call utl_tmg_start(114,'--ObsThinning')
+        call thn_keepNthObs(obsdat, 'CH', keepNthVertical(stnIdIndex), &
+                             stnId_opt = stnIdList(stnIdIndex))
+        call utl_tmg_stop(114)
+      else
+        call utl_abort('thn_thinCH: Thinning method not recognized ' // &
+                       'or identified for ' //  stnIdList(stnIdIndex))
+      end if
+    end do STNIDLOOP
+
+  end subroutine thn_thinCH
 
   !--------------------------------------------------------------------------
   ! thn_preThinning
@@ -2005,7 +2085,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine obsLevOffsetToMpi(array, arrayMpi)
     !
-    ! :Purpose: Do the equivalent of mpi_allgatherv for an integer array,
+    ! :Purpose: Do the equivalent of 'mmpi_allgatherv' for an integer array,
     !           with special treatment for obsLevOffset.
     !
     implicit none
@@ -3459,6 +3539,300 @@ contains
   end subroutine thn_gbGpsByDistance
 
   !--------------------------------------------------------------------------
+  ! thn_CHfamByDistance
+  !--------------------------------------------------------------------------
+  subroutine thn_CHfamByDistance(obsdat, deltemps, deldist, maxSUN, stnId)
+    !
+    ! :Purpose: Method for thinning of CH family data by the distance method.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    ! :Comments: Based on thn_gbGpsByDistance
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(in)    :: deltemps ! number of time bins between adjacent observations
+    integer,          intent(in)    :: deldist  ! minimal horizontal distance in km between adjacent observations
+    real(8),          intent(in)    :: maxSUN   ! max solar zenith angle (degrees)
+    character(len=*), intent(in)    :: stnId    ! Station ID of obs set to thin
+
+    ! Locals:
+    integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: countObs, countObsInMpi, countObsOutMpi
+    integer :: countRejectedInObs, countRejectedInObsMpi
+    integer :: obsDate, obsTime
+    integer :: flagCount, badFlagCount
+    integer :: badTimeCount, badTimeCountMpi
+    integer :: numSelected, middleStep
+    integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
+    integer :: headerIndexBeg, headerIndexEnd
+    real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
+    real(8) :: obsLonInDegrees, obsLatInDegrees, obsStepIndex_r8
+    logical :: skipThisObs
+    integer, allocatable :: quality(:), qualityMpi(:)
+    integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
+    integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
+    integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
+    integer, allocatable :: headerIndexSelected(:), headerIndexSorted(:)
+    logical, allocatable :: valid(:), validMpi(:)
+
+    write(*,*)
+    write(*,*) 'thn_CHfamByDistance: Starting'
+    write(*,*)
+
+    numHeader = obs_numHeader(obsdat)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
+
+    ! Identify set of observations to be treated in thinning
+    countObs = 0
+    countRejectedInObs = 0
+    allocate(quality(numHeaderMaxMpi))
+    allocate(qualityMpi(numHeaderMpi))
+    quality(:) = nullValue
+    qualityMpI(:) = nullValue
+    call obs_set_current_header_list(obsdat,'CH')
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER0
+      if (.not.utl_stnid_equal(obs_elem_c(obsdat,'STID',headerIndex),stnId)) cycle HEADER0
+      ! check solar zenith angle
+      if (obs_headElem_r(obsdat, OBS_SUN, headerIndex) <= maxSUN) then
+        ! Check for rejected obs
+        call obs_set_current_body_list(obsdat, headerIndex)
+        flagCount = 0
+        badFlagCount = 0
+        BODY01: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY01
+          if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
+              BUFR_SCALE_EXPONENT) cycle BODY01
+          flagCount = flagCount + 1
+          if ( flg_flagIsOn('OR', obsdat, bodyIndex, [flg_18rejOro, flg_16rejOmP, flg_09rejBgck, &
+                                                      flg_08rejBlackL, flg_04doubtful, flg_03,   &
+                                                      flg_02erroneous]) ) then
+            badFlagCount = badFlagCount + 1
+          end if
+        end do BODY01
+        if (badFlagCount < flagCount) then
+          countObs = countObs + 1
+          quality(headerIndex) = 1
+        else
+          countRejectedInObs = countRejectedInObs + 1
+          call obs_set_current_body_list(obsdat, headerIndex)
+          BODY01b: do
+            bodyIndex = obs_getBodyIndex(obsdat)
+            if (bodyIndex < 0) exit BODY01b
+            call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+          end do BODY01b
+        end if
+      else
+        ! Flag and exclude data beyond solar zenith angle threshold
+        countRejectedInObs  = countRejectedInObs + 1
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY02: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY02
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+        end do BODY02
+      end if
+    end do HEADER0
+
+    call mmpi_allReduce(countObs, countObsInMpi, mmpi_sum)
+    if (countObsInMpi == 0) then
+      if (mmpi_myid == 0) then
+         write(*,*) 'thn_CHfamByDistance: no CH observations present for ', stnId
+      end if
+      write(*,*) 'thn_CHfamByDistance: Finished'
+      write(*,*)
+      return
+    end if
+
+    call mmpi_allReduce(countRejectedInObs, countRejectedInObsMpi, mmpi_sum)
+    write(*,*) 'thn_CHfamByDistance: number of valid initial obs  = ', &
+               countObs, countObsInMpi
+    write(*,*) 'thn_CHfamByDistance: number of rejected initial obs  = ', &
+               countRejectedInObs, countRejectedInObsMpi
+
+    thinDistance = real(deldist)
+
+    if (mmpi_myid == 0) then
+      write(*,*)
+      write(*,*) 'Minimum thinning distance ', thinDistance
+    end if
+
+    middleStep   = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
+                   tim_dstepobs) + 1
+
+    if (mmpi_myid == 0) then
+      write(*,*)
+      write(*,*) 'Number of time bins                     = ', tim_nstepobs
+      write(*,*) 'Minimum number of time bins between obs = ', deltemps
+      write(*,*) 'Central time bin                        = ', middleStep
+      write(*,*)
+    end if
+
+    ! Allocations:
+    allocate(obsLatBurpFile(numHeaderMaxMpi))
+    allocate(obsLonBurpFile(numHeaderMaxMpi))
+    allocate(obsStepIndex(numHeaderMaxMpi))
+    allocate(valid(numHeaderMaxMpi))
+
+    allocate(obsLatBurpFileMpi(numHeaderMpi))
+    allocate(obsLonBurpFileMpi(numHeaderMpi))
+    allocate(obsStepIndexMpi(numHeaderMpi))
+
+    allocate(headerIndexSorted(numHeaderMpi))
+    allocate(headerIndexSelected(numHeaderMpi))
+    allocate(validMpi(numHeaderMpi))
+
+    validMpi(:) = .false.
+
+    obsLatBurpFile(:) = 0
+    obsLonBurpFile(:) = 0
+    obsStepIndex(:)   = 0
+
+    obsLatBurpFileMpi(:) = 0
+    obsLonBurpFileMpi(:) = 0
+    obsStepIndexMpi(:)   = 0
+
+    badTimeCount = 0
+
+    ! First pass through observations
+    call obs_set_current_header_list(obsdat,'CH')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER1
+      if (quality(headerIndex) == nullValue) cycle HEADER1
+
+      ! get latitude and longitude
+      obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
+      obsLonBurpFile(headerIndex) = nint(100.0*obsLonInDegrees)
+      obsLatBurpFile(headerIndex) = 9000 + nint(100.0*obsLatInDegrees)
+      if (obsLonBurpFile(headerIndex) >= 18000) then
+        obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) - 18000
+      else
+        obsLonBurpFile(headerIndex) = obsLonBurpFile(headerIndex) + 18000
+      end if
+
+      ! get step bin
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
+
+      ! obs is outside time window
+      if( obsStepIndex(headerIndex) == -1 ) quality(headerIndex) =  nullValue
+
+    end do HEADER1
+
+    ! Gather needed information from all MPI tasks
+    call mmpi_allgather(quality,        qualityMpi)
+    call mmpi_allgather(obsLatBurpFile, obsLatBurpFileMpi)
+    call mmpi_allgather(obsLonBurpFile, obsLonBurpFileMpi)
+    call mmpi_allgather(obsStepIndex,   obsStepIndexMpi)
+
+    do obsIndex1 = 1, numHeaderMpi
+      headerIndexSorted(obsIndex1)  = obsIndex1
+    end do
+
+    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,nullValue)
+
+    numSelected       = 0   ! number of obs selected so far
+    OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
+
+      if ( qualityMpi(obsIndex1) == nullValue ) cycle OBS_LOOP
+
+      headerIndex1 = headerIndexSorted(obsIndex1)
+
+      ! Check if any of the obs already selected are close in space/time to this obs
+      ! If no, then keep (select) this obs
+      if( numSelected >= 1 ) then
+        skipThisObs = .false.
+        LOOP2: do obsIndex2 = 1, numSelected
+          headerIndex2 = headerIndexSelected(obsIndex2)
+          if ( abs(obsStepIndexMpi(headerIndex1) -  &
+                   obsStepIndexMpi(headerIndex2)) < deltemps  ) then
+            deltaLat = abs(obsLatBurpFileMpi(headerIndex1) -  &
+                           obsLatBurpFileMpi(headerIndex2))/100.
+            deltaLon = abs(obsLonBurpFileMpi(headerIndex1) -  &
+                           obsLonBurpFileMpi(headerIndex2))/100.
+            if (deltaLon > 180.) deltaLon = 360. - deltaLon
+            obsLat1 = ((obsLatBurpFileMpi(headerIndex1) - 9000)/100.)
+            obsLat2  = ((obsLatBurpFileMpi(headerIndex2) - 9000)/100.)
+            if ( thn_distanceArc(deltaLat,deltaLon,obsLat1,obsLat2) < thinDistance ) then
+              skipThisObs = .true.
+              exit LOOP2
+            end if
+          end if
+        end do LOOP2
+      else
+        skipThisObs = .false.
+      end if
+
+      if (.not. skipThisObs) then
+        numSelected = numSelected + 1
+        headerIndexSelected(numSelected) = headerIndex1
+      end if
+
+    end do OBS_LOOP
+
+    do obsIndex1 = 1, numSelected
+      obsIndex2 = headerIndexSelected(obsIndex1)
+      validMpi(obsIndex2) = .true.
+    end do
+
+    ! Update local copy of valid from global mpi version
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    countObs = count(valid)
+    call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
+    write(*,*) 'thn_CHfamByDistance: number of obs after thinning = ', &
+               countObs, countObsOutMpi
+
+    ! modify the obs flags and count number of obs kept for each stnId
+    call obs_set_current_header_list(obsdat,'CH')
+    HEADER3: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER3
+      if (quality(headerIndex) == nullValue) cycle HEADER3
+
+      ! do not keep this obs: set bit 11 and jump to the next obs
+      if (.not. valid(headerIndex)) then
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY3: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY3
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+        end do BODY3
+        cycle HEADER3
+      end if
+
+    end do HEADER3
+
+    call mmpi_allReduce(badTimeCount, badTimeCountMpi, mmpi_sum)
+
+    if (mmpi_myid == 0) then
+      write(*,*)
+      write(*,'(a50,i10)') 'Number of input obs                   = ', countObsInMpi
+      write(*,'(a50,i10)') 'Total number of rejected/thinned obs  = ', countObsInMpi - countObsOutMpi
+      write(*,'(a50,i10)') 'Number of output obs                  = ', countObsOutMpi
+      write(*,'(a60,i10)') 'Number of rejects outside time window = ', badTimeCountMpi
+    end if
+
+    write(*,*)
+    write(*,*) 'thn_CHfamByDistance: Finished'
+    write(*,*)
+
+  end subroutine thn_CHfamByDistance
+
+  !--------------------------------------------------------------------------
   ! thn_satWindsByDistance
   !--------------------------------------------------------------------------
   subroutine thn_satWindsByDistance(obsdat, familyType, deltemps, deldist)
@@ -4870,97 +5244,118 @@ contains
   !--------------------------------------------------------------------------
   ! thn_keepNthObs
   !--------------------------------------------------------------------------
-  subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical)
+  subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical, stnId_opt)
     !
     ! :Purpose: Of the observations in a column that have not already been
     !           rejected, keep every nth observation and throw out the rest.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
     !
+    ! :Comments: Based on original thn_keepNthObs for AL
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: keepNthVertical
+    type(struct_obs),           intent(inout) :: obsdat
+    character(len=*),           intent(in)    :: familyType      ! Obs family
+    integer,                    intent(in)    :: keepNthVertical ! keep every nth vertical datum
+    character(len=*), optional, intent(in)    :: stnId_opt       ! Station ID (optional)
 
     ! Locals:
-    integer, parameter :: PROFILE_NOT_FOUND=-1
-    integer :: headerIndex, bodyIndex
-    integer :: countKeepN ! count to keep every Nth observation in the column
-    integer :: newProfileId
+    integer              :: headerIndex, bodyIndex
+    integer              :: countObs, countReject
+    integer              :: countKeepN ! count to keep every Nth observation in the column
+    logical              :: exponentPresent
+    logical, allocatable :: flagged(:)
 
     write(*,*)
     write(*,*) 'thn_keepNthObs: Starting'
     write(*,*)
 
-    countKeepN=0
+    ! Loop over all obs of the family of interest and thin each obs column
 
-    ! Loop over all body indices (columns) of the family of interest and
-    ! thin each column independently of the others
-    call obs_set_current_body_list(obsdat, familyType)
-    BODY: do
-      bodyIndex = obs_getBodyIndex(obsdat)
-      if (bodyIndex < 0) exit BODY
-
-      ! If datum already rejected, ignore it
-      if ( flg_flagIsOn('OR',obsdat, bodyIndex, [flg_09rejBgck,flg_11rejSelect]) ) cycle BODY
-
-      headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
-      newProfileId = obs_headElem_i(obsdat, OBS_PRFL, headerIndex)
-
-      countKeepN=countKeepN + 1
-      if ( countKeepN == keepNthVertical .or. &
-           new_column() ) then
-        ! Reset the counter and keep this observation
-        countKeepN=0
-      else
-        ! Reject this observation
-        call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+    call obs_set_current_header_list(obsdat,familyType)
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER
+      if (present(stnId_opt)) then
+        if (.not.utl_stnid_equal(obs_elem_c(obsdat,'STID',headerIndex),stnId_opt)) then
+          cycle HEADER
+        end if
       end if
 
-    end do BODY
+      if (allocated(flagged)) deallocate(flagged)
+      allocate(flagged(obs_headElem_i(obsdat, OBS_NLV, headerIndex)))
+      flagged(:) = .false.
+      exponentPresent = .false.
+      countObs = 0
+      countReject = 0
+      countKeepN = 0
+      call obs_set_current_body_list(obsdat, headerIndex)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsdat)
+        if (bodyIndex < 0) exit BODY
+        if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
+            BUFR_SCALE_EXPONENT) then
+          exponentPresent = .true.
+          exit BODY
+        end if
+
+        countObs = countObs + 1
+        ! If datum already rejected, ignore it
+        if ( flg_flagIsOn(obsdat, bodyIndex, flg_11rejSelect) ) flagged(countObs) = .true.
+        if (trim(familyType) == 'AL') then
+          if ( flg_flagIsOn('OR',obsdat, bodyIndex, [flg_09rejBgck,flg_11rejSelect]) ) cycle BODY
+        else if ( flg_flagIsOn('OR',obsdat, bodyIndex, [flg_18rejOro,flg_16rejOmP,flg_11rejSelect,    &
+                                                        flg_09rejBgck,flg_08rejBlackL,flg_04doubtful, &
+                                                        flg_03,flg_02erroneous]) ) then
+          cycle BODY
+        end if
+
+        countKeepN=countKeepN + 1
+        if ( countKeepN == keepNthVertical ) then
+          ! Reset the counter and keep this observation
+          countKeepN=0
+        else
+          ! Reject this observation
+          flagged(countObs) = .true.
+          countReject = countReject + 1
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+        end if
+
+      end do BODY
+
+      write(*,*) 'thn_keepNthObs: Number of newly rejected levels is ',countReject
+
+      if (exponentPresent) then
+        countObs = 0
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY2
+          if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == &
+              BUFR_SCALE_EXPONENT) then
+            countObs = countObs + 1
+            if (flagged(countObs)) then
+              ! Reject exponent associated to the observation
+              call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
+            end if
+          end if
+        end do BODY2
+      end if
+
+    end do HEADER
+    if (allocated(flagged)) deallocate(flagged)
 
     write(*,*)
     write(*,*) 'thn_keepNthObs: Finished'
     write(*,*)
-
-  contains
-    function new_column()
-      !
-      ! :Purpose: Determine whether the current observation begins a new vertical column
-      !           (Assume that observations are in chronological order)
-      !
-      ! :Note:  This method has been written with aladin observations in mind.
-      !         It might be necessary to generalize the method.
-      !
-      implicit none
-
-      ! Result:
-      logical :: new_column
-
-      ! Locals:
-      integer, save :: previousProfileId=huge(previousProfileId)
-
-      if (newProfileId == PROFILE_NOT_FOUND) then
-        ! The profile ID for this element is missing.
-        ! Assume that it is the same as the previous element
-        newProfileId = previousProfileId
-      end if
-
-      if (newProfileId /= previousProfileId) then
-        previousProfileId = newProfileId
-        new_column=.true.
-      else
-        new_column=.false.
-      end if
-    end function new_column
 
   end subroutine thn_keepNthObs
 
   !--------------------------------------------------------------------------
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
-  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
+  subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, rarsDetectionCriterium, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -4972,6 +5367,7 @@ contains
     integer,           intent(in)    :: delta
     integer,           intent(in)    :: deltrad
     integer,           intent(in)    :: codtyp
+    character(len=*),  intent(in)    :: rarsDetectionCriterium
     integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
@@ -5038,7 +5434,7 @@ contains
                countObs, countObsMpi
 
     ! Remove RARS obs that are also present from a global originating centre
-    call thn_removeRarsDuplicates(obsdat, valid)
+    call thn_removeRarsDuplicates(trim(instrumName), obsdat, valid, rarsDetectionCriterium)
 
     countObs = count(valid(:))
     call mmpi_allReduce(countObs, countObsMpi, mmpi_sum)
@@ -5436,7 +5832,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_tovsFilt_dd
   !--------------------------------------------------------------------------
-  subroutine thn_tovsfilt_dd(obsdat, mindist, codtyp, codtyp2_opt)
+  subroutine thn_tovsfilt_dd(obsdat, mindist, codtyp, rarsDetectionCriterium, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs based on DISTANCE-DEPENDENT thinning satwind algo.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -5447,6 +5843,7 @@ contains
     type(struct_obs),  intent(inout) :: obsdat       ! struct_obs instance
     integer,           intent(in)    :: codtyp       ! observation code type
     real(8),           intent(in)    :: mindist      ! The minimum distance between observations which will be imposed.
+    character(len=*),  intent(in)    :: rarsDetectionCriterium
     integer, optional, intent(in)    :: codtyp2_opt  ! optionnal second observation code type
 
     ! Locals:
@@ -5562,7 +5959,7 @@ contains
     allocate(stepObsIndexMpi(numHeaderMpi))
 
     ! Remove RARS obs that are also present from a global originating centre
-    call thn_removeRarsDuplicates(obsdat, valid)
+    call thn_removeRarsDuplicates(trim(instrumName), obsdat, valid, rarsDetectionCriterium)
 
     countObs = count(valid(:))
     call mmpi_allReduce(countObs, countObsMpi, mmpi_sum)
@@ -5954,15 +6351,17 @@ contains
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
-  subroutine thn_removeRarsDuplicates(obsdat, valid)
+  subroutine thn_removeRarsDuplicates(instrumName, obsdat, valid, rarsDetectionCriterium)
     !
     ! :Purpose: Remove duplicate TOVS observations due to RARS.
     !
     implicit none
 
     ! Arguments:
+    character(len=*), intent(in)    :: instrumName
     type(struct_obs), intent(inout) :: obsdat   ! obsSpace data object
     logical,          intent(inout) :: valid(:)
+    character(len=*), intent(in)    :: rarsDetectionCriterium
 
     ! Locals:
     integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
@@ -5970,31 +6369,43 @@ contains
     integer :: obsDate, obsTime
     real(4) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
-    logical :: global1, global2
-    integer, allocatable :: centreOrig(:), centreOrigMpi(:)
-    integer, allocatable :: obsFov(:), obsFovMpi(:)
-    integer, allocatable :: obsDateStamp(:), obsDateStampMpi(:)
-    integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
-    logical, allocatable :: validMpi(:)
-    character(len=obs_stnidLength)    :: stnId
-    type(kdtree2), pointer            :: tree
-    integer, parameter                :: maxNumSearch = 100
-    integer                           :: numFoundSearch, resultIndex
-    type(kdtree2_result)              :: searchResults(maxNumSearch)
-    real(kdkind)                      :: maxRadiusSquared = 100.d6
-    real(kdkind)                      :: refPosition(3)
-    real(kdkind), allocatable         :: obsPosition3d(:,:)
-    real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
-    integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
+    integer,     allocatable  :: rarsCriterium(:), rarsCriteriumMpi(:)
+    integer,     allocatable  :: obsFov(:), obsFovMpi(:)
+    integer,     allocatable  :: obsDateStamp(:), obsDateStampMpi(:)
+    integer,     allocatable  :: stnIdInt(:,:), stnIdIntMpi(:,:)
+    logical,     allocatable  :: isGlobal(:), isGlobalMpi(:)
+    logical,     allocatable  :: validMpi(:)
+    character(len=12)         :: stnId
+    type(kdtree2), pointer    :: tree
+    integer                   :: numFoundSearch, resultIndex
+    integer,       parameter  :: maxNumSearch = 100
+    type(kdtree2_result)      :: searchResults(maxNumSearch)
+    real(kdkind)              :: maxRadiusSquared = 100.d6
+    real(kdkind)              :: refPosition(3)
+    real(kdkind), allocatable :: obsPosition3d(:,:)
+    real(kdkind), allocatable :: obsPosition3dMpi(:,:)
+    integer, parameter        :: centreOrigGlobal_amsu(3)  = (/53, 74, 160/)
+    integer, parameter        :: centreOrigGlobal_mwhs2(3) = (/39, 74, 160/)
+    integer                   :: centreOrigGlobal(3)
+    integer, external         :: newdate
 
+    write(*,*) 'thn_removeRarsDuplicates: start'
+
+    centreOrigGlobal = centreOrigGlobal_amsu
+    if (trim(instrumName) == "mwhs2") then
+      centreOrigGlobal = centreOrigGlobal_mwhs2
+    end if
+    !
     numHeader = obs_numHeader(obsdat)
     call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
 
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
     allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
-    allocate(centreOrig(numHeaderMaxMpi))
-    allocate(centreOrigMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(rarsCriterium(numHeaderMaxMpi))
+    allocate(rarsCriteriumMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(isGlobal(numHeaderMaxMpi))
+    allocate(isGlobalMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
     allocate(obsFovMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
@@ -6005,7 +6416,7 @@ contains
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     ! Some initializations
-    centreOrig(:) = 0
+    rarsCriterium(:) = 0
     obsPosition3d(:,:) = 0.0
 
     ! Loop over all observation locations
@@ -6013,8 +6424,18 @@ contains
       if ( .not. valid(headerIndex) ) cycle
 
       ! Originating centre of data
-      centreOrig(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
-
+      if (rarsDetectionCriterium == 'Bufr055200') then
+        ! flag (element 055200)
+        rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
+        isGlobal(headerIndex) =  btest(rarsCriterium(headerIndex),10) .and. &
+                          (.not. btest(rarsCriterium(headerIndex),22) )
+      else if (rarsDetectionCriterium == 'centreOrig') then
+        ! Originating centre of data
+        rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
+        isGlobal(headerIndex) = any(centreOrigGlobal(:) == rarsCriterium(headerIndex))
+      else
+        call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
+      end if
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
       do charIndex = 1, lenStnId
@@ -6041,7 +6462,8 @@ contains
 
     call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
     call mmpi_allGather(valid,         validMpi)
-    call mmpi_allGather(centreOrig,    centreOrigMpi)
+    call mmpi_allGather(rarsCriterium, rarsCriteriumMpi)
+    call mmpi_allGather(isGlobal,      isGlobalMpi)
     call mmpi_allGather(obsFov,        obsFovMpi)
     call mmpi_allGather(obsDateStamp,  obsDateStampMpi)
     call mmpi_allGather(stnIdInt,      stnIdIntMpi)
@@ -6075,7 +6497,7 @@ contains
         ! pas s'y fier.
         ! Il faut comparer le temps de la reception des
         ! donnees
-        if ( centreOrigMpi(headerIndex1) /= centreOrigMpi(headerIndex2) ) then
+        if ( rarsCriteriumMpi(headerIndex1) /= rarsCriteriumMpi(headerIndex2) ) then
           if ( obsFovMpi(headerIndex1) == obsFovMpi(headerIndex2) ) then
             if ( all(stnIdIntMpi(:,headerIndex1) ==  stnIdIntMpi(:,headerIndex2)) ) then
 
@@ -6088,17 +6510,14 @@ contains
               if ( abs(dlhours) <= 0.1 ) then
 
                 ! si l'element_i est global, on doit le garder et rejeter l'element_j
-                global1 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex1))
-                if (global1) then
+                if (isGlobalMpi(headerIndex1)) then
                   validMpi(headerIndex2) = .false.
                 else
                   ! toutefois, ca ne signifie pas que l'element_j est un rars
                   ! VERIFIER SI LA STATION 2 EST RARS
-                  global2 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex2))
-
                   ! Si l'element_j est global, rejeter l'element_i
                   ! Si les 2 elements sont rars, garder le 1er
-                  if (global2) then
+                  if (isGlobalMpi(headerIndex2)) then
                     validMpi(headerIndex1) = .false.
                     cycle HEADER1
                   else
@@ -6123,8 +6542,10 @@ contains
 
     deallocate(obsPosition3d)
     deallocate(obsPosition3dMpi)
-    deallocate(centreOrig)
-    deallocate(centreOrigMpi)
+    deallocate(rarsCriterium)
+    deallocate(rarsCriteriumMpi)
+    deallocate(isGlobal)
+    deallocate(isGlobalMpi)
     deallocate(obsFov)
     deallocate(obsFovMpi)
     deallocate(obsDateStamp)
@@ -7564,7 +7985,7 @@ contains
   end function thn_separation
 
   !--------------------------------------------------------------------------
-  ! thn_thinSatSST
+  ! thn_tinSatSST
   !--------------------------------------------------------------------------
   subroutine thn_thinSatSST(obsdat)
     !

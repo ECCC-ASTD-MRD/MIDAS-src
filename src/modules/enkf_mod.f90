@@ -38,6 +38,9 @@ module enkf_mod
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
 
+  ! Constants (private)
+  integer, parameter :: maxNumLocalize = 10 ! hLocalize size
+
   ! for weight interpolation
   type struct_enkfInterpInfo
     integer              :: latLonStep
@@ -82,8 +85,9 @@ module enkf_mod
     logical  :: localSelectionOutput
     logical  :: debug
     logical  :: readEnsObsFromFile
-    real(8)  :: hLocalize(4)
-    real(8)  :: hLocalizePressure(3)
+    real(8)  :: hLocalize(maxNumLocalize)
+    real(8)  :: hLocalizePressure(maxNumLocalize)
+    logical  :: hLinearLoc
     real(8)  :: vLocalize
     real(8)  :: minDistanceToLand
     character(len=20) :: obsTimeInterpType
@@ -112,7 +116,7 @@ contains
     type(struct_enkfNML) :: enkfNML  ! Derived type variable with namelist variables
 
     ! Locals:
-    integer :: ierr
+    integer :: ierr, locIndex
 
     ! namelist variables
     character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
@@ -140,8 +144,9 @@ contains
     logical  :: localSelectionOutput ! write output about the local selection of observations
     logical  :: debug                ! debug option to print values to the listings.
     logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
-    real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
-    real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
+    real(8)  :: hLocalize(maxNumLocalize)         ! horizontal localization radius (in km)
+    real(8)  :: hLocalizePressure(maxNumLocalize) ! pressures where horizontal localization changes (in hPa)
+    logical  :: hLinearLoc           ! apply piece-wise linear vertical interpolation for the localization radius
     real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
     real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
     character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
@@ -154,7 +159,7 @@ contains
 
     NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                        ensPathName, randomShuffleSubEns,  &
-                       hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
+                       hLocalize, hLocalizePressure, hLinearLoc, vLocalize, minDistanceToLand,  &
                        maxNumLocalObs, maxNumLocalObsPerType, weightLatLonStep, alphaRandomPertPrior,  &
                        modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                        ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
@@ -185,7 +190,8 @@ contains
     outputEnsObs             = .false.
     localSelectionOutput     = .false.
     hLocalize(:)             = -1.0D0
-    hLocalizePressure(:)     = (/14.0D0, 140.0D0, 400.0D0/)
+    hLocalizePressure(:)     = -1.0D0
+    hLinearLoc               = .false.
     vLocalize                = -1.0D0
     minDistanceToLand        = -1.0D0
     obsTimeInterpType        = 'LINEAR'
@@ -212,19 +218,64 @@ contains
     end if
 
     ! Some minor modifications of namelist values
-    if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
-      ! if only 1 value given for hLocalize, use it for entire column
-      hLocalize(2:4) = hLocalize(1)
-      if (mmpi_myid == 0) then
-        write(*,*) 'enkf_readNML: hLocalize(2:4) are modified after reading namelist. ' // &
-                   'hLocalize(2:4)=', hLocalize(1)
-      end if
-    else if (hLocalize(1) < 0.0D0) then
-      write(*,*) 'enkf_readNML: WARNING: hLocalize(1) < 0.0D0'
-      hLocalize(1) = 0.0D0
+
+    ! default hLocalizePressure values assume four radii, or just one
+    if (hLocalizePressure(1) < 0.0d0) then
+      write(*,*) 'enkf_readNML: hLocalizePressure not set in namelist. Setting default values.'
+      if (hLinearLoc) then
+        hLocalizePressure(1:4)   = (/6.0d0, 144.0d0, 237.0d0, 700.0d0/) ! midpoints
+      else
+        hLocalizePressure(1:3)   = (/14.0d0, 140.0d0, 400.0d0/) ! transition values
+      endif
+    endif
+
+    ! if only 1 value given for hLocalize, use it for the entire column
+    if (hLocalize(1) > 0.0d0 .and. hLocalize(2) < 0.0d0) then
+      hLocalize(:) = hLocalize(1)
+      if ( mmpi_myid == 0 ) write(*,*) 'enkf_readNML: hLocalize is modified after reading namelist. ' // &
+           'hLocalize(:)=', hLocalize(1)
+      ! if no value give for hLocalize, abort
+    else if ( hLocalize(1) > 0.0d0 ) then
+      ! Check hLocalizePressure and hLocalize lengths consistency
+      ! For a linearly varying localization radius, the radius is set for the hLocalizePressure values
+      ! Therefore, hLocalizePressure has the same length as hLocalize
+      ! For a step varying localization radius, hLocalizePressure values are the transition values between hLocalize values
+      ! Therefore, hLocalizePressurec has one less value than hLocalize
+      if ( (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0)     .and.       hLinearLoc) .or. &
+           (count(hLocalize > 0.0d0) /= count(hLocalizePressure > 0.0d0) + 1 .and. .not. hLinearLoc) ) then
+        write(*,*) 'enkf_readNML: hLocalize and hLocalizePressure have inconsistent lengths.'
+        write(*,*) 'enkf_readNML: hLocalize has',count(hLocalize > 0.0d0),'positive values'
+        write(*,*) 'enkf_readNML: hLocalizePressure has',count(hLocalizePressure > 0.0d0),'positive values'
+        write(*,*) 'enkf_readNML: hLocalize = ',hLocalize(:)
+        write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
+        call utl_abort('enkf_readNML: hLocalize and hLocalizePressure inconsistency')
+      endif
     end if
-    hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
-    hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
+
+    do locIndex = 1,maxNumLocalize-1
+      ! check if hLocalizePressure positive values decrease
+      if ((hLocalizePressure(locIndex) >= hLocalizePressure(locIndex+1)) .and. &
+           hLocalizePressure(locIndex+1) > 0.0d0) then
+        write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
+        call utl_abort('enkf_readNML: hLocalizePressure does not decrease')
+      end if
+    enddo
+
+    do locIndex=1,maxNumLocalize
+      ! convert localization radius from km to m
+      if (hLocalize(locIndex) > 0.0d0) then
+        hLocalize(locIndex) = hLocalize(locIndex) * 1000.0d0
+      end if
+      ! convert pressure from hPa to log(Pa)
+      if (hLocalizePressure(locIndex) > 0.0d0) then
+        hLocalizePressure(locIndex) = log(hLocalizePressure(locIndex) * MPC_PA_PER_MBAR_R8)
+      end if
+    enddo
+
+    if ( mmpi_myid == 0 ) then
+      write(*,*) 'enkf_readNML: hLocalize (meters):',hlocalize
+      write(*,*) 'enkf_readNML: hLocalizePressure (log(Pa)):',hlocalizePressure
+    endif
 
     if (minDistanceToLand > 0.0D0) then
       minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
@@ -806,12 +857,12 @@ contains
     ! Locals:
     type(struct_hco), pointer :: hco_ens
     integer :: nEnsGain
-    integer :: hLocIndex, numLocalObs, numLocalObsFound, localObsIndex
+    integer :: numLocalObs, numLocalObsFound, localObsIndex
     integer :: bodyIndex, memberIndex, subEnsIndex
     integer :: nEnsIndependentPerSubEns, nEnsPerSubEns, nEnsPerSubEns_mod
     integer :: eigenVectorColumnIndex, memberIndexInModEns
-    logical :: hLocalizeIsConstant, useModulatedEns
-    real(8) :: anlLat, anlLon, anlVertLocation
+    logical :: useModulatedEns
+    real(8) :: hLoc, anlLat, anlLon, anlVertLocation
     integer, allocatable,         save :: localBodyIndices(:)
     integer, allocatable,         save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
     integer, allocatable,         save :: memberIndexSubEnsComp(:,:)
@@ -909,25 +960,22 @@ contains
     ! The lat-lon of the grid point for which we are computing the weights
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    hLocalizeIsConstant = all( utl_isEqual(enkfNML%hLocalize(:),enkfNML%hLocalize(1)) )
-    if (enkfNML%vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
+    ! if there is vertical localization
+    if (enkfNML%vLocalize > 0.0d0) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
-    end if
-
-    ! Find which horizontal localization value to use for this analysis level
-    if (hLocalizeIsConstant) then
-      hLocIndex = 1
-    else
-      hLocIndex = 1 + count(anlVertLocation > enkfNML%hLocalizePressure(:))
     end if
 
     ! Get list of nearby observations and localization functions to gridpoint.
     ! With modulated-ensembles, we get observations in entire column.
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
+
+    ! Find horizontal localization value for this vertical level
+    call enkf_getLocalizationRadius(enkfNML%hLocalize, enkfNML%hLocalizePressure, anlVertLocation, enkfNML%hLinearLoc, hLoc)
+
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                           locFun, anlLat, anlLon, anlVertLocation,  &
-                                          enkfNML%hLocalize(hLocIndex), enkfNML%vLocalize, &
+                                          hloc, enkfNML%vLocalize, &
                                           numLocalObsFound, enkfNML%maxNumLocalObsPerType, &
                                           enkfNML%localSelectionOutput, enkfNML%localObsSorting)
     if (numLocalObsFound > enkfNML%maxNumLocalObs) then
@@ -3274,5 +3322,61 @@ contains
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
 
   end subroutine getModulationFactor
+
+  !--------------------------------------------------------------------------
+  ! enkf_getLocalizationRadius
+  !--------------------------------------------------------------------------
+  subroutine enkf_getLocalizationRadius(hLocalize, hLocalizePressure, &
+                                        anlVertLocation, hLinearLoc, hLoc)
+    !
+    !:Purpose: get the localization radius, interpolated or not, at a given pressure
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in)  :: hLocalize(:)         ! the list of localization radii (m)
+    real(8), intent(in)  :: hLocalizePressure(:) ! the pressures where the radius changes (log(P))
+    real(8), intent(in)  :: anlVertLocation      ! the gridpoint vertical coordinate in log(P)
+    logical, intent(in)  :: hLinearLoc           ! apply linear vertical interpolation for the localization radius
+    real(8), intent(out) :: hLoc                 ! the gridpoint localization radius
+
+    ! Locals:
+    integer              :: hLocIndex, numPresValues
+
+    numPresValues = count(hLocalizePressure > 0.0d0)
+
+    if ( hLocalize(1) < 0.0d0 ) then
+      call utl_abort('enkf_getLocalizationRadius: hLocalize(1) < 0.0d0')
+    end if
+
+    ! radius is constant
+    if ( all( utl_isEqual(hLocalize(:), hLocalize(1)) ) ) then
+      hLoc = hLocalize(1)
+
+    ! radius varies vertically, and is linearly interpolated with log(P)
+    else if (hLinearLoc) then
+      hLocIndex = 1 + count(anlVertLocation >= hLocalizePressure(1:numPresValues))
+      ! constant radius value near the top of the atmosphere
+      if (hLocIndex == 1) then
+        hLoc = hLocalize(1)
+      ! constant radius value near the bottom of the atmosphere
+      else if (hLocIndex == numPresValues+1) then
+        hLoc = hLocalize(numPresValues)
+      ! piece-wise linear interpolation
+      else
+        hLoc = hLocalize(hLocIndex-1) + &
+               (anlVertLocation - hLocalizePressure(hLocIndex-1)) * &
+               (hLocalize(hLocIndex) - hLocalize(hLocIndex-1))  / &
+               (hLocalizePressure(hLocIndex) - hLocalizePressure(hLocIndex-1))
+      end if
+
+    ! radius varies vertically, but is not interpolated
+    else
+      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(1:numPresValues))
+      hLoc = hLocalize(hLocIndex)
+
+    end if
+
+  end subroutine enkf_getLocalizationRadius
 
 end module enkf_mod

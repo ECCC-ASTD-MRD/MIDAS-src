@@ -45,12 +45,12 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
-    echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2
-    . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
-    echo loading eccc/mrd/rpn/libs/20250129-alpha
-    . r.load.dot eccc/mrd/rpn/libs/20250129-alpha
-    echo "... loading eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}"
-    . r.load.dot eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}
+    echo loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2
+    . r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
+    echo loading eccc/mrd/rpn/libs/20250604-beta
+    . r.load.dot eccc/mrd/rpn/libs/20250604-beta
+    echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
+    . r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!

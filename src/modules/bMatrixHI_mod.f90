@@ -113,8 +113,8 @@ CONTAINS
     integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl, maxMyNla
     logical                  :: llfound, lExists
     real(8)                  :: pSurfRef, hSurfRef
-    real(8), pointer         :: vertCoordProfile_M(:),vertCoordProfile_T(:)
-    type(struct_vco),pointer :: vco_file => null()
+    real(8),         pointer :: vertCoordProfile_M(:),vertCoordProfile_T(:)
+    type(struct_vco),pointer :: vco_file
     character(len=8)         :: bFileName = './bgcov'
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
@@ -124,6 +124,7 @@ CONTAINS
 
     nullify(vertCoordProfile_T)
     nullify(vertCoordProfile_M)
+    nullify(vco_file)
 
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
@@ -2763,7 +2764,7 @@ CONTAINS
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
+    real(8), pointer :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal
@@ -2886,7 +2887,7 @@ CONTAINS
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
-    real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
+    real(4), pointer :: cv_allmaxmpilocal(:,:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, cvDim_maxmpilocal

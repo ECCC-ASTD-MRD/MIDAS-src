@@ -173,6 +173,8 @@ program midas_obsSelection
   !                                                       GPS radio-occultation observations.
   ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on
   !                                                       aladin wind observations.
+  ! ``thinning_mod``            ``thin_CH``               variables to perform thinning on
+  !                                                       observations of CH family
   ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length,
   !                                                       temporal resolution of the background
   !                                                       state.
@@ -579,6 +581,7 @@ program midas_obsSelection
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
+    call thn_thinCH(obsSpaceData)
 
     if (doBiasCorr) then
       ! if requested, dump the thinned predictors and coefficients to sqlite

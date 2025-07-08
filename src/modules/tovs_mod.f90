@@ -60,6 +60,7 @@ module tovs_mod
        wmax                        ,&
        pmin                        ,&
        pmax                        ,&
+       speedl                      ,&
        errorstatus_fatal           ,&
        sensor_id_po                ,&
        min_reflectivity            ,&
@@ -88,6 +89,7 @@ module tovs_mod
   private
 
   ! Public procedures
+  public :: tvs_rttov_scatt_setupindex
   public :: tvs_allocateSurfaceParameters, tvs_allocateEmissivity
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission
   public :: tvs_deallocateProfilesNlTlAd
@@ -1200,6 +1202,10 @@ contains
         tempocsatid = 'himawari' // trim(tvs_satelliteName(sensorIndex) (7:15))
       else if (tvs_satelliteName(sensorIndex) == 'FY-3C') then
         TEMPOCSATID = 'FY3-3'
+      else if (tvs_satelliteName(sensorIndex) == 'FY-3D') then
+        TEMPOCSATID = 'FY3-4'
+      else if (tvs_satelliteName(sensorIndex) == 'FY-3E') then
+        TEMPOCSATID = 'FY3-5'
       else
         call up2low(tvs_satelliteName(sensorIndex),tempocsatid)
       end if
@@ -3441,7 +3447,7 @@ contains
             init=.true.)
         if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 2 in rttov_alloc_direct')
 
-        call rttov_scatt_setupindex(                       &
+        call tvs_rttov_scatt_setupindex(                   &
             rttov_err_stat,                                &
             profileCount,                                  &  ! number of profiles
             tvs_nchan(sensorIndex),                        &  ! number of channels
@@ -3450,7 +3456,7 @@ contains
             btCountScatt,                                  &  ! number of calculated channels
             tvs_chanProfScatt(1:btCountScatt,sensorIndex), &  ! channels and profile numbers
             frequencies,                                   &  ! array, frequency number for each channel
-            lchannelSubset )                                  ! OPTIONAL array of logical flags to indicate a subset of channels
+            lchannelSubset)                                   ! OPTIONAL array of logical flags to indicate a subset of channels
         deallocate(lchannelSubset)
         call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
 
@@ -3604,6 +3610,114 @@ contains
   end subroutine tvs_rttov
 
   !--------------------------------------------------------------------------
+  ! tvs_rttov_scatt_setupindex
+  !--------------------------------------------------------------------------
+  subroutine tvs_rttov_scatt_setupindex (errorStatus, nprofiles, n_chan, coef_rttov, coef_scatt, nchannels, &
+                                         chanprof, frequencies, lchannel_subset)
+    !
+    ! :Purpose: modified version of RTTOV's library rttov_scatt_setupindex
+    !           the modification (bug fix ?) allows to use RTTOVscatt with only
+    !           a subset of channels initialized as it is the case in analysis
+    !           mode. There is possibly also an impact in background check mode
+    !           for instruments with missing channels.
+    !
+    implicit none
+
+    ! Arguments:
+    integer(kind=jpim),           intent(out) :: errorStatus                        ! error status
+    integer(kind=jpim),           intent(in)  :: nprofiles                          ! number of profiles
+    integer(kind=jpim),           intent(in)  :: n_chan                             ! number of channels
+    type (rttov_coefs),           intent(in)  :: coef_rttov                         ! Rttov coefficients
+    type (rttov_scatt_coef),      intent(in)  :: coef_scatt                         ! RTTOV_SCATT Coefficients
+    integer(kind=jpim),           intent(in)  :: nchannels                          ! number of calculated channels
+    type(rttov_chanprof),         intent(out) :: chanprof(nchannels)                ! Channel and profile indices
+    integer(kind=jpim),           intent(out) :: frequencies(nchannels)             ! array, frequency number for each "channel"
+    logical(kind=jplm), optional, intent(in)  :: lchannel_subset(nprofiles, n_chan) ! array of logical flags to indicate a subset of channels
+
+    ! Locals:
+    integer(kind=jpim) :: profileIndex, channelIndex1, channelIndex2, frequencyIndex, polarisationId
+    integer(kind=jpim) :: oldPolarisationId
+    real(kind=jprb)    :: waveNumber, oldWaveNumber, freq1, freq2
+    logical(kind=jplm) :: luse(nprofiles, n_chan)
+    logical(kind=jplm) :: polarisedScattering
+
+    errorstatus = errorstatus_success
+
+    luse(:,:) = .true.
+    if (present(lchannel_subset)) luse = lchannel_subset
+
+    !* Set index arrays
+    channelIndex2 = 0  ! counter to store calculated channels
+    oldWaveNumber = 0.0_jprb
+    oldPolarisationId = -1
+    polarisedScattering = any(coef_scatt%mpol /= -1)
+    write(*,*) "polarisedScattering ", polarisedScattering
+    do profileIndex = 1, nprofiles
+      frequencyIndex = 0
+      do channelIndex1 = 1, n_chan
+        polarisationId = coef_rttov % coef % fastem_polar (channelIndex1) + 1 ! polarisation ID of this channel
+        waveNumber = coef_rttov % coef % ff_cwn(channelIndex1)
+
+        if (polarisedScattering) then
+
+          ! Scattering coefficients are tabulated per-frequency and per-polarisation
+
+          frequencyIndex = frequencyIndex + 1
+          if ( (coef_scatt%mpol(frequencyIndex)+1) /= polarisationId) then
+            call rttov_errorreport (errorstatus_fatal, 'Incorrect channel polarisations in hydrotable', 'rttov_scatt ')
+            return
+          end if
+
+        else
+
+          ! Scattering coefficients are tabulated per-frequency and are independent of polarisation
+
+          ! Below is a test to see if this channel represents a new frequency.
+          ! The following 3 conditions must all hold in order to be same frequency as
+          ! previous channel:
+          !   1) Same central wave number as previous channel
+          !      (NB check the absolute diff because some SSMI/S channel pairs have
+          !          slightly different central wavenumbers: 1E-3 cm-1 == 0.03 GHz)
+          !   2) Polarization ID eq 4,5,6 or 7 (single V or H polarisation only)
+          !   3) Polarization ID different from last channel
+          if ( (abs(waveNumber - oldWaveNumber) > 1.E-3_jprb) .or. &
+              & ((polarisationId /= 4) .and. (polarisationId /= 5) .and. (polarisationId /= 6) .and. (polarisationId /= 7)) &
+              & .or. (polarisationId == oldPolarisationId) ) then
+
+            frequencyIndex = frequencyIndex + 1
+
+          end if
+        end if
+
+        if( luse(profileIndex,channelIndex1) ) then
+
+          ! Profile and frequency number for each calculated channel
+          channelIndex2 = channelIndex2 + 1
+          chanprof   (channelIndex2)%chan  = channelIndex1
+          !frequencies(channelIndex2)       = frequencyIndex ! the actual bug
+          chanprof   (channelIndex2)%prof  = profileIndex
+          freq1 = speedl * coef_rttov % coef % ff_cwn(channelIndex1) / 1000000000.d0 ! conversion from cm-1 to GHz
+          freq2 = coef_scatt % freq(frequencyIndex)
+          if (abs(freq1-freq2) > 0.05d0) then
+            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+          end if
+          frequencies(channelIndex2) = coef_rttov % coef % ff_ori_chn( frequencyIndex ) ! the bug fix
+          freq2 = coef_scatt % freq( frequencies(channelIndex2) )
+          if (abs(freq1-freq2) > 0.05d0) then
+            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+            call utl_abort('tvs_rttov_scatt_setupindex')
+          end if
+        end if
+
+        oldPolarisationId = polarisationId
+        oldWaveNumber = waveNumber
+
+      end do
+    end do
+
+  end subroutine tvs_rttov_scatt_setupindex
+
+  !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
   subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorIndex, chanprof, sensorHeaderIndexes)
@@ -3644,7 +3758,7 @@ contains
            tvs_opts(sensorIndex),                  & ! in
            chanprof,                               & ! in
            tvs_profiles_nl(sensorHeaderIndexes(:)),& ! in
-           tvs_coefs(sensorIndex),                 & ! in
+         tvs_coefs(sensorIndex),                 & ! in
            tvs_atlas(sensorIndex),                 & ! in
            mWAtlasSurfaceEmissivity)                ! out
 
@@ -3722,7 +3836,7 @@ contains
          1610.696d0, 26.48602d0, 142.2768d0,      &
          1503.969d0, 24.97931d0, 133.4392d0 ], (/Nparm, MaxWn/))
 
-    real(8), parameter ::  C(Nparm,2,MaxWn) = reshape([                                  &
+    real(8), parameter ::  C(Nparm,2,MaxWn) = reshape([                          &
          0.9715104043561414d0,-1.2034233230944147D-06, -5.8742655960993913D-07,  &
          0.9263932848727608d0,-9.4908630939690859D-04, 2.2831134823358876D-05,   &
          0.9732503924722753d0,-1.2007007329295099D-06, -5.8767355551283423D-07,  &
@@ -5914,7 +6028,7 @@ contains
 
         allocate(surfem1Scatt(btCountScatt))
         allocate(frequencies(btCountScatt))
-        call rttov_scatt_setupindex(                          &
+        call tvs_rttov_scatt_setupindex(                      &
             errorStatus,                                      &
             profileCount,                                     & ! number of profiles
             tvs_nchan(sensorIndex),                           & ! number of channels
@@ -5925,7 +6039,7 @@ contains
             frequencies,                                      & ! array, frequency number for each channel
             lChannelSubset )                                    ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
-          write(*,*) 'tvs_rttov_tl: fatal error in rttov_scatt_setupindex ', errorStatus
+          write(*,*) 'tvs_rttov_tl: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
           call utl_abort('tvs_rttov_tl')
         end if
 
@@ -6307,7 +6421,7 @@ contains
                                     flux_conversion=[1,2,0,0,0])
         if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory allocation error in rttov_alloc_scatt_prof')
         ! Build the list of channels/profiles indices
-        call rttov_scatt_setupindex(                          &
+        call tvs_rttov_scatt_setupindex(                      &
             errorStatus,                                      &
             profileCount,                                     &  ! number of profiles
             tvs_nchan(sensorIndex),                           &  ! number of channels
@@ -6318,7 +6432,7 @@ contains
             frequencies,                                      &  ! array, frequency number for each channel
             lChannelSubset)                                      ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
-          write(*,*) 'tvs_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
+          write(*,*) 'tvs_rttov_ad: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
           call utl_abort('tvs_rttov_ad')
         end if
         !     get non Hyperspectral IR emissivities
