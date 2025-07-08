@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo "$(git rev-parse --show-toplevel)/scripts/sphinx/build_html.sh: With the 'cmake' build system, the automatic documentation generation no longer works." >&2
+echo "      Maybe a command like 'cmake --graphviz=output.dot /path/to/source/directory' would do it" >&2
+exit 1
+
 # SSM package to add latex math:
 . ssmuse-sh -p /fs/ssm/eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
@@ -351,11 +355,13 @@ echo "Building dependency tree"
 echo "Sourcing config"
 cd ${toplevel}/src
 source ./config.dot.sh
+
 if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-    OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${revision}/${ARCH}/
+    OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${revision}/${ARCH}
 else
-    OBJBLD_PATH=${toplevel}/compiledir/midas_bld/${ARCH}/
+    OBJBLD_PATH=${toplevel}/compiledir/midas_bld/${ARCH}
 fi
+
 make depend
 
 cat > ${ORIG_PWD}/namelists_in_each_program.rst << 'EOF'
