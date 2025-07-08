@@ -65,9 +65,8 @@ if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; th
 else
     if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
         if [[ "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
-            __midas_compile_dir_main_var_name=MIDAS_COMPILE_DIR_MAIN
             echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path"
-            echo "   ${__midas_compile_dir_main_var_name}=${MIDAS_COMPILE_DIR_MAIN}"
+            echo "   MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}"
             echo "was given"
             return 1
         fi

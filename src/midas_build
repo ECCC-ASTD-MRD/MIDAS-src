@@ -202,13 +202,22 @@ function printFooter {
 
 }
 
+MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+    echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
+    echo "Erasing it..."
+    rm -rf ${MIDAS_COMPILE_DIR_BUILD}
+fi
+mkdir -p ${MIDAS_COMPILE_DIR_BUILD}
+cd ${MIDAS_COMPILE_DIR_BUILD}
+
 ##=========================================================
 ## Header
 printHeader
 
 ##=========================================================
 # build files genration with CMake
-cd ${MIDAS_COMPILE_DIR_BUILD}
+
 echo "Generating build files using CMake"
 cat > .tmp.cmake.out << EOF
 +-----------------------------------+
@@ -323,12 +332,10 @@ fi
 ## waiting for compilation to terminate
 echo
 echo "Compilation underway : ${__job_or_pid_frontend}"
-echo "Working directory : ${MIDAS_COMPILE_DIR_BUILD}"
+echo "Build directory : ${MIDAS_COMPILE_DIR_BUILD}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
-
-
 
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
@@ -402,7 +409,6 @@ fi
         else
             echo "  ${__abs_installed} installed" >> .checkAbs
         fi
-
     done
     [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
@@ -413,30 +419,17 @@ fi
         echo "| MIDAS INSTALLATION COMPLETED |"
         echo "|   ALL PROGRAMS INSTALLED     |"
         echo "|                              |"
-#        if [ "${__remarks}" -eq 1 ]; then
-#            echo "| <!> with some remarks <!>    |"
-#        fi
-#        echo "+------------------------------+"
-#        if [ "${__warnings}" -eq 1 ]; then
-#            echo "| <!> with some warnings <!>    |"
-#        fi
         echo "+------------------------------+"
         echo
         echo "  > ${__install_dir}"
         echo
-#
-#        ${__toplevel}/src/update_resources.sh ${__toplevel}
-#        ${__toplevel}/maestro/suites/midas_system_tests/update_abs.dot.sh ${__toplevel}
-#
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
             echo "(in your environment, profile or config.dot.sh)"
             echo " ... cleaning build directory "
-            make clean MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_BUILD} \
-                 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE} \
-                 MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
+            make clean
         fi
     else
         echo
@@ -447,7 +440,7 @@ fi
         echo "+--------------------------------------+"
         echo
         exit 1
-    fi       #fi
+    fi
 
 ##=========================================================
 ## Some final clean up if compilation (and possibly linking
