@@ -421,7 +421,7 @@ Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will cop
 the absolutes present in `${buildDir}/src/programs/` to the binaries directory at
 `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place
 with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}`
-is obtained by the `${topLelev}/midas.version.sh` script.
+is obtained by the `${topLelev}/midas.version` script.
 
 
 A complete install from `${topLevel}` is then
@@ -433,12 +433,12 @@ make -j
 make install
 ```
 
-Note that, at time of writing, `midas.version.sh` is evaluated by `cmake`, such
+Note that, at time of writing, `midas.version` is evaluated by `cmake`, such
 that if you are developping using [the incremental build approach](#incremental-builds),
 it can introduce a discrepancy between the value of `${VERSION}` (and the
 absolute filename) and the actual code version as would be evaluated by
-`midas.version.sh`.  This will happen if you first compile from a clean git
-worktree; `midas.version.sh` would return something like `v_4.0.4-10-g4f03d6d`.
+`midas.version`.  This will happen if you first compile from a clean git
+worktree; `midas.version` would return something like `v_4.0.4-10-g4f03d6d`.
 Then when you make a modification, the suffix `_M` will be appended:
 `v_4.0.4-10-g4f03d6d_M`.  But if you only use `make`, it won't update `${VERSION}`
 and the binaries won't be properly named.  Such that when you recompile a program

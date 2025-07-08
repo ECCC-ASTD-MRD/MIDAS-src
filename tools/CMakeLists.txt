@@ -24,7 +24,7 @@ install(TARGETS monitor DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 file(WRITE ${CMAKE_BINARY_DIR}/install_splitobs_script.cmake "
     execute_process(
-        COMMAND ${CMAKE_SOURCE_DIR}/midas.version.sh
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE TRUE_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -36,7 +36,7 @@ file(WRITE ${CMAKE_BINARY_DIR}/install_splitobs_script.cmake "
 
 file(WRITE ${CMAKE_BINARY_DIR}/install_monitor_script.cmake "
     execute_process(
-        COMMAND ${CMAKE_SOURCE_DIR}/midas.version.sh
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE TRUE_VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE
