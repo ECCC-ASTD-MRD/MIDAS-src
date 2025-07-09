@@ -2016,21 +2016,21 @@ contains
                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                           dataKind_opt=4, varNames_opt=['Z_M','Z_T'])
 
-        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_T')
+        call gsv_getField(stateVector3dHeights, height3D_r4_ptr2, 'Z_T')
         if (stateVector%dataKind == 4) then
-          call gsv_getField(stateVector,         height3D_r4_ptr1,'Z_T')
+          call gsv_getField(stateVector, height3D_r4_ptr1, 'Z_T')
           height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
         else
-          call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_T')
+          call gsv_getField(stateVector, height3D_r8_ptr1, 'Z_T')
           height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:), 4)
         end if
 
-        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_M')
+        call gsv_getField(stateVector3dHeights, height3D_r4_ptr2, 'Z_M')
         if (stateVector%dataKind == 4) then
-          call gsv_getField(stateVector,         height3D_r4_ptr1,'Z_M')
+          call gsv_getField(stateVector, height3D_r4_ptr1, 'Z_M')
           height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
         else
-          call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_M')
+          call gsv_getField(stateVector, height3D_r8_ptr1, 'Z_M')
           height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:), 4)
         end if
 
