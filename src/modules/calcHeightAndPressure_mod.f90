@@ -145,11 +145,13 @@ contains
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
+    Vcode = vco_getVcode(gsv_getVco(statevector))
+    
+    if (Vcode == 0) return
+    
     if (statevector%mpi_distribution == 'VarsLevs') then
       call utl_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
     end if
-
-    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100 .or. Vcode == 2001) then
       ! if P_T, P_M not allocated : do nothing
@@ -177,7 +179,6 @@ contains
       call utl_abort('calcZandP_gsv_nl (czp): not implemented')
     end if
     
-
     call msg('calcZandP_gsv_nl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_gsv_nl
 
@@ -202,13 +203,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 
@@ -271,13 +270,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 

@@ -392,10 +392,10 @@ contains
         pressureProfile_T(1:vco_bhi%nlev_T) = vertCoordProfile_T(1:vco_bhi%nlev_T)
         if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
         if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
-      else if (vco_getVcode(vco_in) == 2001) then
-        call czp_fetch1DPressureLevels(vco_in,            & ! IN
+      else if (vco_getVcode(vco_bhi) == 2001) then
+        call czp_fetch1DPressureLevels(vco_bhi,           & ! IN
                                        pressureProfile_M)   ! OUT
-        call czp_fetch1DPressureLevels(vco_in,            & ! IN
+        call czp_fetch1DPressureLevels(vco_bhi,           & ! IN
                                        pressureProfile_T)   ! OUT
       else
         pSurfRef = 101000.D0
