@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix for `stateToColumn_mod` to correctly handle `real(4)` argument (#1095 and !1004).
 
 ### Removed
 
