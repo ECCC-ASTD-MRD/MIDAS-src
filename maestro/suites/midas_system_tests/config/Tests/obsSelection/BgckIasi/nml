@@ -11,6 +11,10 @@
    deltax  = 150
    deltrad = 45
 /
+ &NAMS2C
+   mpiMode = 'TILES'
+   SLANTPATH_TO_NL   = .TRUE.,
+/
  &NAMTIME
   DSTEPOBS = 0.25D0
 /
@@ -148,7 +152,7 @@
    ILIST2_PAIR(3,10)=200,
    ILIST2_PAIR(3,11)=169,
    ILIST2_PAIR(3,12)=153,
-   ILIST2_PAIR(3,13)=97,	
+   ILIST2_PAIR(3,13)=97,
    INST(4)='CRISFSR',
    IWINDOW(4)=427,
    IWINDOW_ALT(4)=534,
