@@ -141,11 +141,13 @@ contains
     type(struct_gsv), intent(inout) :: statevector  ! statevector that will contain the Z_*/P_* fields
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
     
     if (Vcode == 0) return
     
@@ -203,11 +205,13 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
 
     if (Vcode == 0) return
 
@@ -270,11 +274,13 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
 
     if (Vcode == 0) return
 
@@ -328,6 +334,7 @@ contains
     type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer :: Vcode
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
     real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
@@ -337,7 +344,9 @@ contains
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
@@ -438,12 +447,15 @@ contains
     real(8), optional, pointer, intent(inout) :: ZMout_r8_opt(:,:,:,:)
 
     ! Locals:
-    integer :: Vcode
+    type(struct_vco), pointer :: vco
+    integer                   :: Vcode
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
@@ -1102,21 +1114,22 @@ contains
                                           ZTout_r4_opt, ZMout_r4_opt, &
                                           ZTout_r8_opt, ZMout_r8_opt)
     !
-    ! :Purpose: Compute heights for pressurce coordinate statevector, return height values 
+    ! :Purpose: Compute heights for pressure coordinate statevector, return height values 
     !           in pointer arguments.
+    !           NOTE: With Vcode=2001,  *_T and *_M are identical since pressure coordinate is not staggered.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           intent(in)    :: statevector
-    real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:)
-    real(4), pointer, optional, intent(in)    :: PMin_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: PTin_r8_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: PMin_r8_opt(:,:,:,:)
-    real(4), pointer, optional, intent(inout) :: ZTout_r4_opt(:,:,:,:)
-    real(4), pointer, optional, intent(inout) :: ZMout_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(inout) :: ZTout_r8_opt(:,:,:,:)
-    real(8), pointer, optional, intent(inout) :: ZMout_r8_opt(:,:,:,:)
+    type(struct_gsv),           intent(in)    :: statevector           ! statevector needed to compute the Z_*/P_* fields
+    real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:)  ! real(4) pressure for thermo-level variables
+    real(4), pointer, optional, intent(in)    :: PMin_r4_opt(:,:,:,:)  ! real(4) pressure for momentum-level variables
+    real(8), pointer, optional, intent(in)    :: PTin_r8_opt(:,:,:,:)  ! real(8) pressure for thermo-level variables
+    real(8), pointer, optional, intent(in)    :: PMin_r8_opt(:,:,:,:)  ! real(8) pressure for momentum-level variables
+    real(4), pointer, optional, intent(inout) :: ZTout_r4_opt(:,:,:,:) ! real(4) height for thermo-level variables
+    real(4), pointer, optional, intent(inout) :: ZMout_r4_opt(:,:,:,:) ! real(4) height for momentum-level variables
+    real(8), pointer, optional, intent(inout) :: ZTout_r8_opt(:,:,:,:) ! real(8) height for thermo-level variables
+    real(8), pointer, optional, intent(inout) :: ZMout_r8_opt(:,:,:,:) ! real(8) height for momentum-level variables
 
     ! Locals:
     integer ::  levIndex, nlev, Vcode
@@ -1384,12 +1397,15 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef
 
     ! Locals:
-    integer :: Vcode
+    type(struct_vco), pointer :: vco
+    integer                   :: Vcode
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_gsv_tl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
+    vco => gsv_getVco(statevectorRef)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
@@ -1672,12 +1688,15 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer :: Vcode
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_gsv_ad', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
+    vco => gsv_getVco(statevectorRef)
+    Vcode = vco_getVcode(vco)
+
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
@@ -2016,6 +2035,7 @@ contains
     type(struct_gsv),  intent(inout) :: statevector
 
     ! Locals:
+    type(struct_vco), pointer :: vco
     integer :: Vcode
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
     real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
@@ -2025,7 +2045,9 @@ contains
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
@@ -2124,12 +2146,15 @@ contains
     real(8), optional, pointer, intent(inout) :: PMout_r8_opt(:,:,:,:)
 
     ! Locals:
-    integer :: Vcode
+    type(struct_vco), pointer :: vco
+    integer                   :: Vcode
 
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
@@ -2441,10 +2466,12 @@ contains
     real(kind=8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
     integer                     :: stepIndex, numStep, Vcode
-
+    type(struct_vco), pointer   :: vco
+    
     call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'START', verb_opt=4)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2501,10 +2528,12 @@ contains
     real(kind=4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
     integer                     :: stepIndex, numStep, Vcode
-
+    type(struct_vco), pointer   :: vco
+    
     call msg('calcPressure_gsv_nl_vcode5xxx_r4 (czp)', 'START', verb_opt=4)
 
-    Vcode = vco_getVcode(gsv_getVco(statevector))
+    vco => gsv_getVco(statevector)
+    Vcode = vco_getVcode(vco)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2548,27 +2577,28 @@ contains
     !
     ! :Purpose: Pressure retrieval for pressure coordinate real(8) statevector, values
     !           values returned in pointers.
+    !           NOTE: With Vcode=2001,  P_T and P_M are identical since pressure coordinate is not staggered.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           intent(in)    :: statevector
-    real(8),           pointer, intent(inout) :: P_T(:,:,:,:)
-    real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
+    type(struct_gsv),           intent(in)    :: statevector  ! statevector needed to compute P_* fields
+    real(8),           pointer, intent(inout) :: P_T(:,:,:,:) ! pressure for thermo-level variables
+    real(8),           pointer, intent(inout) :: P_M(:,:,:,:) ! pressure for momentum-level variables
 
     ! Locals:
     real(8), pointer       :: field_Psfc(:,:,:,:)
     real(4)                :: pressure
-    integer                :: stepIndex, numStep, levIndex, nLev, surfLevIndex, kind
+    integer                :: stepIndex, numStep, levIndex, nLev, surfLevIndex, levKind
 
     call msg('calcPressure_gsv_nl_vcode2001_r8 (czp)', 'START', verb_opt=4)
 
     nLev = statevector%vco%nLev_T
     
     ! Set the pressure/static levels
-    kind = 2
+    levKind = 2
     do levIndex = 1, nLev - 1
-      call convip(statevector%vco%ip1_M(levIndex), pressure, kind, -1, ' ', .false.)
+      call convip(statevector%vco%ip1_M(levIndex), pressure, levKind, -1, ' ', .false.)
       write(*,*) levIndex, statevector%vco%ip1_M(levIndex), pressure * mpc_pa_per_mbar_r8
       P_M(:,:,levIndex,:) = real(pressure,8) * mpc_pa_per_mbar_r8 ! hPa -> Pa
       P_T(:,:,levIndex,:) = real(pressure,8) * mpc_pa_per_mbar_r8 ! hPa -> Pa
@@ -2595,27 +2625,28 @@ contains
     !
     ! :Purpose: Pressure retrieval for pressure coordinate real(4) statevector, values
     !           values returned in pointers.
+    !           NOTE: With Vcode=2001,  P_T and P_M are identical since pressure coordinate is not staggered.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           intent(in)    :: statevector
-    real(4),           pointer, intent(inout) :: P_T(:,:,:,:)
-    real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
+    type(struct_gsv),           intent(in)    :: statevector  ! statevector needed to compute P_* fields
+    real(4),           pointer, intent(inout) :: P_T(:,:,:,:) ! pressure for thermo-level variables
+    real(4),           pointer, intent(inout) :: P_M(:,:,:,:) ! pressure for momentum-level variables
 
     ! Locals:
     real(4), pointer       :: field_Psfc(:,:,:,:)
     real(4)                :: pressure
-    integer                :: stepIndex, numStep, levIndex, nLev, surfLevIndex, kind
+    integer                :: stepIndex, numStep, levIndex, nLev, surfLevIndex, levKind
     
     call msg('calcPressure_gsv_nl_vcode2001_r8 (czp)', 'START', verb_opt=4)
 
     nLev = statevector%vco%nLev_T
     
     ! Set the pressure/static levels
-    kind = 2
+    levKind = 2
     do levIndex = 1, nLev - 1
-      call convip(statevector%vco%ip1_M(levIndex), pressure, kind, -1, ' ', .false.)
+      call convip(statevector%vco%ip1_M(levIndex), pressure, levKind, -1, ' ', .false.)
       write(*,*) levIndex, statevector%vco%ip1_M(levIndex), pressure * mpc_pa_per_mbar_r4
       P_M(:,:,levIndex,:) = pressure * mpc_pa_per_mbar_r4 ! hPa -> Pa
       P_T(:,:,levIndex,:) = pressure * mpc_pa_per_mbar_r4 ! hPa -> Pa
@@ -2649,12 +2680,15 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    integer :: Vcode
+    type(struct_vco), pointer :: vco
+    integer                   :: Vcode
 
     call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
     call msg('calcPressure_gsv_tl (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
+    vco => gsv_getVco(statevectorRef)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
@@ -3041,12 +3075,15 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef ! statevector containing needed reference fields
 
     ! Locals:
-    integer :: Vcode
+    type(struct_vco), pointer :: vco
+    integer                   :: Vcode
 
     call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
     call msg('calcPressure_gsv_ad (czp)', 'START', verb_opt=2)
 
-    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
+    vco => gsv_getVco(statevectorRef)
+    Vcode = vco_getVcode(vco)
+    
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
@@ -5546,7 +5583,7 @@ contains
     real(8), pointer,           intent(inout) :: profile(:)   ! Non-stagerred levels profile
 
     ! Locals:
-    integer :: kind, levIndex, nLev
+    integer :: levKind, levIndex, nLev
     real(4) :: pressure
 
     if ( vco_getVcode(vco) /= 2001 ) then
@@ -5557,9 +5594,9 @@ contains
     allocate(profile(nLev))
     
     ! Set the pressure/static levels
-    kind = 2
+    levKind = 2
     do levIndex = 1, nLev
-      call convip(vco%ip1_M(levIndex), pressure, kind, -1, ' ', .false.)
+      call convip(vco%ip1_M(levIndex), pressure, levKind, -1, ' ', .false.)
       profile(levIndex) = real(pressure,8) * mpc_pa_per_mbar_r8 ! hPa -> Pa
     end do
 
