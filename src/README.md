@@ -64,8 +64,9 @@ Their default values (in parentheses), **should be good for most users**.
   successful installation of the absolutes (if applicable)
 * `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on
   successful compilation (and linking if applicable)
-* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore
-  compilation is done directly on headnode
+* `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend
+  multicore compilation is done directly on headnode (activated when
+  `--local` is specified to `midas_build`)
   (see [this section](#calling-make-in-parallel) for instructions.)
 * `MIDAS_COMPILE_COMPF_GLOBAL ()` : additional user-specified compilation options
 * `MIDAS_COMPILE_JOBNAME (midasCompilation)` : name for the job submission

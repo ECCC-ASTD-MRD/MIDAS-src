@@ -84,6 +84,8 @@ else
             fi
             export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
             shift
+        elif [[ "${arg}" = --local ]]; then
+            MIDAS_COMPILE_HEADNODE_FRONTEND=true
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             exit 1
@@ -197,6 +199,9 @@ function printHeader {
         echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
         echo "| no installation (no absolute target)"
+    fi
+    if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]; then
+        echo "| compiling locally"
     fi
     echo "| listings"
     echo "| * ${__listing_frontend}"
