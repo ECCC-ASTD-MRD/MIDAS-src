@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * Fixed bug in function phf_calcDistance causing the code to abort due to a rare floating point issue (#1096)
 ### Added
 
  * (Nothing yet)
