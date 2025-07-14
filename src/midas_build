@@ -29,6 +29,7 @@
 
 ##=========================================================
 ## some prior defitions
+typeset __target
 typeset __job
 typeset __job_opt
 typeset __here
@@ -58,8 +59,11 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##  parsing input and building job for submissions
 ##
 
-if [ $# -gt 0 ]
-then
+if [ $# -eq 0 ]; then
+    ## default: make all
+    __target='all'
+    __abs_exist_list=${__abs_all}
+else
     while [[ $# > 0 ]]; do
         arg=${1}
 
@@ -83,14 +87,23 @@ then
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             exit 1
+        elif [[  -n "${__target}" ]]; then
+            __target="${__target} ${arg}"
         else
-            echo "midas_build: this option '${arg}' is not allowed" >&2
-            exit 1
+            __target=${arg}
         fi
 
         shift
     done ## End of 'while [[ $# > 0 ]]'
-fi
+
+    if [[ -n "${__target}" ]]; then
+        __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
+        ## ^ there must be a simpler solution
+    else
+        __target='all'
+        __abs_exist_list=${__abs_all}
+    fi
+fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
 
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
@@ -116,7 +129,7 @@ function dryRun {
     # simulating the presence of libmidas.a prerequisite for all programs
     touch ${__libmidas_expected_location}
     # testing the build assuming libmidas.a is present
-    make -n > /dev/null 2>&1 && __exitCode=0
+    make -n ${__target} > /dev/null 2>&1 && __exitCode=0
     rm  ${__libmidas_expected_location}
     return ${__exitCode}
 }
@@ -165,6 +178,10 @@ function printHeader {
     echo
     echo "+---| MIDAS BUILDER starts |--------------------------------------------------"
     echo "| ${__dateLong} (${__date})"
+    echo "| targets"
+    for __t in ${__target}; do
+        echo "| * ${__t}"
+    done
     echo "| code version : ${__revstring}"
     echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
@@ -252,7 +269,7 @@ dryRun || {
 ##=========================================================
 ##  Checking presence of absolute targets in programs.mk
 ##  Check prior existence of absolutes : remove them first
-for __abs in ${__abs_all}; do
+for __abs in ${__abs_exist_list}; do
     ## external programs are not expected in programs/programs.mk
     if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
         typeset __search=$(grep "add_executable(${__abs}" ${__toplevel}/src/programs/CMakeLists.txt)
@@ -262,7 +279,7 @@ for __abs in ${__abs_all}; do
     fi; fi
 done
 echo "Checking prior existence of target absolutes"
-for __abs in ${__abs_all}; do
+for __abs in ${__abs_exist_list}; do
     typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
     [ -f  "${__abs_full}" ] && \
     ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
@@ -302,7 +319,7 @@ source ${__midas_dot_cfg}
 cd ${MIDAS_COMPILE_DIR_BUILD}
 EOF
 
-__job="make VERBOSE=1 -j ${MIDAS_COMPILE_NCORES} && make install"
+__job="make VERBOSE=1 -j ${MIDAS_COMPILE_NCORES} ${__target} && make install"
 echo "${__job}" >> .compile_job
 
 ##=========================================================
@@ -401,7 +418,7 @@ fi
     typeset __status=0
     typeset __abs_name
     typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
-    for __abs in ${__abs_all}; do
+    for __abs in ${__abs_exist_list}; do
         typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
