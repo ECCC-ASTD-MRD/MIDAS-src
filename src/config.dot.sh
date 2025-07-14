@@ -1,6 +1,6 @@
 #! /bin/sh
 ##
-## DO NOT MODIFY THIS FILE 
+## DO NOT MODIFY THIS FILE
 ##
 ## as it is part of the versioned repository and contains the default configuration
 ## for the build environment.
@@ -40,17 +40,6 @@ MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING:-false}
 MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-1}
 MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
-
-###########################################################
-##  SSM Packaging configuration
-##
-# TODO: this is now in the MANIFEST file
-MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
-MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
-MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER:-ervig.lapalme@ec.gc.ca}
-MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
-MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
-MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 
 set +x
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
@@ -114,7 +103,7 @@ __keep_jobsubmit_ofile=false
 __ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
 
 ###########################################################
-##  compilation and SSM needed for compilation
+##  compilation needed for compilation
 ##
 ## -- should not change that
 set +x
@@ -212,13 +201,6 @@ export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
 export MIDAS_ABS_LEAFDIR
 export MIDAS_COMPILE_VERBOSE
-
-export MIDAS_SSM_TARGET
-export MIDAS_SSM_PKGNAME
-export MIDAS_SSM_MAINTAINER
-export MIDAS_SSM_DESCRIPTION
-export MIDAS_SSM_GITREPO
-export MIDAS_SSM_VERSION
 
 # config return status
 ${__status}
