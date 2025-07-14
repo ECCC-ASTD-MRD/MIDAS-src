@@ -1,0 +1,28 @@
+ &NAMDIAG
+   ONEOBS_LEVS = 22
+   ONEOBS_LONLAT(1,:) = 432, 136
+/
+ &NAMBHI
+   SCALEFACTOR   = 100*0.00D0
+/
+ &NAMBEN
+   NTRUNC       = 80,
+   NENS         = 20
+   SCALEFACTOR  = 100*1.00D0
+   ENSPATHNAME  ='./ensemble/'
+  ! hLocalize    = -1.d0
+  ! vLocalize   = -1.d0
+   huMinValue   = 1.0D-7
+   ensDiagnostic  = .true.
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+/
+ &NAMTIME
+   DSTEPOBS = 6.0d0
+   DSTEPOBSINC = 6.0d0
+/

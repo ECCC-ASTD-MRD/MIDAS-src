@@ -503,7 +503,8 @@ CONTAINS
     end if
     call vco_mpiBcast(bEns(instanceIndex)%vco_file)
 
-    if (bEns(instanceIndex)%vco_file%vCode == 21001 .or. bEns(instanceIndex)%vco_anl%vCode == 21001) then
+    if (bEns(instanceIndex)%vco_file%vCode == 21001 .or. bEns(instanceIndex)%vco_anl%vCode == 21001 .or. &
+        bEns(instanceIndex)%vco_file%vCode ==  2001 .or. bEns(instanceIndex)%vco_anl%vCode ==  2001) then
       bEns(instanceIndex)%vco_ens  => bEns(instanceIndex)%vco_anl ! the ensemble target grid is the analysis grid
                                                                   ! as it should always be the case
     else
@@ -578,12 +579,13 @@ CONTAINS
         write(*,*) 'ben_setupOneInstance: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
         call utl_abort('ben_setupOneInstance: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       end if
-    else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001) then
+    else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001 .or. &
+             bEns(instanceIndex)%vco_anl%Vcode == 2001) then
       if ( bEns(instanceIndex)%nLevEns_T /= bEns(instanceIndex)%nLevEns_M .and. &
            bEns(instanceIndex)%nLevEns_T /= 0 .and. &
            bEns(instanceIndex)%nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
-        call utl_abort('ben_setupOneInstance: Vcode=(5005 or 21001), nLevEns_T must equal nLevEns_M!')
+        call utl_abort('ben_setupOneInstance: Vcode=(5005, 21001 or 2001), nLevEns_T must equal nLevEns_M!')
       end if
     else if (bEns(instanceIndex)%vco_anl%Vcode == 0) then
       if ( bEns(instanceIndex)%nLevEns_T /= 0 .and. bEns(instanceIndex)%nLevEns_M /= 0 ) then
@@ -606,7 +608,7 @@ CONTAINS
 
     !- 1.5 Bmatrix Weight
     if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. &
-         bEns(instanceIndex)%vco_anl%Vcode == 21001 ) then
+         bEns(instanceIndex)%vco_anl%Vcode == 21001 .or. bEns(instanceIndex)%vco_anl%Vcode == 2001 ) then
       if (bEns(instanceIndex)%nLevEns_M > 0) then
         ! Multi-level or momentum-level-only analysis
         bEns(instanceIndex)%varNameALFA(:) = varNameALFAatmMM(:)
@@ -805,13 +807,16 @@ CONTAINS
 
       ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. &
-           bEns(instanceIndex)%vco_anl%Vcode == 21001) then
+           bEns(instanceIndex)%vco_anl%Vcode == 21001 .or. bEns(instanceIndex)%vco_anl%Vcode == 2001) then
         if (bEns(instanceIndex)%vco_anl%Vcode == 21001) then
           hSurfRef = 0.D0
           call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, &
                                  profM_opt=vertLocationInc)
           call czp_calcPressureProfileUsingStdAtm(vertLocationInc,               & ! INOUT
                                                   bEns(instanceIndex)%nLevEns_M)   ! IN
+        else if (bEns(instanceIndex)%vco_anl%Vcode == 2001) then
+          call czp_fetch1DPressureLevels(bEns(instanceIndex)%vco_anl, & ! IN
+                                         vertLocationInc)               ! OUT
         else
           pSurfRef = 101000.D0
           call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
@@ -2159,6 +2164,12 @@ CONTAINS
             ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_MT(:,:,:,:)
           end if
 
+        else if (bEns(instanceIndex)%vco_anl%Vcode == 2001) then
+
+          ! Pressure levels are not staggered
+          ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+          ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+          
         else
           call utl_abort('ben_addEnsMember: incompatible vcode')
         end if
@@ -2435,6 +2446,13 @@ CONTAINS
                      ensAmplitude_oneLevP1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
               end if
 
+            else if (bEns(instanceIndex)%vco_anl%Vcode == 2001) then
+
+              ! Pressure levels are not staggered
+              ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
+              ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
+                   ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
+              
             else
               call utl_abort('ben_addEnsMemberAd: incompatible vcode')
             end if

@@ -380,6 +380,19 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="o-p_pressure"/>
+    <FAMILY  name="o-p_pressure">
+      <SUBMITS sub_name="o-p_5005"/>
+      <FAMILY  name="o-p_5005">
+	<SUBMITS sub_name="UnitTest"/>
+	<MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="o-p_2001"/>
+      <FAMILY  name="o-p_2001">
+	<SUBMITS sub_name="UnitTest"/>
+	<MODULE  name="UnitTest"/>
+      </FAMILY>   
+    </FAMILY>
     <SUBMITS sub_name="o-p_scatt"/>
     <FAMILY  name="o-p_scatt">
       <SUBMITS sub_name="UnitTest"/>
@@ -626,6 +639,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="horizCorrelLocal_glb"/>
+    <FAMILY  name="horizCorrelLocal_glb">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="diagBmatrix">
@@ -646,6 +664,11 @@
     </FAMILY>
     <SUBMITS sub_name="Bcolumns-ImplicitDiff"/>
     <FAMILY  name="Bcolumns-ImplicitDiff">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="Bcolumns-pressure"/>
+    <FAMILY  name="Bcolumns-pressure">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

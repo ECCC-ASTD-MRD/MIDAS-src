@@ -176,7 +176,7 @@ module calcStatsGlb_mod
     nip1_T(:) = vco_in%ip1_T(:)
 
     !- Estimate the pressure profile for each vertical grid
-    if (vco_getVcode(vco_in)== 21001) then
+    if (vco_getVcode(vco_in) == 21001) then
       hSurfRef = 0.D0
       call czp_fetch1DLevels(vco_in, hSurfRef, sfcValueLS_opt=hSurfRef, &
                              profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
@@ -188,6 +188,11 @@ module calcStatsGlb_mod
       pressureProfile_T(1:nLevEns_T) = vertCoordProfile_T(1:nLevEns_T)
       if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
       if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
+    else if (vco_getVcode(vco_in) == 2001) then
+      call czp_fetch1DPressureLevels(vco_in,            & ! IN
+                                     pressureProfile_M)   ! OUT
+      call czp_fetch1DPressureLevels(vco_in,            & ! IN
+                                     pressureProfile_T)   ! OUT
     else
       pSurfRef = 101000.D0
       call czp_fetch1DLevels(vco_in, pSurfRef, &

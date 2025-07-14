@@ -292,20 +292,29 @@ contains
     if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
-    if (Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 5100 .and. Vcode /= 21001) then
-      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002, 5005, 5100 and 21001 supported.')
+    if (Vcode /= 2001 .and. Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 5100 .and. Vcode /= 21001) then
+      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 2001, 5002, 5005, 5100 and 21001 supported.')
     end if
     vco%Vcode = Vcode
 
-    ! Check if this is a SLEVE coordinate
-    stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
-    stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
-    slevePresent: if (coefR3 > 0.0 .and. coefR4 > 0.0) then
-      vco%sleveCoord = .true.
-      write(*,*) 'vco_setupAtmFromFile: This is a SLEVE coordinate with R-coef(3:4) = ', &
-                 coefR3, coefR4
-    end if slevePresent
+     ! Check if this is a SLEVE coordinate
+    if (Vcode == 5100 .or. Vcode == 21001) then
+      stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
+      stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
+      slevePresent: if (coefR3 > 0.0 .and. coefR4 > 0.0) then
+        vco%sleveCoord = .true.
+        write(*,*) 'vco_setupAtmFromFile: This is a SLEVE coordinate with R-coef(3:4) = ', &
+                   coefR3, coefR4
+      end if slevePresent
+    end if
 
+    ! Set IP1 of sfc (hyb=1.0)
+    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100 .or. Vcode == 2001) then
+      call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
+    else if (Vcode == 21001) then
+      call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
+    end if
+    
     ! Get vgrid values for ip1
     stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
     stat = vgd_get(vco%vgrid, key='vipt - vertical ip1 levels (t)', value = vgd_ip1_t)
@@ -333,7 +342,11 @@ contains
     if (vco%nlev_T == 0 .and. .not. beSilent) then
       write(*,*)
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid thermodynamic variable in the template file!'
-    else if (vco%nlev_T > vco_maxNumLevels) then
+    end if
+    if (Vcode == 2001) then
+      vco%nlev_T = vco%nlev_T + 1 ! must add sfc that is not present in toctoc
+    end if
+    if (vco%nlev_T > vco_maxNumLevels) then
       write(*,*)
       write(*,*) 'nlev_T           = ',vco%nlev_T
       write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
@@ -369,7 +382,11 @@ contains
     if (vco%nlev_M == 0 .and. .not. beSilent) then
       write(*,*)
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid momentum variable in the template file!'
-    else if (vco%nlev_M > vco_maxNumLevels) then
+    end if
+    if (Vcode == 2001) then
+      vco%nlev_M = vco%nlev_M + 1 ! must add sfc that is not present in toctoc
+    end if
+    if (vco%nlev_M > vco_maxNumLevels) then
       write(*,*)
       write(*,*) 'nlev_M           = ',vco%nlev_M
       write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
@@ -421,6 +438,10 @@ contains
         vco%ip1_M(nlevMatched) = vgd_ip1_M(jlev)
       end if
     end do
+    if (Vcode == 2001) then
+      nlevMatched = nlevMatched + 1
+      vco%ip1_M(nlevMatched) = ip1_sfc
+    end if
     if (nlevMatched /= vco%nlev_M) then
       write(*,*) 'vco_setupAtmFromFile: nlevMatched = ', nlevMatched, ', nlev_M = ', vco%nlev_M
       call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
@@ -438,33 +459,35 @@ contains
         vco%ip1_T(nlevMatched) = vgd_ip1_T(jlev)
       end if
     end do
+    if (Vcode == 2001) then
+      nlevMatched = nlevMatched + 1
+      vco%ip1_T(nlevMatched) = ip1_sfc
+      vco%ip1_sfc = ip1_sfc
+    end if
     if (nlevMatched /= vco%nlev_T) then
       write(*,*) 'vco_setupAtmFromFile: nlevMatched = ', nlevMatched, ', nlev_T = ', vco%nlev_T
       call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
     end if
 
-    ! determine IP1 of sfc (hyb=1.0)
-    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
-      call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
-    else if (Vcode == 21001) then
-      call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
-    end if
-    ip1_found = .false.
-    do jlev = 1, vgd_nlev_T
-      if (ip1_sfc == vgd_ip1_T(jlev)) then
-        ip1_found = .true.
-        vco%ip1_sfc = vgd_ip1_T(jlev)
+    ! Check that ip1_sfc is present in vco%ip1
+    if (Vcode /= 2001) then
+      ip1_found = .false.
+      do jlev = 1, vgd_nlev_T
+        if (ip1_sfc == vgd_ip1_T(jlev)) then
+          ip1_found = .true.
+          vco%ip1_sfc = vgd_ip1_T(jlev)
+        end if
+      end do
+      if (.not. ip1_found) then
+        write(*,*) 'vco_setupAtmFromFile: Could not find IP1=',ip1_sfc
+        call utl_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
+      else
+        if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=', vco%ip1_sfc
       end if
-    end do
-    if (.not. ip1_found) then
-      write(*,*) 'vco_setupAtmFromFile: Could not find IP1=',ip1_sfc
-      call utl_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
-    else
-      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=', vco%ip1_sfc
     end if
 
-    ! determine IP1s of 2m and 10m levels
-    call set_2m_10m_levels(vco)
+    ! Set IP1s of near-surface (i.e. 1.5m and 10m) levels
+    call setNearSurfaceLevels(vco)
 
     vco%initialized = .true.
 
@@ -1249,11 +1272,11 @@ contains
   end subroutine vco_levelMatchingList
 
   !--------------------------------------------------------------------------
-  ! set_2m_10m_levels
+  ! setNearSurfaceLevels
   !--------------------------------------------------------------------------
-  subroutine set_2m_10m_levels(vco)
+  subroutine setNearSurfaceLevels(vco)
     !
-    ! :Purpose: To set 2-m and 10-m levels
+    ! :Purpose: To set 1.5m and 10m levels
     !
     implicit none
 
@@ -1263,8 +1286,8 @@ contains
     ! Locals:
     character(len=10) :: blk_s
 
-    if      (vco%Vcode == 5002) then
-      vco%ip1_T_2m  = vco%ip1_sfc
+    if      (vco%Vcode == 2001 .or. vco%Vcode == 5002) then
+      vco%ip1_T_2m  = vco%ip1_sfc 
       vco%ip1_M_10m = vco%ip1_sfc
     else if (vco%Vcode == 5005 .or. vco%Vcode == 5100 .or. vco%Vcode == 21001) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
@@ -1274,6 +1297,6 @@ contains
       vco%ip1_M_10m = -1
     end if
 
-  end subroutine set_2m_10m_levels
+  end subroutine setNearSurfaceLevels
 
 end module verticalCoord_mod

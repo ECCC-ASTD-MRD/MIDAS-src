@@ -1,0 +1,26 @@
+ &NAMCONF
+   MODE   = 'TOOLBOX'
+/
+ &NAMTOOLBOX
+   TOOL = 'HVCORREL_LOCAL'
+   ensContainsFullField = .true.
+   ctrlVarHumidity = 'LQ'
+/
+ &NAMSTATE
+   ANLVAR(1)   ='TT'
+   ANLVAR(2)   ='HU'
+   ANLVAR(3)   ='UU'
+   ANLVAR(4)   ='VV'
+/
+ &NAMENS
+   NENS=20
+/   
+ &NAMCALCSTATS_GLB
+   ntrunc=200
+/
+ &NAMHVCORREL_LOCAL
+   nirefpoint = 4
+   njrefpoint = 4
+/
+ &NAMTIME
+/
