@@ -185,7 +185,6 @@ function printHeader {
         echo "| * ${__t}"
     done
     echo "| code version : ${__revstring}"
-    echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
@@ -224,7 +223,13 @@ function printFooter {
 
 }
 
-MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+    __versionid_build=-${__revstring}
+else
+    __versionid_build=
+fi
+
+MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
 if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
     echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
     echo "Erasing it..."
@@ -469,9 +474,8 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
     rm ${__listing_frontend}
+    [ -f ${__listing_frontend}.o ] && rm ${__listing_frontend}.o
 fi
-
-[ "${__keep_jobsubmit_ofile}" = false ] && rm ${__listing_frontend}.o
 
 rm .compile_job
 
