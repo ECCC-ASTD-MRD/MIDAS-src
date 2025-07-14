@@ -320,7 +320,7 @@ source ${__midas_dot_cfg}
 cd ${MIDAS_COMPILE_DIR_BUILD}
 EOF
 
-__job="make VERBOSE=1 -j ${MIDAS_COMPILE_NCORES} ${__target} && make install"
+__job="make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} && make install"
 echo "${__job}" >> .compile_job
 
 ##=========================================================
