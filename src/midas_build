@@ -130,7 +130,7 @@ function dryRun {
     touch ${__libmidas_expected_location}
     # testing the build assuming libmidas.a is present
     make -n ${__target} > /dev/null 2>&1 && __exitCode=0
-    rm  ${__libmidas_expected_location}
+    rm ${__libmidas_expected_location}
     return ${__exitCode}
 }
 
@@ -264,10 +264,10 @@ dryRun || {
     echo "|                    |"
     echo "+--------------------+"
     exit 1
-    }
+}
 
 ##=========================================================
-##  Checking presence of absolute targets in programs.mk
+##  Checking presence of absolute targets in 'src/programs/CMakeLists.txt'
 ##  Check prior existence of absolutes : remove them first
 for __abs in ${__abs_exist_list}; do
     ## external programs are not expected in programs/programs.mk
@@ -276,7 +276,8 @@ for __abs in ${__abs_exist_list}; do
         if [ -z "${__search}" ]; then
             echo "<!> ${__abs} target not in src/programs/CMakeLists.txt"
             exit 1
-    fi; fi
+        fi
+    fi
 done
 echo "Checking prior existence of target absolutes"
 for __abs in ${__abs_exist_list}; do
@@ -348,8 +349,8 @@ fi
 ##=========================================================
 ## waiting for compilation to terminate
 echo
-echo "Compilation underway : ${__job_or_pid_frontend}"
-echo "Build directory : ${MIDAS_COMPILE_DIR_BUILD}"
+echo "Compilation underway: ${__job_or_pid_frontend}"
+echo "Build directory: ${MIDAS_COMPILE_DIR_BUILD}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
@@ -358,7 +359,7 @@ are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
 if [ ! -f "${__listing_frontend}" ]; then
     __listing_frontend_search="^${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-.*-$(date +%Y%m%d).*\.out$"
     __listing_frontend_found=$(ls -rt1 ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}" | tail -n 1)
-    mv ${__listing_frontend_found} ${__listing_frontend}
+    mv ${__listing_frontend_found}   ${__listing_frontend}
     mv ${__listing_frontend_found}.o ${__listing_frontend}.o
     unset __listing_frontend_search
     unset __listing_frontend_found
@@ -427,7 +428,7 @@ fi
             echo "  ${__abs_installed} installed" >> .checkAbs
         fi
     done
-    [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
+    [ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
 
     if [ "${__status}" -eq 0 ]; then
         echo
@@ -468,11 +469,11 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "MIDAS_COMPILE_KEEP_LISTING=false"
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
-    rm -rf ${__listing_frontend}
+    rm ${__listing_frontend}
 fi
 
-[ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
+[ "${__keep_jobsubmit_ofile}" = false ] && rm ${__listing_frontend}.o
 
-rm -rf .compile_job
+rm .compile_job
 
 printFooter
