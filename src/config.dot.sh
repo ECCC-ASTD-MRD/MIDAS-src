@@ -133,6 +133,7 @@ echo "... loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2"
 
 echo "... loading eccc/mrd/rpn/libs/20250604-beta"
 . r.load.dot eccc/mrd/rpn/libs/20250604-beta
+
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
@@ -186,13 +187,6 @@ if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
     COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
     COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
 fi
-
-## loading docopt for analyzeDep.py
-## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
-. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
-
-# Shortcut commands for cmake and make
-alias cado=${PWD}/cado
 
 export COMPF
 export FOPTMIZ
