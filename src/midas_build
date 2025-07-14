@@ -110,15 +110,17 @@ fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg} &> .tmp.config.out || __midas_source_config_status__=1
+source ${__midas_dot_cfg} --no-cmake --no-show-instructions &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
 __listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
-  mv .tmp.config.out ${__listing_config}
+  mv ${__here}/.tmp.config.out ${__listing_config}
   echo "An error occured in the build configuration, consult ${__listing_config}"
   exit 1
 fi
-mv .tmp.config.out ${__listing_config}
+mv ${__here}/.tmp.config.out ${__listing_config}
+
+cd ${__here}
 
 ##=========================================================
 ##  functions
@@ -243,25 +245,6 @@ cd ${MIDAS_COMPILE_DIR_BUILD}
 printHeader
 
 ##=========================================================
-# build files genration with CMake
-
-echo "Generating build files using CMake"
-cat > .tmp.cmake.out << EOF
-+-----------------------------------+
-| Generating build files with CMake |
-+-----------------------------------+
-EOF
-__midas_cmake_build_status__=0
-cmake $MIDAS_SOURCE_DIR &>> .tmp.cmake.out || __midas_cmake_build_status__=1
-if [ "${__midas_cmake_build_status__}" -ne 0 ]; then
-  cat .tmp.cmake.out >> ${__listing_config}
-  echo "An error occured in the build configuration, consult ${__listing_config}"
-  exit 1
-fi
-cat .tmp.cmake.out >> ${__listing_config}
-rm .tmp.cmake.out
-
-##=========================================================
 ## testing CMake configuration
 ## -- lauching dry-run to test target
 
@@ -320,8 +303,7 @@ export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
 
 cd ${__here}
-source ${__midas_dot_cfg}
-cd ${MIDAS_COMPILE_DIR_BUILD}
+source ${__midas_dot_cfg} --cmake --no-show-instructions
 EOF
 
 __job="make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} && make install"
