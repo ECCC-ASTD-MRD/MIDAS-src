@@ -99,12 +99,23 @@ else
     done ## End of 'while [[ $# > 0 ]]'
 
     if [[ -n "${__target}" ]]; then
-        __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
-        ## ^ there must be a simpler solution
+        __abs_exist_list=
+        for __targ in ${__target}; do
+            grep_status=0
+            echo ${__abs_all} | grep "\b${__targ}\b" || grep_status=1
+            if [[ "${grep_status}" -eq 0 ]]; then
+                if [[  -n "${__abs_exist_list}" ]]; then
+                    __abs_exist_list="${__abs_exist_list} ${__targ}"
+                else
+                    __abs_exist_list=${__targ}
+                fi
+            fi
+        done
     else
         __target='all'
         __abs_exist_list=${__abs_all}
     fi
+
 fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
 
 __midas_dot_cfg=${__here}/config.dot.sh
@@ -115,9 +126,9 @@ source ${__midas_dot_cfg} --cmake --no-show-instructions &> ${__here}/.tmp.confi
 __listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
-  mv ${__here}/.tmp.config.out ${__listing_config}
-  echo "An error occured in the build configuration, consult ${__listing_config}"
-  exit 1
+    mv ${__here}/.tmp.config.out ${__listing_config}
+    echo "An error occured in the build configuration, consult ${__listing_config}"
+    exit 1
 fi
 
 mv ${__here}/.tmp.config.out ${__listing_config}
@@ -169,15 +180,18 @@ function are_jobs_completed {
     done
 }
 
-function abs_path {
-    abs_name=${1}
-    platform=${2}
+function abs_prefix {
+    typeset abs_name=${1}
+    typeset revstring=${2:-}
+    typeset platform=${3:-${ORDENV_PLAT}}
+
     if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
+        typeset __abs_prfx=midas.
     else
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
+        typeset __abs_prfx=midas-
     fi
-    echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
+
+    echo ${__abs_prfx}${abs_name}_${platform}${revstring}.Abs
 }
 
 function printHeader {
@@ -295,7 +309,6 @@ cd ${__here}
 source ${__midas_dot_cfg} --no-cmake --no-show-instructions
 
 make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target}
-make install
 EOF
 
 ##=========================================================
@@ -311,7 +324,7 @@ if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
 then
     ## compile directly on head node
     echo "    > ${__listing_frontend}"
-    ( make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} && make install ) >  ${__listing_frontend} 2>&1 &
+    make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
     __job_or_pid_frontend=$!
     echo "    ${MIDAS_COMPILE_FRONTEND} (headnode) compilation process id: ${__job_or_pid_frontend}"
 else
@@ -390,50 +403,52 @@ if [ -n "${__err_front}" ]; then
 fi
 
 ##========================================================
-##  Verification of installed programs
-    typeset __status=0
-    typeset __abs_name
-    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
-    for __abs in ${__abs_exist_list}; do
-        typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
-        if [ ! -f  "${__abs_installed}" ]; then
-            echo "  <!> ${__abs} not found in ${__install_dir}"
-            __status=1
-        else
-            echo "  ${__abs_installed} installed" >> .checkAbs
-        fi
-    done
-    [ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
+##  Verification of compiled programs
 
-    if [ "${__status}" -eq 0 ]; then
-        echo
-        echo "+------------------------------+"
-        echo "|                              |"
-        echo "| MIDAS INSTALLATION COMPLETED |"
-        echo "|   ALL PROGRAMS INSTALLED     |"
-        echo "|                              |"
-        echo "+------------------------------+"
-        echo
-        echo "  > ${__install_dir}"
-        echo
-        if [ "${MIDAS_COMPILE_CLEAN}" = true ]
-        then
-            echo
-            echo "MIDAS_COMPILE_CLEAN=true"
-            echo "(in your environment, profile or config.dot.sh)"
-            echo " ... cleaning build directory "
-            make clean
-        fi
+typeset __status=0
+typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+for __abs in ${__abs_exist_list}; do
+    typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/src/programs/$(abs_prefix ${__abs})
+    typeset __abs_installed=${__install_dir}/$(abs_prefix ${__abs} -${__revstring})
+    if [ ! -f  "${__abs_compiled}" ]; then
+        echo "  <!> ${__abs_compiled} not found in ${MIDAS_COMPILE_BUILD_DIR}/src/programs"
+        __status=1
     else
-        echo
-        echo "+--------------------------------------+"
-        echo "|                                      |"
-        echo "| SOME PROGRAMS COULD NOT BE INSTALLED |"
-        echo "|                                      |"
-        echo "+--------------------------------------+"
-        echo
-        exit 1
+        mv ${__abs_compiled} ${__abs_installed}
+        echo "  ${__abs_installed} installed" >> .checkAbs
     fi
+done
+[ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
+
+if [ "${__status}" -eq 0 ]; then
+    echo
+    echo "+------------------------------+"
+    echo "|                              |"
+    echo "| MIDAS INSTALLATION COMPLETED |"
+    echo "|   ALL PROGRAMS INSTALLED     |"
+    echo "|                              |"
+    echo "+------------------------------+"
+    echo
+    echo "  > ${__install_dir}"
+    echo
+    if [ "${MIDAS_COMPILE_CLEAN}" = true ]
+    then
+        echo
+        echo "MIDAS_COMPILE_CLEAN=true"
+        echo "(in your environment, profile or config.dot.sh)"
+        echo " ... cleaning build directory "
+        make clean
+    fi
+else
+    echo
+    echo "+--------------------------------------+"
+    echo "|                                      |"
+    echo "| SOME PROGRAMS COULD NOT BE INSTALLED |"
+    echo "|                                      |"
+    echo "+--------------------------------------+"
+    echo
+    exit 1
+fi
 
 ##=========================================================
 ## Some final clean up if compilation (and possibly linking
