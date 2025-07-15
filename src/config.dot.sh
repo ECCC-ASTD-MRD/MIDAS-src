@@ -232,8 +232,10 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${__run_cmake}" = true ]; then
         if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+            echo
             echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
             echo "Erasing it..."
+            echo
             rm -rf ${MIDAS_COMPILE_DIR_BUILD}
         fi
         mkdir ${MIDAS_COMPILE_DIR_BUILD}
@@ -242,9 +244,12 @@ if [ "${__run_cmake}" != stop ]; then
         cd ${MIDAS_COMPILE_DIR_BUILD}
 
         echo "Running cmake ${MIDAS_SOURCE_DIR}"
+        echo
         cmake ${MIDAS_SOURCE_DIR}
     elif [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        echo
         echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
+        echo
         cd ${MIDAS_COMPILE_DIR_BUILD}
     fi
 
@@ -262,11 +267,11 @@ or just a single program
 You can compile a single module by going to 'src/modules'
    cd src/modules
    make gridStateVector_mod.o
-then to compile the program, then you go back to the main build directory
+then to compile the program, you go back to the main build directory
    cd ../..
    make var
 
-When you are ready, you can install the programs and run the tests
+When you are ready, you can install all the programs and run the tests
    make install
 EOF
             elif [ "${__run_cmake}" = false ]; then
