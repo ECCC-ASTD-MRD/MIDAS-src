@@ -45,9 +45,10 @@ __revstring=$(${__toplevel}/midas.version)
 ##=========================================================
 ##  sourcing user configuration
 if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-  echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
-  exit 1
+    echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
+    exit 1
 fi
+
 
 ##=========================================================
 ##  finding all possible targets
@@ -102,7 +103,7 @@ else
         __abs_exist_list=
         for __targ in ${__target}; do
             grep_status=0
-            echo ${__abs_all} | grep "\b${__targ}\b" || grep_status=1
+            echo ${__abs_all} | grep -sq "\b${__targ}\b" || grep_status=1
             if [[ "${grep_status}" -eq 0 ]]; then
                 if [[  -n "${__abs_exist_list}" ]]; then
                     __abs_exist_list="${__abs_exist_list} ${__targ}"
@@ -186,9 +187,9 @@ function abs_prefix {
     typeset platform=${3:-${ORDENV_PLAT}}
 
     if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-        typeset __abs_prfx=midas.
+        typeset __abs_prfx=tools/midas.
     else
-        typeset __abs_prfx=midas-
+        typeset __abs_prfx=src/programs/midas-
     fi
 
     echo ${__abs_prfx}${abs_name}_${platform}${revstring}.Abs
@@ -277,7 +278,7 @@ for __abs in ${__abs_exist_list}; do
 done
 echo "Checking prior existence of target absolutes"
 for __abs in ${__abs_exist_list}; do
-    typeset __abs_full=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(abs_prefix ${__abs} -${__revstring})
+    typeset __abs_full=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
     [ -f  "${__abs_full}" ] && \
     ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
     rm ${__abs_full} )
@@ -407,10 +408,10 @@ if [ -n "${__abs_exist_list}" ]; then
     ##  Verification of compiled programs
     typeset __status=0
     for __abs in ${__abs_exist_list}; do
-        typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/src/programs/$(abs_prefix ${__abs})
-        typeset __abs_installed=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(abs_prefix ${__abs} -${__revstring})
+        typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/$(abs_prefix ${__abs})
+        typeset __abs_installed=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
         if [ ! -f  "${__abs_compiled}" ]; then
-            echo "  <!> ${__abs_compiled} not found in ${MIDAS_COMPILE_BUILD_DIR}/src/programs"
+            echo "  <!> ${__abs_compiled} not found"
             __status=1
         else
             mv ${__abs_compiled} ${__abs_installed}
