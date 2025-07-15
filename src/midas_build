@@ -309,7 +309,7 @@ export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
 cd ${__here}
 source ${__midas_dot_cfg} --no-cmake --no-show-instructions
 
-make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target}
+make VERBOSE=${MIDAS_COMPILE_VERBOSE} --jobs=${MIDAS_COMPILE_NCORES} ${__target}
 EOF
 
 ##=========================================================
@@ -325,7 +325,7 @@ if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
 then
     ## compile directly on head node
     echo "    > ${__listing_frontend}"
-    make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
+    make VERBOSE=${MIDAS_COMPILE_VERBOSE} --jobs=${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
     __job_or_pid_frontend=$!
     echo "    ${MIDAS_COMPILE_FRONTEND} (headnode) compilation process id: ${__job_or_pid_frontend}"
 else
