@@ -225,24 +225,11 @@ function printFooter {
 
 }
 
-if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-    __versionid_build=-${__revstring}
-else
-    __versionid_build=
-fi
-
-MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
-if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-    echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
-    echo "Erasing it..."
-    rm -rf ${MIDAS_COMPILE_DIR_BUILD}
-fi
-mkdir -p ${MIDAS_COMPILE_DIR_BUILD}
-cd ${MIDAS_COMPILE_DIR_BUILD}
-
 ##=========================================================
 ## Header
 printHeader
+
+cd ${MIDAS_COMPILE_DIR_BUILD}
 
 ##=========================================================
 ## testing CMake configuration

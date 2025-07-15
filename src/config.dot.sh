@@ -135,13 +135,18 @@ if [ "${__run_cmake}" != stop ]; then
     __install_always_midas=true
 
     if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-        export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+        __versionid_build=-${__revstring}
     else
-        export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld
+        __versionid_build=
     fi
-    if [ ! -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-        mkdir ${MIDAS_COMPILE_DIR_BUILD}
+    MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
+    if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
+        echo "Erasing it..."
+        rm -rf ${MIDAS_COMPILE_DIR_BUILD}
     fi
+    mkdir ${MIDAS_COMPILE_DIR_BUILD}
+
     __keep_jobsubmit_ofile=false
     __ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
 
