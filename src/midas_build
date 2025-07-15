@@ -110,7 +110,8 @@ fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg} --no-cmake --no-show-instructions &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
+source ${__midas_dot_cfg} --cmake --no-show-instructions &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
+
 __listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
@@ -290,8 +291,7 @@ export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
 
 cd ${__here}
-source ${__midas_dot_cfg} --cmake --no-show-instructions
-EOF
+source ${__midas_dot_cfg} --no-cmake --no-show-instructions
 
 __job="make VERBOSE=${MIDAS_COMPILE_VERBOSE} -j ${MIDAS_COMPILE_NCORES} ${__target} && make install"
 echo "${__job}" >> .compile_job
