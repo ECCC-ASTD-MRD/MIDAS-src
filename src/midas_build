@@ -277,7 +277,7 @@ for __abs in ${__abs_exist_list}; do
 done
 echo "Checking prior existence of target absolutes"
 for __abs in ${__abs_exist_list}; do
-    typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
+    typeset __abs_full=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(abs_prefix ${__abs} -${__revstring})
     [ -f  "${__abs_full}" ] && \
     ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
     rm ${__abs_full} )
@@ -403,52 +403,51 @@ if [ -n "${__err_front}" ]; then
 fi
 
 ##========================================================
-##  Verification of compiled programs
+if [ -n "${__abs_exist_list}" ]; then
+    ##  Verification of compiled programs
+    typeset __status=0
+    for __abs in ${__abs_exist_list}; do
+        typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/src/programs/$(abs_prefix ${__abs})
+        typeset __abs_installed=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(abs_prefix ${__abs} -${__revstring})
+        if [ ! -f  "${__abs_compiled}" ]; then
+            echo "  <!> ${__abs_compiled} not found in ${MIDAS_COMPILE_BUILD_DIR}/src/programs"
+            __status=1
+        else
+            mv ${__abs_compiled} ${__abs_installed}
+            echo "  ${__abs_installed} installed" >> .checkAbs
+        fi
+    done
+    [ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
 
-typeset __status=0
-typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
-for __abs in ${__abs_exist_list}; do
-    typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/src/programs/$(abs_prefix ${__abs})
-    typeset __abs_installed=${__install_dir}/$(abs_prefix ${__abs} -${__revstring})
-    if [ ! -f  "${__abs_compiled}" ]; then
-        echo "  <!> ${__abs_compiled} not found in ${MIDAS_COMPILE_BUILD_DIR}/src/programs"
-        __status=1
-    else
-        mv ${__abs_compiled} ${__abs_installed}
-        echo "  ${__abs_installed} installed" >> .checkAbs
-    fi
-done
-[ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
-
-if [ "${__status}" -eq 0 ]; then
-    echo
-    echo "+------------------------------+"
-    echo "|                              |"
-    echo "| MIDAS INSTALLATION COMPLETED |"
-    echo "|   ALL PROGRAMS INSTALLED     |"
-    echo "|                              |"
-    echo "+------------------------------+"
-    echo
-    echo "  > ${__install_dir}"
-    echo
-    if [ "${MIDAS_COMPILE_CLEAN}" = true ]
-    then
+    if [ "${__status}" -eq 0 ]; then
         echo
-        echo "MIDAS_COMPILE_CLEAN=true"
-        echo "(in your environment, profile or config.dot.sh)"
-        echo " ... cleaning build directory "
-        make clean
+        echo "+------------------------------+"
+        echo "|                              |"
+        echo "| MIDAS INSTALLATION COMPLETED |"
+        echo "|   ALL PROGRAMS INSTALLED     |"
+        echo "|                              |"
+        echo "+------------------------------+"
+        echo
+        echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
+        echo
+        if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
+            echo
+            echo "MIDAS_COMPILE_CLEAN=true"
+            echo "(in your environment, profile or config.dot.sh)"
+            echo " ... cleaning build directory "
+            make clean
+        fi
+    else
+        echo
+        echo "+--------------------------------------+"
+        echo "|                                      |"
+        echo "| SOME PROGRAMS COULD NOT BE INSTALLED |"
+        echo "|                                      |"
+        echo "+--------------------------------------+"
+        echo
+        exit 1
     fi
-else
-    echo
-    echo "+--------------------------------------+"
-    echo "|                                      |"
-    echo "| SOME PROGRAMS COULD NOT BE INSTALLED |"
-    echo "|                                      |"
-    echo "+--------------------------------------+"
-    echo
-    exit 1
-fi
+fi ## End of 'if [ -n "${__abs_exist_list}" ]'
 
 ##=========================================================
 ## Some final clean up if compilation (and possibly linking
