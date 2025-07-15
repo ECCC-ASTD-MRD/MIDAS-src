@@ -140,15 +140,6 @@ if [ "${__run_cmake}" != stop ]; then
         __versionid_build=
     fi
     MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
-    if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-        echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
-        echo "Erasing it..."
-        rm -rf ${MIDAS_COMPILE_DIR_BUILD}
-    fi
-    mkdir ${MIDAS_COMPILE_DIR_BUILD}
-
-    __keep_jobsubmit_ofile=false
-    __ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
 
     ###########################################################
     ##  compilation needed for compilation
@@ -239,18 +230,29 @@ if [ "${__run_cmake}" != stop ]; then
     export FOPTMIZ
 
     if [ "${__run_cmake}" = true ]; then
+        if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+            echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
+            echo "Erasing it..."
+            rm -rf ${MIDAS_COMPILE_DIR_BUILD}
+        fi
+        mkdir ${MIDAS_COMPILE_DIR_BUILD}
+
         echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
         cd ${MIDAS_COMPILE_DIR_BUILD}
 
         echo "Running cmake ${MIDAS_SOURCE_DIR}"
         cmake ${MIDAS_SOURCE_DIR}
+    elif [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
+        cd ${MIDAS_COMPILE_DIR_BUILD}
     fi
 
-    if [ "${__show_instructions}" = true ]; then
-        echo
-        echo
-        if [ "${__run_cmake}" = true ]; then
-            cat <<EOF
+    if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        if [ "${__show_instructions}" = true ]; then
+            echo
+            echo
+            if [ "${__run_cmake}" = true ]; then
+                cat <<EOF
 You can now compile all the programs using simply
    make
 or just a single program
@@ -266,20 +268,24 @@ then to compile the program, then you go back to the main build directory
 When you are ready, you can install the programs and run the tests
    make install
 EOF
-        elif [ "${__run_cmake}" = false ]; then
-            cat <<EOF
+            elif [ "${__run_cmake}" = false ]; then
+                cat <<EOF
 You can run by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
    cmake ${MIDAS_SOURCE_DIR}
 and build the programs using 'make'
 EOF
-        fi
-    fi ## End of 'if [ "${__show_instructions}" = true ]'
+            fi
+        fi ## End of 'if [ "${__show_instructions}" = true ]'
 
-    export MIDAS_COMPILE_FRONTEND
-    export MIDAS_COMPILE_JOBNAME
-    export MIDAS_ABS_LEAFDIR
-    export MIDAS_COMPILE_VERBOSE
+        export MIDAS_COMPILE_FRONTEND
+        export MIDAS_COMPILE_JOBNAME
+        export MIDAS_ABS_LEAFDIR
+        export MIDAS_COMPILE_VERBOSE
+    else
+        echo "The build directory ${MIDAS_COMPILE_DIR_BUILD} does not exist"
+        __status=false
+    fi
 
     # config return status
     ${__status}

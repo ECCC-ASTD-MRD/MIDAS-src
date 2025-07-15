@@ -119,6 +119,7 @@ if [ "${__midas_source_config_status__}" -ne 0 ]; then
   echo "An error occured in the build configuration, consult ${__listing_config}"
   exit 1
 fi
+
 mv ${__here}/.tmp.config.out ${__listing_config}
 
 cd ${__here}
@@ -316,7 +317,7 @@ then
 else
     ## use ord_soumet
     __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
-        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock} \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock:-20} \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
 fi
 
