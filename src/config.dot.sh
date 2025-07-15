@@ -139,7 +139,7 @@ if [ "${__run_cmake}" != stop ]; then
     else
         __versionid_build=
     fi
-    MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
+    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
 
     ###########################################################
     ##  compilation needed for compilation
@@ -228,6 +228,7 @@ if [ "${__run_cmake}" != stop ]; then
 
     export COMPF
     export FOPTMIZ
+    export MIDAS_ABS_LEAFDIR
 
     if [ "${__run_cmake}" = true ]; then
         if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
@@ -280,7 +281,6 @@ EOF
 
         export MIDAS_COMPILE_FRONTEND
         export MIDAS_COMPILE_JOBNAME
-        export MIDAS_ABS_LEAFDIR
         export MIDAS_COMPILE_VERBOSE
     else
         echo "The build directory ${MIDAS_COMPILE_DIR_BUILD} does not exist"

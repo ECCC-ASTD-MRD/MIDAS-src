@@ -90,7 +90,7 @@ else()
 endif()
 
 message(STATUS "(EC) Sources directory is: ${CMAKE_SOURCE_DIR}")
-message(STATUS "(EC) Build directory is: $ENV{MIDAS_COMPILE_DIR_MAIN}")
+message(STATUS "(EC) Build directory is: $ENV{MIDAS_COMPILE_DIR_BUILD}")
 message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
