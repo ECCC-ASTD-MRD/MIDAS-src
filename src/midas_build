@@ -116,7 +116,6 @@ else
         __target='all'
         __abs_exist_list=${__abs_all}
     fi
-
 fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
 
 __midas_dot_cfg=${__here}/config.dot.sh
@@ -135,22 +134,6 @@ fi
 mv ${__here}/.tmp.config.out ${__listing_config}
 
 cd ${__here}
-
-##=========================================================
-##  functions
-function dryRun {
-    __exitCode=1
-    __libmidas_expected_location="${MIDAS_COMPILE_DIR_BUILD}/src/modules/libmidas.a"
-    echo "Testing MIDAS static library building"
-    make -n midas > /dev/null 2>&1 || return ${__exitCode}
-    echo "Testing the global build"
-    # simulating the presence of libmidas.a prerequisite for all programs
-    touch ${__libmidas_expected_location}
-    # testing the build assuming libmidas.a is present
-    make -n ${__target} > /dev/null 2>&1 && __exitCode=0
-    rm ${__libmidas_expected_location}
-    return ${__exitCode}
-}
 
 function are_jobs_completed {
     set -e
@@ -239,7 +222,6 @@ function printFooter {
     echo "| execution time : ${__dateDiff} s"
     echo "+-----------------------------------------------------------------------------"
     echo
-
 }
 
 ##=========================================================
@@ -247,21 +229,6 @@ function printFooter {
 printHeader
 
 cd ${MIDAS_COMPILE_DIR_BUILD}
-
-##=========================================================
-## testing CMake configuration
-## -- lauching dry-run to test target
-
-dryRun || {
-    echo
-    echo "+--------------------+"
-    echo "|                    |"
-    echo "| DRY RUN FAILED!    |"
-    echo "| check cmake output |"
-    echo "|                    |"
-    echo "+--------------------+"
-    exit 1
-}
 
 ##=========================================================
 ##  Checking presence of absolute targets in 'src/programs/CMakeLists.txt'
