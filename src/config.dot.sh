@@ -234,18 +234,23 @@ if [ "${__run_cmake}" != stop ]; then
         if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
             echo
             echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
-            echo "Erasing it..."
+            echo "Leaving it there..."
             echo
-            rm -rf ${MIDAS_COMPILE_DIR_BUILD}
+
+            echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
+            cd ${MIDAS_COMPILE_DIR_BUILD}
+        else
+            echo
+            echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
+            mkdir ${MIDAS_COMPILE_DIR_BUILD}
+
+            echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
+            cd ${MIDAS_COMPILE_DIR_BUILD}
+
+            echo "Running cmake ${MIDAS_SOURCE_DIR}"
+            echo
+            cmake ${MIDAS_SOURCE_DIR}
         fi
-        mkdir ${MIDAS_COMPILE_DIR_BUILD}
-
-        echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
-        cd ${MIDAS_COMPILE_DIR_BUILD}
-
-        echo "Running cmake ${MIDAS_SOURCE_DIR}"
-        echo
-        cmake ${MIDAS_SOURCE_DIR}
     elif [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
         echo
         echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
