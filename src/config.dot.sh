@@ -257,10 +257,23 @@ if [ "${__run_cmake}" != stop ]; then
 
         if [ "${__show_instructions}" = true ]; then
             echo
-            echo
             if [ "${__run_cmake}" = true ]; then
-                cat <<EOF
-You can now compile all the programs using simply
+                echo "You can now compile all the programs using simply"
+            elif [ "${__run_cmake}" = false ]; then
+                if [ ! -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
+                    cat <<EOF
+You can run by yourself 'cmake' with the commands
+   cd ${MIDAS_COMPILE_DIR_BUILD}
+   cmake ${MIDAS_SOURCE_DIR}
+and build the programs using
+EOF
+                else
+                    echo "The build directory has already been prepared by 'cmake'"
+                    echo "You can now compile all the programs using simply"
+                fi
+            fi
+
+            cat <<EOF
    make
 or just a single program
    make \${program} ## for example 'make var'
@@ -275,14 +288,6 @@ then to compile the program, you go back to the main build directory
 When you are ready, you can install all the programs and run the tests
    make install
 EOF
-            elif [ "${__run_cmake}" = false ]; then
-                cat <<EOF
-You can run by yourself 'cmake' with the commands
-   cd ${MIDAS_COMPILE_DIR_BUILD}
-   cmake ${MIDAS_SOURCE_DIR}
-and build the programs using 'make'
-EOF
-            fi
         fi ## End of 'if [ "${__show_instructions}" = true ]'
 
         export MIDAS_COMPILE_FRONTEND
