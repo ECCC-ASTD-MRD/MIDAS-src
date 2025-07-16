@@ -246,9 +246,13 @@ if [ "${__run_cmake}" != stop ]; then
         cd ${MIDAS_COMPILE_DIR_BUILD}
 
         if [ "${__run_cmake}" = true ]; then
-            echo "Running cmake ${MIDAS_SOURCE_DIR}"
-            echo
-            cmake ${MIDAS_SOURCE_DIR}
+            if [ -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
+                echo "cmake has already been run in build directory ${MIDAS_COMPILE_DIR_BUILD}"
+            else
+                echo "Running cmake ${MIDAS_SOURCE_DIR}"
+                echo
+                cmake ${MIDAS_SOURCE_DIR}
+            fi
         fi ## End of 'if [ "${__run_cmake}" = true ]'
 
         if [ "${__show_instructions}" = true ]; then
