@@ -230,35 +230,27 @@ if [ "${__run_cmake}" != stop ]; then
     export FOPTMIZ
     export MIDAS_ABS_LEAFDIR
 
-    if [ "${__run_cmake}" = true ]; then
-        if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-            echo
-            echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
-            echo "Leaving it there..."
-            echo
-
-            echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
-            cd ${MIDAS_COMPILE_DIR_BUILD}
-        else
-            echo
-            echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
-            mkdir ${MIDAS_COMPILE_DIR_BUILD}
-
-            echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
-            cd ${MIDAS_COMPILE_DIR_BUILD}
-
-            echo "Running cmake ${MIDAS_SOURCE_DIR}"
-            echo
-            cmake ${MIDAS_SOURCE_DIR}
-        fi
-    elif [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+    echo
+    if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
+        echo "Leaving it there..."
         echo
-        echo "Moving to {MIDAS_COMPILE_DIR_BUILD}"
-        echo
-        cd ${MIDAS_COMPILE_DIR_BUILD}
+    else
+        echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
+        mkdir ${MIDAS_COMPILE_DIR_BUILD}
     fi
 
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+
+        echo "Moving to ${MIDAS_COMPILE_DIR_BUILD}"
+        cd ${MIDAS_COMPILE_DIR_BUILD}
+
+        if [ "${__run_cmake}" = true ]; then
+            echo "Running cmake ${MIDAS_SOURCE_DIR}"
+            echo
+            cmake ${MIDAS_SOURCE_DIR}
+        fi ## End of 'if [ "${__run_cmake}" = true ]'
+
         if [ "${__show_instructions}" = true ]; then
             echo
             echo
