@@ -44,7 +44,7 @@ clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimi
 ```
 
 When these steps have been completed make sure to move the issue to the ~Doing
-column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/boards)
+column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/boards)
 
 ### Make modifications to your local branch
 
@@ -213,7 +213,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
   - Select the template, then follow the guidelines when filling in the Description box.
   - Assign the `Merge Request` to a colleague.
   - And press `Submit merge request`.
-  - Move the issue to the ~"Under Review" column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/boards)
+  - Move the issue to the ~"Under Review" column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/boards)
   - The assignee is expected to review the code, discuss/comment and finally accept the `Merge Request`, which will:
     - merge the code for the branch into `main`,
     - close the associated *issue* and
