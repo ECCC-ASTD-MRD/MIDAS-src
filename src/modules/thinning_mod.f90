@@ -26,6 +26,7 @@ module thinning_mod
   use satWind_mod
   use obsFlags_mod
   use tovs_mod
+  use getGridPosition_mod
 
   implicit none
   private
@@ -34,7 +35,7 @@ module thinning_mod
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
-  public :: thn_thinSatSST, thn_thinCH, thn_preThinning
+  public :: thn_thinSatSST, thn_thinCH, thn_preThinning, thn_thinIce
 
   integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
                                                    flg_16rejOmP, &
@@ -144,7 +145,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
       call utl_tmg_stop(181)
-   else
+    else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -342,7 +343,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
       call utl_tmg_stop(181)
-   else
+    else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -5556,7 +5557,7 @@ contains
     else if ( codtyp == codtyp_get_codtyp('ssmis') ) then
       loscan   = 1
       hiscan   = mxscanssmis
-   else
+    else
       write(*,*) 'codtyp = ', codtyp
       call utl_abort('thn_tovsFilt: Invalid codtyp')
     end if
@@ -5983,7 +5984,7 @@ contains
       hiscan   = mxscanssmis
     else
       write(*,*) 'codtyp = ', codtyp
-      call utl_abort('thn_tovsFilt: Invalid codtyp')
+      call utl_abort('thn_tovsFilt_dd: Invalid codtyp')
     end if
 
     write(*,*) ''
@@ -8044,7 +8045,7 @@ contains
 
     write(*,*)
     if (numberDataSetSST > 0) then
-      write(*,*) 'thn_thinSurface: satellite SST datasets considered in thinning: '
+      write(*,*) 'thn_thinSatSST: satellite SST datasets considered in thinning: '
       do dataSetSSTIndex = 1, numberDataSetSST
         write(*,'(i5,a)') dataSetSSTIndex, trim(dataSetSST(dataSetSSTIndex))
       end do
@@ -8893,5 +8894,620 @@ contains
     deallocate(allChannelsMpi)
 
   end subroutine getChannels
+
+  !--------------------------------------------------------------------------
+  ! thn_thinIce
+  !--------------------------------------------------------------------------
+  subroutine thn_thinIce(obsData)
+    !
+    ! :Purpose: Main thinning subroutine for sea ice obs.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData
+
+    ! Locals:
+    integer            :: ierr
+    integer, parameter :: maxNumDataSet = 4     ! maximum number of datasets considered in thinning
+    integer            :: dataSetIndex, numberDataSet
+
+    ! Namelist variables:
+    character(len=18) :: thinningTechnique      ! either 'grid-based' or 'distance-dependent'
+    integer           :: deldist(maxNumDataSet) ! minimal distance in km between adjacent observations
+                                                ! in the 'distance-dependent' method
+    character(len=10) :: dataSet(maxNumDataSet) ! array of dataset names considered in thinning
+    character(len=18) :: gridFileName           ! RPN file name used with the 'grid-based' method
+    character(len=7)  :: gridMethod             ! either 'median' or 'closest'
+    integer           :: gridVarNo              ! variable used with the 'median' method for selection
+    integer           :: gridVCoord             ! variable used with the 'median' method for selection
+
+    namelist /thin_ice/ thinningTechnique, deldist, dataSet, &
+                        gridFileName, gridMethod, gridVarNo, gridVCoord
+
+    ! return if no sea-ice obs
+    if (.not. obs_famExist(obsData,'GL')) return
+
+    ! Default values for namelist variables
+    thinningTechnique='grid-based'
+    deldist(:) = 50
+    dataSet(:) = ''
+    gridFileName = ''
+    gridMethod = 'closest'
+    gridVarNo = 0
+    gridVCoord = 0
+
+    ! Read the namelist for Ice observations (if it exists)
+    if (utl_isNamelistPresent('thin_ice','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_ice, iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinIce: Error reading thin_ice namelist')
+      if (mmpi_myid == 0) write(*,nml=thin_ice)
+      call utl_tmg_stop(181)
+    else
+      write(*,*)
+      write(*,*) 'thn_thinIce: Namelist block thin_ice is missing in the namelist.'
+      write(*,*) '               The default value will be taken.'
+      if (mmpi_myid == 0) write(*,nml=thin_ice)
+    end if
+
+    numberDataSet = 0
+    do dataSetIndex = 1, maxNumDataSet
+      if (trim(dataSet(dataSetIndex)) == '') exit
+      numberDataSet = numberDataSet + 1
+    end do
+
+    write(*,*)
+    if (numberDataSet > 0) then
+      write(*,*) 'thn_thinIce: satellite datasets considered in thinning: '
+      do dataSetIndex = 1, numberDataSet
+        write(*,'(a)') trim(dataSet(dataSetIndex))
+      end do
+    end if
+
+    call utl_tmg_start(114,'--ObsThinning')
+    do dataSetIndex = 1, numberDataSet
+      if (trim(thinningTechnique) == 'grid-based') then
+        call thn_byGridCell(obsData, dataSet(dataSetIndex), &
+                            gridFileName, gridMethod, gridVarNo, gridVCoord)
+      elseif (trim(thinningTechnique) == 'distance-dependent') then
+        call thn_byDistance(obsData, deldist(dataSetIndex), dataSet(dataSetIndex))
+      else
+        call utl_abort('thn_thinIce: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_ICE.')
+      end if
+    end do
+    call utl_tmg_stop(114)
+
+  end subroutine thn_thinIce
+
+  !--------------------------------------------------------------------------
+  ! thn_byGridCell
+  !--------------------------------------------------------------------------
+  subroutine thn_byGridCell(obsData, dataSet, gridFileName, gridMethod, gridVarNo, gridVCoord)
+    !
+    !:Purpose: thinning data by grid cells.
+    !          Set bit 11 of obs_flg on observations that are to be rejected.
+    !          The algorithm consists in keeping median data
+    !          within one grid cell.
+    !          The grid is provided in the input file.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData          ! obsSpace data object
+    character(len=*), intent(in)    :: dataSet          ! station ID (id_stn variable in SQLite obs.files)
+    character(len=*), intent(in)    :: gridFileName     ! RPN file containing the grid
+    character(len=*), intent(in)    :: gridMethod       ! either 'median' or 'closest'
+    integer,          intent(in)    :: gridVarNo        ! variable used with the 'median' method for selection
+    integer,          intent(in)    :: gridVCoord       ! variable used with the 'median' method for selection
+
+    ! Locals:
+    type(struct_hco), pointer :: hco_thinning
+    integer :: headerIndexBeg, headerIndexEnd
+    integer :: lonIndex, latIndex
+    integer :: obsLonIndex, obsLatIndex
+    integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
+    integer :: validCount, validCountMpi
+    real(8) :: obsLon, obsLat, gridLon, gridLat
+    integer :: medianIndex, minimumDistIndex, obsVarNo, obsVCoord
+    logical, allocatable :: valid(:), validMpi(:)
+    integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
+    integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:)
+    real(4), allocatable :: observation(:), observationMpi(:)
+    real(4), allocatable :: distFromGridCell(:), distFromGridCellMpi(:)
+    real(4) :: lat_deg_r4, lon_deg_r4
+    real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
+    integer :: ierr, subGridIndex
+    type countDataType
+      integer              :: numObs         ! number of data inside each grid cell
+      real(4), allocatable :: dataVec(:)     ! vector of data inside each grid cell
+      real(4), allocatable :: distVec(:)     ! vector of distances of observations from the grid cell
+      integer, allocatable :: headerIndex(:) ! header indexes inside each grid cell
+    end type countDataType
+    type(countDataType), allocatable :: dataGrid(:,:) ! for each grid cell
+
+    write(*,*)
+    write(*,*) 'thn_byGridCell: Starting data thinning for sensor on platform: ', trim(dataSet)
+    write(*,*)
+
+    numHeader = obs_numHeader(obsData)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
+
+    allocate(valid(numHeaderMaxMpi))
+    valid(:) = .false.
+
+    ! count data of the current sensor (id_stn)
+    validCount = 0
+    do headerIndex = 1, numHeader
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) == trim(dataSet)) then
+        validCount = validCount + 1
+        valid(headerIndex) = .true.
+      end if
+    end do
+
+    ! Return if no obs to thin
+    call mmpi_allReduce(validCount, validCountMpi, mmpi_sum)
+    if (validCountMpi == 0) then
+      write(*,*) 'thn_byGridCell: no ', trim(dataSet), ' data present'
+      return
+    end if
+
+    write(*,*) 'thn_byGridCell: ', trim(dataSet), ': numHeader, numHeaderMaxMpi: ', &
+               numHeader, numHeaderMaxMpi
+
+    write(*,*) 'thn_byGridCell: ', trim(dataSet),' total number of initial data: ', validCountMpi
+
+    ! Setup horizontal thinning grid
+    nullify(hco_thinning)
+    call hco_SetupFromFile(hco_thinning, trim(gridFileName), ' ', 'Thinning')
+
+    ! Setup thinning grid parameters
+    allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
+
+    ! Allocate local and mpi global vectors and initialize them
+    allocate(obsLatIndexVec(numHeaderMaxMpi))
+    obsLatIndexVec(:) = 0
+    allocate(obsLonIndexVec(numHeaderMaxMpi))
+    obsLonIndexVec(:) = 0
+    allocate(obsLatIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    if(gridMethod == 'median') then
+      allocate(observation(numHeaderMaxMpi))
+      observation(:) = 0.0
+      allocate(observationMpi(numHeaderMaxMpi * mmpi_nprocs))
+    else if(gridMethod == 'closest') then
+      allocate(distFromGridCell(numHeaderMaxMpi))
+      distFromGridCell(:) = 1.0e7
+      allocate(distFromGridCellMpi(numHeaderMaxMpi * mmpi_nprocs))
+    else
+      call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+    end if
+
+    HEADER: do headerIndex = 1, numHeader
+      if (.not. valid(headerIndex)) cycle HEADER
+
+      if(gridMethod == 'median') then
+
+        call obs_set_current_body_list(obsData, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsData)
+          if (bodyIndex < 0) exit BODY1
+          if (flg_flagIsOn(obsData, bodyIndex, flg_09rejBgck)) cycle HEADER
+          obsVarNo = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+          obsVCoord = nint(obs_bodyElem_r(obsData, OBS_PPP, bodyIndex))
+          if (obsVarNo /= gridVarNo .or. obsVCoord /= gridVCoord) then
+            cycle BODY1
+          else
+            observation(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+            exit BODY1
+          end if
+        end do BODY1
+
+      end if
+
+      ! Find closest grid cell from observation
+      ! obs lat and lon in radians
+      obsLon = obs_headElem_r(obsData, obs_lon, headerIndex)
+      obsLat = obs_headElem_r(obsData, obs_lat, headerIndex)
+      lat_deg_r4 = real(obsLat,4) * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
+      lon_deg_r4 = real(obsLon,4) * MPC_DEGREES_PER_RADIAN_R4
+
+      ierr = gpos_getPositionXY( hco_thinning % EZscintID,  &
+                                xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                lat_deg_r4, lon_deg_r4, subGridIndex,  hco_thinning % maxGridSpacing)
+      if ( subGridIndex /= 1 ) then
+        write(*,*) 'thn_byGridCell: revise code'
+        call utl_abort('thn_byGridCell: yin-yang grid not tested.')
+      end if
+      obsLonIndex = nint(xpos_r4)
+      obsLatIndex = nint(ypos_r4)
+
+      if (obsLonIndex >= 1 .and. obsLonIndex <= hco_thinning%ni .and. &
+          obsLatIndex >= 1 .and. obsLatIndex <= hco_thinning%nj) then
+        ! Compute distance in meters
+        if(gridMethod == 'closest') then
+          gridLat = real(hco_thinning%lat2d_4(obsLonIndex,obsLatIndex),8)
+          gridLon = real(hco_thinning%lon2d_4(obsLonIndex,obsLatIndex),8)
+          distFromGridCell(headerIndex) = phf_calcDistance(gridLat, gridLon, obsLat, obsLon)
+        end if
+        obsLatIndexVec(headerIndex) = obsLatIndex
+        obsLonIndexVec(headerIndex) = obsLonIndex
+      else
+        ! reject data that are farther than the maximum distance from the grid cell center
+        valid(headerIndex) = .false.
+      end if
+
+    end do HEADER
+
+    ! Make all inputs to the following tests mpiglobal
+    allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
+    validMpi(:) = .false.
+    call mmpi_allGather(valid,            validMpi)
+    call mmpi_allGather(obsLatIndexVec,   obsLatIndexMpi)
+    call mmpi_allGather(obsLonIndexVec,   obsLonIndexMpi)
+    if(gridMethod == 'median') then
+      call mmpi_allGather(observation,      observationMpi)
+    else if(gridMethod == 'closest') then
+      call mmpi_allGather(distFromGridCell, distFromGridCellMpi)
+    else
+      call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+    end if
+
+    dataGrid(:,:)%numObs = 0
+    ! Computation of number of data inside each grid cell
+    do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
+      if (.not. validMpi(headerIndex)) cycle
+      latIndex = obsLatIndexMpi(headerIndex)
+      lonIndex = obsLonIndexMpi(headerIndex)
+      dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
+    end do
+
+    ! Allocation of vector data inside each grid cell
+    do lonIndex = 1, hco_thinning%ni
+      do latIndex = 1, hco_thinning%nj
+        if(gridMethod == 'median') then
+          allocate(dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs))
+        else if(gridMethod == 'closest') then
+          allocate(dataGrid(latIndex, lonIndex)%distVec(dataGrid(latIndex, lonIndex)%numObs))
+        else
+          call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+        end if
+        allocate(dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs))
+      end do
+    end do
+
+    ! Fill out vectors of data and header indexes inside each grid cell
+    dataGrid(:,:)%numObs = 0 ! to reuse it as a counter that should be differentiated for each lat-lon cell
+    do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
+      if (.not. validMpi(headerIndex)) cycle
+      latIndex = obsLatIndexMpi(headerIndex)
+      lonIndex = obsLonIndexMpi(headerIndex)
+      dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
+      if(gridMethod == 'median') then
+        dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = observationMpi(headerIndex)
+      else if(gridMethod == 'closest') then
+        dataGrid(latIndex, lonIndex)%distVec(dataGrid(latIndex, lonIndex)%numObs) = distFromGridCellMpi(headerIndex)
+      else
+        call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+      end if
+      dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex
+    end do
+
+    do lonIndex = 1, hco_thinning%ni
+      do latIndex = 1, hco_thinning%nj
+        if(dataGrid(latIndex, lonIndex)%numObs < 1) cycle
+        validMpi(dataGrid(latIndex, lonIndex)%headerIndex(:)) = .false.
+        if(gridMethod == 'median') then
+          ! Compute median inside each grid cell and keep only this observation, rejecting all the others
+          medianIndex = utl_medianIndex(dataGrid(latIndex, lonIndex)%dataVec(:))
+          validMpi(dataGrid(latIndex, lonIndex)%headerIndex(medianIndex)) = .true.
+        else if(gridMethod == 'closest') then
+          minimumDistIndex = minloc(dataGrid(latIndex, lonIndex)%distVec(:), dim=1)
+          validMpi(dataGrid(latIndex, lonIndex)%headerIndex(minimumDistIndex)) = .true.
+        else
+          call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+        end if
+      end do
+    end do
+
+    ! Deallocation of vector data inside each grid cell
+    do lonIndex = 1, hco_thinning%ni
+      do latIndex = 1, hco_thinning%nj
+        if(gridMethod == 'median') then
+          deallocate(dataGrid(latIndex, lonIndex)%dataVec)
+        else if(gridMethod == 'closest') then
+          deallocate(dataGrid(latIndex, lonIndex)%distVec)
+        else
+          call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+        end if
+        deallocate(dataGrid(latIndex, lonIndex)%headerIndex)
+      end do
+    end do
+
+    ! Update local copy of valid from global mpi version
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    deallocate(dataGrid)
+
+    write(*,*)
+    write(*,*) 'thn_byGridCell: results for ', trim(dataSet), ' data ****************'
+    write(*,'(a30,i10)') ' Number of obs initially: ', validCountMpi
+    write(*,'(a30,i10)') ' Number of obs kept     : ', count(validMpi(:))
+    write(*,'(a30,i10)') ' Number of obs rejected : ', validCountMpi - count(validMpi(:))
+    write(*,*)
+
+    ! Modify the flags for rejected observations
+    HEADER2: do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle HEADER2
+
+      if (.not. valid(headerIndex)) then
+        ! do not keep this obs: set bit 11 and jump to the next obs
+        call obs_set_current_body_list(obsData, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsData)
+          if (bodyIndex < 0) exit BODY2
+          call flg_setFlag(obsData, bodyIndex, flg_11rejSelect)
+        end do BODY2
+      end if
+
+    end do HEADER2
+
+    ! Deallocation
+    deallocate(valid)
+    deallocate(validMpi)
+    deallocate(obsLatIndexVec)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexVec)
+    deallocate(obsLonIndexMpi)
+    if(gridMethod == 'median') then
+      deallocate(observation)
+      deallocate(observationMpi)
+    else if(gridMethod == 'closest') then
+      deallocate(distFromGridCell)
+      deallocate(distFromGridCellMpi)
+    else
+      call utl_abort('thn_byGridCell: Set gridMethod to either median or closest in the namelist THIN_ICE.')
+    end if
+
+    write(*,*)
+    write(*,*) 'thn_byGridCell: thinning for ', trim(dataSet) ,' data completed.'
+    write(*,*)
+
+  end subroutine thn_byGridCell
+
+  !--------------------------------------------------------------------------
+  ! thn_byDistance
+  !--------------------------------------------------------------------------
+  subroutine thn_byDistance(obsData, deldist, dataSet)
+    !
+    ! :Purpose: Original method for thinning data by the distance method.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData ! obsSpace data object
+    integer,          intent(in)    :: deldist ! minimal distance in km between adjacent observations
+    character(len=*), intent(in)    :: dataSet ! station ID (id_stn variable in SQLite obs. files)
+
+    ! Locals:
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: countObs, countObsOutMpi, countObsInMpi
+    integer :: obsDate, obsTime
+    integer :: badTimeCount, badTimeCountMpi
+    integer :: middleStep
+    integer :: obsIndex1, headerIndex1, headerIndex2
+    integer :: headerIndexBeg, headerIndexEnd
+    integer :: obsStepIndex
+    real(8) :: thinDistance
+    real(8) :: obsStepIndex_r8
+    real(8) :: obsLonInRad, obsLatInRad
+    integer, allocatable :: timePenalty(:), timePenaltyMpi(:)
+    integer, allocatable :: headerIndexSorted(:)
+    logical, allocatable :: valid(:), validMpi(:)
+    type(kdtree2), pointer            :: tree
+    integer, parameter                :: maxNumSearch = 2000
+    integer                           :: numFoundSearch, resultIndex
+    type(kdtree2_result)              :: searchResults(maxNumSearch)
+    real(kdkind)                      :: maxRadius
+    real(kdkind)                      :: refPosition(3)
+    real(kdkind), allocatable         :: obsPosition3d(:,:)
+    real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
+
+    write(*,*)
+    write(*,*) 'thn_byDistance: Starting data thinning for sensor on platform: ', trim(dataSet)
+    write(*,*)
+
+    numHeader = obs_numHeader(obsData)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
+
+    ! Check if any observations to be treated
+    countObs = 0
+    HEADER0: do headerIndex = 1, numHeader
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) == trim(dataSet)) then
+        countObs = countObs + 1
+      end if
+    end do HEADER0
+
+    call mmpi_allReduce(countObs, countObsInMpi, mmpi_sum)
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_byDistance: no observations present'
+      return
+    end if
+
+    write(*,*) 'thn_byDistance: number of obs initial = ', &
+               countObs, countObsInMpi
+
+    thinDistance = real(deldist,8)*1.0d3
+    write(*,*)
+    write(*,*) 'Minimum thinning distance (km): ', deldist
+    maxRadius = thinDistance*thinDistance
+
+    middleStep = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
+                         tim_dstepobs) + 1
+
+    write(*,*)
+    write(*,*) 'Number of time bins = ', tim_nstepobs
+    write(*,*) 'Central time bin    = ', middleStep
+    write(*,*)
+
+    ! Allocations:
+    allocate(valid(numHeaderMaxMpi))
+    allocate(obsPosition3d(3,numHeaderMaxMpi))
+    allocate(obsPosition3dMpi(3,numHeaderMpi))
+    allocate(timePenalty(numHeaderMaxMpi))
+    valid(:) = .true.
+    timePenalty(:) = MPC_missingValue_INT
+
+    allocate(validMpi(numHeaderMpi))
+    allocate(timePenaltyMpi(numHeaderMpi))
+
+    timePenaltyMpi(:) = MPC_missingValue_INT
+    validMpi(:) = .true.
+
+    badTimeCount = 0
+    obsPosition3d(:,:) = 0.0
+
+    ! First pass through observations
+    HEADER1: do headerIndex = 1, numHeader
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) /= trim(dataSet)) then
+        valid(headerIndex) = .false.
+        cycle HEADER1
+      end if
+
+      ! get latitude and longitude
+      obsLonInRad = obs_headElem_r(obsData, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsData, OBS_LAT, headerIndex)
+
+      ! get step bin
+      obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex = nint(obsStepIndex_r8)
+
+      ! TimePenalty (lower is better)
+      timePenalty(headerIndex) = abs(middleStep-obsStepIndex)
+
+      ! obs is outside time window
+      if(obsStepIndex == -1) then
+        badTimeCount = badTimeCount + 1
+        timePenalty(headerIndex) = MPC_missingValue_INT
+        valid(headerIndex) = .false.
+      end if
+
+      ! 3D location array for kdtree
+      obsPosition3d(1,headerIndex) = ec_ra * sin(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(2,headerIndex) = ec_ra * cos(obsLonInRad) * cos(obsLatInRad)
+      obsPosition3d(3,headerIndex) = ec_ra *                    sin(obsLatInRad)
+    end do HEADER1
+    if(numHeaderMaxMpi > numHeader) valid(numHeader+1:numHeaderMaxMpi) = .false.
+
+    ! Gather needed information from all MPI tasks
+    call mmpi_allGather(valid, validMpi)
+    call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
+    call mmpi_allGather(timePenalty,   timePenaltyMpi)
+
+    deallocate(obsPosition3d)
+    deallocate(timePenalty)
+
+    allocate(headerIndexSorted(numHeaderMpi))
+
+    do obsIndex1 = 1, numHeaderMpi
+      headerIndexSorted(obsIndex1) = obsIndex1
+    end do
+
+    call thn_QsortIntIgnoringNullValues(timePenaltyMpi,headerIndexSorted,MPC_missingValue_INT)
+
+    nullify(tree)
+    tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
+
+    OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
+
+      if ( timePenaltyMpi(obsIndex1) == MPC_missingValue_INT ) cycle OBS_LOOP
+
+      headerIndex1 = headerIndexSorted(obsIndex1)
+
+      if ( .not. validMpi(headerIndex1) ) cycle OBS_LOOP
+
+      ! Find all obs within the minimum distance prescribed
+      refPosition(:) = obsPosition3dMpi(:,headerIndex1)
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numFoundSearch, &
+                             nalloc=maxNumSearch, results=searchResults)
+      if (numFoundSearch >= maxNumSearch) then
+        call utl_abort('thn_byDistance: the parameter maxNumSearch must be increased')
+      end if
+      if (numFoundSearch == 0) then
+        call utl_abort('thn_byDistance: no match found. This should not happen!!!')
+      end if
+
+      if (numFoundSearch == 1) cycle OBS_LOOP
+
+      ! Loop over all of these nearby locations
+      do resultIndex = 2, numFoundSearch
+        headerIndex2 = searchResults(resultIndex)%idx
+        validMpi(headerIndex2) = .false.
+      end do
+
+    end do OBS_LOOP
+    call kdtree2_destroy(tree)
+
+    deallocate(obsPosition3dMpi)
+    deallocate(timePenaltyMpi)
+    deallocate(headerIndexSorted)
+
+    ! Update local copy of valid from global mpi version
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    deallocate(validMpi)
+
+    countObs = count(valid)
+    call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
+    write(*,*) 'thn_byDistance: number of obs after thinning = ', &
+               countObs, countObsOutMpi
+
+    ! Modify the flags and count number of obs kept
+    HEADER2: do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) /= trim(dataSet)) cycle HEADER2
+
+      if (.not. valid(headerIndex)) then
+        ! do not keep this obs: set bit 11 and jump to the next obs
+        call obs_set_current_body_list(obsData, headerIndex)
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsData)
+          if (bodyIndex < 0) exit BODY
+          call flg_setFlag(obsData, bodyIndex, flg_11rejSelect)
+        end do BODY
+      end if
+
+    end do HEADER2
+
+    ! Deallocation
+    deallocate(valid)
+
+    call mmpi_allReduce(badTimeCount,   badTimeCountMpi,   mmpi_sum)
+
+    write(*,*)
+    write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
+    write(*,'(a50,i10)') 'Total number of rejected/thinned obs = ', countObsInMpi - countObsOutMpi
+    write(*,'(a50,i10)') 'Number of output obs                 = ', countObsOutMpi
+    write(*,*)
+    write(*,*)
+    write(*,'(a60,4i10)') 'Number of rejects outside time window, thinning ', &
+         badTimeCountMpi, &
+         countObsInMpi - countObsOutMpi - badTimeCountMpi
+
+    write(*,*)
+    write(*,*) 'thn_byDistance: Finished'
+    write(*,*)
+
+  end subroutine thn_byDistance
 
 end module thinning_mod
