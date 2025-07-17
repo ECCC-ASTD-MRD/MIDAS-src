@@ -114,7 +114,7 @@ contains
   ! gpos_getPosXY_scalar
   !---------------------------------------------------------
   function gpos_getPosXY_scalar(gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
-                                lat_deg_r4, lon_deg_r4, subGridIndex) result(ierr)
+                                lat_deg_r4, lon_deg_r4, subGridIndex, maxGridSpacing_opt) result(ierr)
     !
     ! :Purpose: Compute the grid XY position from a lat-lon. This
     !           simply calls the ezsint routine gdxyfll for simple grids. For
@@ -133,6 +133,7 @@ contains
     real(4), intent(in)  :: lat_deg_r4
     real(4), intent(in)  :: lon_deg_r4
     integer, intent(out) :: subGridIndex
+    real(8), optional, intent(in) :: maxGridSpacing_opt
     ! Result:
     integer :: ierr  ! returned value of function
 
@@ -156,7 +157,11 @@ contains
       if (grtyp == 'Y') then
 
         !$omp critical
-        ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+        if (present(maxGridSpacing_opt)) then
+          ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, maxGridSpacing_opt)
+        else
+          ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
+        end if
         !$omp end critical
 
       else
@@ -313,7 +318,7 @@ contains
   !---------------------------------------------------------
   ! gpos_xyfll_unstructGrid
   !---------------------------------------------------------
-  function gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4) result(ierr)
+  function gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, maxGridSpacing_opt) result(ierr)
 
     ! :Purpose: This function is used to interpolate from a RPN grid to a location
     !           specified by a latitude and longitude.
@@ -329,6 +334,7 @@ contains
     real(4), intent(in)  :: lon_deg_r4
     real(4), intent(out) :: xpos_r4    ! the x-position in the grid units, in[1,ni]
     real(4), intent(out) :: ypos_r4    ! the y-position in the grid units, in[1,nj]
+    real(8), optional, intent(in) :: maxGridSpacing_opt
     ! Result:
     integer :: ierr  ! returned value of function
 
@@ -375,7 +381,11 @@ contains
       startYIndex = 1
       endXIndex = ni
       endYIndex = nj
-      maxGridSpacing = 10000.0
+      if (present(maxGridSpacing_opt)) then
+        maxGridSpacing = real(maxGridSpacing_opt,4)
+      else
+        maxGridSpacing = 10000.0
+      end if
 
       if (allocated(grid_lat_rad)) deallocate(grid_lat_rad, grid_lon_rad)
       allocate(grid_lat_rad(ni, nj), grid_lon_rad(ni, nj))
