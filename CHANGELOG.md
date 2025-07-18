@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Added ability to use SLSTR observations for SST (#1080 and !1010)
+ * Sea ice data thinning (#1083 and !1009)
  * Added initial support for forecasts on pressure levels (#668 and !1005)
  * Added ability to compute superobs for SST satellite observations (#1089 and !1003)
    * Results affected by bug fix for SST satellite data thinning
