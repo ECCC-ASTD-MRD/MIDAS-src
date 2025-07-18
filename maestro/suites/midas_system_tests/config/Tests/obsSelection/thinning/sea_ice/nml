@@ -4,12 +4,11 @@
   doThinning = .true.
 /
  &thin_ice
-  thinningTechnique = 'grid-based'
-  gridFileName = 'NH_25KM_EASE2.std'
-  deldist(1) = 58
-  deldist(2) = 58
-  deldist(3) = 50
-  deldist(4) = 22
+  thinningTechnique = 'distance-dependent'
+  deldist(1) = 25
+  deldist(2) = 25
+  deldist(3) = 25
+  deldist(4) = 25
   dataSet(1) = 'DMSP17'
   dataSet(2) = 'DMSP18'
   dataSet(3) = 'METOP-1'
@@ -27,17 +26,16 @@
   NLIST(1)=20095
 /
  &NAMDIMO
-  NMXOBS=2000000
-  NDATAMX=13000000
+  NMXOBS=500000
+  NDATAMX=3000000
 /
  &NAMSQLgl
-  listElem="12163,20095,21062"
+  listElem="20095,21062"
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
   itemUpdateBodyList(1)='OMP'
   itemUpdateBodyList(2)='OER'
-  itemUpdateBodyList(3)='HPHT'
 /
  &NAMSQLCLEAN
   vacuum = .true.
