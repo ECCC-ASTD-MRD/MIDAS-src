@@ -600,6 +600,7 @@ contains
     namePrefix(108) = 'obssst_pseudo'
     namePrefix(109) = 'obssst'
     namePrefix(110) = 'obsgl_rcm'
+    namePrefix(111) = 'obssst_slstr'
 
     familyName(:)   = ''
     familyName( 1)  = 'TO'
@@ -712,6 +713,7 @@ contains
     familyName(108) = 'TM'
     familyName(109) = 'TM'
     familyName(110) = 'GL'
+    familyName(111) = 'TM'
 
     obsDirectory = 'obs'
 
