@@ -21,9 +21,14 @@ module physicsFunctions_mod
   public :: phf_FOEWI8_CMAM, phf_FODLE8_CMAM, phf_FOQST8_CMAM, phf_FOTW8_CMAM, phf_FOTI8_CMAM, phf_FODTW8_CMAM
   public :: phf_FODTI8_CMAM, phf_FOTWI8_CMAM, phf_FODTWI8_CMAM, phf_FQBRANCH, phf_FOEFQL, phf_fotvvl, phf_FOEFQA
   public :: phf_FOEFQPSA, phf_fottva, phf_folnqva
-  public :: phf_convertZtoPressure,phf_convertZtoGZ
+  public :: phf_convertZtoPressure, phf_convertZtoGZ, phf_convertGZtoZ 
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
+
+  interface phf_convertGZtoZ
+    module procedure convertGZtoZ_r8
+    module procedure convertGZtoZ_r4
+  end interface phf_convertGZtoZ
 
   logical           :: phf_initialized = .false.
 
@@ -931,6 +936,82 @@ module physicsFunctions_mod
     rgz = (ec_rg/9.8) * (1.0d0-2.64d-03*cos(2.0d0*lat)+5.9d-6*cos(2.0d0*lat)**2) * ec_ra*altitude/(ec_ra+altitude)
 
   end function phf_convertZtoGZ
+
+  !--------------------------------------------------------------------------
+  ! convertGZtoZ_r8
+  !--------------------------------------------------------------------------
+  function convertGZtoZ_r8(rgz,lat,nlev) result(altitude)
+    !          
+    !:Purpose: Convert geopotential heights to altitudes. Real(8) version. 
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nlev      ! number of levels
+    real(8), intent(in) :: rgz(nlev) ! geopotential heights (m)
+    real(8), intent(in) :: lat       ! latitude (rad)
+    ! Result:
+    real(8) :: altitude(nlev)        ! altitudes (m)
+
+    ! Locals:
+    real(8) :: sLat
+    real(8) :: coefA, coefB, coefC, coefD, coefE, coefF
+    real(8) :: gravity0, gravity1, gravity2
+
+    sLat = sin(lat)
+
+    gravity0 = phf_gravitysrf(sLat)
+    gravity1 = gravity0*(-2.d0/ec_wgs_a*(1.d0+ec_wgs_f+ec_wgs_m-2.d0*ec_wgs_f*sLat**2))
+    gravity2 = gravity0*(3.d0/ec_wgs_a**2)
+          
+    coefA = gravity0 / ec_rg
+    coefB = gravity1 / (2.d0*ec_rg)
+    coefC = gravity2 / (3.d0*ec_rg)
+    coefD = 1.d0/coefA
+    coefE = -coefB/coefA**3
+    coefF = (2.d0*coefB**2-coefA*coefC)/coefA**5
+
+    altitude(:) = coefD*rgz(:) + coefE*rgz(:)**2 + coefF*rgz(:)**3
+    
+  end function convertGZtoZ_r8
+
+  !--------------------------------------------------------------------------
+  ! convertGZtoZ_r4
+  !--------------------------------------------------------------------------
+  function convertGZtoZ_r4(rgz,lat,nlev) result(altitude)
+    !          
+    !:Purpose: Convert geopotential heights to altitudes. Real(4) version. 
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nlev      ! number of levels
+    real(4), intent(in) :: rgz(nlev) ! geopotential heights (m)
+    real(4), intent(in) :: lat       ! latitude (rad)
+    ! Result:
+    real(4) :: altitude(nlev)        ! altitudes (m)
+
+    ! Locals:
+    real(8) :: sLat
+    real(4) :: coefA, coefB, coefC, coefD, coefE, coefF
+    real(4) :: gravity0, gravity1, gravity2
+
+    sLat = real(sin(lat),8)
+
+    gravity0 = real(phf_gravitysrf(sLat),4)
+    gravity1 = gravity0*real(-2.d0/ec_wgs_a*(1.d0+ec_wgs_f+ec_wgs_m-2.d0*ec_wgs_f*sLat**2),4)
+    gravity2 = gravity0*real(3.d0/ec_wgs_a**2,4)
+
+    coefA = gravity0 / real(ec_rg,4)
+    coefB = gravity1 / real(2.d0*ec_rg,4)
+    coefC = gravity2 / real(3.d0*ec_rg,4)
+    coefD = 1.0/coefA
+    coefE = -coefB/coefA**3
+    coefF = (2.0*coefB**2-coefA*coefC)/coefA**5
+
+    altitude(:) = coefD*rgz(:) + coefE*rgz(:)**2 + coefF*rgz(:)**3
+
+  end function convertGZtoZ_r4
 
   !--------------------------------------------------------------------------
   ! phf_calcTropopause

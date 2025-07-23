@@ -477,12 +477,40 @@ contains
     real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals:
-    integer ::  numStep, stepIndex
-    real(kind=8), pointer       :: Hsfc(:,:), HsfcLS(:,:)
-    real(kind=4), allocatable   :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
-    real(kind=4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
+
+    call calcGeopotHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
+    call gz2alt_gsv_r4(statevector, Z_T, .true.)
+    call gz2alt_gsv_r4(statevector, Z_M, .true.)
+
+    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
+
+  end subroutine calcHeight_gsv_nl_vcode2100x_r4
+
+  !---------------------------------------------------------
+  ! calcGeopotHeight_gsv_nl_vcode2100x_r4
+  !---------------------------------------------------------
+  subroutine calcGeopotHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
+    !
+    ! :Purpose: Retrieve geopotential heights for GEM-H statevector, return height values 
+    !           in pointer arguments.
+    !           real(4) version
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),  intent(in)    :: statevector
+    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:)
+    real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
+
+    ! Locals:
+    integer ::  numStep, stepIndex
+    real(8), pointer       :: Hsfc(:,:), HsfcLS(:,:)
+    real(4), allocatable   :: Hsfc_r4(:,:), HsfcLS_r4(:,:)
+    real(4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+
+    call msg('calcGeopotHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
     allocate(Hsfc_r4(statevector%myLonBeg:statevector%myLonEnd, &
                      statevector%myLatBeg:statevector%myLatEnd))
@@ -506,78 +534,65 @@ contains
         call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc_r4, & 
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       end if
-      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out, skipDiagLevel=.true.)
-      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out, skipDiagLevel=.true.)
+      Z_M(:,:,:,stepIndex) = GZHeightM_out(:,:,:)
+      Z_T(:,:,:,stepIndex) = GZHeightT_out(:,:,:)
       deallocate(GZHeightM_out, GZHeightT_out)
 
     end do
 
     deallocate(Hsfc_r4)
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
-  end subroutine calcHeight_gsv_nl_vcode2100x_r4
-
+    call msg('calcGeopotHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
+  end subroutine calcGeopotHeight_gsv_nl_vcode2100x_r4
+  
   !---------------------------------------------------------
-  ! gz2alt_r4
+  ! gz2alt_gsv_r4
   !---------------------------------------------------------
-  function gz2alt_r4(statevector, gzHeight, skipDiagLevel) result(alt)
+  subroutine gz2alt_gsv_r4(statevector, Z_MT, skipDiagLevel)
     !
     ! :Purpose: Conversion of geopotential height to geometric
-    !           altitude.  (solution proposed by J. Aparicio)
-    !           real(4) version.
+    !           altitude.
+    !           real(4) version
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),      intent(in)   :: statevector
-    real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
-    logical,               intent(in)   :: skipDiagLevel
-    ! Result:
-    real(kind=4), allocatable           :: alt(:,:,:)
+    type(struct_gsv),  intent(in)    :: statevector
+    real(4), pointer,  intent(inout) :: Z_MT(:,:,:,:)
+    logical, intent(in)              :: skipDiagLevel
 
     ! Locals:
-    integer                             :: nLon, nLat, nLev
-    type(struct_hco), pointer           :: hco
-    real(kind=4)                        :: latitude
-    real(kind=4)                        :: gzH, b1, b2, A2, A3
-    integer                             :: lonIndex, latIndex, levIndex, levEnd
+    type(struct_hco), pointer   :: hco
+    real(4), allocatable        :: gzH(:)
+    real(4)                     :: latitude
+    integer                     :: nLev, levEnd
+    integer                     :: lonIndex, latIndex, stepIndex
     
-    ! gzHeight comes from external `vgd_levels` which does not know the
-    ! mpi shifted indexes
-    nLon = ubound(gzHeight, 1)
-    nLat = ubound(gzHeight, 2)
-    nLev = ubound(gzHeight, 3)
-    allocate(alt(nLon, nLat, nLev))
-
     hco => gsv_getHco(statevector)
-
+    nLev = ubound(Z_MT, 3)
+    
     if (skipDiagLevel) then
       ! To mimic the legacy approach in calcHeight_gsv_nl_vcode5xxx
-      alt(:,:,nLev) = gzHeight(:,:,nLev)
       levEnd = nLev -1
     else
       levEnd = nLev
     end if
 
-    do lonIndex = 1, nLon
-      do latIndex = 1, nLat
-        do levIndex = 1, levEnd
-          ! explicit shift of indexes
-          latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
-                                  latIndex+statevector%myLatBeg-1)
-          gzH = gzHeight(lonIndex, latIndex, levIndex)
-          ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-          b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
-          b2 = 3.0/ec_wgs_a**2
-          ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
-          A2 = -b1/2.0
-          A3 = b1**2/2.0 - b2/3.0
-          alt(lonIndex, latIndex, levIndex) = gzH + A2*gzH**2 + A3*gzH**3
+    allocate(gzH(levEnd))
+    
+    do stepIndex = 1, statevector%numStep
+      do latIndex = statevector%myLatBeg, statevector%myLatEnd
+        do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+          latitude = hco%lat2d_4(lonIndex,latIndex)
+          gzH(:) = Z_MT(lonIndex, latIndex, 1:levEnd, stepIndex)
+          Z_MT(lonIndex, latIndex, 1:levEnd, stepIndex) = phf_convertGZtoZ(gzH,latitude,levEnd)
         end do
       end do
     end do
 
-  end function gz2alt_r4
+    deallocate(gzH)
+
+  end subroutine gz2alt_gsv_r4
 
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r8
@@ -596,11 +611,38 @@ contains
     real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals:
-    integer ::  numStep, stepIndex
-    real(kind=8), pointer   :: Hsfc(:,:), HsfcLS(:,:)
-    real(kind=8), pointer   :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
     
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
+
+    call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
+    call gz2alt_gsv_r8(statevector, Z_T, .true.)
+    call gz2alt_gsv_r8(statevector, Z_M, .true.)
+
+    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
+  end subroutine calcHeight_gsv_nl_vcode2100x_r8
+
+  !---------------------------------------------------------
+  ! calcGeopotHeight_gsv_nl_vcode2100x_r8
+  !---------------------------------------------------------
+  subroutine calcGeopotHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
+    !
+    ! :Purpose: Retrieve geopotential heights for GEM-H statevector, return height values 
+    !           in pointer arguments.
+    !           real(8) version
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),  intent(in)    :: statevector
+    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:)
+    real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
+
+    ! Locals:
+    integer ::  numStep, stepIndex
+    real(8), pointer   :: Hsfc(:,:), HsfcLS(:,:)
+    real(8), pointer   :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+    
+    call msg('calcGeopotHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
     Hsfc => gsv_getHeightSfc(statevector)
     numStep = statevector%numStep
@@ -614,76 +656,63 @@ contains
         call fetch3DLevels_r8(gsv_getVco(statevector), sfcFld=Hsfc, &
                               fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       end if
-      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out, skipDiagLevel=.true.)
-      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out, skipDiagLevel=.true.)
+      Z_M(:,:,:,stepIndex) = GZHeightM_out(:,:,:)
+      Z_T(:,:,:,stepIndex) = GZHeightT_out(:,:,:)
       deallocate(GZHeightM_out, GZHeightT_out)
 
     end do
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
-  end subroutine calcHeight_gsv_nl_vcode2100x_r8
-
+    call msg('calcGeopotHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
+  end subroutine calcGeopotHeight_gsv_nl_vcode2100x_r8
+  
   !---------------------------------------------------------
-  ! gz2alt_r8
+  ! gz2alt_gsv_r8
   !---------------------------------------------------------
-  function gz2alt_r8(statevector, gzHeight, skipDiagLevel) result(alt)
+  subroutine gz2alt_gsv_r8(statevector, Z_MT, skipDiagLevel)
     !
     ! :Purpose: Conversion of geopotential height to geometric
-    !           altitude.  (solution proposed by J. Aparicio)
-    !           real(8) version.
+    !           altitude.
+    !           real(8) version
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),      intent(in)   :: statevector
-    real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
-    logical, optional, intent(in)       :: skipDiagLevel
-    ! Result:
-    real(kind=8), allocatable           :: alt(:,:,:)
+    type(struct_gsv),      intent(in)    :: statevector
+    real(8), pointer, intent(inout) :: Z_MT(:,:,:,:)
+    logical, intent(in)                  :: skipDiagLevel
 
     ! Locals:
-    integer                             :: nLon, nLat, nLev
-    type(struct_hco), pointer           :: hco
-    real(kind=8)                        :: latitude
-    real(kind=8)                        :: gzH, b1, b2, A2, A3
-    integer                             :: lonIndex, latIndex, levIndex, levEnd
-
-    ! gzHeight comes from external `vgd_levels` which does not know the
-    ! mpi shifted indexes
-    nLon = ubound(gzHeight, 1)
-    nLat = ubound(gzHeight, 2)
-    nLev = ubound(gzHeight, 3)
-    allocate(alt(nLon, nLat, nLev))
+    type(struct_hco), pointer            :: hco
+    real(8), allocatable            :: gzH(:)
+    real(8)                         :: latitude
+    integer                              :: nLev, levEnd
+    integer                              :: lonIndex, latIndex, stepIndex
 
     hco => gsv_getHco(statevector)
-
+    nLev = ubound(Z_MT, 3)
+    
     if (skipDiagLevel) then
       ! To mimic the legacy approach in calcHeight_gsv_nl_vcode5xxx
-      alt(:,:,nLev) = gzHeight(:,:,nLev)
       levEnd = nLev -1
     else
       levEnd = nLev
     end if
+
+    allocate(gzH(levEnd))
     
-    do lonIndex = 1, nLon
-      do latIndex = 1, nLat
-        do levIndex = 1, levEnd
-          ! explicit shift of indexes
-          latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
-                                  latIndex+statevector%myLatBeg-1)
-          gzH = gzHeight(lonIndex, latIndex, levIndex)
-          ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-          b1 = -2.0D0/ec_wgs_a*(1.0D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
-          b2 = 3.0D0/ec_wgs_a**2
-          ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
-          A2 = -b1/2.0D0
-          A3 = b1**2/2.0D0 - b2/3.0D0
-          alt(lonIndex, latIndex, levIndex) = gzH + A2*gzH**2 + A3*gzH**3
+    do stepIndex = 1, statevector%numStep
+      do latIndex = statevector%myLatBeg, statevector%myLatEnd
+        do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+          latitude = real(hco%lat2d_4(lonIndex,latIndex),8)
+          gzH(:) = Z_MT(lonIndex, latIndex, 1:levEnd, stepIndex)
+          Z_MT(lonIndex, latIndex, 1:levEnd, stepIndex) = phf_convertGZtoZ(gzH,latitude,levEnd)
         end do
       end do
     end do
 
-  end function gz2alt_r8
+    deallocate(gzH)
+
+  end subroutine gz2alt_gsv_r8
 
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode5xxx
@@ -1727,8 +1756,6 @@ contains
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r4_opt=ptr_ZT_r4, &
-                                            ZMin_r4_opt=ptr_ZM_r4, &
                                             PTout_r4_opt=ptr_PT_r4, &
                                             PMout_r4_opt=ptr_PM_r4)
       else
@@ -1737,8 +1764,6 @@ contains
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r8_opt=ptr_ZT_r8, &
-                                            ZMin_r8_opt=ptr_ZM_r8, &
                                             PTout_r8_opt=ptr_PT_r8, &
                                             PMout_r8_opt=ptr_PM_r8)
       end if
@@ -1817,8 +1842,6 @@ contains
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r4_opt=ZTin_r4_opt, &
-                                            ZMin_r4_opt=ZMin_r4_opt, &
                                             PTout_r4_opt=PTout_r4_opt, &
                                             PMout_r4_opt=PMout_r4_opt)
       else ! datakind = 8
@@ -1829,8 +1852,6 @@ contains
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r8_opt=ZTin_r8_opt, &
-                                            ZMin_r8_opt=ZMin_r8_opt, &
                                             PTout_r8_opt=PTout_r8_opt, &
                                             PMout_r8_opt=PMout_r8_opt)
       end if
@@ -1844,8 +1865,6 @@ contains
   ! calcPressure_gsv_nl_vcode2100x
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r4_opt, ZMin_r4_opt, &
-                                            ZTin_r8_opt, ZMin_r8_opt, &
                                             PTout_r4_opt, PMout_r4_opt, &
                                             PTout_r8_opt, PMout_r8_opt)
     !
@@ -1856,10 +1875,6 @@ contains
 
     ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
-    real(4), pointer, optional, intent(in)    :: ZTin_r4_opt(:,:,:,:)
-    real(4), pointer, optional, intent(in)    :: ZMin_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: ZTin_r8_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: ZMin_r8_opt(:,:,:,:)
     real(4), pointer, optional, intent(inout) :: PTout_r4_opt(:,:,:,:)
     real(4), pointer, optional, intent(inout) :: PMout_r4_opt(:,:,:,:)
     real(8), pointer, optional, intent(inout) :: PTout_r8_opt(:,:,:,:)
@@ -1912,15 +1927,17 @@ contains
       call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): addHeightSfcOffset cannot be .false. for vcode2100x')
     end if
 
-    allocate(pressure_T(nlev_T))
-    allocate(pressure_M(nlev_M))
-
+    !
+    !- Compute geopotential heights and set pointers
+    !
     if ( statevector%dataKind == 4 ) then
-      if ( .not. (present(ZTin_r4_opt) .and. present(ZMin_r4_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: Z{T,M}in_r4_opt expected')
-      end if
-      height_T_ptr_r4 => ZTin_r4_opt
-      height_M_ptr_r4 => ZMin_r4_opt
+      allocate(height_T_ptr_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               nlev_T, statevector%numStep))
+      allocate(height_M_ptr_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               nlev_M, statevector%numStep))
+      call calcGeopotHeight_gsv_nl_vcode2100x_r4(statevector, height_T_ptr_r4, height_M_ptr_r4)
 
       if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
         call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: P{T,M}out_r4_opt expected')
@@ -1931,15 +1948,17 @@ contains
       call gsv_getField(statevector,tt_ptr_r4,'TT')
       call gsv_getField(statevector,P0_ptr_r4,'P0')
       
-      ! initialize the pressure pointer to zero
+      ! Initialize the pressure pointer to zero
       P_M_ptr_r4(:,:,:,:) = 0.0
       P_T_ptr_r4(:,:,:,:) = 0.0
     else ! datakind = 8
-      if ( .not. (present(ZTin_r8_opt) .and. present(ZMin_r8_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: Z{T,M}in_r8_opt expected')
-      end if
-      height_T_ptr_r8 => ZTin_r8_opt
-      height_M_ptr_r8 => ZMin_r8_opt
+      allocate(height_T_ptr_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               nlev_T, statevector%numStep))
+      allocate(height_M_ptr_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               nlev_M, statevector%numStep))
+      call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevector, height_T_ptr_r8, height_M_ptr_r8)
 
       if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
         call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=8: P{T,M}_r8_opt expected')
@@ -1950,15 +1969,21 @@ contains
       call gsv_getField(statevector,tt_ptr_r8,'TT')
       call gsv_getField(statevector,P0_ptr_r8,'P0')
       
-      ! initialize the pressure pointer to zero
+      ! Initialize the pressure pointer to zero
       P_M_ptr_r8(:,:,:,:) = 0.0d0
       P_T_ptr_r8(:,:,:,:) = 0.0d0
     end if
     HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
+    allocate(pressure_T(nlev_T))
+    allocate(pressure_M(nlev_M))
+
+    !
+    !- Convert geopotential heights to pressure
+    !
     ! Development notes (@mad001)
     !   if feasible, consider reusing the same code for both 
-    !   `calcPressure_{gsv,col}_nl_vcode2100x`
+    !   `calcPressure_{gsv,col}_nl_vcode2100x`   
     do_computePressure_gsv_nl: do stepIndex = 1, numStep
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -1998,7 +2023,7 @@ contains
           cmp = gpscompressibility(P0,tt,hu) 
           tv(nlev_T) = tv0*cmp
           dh = Z_T - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
           ! momentum diagnostic level
@@ -2008,7 +2033,7 @@ contains
             Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
           end if
           dh = Z_M - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
           ! compute pressure on all levels above except the last 
@@ -2029,7 +2054,7 @@ contains
             end if
             tv0 = phf_fotvt8(tt,hu)
             dh = Z_M - Z_M1
-            Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+            Rgh = ec_rg
 
             ! approximation of tv from pressure on previous momentum level
             cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu) 
@@ -2074,6 +2099,13 @@ contains
       end do ! latIndex
     end do do_computePressure_gsv_nl
 
+    if ( statevector%dataKind == 4 ) then
+      deallocate(height_T_ptr_r4)
+      deallocate(height_M_ptr_r4)
+    else
+      deallocate(height_T_ptr_r8)
+      deallocate(height_M_ptr_r8)
+    end if
     deallocate(pressure_T)
     deallocate(pressure_M)
     deallocate(tv)
@@ -2097,10 +2129,10 @@ contains
     real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
 
     ! Locals:
-    real(kind=8), allocatable   :: Psfc(:,:), PsfcLS(:,:)
-    real(kind=8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
-    integer                     :: stepIndex, numStep, Vcode
+    real(8), allocatable   :: Psfc(:,:), PsfcLS(:,:)
+    real(8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
+    real(8), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
+    integer                :: stepIndex, numStep, Vcode
 
     call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'START', verb_opt=4)
 
@@ -2157,10 +2189,10 @@ contains
     real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
 
     ! Locals:
-    real(kind=4), allocatable   :: Psfc(:,:), PsfcLS(:,:)
-    real(kind=4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
-    real(kind=4), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
-    integer                     :: stepIndex, numStep, Vcode
+    real(4), allocatable   :: Psfc(:,:), PsfcLS(:,:)
+    real(4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
+    real(4), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
+    integer                :: stepIndex, numStep, Vcode
 
     call msg('calcPressure_gsv_nl_vcode5xxx_r4 (czp)', 'START', verb_opt=4)
 
@@ -2233,9 +2265,6 @@ contains
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
-      end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
@@ -2301,6 +2330,14 @@ contains
         allocate(delP_T(nlev_T))
         allocate(delP_M(nlev_M))
 
+        allocate(Z_T_ptr(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
+                         nlev_T, numStep))
+        allocate(Z_M_ptr(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
+                         nlev_M, numStep))
+        call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevectorRef, Z_T_ptr, Z_M_ptr)
+        
         nullify(deltt_ptr_r48)
         nullify(delhu_ptr_r48)
         nullify(delP_T_ptr_r48)
@@ -2310,8 +2347,6 @@ contains
         nullify(hu_ptr)
         nullify(P_T_ptr)
         nullify(P_M_ptr)
-        nullify(Z_T_ptr)
-        nullify(Z_M_ptr)
         nullify(Psfc_ptr)
         nullify(HeightSfc_ptr)
         
@@ -2324,8 +2359,6 @@ contains
         call gsv_getField(statevectorRef,hu_ptr,'HU')
         call gsv_getField(statevectorRef,P_T_ptr,'P_T')
         call gsv_getField(statevectorRef,P_M_ptr,'P_M')
-        call gsv_getField(statevectorRef,Z_T_ptr,'Z_T')
-        call gsv_getField(statevectorRef,Z_M_ptr,'Z_M')
         call gsv_getField(statevectorRef,Psfc_ptr,'P0')
 
         heightSfc_ptr => gsv_getHeightSfc(statevectorRef)
@@ -2378,14 +2411,14 @@ contains
               
               ! Thermo diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
               dh = Z_T - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              Rgh = ec_rg
               delP_delP0 = p_T/P0
               delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
               delP_T(nlev_T) = delP0*delP_delP0 + delTV*delP_delTV
 
               ! Momentum diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
               dh = Z_M - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              Rgh = ec_rg
               delP_delP0 = p_M/P0
               delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
               delP_M(nlev_M) = delP0*delP_delP0 + delTV*delP_delTV
@@ -2409,7 +2442,7 @@ contains
                 cmp = gpscompressibility(P_M1,tt,hu) 
                 tv  = tv0*cmp
                 dh  = Z_M - Z_M1
-                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+                Rgh = ec_rg
                 scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
                 
                 delTV0delTT  = 1.0D0 + MPC_DELTA_R8*hu
@@ -2450,9 +2483,11 @@ contains
           end do ! latIndex
         end do do_computePressure_gsv_tl
 
+        deallocate(Z_T_ptr)
+        deallocate(Z_M_ptr)
         deallocate(delP_M)
         deallocate(delP_T)
-        
+
         call msg('calcPressure_gsv_tl_vcode2100x (czp)', 'END', verb_opt=4)
         
       end subroutine calcPressure_gsv_tl_vcode2100x
@@ -2620,9 +2655,6 @@ contains
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
-      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
-      end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
         call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
@@ -2688,6 +2720,14 @@ contains
         allocate(delP_T(nlev_T))
         allocate(delP_M(nlev_M))
 
+        allocate(Z_T_ptr(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
+                         nlev_T, numStep))
+        allocate(Z_M_ptr(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
+                         statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
+                         nlev_M, numStep))
+        call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevectorRef, Z_T_ptr, Z_M_ptr)
+
         nullify(deltt_ptr_r48)
         nullify(delhu_ptr_r48)
         nullify(delP_T_ptr_r48)
@@ -2697,8 +2737,6 @@ contains
         nullify(hu_ptr)
         nullify(P_T_ptr)
         nullify(P_M_ptr)
-        nullify(Z_T_ptr)
-        nullify(Z_M_ptr)
         nullify(Psfc_ptr)
         nullify(heightSfc_ptr)
         
@@ -2711,8 +2749,6 @@ contains
         call gsv_getField(statevectorRef,hu_ptr,'HU')
         call gsv_getField(statevectorRef,P_T_ptr,'P_T')
         call gsv_getField(statevectorRef,P_M_ptr,'P_M')
-        call gsv_getField(statevectorRef,Z_T_ptr,'Z_T')
-        call gsv_getField(statevectorRef,Z_M_ptr,'Z_M')
         call gsv_getField(statevectorRef,Psfc_ptr,'P0')
 
         heightSfc_ptr => gsv_getHeightSfc(statevectorRef)
@@ -2750,7 +2786,7 @@ contains
                 cmp = gpscompressibility(P_M1,tt,hu) 
                 tv  = tv0*cmp
                 dh  = Z_M - Z_M1
-                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+                Rgh = ec_rg
                 scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
 
                 delTV0delTT  = 1.0D0 + MPC_DELTA_R8*hu
@@ -2815,7 +2851,7 @@ contains
               
               ! Momentum diagnostic level
               dh = Z_M - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              Rgh = ec_rg
               delP_delP0 = p_M/P0
               delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
               delP0 = delP_M(nlev_M)*delP_delP0
@@ -2823,7 +2859,7 @@ contains
 
               ! Thermo diagnostic level
               dh = Z_T - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              Rgh = ec_rg
               delP_delP0 = p_T/P0
               delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
               delP0 = delP0 + delP_T(nlev_T)*delP_delP0
@@ -3202,9 +3238,6 @@ contains
     real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Locals:
-    real(8), allocatable  :: hSfc(:,:), hSfcLS(:,:)
-    real(8), pointer      :: hPtrM(:,:,:), hPtrT(:,:,:)
-    integer :: numCol, colIndex
     
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -3212,7 +3245,40 @@ contains
            'END (number of columns <= 0)', verb_opt=2)
       return
     end if
+    
+    call calcGeopotHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+    call gz2alt_col(column, Z_T, .true.)
+    call gz2alt_col(column, Z_M, .true.)
+    
+    call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
+  end subroutine calcHeight_col_nl_vcode2100x
 
+  !---------------------------------------------------------
+  ! calcGeopotHeight_col_nl_vcode2100x
+  !---------------------------------------------------------
+  subroutine calcGeopotHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+    !
+    ! :Purpose: Return geopotential heights on a GEM-H column.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
+
+    ! Locals:
+    real(8), allocatable  :: hSfc(:,:), hSfcLS(:,:)
+    real(8), pointer      :: hPtrM(:,:,:), hPtrT(:,:,:)
+    integer :: numCol, colIndex
+    
+    call msg('calcGeopotHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
+    if ( col_getNumCol(column) <= 0 ) then
+      call msg('calcHeight_col_nl_vcode2100x (czp)',&
+           'END (number of columns <= 0)', verb_opt=2)
+      return
+    end if
+    
     numCol = col_getNumCol(column)
     allocate(hSfc(1, numCol))
     do colIndex = 1, numCol
@@ -3237,9 +3303,52 @@ contains
     deallocate(hPtrM, hPtrT)
 
     deallocate(hSfc)
-    call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
-  end subroutine calcHeight_col_nl_vcode2100x
+    call msg('calcGeopotHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
+  end subroutine calcGeopotHeight_col_nl_vcode2100x
 
+  !---------------------------------------------------------
+  ! gz2alt_col
+  !---------------------------------------------------------
+  subroutine gz2alt_col(column, Z_MT, skipDiagLevel)
+    !
+    ! :Purpose: Conversion of geopotential height to geometric
+    !           altitude.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData),  intent(in) :: column        ! reference column containing temperature and geopotential
+    real(8), pointer,  intent(inout)     :: Z_MT(:,:)     ! computed column height values on thermo or momentum levels
+    logical, intent(in)                  :: skipDiagLevel ! option to skip diagnotic level
+
+    ! Locals:
+    real(8), allocatable        :: gzH(:)
+    real(8)                     :: latitude
+    integer                     :: numCol, nLev, levEnd
+    integer                     :: colIndex
+    
+    numCol = col_getNumCol(column)
+    nLev = ubound(Z_MT, 1)
+    
+    if (skipDiagLevel) then
+      ! To mimic the legacy approach in calcHeight_col_nl_vcode5xxx
+      levEnd = nLev -1
+    else
+      levEnd = nLev
+    end if
+
+    allocate(gzH(levEnd))
+
+    do colIndex = 1, numCol
+      latitude = real(col_getLat(column, colIndex),8)
+      gzH(:) = Z_MT(1:levEnd, colIndex)
+      Z_MT(1:levEnd, colIndex) = phf_convertGZtoZ(gzH,latitude,levEnd)
+    end do
+
+    deallocate(gzH)
+
+  end subroutine gz2alt_col
+  
   !---------------------------------------------------------
   ! calcHeight_col_nl_vcode5xxx
   !---------------------------------------------------------
@@ -4030,8 +4139,6 @@ contains
     ! Development notes (@mad001)
     !   if feasible, consider reusing the same code for both 
     !   `calcPressure_{gsv,col}_nl_vcode2100x`
-    !   (@mab001) Also should remove need for `Z_T/M` to be allocated in column
-    !   and use local array instead.
 
     ! Arguments:
     type(struct_columnData),  intent(in)    :: column   ! reference column
@@ -4040,6 +4147,7 @@ contains
 
     ! Locals:
     real(8), allocatable  :: tv(:)
+    real(8), pointer      :: Z_T_ptr(:,:), Z_M_ptr(:,:)
     integer :: numCol, nLev_T, nLev_M
     integer :: colIndex, lev_T, lev_M
     real(8) :: lat, sLat
@@ -4048,11 +4156,21 @@ contains
     real(8) :: Z_T, Z_M, Z_M1
 
     call msg('calcPressure_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
-
+    
     numCol = col_getNumCol(column)
     nLev_M = col_getNumLev(column, 'MM')
     nLev_T = col_getNumLev(column, 'TH')
 
+    !
+    !- Compute geopotential heights
+    !
+    allocate(Z_T_ptr(nLev_T,numCol))
+    allocate(Z_M_ptr(nLev_M,numCol))
+    call calcGeopotHeight_col_nl_vcode2100x(column, Z_T_ptr, Z_M_ptr)
+
+    !
+    !- Convert geopotential heights to pressure
+    !
     allocate(tv(nLev_T))
 
     do_onAllcolumns: do colIndex = 1, col_getNumCol(column)
@@ -4070,17 +4188,17 @@ contains
       tv0 = phf_fotvt8(tt,hu)
 
       ! thermo diagnostic level
-      Z_T = col_getHeight(column, nLev_T, colIndex, 'TH')
+      Z_T = Z_T_ptr(nLev_T,colIndex)
       cmp = gpscompressibility(P0,tt,hu)
       tv(nlev_T) = tv0*cmp
       dh = Z_T - rMT
-      Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+      Rgh = ec_rg
       P_T(nlev_T, colIndex) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
       ! momentum diagnostic level
-      Z_M = col_getHeight(column,nLev_M,colIndex,'MM')
+      Z_M = Z_M_ptr(nLev_M,colIndex)
       dh = Z_M - rMT
-      Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+      Rgh = ec_rg
       P_M(nlev_M, colIndex) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
       call msg('calcPressure_col_nl_vcode2100x (czp)', &
@@ -4095,15 +4213,15 @@ contains
       ! compute pressure on all levels above except the last
       do lev_M = nlev_M-1, 1, -1
         lev_T = lev_M ! thermo level just below
-        hu   = col_getElem(  column, lev_T,   colIndex, 'HU')
-        tt   = col_getElem(  column, lev_T,   colIndex, 'TT')
-        Z_M  = col_getHeight(column, lev_M,   colIndex, 'MM')
-        Z_M1 = col_getHeight(column, lev_M+1, colIndex, 'MM')
-        Z_T  = col_getHeight(column, lev_T,   colIndex, 'TH')
+        hu   = col_getElem(column, lev_T,   colIndex, 'HU')
+        tt   = col_getElem(column, lev_T,   colIndex, 'TT')
+        Z_M  = Z_M_ptr(lev_M  ,colIndex)
+        Z_M1 = Z_M_ptr(lev_M+1,colIndex)
+        Z_T  = Z_T_ptr(lev_T  ,colIndex)
 
         tv0 = phf_fotvt8(tt,hu)
         dh = Z_M - Z_M1
-        Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+        Rgh = ec_rg
 
         ! approximation of tv from pressure on previous momentum level
         cmp = gpscompressibility(P_M(lev_M+1, colIndex),tt,hu)
@@ -4130,6 +4248,8 @@ contains
       end do
     end do do_onAllColumns
 
+    deallocate(Z_T_ptr)
+    deallocate(Z_M_ptr)
     deallocate(tv)
 
     call msg('calcPressure_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
@@ -4147,8 +4267,8 @@ contains
     real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
     ! Locals:
-    real(kind=8), allocatable :: Psfc(:,:), PsfcLS(:,:)
-    real(kind=8), pointer     :: zppobsM(:,:,:), zppobsT(:,:,:)
+    real(8), allocatable :: Psfc(:,:), PsfcLS(:,:)
+    real(8), pointer     :: zppobsM(:,:,:), zppobsT(:,:,:)
     integer :: headerIndex, Vcode
 
     call msg('calcPressure_col_nl_vcode5xxx (czp)', 'START', verb_opt=4)
@@ -4227,9 +4347,6 @@ contains
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
       end if
-      if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
-      end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variable TT must be allocated in column')
       end if
@@ -4254,7 +4371,7 @@ contains
         implicit none
 
         ! Locals:
-        integer ::  colIndex
+        integer ::  numCol, colIndex
         integer ::  lev_M, lev_T, nlev_M, nlev_T
  
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
@@ -4265,22 +4382,28 @@ contains
         real(8) ::  sLat, lat
         real(8) ::  scaleFactorBottom
 
+        real(8), pointer  :: Z_T_ptr(:,:), Z_M_ptr(:,:)
         real(8), pointer  :: delP_T_ptr(:,:), delP_M_ptr(:,:)
 
         real(8), allocatable :: delP_T(:), delP_M(:)
         
         call msg('calcPressure_col_tl_vcode2100x (czp)', 'START', verb_opt=4)
 
+        numCol = col_getNumCol(columnIncRef)
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
 
+        allocate(Z_T_ptr(nLev_T,numCol))
+        allocate(Z_M_ptr(nLev_M,numCol))
+        call calcGeopotHeight_col_nl_vcode2100x(columnIncRef, Z_T_ptr, Z_M_ptr)
+        
         allocate(delP_T(nlev_T))
         allocate(delP_M(nlev_M))
 
         delP_M_ptr => col_getAllColumns(columnInc,'P_M')
         delP_T_ptr => col_getAllColumns(columnInc,'P_T')
         
-        do_onAllcolumns: do colIndex = 1, col_getNumCol(columnInc)
+        do_onAllcolumns: do colIndex = 1, numCol
           
           delP_T(:) = 0.0D0
           delP_M(:) = 0.0D0
@@ -4299,8 +4422,8 @@ contains
           p_T = col_getElem(columnIncRef, nLev_T, colIndex, 'P_T')
           p_M = col_getElem(columnIncRef, nLev_M, colIndex, 'P_M')
           p0  = col_getElem(columnIncRef,      1, colIndex, 'P0')
-          Z_T = col_getElem(columnIncRef, nLev_T, colIndex, 'Z_T')
-          Z_M = col_getElem(columnIncRef, nLev_M, colIndex, 'Z_M')
+          Z_T = Z_T_ptr(nLev_T,colIndex)
+          Z_M = Z_M_ptr(nLev_M,colIndex)
  
           tv0 = phf_fotvt8(tt,hu)
           cmp = gpscompressibility(P0,tt,hu) 
@@ -4325,14 +4448,14 @@ contains
               
           ! Thermo diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
           dh = Z_T - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           delP_delP0 = p_T/P0
           delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
           delP_T(nlev_T) = delP0*delP_delP0 + delTV*delP_delTV
 
           ! Momentum diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
           dh = Z_M - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           delP_delP0 = p_M/P0
           delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
           delP_M(nlev_M) = delP0*delP_delP0 + delTV*delP_delTV
@@ -4345,9 +4468,9 @@ contains
  
             hu    = col_getElem(columnIncRef, lev_T  , colIndex, 'HU')
             tt    = col_getElem(columnIncRef, lev_T  , colIndex, 'TT')
-            Z_M   = col_getElem(columnIncRef, lev_M  , colIndex, 'Z_M')
-            Z_M1  = col_getElem(columnIncRef, lev_M+1, colIndex, 'Z_M')
-            Z_T   = col_getElem(columnIncRef, lev_T  , colIndex, 'Z_T')
+            Z_M   = Z_M_ptr(lev_M  ,colIndex)
+            Z_M1  = Z_M_ptr(lev_M+1,colIndex)
+            Z_T   = Z_T_ptr(lev_T  ,colIndex)
             P_M   = col_getElem(columnIncRef, lev_M  , colIndex, 'P_M')
             P_M1  = col_getElem(columnIncRef, lev_M+1, colIndex, 'P_M')
             P_T   = col_getElem(columnIncRef, lev_T  , colIndex, 'P_T')
@@ -4356,7 +4479,7 @@ contains
             cmp = gpscompressibility(P_M1,tt,hu) 
             tv  = tv0*cmp
             dh  = Z_M - Z_M1
-            Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+            Rgh = ec_rg
             scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
             
             delTV0delTT  = 1.0D0 + MPC_DELTA_R8*hu
@@ -4396,6 +4519,8 @@ contains
 
         end do do_onAllcolumns
 
+        deallocate(Z_T_ptr)
+        deallocate(Z_M_ptr)
         deallocate(delP_M)
         deallocate(delP_T)
         
@@ -4508,9 +4633,6 @@ contains
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
       end if
-      if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
-      end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
         call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variable TT must be allocated in column')
       end if
@@ -4535,7 +4657,7 @@ contains
         implicit none
 
         ! Locals:
-        integer ::  colIndex
+        integer ::  numCol, colIndex
         integer ::  lev_M, lev_T, nlev_M, nlev_T
  
         real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
@@ -4546,6 +4668,7 @@ contains
         real(8) ::  sLat, lat
         real(8) ::  scaleFactorBottom
 
+        real(8), pointer  :: Z_T_ptr(:,:), Z_M_ptr(:,:)
         real(8), pointer  :: delP_T_ptr(:,:), delP_M_ptr(:,:)
         real(8), pointer  :: delTT_ptr(:,:), delHU_ptr(:,:), delP0_ptr(:,:)
         
@@ -4553,9 +4676,14 @@ contains
         
         call msg('calcPressure_col_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
+        numCol = col_getNumCol(columnIncRef)
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
 
+        allocate(Z_T_ptr(nLev_T,numCol))
+        allocate(Z_M_ptr(nLev_M,numCol))
+        call calcGeopotHeight_col_nl_vcode2100x(columnIncRef, Z_T_ptr, Z_M_ptr)
+        
         allocate(delP_T(nlev_T))
         allocate(delP_M(nlev_M))
 
@@ -4565,7 +4693,7 @@ contains
         delHU_ptr  => col_getAllColumns(columnInc,'HU')
         delP0_ptr  => col_getAllColumns(columnInc,'P0')
         
-        do_onAllcolumns: do colIndex = 1, col_getNumCol(columnInc)
+        do_onAllcolumns: do colIndex = 1, numCol
           
           ! latitude
           lat = col_getLat(columnInc, colIndex)
@@ -4585,9 +4713,9 @@ contains
  
             hu    = col_getElem(columnIncRef, lev_T  , colIndex, 'HU')
             tt    = col_getElem(columnIncRef, lev_T  , colIndex, 'TT')
-            Z_M   = col_getElem(columnIncRef, lev_M  , colIndex, 'Z_M')
-            Z_M1  = col_getElem(columnIncRef, lev_M+1, colIndex, 'Z_M')
-            Z_T   = col_getElem(columnIncRef, lev_T  , colIndex, 'Z_T')
+            Z_M   = Z_M_ptr(lev_M  ,colIndex)
+            Z_M1  = Z_M_ptr(lev_M+1,colIndex)
+            Z_T   = Z_T_ptr(lev_T  ,colIndex)
             P_M   = col_getElem(columnIncRef, lev_M  , colIndex, 'P_M')
             P_M1  = col_getElem(columnIncRef, lev_M+1, colIndex, 'P_M')
             P_T   = col_getElem(columnIncRef, lev_T  , colIndex, 'P_T')
@@ -4596,7 +4724,7 @@ contains
             cmp = gpscompressibility(P_M1,tt,hu) 
             tv  = tv0*cmp
             dh  = Z_M - Z_M1
-            Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+            Rgh = ec_rg
             scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
             
             delTV0delTT  = 1.0D0 + MPC_DELTA_R8*hu
@@ -4644,8 +4772,8 @@ contains
           p_T   = col_getElem(columnIncRef, nLev_T, colIndex, 'P_T')
           p_M   = col_getElem(columnIncRef, nLev_M, colIndex, 'P_M')
           p0    = col_getElem(columnIncRef, 1, colIndex, 'P0')
-          Z_T   = col_getElem(columnIncRef, nLev_T, colIndex, 'Z_T')
-          Z_M   = col_getElem(columnIncRef, nLev_M, colIndex, 'Z_M')
+          Z_T   = Z_T_ptr(nLev_T,colIndex)
+          Z_M   = Z_M_ptr(nLev_M,colIndex)
  
           tv0 = phf_fotvt8(tt,hu)
           cmp = gpscompressibility(P0,tt,hu) 
@@ -4661,7 +4789,7 @@ contains
 
           ! Momentum diagnostic level
           dh = Z_M - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           delP_delP0 = p_M/P0
           delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
           delP0 = delP_M(nlev_M)*delP_delP0
@@ -4669,7 +4797,7 @@ contains
 
           ! Thermo diagnostic level
           dh = Z_T - rMT
-          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          Rgh = ec_rg
           delP_delP0 = p_T/P0
           delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
           delP0 = delP0 + delP_T(nlev_T)*delP_delP0
@@ -4692,6 +4820,8 @@ contains
           
         end do do_onAllcolumns
 
+        deallocate(Z_T_ptr)
+        deallocate(Z_M_ptr)
         deallocate(delP_M)
         deallocate(delP_T)
         
