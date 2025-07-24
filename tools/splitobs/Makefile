@@ -26,13 +26,13 @@ OPT_LEVEL = 2
 
 install : # defining default target
 
-splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2; \
+splitobs_rhel-9-graniterapids-64: version.h $(SRC)
+	. r.load.dot rpn/code-tools/20250708/env/inteloneapi-2025.1.0; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20231219;  \
-	. ssmuse-sh -d eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}; \
+	. r.load.dot eccc/mrd/rpn/libs/20250804; \
+	. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}; \
 	make splitobs
 
 splitobs: version.h $(SRC)
