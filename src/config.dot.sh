@@ -32,7 +32,7 @@ MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
 
 ###########################################################
-##  SSM Packaging configuration 
+##  SSM Packaging configuration
 ##
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
@@ -141,10 +141,10 @@ check_ec_atomic_profile_version () {
 
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools. 
+#  Set up dependent librarys and tools.
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+echo "... loading rpn/code-tools/20250708/env/inteloneapi-2025.1.0"
+. r.load.dot rpn/code-tools/20250708/env/inteloneapi-2025.1.0
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
@@ -154,7 +154,7 @@ VGRID_LIBNAME="vgrid"
 echo "... loading eccc/mrd/rpn/libs/20231219"
 . r.load.dot eccc/mrd/rpn/libs/20231219
 echo "... loading hdf5"
-. ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+. ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
 
 echo "... loading eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}
@@ -205,7 +205,7 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 
 ## check makedepf90 install
 if ! which makedepf90
-then 
+then
     echo "<!> makedepf90 unavailable on the system."
     __status=false
 fi
