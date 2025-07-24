@@ -156,8 +156,8 @@ echo "... loading eccc/mrd/rpn/libs/20231219"
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
 
-echo "... loading eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}
+echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}"
+. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
