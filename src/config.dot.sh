@@ -168,7 +168,9 @@ echo "... loading /fs/homeu3/homeu3eb/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-3
 
 ## loading makedep90
 echo "... loading makedepf90"
-. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
+#. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
+## get 'makedepf90' from 'ppp5:/fs/ssm/eccc/mrd/rpn/anl/makedepf90/2.8.9/makedepf90_2.8.9_rhel-8-icelake-64/bin/makedepf90' copied at '/home/erv000/makedepf90-ssm/bin'
+. ssmuse-sh -x /home/erv000/makedepf90-ssm
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
