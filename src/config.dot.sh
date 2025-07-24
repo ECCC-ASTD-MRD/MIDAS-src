@@ -160,7 +160,8 @@ echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/2025080
 . ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+#. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+. ssmuse-sh -x /home/erv000/perftools
 
 echo "... loading /fs/homeu3/homeu3eb/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-3-g9ee0b5d"
 . ssmuse-sh -x /fs/homeu3/homeu3eb/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-3-g9ee0b5d
