@@ -213,11 +213,6 @@ then
     __status=false
 fi
 
-## loading docopt for analyzeDep.py
-## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
-. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
-
-
 export COMPF
 export FOPTMIZ
 export GPP_OPTS
