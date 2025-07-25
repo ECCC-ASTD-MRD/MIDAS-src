@@ -324,7 +324,7 @@ $(ABS_INSTALL_PRFX)%$(ABS_INSTALL_SUFX).Abs $(ABS_INSTALL_DIR)/midas.%$(ABS_INST
 _D_options=$(filter -D%,$(COMPF))
 %.f90: %.ftn90 #> preprocess an ftn90 file
 	@echo 'Preprocessing $(@F) inplace'
-	$(V) r.gppf -lang-f90+ $(GPP_OPTS) $(_D_options) $< \
+	$(V) fpp -lang-f90+ $(GPP_OPTS) $(_D_options) $< \
 	> $@ \
 	2> /dev/null
 
