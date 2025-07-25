@@ -145,6 +145,8 @@ check_ec_atomic_profile_version () {
 #---------------------------------------------------------------
 echo "... loading rpn/code-tools/20250708/env/inteloneapi-2025.1.0"
 . r.load.dot rpn/code-tools/20250708/env/inteloneapi-2025.1.0
+echo "TMP loading eccc/mrd/rpn/code-tools/20250708/rhel-9-amd64-64/inteloneapi-2025.0.4"
+. ssmuse-sh -x eccc/mrd/rpn/code-tools/20250708/rhel-9-amd64-64/inteloneapi-2025.0.4
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
