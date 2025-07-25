@@ -5749,12 +5749,6 @@ contains
         errorStatus = errorStatus_success
 
         !  set nthreads to actual number of threads which will be used.
-
-        write(6,*) 'JFC in tvs_rttov_tl', sensorIndex, tvs_nsensors, profileIndex, profileCount
-        !write(6,*) lbound(profiles(headerIndex) % p(:)), ubound(profiles(headerIndex) % p(:))
-        !write(6,*) profiles(headerIndex) % p(1)
-        flush(6)
-        
         nthreads = min(mmpi_numThread, profileCount)
         call rttov_parallel_tl(                             &
             errorStatus,                                    & ! out

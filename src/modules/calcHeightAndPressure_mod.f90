@@ -3192,17 +3192,18 @@ contains
   !---------------------------------------------------------
   ! czp_calcReturnHeight_col_nl
   !---------------------------------------------------------
-  subroutine czp_calcReturnHeight_col_nl(column, Z_T, Z_M)
+  subroutine czp_calcReturnHeight_col_nl(column, Z_T, Z_M, heightType_opt)
     !
     ! :Purpose: Return heights on the column.
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
-
+    type(struct_columnData),    intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,           intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,           intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
+    character(len=*), optional, intent(in)    :: heightType_opt ! Altitude or Geopotential height (used for vcode2100x only)
+    
     ! Locals:
     integer :: vcode
 
@@ -3216,7 +3217,7 @@ contains
       end if
       call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
-      call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+      call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M, heightType_opt)
 
     end if
 
@@ -3226,18 +3227,20 @@ contains
   !---------------------------------------------------------
   ! calcHeight_col_nl_vcode2100x
   !---------------------------------------------------------
-  subroutine calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+  subroutine calcHeight_col_nl_vcode2100x(column, Z_T, Z_M, heightType_opt)
     !
     ! :Purpose: Return heights on a GEM-H column.
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
-
+    type(struct_columnData),    intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,           intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,           intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
+    character(len=*), optional, intent(in)    :: heightType_opt ! Altitude or Geopotential height
+    
     ! Locals:
+    character(len=12) :: heightType
     
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -3245,11 +3248,22 @@ contains
            'END (number of columns <= 0)', verb_opt=2)
       return
     end if
+
+    if (present(heightType_opt)) then
+      heightType = heightType_opt
+      if (trim(heightType) /= 'altitude' .and. trim(heightType) /= 'geopotHeight') then
+        call utl_abort('calcHeight_col_nl_vcode2100x (czp): heightType msut equal altitude or geopotHeight')
+      end if
+    else
+      heightType = 'altitude'
+    end if
     
     call calcGeopotHeight_col_nl_vcode2100x(column, Z_T, Z_M)
-    call gz2alt_col(column, Z_T, .true.)
-    call gz2alt_col(column, Z_M, .true.)
-    
+    if (trim(heightType) == 'altitude') then
+      call gz2alt_col(column, Z_T, .true.)
+      call gz2alt_col(column, Z_M, .true.)
+    end if
+
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_col_nl_vcode2100x
 
@@ -3348,7 +3362,7 @@ contains
     deallocate(gzH)
 
   end subroutine gz2alt_col
-  
+
   !---------------------------------------------------------
   ! calcHeight_col_nl_vcode5xxx
   !---------------------------------------------------------
