@@ -144,7 +144,7 @@ check_ec_atomic_profile_version () {
 #  Set up dependent librarys and tools.
 #---------------------------------------------------------------
 echo "... loading rpn/code-tools/20250728/env/inteloneapi-2025.1.0"
-. r.load.dot rpn/code-tools/20250728/env/inteloneapi-2025.1.0
+. r.load.dot rpn/code-tools/20250728/env/inteloneapi-2025.1.0 || true
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
