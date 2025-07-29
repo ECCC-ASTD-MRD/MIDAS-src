@@ -78,7 +78,7 @@ fi
 
 # Set the optimization level
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ];then
-    FOPTMIZ=3
+    FOPTMIZ=2
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     return 1
