@@ -78,7 +78,7 @@ fi
 
 # Set the optimization level
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ];then
-    FOPTMIZ=2
+    FOPTMIZ=3
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     return 1
@@ -144,7 +144,7 @@ check_ec_atomic_profile_version () {
 #  Set up dependent librarys and tools.
 #---------------------------------------------------------------
 echo "... loading rpn/code-tools/20250728/env/inteloneapi-2025.1.0"
-. r.load.dot rpn/code-tools/20250728/env/inteloneapi-2025.1.0 || true
+. r.load.dot rpn/code-tools/20250728/env/inteloneapi-2025.1.0
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
@@ -163,8 +163,8 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 #. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 . ssmuse-sh -x /home/erv000/perftools
 
-echo "... loading /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-6-g79fd082"
-. ssmuse-sh -x /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-6-g79fd082
+echo "... loading /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-7-g890c20c-O3"
+. ssmuse-sh -x /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-7-g890c20c-O3
 
 ## loading makedep90
 echo "... loading makedepf90"
