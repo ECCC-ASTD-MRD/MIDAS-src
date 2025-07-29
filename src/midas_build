@@ -49,8 +49,8 @@ __revstring=$(${__toplevel}/midas.version.sh)
 
 ##=========================================================
 ##  sourcing user configuration
-if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-  echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
+if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a  "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
+  echo "Only ORDENV_PLAT=rhel-8-icelake-64 or ORDENV_PLAT=rhel-9-graniterapids-64 are supported"
   exit 1
 fi
 __midas_dot_cfg=${__here}/config.dot.sh
