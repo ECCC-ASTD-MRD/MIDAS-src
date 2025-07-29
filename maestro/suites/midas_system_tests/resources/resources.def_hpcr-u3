@@ -1,0 +1,40 @@
+# Machine stuff
+FRONTEND=ppp7
+BACKEND=moira
+
+REFERENCE_MACHINE=ppp7
+REFERENCE_UPDATE_MACHINE=ppp7
+
+BACKEND_DEFAULT_Q=development
+FRONTEND_DEFAULT_Q=development
+
+BACKEND_XFER_Q=xfer
+FRONTEND_XFER_Q=xfer
+
+SEQ_DEFAULT_MACHINE=ppp7
+SEQ_CONTAINER_METHOD=immediate
+
+SEQ_JOBNAME_PREFIX=midas-
+
+## Set this variable to '9' if you want to avoid running the 'check'
+## task for each test
+CHECK_RESULTS_CATCHUP=2
+
+## Set this variable to '9' if you want to avoid running the 'clean'
+## task for each test
+CLEAN_UNITTEST_CATCHUP=2
+
+## Set this variable to the number of OpenMP threads needed in the
+## task '/Tests/letkf/glb_15km/UnitTest/run'
+LETKF_GLB15KM_NUM_THREADS=2
+
+## Set this variable to the memory needed in the task
+## '/Tests/letkf/glb_15km/UnitTest/run'
+LETKF_GLB15KM_MEMORY=11G
+
+## Set this variable to the MPI topology needed in the task
+## '/Tests/letkf/glb_10km/UnitTest/run'
+## The two current options are "11x52" and "48x52" for which the appropriate
+## 'nml', 'inputs*.ca' and 'results.ca' files will be selected.
+LETKF_GLB10KM_MPITOPOLOGY=11x52
+##LETKF_GLB10KM_MPITOPOLOGY=48x52
