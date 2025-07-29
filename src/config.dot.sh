@@ -161,10 +161,11 @@ echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/2025080
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 #. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+echo "... loading /home/erv000/perftools"
 . ssmuse-sh -x /home/erv000/perftools
 
-echo "... loading /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-7-g890c20c-O3"
-. ssmuse-sh -x /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-7-g890c20c-O3
+echo ... loading /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-10-g778a0a3-debug
+. ssmuse-sh -x /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-10-g778a0a3-debug
 
 ## loading makedep90
 echo "... loading makedepf90"
