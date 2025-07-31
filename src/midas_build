@@ -372,6 +372,7 @@ fi
 
 ##========================================================
 if [ -n "${__abs_exist_list}" ]; then
+    [ ! -d ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR} ] && mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     ##  Verification of compiled programs
     typeset __status=0
     for __abs in ${__abs_exist_list}; do
