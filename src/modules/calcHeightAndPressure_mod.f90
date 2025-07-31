@@ -481,8 +481,8 @@ contains
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
     call calcGeopotHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
-    call gz2alt_gsv_r4(statevector, Z_T, .true.)
-    call gz2alt_gsv_r4(statevector, Z_M, .true.)
+    call gz2alt_gsv_r4(statevector, Z_T, .false.)
+    call gz2alt_gsv_r4(statevector, Z_M, .false.)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
 
@@ -615,8 +615,8 @@ contains
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
     call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
-    call gz2alt_gsv_r8(statevector, Z_T, .true.)
-    call gz2alt_gsv_r8(statevector, Z_M, .true.)
+    call gz2alt_gsv_r8(statevector, Z_T, .false.)
+    call gz2alt_gsv_r8(statevector, Z_M, .false.)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r8
@@ -3257,11 +3257,11 @@ contains
     else
       heightType = 'altitude'
     end if
-    
+
     call calcGeopotHeight_col_nl_vcode2100x(column, Z_T, Z_M)
     if (trim(heightType) == 'altitude') then
-      call gz2alt_col(column, Z_T, .true.)
-      call gz2alt_col(column, Z_M, .true.)
+      call gz2alt_col(column, Z_T, .false.)
+      call gz2alt_col(column, Z_M, .false.)
     end if
 
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
