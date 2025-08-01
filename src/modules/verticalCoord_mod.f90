@@ -253,7 +253,7 @@ contains
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: vgd_nlev_M, vgd_nlev_T, ip1_sfc
     integer :: ni, nj, nk, varListIndex, IP1kind
-    integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
+    integer, pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     logical :: ip1_found
     character(len=10) :: blk_S
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
@@ -314,8 +314,10 @@ contains
     else if (Vcode == 21001) then
       call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
     end if
-    
+
     ! Get vgrid values for ip1
+    nullify(vgd_ip1_M)
+    nullify(vgd_ip1_T)
     stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
     stat = vgd_get(vco%vgrid, key='vipt - vertical ip1 levels (t)', value = vgd_ip1_t)
 
@@ -1287,7 +1289,7 @@ contains
     character(len=10) :: blk_s
 
     if      (vco%Vcode == 2001 .or. vco%Vcode == 5002) then
-      vco%ip1_T_2m  = vco%ip1_sfc 
+      vco%ip1_T_2m  = vco%ip1_sfc
       vco%ip1_M_10m = vco%ip1_sfc
     else if (vco%Vcode == 5005 .or. vco%Vcode == 5100 .or. vco%Vcode == 21001) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
