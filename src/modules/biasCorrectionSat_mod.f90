@@ -33,6 +33,7 @@ module biasCorrectionSat_mod
   use obserrors_mod
   use fSQLite
   use obsfiles_mod
+  use Vgrid_Descriptors
 
   implicit none
   save
@@ -1539,8 +1540,9 @@ contains
       real(8) :: height
 
       ! Locals:
-      integer :: jk, nlev, ik
-      real(8) :: zpt, zpb, zwt, zwb
+      integer :: jk, nlev, ik, status
+      real(4) :: heightSfcOffset_T_r4
+      real(8) :: zpt, zpb, zwt, zwb, offset
       real(8), pointer :: col_ptr(:)
 
       ik = 1
@@ -1556,7 +1558,17 @@ contains
       zwt = 1.d0 - zwb
       col_ptr => col_getColumn(columnTrlOnTrlLev, headerIndex, 'Z_T')
 
-      height = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
+      if (col_addHeightSfcOffset(columnTrlOnTrlLev) .and. (ik+1) == nlev) then
+        ! Patch to prevent negative impacts with respect to legacy approach (addHeightSfcOffse=.false.)
+        status = vgd_get(col_getVco(columnTrlOnTrlLev)%vgrid, &
+                         key='DHT - height of the diagnostic level (t)', &
+                         value=heightSfcOffset_T_r4)
+        offset = real(heightSfcOffset_T_r4,8)
+      else
+        offset = 0.d0
+      end if
+      
+      height = zwb * (col_ptr(ik+1)-offset) + zwt * col_ptr(ik)
    
     end function logInterpHeight
 
