@@ -552,6 +552,7 @@ CONTAINS
     type(struct_gsv), target :: stateVectorRefHUTT
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
+    character(len=4), allocatable :: varNamesRefHeight(:)
 
     if ( mmpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START ', trim(varName)
 
@@ -623,20 +624,24 @@ CONTAINS
       if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
         if (vco_trl%vCode == 5100) then
           ! We only need 'P0LS' when doing GEM-P with SLEVE so vcode==5100
-          call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
-                             vco_anl, dateStamp_opt=tim_getDateStamp(), &
-                             mpi_local_opt=.true., allocHeightSfc_opt=.true., &
-                             hInterpolateDegree_opt='LINEAR', &
-                             varNames_opt= &
-                               (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  ', 'P0LS'/))
+          allocate(varNamesRefHeight(8))
         else
-          call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
-                             vco_anl, dateStamp_opt=tim_getDateStamp(), &
-                             mpi_local_opt=.true., allocHeightSfc_opt=.true., &
-                             hInterpolateDegree_opt='LINEAR', &
-                             varNames_opt= &
-                               (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  '/))
+          ! We don't need 'P0LS' so asking to allocate only for all variables except 'P0LS'
+          allocate(varNamesRefHeight(7))
         end if
+
+        varNamesRefHeight(1:7) = (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  '/)
+        if (vco_trl%vCode == 5100) then
+          varNamesRefHeight(8) = 'P0LS'
+        end if
+
+        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt='LINEAR', &
+                           varNames_opt=varNamesRefHeight(:))
+
+        deallocate(varNamesRefHeight)
       else
         call gsv_zero( stateVectorRefHeight )
       end if
