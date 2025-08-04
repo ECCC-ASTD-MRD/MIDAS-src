@@ -8,7 +8,7 @@
    deltemps(1) = 1
    deldist(1) = 111           ! Equivalent to 1 degree
    methodList(1) = 'byDistance'
-   maxSunList(1) = 84.0  
+   maxSunList(1) = 84.0
    stnIdList(2) = '22594700'   ! OMPS-NP on NOAA-20
    deltemps(2) = 1
    deldist(2) = 111
@@ -19,7 +19,7 @@
    deldist(3) = 111
    methodList(3) = 'byDistance'
    maxSunList(3) = 84.0
-   stnIdList(4) = 'WO****00'   ! Ozonesonde 
+   stnIdList(4) = 'WO****00'   ! Ozonesonde
    methodList(4) = 'byNthLevel'
    keepNthVertical(4) = 2
 /
@@ -43,15 +43,15 @@
 /
  &NAMCODTYP
    cnames(1)='CHEMREMOTE',
-   icod(1)=195, 
+   icod(1)=195,
    cnames(2)='CHEMINSITU',
-   icod(2)=196, 
+   icod(2)=196,
 /
 &NAMBURP_FILTER_CHM_SFC
-  BLISTELEMENTS_SFC=15198,15208,8090 
+  BLISTELEMENTS_SFC=15198,15208,8090
 /
 &NAMBURP_FILTER_CHM
-  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090
 /
  &NAMCHEM
   MODELNAME='GEM'   ! To identify O3L instead of TO3 from BUFR no.
