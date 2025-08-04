@@ -621,12 +621,22 @@ CONTAINS
 
     case ('height')
       if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
-        call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
-                           vco_anl, dateStamp_opt=tim_getDateStamp(), &
-                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
-                           hInterpolateDegree_opt='LINEAR', &
-                           varNames_opt=&
-                              (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  ','P0LS'/) )
+        if (vco_trl%vCode == 5100) then
+          ! We only need 'P0LS' when doing GEM-P with SLEVE so vcode==5100
+          call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                             vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                             mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                             hInterpolateDegree_opt='LINEAR', &
+                             varNames_opt= &
+                               (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  ', 'P0LS'/))
+        else
+          call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
+                             vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                             mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                             hInterpolateDegree_opt='LINEAR', &
+                             varNames_opt= &
+                               (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  '/))
+        end if
       else
         call gsv_zero( stateVectorRefHeight )
       end if
