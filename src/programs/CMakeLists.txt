@@ -118,6 +118,12 @@ file(WRITE ${CMAKE_BINARY_DIR}/install_programs_script.cmake "
 # Install the custom script to run after the targets are installed
 install(SCRIPT ${CMAKE_BINARY_DIR}/install_programs_script.cmake)
 
+# install only the compiled programs
+add_custom_target(testing
+  COMMAND /bin/mkdir -p ${CMAKE_INSTALL_PREFIX}
+  COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/*Abs ${CMAKE_INSTALL_PREFIX}/
+  )
+
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs")
