@@ -258,6 +258,8 @@ if [ "${__run_cmake}" != stop ]; then
         if [ "${__show_instructions}" = true ]; then
             echo
             if [ "${__run_cmake}" = true ]; then
+                echo "The build directory has already been prepared by 'cmake'."
+                echo "You have been moved into the build directory: ${PWD}"
                 echo "You can now compile all the programs using simply"
             elif [ "${__run_cmake}" = false ]; then
                 if [ ! -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
@@ -268,7 +270,8 @@ You can run by yourself 'cmake' with the commands
 and build the programs using
 EOF
                 else
-                    echo "The build directory has already been prepared by 'cmake'"
+                    echo "The build directory has already been prepared by 'cmake'."
+                    echo "You have been moved into the build directory: ${PWD}"
                     echo "You can now compile all the programs using simply"
                 fi
             fi
