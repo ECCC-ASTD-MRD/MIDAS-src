@@ -6367,7 +6367,7 @@ contains
     integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
     integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
     integer :: obsDate, obsTime
-    real(4) :: obsLatInRad, obsLonInRad
+    real(8) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
     integer,     allocatable  :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer,     allocatable  :: obsFov(:), obsFovMpi(:)
@@ -6451,8 +6451,8 @@ contains
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
 
       ! Lat and Lon for each observation
-      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
-      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
 
       ! 3D location array for kdtree
       obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
@@ -8634,8 +8634,8 @@ contains
           ! or
           !     obsLonInDeg(headerIndex) = real(obsLonInRad,4) * mpc_degrees_per_radian_r4
           !     obsLatInDeg(headerIndex) = real(obsLatInRad,4) * mpc_degrees_per_radian_r4
-          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8,4)
-          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8,4)
+          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8, 4)
+          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8, 4)
         end if
 
         ! Observed value
@@ -8945,12 +8945,14 @@ contains
       numberDataSet = numberDataSet + 1
     end do
 
-    write(*,*)
-    if (numberDataSet > 0) then
-      write(*,*) 'thn_thinIce: satellite datasets considered in thinning: '
-      do dataSetIndex = 1, numberDataSet
-        write(*,'(a)') trim(dataSet(dataSetIndex))
-      end do
+    if (mmpi_myid == 0) then
+      write(*,*)
+      if (numberDataSet > 0) then
+        write(*,*) 'thn_thinIce: satellite datasets considered in thinning: '
+        do dataSetIndex = 1, numberDataSet
+          write(*,'(a)') trim(dataSet(dataSetIndex))
+        end do
+      end if
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
