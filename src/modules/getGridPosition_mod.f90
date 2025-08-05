@@ -125,15 +125,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: gdid
-    real(4), intent(out) :: xpos_r4
-    real(4), intent(out) :: ypos_r4
-    real(4), intent(out) :: xpos2_r4
-    real(4), intent(out) :: ypos2_r4
-    real(4), intent(in)  :: lat_deg_r4
-    real(4), intent(in)  :: lon_deg_r4
-    integer, intent(out) :: subGridIndex
-    real(8), optional, intent(in) :: maxGridSpacing_opt
+    integer,           intent(in)  :: gdid
+    real(4),           intent(out) :: xpos_r4
+    real(4),           intent(out) :: ypos_r4
+    real(4),           intent(out) :: xpos2_r4
+    real(4),           intent(out) :: ypos2_r4
+    real(4),           intent(in)  :: lat_deg_r4
+    real(4),           intent(in)  :: lon_deg_r4
+    integer,           intent(out) :: subGridIndex
+    real(8), optional, intent(in)  :: maxGridSpacing_opt
     ! Result:
     integer :: ierr  ! returned value of function
 
@@ -157,11 +157,7 @@ contains
       if (grtyp == 'Y') then
 
         !$omp critical
-        if (present(maxGridSpacing_opt)) then
-          ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, maxGridSpacing_opt)
-        else
-          ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4)
-        end if
+        ierr = gpos_xyfll_unstructGrid(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, maxGridSpacing_opt)
         !$omp end critical
 
       else
@@ -329,12 +325,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: gdid
-    real(4), intent(in)  :: lat_deg_r4
-    real(4), intent(in)  :: lon_deg_r4
-    real(4), intent(out) :: xpos_r4    ! the x-position in the grid units, in[1,ni]
-    real(4), intent(out) :: ypos_r4    ! the y-position in the grid units, in[1,nj]
-    real(8), optional, intent(in) :: maxGridSpacing_opt
+    integer,           intent(in)  :: gdid
+    real(4),           intent(in)  :: lat_deg_r4
+    real(4),           intent(in)  :: lon_deg_r4
+    real(4),           intent(out) :: xpos_r4    ! the x-position in the grid units, in[1,ni]
+    real(4),           intent(out) :: ypos_r4    ! the y-position in the grid units, in[1,nj]
+    real(8), optional, intent(in)  :: maxGridSpacing_opt
     ! Result:
     integer :: ierr  ! returned value of function
 
