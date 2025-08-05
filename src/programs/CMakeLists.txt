@@ -119,7 +119,7 @@ file(WRITE ${CMAKE_BINARY_DIR}/install_programs_script.cmake "
 install(SCRIPT ${CMAKE_BINARY_DIR}/install_programs_script.cmake)
 
 # install only the compiled programs
-add_custom_target(testing
+add_custom_target(installabs
   COMMAND /bin/mkdir -p ${CMAKE_INSTALL_PREFIX}
   COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/*Abs ${CMAKE_INSTALL_PREFIX}/
   )
