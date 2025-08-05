@@ -8911,7 +8911,6 @@ contains
 
     ! Namelist variables:
     integer           :: deldist(maxNumDataSet) ! minimal distance in km between adjacent observations
-                                                ! in the 'distance-dependent' method
     character(len=10) :: dataSet(maxNumDataSet) ! array of dataset names considered in thinning
 
     namelist /thin_ice/ deldist, dataSet
