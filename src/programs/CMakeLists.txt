@@ -120,9 +120,21 @@ install(SCRIPT ${CMAKE_BINARY_DIR}/install_programs_script.cmake)
 
 # install only the compiled programs
 add_custom_target(installabs
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/midas.version
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE TRUE_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
   COMMAND /bin/mkdir -p ${CMAKE_INSTALL_PREFIX}
-  COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/*Abs ${CMAKE_INSTALL_PREFIX}/
-  )
+  foreach(prog ${PROJECT_PROGRAMS})
+    set(old_name \"${CMAKE_CURRENT_BINARY_DIR}/midas-\${prog}_${AddToProgName}.Abs\")
+    if(EXISTS \"\${old_name}\")
+       set(new_name \"${CMAKE_INSTALL_PREFIX}/midas-\${prog}_${AddToProgName}-\${TRUE_VERSION}.Abs\")
+       file(COPY_FILE  \"\${old_name}\" \"\${new_name}\")
+    endif()
+  endforeach()
+)
 
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
