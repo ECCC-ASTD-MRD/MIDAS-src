@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the computation of pressure and heights in GEM-H to make the results similar to GEM-P (#1097 and !1011)
  * Fix for `stateToColumn_mod` to correctly handle `real(4)` argument (#1095 and !1004).
 
 ### Removed
