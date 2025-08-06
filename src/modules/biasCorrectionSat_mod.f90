@@ -112,6 +112,7 @@ module biasCorrectionSat_mod
   logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
   logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
   logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
+  logical  :: removeHeightSfcOffset ! flag to remove the impact of addHeightSfcOffset = .true. in logInterpHeight
   real(8)  :: scanBiasCorLength     ! if positive and .not. mimicSatBcor use error correlation between scan positions with the given correlation length
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
@@ -130,7 +131,7 @@ module biasCorrectionSat_mod
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
   namelist /nambiassat/ cglobal, cinst, nbscan, passiveChannelList, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
-  namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov
+  namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov, removeHeightSfcOffset
 contains
  
   !-----------------------------------------------------------------------
@@ -163,6 +164,7 @@ contains
     weightedEstimate = .false.
     outCoeffCov = .false.
     outOmFPredCov = .false.
+    removeHeightSfcOffset = .true.
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
@@ -1558,7 +1560,7 @@ contains
       zwt = 1.d0 - zwb
       col_ptr => col_getColumn(columnTrlOnTrlLev, headerIndex, 'Z_T')
 
-      if (col_addHeightSfcOffset(columnTrlOnTrlLev) .and. (ik+1) == nlev) then
+      if (removeHeightSfcOffset .and. col_addHeightSfcOffset(columnTrlOnTrlLev) .and. (ik+1) == nlev) then
         ! Patch to prevent negative impacts with respect to legacy approach (addHeightSfcOffse=.false.)
         status = vgd_get(col_getVco(columnTrlOnTrlLev)%vgrid, &
                          key='DHT - height of the diagnostic level (t)', &

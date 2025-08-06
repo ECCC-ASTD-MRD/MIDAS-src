@@ -183,19 +183,6 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="BgckAmsua-gem-h"/>
-    <FAMILY  name="BgckAmsua-gem-h">
-      <SUBMITS sub_name="gem-p"/>
-      <FAMILY  name="gem-p">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-      <SUBMITS sub_name="gem-h"/>
-      <FAMILY  name="gem-h">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
-    </FAMILY>
     <SUBMITS sub_name="BgckAtms"/>
     <FAMILY  name="BgckAtms">
       <SUBMITS sub_name="UnitTest"/>
@@ -215,6 +202,19 @@
     <FAMILY  name="BgckAmsua_obsDB">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>    
+    </FAMILY>
+    <SUBMITS sub_name="BgckAmsua-gem-h"/>
+    <FAMILY  name="BgckAmsua-gem-h">
+      <SUBMITS sub_name="gem-p"/>
+      <FAMILY  name="gem-p">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="gem-h"/>
+      <FAMILY  name="gem-h">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="BgckAmsub"/>
     <FAMILY  name="BgckAmsub">
