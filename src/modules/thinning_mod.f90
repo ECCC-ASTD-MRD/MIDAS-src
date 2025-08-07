@@ -8902,7 +8902,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsData
+    type(struct_obs), intent(inout) :: obsData  ! obsSpaceData object
 
     ! Locals:
     integer            :: ierr
