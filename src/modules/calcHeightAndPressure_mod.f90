@@ -500,9 +500,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)    :: statevector
-    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:)
-    real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
+    type(struct_gsv),  intent(in)    :: statevector  ! reference statevector containing surface height
+    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:) ! computed statevector height values on thermodynamic levels
+    real(4), pointer,  intent(inout) :: Z_M(:,:,:,:) ! computed statevector height values on momentum levels
 
     ! Locals:
     integer ::  numStep, stepIndex
@@ -557,16 +557,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)    :: statevector
-    real(4), pointer,  intent(inout) :: Z_MT(:,:,:,:)
-    logical, intent(in)              :: skipDiagLevel
+    type(struct_gsv),  intent(in)    :: statevector   ! statevector needed for dimensions and latitudes
+    real(4), pointer,  intent(inout) :: Z_MT(:,:,:,:) ! Geopotential height pointer converted to geometric altitude
+    logical,           intent(in)    :: skipDiagLevel ! To control the conversion or not for diagnostic levels
 
     ! Locals:
-    type(struct_hco), pointer   :: hco
-    real(4), allocatable        :: gzH(:)
-    real(4)                     :: latitude
-    integer                     :: nLev, levEnd
-    integer                     :: lonIndex, latIndex, stepIndex
+    type(struct_hco), pointer :: hco
+    real(4), allocatable      :: gzH(:)
+    real(4)                   :: latitude
+    integer                   :: nLev, levEnd
+    integer                   :: lonIndex, latIndex, stepIndex
     
     hco => gsv_getHco(statevector)
     nLev = ubound(Z_MT, 3)
@@ -633,12 +633,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)    :: statevector
-    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:)
-    real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
+    type(struct_gsv),  intent(in)    :: statevector  ! reference statevector containing surface height
+    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:) ! computed statevector height values on thermodynamic levels
+    real(8), pointer,  intent(inout) :: Z_M(:,:,:,:) ! computed statevector height values on momentum levels
 
     ! Locals:
-    integer ::  numStep, stepIndex
+    integer            :: numStep, stepIndex
     real(8), pointer   :: Hsfc(:,:), HsfcLS(:,:)
     real(8), pointer   :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
     
@@ -677,16 +677,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),      intent(in)    :: statevector
-    real(8), pointer, intent(inout) :: Z_MT(:,:,:,:)
-    logical, intent(in)                  :: skipDiagLevel
+    type(struct_gsv),      intent(in)    :: statevector   ! statevector needed for dimensions and latitudes
+    real(8), pointer,      intent(inout) :: Z_MT(:,:,:,:) ! Geopotential height pointer converted to geometric altitude
+    logical,               intent(in)    :: skipDiagLevel ! To control the conversion or not for diagnostic levels
 
     ! Locals:
-    type(struct_hco), pointer            :: hco
-    real(8), allocatable            :: gzH(:)
-    real(8)                         :: latitude
-    integer                              :: nLev, levEnd
-    integer                              :: lonIndex, latIndex, stepIndex
+    type(struct_hco), pointer :: hco
+    real(8), allocatable      :: gzH(:)
+    real(8)                   :: latitude
+    integer                   :: nLev, levEnd
+    integer                   :: lonIndex, latIndex, stepIndex
 
     hco => gsv_getHco(statevector)
     nLev = ubound(Z_MT, 3)
@@ -3252,7 +3252,7 @@ contains
     if (present(heightType_opt)) then
       heightType = heightType_opt
       if (trim(heightType) /= 'altitude' .and. trim(heightType) /= 'geopotHeight') then
-        call utl_abort('calcHeight_col_nl_vcode2100x (czp): heightType msut equal altitude or geopotHeight')
+        call utl_abort('calcHeight_col_nl_vcode2100x (czp): heightType must equal altitude or geopotHeight')
       end if
     else
       heightType = 'altitude'
@@ -3277,7 +3277,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing surface height
     real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
     real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
@@ -3331,7 +3331,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in) :: column        ! reference column containing temperature and geopotential
+    type(struct_columnData),  intent(in) :: column        ! reference column
     real(8), pointer,  intent(inout)     :: Z_MT(:,:)     ! computed column height values on thermo or momentum levels
     logical, intent(in)                  :: skipDiagLevel ! option to skip diagnotic level
 
