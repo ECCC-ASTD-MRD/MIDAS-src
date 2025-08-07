@@ -12,7 +12,6 @@ module thinning_mod
   use message_mod
   use bufr_mod
   use mathPhysConstants_mod
-  use earthConstants_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -26,6 +25,7 @@ module thinning_mod
   use satWind_mod
   use obsFlags_mod
   use tovs_mod
+  use getGridPosition_mod
 
   implicit none
   private
@@ -34,7 +34,7 @@ module thinning_mod
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
-  public :: thn_thinSatSST, thn_thinCH, thn_preThinning
+  public :: thn_thinSatSST, thn_thinCH, thn_preThinning, thn_thinIce
 
   integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
                                                    flg_16rejOmP, &
@@ -144,7 +144,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
       call utl_tmg_stop(181)
-   else
+    else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -342,7 +342,7 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
       call utl_tmg_stop(181)
-   else
+    else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -5556,7 +5556,7 @@ contains
     else if ( codtyp == codtyp_get_codtyp('ssmis') ) then
       loscan   = 1
       hiscan   = mxscanssmis
-   else
+    else
       write(*,*) 'codtyp = ', codtyp
       call utl_abort('thn_tovsFilt: Invalid codtyp')
     end if
@@ -5983,7 +5983,7 @@ contains
       hiscan   = mxscanssmis
     else
       write(*,*) 'codtyp = ', codtyp
-      call utl_abort('thn_tovsFilt: Invalid codtyp')
+      call utl_abort('thn_tovsFilt_dd: Invalid codtyp')
     end if
 
     write(*,*) ''
@@ -6367,7 +6367,7 @@ contains
     integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
     integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
     integer :: obsDate, obsTime
-    real(4) :: obsLatInRad, obsLonInRad
+    real(8) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
     integer,     allocatable  :: rarsCriterium(:), rarsCriteriumMpi(:)
     integer,     allocatable  :: obsFov(:), obsFovMpi(:)
@@ -6451,13 +6451,11 @@ contains
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
 
       ! Lat and Lon for each observation
-      obsLonInRad = real(obs_headElem_r(obsdat, OBS_LON, headerIndex),4)
-      obsLatInRad = real(obs_headElem_r(obsdat, OBS_LAT, headerIndex),4)
+      obsLonInRad = obs_headElem_r(obsdat, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
 
       ! 3D location array for kdtree
-      obsPosition3d(1,headerIndex) = ec_ra * sin(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(2,headerIndex) = ec_ra * cos(obsLonInRad) * cos(obsLatInRad)
-      obsPosition3d(3,headerIndex) = ec_ra *                    sin(obsLatInRad)
+      obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
     end do
 
     call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
@@ -8044,7 +8042,7 @@ contains
 
     write(*,*)
     if (numberDataSetSST > 0) then
-      write(*,*) 'thn_thinSurface: satellite SST datasets considered in thinning: '
+      write(*,*) 'thn_thinSatSST: satellite SST datasets considered in thinning: '
       do dataSetSSTIndex = 1, numberDataSetSST
         write(*,'(i5,a)') dataSetSSTIndex, trim(dataSetSST(dataSetSSTIndex))
       end do
@@ -8636,8 +8634,8 @@ contains
           ! or
           !     obsLonInDeg(headerIndex) = real(obsLonInRad,4) * mpc_degrees_per_radian_r4
           !     obsLatInDeg(headerIndex) = real(obsLatInRad,4) * mpc_degrees_per_radian_r4
-          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8,4)
-          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8,4)
+          obsLonInDeg(headerIndex) = real(obsLonInRad * mpc_degrees_per_radian_r8, 4)
+          obsLatInDeg(headerIndex) = real(obsLatInRad * mpc_degrees_per_radian_r8, 4)
         end if
 
         ! Observed value
@@ -8893,5 +8891,306 @@ contains
     deallocate(allChannelsMpi)
 
   end subroutine getChannels
+
+  !--------------------------------------------------------------------------
+  ! thn_thinIce
+  !--------------------------------------------------------------------------
+  subroutine thn_thinIce(obsData)
+    !
+    ! :Purpose: Main thinning subroutine for sea ice obs.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData  ! obsSpaceData object
+
+    ! Locals:
+    integer            :: ierr
+    integer, parameter :: maxNumDataSet = 10     ! maximum number of datasets considered in thinning
+    integer            :: dataSetIndex, numberDataSet
+
+    ! Namelist variables:
+    integer           :: deldist(maxNumDataSet) ! minimal distance in km between adjacent observations
+    character(len=10) :: dataSet(maxNumDataSet) ! array of dataset names considered in thinning
+
+    namelist /thin_ice/ deldist, dataSet
+
+    ! return if no sea-ice obs
+    if (.not. obs_famExist(obsData,'GL')) return
+
+    ! Default values for namelist variables
+    deldist(:) = 50
+    dataSet(:) = ''
+
+    ! Read the namelist for Ice observations (if it exists)
+    if (utl_isNamelistPresent('thin_ice','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_ice, iostat=ierr)
+      if (ierr /= 0) call utl_abort('thn_thinIce: Error reading thin_ice namelist')
+      if (mmpi_myid == 0) write(*,nml=thin_ice)
+      call utl_tmg_stop(181)
+    else
+      if (mmpi_myid == 0) then
+        write(*,*)
+        write(*,*) 'thn_thinIce: Namelist block thin_ice is missing in the namelist.'
+        write(*,*) '               The default value will be taken.'
+        write(*,nml=thin_ice)
+      end if
+    end if
+
+    numberDataSet = 0
+    do dataSetIndex = 1, maxNumDataSet
+      if (trim(dataSet(dataSetIndex)) == '') exit
+      numberDataSet = numberDataSet + 1
+    end do
+
+    if (mmpi_myid == 0) then
+      write(*,*)
+      if (numberDataSet > 0) then
+        write(*,*) 'thn_thinIce: satellite datasets considered in thinning: '
+        do dataSetIndex = 1, numberDataSet
+          write(*,'(a)') trim(dataSet(dataSetIndex))
+        end do
+      end if
+    end if
+
+    call utl_tmg_start(114,'--ObsThinning')
+    do dataSetIndex = 1, numberDataSet
+      call thn_byDistance(obsData, deldist(dataSetIndex), dataSet(dataSetIndex))
+    end do
+    call utl_tmg_stop(114)
+
+  end subroutine thn_thinIce
+
+  !--------------------------------------------------------------------------
+  ! thn_byDistance
+  !--------------------------------------------------------------------------
+  subroutine thn_byDistance(obsData, deldist, dataSet)
+    !
+    ! :Purpose: Original method for thinning data by the distance method.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData ! obsSpace data object
+    integer,          intent(in)    :: deldist ! minimal distance in km between adjacent observations
+    character(len=*), intent(in)    :: dataSet ! station ID (id_stn variable in SQLite obs. files)
+
+    ! Locals:
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
+    integer :: countObs, countObsOutMpi, countObsInMpi
+    integer :: obsDate, obsTime
+    integer :: badTimeCount, badTimeCountMpi
+    integer :: middleStep
+    integer :: obsIndex, obsIndexSorted, headerIndex2
+    integer :: headerIndexBeg, headerIndexEnd
+    integer :: obsStepIndex
+    real(8) :: thinDistance
+    real(8) :: obsStepIndex_r8
+    real(8) :: obsLonInRad, obsLatInRad
+    integer, allocatable :: timePenalty(:), timePenaltyMpi(:)
+    integer, allocatable :: obsIndexesSorted(:)
+    logical, allocatable :: valid(:), validMpi(:)
+    type(kdtree2), pointer            :: tree
+    integer, parameter                :: maxNumSearch = 2000
+    integer                           :: numFoundSearch, resultIndex
+    type(kdtree2_result)              :: searchResults(maxNumSearch)
+    real(kdkind)                      :: maxRadiusSquared
+    real(kdkind)                      :: refPosition(3)
+    real(kdkind), allocatable         :: obsPosition3d(:,:)
+    real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
+
+    write(*,*)
+    write(*,*) 'thn_byDistance: Starting data thinning for sensor on platform: ', trim(dataSet)
+    write(*,*)
+
+    numHeader = obs_numHeader(obsData)
+    call mmpi_allReduce(numHeader, numHeaderMaxMpi, mmpi_max)
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
+
+    ! Check if any observations to be treated
+    countObs = 0
+    HEADER0: do headerIndex = 1, numHeader
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) == trim(dataSet)) then
+        countObs = countObs + 1
+      end if
+    end do HEADER0
+
+    call mmpi_allReduce(countObs, countObsInMpi, mmpi_sum)
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_byDistance: no observations present'
+      return
+    end if
+
+    write(*,*) 'thn_byDistance: number of obs initial = ', &
+               countObs, countObsInMpi
+
+    thinDistance = real(deldist,8)*1.0d3
+    write(*,*)
+    write(*,*) 'Minimum thinning distance (km): ', deldist
+    maxRadiusSquared = thinDistance*thinDistance
+
+    middleStep = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
+                         tim_dstepobs) + 1
+
+    write(*,*)
+    write(*,*) 'Number of time bins = ', tim_nstepobs
+    write(*,*) 'Central time bin    = ', middleStep
+    write(*,*)
+
+    ! Allocations:
+    allocate(valid(numHeaderMaxMpi))
+    allocate(obsPosition3d(3,numHeaderMaxMpi))
+    allocate(obsPosition3dMpi(3,numHeaderMpi))
+    allocate(timePenalty(numHeaderMaxMpi))
+    valid(:) = .true.
+    timePenalty(:) = MPC_missingValue_INT
+
+    allocate(validMpi(numHeaderMpi))
+    allocate(timePenaltyMpi(numHeaderMpi))
+
+    timePenaltyMpi(:) = MPC_missingValue_INT
+    validMpi(:) = .true.
+
+    badTimeCount = 0
+    obsPosition3d(:,:) = 0.0
+
+    ! First pass through observations
+    HEADER1: do headerIndex = 1, numHeader
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) /= trim(dataSet)) then
+        valid(headerIndex) = .false.
+        cycle HEADER1
+      end if
+
+      ! get latitude and longitude
+      obsLonInRad = obs_headElem_r(obsData, OBS_LON, headerIndex)
+      obsLatInRad = obs_headElem_r(obsData, OBS_LAT, headerIndex)
+
+      ! get step bin
+      obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
+                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex = nint(obsStepIndex_r8)
+
+      ! TimePenalty (lower is better)
+      timePenalty(headerIndex) = abs(middleStep-obsStepIndex)
+
+      ! obs is outside time window
+      if(obsStepIndex == -1) then
+        badTimeCount = badTimeCount + 1
+        timePenalty(headerIndex) = MPC_missingValue_INT
+        valid(headerIndex) = .false.
+      end if
+
+      ! 3D location array for kdtree
+      obsPosition3d(:,headerIndex) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
+    end do HEADER1
+
+    if(numHeaderMaxMpi > numHeader) valid(numHeader+1:numHeaderMaxMpi) = .false.
+
+    ! Gather needed information from all MPI tasks
+    call mmpi_allGather(valid, validMpi)
+    call mmpi_allGather(obsPosition3d, obsPosition3dMpi)
+    call mmpi_allGather(timePenalty,   timePenaltyMpi)
+
+    deallocate(obsPosition3d)
+    deallocate(timePenalty)
+
+    allocate(obsIndexesSorted(numHeaderMpi))
+
+    do obsIndex = 1, numHeaderMpi
+      obsIndexesSorted(obsIndex) = obsIndex
+    end do
+
+    call thn_QsortIntIgnoringNullValues(timePenaltyMpi,obsIndexesSorted,MPC_missingValue_INT)
+
+    nullify(tree)
+    tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
+
+    OBS_LOOP: do obsIndex = 1, numHeaderMpi
+
+      if ( timePenaltyMpi(obsIndex) == MPC_missingValue_INT ) cycle OBS_LOOP
+
+      obsIndexSorted = obsIndexesSorted(obsIndex)
+
+      if ( .not. validMpi(obsIndexSorted) ) cycle OBS_LOOP
+
+      ! Find all obs within the minimum distance prescribed
+      refPosition(:) = obsPosition3dMpi(:,obsIndexSorted)
+      call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numFoundSearch, &
+                             nalloc=maxNumSearch, results=searchResults)
+      if (numFoundSearch >= maxNumSearch) then
+        call utl_abort('thn_byDistance: the parameter maxNumSearch must be increased')
+      end if
+      if (numFoundSearch == 0) then
+        call utl_abort('thn_byDistance: no match found. This should not happen!!!')
+      end if
+
+      if (numFoundSearch == 1) cycle OBS_LOOP
+
+      ! Loop over all of these nearby locations
+      do resultIndex = 2, numFoundSearch
+        headerIndex2 = searchResults(resultIndex)%idx
+        validMpi(headerIndex2) = .false.
+      end do
+
+    end do OBS_LOOP
+    call kdtree2_destroy(tree)
+
+    deallocate(obsPosition3dMpi)
+    deallocate(timePenaltyMpi)
+    deallocate(obsIndexesSorted)
+
+    ! Update local copy of valid from global mpi version
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    deallocate(validMpi)
+
+    countObs = count(valid)
+    call mmpi_allReduce(countObs, countObsOutMpi, mmpi_sum)
+    write(*,*) 'thn_byDistance: number of obs after thinning = ', &
+               countObs, countObsOutMpi
+
+    ! Modify the flags and count number of obs kept
+    HEADER2: do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      if (trim(obs_elem_c(obsData, 'STID', headerIndex)) /= trim(dataSet)) cycle HEADER2
+
+      if (.not. valid(headerIndex)) then
+        ! do not keep this obs: set bit 11 and jump to the next obs
+        call obs_set_current_body_list(obsData, headerIndex)
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsData)
+          if (bodyIndex < 0) exit BODY
+          call flg_setFlag(obsData, bodyIndex, flg_11rejSelect)
+        end do BODY
+      end if
+
+    end do HEADER2
+
+    ! Deallocation
+    deallocate(valid)
+
+    call mmpi_allReduce(badTimeCount,   badTimeCountMpi,   mmpi_sum)
+
+    write(*,*)
+    write(*,'(a50,i10)') 'Number of input obs                  = ', countObsInMpi
+    write(*,'(a50,i10)') 'Total number of rejected/thinned obs = ', countObsInMpi - countObsOutMpi
+    write(*,'(a50,i10)') 'Number of output obs                 = ', countObsOutMpi
+    write(*,*)
+    write(*,*)
+    write(*,'(a60,4i10)') 'Number of rejects outside time window, thinning ', &
+         badTimeCountMpi, &
+         countObsInMpi - countObsOutMpi - badTimeCountMpi
+
+    write(*,*)
+    write(*,*) 'thn_byDistance: Finished'
+    write(*,*)
+
+  end subroutine thn_byDistance
 
 end module thinning_mod

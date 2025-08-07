@@ -577,7 +577,10 @@ program midas_obsSelection
     if (obs_famExist(obsSpaceData, 'TM')) then
       call thn_thinSurface(obsSpaceData, 'TM') ! SST thinning
       call thn_thinSatSST(obsSpaceData)        ! satellite SST thinning
-    end if
+    end if      
+    if (obs_famExist(obsSpaceData, 'GL')) then
+      call thn_thinIce(obsSpaceData) ! Sea Ice thinning
+    end if      
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)

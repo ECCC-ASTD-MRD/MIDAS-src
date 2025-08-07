@@ -1,0 +1,43 @@
+ &namObsSelection
+  doBgck     = .false.
+  doBiasCorr = .false.
+  doThinning = .true.
+/
+ &thin_ice
+  deldist(1) = 25
+  deldist(2) = 25
+  deldist(3) = 25
+  deldist(4) = 25
+  dataSet(1) = 'DMSP17'
+  dataSet(2) = 'DMSP18'
+  dataSet(3) = 'METOP-1'
+  dataSet(4) = 'GCOM-W1'
+/
+ &NAMSTATE
+  ANLVAR(1) = 'GL'
+/
+ &NAMTIME
+  DSTEPOBS    = 6.0d0
+  DSTEPOBSINC = 6.0d0
+  DWINDOWSIZE = 168.0d0
+/
+ &NAMFILT
+  NLIST(1)=20095
+/
+ &NAMDIMO
+  NMXOBS=500000
+  NDATAMX=3000000
+/
+ &NAMSQLgl
+  listElem="20095,21062"
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+  itemUpdateBodyList(1)='OMP'
+  itemUpdateBodyList(2)='OER'
+/
+ &NAMSQLCLEAN
+  vacuum = .true.
+/
+ &namSQLInsert
+/
