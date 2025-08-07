@@ -93,6 +93,14 @@ foreach(prog ${PROJECT_PROGRAMS})
     OUTPUT_NAME midas-${prog}_${AddToProgName}.Abs
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
     LINK_FLAGS "${MPI_LINK_FLAGS}")
+
+  add_custom_command(
+      TARGET ${prog}
+      PRE_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "removing previous targets if it exists"
+      COMMAND rm -vf midas-*_${AddToProgName}.Abs
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
 endforeach()
 
 install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -124,7 +132,7 @@ add_custom_target(installabs
 
   COMMAND /bin/mkdir -p ${CMAKE_INSTALL_PREFIX}
 
-  COMMAND set -x\; for program in ${PROJECT_PROGRAMS}\; do progin=${CMAKE_CURRENT_BINARY_DIR}/midas-\$\${program}_${AddToProgName}.Abs\; [ -f \$\${progin} ] && cp \$\${progin} ${CMAKE_INSTALL_PREFIX}/midas-\$\${program}_${AddToProgName}-`cat ${CMAKE_INSTALL_PREFIX}/midas.version.temp`.Abs\; done\; rm -f ${CMAKE_INSTALL_PREFIX}/midas.version.temp
+  COMMAND for program in ${PROJECT_PROGRAMS}\; do progin=${CMAKE_CURRENT_BINARY_DIR}/midas-\$\${program}_${AddToProgName}.Abs\; [ -f \$\${progin} ] && cp \$\${progin} ${CMAKE_INSTALL_PREFIX}/midas-\$\${program}_${AddToProgName}-`cat ${CMAKE_INSTALL_PREFIX}/midas.version.temp`.Abs\; done\; rm -f ${CMAKE_INSTALL_PREFIX}/midas.version.temp
 )
 
 set_property(
