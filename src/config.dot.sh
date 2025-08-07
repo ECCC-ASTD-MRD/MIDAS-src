@@ -296,9 +296,6 @@ You can compile a single module by going to 'src/modules'
 then to compile the program, you go back to the main build directory
    cd ../..
    make var
-
-When you are ready, you can install all the programs and run the tests
-   make install
 EOF
         fi ## End of 'if [ "${__show_instructions}" = true ]'
 

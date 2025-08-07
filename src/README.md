@@ -414,18 +414,13 @@ development iteratively many times with short tests in between, then maybe the
 seconds saving is worth the more complex incantation.
 
 In any case, doing the build in parallel on the frontend using `make` instead of
-`midas_build` is a certainly a gain in time.  Don't forget however to do a
-proper `make install` afterward for the binaries to be copied to the `midas_abs`
-directory, see comments on this [in the following section](#the-install-target)
-
+`midas_build` is a certainly a gain in time.
 
 ### The install target
 
-Calling `make install` **after** `make [all| target_1 [target_2 ... ]]` will copy
-the absolutes present in `${buildDir}/src/programs/` to the binaries directory at
-`${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  All binaries are copied at the same place
-with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSION}`
-is obtained by the `${topLelev}/midas.version` script.
+Calling `make install` first will trigger the compilation all the
+programs and create a `midas-config` that can be useful to obtain
+information about the compilation process.
 
 
 A complete install from `${topLevel}` is then

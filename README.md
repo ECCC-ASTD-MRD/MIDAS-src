@@ -117,6 +117,7 @@ cd src
 ```
 
 ## Complete documentation on using `midas_build`, `cmake` and `make`
+
 If you are [contributing a new program, changing external dependencies](./src/README.md#adding-a-new-program-or-changing-external-dependencies),
 recompiling a lot or debugging the code,
 you should take the time to read the detailed instructions found in
