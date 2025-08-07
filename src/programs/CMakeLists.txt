@@ -96,9 +96,11 @@ foreach(prog ${PROJECT_PROGRAMS})
 
   add_custom_command(
       TARGET ${prog}
-      PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E echo "removing previous targets if it exists"
-      COMMAND rm -vf midas-*_${AddToProgName}.Abs
+      POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "Copy target to ${CMAKE_INSTALL_PREFIX}"
+      COMMAND ${CMAKE_SOURCE_DIR}/midas.version > midas.version.temp
+      COMMAND cp -fv ${CMAKE_CURRENT_BINARY_DIR}/midas-${prog}_${AddToProgName}.Abs ${CMAKE_INSTALL_PREFIX}/midas-${prog}_${AddToProgName}-`cat midas.version.temp`.Abs
+      COMMAND rm -fv midas.version.temp
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
 endforeach()
