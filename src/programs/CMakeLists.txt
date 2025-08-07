@@ -126,15 +126,6 @@ file(WRITE ${CMAKE_BINARY_DIR}/install_programs_script.cmake "
 # Install the custom script to run after the targets are installed
 install(SCRIPT ${CMAKE_BINARY_DIR}/install_programs_script.cmake)
 
-# install only the compiled programs
-add_custom_target(installabs
-  COMMAND ${CMAKE_SOURCE_DIR}/midas.version > ${CMAKE_INSTALL_PREFIX}/midas.version.temp
-
-  COMMAND /bin/mkdir -p ${CMAKE_INSTALL_PREFIX}
-
-  COMMAND for program in ${PROJECT_PROGRAMS}\; do progin=${CMAKE_CURRENT_BINARY_DIR}/midas-\$\${program}_${AddToProgName}.Abs\; [ -f \$\${progin} ] && cp \$\${progin} ${CMAKE_INSTALL_PREFIX}/midas-\$\${program}_${AddToProgName}-`cat ${CMAKE_INSTALL_PREFIX}/midas.version.temp`.Abs\; done\; rm -f ${CMAKE_INSTALL_PREFIX}/midas.version.temp
-)
-
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs")
