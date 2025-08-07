@@ -4,7 +4,6 @@
   doThinning = .true.
 /
  &thin_ice
-  thinningTechnique = 'distance-dependent'
   deldist(1) = 25
   deldist(2) = 25
   deldist(3) = 25
