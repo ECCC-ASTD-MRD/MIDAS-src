@@ -29,21 +29,6 @@ midas_build:
   tags:
     - hpcr-u2
 
-monitor_build:
-  stage: build
-  script:
-    - cd tools/monitor
-    - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
-  only:
-    - main
-    - v_3.7
-    - v_3.9
-    - v_3.9-RandD
-    - v_4.1
-    - tags
-  tags:
-    - hpcr-u2
-
 monitor_tests:
    stage: test
    script:
@@ -58,15 +43,6 @@ monitor_tests:
      - tags
    tags:
      - hpcr-u2
-
-## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
-## splitobs_build:
-##    stage: build
-##    script:
-##      - cd tools/splitobs
-##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
-##    tags:
-##      - hpcr-u2
 
 splitobs_burp_tests:
    stage: test
