@@ -376,13 +376,11 @@ if [ -n "${__abs_exist_list}" ]; then
     ##  Verification of compiled programs
     typeset __status=0
     for __abs in ${__abs_exist_list}; do
-        typeset __abs_compiled=${MIDAS_COMPILE_DIR_BUILD}/$(abs_prefix ${__abs})
         typeset __abs_installed=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
-        if [ ! -f  "${__abs_compiled}" ]; then
-            echo "  <!> ${__abs_compiled} not found"
+        if [ ! -f  "${__abs_installed}" ]; then
+            echo "  <!> ${__abs_installed} not found"
             __status=1
         else
-            mv ${__abs_compiled} ${__abs_installed}
             echo "  ${__abs_installed} installed" >> .checkAbs
         fi
     done
