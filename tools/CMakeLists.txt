@@ -31,6 +31,14 @@ set_target_properties(monitor PROPERTIES
    OUTPUT_NAME midas.monitor.Abs)
 install(TARGETS monitor DESTINATION ${CMAKE_INSTALL_PREFIX})
 
+add_custom_command(
+    TARGET monitor
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.monitor.Abs to ${CMAKE_INSTALL_PREFIX}"
+    COMMAND cp -f midas.monitor.Abs ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 file(WRITE ${CMAKE_BINARY_DIR}/install_splitobs_script.cmake "
     execute_process(
         COMMAND ${CMAKE_SOURCE_DIR}/midas.version
