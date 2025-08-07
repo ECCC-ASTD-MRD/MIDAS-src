@@ -14,6 +14,15 @@ target_link_libraries(splitobs PRIVATE
 )
 set_target_properties(splitobs PROPERTIES
    OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs)
+
+add_custom_command(
+    TARGET splitobs
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.splitobs_${AddToProgName}.Abs to ${CMAKE_INSTALL_PREFIX}"
+    COMMAND cp -f midas.splitobs_${AddToProgName}.Abs ${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 install(TARGETS splitobs DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 add_executable(monitor monitor/monitor.c)
