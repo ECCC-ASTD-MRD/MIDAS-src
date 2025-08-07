@@ -240,6 +240,15 @@ if [ "${__run_cmake}" != stop ]; then
         mkdir ${MIDAS_COMPILE_DIR_BUILD}
     fi
 
+    if [ -d ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR} ]; then
+        echo "The install directory already exist: ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
+        echo "Leaving it there..."
+        echo
+    else
+        echo "Create the install directory: ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
+	mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+    fi
+
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
 
         echo "Moving to ${MIDAS_COMPILE_DIR_BUILD}"
