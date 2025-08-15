@@ -34,6 +34,8 @@ module fsoi_mod
 
   ! Public subroutines and functions
   public :: fso_setup, fso_ensemble
+  ! public module variable
+  public :: fsoMode
 
   ! module private variables
   type(struct_obs),        pointer :: obsSpaceData_ptr
@@ -61,7 +63,7 @@ module fsoi_mod
   logical             :: includeHUnorm ! choose to include humidity in forecast error norm
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
-  character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO' or 'EFSO'
+  character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO', 'EFSO', 'HFSR' or 'EFSR'
   logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa
 
   contains
@@ -115,7 +117,11 @@ module fsoi_mod
     write(*,nml=namfso)
     call utl_tmg_stop(181)
 
-    if (trim(fsoMode) /= 'HFSO' .and. trim(fsoMode) /= 'EFSO') then
+    if (trim(fsoMode) == 'HFSO' .or. trim(fsoMode) == 'EFSO') then
+      if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSO mode'
+    else if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') then
+      if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSR mode'
+    else
       call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO or EFSO')
     end if
 
@@ -195,43 +201,63 @@ module fsoi_mod
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
-    ! compute forecast error = C * (error_t^fa + error_t^fb)
+    ! compute forecast error Ce = C * (error_t^fa + error_t^fb) (if FSOI), or
+    !                           = C * (error_t^fa) (if FSR)
     call calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr,statevector_HUreference)
 
 
-    ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)
+    ! compute vhat = B_t^T/2 * Ce
     call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true., &
     stateVectorRef_opt=statevector_HUreference)
 
-    if (mmpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:', &
-        maxval(vhat),minval(vhat)
+    if ( fsoMode(4:4) == 'O' ) then    ! HFSO or EFSO
+      if (mmpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:', &
+          maxval(vhat),minval(vhat)
+    elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
+      if (mmpi_myid == 0) write(*,*) 'fsr: B_t^T/2 * C * (error_t^fa) max,min:', maxval(vhat),minval(vhat)
+    end if
 
-    if( trim(fsoMode) == 'HFSO' ) then
+    if( fsoMode(1:1) == 'H' ) then ! hybrid approach
       call minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
-    elseif( trim(fsoMode) == 'EFSO' ) then
+    elseif( fsoMode(1:1) == 'E' ) then ! ensemble approach
       call bmat_sqrtB(vhat, nvadim_mpilocal, statevector_fso)
     end if
 
     ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
     call s2c_tl(statevector_fso,column,columnTrlOnAnlIncLev,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
-    call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
-    call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
-    call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
+    call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 ahat = H B^1/2 ahat
+    if ( fsoMode(4:4) == 'O' ) then    ! HFSO or EFSO
+      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
+      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat
+    elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
+      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSR,OBS_WORK) ! Save as OBS_FSR : R**-1/2 H B^1/2 ahat
+      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSR,OBS_FSR)  ! Save as OBS_FSR : R**-1 H B^1/2 ahat
+    end if
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
 
-      do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-          fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
-          fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
-          call obs_bodySet_r(obsSpaceData,OBS_FSO,bodyIndex, fso_fin)
-        end if
-      end do
+      if ( fsoMode(4:4) == 'O' ) then    ! HFSO or EFSO
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+            fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+            fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_FSO,bodyIndex, fso_fin)
+          end if
+        end do
+      elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+            fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSR,bodyIndex)
+            fso_fin = -2.0d0 * fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_FSR,bodyIndex, fso_fin)
+          end if
+        end do
+      end if
 
     end do
 
@@ -337,7 +363,11 @@ module fsoi_mod
                                    latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                                    includeUVnorm, includeTTnorm, includeP0norm,  &
                                    includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
-    call gsv_copy(statevector_fb,statevector_out)
+    if ( fsoMode(4:4) == 'O' ) then     ! HFSO or EFSO
+      call gsv_copy(statevector_fb,statevector_out)
+    elseif ( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
+      call gsv_copy(statevector_tempfa,statevector_out)
+    end if
     call gsv_copy(statevector_a,statevector_verifAnalysis)
 
   end subroutine calcFcstError
@@ -455,6 +485,17 @@ module fsoi_mod
     integer            :: numAss_local(numFamily), numAss_global(numFamily)
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
     integer            :: familyIndex
+    integer            :: OBS_FSX ! either OBS_FSO or OBS_FSR
+    character(len=3)   :: strFSX  ! either 'FSO' or 'FSR'
+
+    if ( fsoMode(4:4) == 'O' ) then
+      OBS_FSX = OBS_FSO
+      strFSX  = 'FSO'
+    else
+      OBS_FSX = OBS_FSR
+      strFSX  = 'FSR'
+    end if
+
 
     if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
 
@@ -473,7 +514,7 @@ module fsoi_mod
     do familyIndex = 1, numFamily
       do bodyIndex = 1, obs_numbody(obsSpaceData)
 
-        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSX,bodyIndex)
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
           ! FSO for each family
           if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == familyList(familyIndex) ) then
@@ -492,7 +533,7 @@ module fsoi_mod
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle
-        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSX,bodyIndex)
         tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
         numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
       end do
@@ -512,17 +553,18 @@ module fsoi_mod
     if (mmpi_myid == 0) then
 
       write(*,*) ' '
-      write(*,'(a15,f15.8)') 'Total FSO=', totFSO
+      write(*,'(a15,f15.8)') 'Total ' // strFSX // '=', totFSO
       write(*,*) ' '
 
       do familyIndex = 1, numFamily
-        write(*,'(a4,a2,a2,f15.8,a16,i10)') 'FSO-', familyList(familyIndex), '=', tfso(familyIndex),'  Count Number=', numAss_global(familyIndex)
+        write(*,'(a4,a2,a2,f15.8,a16,i10)') strFSX //'-', familyList(familyIndex), '=', tfso(familyIndex), &
+                '  Count Number=', numAss_global(familyIndex)
       end do
       write(*,*) ' '
 
       if (tvs_nsensors > 0) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
-        write(*,'(1x,a)') '#  plt sat ins    FSO'
+        write(*,'(1x,a)') '#  plt sat ins    ' // strFSX
         do sensorIndex = 1, tvs_nsensors
           write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') sensorIndex,inst_name(tvs_instruments(sensorIndex)), &
                 platform_name(tvs_platforms(sensorIndex)),tvs_satellites(sensorIndex),tfsotov_sensors(sensorIndex), numAss_sensors_glb(sensorIndex)
