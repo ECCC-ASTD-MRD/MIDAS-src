@@ -23,8 +23,7 @@
    NSIMMAX  = 100,
    REPSG    = 1D-5,
    FORECASTPATH='./forecasts/',
-   FSOMODE='HFSR',
-   DOFSR=.true.
+   FSOMODE='HFSR'
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
