@@ -33,9 +33,6 @@ program midas_obsImpact
   !            analysis and forecast ensemble for the calculation.
   !            This program also supports FSR diagnostics. Similarly, both hybrid and ensemble approaches are supported.
   !
-  !            If the namelist variable `doFSR` is set to `.true.`, this program will also compute the forecast
-  !            sensitivity to scaling factors of the observation error variance (FSR), either with the hybrid or
-  !            the purely-ensemble approach.
   !
   !
   !

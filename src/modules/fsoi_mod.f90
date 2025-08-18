@@ -62,7 +62,6 @@ module fsoi_mod
   logical             :: includeP0norm ! choose to include surface pressure in forecast error norm
   logical             :: includeHUnorm ! choose to include humidity in forecast error norm
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
-  logical             :: doFSR         ! switch to turn on/off FSR calculation
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
   character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO', 'EFSO', 'HFSR' or 'EFSR'
   logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa
@@ -86,7 +85,7 @@ module fsoi_mod
     integer :: ierr
 
     NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
-    NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode, doFSR
+    NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
     NAMELIST /NAMFSO/latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
     NAMELIST /NAMFSO/includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm
     NAMELIST /NAMFSO/StratoNorm
@@ -109,7 +108,6 @@ module fsoi_mod
     includeTGnorm=.false.
     forecastPath = './forecasts'
     fsoMode  = 'HFSO'
-    doFSR = .false.
     StratoNorm = .false.
 
     ! read in the namelist NAMFSO
@@ -157,12 +155,11 @@ module fsoi_mod
     ! Locals:
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_FcstErr, statevector_fso, statevector_HUreference
-    type(struct_gsv)                :: statevector_FcstErr_fa, statevector_fsr ! for FSR
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    real(8)                         :: fso_ori, fso_fin, fsr_ori, fsr_fin
+    real(8)                         :: fso_ori, fso_fin
 
     if (mmpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
@@ -198,18 +195,6 @@ module fsoi_mod
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
                       dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
-
-    if (doFSR) then
-        ! for statevector_FcstErr_fa
-        call gsv_allocate(statevector_FcstErr_fa, 1, hco_anl, vco_anl, &
-                          datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
-                          allocHeight_opt=.false., allocPressure_opt=.false.)
-
-        ! for statevector_fsr
-        call gsv_allocate(statevector_fsr, tim_nstepobsinc, hco_anl, vco_anl, &
-                          dataKind_opt=pre_incrReal, &
-                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
-    end if
 
     ! for statevector_HUreference (verifying analysis)
     call gsv_allocate(statevector_HUreference, 1, hco_anl, vco_anl, &
