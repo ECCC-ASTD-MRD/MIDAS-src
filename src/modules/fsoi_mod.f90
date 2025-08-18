@@ -276,7 +276,7 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   ! calcFcstError
   !--------------------------------------------------------------------------
-  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_verifAnalysis,statevector_out_fa)
+  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_verifAnalysis)
     !
     ! :Purpose: Reads the forecast from background and analysis, the verifying
     !           analysis based on these inputs, calculates the Forecast error
@@ -287,8 +287,6 @@ module fsoi_mod
     type(struct_columnData), target, intent(in)    :: columnTrlOnAnlIncLev
     type(struct_gsv)       , target, intent(inout) :: statevector_out
     type(struct_gsv)       , target, intent(inout) :: statevector_verifAnalysis
-    type(struct_gsv)       , target, intent(inout),optional :: statevector_out_fa
-
 
     ! Locals:
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
@@ -370,10 +368,6 @@ module fsoi_mod
       call gsv_copy(statevector_tempfa,statevector_out)
     end if
     call gsv_copy(statevector_a,statevector_verifAnalysis)
-<<<<<<< HEAD
-=======
-    if (present(statevector_out_fa)) call gsv_copy(statevector_tempfa,statevector_out_fa)
->>>>>>> 2c7ea01cd... Issue #1099 bug fix
 
   end subroutine calcFcstError
 
@@ -471,11 +465,7 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   ! sumFSO
   !--------------------------------------------------------------------------
-<<<<<<< HEAD
   subroutine sumFSO(obsSpaceData)
-=======
-  subroutine sumFSO(obsSpaceData,flagFSR)
->>>>>>> 2c7ea01cd... Issue #1099 bug fix
     !
     ! :Purpose: Print out the information of total FSO (or FSR) for each family
     !
@@ -497,9 +487,6 @@ module fsoi_mod
     integer            :: familyIndex
     integer            :: OBS_FSX ! either OBS_FSO or OBS_FSR
     character(len=3)   :: strFSX  ! either 'FSO' or 'FSR'
-
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     if ( fsoMode(4:4) == 'O' ) then
       OBS_FSX = OBS_FSO
