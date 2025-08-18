@@ -621,7 +621,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_JOBS= OBS_PRM +1 ! contribution to obs cost function
    integer, parameter, public :: OBS_QCV = OBS_JOBS+1 ! weight-reduction factor for var QC
    integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! forecast sensitivity to observations
-   integer, parameter, public :: OBS_FSR = OBS_FSO+1  ! Continuous Ranked Probability Score
+   integer, parameter, public :: OBS_FSR = OBS_FSO+1  ! forecast sensitivity to observation error variance
    integer, parameter, public :: OBS_CRPS= OBS_FSR+1  ! Continuous Ranked Probability Score
    integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]

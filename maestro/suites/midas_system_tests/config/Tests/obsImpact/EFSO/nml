@@ -13,7 +13,8 @@
  &NAMFSO
    LEADTIME = 24.0D0
    FORECASTPATH='./forecasts/',
-   FSOMODE='EFSO'
+   FSOMODE='EFSO',
+   DOFSR=.true.
 /
  &NAMDIMO
    NMXOBS=80000,

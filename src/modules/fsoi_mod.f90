@@ -62,6 +62,7 @@ module fsoi_mod
   logical             :: includeP0norm ! choose to include surface pressure in forecast error norm
   logical             :: includeHUnorm ! choose to include humidity in forecast error norm
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
+  logical             :: doFSR         ! switch to turn on/off FSR calculation
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
   character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO', 'EFSO', 'HFSR' or 'EFSR'
   logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa
@@ -85,7 +86,7 @@ module fsoi_mod
     integer :: ierr
 
     NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
-    NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
+    NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode, doFSR
     NAMELIST /NAMFSO/latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
     NAMELIST /NAMFSO/includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm
     NAMELIST /NAMFSO/StratoNorm
@@ -108,6 +109,7 @@ module fsoi_mod
     includeTGnorm=.false.
     forecastPath = './forecasts'
     fsoMode  = 'HFSO'
+    doFSR = .false.
     StratoNorm = .false.
 
     ! read in the namelist NAMFSO
@@ -155,11 +157,12 @@ module fsoi_mod
     ! Locals:
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_FcstErr, statevector_fso, statevector_HUreference
+    type(struct_gsv)                :: statevector_FcstErr_fa, statevector_fsr ! for FSR
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    real(8)                         :: fso_ori, fso_fin
+    real(8)                         :: fso_ori, fso_fin, fsr_ori, fsr_fin
 
     if (mmpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
@@ -196,6 +199,18 @@ module fsoi_mod
                       dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
+    if (doFSR) then
+        ! for statevector_FcstErr_fa
+        call gsv_allocate(statevector_FcstErr_fa, 1, hco_anl, vco_anl, &
+                          datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                          allocHeight_opt=.false., allocPressure_opt=.false.)
+
+        ! for statevector_fsr
+        call gsv_allocate(statevector_fsr, tim_nstepobsinc, hco_anl, vco_anl, &
+                          dataKind_opt=pre_incrReal, &
+                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+    end if
+
     ! for statevector_HUreference (verifying analysis)
     call gsv_allocate(statevector_HUreference, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
@@ -204,7 +219,6 @@ module fsoi_mod
     ! compute forecast error Ce = C * (error_t^fa + error_t^fb) (if FSOI), or
     !                           = C * (error_t^fa) (if FSR)
     call calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr,statevector_HUreference)
-
 
     ! compute vhat = B_t^T/2 * Ce
     call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true., &
@@ -277,7 +291,7 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   ! calcFcstError
   !--------------------------------------------------------------------------
-  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_verifAnalysis)
+  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_verifAnalysis,statevector_out_fa)
     !
     ! :Purpose: Reads the forecast from background and analysis, the verifying
     !           analysis based on these inputs, calculates the Forecast error
@@ -288,6 +302,8 @@ module fsoi_mod
     type(struct_columnData), target, intent(in)    :: columnTrlOnAnlIncLev
     type(struct_gsv)       , target, intent(inout) :: statevector_out
     type(struct_gsv)       , target, intent(inout) :: statevector_verifAnalysis
+    type(struct_gsv)       , target, intent(inout),optional :: statevector_out_fa
+
 
     ! Locals:
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
@@ -369,6 +385,10 @@ module fsoi_mod
       call gsv_copy(statevector_tempfa,statevector_out)
     end if
     call gsv_copy(statevector_a,statevector_verifAnalysis)
+<<<<<<< HEAD
+=======
+    if (present(statevector_out_fa)) call gsv_copy(statevector_tempfa,statevector_out_fa)
+>>>>>>> 2c7ea01cd... Issue #1099 bug fix
 
   end subroutine calcFcstError
 
@@ -466,14 +486,19 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   ! sumFSO
   !--------------------------------------------------------------------------
+<<<<<<< HEAD
   subroutine sumFSO(obsSpaceData)
+=======
+  subroutine sumFSO(obsSpaceData,flagFSR)
+>>>>>>> 2c7ea01cd... Issue #1099 bug fix
     !
-    ! :Purpose: Print out the information of total FSO for each family
+    ! :Purpose: Print out the information of total FSO (or FSR) for each family
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
+    integer, intent(in), optional :: flagFSR ! if present, print summary for FSR
 
     ! Locals:
     real(8)            :: pfso_1
@@ -488,16 +513,29 @@ module fsoi_mod
     integer            :: OBS_FSX ! either OBS_FSO or OBS_FSR
     character(len=3)   :: strFSX  ! either 'FSO' or 'FSR'
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+
     if ( fsoMode(4:4) == 'O' ) then
       OBS_FSX = OBS_FSO
       strFSX  = 'FSO'
     else
       OBS_FSX = OBS_FSR
       strFSX  = 'FSR'
+=======
+    if (present(FSO_or_FSR)) then
+=======
+    if (present(flagFSR)) then
+>>>>>>> 2c7ea01cd... Issue #1099 bug fix
+      OBS_FSX = OBS_FSR
+      strFSX  = 'FSR'
+    else
+      OBS_FSX = OBS_FSO
+      strFSX  = 'FSO'
+>>>>>>> 801a4d804... Issue #1099: Initial implementation of FSR
     end if
 
-
-    if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
+    if (mmpi_myid == 0) write(*,*) 'sum' // strFSX //': Starting'
 
     ! initialize
     do familyIndex = 1, numFamily
@@ -567,7 +605,8 @@ module fsoi_mod
         write(*,'(1x,a)') '#  plt sat ins    ' // strFSX
         do sensorIndex = 1, tvs_nsensors
           write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') sensorIndex,inst_name(tvs_instruments(sensorIndex)), &
-                platform_name(tvs_platforms(sensorIndex)),tvs_satellites(sensorIndex),tfsotov_sensors(sensorIndex), numAss_sensors_glb(sensorIndex)
+                platform_name(tvs_platforms(sensorIndex)),tvs_satellites(sensorIndex),tfsotov_sensors(sensorIndex), &
+                numAss_sensors_glb(sensorIndex)
         end do
         write(*,*) ' '
       end if
