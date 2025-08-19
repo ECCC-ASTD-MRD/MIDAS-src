@@ -339,28 +339,35 @@ module message_mod
       readLine = message(1:oneLineMsgLen+1)
       msgLine = msg_breakOnSpace(readLine)
       posIdx = posIdx + len(trim(msgLine)) +1
-      write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
-                                                  ',A', len(trim(msgLine)),')'
-      write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
-      do
-        if ( posIdx >= len(message) ) then
-          ! message printed
-          return
-        else if ( posIdx + oneLineMsgLen > len(trim(message)) ) then
-          ! last line
-          msgLine = message(posIdx+1:len(message))
-        else
-          ! neither first nor last
-          readLine = message(posIdx+1:min(posIdx+oneLineMsgLen+1,len(message)))
-          msgLine = msg_breakOnSpace(readLine)
-        end if
-        adjustedLine = adjustl(trim(msgLine))
-        posIdx = posIdx + len(adjustedLine) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A', &
-                                                len(adjustedLine),')'
-        write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
-      end do
+
+      if ( len(trim(msgLine)) > 0 ) then
+        write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
+                                                    ',A', len(trim(msgLine)),')'
+
+        write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
+        oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
+        do
+          if ( posIdx >= len(message) ) then
+            ! message printed
+            return
+          else if ( posIdx + oneLineMsgLen > len(trim(message)) ) then
+            ! last line
+            msgLine = message(posIdx+1:len(message))
+          else
+            ! neither first nor last
+            readLine = message(posIdx+1:min(posIdx+oneLineMsgLen+1,len(message)))
+            msgLine = msg_breakOnSpace(readLine)
+          end if
+          adjustedLine = adjustl(trim(msgLine))
+          posIdx = posIdx + len(adjustedLine) +1
+          write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A', &
+                                                  len(adjustedLine),')'
+          write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
+        end do
+      else
+        ! write an empty line
+        write(*,*)
+      end if
     else
       ! Single lines message
       ! format: "origin: short message"
