@@ -1179,7 +1179,7 @@ CONTAINS
       endif
     endif
 
-    if(localSelectionOutput /= 0) then
+    if (localSelectionOutput /= 0) then
       call eob_allocateOutput(eobOut,bufrMax)
       call eob_allocateOutput(eobTovsOut,channelMax)
       call eob_zeroOutput(eobOut)
@@ -1215,7 +1215,7 @@ CONTAINS
             localBodyIndices(numObsSelected)  = bodyIndex
             locFunSelected(numObsSelected)    = locFun(localObsIndex)
             numObsSelectedByCodtyp(codTyp)    = numObsSelectedByCodtyp(codTyp) + 1
-            if(localSelectionOutput /= 0) then
+            if (localSelectionOutput /= 0) then
               if (tvs_isIdBurpTovs(codTyp)) then
                 call eob_updateOutput(eobTovsOut, .true., ensObs, searchResults, codTyp, &
                                       localObsIndex, bodyIndex, vertLocation, locFun)
@@ -1277,7 +1277,7 @@ CONTAINS
     end if
 
     ! send information about this grid point to an output text file
-    if(localSelectionOutput /= 0) then
+    if (localSelectionOutput /= 0) then
       call eob_writeOutput(eobOut,     .false.,  lat, lon, vertlocation, &
                            numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
                            localSelectionOutput)
@@ -1286,8 +1286,8 @@ CONTAINS
                            localSelectionOutput)
     end if
 
-    call eob_deallocateOutput(eobOut)
     call eob_deallocateOutput(eobTovsOut)
+    call eob_deallocateOutput(eobOut)
     deallocate(locFun)
     deallocate(sortIndex)
     deallocate(sortValue)
