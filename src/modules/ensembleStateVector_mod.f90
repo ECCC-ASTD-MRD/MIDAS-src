@@ -168,6 +168,7 @@ CONTAINS
 
     ens%allocated = .true.
     ens%numMembers = numMembers
+    ens%numSubEns = 1
     if (present(hco_core_opt)) then
       ens%hco_core => hco_core_opt
     else
