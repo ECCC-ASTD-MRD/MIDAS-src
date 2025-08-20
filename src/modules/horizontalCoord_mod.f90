@@ -1313,6 +1313,10 @@ contains
       hco%xlon1 = 0.d0
       hco%xlat2 = 1.d0
       hco%xlon2 = 1.d0
+      hco%ig1 = 0
+      hco%ig2 = 0
+      hco%ig3 = 0
+      hco%ig4 = 0
     end if
 
   end subroutine hco_setupYgrid
