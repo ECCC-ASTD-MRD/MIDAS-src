@@ -324,8 +324,8 @@ program midas_letkf
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
   localSelectionOutput     = 0
-  hLocalize(:)             = -1.0D0
-  hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
+  hLocalize(:)             = -1.0d0
+  hLocalizePressure        = -1.0d0
   vLocalize                = -1.0D0
   minDistanceToLand        = -1.0D0
   obsTimeInterpType        = 'LINEAR'
