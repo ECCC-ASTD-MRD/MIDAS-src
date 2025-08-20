@@ -226,7 +226,7 @@ program midas_var
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            variational analysis are listed in the following table:
-  ! 
+  !
   !======================== ============ ==============================================================
   ! Module                   Namelist     Description of what is controlled
   !======================== ============ ==============================================================
@@ -254,7 +254,7 @@ program midas_var
   use humidityLimits_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use obsSpaceDiag_mod
@@ -272,7 +272,7 @@ program midas_var
   use tovs_mod
   use stateToColumn_mod
   use obsFilter_mod
-  
+
   implicit none
 
   integer :: istamp, exdb, exfin
@@ -314,7 +314,7 @@ program midas_var
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
-  logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file 
+  logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
 
@@ -333,7 +333,7 @@ program midas_var
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
     call utl_writeStatus(clmsg)
-  end if 
+  end if
 
   varMode='analysis'
 
@@ -551,7 +551,7 @@ program midas_var
     ! Accumulate control vector increments of all the previous iterations
     controlVectorIncrSum(:) = controlVectorIncrSum(:) + controlVectorIncr(:)
 
-    ! Compute satellite bias correction increment and write to file on last outer-loop 
+    ! Compute satellite bias correction increment and write to file on last outer-loop
     ! iteration
     if ( outerLoopIndex == numOuterLoopIterations ) then
       call bcs_writebias(controlVectorIncr)
@@ -644,7 +644,7 @@ program midas_var
   call s2c_deallocInterpInfo( inputStateVectorType='tlad' )
 
   ! Post processing of analysis before writing (variable transform+humidity clipping)
-  call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN 
+  call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN
                                stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
   call gsv_deallocate( stateVectorUpdateHighRes )
 
@@ -667,7 +667,7 @@ program midas_var
 
   ! Now write out the observation data files
   if (min_niter > 0) then
-    if ( .not. obsf_filesSplit() ) then 
+    if ( .not. obsf_filesSplit() ) then
       call msg('var','reading/writing global observation files')
       call obs_expandToMpiGlobal(obsSpaceData)
       if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
