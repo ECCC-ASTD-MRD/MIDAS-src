@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+ * Modified `LOCALSELECTIONOUTPUT` verbosity level (#1023 and !1012)
+
 ### Added
 
  * Added piecewise linear interpolation of the letkf horizontal localization radius (#1024 and !978)
