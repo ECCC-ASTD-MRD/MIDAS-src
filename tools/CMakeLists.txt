@@ -12,7 +12,7 @@ set_target_properties(splitobs PROPERTIES
 add_custom_command(
     TARGET splitobs
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.splitobs_${AddToProgName}.Abs to ${CMAKE_INSTALL_PREFIX}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.splitobs_${AddToProgName}.Abs to ${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
     COMMAND cp -f midas.splitobs_${AddToProgName}.Abs ${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -25,7 +25,7 @@ set_target_properties(monitor PROPERTIES
 add_custom_command(
     TARGET monitor
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.monitor.Abs to ${CMAKE_INSTALL_PREFIX}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.monitor.Abs to ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
     COMMAND cp -f midas.monitor.Abs ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
