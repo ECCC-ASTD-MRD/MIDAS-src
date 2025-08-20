@@ -473,7 +473,6 @@ module fsoi_mod
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
-    integer, intent(in), optional :: flagFSR ! if present, print summary for FSR
 
     ! Locals:
     real(8)            :: pfso_1
@@ -494,17 +493,6 @@ module fsoi_mod
     else
       OBS_FSX = OBS_FSR
       strFSX  = 'FSR'
-=======
-    if (present(FSO_or_FSR)) then
-=======
-    if (present(flagFSR)) then
->>>>>>> 2c7ea01cd... Issue #1099 bug fix
-      OBS_FSX = OBS_FSR
-      strFSX  = 'FSR'
-    else
-      OBS_FSX = OBS_FSO
-      strFSX  = 'FSO'
->>>>>>> 801a4d804... Issue #1099: Initial implementation of FSR
     end if
 
     if (mmpi_myid == 0) write(*,*) 'sum' // strFSX //': Starting'
