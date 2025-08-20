@@ -323,7 +323,7 @@ program midas_letkf
   ignoreEnsDate            = .false.
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
-  localSelectionOutput     = .false.
+  localSelectionOutput     = 0
   hLocalize(:)             = -1.0D0
   hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize                = -1.0D0

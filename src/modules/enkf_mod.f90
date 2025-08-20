@@ -2952,7 +2952,9 @@ contains
     !
     !:Purpose: Compute and output ensemble dimension, degrees of freedom,
     !          and trace of Pa from the eigenvalues of Pa
+    implicit none
 
+    ! Arguments:
     integer, intent(in) :: nEns
     real(8), intent(in) :: eigenValues(nEns)
 
