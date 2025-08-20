@@ -1091,20 +1091,19 @@ CONTAINS
     ! Locals:
     integer :: bodyIndex, numObsFoundSearch, maxNumLocalObs, localObsIndex, sortedIndex
     type(struct_eobOutput)            :: eobOut ! variables for the output information
-    type(struct_eobOutput)            :: eobTovsOut ! variables for the Tovs output information
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
     real(kdkind)                      :: maxRadius
     real(kdkind)                      :: refPosition(3)
     integer                           :: numObsSelectedByCodtyp(codtyp_maxNumber)    ! number of selected observations for each type
     integer                           :: numObsNotSelectedByCodtyp(codtyp_maxNumber) ! number of not selected observations for each type
-    integer                           :: codTyp, physVarIndex
+    integer                           :: codTyp
+    logical                           :: selectedObs
     real(8)                           :: hDistance, vDistance
     real(8), allocatable              :: sortValue(:)         ! values used to sort the kdtree results, choice of values is given by localObsSorting
     integer, allocatable              :: sortIndex(:)         ! sorted indices of the kdtree results
     real(8), allocatable              :: locFun(:)            ! localization function of observations inside the localization volume
-    integer, save                     :: bufrMax = 10         ! maximal number of bufr codes per codetype
-    integer, save                     :: channelMax = 1000    ! maximal number of tovs channel per codtype
+    integer, save                     :: physVarMax = 1000    ! maximal number of tovs channel or bufr codes per codtype
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1180,10 +1179,8 @@ CONTAINS
     endif
 
     if (localSelectionOutput /= 0) then
-      call eob_allocateOutput(eobOut,bufrMax)
-      call eob_allocateOutput(eobTovsOut,channelMax)
+      call eob_allocateOutput(eobOut,physVarMax)
       call eob_zeroOutput(eobOut)
-      call eob_zeroOutput(eobTovsOut)
     endif
 
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
@@ -1208,52 +1205,21 @@ CONTAINS
 
           numObsFound  = numObsFound + 1
           codTyp       = ensObs%codTyp(bodyIndex)
+          selectedObs = .false.
           ! select the observation if the maximum numbers have not been reached
           if (numObsSelectedByCodtyp(codTyp) < maxNumLocalObsPerType .and. &
               numObsSelected < maxNumLocalObs) then
+            selectedObs                       = .true.
             numObsSelected                    = numObsSelected + 1
             localBodyIndices(numObsSelected)  = bodyIndex
             locFunSelected(numObsSelected)    = locFun(localObsIndex)
             numObsSelectedByCodtyp(codTyp)    = numObsSelectedByCodtyp(codTyp) + 1
-            if (localSelectionOutput /= 0) then
-              if (tvs_isIdBurpTovs(codTyp)) then
-                call eob_updateOutput(eobTovsOut, .true., ensObs, searchResults, codTyp, &
-                                      localObsIndex, bodyIndex, vertLocation, locFun)
-              else
-                call eob_updateOutput(eobOut,    .false., ensObs, searchResults, codTyp, &
-                                      localObsIndex, bodyIndex, vertLocation, locFun)
-              end if
-            end if
           else
-            if (tvs_isIdBurpTovs(codTyp)) then
-              CHANNEL_LOOP: do physVarIndex = 1,channelMax
-               if (eobTovsOut%physVar(codTyp,physVarIndex) == ensObs%channel(bodyIndex)) then
-                 exit CHANNEL_LOOP
-               elseif (eobTovsOut%physVar(codTyp,physVarIndex) == 0) then
-                  eobTovsOut%physVar(codTyp,physVarIndex) = ensObs%channel(bodyIndex)
-                 exit CHANNEL_LOOP
-               endif
-              end do CHANNEL_LOOP
-              if (physVarIndex > channelMax) then
-                call utl_abort('midas-letkf: channelMax exceeded in eobTovsOut. Increase channelMax.')
-              endif
-              eobTovsOut%numRejected(codTyp,physVarIndex)  = eobTovsOut%numRejected(codTyp,physVarIndex) + 1
-            else
-              VARNUM_LOOP: do physVarIndex = 1,bufrMax
-               if (eobOut%physVar(codTyp,physVarIndex) == ensObs%varNum(bodyIndex)) then
-                 exit VARNUM_LOOP
-               elseif (eobOut%physVar(codTyp,physVarIndex) == 0) then
-                  eobOut%physVar(codTyp,physVarIndex) = ensObs%varNum(bodyIndex)
-                 exit VARNUM_LOOP
-               endif
-              end do VARNUM_LOOP
-              if (physVarIndex > bufrMax) then
-                call utl_abort('midas-letkf: bufrMax exceeded in eobOut. Increase bufrMax')
-              endif
-              eobOut%numRejected(codTyp,physVarIndex)  = eobOut%numRejected(codTyp,physVarIndex) + 1
-            endif
             numObsNotSelectedByCodtyp(codTyp) = numObsNotSelectedByCodtyp(codTyp) + 1
-
+          end if
+          if (localSelectionOutput /= 0) then
+            call eob_updateOutput(eobOut, ensObs, searchResults, codTyp, localObsIndex, &
+                                  bodyIndex, vertLocation, locFun, selectedObs)
           end if
         end if
       end do
@@ -1278,15 +1244,11 @@ CONTAINS
 
     ! send information about this grid point to an output text file
     if (localSelectionOutput /= 0) then
-      call eob_writeOutput(eobOut,     .false.,  lat, lon, vertlocation, &
-                           numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
-                           localSelectionOutput)
-      call eob_writeOutput(eobTovsOut, .true., lat, lon, vertlocation, &
+      call eob_writeOutput(eobOut, lat, lon, vertlocation, &
                            numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
                            localSelectionOutput)
     end if
 
-    call eob_deallocateOutput(eobTovsOut)
     call eob_deallocateOutput(eobOut)
     deallocate(locFun)
     deallocate(sortIndex)
@@ -1388,8 +1350,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_updateOutput
   !--------------------------------------------------------------------------
-  subroutine eob_updateOutput(eobOut, isTovs, ensObs, searchResults, codTyp, &
-                              localObsIndex, bodyIndex, vertLocation, locFun)
+  subroutine eob_updateOutput(eobOut, ensObs, searchResults, codTyp, localObsIndex, &
+                              bodyIndex, vertLocation, locFun, selectedObs)
     !
     !:Purpose:  Update the values of a struct_eobOutput variable
     !
@@ -1397,7 +1359,6 @@ CONTAINS
 
     ! Arguments:
     type(struct_eobOutput), intent(inout) :: eobOut           ! eobOutput object
-    logical,                intent(in)    :: isTovs
     type(struct_eob),       intent(in)    :: ensObs           ! eob object
     type(kdtree2_result),   intent(in)    :: searchResults(:) ! kdtree results
     integer,                intent(in)    :: codTyp           ! eobOut index
@@ -1405,6 +1366,7 @@ CONTAINS
     integer,                intent(in)    :: bodyIndex        ! ensObs index
     real(8),                intent(in)    :: vertLocation     ! grid point vert location
     real(8),                intent(in)    :: locFun(:)        ! Localization function
+    logical,                intent(in)    :: selectedObs      ! Obs is selected or not
 
     ! Locals:
     integer :: physVarIndex, physVarMax
@@ -1412,12 +1374,12 @@ CONTAINS
 
     physVarMax = size(eobOut%physVar,2)
 
-    if (isTovs) then
+    ! Let's find physVar and its index in eobOut
+    if (tvs_isIdBurpTovs(codTyp)) then
       physVar = ensObs%channel(bodyIndex)
     else
       physVar = ensObs%varNum(bodyIndex)
     endif
-
     MAXNUM_LOOP: do physVarIndex = 1, physVarMax
       if (eobOut%physVar(codTyp,physVarIndex) == physVar) then
         exit MAXNUM_LOOP
@@ -1426,45 +1388,51 @@ CONTAINS
         exit MAXNUM_LOOP
       endif
     end do MAXNUM_LOOP
+    if (physVarIndex > physVarMax) then
+      call utl_abort('midas-letkf: physVarMax exceeded in eobOut. &
+                      Increase physVarMax in eob_getLocalBodyIndices().')
+    endif
 
-    eobOut%distMax(codTyp,physVarIndex)     = max(eobOut%distMax(codTyp,physVarIndex), &
-                                             sqrt(searchResults(localObsIndex)%dis))
-    eobOut%vertBottom(codTyp,physVarIndex)  = max(eobOut%vertBottom(codTyp,physVarIndex), &
-                                             vertLocation-ensObs%vertLocation(bodyIndex))
-    eobOut%vertTop(codTyp,physVarIndex)     = min(eobOut%vertTop(codTyp,physVarIndex), &
-                                             vertLocation-ensObs%vertLocation(bodyIndex))
-    eobOut%locFun(codTyp,physVarIndex)      = eobOut%locFun(codTyp,physVarIndex) + &
-                                             locFun(localObsIndex)
-    eobOut%distMean(codTyp,physVarIndex)    = eobOut%distMean(codTyp,physVarIndex) + &
-                                             sqrt(searchResults(localObsIndex)%dis)
-    eobOut%trace(codTyp,physVarIndex)       = eobOut%trace(codTyp,physVarIndex) + &
-                                             locFun(localObsIndex) * &
-                                             sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
-                                             ensObs%obsErrInv(bodyIndex)
-    eobOut%obsErr(codTyp,physVarIndex)      = eobOut%obsErr(codTyp,physVarIndex) + &
-                                             1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
-    eobOut%ensSpread(codTyp,physVarIndex)   = eobOut%ensSpread(codTyp,physVarIndex) + &
-                                             sum(ensObs%Yb_r4(:,bodyIndex)**2)/(size(ensObs%Yb_r4,1)-1)
-    eobOut%numSelected(codTyp,physVarIndex) = eobOut%numSelected(codTyp,physVarIndex) + 1
-
+    if (selectedObs) then
+      eobOut%distMax(codTyp,physVarIndex)     = max(eobOut%distMax(codTyp,physVarIndex), &
+                                               sqrt(searchResults(localObsIndex)%dis))
+      eobOut%vertBottom(codTyp,physVarIndex)  = max(eobOut%vertBottom(codTyp,physVarIndex), &
+                                               vertLocation-ensObs%vertLocation(bodyIndex))
+      eobOut%vertTop(codTyp,physVarIndex)     = min(eobOut%vertTop(codTyp,physVarIndex), &
+                                               vertLocation-ensObs%vertLocation(bodyIndex))
+      eobOut%locFun(codTyp,physVarIndex)      = eobOut%locFun(codTyp,physVarIndex) + &
+                                               locFun(localObsIndex)
+      eobOut%distMean(codTyp,physVarIndex)    = eobOut%distMean(codTyp,physVarIndex) + &
+                                               sqrt(searchResults(localObsIndex)%dis)
+      eobOut%trace(codTyp,physVarIndex)       = eobOut%trace(codTyp,physVarIndex) + &
+                                               locFun(localObsIndex) * &
+                                               sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
+                                               ensObs%obsErrInv(bodyIndex)
+      eobOut%obsErr(codTyp,physVarIndex)      = eobOut%obsErr(codTyp,physVarIndex) + &
+                                               1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
+      eobOut%ensSpread(codTyp,physVarIndex)   = eobOut%ensSpread(codTyp,physVarIndex) + &
+                                               sum(ensObs%Yb_r4(:,bodyIndex)**2)/(size(ensObs%Yb_r4,1)-1)
+      eobOut%numSelected(codTyp,physVarIndex) = eobOut%numSelected(codTyp,physVarIndex) + 1
+    else
+      eobOut%numRejected(codTyp,physVarIndex) = eobOut%numRejected(codTyp,physVarIndex) + 1
+    endif
 
   end subroutine eob_updateOutput
 
   !--------------------------------------------------------------------------
   ! eob_writeOutput
   !--------------------------------------------------------------------------
-  subroutine eob_writeOutput(eobOut, isTovs, lat, lon, vertlocation, &
+  subroutine eob_writeOutput(eobOut, lat, lon, vertlocation, &
                              numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
                              localSelectionOutput)
     !
-    !:Purpose:  Create a text file eob_glbi_XXXXX with XXXX the mpi task
+    !:Purpose:  Create a text file eob_glbi_XXXXX with XXXXX the mpi task
     !           and append the variable struct_eobOutput to the text file.
     !
     implicit none
 
     ! Arguments:
     type(struct_eobOutput), intent(inout) :: eobOut                       ! eobOutput object to write
-    logical,                intent(in)    :: isTovs
     real(8),                intent(in)    :: lat, lon, vertlocation       ! LETKF gridpoint location
     integer,                intent(in)    :: numObsSelectedByCodtyp(:)    ! number of selected observations for each type
     integer,                intent(in)    :: numObsNotSelectedByCodtyp(:) ! number of not selected observations for each type
@@ -1480,11 +1448,7 @@ CONTAINS
     integer             :: numSelected, numRejected
 
     write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
-    if (isTovs) then
-      outfilename = './eob_glbi_tovs_'//trim(adjustl(outfilename))
-    else
-      outfilename = './eob_glbi_'//trim(adjustl(outfilename))
-    endif
+    outfilename = './eob_glbi_'//trim(adjustl(outfilename))
     inquire(file=trim(outfilename), exist=file_exists)
     call utl_open_asciifile(outfilename,funit)
     if (.not. file_exists) then
@@ -1542,7 +1506,6 @@ CONTAINS
           locFun       = sum(eobOut%locFun(codTyp,:))    / real(max(1,numSelected))
           obsErr       = sum(eobOut%obsErr(codTyp,:))    / real(max(1,numSelected))
           ensSpread    = sum(eobOut%ensSpread(codTyp,:)) / real(max(1,numSelected))
-          !write(funit,'(*(A3,1X,I3,2(X,I7),1X,F12.2,2(1X,F7.2),1X,F12.2,4(1X,ES9.2)))') 'typ', &
           write(funit,'(*(A3,1X,I3,1X,I5,2(X,I7),1X,F12.2,2(1X,F7.2),1X,F12.2,4(1X,ES9.2)))') 'typ', &
               codTyp, &
               0, &
