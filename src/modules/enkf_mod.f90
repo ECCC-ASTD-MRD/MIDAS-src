@@ -2964,20 +2964,20 @@ contains
     integer             :: memberIndex
     integer             :: fclos, funit, ierr
 
-          eDim  = 0.0d0
-          dof   = 0.0d0
-          trace = 0.0d0
-          do memberIndex = 1, nEns
-            eDim  = eDim  + 1./sqrt((eigenValues(memberIndex)+nEns-1))
-            dof   = dof   + 1./(1.+eigenValues(memberIndex)+nEns-1)
-            trace = trace + 1./(eigenValues(memberIndex)+nEns-1)
-          end do
-          eDim = eDim**2/trace
-          write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
-          outfilename = './eob_glbi_'//trim(adjustl(outfilename))
-          call utl_open_asciifile(outfilename,funit)
-          write(funit,'(A,2(1X,ES10.4),1X,ES12.6)') 'edim', edim, dof, trace
-          ierr = fclos(funit)
+    eDim  = 0.0d0
+    dof   = 0.0d0
+    trace = 0.0d0
+    do memberIndex = 1, nEns
+      eDim  = eDim  + 1./sqrt((eigenValues(memberIndex)+nEns-1))
+      dof   = dof   + 1./(1.+eigenValues(memberIndex)+nEns-1)
+      trace = trace + 1./(eigenValues(memberIndex)+nEns-1)
+    end do
+    eDim = eDim**2/trace
+    write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+    outfilename = './eob_glbi_'//trim(adjustl(outfilename))
+    call utl_open_asciifile(outfilename,funit)
+    write(funit,'(A,2(1X,ES10.4),1X,ES12.6)') 'edim', eDim, dof, trace
+    ierr = fclos(funit)
 
   end subroutine enkf_writeEdim
 
