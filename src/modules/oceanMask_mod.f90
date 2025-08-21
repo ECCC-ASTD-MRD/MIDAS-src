@@ -30,13 +30,13 @@ module oceanMask_mod
   public :: ocm_farFromLand
   public :: ocm_copyToInt, ocm_copyFromInt
   public :: ocm_computeMinGridSpacing
-  
+
   type struct_ocm
     ! This is the derived type of the ocean mask object
     integer                   :: nLev
     logical, pointer          :: mask(:,:,:) => null()
     logical                   :: maskPresent = .false.
-    type(struct_hco), pointer :: hco
+    type(struct_hco), pointer :: hco         => null()
   end type struct_ocm
 
   contains
@@ -344,7 +344,7 @@ module oceanMask_mod
       call hco_deallocate(oceanMask%hco)
       oceanMask%hco => hco_temp
     end if
-    
+
     if (.not.associated(oceanMask%mask)) then
       call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
     end if
@@ -375,7 +375,7 @@ module oceanMask_mod
       oceanMask%hco         => hco
       oceanMask%nLev        = nLev
     end if
-    
+
   end subroutine ocm_allocate
 
   !--------------------------------------------------------------------------
