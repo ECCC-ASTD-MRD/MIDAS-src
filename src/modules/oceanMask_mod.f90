@@ -30,7 +30,7 @@ module oceanMask_mod
     integer                   :: nLev
     logical, pointer          :: mask(:,:,:) => null()
     logical                   :: maskPresent = .false.
-    type(struct_hco), pointer :: hco
+    type(struct_hco), pointer :: hco         => null()
   end type struct_ocm
 
   integer, external  :: get_max_rss
