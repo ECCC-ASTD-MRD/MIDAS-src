@@ -1603,7 +1603,9 @@ contains
         end do
       end do
       tolerance = 1.0D-50
+      !$OMP CRITICAL
       call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      !$OMP END CRITICAL
       call rti_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
@@ -1773,7 +1775,9 @@ contains
         end do
       end do
       tolerance = 1.0D-50
+      !$OMP CRITICAL
       call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      !$OMP END CRITICAL
       call rti_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
@@ -1937,7 +1941,9 @@ contains
         end do
       end do
       tolerance = 1.0D-50
+      !$OMP CRITICAL
       call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      !$OMP END CRITICAL
       call rti_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
