@@ -6,10 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
- * Modified `LOCALSELECTIONOUTPUT` verbosity level (#1023 and !1012)
 
 ### Added
 
+ * Modified `LOCALSELECTIONOUTPUT` verbosity level (#1063 and !1014)
  * Added piecewise linear interpolation of the letkf horizontal localization radius (#1024 and !978)
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
  * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
