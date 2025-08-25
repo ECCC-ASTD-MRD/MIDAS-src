@@ -83,7 +83,8 @@ module multiIRbgck_mod
   real(8) :: pco2max                    ! Max RTTOV level for lev_start variable entering CO2 slicing in mb
   real(8) :: night_ang                  ! Min solar zenith angle for night (between 90 and 180)
   real(8) :: crisCloudFractionThreshold ! threshold for CrIS cloud detection from VIIRS cloud mask
-
+  logical :: cloudAboveDesertFix        ! flag to activate fix to spurious clouds over deserts for the IASI instrument
+  
   type(rttov_coefs) :: coefs_avhrr
 
   type avhrr_bgck_iasi
@@ -123,7 +124,8 @@ contains
     integer :: instrumentIndex
     namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair
     namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
-
+    namelist /NAMBGCKIR/ cloudAboveDesertFix
+    
     if (first) then
 
       ! set the default values for namelist variables
@@ -140,7 +142,8 @@ contains
       pco2max = 0.0d0
       night_ang = 0.0d0
       crisCloudFractionThreshold = -1.d0
-
+      cloudAboveDesertFix = .false.
+      
       ! read the namelist
       read(utl_flnml, nml=NAMBGCKIR, iostat=ierr)
       if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
@@ -349,7 +352,9 @@ contains
     real(8) :: ptop_eq,ptop_mb
     real(8) :: ptop_co2(nco2),fcloud_co2(nco2)
     real(8) :: etop,vtop,ecf,vcf,heff
+    real(8) :: ecfNew, etopNew
     real(8) :: tampon,cfsub
+    logical :: cldFlagOk, ptopTest, cfracTest
     real(8) :: tskinRetrieved_avhrr(nClassAVHRR), sfctau_avhrr(NIR), emi_sfc_avhrr(NIR), rcal_clr_avhrr(NIR)
     real(8) :: ptop_bt_avhrr(NIR,nClassAVHRR), ptop_rd_avhrr(NIR,nClassAVHRR)
     real(8) :: btObs_avhrr(NIR,nClassAVHRR), radObs_avhrr(NIR,nClassAVHRR), ptop_eq_avhrr(nClassAVHRR)
@@ -973,32 +978,43 @@ contains
               end if
             end if
           end do
-          if ( iloc(2) /= -1 .and. iloc(3) /= -1) then ! pour eviter les catastrophes...
+          if ( iloc(2) /= -1 .and. iloc(3) /= -1) then 
             ! on se limite aux cas 'surs' ou les deux hauteurs effectives sont > a Pco2
             ! et ou un accord raisonnable existe entre les deux hauteurs effectives
-            if ( iloc(2) == iloc(3) .and. &
-                 minpavhrr(2) < etop .and. &
-                 minpavhrr(3) < etop .and. &
+            etopNew = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
+            ecfNew = 0.01d0 * min(100.d0,cfrac_avhrr)
+            if (cloudAboveDesertFix) then
+              cfracTest  = cfrac_avhrr > 0.d0
+              ptopTest   =  etop - etopNew > vtop
+              cldFlagOk = cldflag_avhrr(iloc(2)) == 1 .and. cldflag_avhrr(iloc(3)) == 1
+            else
+              cfracTest  = .true.
+              ptopTest   = .true.
+              cldFlagOk = cldflag_avhrr(iloc(2)) /= -1 .and. cldflag_avhrr(iloc(3)) /= -1
+            end if 
+            if ( cfracTest                               .and. &
+                 ptopTest                                .and. &
+                 iloc(2) == iloc(3)                      .and. &
+                 minpavhrr(2) < etop                     .and. &
+                 minpavhrr(3) < etop                     .and. &
                  abs(minpavhrr(2)- minpavhrr(3)) < 25.d0 .and. &
-                 cldflag_avhrr(iloc(2)) /= -1 .and. cldflag_avhrr(iloc(3)) /= -1) then
+                 cldFlagOk) then
 
               if ( utl_isEqual(ecf,0.d0) .and. cldflag == 1) then
                 ! cas predetermine nuageux mais ramene a clair
-                ecf = 0.01d0 * min(100.d0,cfrac_avhrr)
+                ecf = ecfNew
                 ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
-                etop = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
+                etop = etopNew
               end if
-
               if (ecf > 0.d0 .and. cldflag == 1) then
                 !cas predetermine nuageux pas ramene clair (==normal)
-                etop = 0.5d0 * ( minpavhrr(2) + minpavhrr(3))
+                etop = etopnew
               end if
-
               if (cldflag == 0) then
-                !cas predetermine clair ... que faire
+                !cas predetermine clair
                 cldflag = 1
-                etop = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
-                ecf = 0.01d0 * min(100.d0,cfrac_avhrr)
+                etop = etopNew
+                ecf = ecfNew
               end if
             end if
           end if
