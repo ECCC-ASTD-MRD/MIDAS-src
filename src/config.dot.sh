@@ -21,6 +21,10 @@ while [[ $# > 0 ]]; do
         __run_cmake=false
     elif [[ "${arg}" = --cmake ]]; then
         __run_cmake=true
+    elif [[ "${arg}" = --show-instructions ]]; then
+        __show_instructions=true
+    elif [[ "${arg}" = --cd-build ]]; then
+        __cd_to_build_directory=true
     elif [[ "${arg}" = --no-show-instructions ]]; then
         __show_instructions=false
     elif [[ "${arg}" = --no-cd-build ]]; then
@@ -31,6 +35,8 @@ while [[ $# > 0 ]]; do
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
         echo "        --no-cd-build: do not move to build directory "
+        echo "        --show-instructions: do print any instructions for the user"
+        echo "        --cd-build: do move to build directory "
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
