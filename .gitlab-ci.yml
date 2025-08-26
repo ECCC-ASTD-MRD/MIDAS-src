@@ -57,6 +57,7 @@ splitobs_burp_tests:
      - ./unittest burp
      - rm -rf ${WORKDIR}
    only:
+     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -72,6 +73,7 @@ splitobs_rdb_tests:
      - ./unittest rdb
      - rm -rf ${WORKDIR}
    only:
+     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
