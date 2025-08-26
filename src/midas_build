@@ -65,6 +65,18 @@ __abs_exist_list=${__abs_all}
 
 __clean_build_directory=--no-clean
 
+function print_usage {
+    set -euo pipefail
+
+    echo "midas_build: "
+    echo "        -d|-debug|--debug: compile using the debug options"
+    echo "        --opt-report: add the compiler options to output the optimization report"
+    echo "        --codecov: activate the code covering compiler options"
+    echo "        --local: avoid launching a batch job to compile"
+    echo "        --clean: erase the build directory if it already exists"
+    echo "        -h|-help|--help: show this help"
+} ## End of 'function print_usage'
+
 if [ $# -gt 0 ]; then
     while [[ $# > 0 ]]; do
         arg=${1}
@@ -90,8 +102,13 @@ if [ $# -gt 0 ]; then
             MIDAS_COMPILE_HEADNODE_FRONTEND=true
         elif [[ "${arg}" = --clean ]]; then
             __clean_build_directory=--clean
+        elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
+            print_usage
+            exit 1
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
+            echo
+            print_usage
             exit 1
         elif [[  -n "${__target}" ]]; then
             __target="${__target} ${arg}"
