@@ -250,7 +250,7 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
-  logical  :: localSelectionOutput ! write output about the local selection of observations
+  integer  :: localSelectionOutput ! write output about the local selection of observations
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   real(8)  :: hLocalize(maxNumLocalize)         ! horizontal localization radius (in km)
@@ -323,7 +323,7 @@ program midas_letkf
   ignoreEnsDate            = .false.
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
-  localSelectionOutput     = .false.
+  localSelectionOutput     = 0
   hLocalize(:)             = -1.0d0
   hLocalizePressure(:)     = -1.0d0
   hLinearLoc               = .false.

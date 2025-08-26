@@ -104,7 +104,7 @@ contains
     character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
     integer,                     intent(in)    :: myNumLatLonSendFactor
-    logical,                     intent(in)    :: localSelectionOutput
+    integer,                     intent(in)    :: localSelectionOutput
     character(len=*),            intent(in)    :: localObsSorting
 
     ! Locals:
@@ -798,7 +798,7 @@ contains
     integer,                  intent(inout) :: maxCountMaxExceeded
     type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
     type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal
-    logical,                  intent(in)    :: localSelectionOutput
+    integer,                  intent(in)    :: localSelectionOutput
     character(len=*),         intent(in)    :: localObsSorting
 
     ! Locals:
@@ -1177,6 +1177,8 @@ contains
         end if
         call utl_tmg_stop(135)
 
+        if (localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_pert,nEns)
+
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
         do localObsIndex = 1, numLocalObs
@@ -1281,6 +1283,8 @@ contains
         end if
         call utl_tmg_stop(135)
 
+        if (localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_pert,nEns)
+
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
         do localObsIndex = 1, numLocalObs
@@ -1377,6 +1381,8 @@ contains
         tolerance = 1.0D-50
         call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
         call utl_tmg_stop(135)
+
+        if (localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_mean,nEns)
 
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
@@ -1509,6 +1515,8 @@ contains
         !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
         !end if
 
+        if (localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_mean,nEns)
+
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
         do localObsIndex = 1, numLocalObs
@@ -1631,6 +1639,8 @@ contains
         tolerance = 1.0D-50
         call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
         call utl_tmg_stop(135)
+
+        if (localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_mean,nEns)
 
         ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
         weightsTemp(:) = 0.0d0
@@ -2934,5 +2944,41 @@ contains
     end if
 
   end subroutine enkf_getLocalizationRadius
+
+  !--------------------------------------------------------------------------
+  ! enkf_writeEdim
+  !--------------------------------------------------------------------------
+  subroutine enkf_writeEdim(eigenValues,nEns)
+    !
+    !:Purpose: Compute and output ensemble dimension, degrees of freedom,
+    !          and trace of Pa from the eigenvalues of Pa
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nEns              ! number of members
+    real(8), intent(in) :: eigenValues(nEns) ! eigenvalues of Pa in ensemble space
+
+    ! Locals:
+    real(8)             :: eDim, dof, trace
+    character(len=50)   :: outfilename
+    integer             :: memberIndex
+    integer             :: fclos, funit, ierr
+
+    eDim  = 0.0d0
+    dof   = 0.0d0
+    trace = 0.0d0
+    do memberIndex = 1, nEns
+      eDim  = eDim  + 1./sqrt((eigenValues(memberIndex)+nEns-1))
+      dof   = dof   + 1./(1.+eigenValues(memberIndex)+nEns-1)
+      trace = trace + 1./(eigenValues(memberIndex)+nEns-1)
+    end do
+    eDim = eDim**2/trace
+    write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+    outfilename = './eob_glbi_'//trim(adjustl(outfilename))
+    call utl_open_asciifile(outfilename,funit)
+    write(funit,'(A,2(1X,ES10.4),1X,ES12.6)') 'edim', eDim, dof, trace
+    ierr = fclos(funit)
+
+  end subroutine enkf_writeEdim
 
 end module enkf_mod
