@@ -49,22 +49,21 @@ if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
     exit 1
 fi
 
-
 ##=========================================================
 ##  finding all possible targets
 __abs_all=$(cd ${__toplevel}/src; ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
-__abs_external='splitobs'
+__abs_external='splitobs monitor'
 __abs_all="${__abs_all} ${__abs_external}"
 
 ##=========================================================
 ##  parsing input and building job for submissions
 ##
 
-if [ $# -eq 0 ]; then
-    ## default: make all
-    __target='all'
-    __abs_exist_list=${__abs_all}
-else
+## default: make install
+__target=install
+__abs_exist_list=${__abs_all}
+
+if [ $# -gt 0 ]; then
     while [[ $# > 0 ]]; do
         arg=${1}
 
@@ -112,11 +111,8 @@ else
                 fi
             fi
         done
-    else
-        __target='all'
-        __abs_exist_list=${__abs_all}
     fi
-fi ## End of 'else' associated to 'if [ $# -eq 0 ]'
+fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
 
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
@@ -167,15 +163,18 @@ function are_jobs_completed {
 function abs_prefix {
     typeset abs_name=${1}
     typeset revstring=${2:-}
-    typeset platform=${3:-${ORDENV_PLAT}}
+    typeset platform=_${3:-${ORDENV_PLAT}}
 
-    if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
+    if ${__toplevel}/tools/midas_scripts/midas.isFileInList "${__abs}" in "${__abs_external}"; then
         typeset __abs_prfx=tools/midas.
+        if [ "${abs_name}" = monitor ]; then
+            platform=
+        fi
     else
         typeset __abs_prfx=src/programs/midas-
     fi
 
-    echo ${__abs_prfx}${abs_name}_${platform}${revstring}.Abs
+    echo ${__abs_prfx}${abs_name}${platform}${revstring}.Abs
 }
 
 function printHeader {
@@ -234,8 +233,8 @@ cd ${MIDAS_COMPILE_DIR_BUILD}
 ##  Checking presence of absolute targets in 'src/programs/CMakeLists.txt'
 ##  Check prior existence of absolutes : remove them first
 for __abs in ${__abs_exist_list}; do
-    ## external programs are not expected in programs/programs.mk
-    if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
+    ## external programs are not expected in src/programs/CMakeLists.txt
+    if ${__toplevel}/tools/midas_scripts/midas.isFileInList "${__abs}" not in "${__abs_external}"; then
         typeset __search=$(grep "add_executable(${__abs}" ${__toplevel}/src/programs/CMakeLists.txt)
         if [ -z "${__search}" ]; then
             echo "<!> ${__abs} target not in src/programs/CMakeLists.txt"
@@ -246,9 +245,10 @@ done
 echo "Checking prior existence of target absolutes"
 for __abs in ${__abs_exist_list}; do
     typeset __abs_full=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
-    [ -f  "${__abs_full}" ] && \
-    ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
-    rm ${__abs_full} )
+    if [ -f "${__abs_full}" ]; then
+        echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
+        rm ${__abs_full}
+    fi
 done
 echo
 
