@@ -103,6 +103,18 @@ foreach(prog ${PROJECT_PROGRAMS})
   )
 endforeach()
 
+install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+file(WRITE ${CMAKE_BINARY_DIR}/update_resources.cmake "
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
+    )
+")
+
+# Install the custom script to run after the targets are installed
+install(SCRIPT ${CMAKE_BINARY_DIR}/update_resources.cmake)
+
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs")
