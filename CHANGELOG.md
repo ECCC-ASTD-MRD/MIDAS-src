@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * The MIDAS build system is now based on `cmake` (#695 and !1015)
 
 ### Fixed
 
