@@ -12,6 +12,7 @@
 
 __run_cmake=true
 __show_instructions=true
+__cd_to_build_directory=true
 
 while [[ $# > 0 ]]; do
     arg=${1}
@@ -22,11 +23,14 @@ while [[ $# > 0 ]]; do
         __run_cmake=true
     elif [[ "${arg}" = --no-show-instructions ]]; then
         __show_instructions=false
+    elif [[ "${arg}" = --no-cd-build ]]; then
+        __cd_to_build_directory=false
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
+        echo "        --no-cd-build: do not move to build directory "
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
@@ -250,6 +254,7 @@ if [ "${__run_cmake}" != stop ]; then
     fi
 
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
+        __previous_directory=${PWD}
 
         echo "Moving to ${MIDAS_COMPILE_DIR_BUILD}"
         cd ${MIDAS_COMPILE_DIR_BUILD}
@@ -298,6 +303,11 @@ then to compile the program, you go back to the main build directory
    make var
 EOF
         fi ## End of 'if [ "${__show_instructions}" = true ]'
+
+        if [ "${__cd_to_build_directory}" = false ]; then
+            echo "Moving back to ${__previous_directory}"
+            cd ${__previous_directory}
+        fi
 
         export MIDAS_COMPILE_FRONTEND
         export MIDAS_COMPILE_JOBNAME
