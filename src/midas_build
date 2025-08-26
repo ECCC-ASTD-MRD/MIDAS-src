@@ -274,6 +274,9 @@ export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
 
 cd ${__here}
+
+## No need to rerun 'cmake' here since it has already been run by the
+## calling script
 source ${__midas_dot_cfg} --no-cmake --no-show-instructions
 
 make VERBOSE=${MIDAS_COMPILE_VERBOSE} --jobs=${MIDAS_COMPILE_NCORES} ${__target}
