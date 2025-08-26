@@ -1436,7 +1436,7 @@ CONTAINS
     real(8),                intent(in)    :: lat, lon, vertlocation       ! LETKF gridpoint location
     integer,                intent(in)    :: numObsSelectedByCodtyp(:)    ! number of selected observations for each type
     integer,                intent(in)    :: numObsNotSelectedByCodtyp(:) ! number of not selected observations for each type
-    integer,                intent(in)    :: localSelectionOutput
+    integer,                intent(in)    :: localSelectionOutput         ! output information about the selection of observations
 
     ! Locals:
     character(len=50)   :: outfilename          ! filename for the output

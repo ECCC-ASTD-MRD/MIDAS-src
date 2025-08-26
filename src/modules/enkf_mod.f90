@@ -2955,8 +2955,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nEns
-    real(8), intent(in) :: eigenValues(nEns)
+    integer, intent(in) :: nEns              ! number of members
+    real(8), intent(in) :: eigenValues(nEns) ! eigenvalues of Pa in ensemble space
 
     ! Locals:
     real(8)             :: eDim, dof, trace
