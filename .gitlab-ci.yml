@@ -34,7 +34,7 @@ monitor_tests:
    stage: test
    script:
      - cd tools/monitor
-     - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
+     - ./test.sh $MIDAS_ABS/midas.monitor-$(../../midas.version).Abs
    only:
      - main
      - v_3.7

@@ -138,7 +138,7 @@ install_scripts() {
 
     ## The program 'midas.monitor' does not need to be compiled on a specific platform
     progname=midas.monitor
-    absname=${progname}_${version}.Abs
+    absname=${progname}-${version}.Abs
     cp ${midasabs}/${absname} ${INSTALL_DIR}
     ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
 
