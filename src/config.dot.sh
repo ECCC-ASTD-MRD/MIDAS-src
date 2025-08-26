@@ -13,6 +13,7 @@
 __run_cmake=true
 __show_instructions=true
 __cd_to_build_directory=true
+__clean_build_directory=false
 
 while [[ $# > 0 ]]; do
     arg=${1}
@@ -29,14 +30,20 @@ while [[ $# > 0 ]]; do
         __show_instructions=false
     elif [[ "${arg}" = --no-cd-build ]]; then
         __cd_to_build_directory=false
+    elif [[ "${arg}" = --clean ]]; then
+        __clean_build_directory=true
+    elif [[ "${arg}" = --no-clean ]]; then
+        __clean_build_directory=false
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
         echo "        --no-cd-build: do not move to build directory "
-        echo "        --show-instructions: do print any instructions for the user"
-        echo "        --cd-build: do move to build directory "
+        echo "        --show-instructions: do print any instructions for the user (default)"
+        echo "        --cd-build: do move to build directory (default)"
+        echo "        --clean: do clean to build directory to start fresh"
+        echo "        --no-clean: do not clean to build directory to use previous builds (default)"
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
@@ -101,7 +108,7 @@ if [ "${__run_cmake}" != stop ]; then
     ## 'build_directory_local_to_the_repository', then we keep the build
     ## directory local to the Git repository.
     if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
-        echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
+        echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is equal to this special value"
         [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
         __midas_compile_dir_main=${__compiledir_link}
     else
@@ -124,6 +131,7 @@ if [ "${__run_cmake}" != stop ]; then
         if [ ! -d "${__midas_compile_dir_main}" ]; then
             mkdir -p ${__midas_compile_dir_main}
         fi
+
         ##  linking the build directory where it used to be
         if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
             echo "${__compiledir_link} already exists: not creating link."
@@ -242,12 +250,19 @@ if [ "${__run_cmake}" != stop ]; then
 
     echo
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-        echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
-        echo "Leaving it there..."
-        echo
+        if [ "${__clean_build_directory}" = true ]; then
+            echo "Erase the previous build directory: ${MIDAS_COMPILE_DIR_BUILD}"
+            rm -rf ${MIDAS_COMPILE_DIR_BUILD}
+            echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
+            mkdir -p ${MIDAS_COMPILE_DIR_BUILD}
+        else
+            echo "The build directory already exist: ${MIDAS_COMPILE_DIR_BUILD}"
+            echo "Leaving it there..."
+            echo
+        fi
     else
         echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
-        mkdir ${MIDAS_COMPILE_DIR_BUILD}
+        mkdir -p ${MIDAS_COMPILE_DIR_BUILD}
     fi
 
     if [ -d ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR} ]; then

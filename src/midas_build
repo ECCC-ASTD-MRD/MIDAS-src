@@ -63,6 +63,8 @@ __abs_all="${__abs_all} ${__abs_external}"
 __target=install
 __abs_exist_list=${__abs_all}
 
+__clean_build_directory=--no-clean
+
 if [ $# -gt 0 ]; then
     while [[ $# > 0 ]]; do
         arg=${1}
@@ -86,6 +88,8 @@ if [ $# -gt 0 ]; then
             shift
         elif [[ "${arg}" = --local ]]; then
             MIDAS_COMPILE_HEADNODE_FRONTEND=true
+        elif [[ "${arg}" = --clean ]]; then
+            __clean_build_directory=--clean
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             exit 1
@@ -117,7 +121,7 @@ fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg} --cmake --no-show-instructions &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
+source ${__midas_dot_cfg} --cmake --no-show-instructions ${__clean_build_directory} &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
 
 __listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
