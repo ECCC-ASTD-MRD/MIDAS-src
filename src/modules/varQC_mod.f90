@@ -317,7 +317,7 @@ module varQC_mod
 
     ! Locals:
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
-    real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev
+    real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev,logqcami
     logical :: lluv
     logical :: includeFlag
 
@@ -392,11 +392,13 @@ module varQC_mod
           ! 'zppost' is not defined.  In that case, we set 'zppost' to 0.
           if ( .not. utl_isEqual(zqcarg, 0.0d0) ) then
             zppost = zgami/zqcarg
+            logqcami = -log(zqcarg/(zgami+1.D0))
           else
             zppost = 0.0d0
+            logqcami = 0.0d0
           end if
           call obs_bodySet_r(obsSpaceData,OBS_QCV,index_body, zppost)
-          call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.D0)))
+          call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, logqcami)
         endif ! LLUV
 
       endif ! includeFlag
