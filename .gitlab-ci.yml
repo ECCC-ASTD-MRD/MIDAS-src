@@ -101,7 +101,6 @@ midas_tests:
      - v_3.9
      - v_3.9-RandD
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -117,7 +116,6 @@ findTrials_tests:
      - v_3.9
      - v_3.9-RandD
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -130,7 +128,6 @@ topoFinder_tests:
    only:
      - main
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -143,7 +140,6 @@ isFileInList_tests:
    only:
      - main
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -156,7 +152,6 @@ timingTool_tests:
     only:
       - main
       - v_4.1
-      - 695-cmake-compilation
       - tags
     tags:
       - hpcr-u2
