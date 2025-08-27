@@ -27,7 +27,7 @@ OPT_LEVEL = 2
 install : # defining default target
 
 splitobs_rhel-9-graniterapids-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20250708/env/inteloneapi-2025.1.0; \
+	. r.load.dot rpn/code-tools/20250826/env/inteloneapi-2025.1.0; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
