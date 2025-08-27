@@ -159,10 +159,8 @@ echo "... loading hdf5"
 echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}"
 . ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}
 
-echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-#. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
-echo "... loading /home/erv000/perftools"
-. ssmuse-sh -x /home/erv000/perftools
+echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
+. ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
 
 echo "... loading /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}"
 . ssmuse-sh -d /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}
