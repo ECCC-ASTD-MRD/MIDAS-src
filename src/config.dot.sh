@@ -164,8 +164,8 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 echo "... loading /home/erv000/perftools"
 . ssmuse-sh -x /home/erv000/perftools
 
-echo ... loading /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-10-g778a0a3-debug
-. ssmuse-sh -x /home/erv000/rttov/rttov_v13/tmp/rttov13/2.0.1-10-g778a0a3-debug
+echo "... loading /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}"
+. ssmuse-sh -d /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
