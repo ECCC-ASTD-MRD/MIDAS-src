@@ -42,7 +42,7 @@ Available values for OPTION include:
   --has-vgrid    which version of vgrid is it compiled with [${has_vgrid}]
   --has-hdf5     which version of hdf5 is it compiled with [${has_hdf5}]
   --has-sqlite3  which version of sqlite3 is it compiled with [${has_sqlite3}]
- 
+
 EOF
 }
 
@@ -69,14 +69,14 @@ while test $# -gt 0; do
        	echo ${cc:-no}
        	;;
 
-    --ftn)
+    --fc)
        	echo ${fc:-no}
        	;;
 
     --cflags)
        	echo ${cflags}
        	;;
-           
+
     --fflags)
        	echo ${fflags}
        	;;
@@ -124,7 +124,7 @@ while test $# -gt 0; do
     --arch)
        echo ${arch}
        ;;
-       
+
     *)
         echo "unknown option: $1"
 	    usage 1
