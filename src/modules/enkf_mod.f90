@@ -28,6 +28,7 @@ module enkf_mod
 
   ! public types
   public :: struct_enkfInterpInfo
+  public :: struct_enkfDFS
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
@@ -50,6 +51,15 @@ module enkf_mod
     integer              :: myLatEnd
   end type struct_enkfInterpInfo
 
+  ! for dfs calculation
+  type struct_enkfDFS
+    real(8), allocatable :: locFun(:,:)
+    real(8), allocatable :: lat(:)
+    real(8), allocatable :: lon(:)
+    real(8), allocatable :: lnp(:)
+    real(8), allocatable :: dfs(:)
+  end type struct_enkfDFS
+
   integer, external :: get_max_rss
 
 contains
@@ -64,7 +74,7 @@ contains
                                 wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
                                 hLocalize, hLocalizePressure, hLinearLoc, vLocalize,  &
                                 mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
-                                localSelectionOutput, localObsSorting)
+                                localSelectionOutput, localObsSorting, enkfDFS, outputDFS)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -91,7 +101,7 @@ contains
     logical         ,            intent(in)    :: randomShuffleSubEns
     type(struct_ens), pointer,   intent(inout) :: ensembleTrl
     type(struct_ens),            intent(inout) :: ensembleAnl
-    type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal
+    type(struct_eob), target,    intent(inout) :: ensObs_mpiglobal
     type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal
     type(struct_gsv),            intent(in)    :: stateVectorMeanAnl
     type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
@@ -106,6 +116,8 @@ contains
     integer,                     intent(in)    :: myNumLatLonSendFactor
     integer,                     intent(in)    :: localSelectionOutput
     character(len=*),            intent(in)    :: localObsSorting
+    type(struct_enkfDFS),        intent(inout) :: enkfDFS
+    logical,                     intent(in)    :: outputDFS
 
     ! Locals:
     character :: readySignal
@@ -125,6 +137,7 @@ contains
     integer :: memberIndexInModEns
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     integer :: requestIdSignal
+    integer :: numDFSIndex, dfsIndex
 
     integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -235,6 +248,22 @@ contains
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
+
+    if (outputDFS) then
+      numDFSIndex = nLev_weights * myNumLatLonCalcMax
+      write(*,*) 'enkf_LETKFanalyses: enkfDFS dimensions:', numDFSIndex, ensObs_mpiglobal%numObs
+      allocate(enkfDFS%locFun(numDFSIndex,ensObs_mpiglobal%numObs))
+      enkfDFS%locFun(:,:) = 0.0d0
+      allocate(enkfDFS%lat(numDFSIndex))
+      enkfDFS%lat(:) = 0.0d0
+      allocate(enkfDFS%lon(numDFSIndex))
+      enkfDFS%lon(:) = 0.0d0
+      allocate(enkfDFS%lnp(numDFSIndex))
+      enkfDFS%lnp(:) = 0.0d0
+      allocate(enkfDFS%dfs(numDFSIndex))
+      enkfDFS%dfs(:) = 0.0d0
+      write(*,*) 'enkf_LETKFanalyses: enkfDFS allocated'
+    end if
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -477,6 +506,8 @@ contains
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
           lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
 
+          dfsIndex = latLonIndex * levIndex
+
           numGridPointWeights = numGridPointWeights + 1
 
           !
@@ -485,13 +516,14 @@ contains
           call enkf_LETKFcomputeWeights(weightsMeanLatLon(:,:,latLonIndex), &
                                         weightsMembersLatLon(:,:,latLonIndex), &
                                         algorithm, numSubEns, randomShuffleSubEns, &
-                                        ensembleAnl, levIndex, latIndex, lonIndex, &
+                                        ensembleAnl, levIndex, latIndex, lonIndex, numGridPointWeights, &
                                         hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                                         vertLocation_r4, numRetainedEigen, &
                                         maxNumLocalObs, maxNumLocalObsPerType, &
                                         countMaxExceeded, maxCountMaxExceeded, &
                                         ensObs_mpiglobal, ensObsGain_mpiglobal, &
-                                        localSelectionOutput,localObsSorting)
+                                        localSelectionOutput,localObsSorting, &
+                                        enkfDFS, outputDFS)
 
           !
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -764,13 +796,14 @@ contains
   !----------------------------------------------------------------------
   subroutine enkf_LETKFcomputeWeights(weightsMeanLatLon, weightsMembersLatLon, &
                                       algorithm, numSubEns, randomShuffleSubEns, &
-                                      ensembleAnl, levIndex, latIndex, lonIndex, &
+                                      ensembleAnl, levIndex, latIndex, lonIndex, dfsIndex, &
                                       hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                                       vertLocation_r4, numRetainedEigen, &
                                       maxNumLocalObs, maxNumLocalObsPerType, &
                                       countMaxExceeded, maxCountMaxExceeded, &
                                       ensObs_mpiglobal, ensObsGain_mpiglobal, &
-                                      localSelectionOutput, localObsSorting)
+                                      localSelectionOutput, localObsSorting, &
+                                      enkfDFS, outputDFS)
     !
     !:Purpose:
     !
@@ -786,6 +819,7 @@ contains
     integer,                  intent(in)    :: levIndex
     integer,                  intent(in)    :: latIndex
     integer,                  intent(in)    :: lonIndex
+    integer,                  intent(in)    :: dfsIndex
     real(8),                  intent(in)    :: hLocalize(:)
     real(8),                  intent(in)    :: hLocalizePressure(:)
     logical,                  intent(in)    :: hLinearLoc
@@ -796,10 +830,12 @@ contains
     integer,                  intent(in)    :: maxNumLocalObsPerType
     integer,                  intent(inout) :: countMaxExceeded
     integer,                  intent(inout) :: maxCountMaxExceeded
-    type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
+    type(struct_eob), target, intent(inout) :: ensObs_mpiglobal
     type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal
     integer,                  intent(in)    :: localSelectionOutput
     character(len=*),         intent(in)    :: localObsSorting
+    type(struct_enkfDFS),     intent(inout) :: enkfDFS
+    logical,                  intent(in)    :: outputDFS
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -1029,6 +1065,12 @@ contains
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
 
+    if (outputDFS) then
+      enkfDFS%lat(dfsIndex) = anlLat
+      enkfDFS%lon(dfsIndex) = anlLon
+      enkfDFS%lnp(dfsIndex) = anlVertLocation
+    end if
+
     ! Find horizontal localization value for this vertical level
     call enkf_getLocalizationRadius(hLocalize, hLocalizePressure, anlVertLocation, hLinearLoc, hLoc)
 
@@ -1047,6 +1089,7 @@ contains
     ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
+      if (outputDFS) enkfDFS%locFun(dfsIndex,bodyIndex) = locFun(localObsIndex)
 
       do memberIndex = 1, nEnsGain
         ! YbTinvR for updating ensemble perturbations
