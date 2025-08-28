@@ -7,7 +7,9 @@ target_link_libraries(splitobs PRIVATE
   rmn::rmn
 )
 set_target_properties(splitobs PROPERTIES
-   OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs)
+   OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs
+   BUILD_RPATH ${CMAKE_INSTALL_RPATH}
+)
 
 add_custom_command(
     TARGET splitobs
