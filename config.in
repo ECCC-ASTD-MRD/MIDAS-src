@@ -8,7 +8,6 @@ fc="@CMAKE_Fortran_COMPILER_ID@ @CMAKE_Fortran_COMPILER_VERSION@"
 cflags="@EC_C_FLAGS@"
 fflags="@EC_Fortran_FLAGS@"
 defs="@EC_CMAKE_DEFINITIONS@"
-libs=CMAKE_LIBS
 
 version=@PROJECT_VERSION@
 env=@EC_CI_ENV@
@@ -33,7 +32,6 @@ Available values for OPTION include:
   --cflags       C compiler flags [${cflags}]
   --fflags       Fortran compiler flags [${fflags}]
   --defs         preprocessor definitions [${defs}]
-  --libs         library linking information [${libs}]
   --version      MIDAS version [${version}]
   --env          environment version used [${env}]
   --arch         architecture of build [${arch}]
@@ -85,10 +83,6 @@ while test $# -gt 0; do
        	echo ${defs}
        	;;
 
-    --libs)
-       	echo ${libs}
-       	;;
-
     --has-rmn)
        	echo ${has_rmn:-no}
        	;;
@@ -107,10 +101,6 @@ while test $# -gt 0; do
 
     --has-sqlite3)
        	echo ${has_sqlite3:-no}
-       	;;
-
-    --libs)
-       	echo $libs
        	;;
 
     --version)
