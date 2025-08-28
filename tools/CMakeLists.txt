@@ -17,6 +17,8 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+install(TARGETS splitobs RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+
 add_executable(monitor monitor/monitor.c)
 # monitor is not associated to a specific platform, thus the shorter suffix
 set_target_properties(monitor PROPERTIES
@@ -29,6 +31,8 @@ add_custom_command(
     COMMAND cp -f midas.monitor.Abs ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+install(TARGETS monitor RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 if(BUILD_TESTING)
    find_program(BASH_COMMAND bash)
