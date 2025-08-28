@@ -1249,14 +1249,16 @@ contains
             IKH(currentAnalVarIndex) = 1.0d0 - KH(currentAnalVarIndex)
 
             anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                 sqrt(dot_product (IKH, Bmatrix(:, currentAnalVarIndex)))
+                 dot_product (IKH, Bmatrix(:, currentAnalVarIndex))
 
             if(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) < 0.0) then
               write(*,*) 'aer_computeAnlErrorStd: negative analysis-error Std dev. = ', &
                          anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
-                         ' reset to zero at grid point (',lonIndex, latIndex,')'
+                         ' reset to zero at grid point (',lonIndex, latIndex, levIndex, stepIndex,')'
+              anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = 0.0d0
+            else
               anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                   max(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0d0)
+                   sqrt(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex))
             end if
 
             if(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &

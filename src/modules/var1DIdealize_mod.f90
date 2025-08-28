@@ -155,7 +155,9 @@ module var1DIdealize_mod
     call var1d_transferColumnToYGrid(stateVectorPertOnAnLevTruth, obsSpaceData, columnPertOnAnLev, bmat1D_includeAnlVar)
     call var1Di_writeSimTrial(stateVectorPertOnAnLevTruth, prefixFileName, 'INCREMENT', containsFullField)
 
-    if (mmpi_myId ==0) then
+    if (mmpi_myId == 0) then
+      call gsv_deallocate(stateVectorTrlOnTrlLevSim)
+      call gsv_deallocate(stateVectorTrlOnTrlLevTruth)
       call gsv_deallocate(stateVectorPertOnTrlLevTruth)
       call gsv_deallocate(stateVectorPertOnAnLevTruth)
       call gsv_deallocate(stateVectorTrlOnAnlLevTruth)

@@ -16,7 +16,7 @@ module oceanMask_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use message_mod
-  
+
   implicit none
   save
   private
@@ -30,13 +30,13 @@ module oceanMask_mod
   public :: ocm_farFromLand
   public :: ocm_copyToInt, ocm_copyFromInt
   public :: ocm_computeMinGridSpacing
-  
+
   type struct_ocm
     ! This is the derived type of the ocean mask object
     integer                   :: nLev
     logical, pointer          :: mask(:,:,:) => null()
     logical                   :: maskPresent = .false.
-    type(struct_hco), pointer :: hco
+    type(struct_hco), pointer :: hco         => null()
   end type struct_ocm
 
   contains
@@ -67,7 +67,7 @@ module oceanMask_mod
     integer :: ip1
     logical :: fileExist
     character(len=len_trim(inputFileName)+len_trim(netcdfFileExtention)) :: fileName
-    
+
     if (trim(utl_fileType(inputFileName)) == 'NetCDF') then
       fileName = trim(inputFileName) // netcdfFileExtention
       inquire(file = trim(fileName), exist = fileExist)
@@ -76,15 +76,15 @@ module oceanMask_mod
                        trim(fileName))
       end if
     else
-      fileName = trim(inputFileName)   
-    end if 
+      fileName = trim(inputFileName)
+    end if
     call msg('ocm_readMaskFromFile', 'File name = '//trim(fileName))
 
     ! Check if any mask is present in file, return if not
     if ( .not. vnl_varNamePresentInFile(' ', fileName = trim(fileName), typvar_opt='@@')) then
       return
     end if
-    
+
     !- Open input file
     nulfile = 0
     ierr = fnom(nulfile, trim(fileName), 'RND+OLD+R/O', 0)
@@ -104,10 +104,10 @@ module oceanMask_mod
       lev_loop: do levIndex = 1, vco%nLev_depth
 
         ip1 = vco%ip1_depth(levIndex)
-        
+
         ! Make sure that the mask for this variable has the same grid size as hco
         ikey = fstinf(nulfile, ni_file, nj_file, nk_file, &
-                      -1, ' ', ip1, -1, -1, '@@', ' ')    
+                      -1, ' ', ip1, -1, -1, '@@', ' ')
 
         if (ikey < 0) then
           call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: ' // str(ip1))
@@ -150,7 +150,7 @@ module oceanMask_mod
       if (ikey < 0) then
         call utl_abort('ocm_readMaskFromFile: cannot find any mask in file ' // trim(fileName))
       end if
-      
+
       do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
         ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
       end do
@@ -178,9 +178,9 @@ module oceanMask_mod
     end if
 
     ierr = fstfrm(nulfile)
-    ierr = fclos(nulfile)        
+    ierr = fclos(nulfile)
 
-    if (allocated(mask)) deallocate(mask)    
+    if (allocated(mask)) deallocate(mask)
 
   end subroutine ocm_readMaskFromFile
 
@@ -244,7 +244,7 @@ module oceanMask_mod
           end if
         end do
       end do
-      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.)
       write(*,*) 'ocm_farFromLand: done creating kdtree'
       call msg_memUsage('ocm_farFromLand')
 
@@ -291,7 +291,7 @@ module oceanMask_mod
     else
       beSilent = .false.
     end if
-    
+
     if (.not.oceanMask_in%maskPresent .or. .not.associated(oceanMask_in%mask)) then
       if ( .not. beSilent ) write(*,*) 'ocm_copyMask: no input mask, do nothing'
       return
@@ -329,7 +329,7 @@ module oceanMask_mod
       write(*,*) 'ocm_communicateMask: mask not present, return'
       return
     end if
-    
+
     call mmpi_bcast(oceanMask%nLev)
 
     ! special treatment of hco object since EZscintID not properly communicated
@@ -344,7 +344,7 @@ module oceanMask_mod
       call hco_deallocate(oceanMask%hco)
       oceanMask%hco => hco_temp
     end if
-    
+
     if (.not.associated(oceanMask%mask)) then
       call ocm_allocate(oceanMask,oceanMask%hco,oceanMask%nLev)
     end if
@@ -375,7 +375,7 @@ module oceanMask_mod
       oceanMask%hco         => hco
       oceanMask%nLev        = nLev
     end if
-    
+
   end subroutine ocm_allocate
 
   !--------------------------------------------------------------------------
@@ -397,7 +397,7 @@ module oceanMask_mod
       oceanMask%maskPresent = .false.
       oceanMask%nLev        = 0
     end if
-    
+
   end subroutine ocm_deallocate
 
   !--------------------------------------------------------------------------
@@ -417,7 +417,7 @@ module oceanMask_mod
 
     intArray(:,:) = 0
     where(oceanMask%mask(:,:,maskLev)) intArray(:,:) = 1
-    
+
   end subroutine ocm_copyToInt
 
   !--------------------------------------------------------------------------
@@ -438,7 +438,7 @@ module oceanMask_mod
 
     oceanMask%mask(:,:,maskLev) = .false.
     where(intArray(:,:) == 1) oceanMask%mask(:,:,maskLev) = .true.
-    
+
   end subroutine ocm_copyFromInt
 
   !--------------------------------------------------------------------------
@@ -450,27 +450,27 @@ module oceanMask_mod
     !           hco_setupFromFile compute it for all points, land and ocean resulting in
     !           minGridSpacing = 0, as the ORCA025 grid has the numerical pole on land
     !           in Canada around (107W, 66N).
-    !  
+    !
     implicit none
-    
+
     ! Arguments:
     type(struct_ocm),          intent(inout) :: oceanMask
     type(struct_hco), pointer, intent(in)    :: hco
     real(8)                  , intent(out)   :: minGridSpacing ! horisontal min grid spacing in meters
-    
+
     ! Locals:
-    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute waterMinGridSpacing 
-    real(8) :: minDeltaLat, minDeltaLon 
+    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute waterMinGridSpacing
+    real(8) :: minDeltaLat, minDeltaLon
     real(8) :: deltaLon, deltaLon1, deltaLon2, deltaLon3
     real(8) :: deltaLat, deltaLat1, deltaLat2, deltaLat3
     integer :: latIndex, lonIndex
-    
-    call msg('ocm_readMaskFromFile', 'Computing minGridSpacing using ocean-land mask')
-  
+
+    call msg('ocm_computeMinGridSpacing', 'Computing minGridSpacing using ocean-land mask')
+
     minDeltaLat = 1.0d6
     do lonIndex = 1, hco%ni - 1
       do latIndex = 1, hco%nj - 1
-      
+
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
 
           deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
@@ -506,7 +506,7 @@ module oceanMask_mod
 
             deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
             if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
-       
+
           end if
 
         end if
@@ -528,7 +528,7 @@ module oceanMask_mod
     if (minGridSpacing > 1.0d6) then
       call utl_abort('ocm_computeMinGridSpacing: minGridSpacing is greater than 1000 km.')
     end if
-    
+
   end subroutine ocm_computeMinGridSpacing
-  
+
 end module oceanMask_mod

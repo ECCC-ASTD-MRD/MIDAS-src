@@ -3566,6 +3566,9 @@ contains
       call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
     end if
 
+    ! This barrier is needed to synchronize the MPI tasks in the case where 'numRecv == 0' or 'numSend == 0'
+    call mmpi_barrier
+
     if (.not. beSilent) write(*,*) 'sendRecvHalo (s2c): Finished'
 
   end subroutine sendRecvHalo

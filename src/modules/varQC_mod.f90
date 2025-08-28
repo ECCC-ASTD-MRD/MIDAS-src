@@ -317,7 +317,7 @@ module varQC_mod
 
     ! Locals:
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
-    real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev
+    real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev,logqcami
     logical :: lluv
     logical :: includeFlag
 
@@ -386,9 +386,19 @@ module varQC_mod
         else ! LLUV
           zjon = obs_bodyElem_r(obsSpaceData,OBS_JOBS,index_body)
           zqcarg = zgami + exp(-1.0D0*zjon)
-          zppost = zgami/zqcarg
+          ! When, 'zjon' is very large (it is the value 'OBS_JOBS')
+          ! and 'zgami' (the initial value of "gamma" for variational
+          ! QC 'OBS_POB'), 'zqcarg' may be approximated to 0 and then
+          ! 'zppost' is not defined.  In that case, we set 'zppost' to 0.
+          if ( .not. utl_isEqual(zqcarg, 0.0d0) ) then
+            zppost = zgami/zqcarg
+            logqcami = -log(zqcarg/(zgami+1.D0))
+          else
+            zppost = 0.0d0
+            logqcami = 0.0d0
+          end if
           call obs_bodySet_r(obsSpaceData,OBS_QCV,index_body, zppost)
-          call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.D0)))
+          call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, logqcami)
         endif ! LLUV
 
       endif ! includeFlag

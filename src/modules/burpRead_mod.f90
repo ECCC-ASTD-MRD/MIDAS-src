@@ -2285,9 +2285,9 @@ contains
         HIRES_SFC=.FALSE.
         phasePresent = .false.
         LROK = .false.
+        nte = -1
 
         BLOCKS1: do
-
           ref_blk = BURP_Find_Block(Rpt_in, &
                     & BLOCK       = Block_in, &
                     & SEARCH_FROM = ref_blk, &
