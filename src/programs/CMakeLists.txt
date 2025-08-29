@@ -105,15 +105,27 @@ endforeach()
 
 install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
 
-file(WRITE ${CMAKE_BINARY_DIR}/update_resources.cmake "
+file(WRITE ${CMAKE_BINARY_DIR}/update_test_environment.cmake "
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/src/update_resources.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
+    )
     execute_process(
         COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
     )
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    execute_process(
+        COMMAND ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
 ")
 
 # Install the custom script to run after the targets are installed
-install(SCRIPT ${CMAKE_BINARY_DIR}/update_resources.cmake)
+install(SCRIPT ${CMAKE_BINARY_DIR}/update_test_environment.cmake)
 
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
