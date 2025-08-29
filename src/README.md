@@ -163,7 +163,7 @@ as prerequisite of the absolute target, such as:
 ```cmake
 add_executable(var var.f90)
 target_link_libraries(var PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid  midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module irc random hpcoperf)
+${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module random hpcoperf)
 ```
 and add the program to the list `PROJECT_PROGRAMS` in that same file
 [`./programs/CMakeLists.txt`](programs/CMakeLists.txt).
