@@ -102,7 +102,7 @@ foreach(prog ${PROJECT_PROGRAMS})
   )
 endforeach()
 
-install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS ${PROJECT_PROGRAMS})
 
 file(WRITE ${CMAKE_BINARY_DIR}/update_test_environment.cmake "
     execute_process(

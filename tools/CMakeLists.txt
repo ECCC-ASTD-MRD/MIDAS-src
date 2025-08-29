@@ -18,7 +18,7 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-install(TARGETS splitobs RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS splitobs)
 
 add_executable(monitor monitor/monitor.c)
 
@@ -31,7 +31,7 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-install(TARGETS monitor RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(TARGETS monitor)
 
 if(BUILD_TESTING)
    find_program(BASH_COMMAND bash)
