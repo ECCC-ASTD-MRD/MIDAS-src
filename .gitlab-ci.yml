@@ -25,7 +25,6 @@ midas_build:
     - v_3.9
     - v_3.9-RandD
     - v_4.1
-    - 695-cmake-compilation
     - tags
   tags:
     - hpcr-u2
@@ -41,7 +40,6 @@ monitor_tests:
      - v_3.9
      - v_3.9-RandD
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -57,7 +55,6 @@ splitobs_burp_tests:
      - ./unittest burp
      - rm -rf ${WORKDIR}
    only:
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -73,7 +70,6 @@ splitobs_rdb_tests:
      - ./unittest rdb
      - rm -rf ${WORKDIR}
    only:
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -169,7 +165,6 @@ clean_midas_abs:
      - v_3.9
      - v_3.9-RandD
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
@@ -190,7 +185,6 @@ doc_sphinx:
      - v_3.9
      - v_3.9-RandD
      - v_4.1
-     - 695-cmake-compilation
      - tags
    tags:
      - hpcr-u2
