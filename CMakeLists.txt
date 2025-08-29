@@ -95,7 +95,7 @@ message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
 if(DEFINED ENV{ORDENV_PLAT})
-  set(AddToProgName $ENV{ORDENV_PLAT})
+  set(AddToProgName _$ENV{ORDENV_PLAT})
 endif()
 
 add_subdirectory(src/modules)

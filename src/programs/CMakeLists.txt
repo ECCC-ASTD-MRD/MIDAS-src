@@ -90,15 +90,14 @@ randomPert sstBias sstTrial var var1D)
 foreach(prog ${PROJECT_PROGRAMS})
   set_target_properties(${prog} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    OUTPUT_NAME midas-${prog}_${AddToProgName}.Abs
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
     LINK_FLAGS "${MPI_LINK_FLAGS}")
 
   add_custom_command(
       TARGET ${prog}
       POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E echo "Copy midas-${prog}_${AddToProgName}.Abs to ${CMAKE_INSTALL_PREFIX}/midas-${prog}_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
-      COMMAND cp -f midas-${prog}_${AddToProgName}.Abs ${CMAKE_INSTALL_PREFIX}/midas-${prog}_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+      COMMAND ${CMAKE_COMMAND} -E echo "Copy '${prog}' to ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
+      COMMAND cp ${prog} ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
 endforeach()

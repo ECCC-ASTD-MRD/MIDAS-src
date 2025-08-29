@@ -7,30 +7,27 @@ target_link_libraries(splitobs PRIVATE
   rmn::rmn
 )
 set_target_properties(splitobs PROPERTIES
-   OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs
    BUILD_RPATH ${CMAKE_INSTALL_RPATH}
 )
 
 add_custom_command(
     TARGET splitobs
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.splitobs_${AddToProgName}.Abs to ${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
-    COMMAND cp -f midas.splitobs_${AddToProgName}.Abs ${CMAKE_INSTALL_PREFIX}/midas.splitobs_${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy 'splitobs' to ${CMAKE_INSTALL_PREFIX}/midas.splitobs${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
+    COMMAND cp splitobs ${CMAKE_INSTALL_PREFIX}/midas.splitobs${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 install(TARGETS splitobs RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 add_executable(monitor monitor/monitor.c)
-# monitor is not associated to a specific platform, thus the shorter suffix
-set_target_properties(monitor PROPERTIES
-   OUTPUT_NAME midas.monitor.Abs)
 
 add_custom_command(
     TARGET monitor
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy midas.monitor.Abs to ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
-    COMMAND cp -f midas.monitor.Abs ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+    # monitor is not associated to a specific platform, thus the shorter suffix
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy monitor to ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
+    COMMAND cp -f monitor ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
