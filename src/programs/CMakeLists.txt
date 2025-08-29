@@ -103,28 +103,21 @@ foreach(prog ${PROJECT_PROGRAMS})
   )
 endforeach()
 
-file(WRITE ${CMAKE_BINARY_DIR}/update_test_environment.cmake "
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/src/update_resources.sh
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
-    )
-    execute_process(
-        COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src
-    )
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    )
-    execute_process(
-        COMMAND ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    )
-")
+add_custom_command(
+    OUTPUT update_test_environment.cmake
 
-# Install the custom script to run after the targets are installed
-install(SCRIPT ${CMAKE_BINARY_DIR}/update_test_environment.cmake)
+    COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/src/update_resources.sh
+    COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
+
+    COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
+
+    COMMENT "Creating update_test_environment.cmake"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+add_custom_target(prepare_test DEPENDS update_test_environment.cmake)
 
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs")
+  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_CURRENT_BINARY_DIR}/*.Abs"
+)
