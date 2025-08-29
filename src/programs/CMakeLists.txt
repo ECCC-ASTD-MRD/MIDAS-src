@@ -91,7 +91,8 @@ foreach(prog ${PROJECT_PROGRAMS})
   set_target_properties(${prog} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
-    LINK_FLAGS "${MPI_LINK_FLAGS}")
+    LINK_FLAGS "${MPI_LINK_FLAGS}"
+  )
 
   add_custom_command(
       TARGET ${prog}
@@ -101,8 +102,6 @@ foreach(prog ${PROJECT_PROGRAMS})
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
 endforeach()
-
-install(TARGETS ${PROJECT_PROGRAMS} RUNTIME DESTINATION /dev/null)
 
 file(WRITE ${CMAKE_BINARY_DIR}/update_test_environment.cmake "
     execute_process(
