@@ -622,18 +622,9 @@ CONTAINS
 
     case ('height')
       if ( .not. gsv_isAllocated(stateVectorRefHeight) ) then
-        if (vco_trl%vCode == 5100) then
-          ! We only need 'P0LS' when doing GEM-P with SLEVE so vcode==5100
-          allocate(varNamesRefHeight(8))
-        else
-          ! We don't need 'P0LS' so asking to allocate only for all variables except 'P0LS'
-          allocate(varNamesRefHeight(7))
-        end if
 
+        allocate(varNamesRefHeight(7))
         varNamesRefHeight(1:7) = (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  '/)
-        if (vco_trl%vCode == 5100) then
-          varNamesRefHeight(8) = 'P0LS'
-        end if
 
         call gsv_allocate( stateVectorRefHeight, tim_nstepobsinc, hco_anl, &
                            vco_anl, dateStamp_opt=tim_getDateStamp(), &

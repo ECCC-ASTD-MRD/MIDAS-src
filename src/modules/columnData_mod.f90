@@ -285,11 +285,6 @@ contains
       if ( col_getNumLev(column,'MM') > 0 ) column%varExistList(vnl_varListIndex('P_M')) = .true.
     end if
 
-    ! add P0LS to the varExistList if vcode=5100
-    if (column%vco%vcode == 5100) then
-      column%varExistList(vnl_varListIndex('P0LS')) = .true.
-    end if
-
     column%numCol = numCol
 
     if(.not.column%vco%initialized) then

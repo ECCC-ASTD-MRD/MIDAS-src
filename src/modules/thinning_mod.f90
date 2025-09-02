@@ -1820,13 +1820,8 @@ contains
     trlmFileName = './trlm_01'
     call vco_setupFromFile(vco_sfc, trlmFileName)
     call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
-    if (vco_sfc%Vcode == 5100) then
-      allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0  ','P0LS'/)
-    else
-      allocate(varNamesPsfc(1))
-      varNamesPsfc = (/'P0'/)
-    end if
+    allocate(varNamesPsfc(1))
+    varNamesPsfc = (/'P0'/)
     call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_sfc, vco_sfc, &
                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
                        dataKind_opt=4, varNames_opt=varNamesPsfc, &
@@ -4822,13 +4817,8 @@ contains
     nullify(vco_sfc)
     trlmFileName = './trlm_01'
     call vco_setupFromFile(vco_sfc, trlmFileName)
-    if (vco_sfc%Vcode == 5100) then
-      allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0  ','P0LS'/)
-    else
-      allocate(varNamesPsfc(1))
-      varNamesPsfc = (/'P0'/)
-    end if
+    allocate(varNamesPsfc(1))
+    varNamesPsfc = (/'P0'/)
     call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_thinning, vco_sfc, &
                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
                        varNames_opt=varNamesPsfc, hInterpolateDegree_opt='LINEAR' )
