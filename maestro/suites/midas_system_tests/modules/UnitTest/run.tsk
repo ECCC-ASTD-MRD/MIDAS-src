@@ -40,7 +40,8 @@ localFilesNotToErase="${localFilesNotToErase} load_env.sh"
 cat >> load_env.sh <<EOF
 
 export AFSISIO=/home/smco502
-export CMCCONST=/home/smco502/datafiles/constants
+#export CMCCONST=/home/smco502/datafiles/constants
+export CMCCONST=/home/erv000/data/midas/tmp/constants
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
