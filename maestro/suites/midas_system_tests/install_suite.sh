@@ -11,7 +11,7 @@ ${__toplevel}/set_resources_def.sh
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
-which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250709"}
+which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
