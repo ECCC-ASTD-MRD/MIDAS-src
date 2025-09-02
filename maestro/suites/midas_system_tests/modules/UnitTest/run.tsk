@@ -78,6 +78,8 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo . r.load.dot eccc/mrd/rpn/libs/20250604-beta >> load_env.dot
     echo echo loading eccc/mrd/rpn/utils/20250604-beta >> load_env.dot
     echo . r.load.dot eccc/mrd/rpn/utils/20250604-beta >> load_env.dot
+    echo echo ... loading hdf5                                                                   >> load_env.dot
+    echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
 
     ## The following definitions ensure the 'allreduce' MPI collective
     ## operation is giving the same results from run to run.  In
