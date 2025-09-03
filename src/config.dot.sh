@@ -285,6 +285,8 @@ if [ "${__run_cmake}" != stop ]; then
                 echo "Running cmake ${MIDAS_SOURCE_DIR}"
                 echo
                 cmake ${MIDAS_SOURCE_DIR}
+                ## Updating test environment
+                make prepare_test
             fi
         fi ## End of 'if [ "${__run_cmake}" = true ]'
 
@@ -300,6 +302,7 @@ if [ "${__run_cmake}" != stop ]; then
 You can run by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
    cmake ${MIDAS_SOURCE_DIR}
+   make prepare_test
 and build the programs using
 EOF
                 else
