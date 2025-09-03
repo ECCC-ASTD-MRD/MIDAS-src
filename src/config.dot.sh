@@ -69,7 +69,7 @@ fi
 typeset -r __run_cmake __show_instructions
 
 cmake_debug_options() {
-    if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes ]]; then
+    if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes || -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]]; then
         echo "-DCMAKE_BUILD_TYPE=Debug"
     fi
 } ## End of 'debug_options'
