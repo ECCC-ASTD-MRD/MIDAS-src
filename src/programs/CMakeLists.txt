@@ -115,7 +115,7 @@ add_custom_command(
     COMMENT "Preparing the testing environment"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
-add_custom_target(prepare_test DEPENDS update_test_environment.cmake ${PROJECT_PROGRAMS})
+add_custom_target(prepare_test DEPENDS update_test_environment.cmake)
 
 set_property(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
