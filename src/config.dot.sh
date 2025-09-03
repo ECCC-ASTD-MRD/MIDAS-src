@@ -68,6 +68,12 @@ fi
 
 typeset -r __run_cmake __show_instructions
 
+cmake_debug_options() {
+    if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes ]]; then
+        echo "-DCMAKE_BUILD_TYPE=Debug"
+    fi
+} ## End of 'debug_options'
+
 if [ "${__run_cmake}" != stop ]; then
 
     __toplevel=$(git rev-parse --show-toplevel)
@@ -216,7 +222,7 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
         FOPTMIZ=-O0
-        COMPF_NOC="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -g -ftrapuv"
+        COMPF_NOC="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
         COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
         echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
     else
@@ -281,9 +287,9 @@ if [ "${__run_cmake}" != stop ]; then
             if [ -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
                 echo "cmake has already been run in build directory ${MIDAS_COMPILE_DIR_BUILD}"
             else
-                echo "Running cmake ${MIDAS_SOURCE_DIR}"
+                echo "Running cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}"
                 echo
-                cmake ${MIDAS_SOURCE_DIR}
+                cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}
                 ## Updating test environment
                 make prepare_test
             fi
@@ -300,7 +306,7 @@ if [ "${__run_cmake}" != stop ]; then
                     cat <<EOF
 You can run by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
-   cmake ${MIDAS_SOURCE_DIR}
+   cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}
    make prepare_test
 and build the programs using
 EOF
