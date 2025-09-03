@@ -173,7 +173,7 @@ if [ "${__run_cmake}" != stop ]; then
 
     # Set the optimization level
     if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-        FOPTMIZ="-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
+        FOPTMIZ="-fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
     else
         echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
         return 1
@@ -204,9 +204,7 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}"
     . r.load.dot eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}
 
-    COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL}"
-    OPTF="-stand f08 -diag-disable=5268 -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
-    OPTF="-qmkl ${OPTF} -warn noexternal"
+    OPTF="-qmkl ${OPTF} -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
@@ -218,11 +216,11 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
         FOPTMIZ=-O0
-        COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -g -ftrapuv"
+        COMPF_NOC="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -g -ftrapuv"
         COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
         echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
     else
-        COMPF="${COMPF_GLOBAL} ${OPTF}"
+        COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
         COMPF_NOC=${COMPF}
     fi
 

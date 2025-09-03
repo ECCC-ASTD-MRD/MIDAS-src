@@ -32,7 +32,6 @@ set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atla
 foreach(component ${rttov_FIND_COMPONENTS})
     find_library(${component}_lib NAME ${component}
        HINTS ENV LIBRARY_PATH)
-#       HINTS ${rttov_ROOT}/lib)
     set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
 endforeach()
 
@@ -43,24 +42,13 @@ set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5:
 set(CMAKE_Fortran_FLAGS_RELEASE "-O3")
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-  # FOPTMIZ and COMPF are set in src/config.dot.sh
+  # 'FOPTMIZ' and 'COMPF' are set in src/config.dot.sh
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{FOPTMIZ} $ENV{COMPF} -static-intel")
   message(STATUS "FOPTMIZ = $ENV{FOPTMIZ}")
   message(STATUS "COMPF = $ENV{COMPF}")
 endif()
 
-# For now, we delete -warn errors from Fortran flags set in the config file,
-# as there are errors because of the new flag -stand f08, and the
-# compilation fails
-string(REPLACE " -warn errors" "" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-# Since we have '-stand f18' in the compiler options, we remove the
-# default '-stand f08' to avoid an override warning
-string(REPLACE " -stand f08" "" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-
 link_libraries("-Wl,--disable-new-dtags")
-
-# Former flags
-#set(CMAKE_Fortran_FLAGS "-DAMD64 -DLINUX_X86_64 -DLittle_Endian -DWITH_OpenMP -DWITH_intel -D__INTEL_COMPILER=2021 -O3 -align array32byte -assume byterecl -check noarg_temp_created -convert big_endian -diag-disable=cpu-dispatch -fast-transcendentals -fp-model source -fpe0 -fpic -ip -no-prec-div -no-prec-sqrt -no-wrap-margin -qmkl -qopenmp -static-intel -traceback -warn all -warn errors -warn noexternal -xCORE-AVX512")
 
 # Printing flags
 message(STATUS "(EC) CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
