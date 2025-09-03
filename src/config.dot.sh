@@ -75,7 +75,6 @@ if [ "${__run_cmake}" != stop ]; then
     __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
     __status=true
 
-    set -x
     ###########################################################
     ##
     ##  USER CONFIGURATION
@@ -101,7 +100,6 @@ if [ "${__run_cmake}" != stop ]; then
     MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-1}
     MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
-    set +x
     __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 
     ## If 'MIDAS_COMPILE_DIR_MAIN' is equal to the special value

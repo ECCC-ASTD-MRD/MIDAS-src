@@ -60,7 +60,7 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##
 
 ## default: make install
-__target=install
+__target=all
 __abs_exist_list=${__abs_all}
 
 __clean_build_directory=--no-clean
@@ -421,6 +421,10 @@ if [ -n "${__abs_exist_list}" ]; then
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
+
+        echo "Updating test environment"
+        make prepare_test
+
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
