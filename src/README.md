@@ -428,24 +428,18 @@ make -j all
 ### The `install` target
 
 The `install` target is quite a standard among compilation process.
-Be aware that despite this target exists in the build system since it
-is automatically available, the MIDAS project is not using it because
-it has several drawbacks:
-
+Be aware that this target has been removed from the project to avoid
+any confusion.  The MIDAS project is not using it because it has
+several drawbacks:
  * The name of the files generated must be decided when `cmake` is
    called.  In MIDAS context, it is not possible because the version
    can evolve quite a bit during the development process.  So to have
    the expected names, `cmake` would need to be called each time and
    it would take to much time.
-
  * The installing process manipulates the binaries by adding `rpath`
    so the installed programs are not the ones that are tested.
    Prefering to keep the binaries that have been tested, the installed
    programs will never been used.
-
-Calling `make install` first will trigger the compilation all the
-programs and create a `midas-config` that can be useful to obtain
-information about the compilation process.
 
 ### The `prepare_test` target
 

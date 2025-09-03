@@ -12,6 +12,8 @@ project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
 ec_build_info()              # Generate build include file
 include(ec_compiler_presets) # Include compiler presets
 
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
+
 include(CTest)
 add_custom_target(check COMMAND CTEST_OUTPUT_ON_FAILURE=true ${CMAKE_CTEST_COMMAND})
 
