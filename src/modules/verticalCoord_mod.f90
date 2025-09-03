@@ -292,13 +292,13 @@ contains
     if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
-    if (Vcode /= 2001 .and. Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 5100 .and. Vcode /= 21001) then
-      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 2001, 5002, 5005, 5100 and 21001 supported.')
+    if (Vcode /= 2001 .and. Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 21001) then
+      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 2001, 5002, 5005, and 21001 supported.')
     end if
     vco%Vcode = Vcode
 
      ! Check if this is a SLEVE coordinate
-    if (Vcode == 5100 .or. Vcode == 21001) then
+    if (Vcode == 21001) then
       stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
       stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
       slevePresent: if (coefR3 > 0.0 .and. coefR4 > 0.0) then
@@ -309,7 +309,7 @@ contains
     end if
 
     ! Set IP1 of sfc (hyb=1.0)
-    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100 .or. Vcode == 2001) then
+    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 2001) then
       call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
     else if (Vcode == 21001) then
       call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
@@ -1047,7 +1047,7 @@ contains
         write(*,*) 'vco_equal: ip1_sfc not equal'
         return
       end if
-      if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005 .or. vco1%Vcode == 5100) then
+      if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
         equal = hybridCoefEqualOrNot(vco1, vco2)
         if (.not. equal) then
           write(*,*) 'vco_equal: hybrid parameters are not equal'
@@ -1166,7 +1166,7 @@ contains
       end if
     end if
 
-    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005 .or. vco1%Vcode == 5100) then
+    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
 
       !- Pref
       stat = vgd_get(vco1%vgrid,key='PREF - reference pressure',value=ptop1)
@@ -1291,7 +1291,7 @@ contains
     if      (vco%Vcode == 2001 .or. vco%Vcode == 5002) then
       vco%ip1_T_2m  = vco%ip1_sfc
       vco%ip1_M_10m = vco%ip1_sfc
-    else if (vco%Vcode == 5005 .or. vco%Vcode == 5100 .or. vco%Vcode == 21001) then
+    else if (vco%Vcode == 5005 .or. vco%Vcode == 21001) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
       call convip(vco%ip1_M_10m, 10.0, 4, 2, blk_s, .false.)
     else

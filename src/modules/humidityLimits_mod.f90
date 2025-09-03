@@ -195,7 +195,7 @@ contains
       allocate(pressure4D_M_r8(statevector%myLonBeg:statevector%myLonEnd, &
                                statevector%myLatBeg:statevector%myLatEnd, &
                                gsv_getNumLev(statevector,'MM'), statevector%numStep))
-      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
         call czp_calcReturnPressure_gsv_nl(statevector,                  &
                                            PTout_r8_opt=pressure4D_T_r8, &
                                            PMout_r8_opt=pressure4D_M_r8)
@@ -232,7 +232,7 @@ contains
       allocate(pressure4D_T_r8(statevector%myLonBeg:statevector%myLonEnd, &
                                statevector%myLatBeg:statevector%myLatEnd, &
                                gsv_getNumLev(statevector,'TH'), statevector%numStep))
-      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
         call czp_calcReturnPressure_gsv_nl(statevector,                  &
                                            PTout_r4_opt=pressure4D_T_r4, &
                                            PMout_r4_opt=pressure4D_M_r4)
@@ -323,12 +323,12 @@ contains
     type(struct_gsv)          :: stateVector
     type(struct_vco), pointer :: vco_ptr
     type(struct_hco), pointer :: hco_ptr
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
     real(4), pointer :: pressure_ptr_r4(:,:,:,:)
     real(8), pointer :: pressureEns(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     integer          :: lon1, lon2, lat1, lat2, numLev, numStep, numMember
-    real(8), allocatable :: psfc(:,:), psfcLS(:,:), pressure(:,:,:,:)
+    real(8), allocatable :: psfc(:,:), pressure(:,:,:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
@@ -352,7 +352,6 @@ contains
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
     allocate(psfc(lon1:lon2,lat1:lat2))
     allocate(pressure(lon1:lon2,lat1:lat2,numLev,numStep))
-    if (vco_ptr%vcode == 5100) allocate(psfcLS(lon1:lon2,lat1:lat2))
 
     call gsv_allocate(stateVector, numStep,  &
                       hco_ptr, vco_ptr,  &
@@ -374,18 +373,11 @@ contains
 
         varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
         psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-        if (vco_ptr%vcode == 5100) then
-          varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
-          psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-        end if
 
         do stepIndex = 1, numStep
           psfc(:,:) = psfc_ptr_r4(memberIndex,stepIndex,:,:)
           nullify(pressureEns)
-          if (vco_ptr%vcode == 5100) then
-            psfcLS(:,:) = psfcLS_ptr_r4(memberIndex,stepIndex,:,:)
-            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressureEns)
-          else if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
+          if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
             call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressureEns)
           else
             write(*,*) 'vcode = ', vco_ptr%vcode
@@ -429,7 +421,6 @@ contains
     end do ! memberIndex
 
     deallocate(psfc)
-    if (allocated(psfcLS)) deallocate(psfcLS)
 
   end subroutine qlim_saturationLimit_ens
 
@@ -449,11 +440,11 @@ contains
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
-    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
+    real(8), allocatable :: psfc(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
-    real(8), pointer     :: hu_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:), psfcLS_ptr_r8(:,:,:,:)
+    real(8), pointer     :: hu_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
     real(8), pointer     :: cld_ptr_r8(:,:,:,:)
-    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: height4D_T_r8(:,:,:,:), height4D_M_r8(:,:,:,:)
     real(4), pointer     :: height4D_T_r4(:,:,:,:), height4D_M_r4(:,:,:,:)
@@ -513,35 +504,22 @@ contains
       !
       allocate(pressure4D_T_r8(lon1:lon2,lat1:lat2,numLev_T,numStep))
 
-      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
         !
         !- For GEM-P coordinate
         !
         allocate(psfc(ni,nj))
-        if (vco_ptr%vcode == 5100) allocate(psfcLS(ni,nj))
 
         do stepIndex = 1, numStep
 
           if (statevector%dataKind == 8) then
             call gsv_getField(statevector,psfc_ptr_r8,'P0')
             psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
-            if (vco_ptr%vcode == 5100) then
-              call gsv_getField(statevector,psfcLS_ptr_r8,'P0')
-              psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
-            end if
           else
             call gsv_getField(statevector,psfc_ptr_r4,'P0')
             psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
-            if (vco_ptr%vcode == 5100) then
-              call gsv_getField(statevector,psfcLS_ptr_r4,'P0')
-              psfcLS(:,:) = real(psfcLS_ptr_r4(:,:,1,stepIndex),8)
-            end if
           end if
-          if (vco_ptr%vcode == 5100) then
-            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3d)
-          else
-            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3d)
-          end if
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3d)
 
           pressure4D_T_r8(:,:,:,stepIndex) = pressure3d(:,:,:)
           deallocate(pressure3d)
@@ -549,7 +527,6 @@ contains
         end do ! stepIndex
 
         deallocate(psfc)
-        if (allocated(psfcLS)) deallocate(psfcLS)
 
       else if (vco_ptr%vcode == 21001) then
         !
@@ -712,11 +689,11 @@ contains
     type(struct_vco), pointer :: vco_ptr
     type(struct_hco), pointer :: hco_ptr
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
-    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
+    real(8), allocatable :: psfc(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
     real(4), pointer     :: pressure4D_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure3D_ptr_r8(:,:,:)
-    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), allocatable :: pressure4D_r8(:,:,:,:)
     real(8)              :: hu, hu_modified, cld, cld_modified
@@ -790,10 +767,6 @@ contains
           !
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          if (vco_ptr%vcode == 5100) then
-            varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
-            psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          end if
 
           do stepIndex = 1, numStep
             nullify(pressure3D_ptr_r8)
@@ -802,10 +775,6 @@ contains
             write(*,*) 'psfc min/max = ', minval(psfc), maxval(psfc)
             if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
               call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3D_ptr_r8)
-            else if (vco_ptr%vcode == 5100) then
-              if (.not. allocated(psfcLS)) allocate(psfcLS(ni,nj))
-              psfcLS(:,:) = psfcLS_ptr_r4(memberIndex,stepIndex,:,:)
-              call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3D_ptr_r8)
             else
               write(*,*) 'vcode = ', vco_ptr%vcode
               call utl_abort('qlim_rttovLimit_ens: Unknown vcode value')
@@ -850,7 +819,6 @@ contains
       end do ! memberIndex
 
       if (allocated(psfc)) deallocate(psfc)
-      if (allocated(psfcLS)) deallocate(psfcLS)
       deallocate(qmin3D_rttov)
       deallocate(qmax3D_rttov)
       deallocate(pressure4D_r8)

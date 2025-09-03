@@ -87,7 +87,7 @@ contains
     checkCloudToGridUnassigned = .true.
     maxBoxSize = 1
 
-    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
+    if (.not. utl_isNamelistPresent('NAMINT','./flnml') ) then
       call msg('int_readNml', 'namint is missing in the namelist.'&
            //'The default values will be taken.', mpiAll_opt=.false.)
     else
@@ -469,7 +469,7 @@ contains
                       mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0  ','P0LS'/) )
+                      varNames_opt=(/'P0'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -513,13 +513,13 @@ contains
                             statevector_in%myLatBeg:statevector_in%myLatEnd, &
                             gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-        if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
+        if (vcode_out==5002 .or. vcode_out==5005) then
           ! output grid GEM-P interpolation in log-pressure
           call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
                                              PTout_r8_opt=hLikeT_out, &
                                              PMout_r8_opt=hLikeM_out)
 
-          if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
+          if (vcode_in==5002 .or. vcode_in==5005) then
             call czp_calcReturnPressure_gsv_nl(statevectorRef, &
                                                PTout_r8_opt=hLikeT_in, &
                                                PMout_r8_opt=hLikeM_in)
@@ -545,16 +545,16 @@ contains
           hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
           hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
 
-        else if ( vcode_out==21001 ) then
+        else if (vcode_out==21001) then
           ! output grid GEM-H interpolation in height
           call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
                                            ZTout_r8_opt=hLikeT_out, &
                                            ZMout_r8_opt=hLikeM_out)
-          if ( vcode_in==21001 ) then
+          if (vcode_in==21001) then
             call czp_calcReturnHeight_gsv_nl(statevectorRef, &
                                              ZTout_r8_opt=hLikeT_in, &
                                              ZMout_r8_opt=hLikeM_in)
-          else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
+          else if (vcode_in==5002 .or. vcode_in==5005) then
             call czp_calcReturnPressure_gsv_nl(statevectorRef, &
                                                PTout_r8_opt=tmpCoord_T, &
                                                PMout_r8_opt=tmpCoord_M)
@@ -783,7 +783,7 @@ contains
                       mpi_distribution_opt=statevectorRef%mpi_distribution, &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0  ','P0LS'/) )
+                      varNames_opt=(/'P0'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -828,16 +828,16 @@ contains
                           gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
         ! output grid GEM-P interpolation in log-pressure
-        if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
+        if (vcode_out==5002 .or. vcode_out==5005) then
           call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
                                              PTout_r4_opt=hLikeT_out, &
                                              PMout_r4_opt=hLikeM_out)
 
-          if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
+          if (vcode_in==5002 .or. vcode_in==5005) then
             call czp_calcReturnPressure_gsv_nl(statevectorRef, &
                                                PTout_r4_opt=hLikeT_in, &
                                                PMout_r4_opt=hLikeM_in)
-          else if ( vcode_in==21001 ) then
+          else if (vcode_in==21001) then
             call czp_calcReturnHeight_gsv_nl(statevectorRef, &
                                              ZTout_r4_opt=tmpCoord_T, &
                                              ZMout_r4_opt=tmpCoord_M)
@@ -860,15 +860,15 @@ contains
           hLikeM_out(:,:,:,:) = -1.0 * hLikeM_out(:,:,:,:)
 
           ! output grid GEM-H interpolation in height
-        else if ( vcode_out==21001 ) then
+        else if (vcode_out==21001) then
           call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
                                            ZTout_r4_opt=hLikeT_out, &
                                            ZMout_r4_opt=hLikeM_out)
-          if ( vcode_in==21001 ) then
+          if (vcode_in==21001) then
             call czp_calcReturnHeight_gsv_nl(statevectorRef, &
                                              ZTout_r4_opt=hLikeT_in, &
                                              ZMout_r4_opt=hLikeM_in)
-          else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
+          else if (vcode_in==5002 .or. vcode_in==5005) then
             call czp_calcReturnPressure_gsv_nl(statevectorRef, &
                                                PTout_r4_opt=tmpCoord_T, &
                                                PMout_r4_opt=tmpCoord_M)
@@ -1268,7 +1268,7 @@ contains
       allocate(hLikeT_out(nLevOut_T, col_getNumCol(columnOutRef_ptr)))
       allocate(hLikeM_out(nLevOut_M, col_getNumCol(columnOutRef_ptr)))
 
-      if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
+      if (vcode_out==5002 .or. vcode_out==5005) then
         ! output grid GEM-P interpolation in log-pressure
         call czp_calcReturnPressure_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
         call czp_calcReturnPressure_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
@@ -1276,7 +1276,7 @@ contains
         hLikeM_in(:,:)  = -1.d0 * log(hLikeM_in(:,:))
         hLikeT_out(:,:) = -1.d0 * log(hLikeT_out(:,:))
         hLikeM_out(:,:) = -1.d0 * log(hLikeM_out(:,:))
-      else if ( vcode_out==21001 ) then
+      else if (vcode_out==21001) then
         ! output grid GEM-H interpolation in height
         call czp_calcReturnHeight_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
         call czp_calcReturnHeight_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)

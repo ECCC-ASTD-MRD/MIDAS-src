@@ -119,11 +119,6 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="sleve"/>
-      <FAMILY  name="sleve">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
       <SUBMITS sub_name="chem_only"/>
       <FAMILY  name="chem_only">
         <SUBMITS sub_name="UnitTest"/>

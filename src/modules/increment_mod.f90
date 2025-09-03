@@ -182,17 +182,10 @@ CONTAINS
       ! The reference needs to have the vertical structure of the input which is the
       ! increment, but since horizontal interpolation is done first, it needs the
       ! trial horizontal structure.
-      if (vco_trl%Vcode == 5100) then
-        allocate(varNamesRef(4))
-        varNamesRef = (/'P0  ', 'P0LS', 'TT  ', 'HU  '/)
-        allocate(varNamesPsfc(2))
-        varNamesPsfc = (/'P0  ','P0LS'/)
-      else
-        allocate(varNamesRef(3))
-        varNamesRef = (/'P0', 'TT', 'HU'/)
-        allocate(varNamesPsfc(1))
-        varNamesPsfc = (/'P0'/)
-      end if
+      allocate(varNamesRef(3))
+      varNamesRef = (/'P0', 'TT', 'HU'/)
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
       call gsv_allocate( statevectorRef, numStep_inc, hco_trl, vco_inc, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
@@ -221,13 +214,6 @@ CONTAINS
         do stepIndex = 1, statevectorRef%numStep
           PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
         end do
-        if (gsv_varExist(statevectorRef,'P0LS')) then
-          call gsv_getField(statevectorRef,PsfcIncPrior,'P0LS')
-          call gsv_getField(statevectorRef,PsfcIncMasked,'P0LS')
-          do stepIndex = 1, statevectorRef%numStep
-            PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
-          end do
-        end if
       end if
 
       ! - Compute analysis of reference state variables to use for vertical interpolation
@@ -389,14 +375,9 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
 
-    if (vco_trl%Vcode == 5100) then
-      allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0  ','P0LS'/)
-    else
-      allocate(varNamesPsfc(1))
-      varNamesPsfc = (/'P0'/)
-    end if
-
+    allocate(varNamesPsfc(1))
+    varNamesPsfc = (/'P0'/)
+ 
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
@@ -528,13 +509,8 @@ CONTAINS
     end if
     writeHeightSfc = allocHeightSfc
 
-    if (vco_trl%Vcode == 5100) then
-      allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0  ','P0LS'/)
-    else
-      allocate(varNamesPsfc(1))
-      varNamesPsfc = (/'P0'/)
-    end if
+    allocate(varNamesPsfc(1))
+    varNamesPsfc = (/'P0'/)
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -839,8 +815,6 @@ CONTAINS
     type(struct_gsv)          :: statevector_in_hvInterp
     type(struct_gsv)          :: statevector_in_hvtInterp
     type(struct_gsv)          :: statevector_inout_hvInterp
-    type(struct_gsv), target  :: statevector_in_withP0LS
-    type(struct_gsv), pointer :: statevector_in_ptr
 
     character(len=4), pointer :: varNamesList_in(:)
     character(len=4), pointer :: varNamesList_inout(:)
@@ -864,25 +838,6 @@ CONTAINS
     nullify(varNamesList_in)
     call vnl_varNamesFromExistList(varNamesList_in, statevector_in%varExistlist(:))
 
-    ! Check if P0LS needs to be added to the increment
-    if (statevector_inout%vco%vcode == 5100 .and. &
-         .not.gsv_varExist(statevector_in, 'P0LS')) then
-      call vnl_addToVarNames(varNamesList_in,'P0LS',imposeVnlOrder_opt=.true.)
-      call gsv_allocate(statevector_in_withP0LS, statevector_in%numstep,                       &
-                        statevector_in%hco, statevector_in%vco,                                &
-                        dateStamp_opt=tim_getDateStamp(),                                      &
-                        mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='Tiles',  &
-                        dataKind_opt=statevector_in%dataKind,                                  &
-                        allocHeightSfc_opt=statevector_in%heightSfcPresent,                    &
-                        varNames_opt=varNamesList_in,                                    &
-                        hInterpolateDegree_opt=statevector_in%hInterpolateDegree)
-      call gsv_zero(statevector_in_withP0LS)
-      call gsv_copy(statevector_in, statevector_in_withP0LS, &
-                    allowVarMismatch_opt=.true.)
-      statevector_in_ptr => statevector_in_withP0LS
-    else
-      statevector_in_ptr => statevector_in
-    end if
     ! Do the spatial interpolation of statevector_in onto the grid of statevector_inout
     call gsv_allocate(statevector_in_hvInterp, statevector_in%numstep,                          &
                       statevector_inout%hco, statevector_inout%vco,                             &

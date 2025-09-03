@@ -3255,7 +3255,7 @@ contains
                                profM_opt=pressureProfile)
         call czp_calcPressureProfileUsingStdAtm(pressureProfile,               & ! INOUT
                                                 nLev_M)   ! IN
-      else if(vco%Vcode == 5002 .or. vco%Vcode == 5005 .or. vco%Vcode == 5100) then
+      else if(vco%Vcode == 5002 .or. vco%Vcode == 5005) then
         pSurfRef = 101000.D0
         call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, &
                                profM_opt=pressureProfile)

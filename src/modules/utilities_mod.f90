@@ -530,7 +530,7 @@ contains
 
     ! Multiplicative factor for data conversion
     select case(trim(varName))
-    case ('P0','P0LS','PB','UP')
+    case ('P0','PB','UP')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_pa_per_mbar_r4 ! hPa -> Pa
       else
@@ -584,7 +584,7 @@ contains
 
     ! Multiplicative factor for data conversion
     select case(trim(varName))
-    case ('P0','P0LS','UP','PB')
+    case ('P0','UP','PB')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
       else

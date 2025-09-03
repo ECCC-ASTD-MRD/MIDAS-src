@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Removed support of SLEVE with GEM-P (Vcode = 5100) (#1106 and !1016)
  * Cosmetic adjustments to the GPS Module `gps_mod.f90` (#1066 and !983)
  * Delete rows from sqlite `header` and `avhrr` tables when no corresponding data rows exist (#1081 and !993)
  * Add improved method of using `obs_flg`, `obs_vco` and `obs_xtr` columns (#223 and !991)
