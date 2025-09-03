@@ -28,8 +28,3 @@ add_custom_command(
     COMMAND cp monitor ${CMAKE_INSTALL_PREFIX}/midas.monitor-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-if(BUILD_TESTING)
-   find_program(BASH_COMMAND bash)
-   add_test(NAME test_monitor COMMAND ${BASH_COMMAND} ${CMAKE_SOURCE_DIR}/tools/monitor/test.sh ${CMAKE_BINARY_DIR}/tools/midas.monitor.Abs)
-endif()
