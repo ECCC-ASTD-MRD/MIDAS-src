@@ -418,21 +418,42 @@ seconds saving is worth the more complex incantation.
 In any case, doing the build in parallel on the frontend using `make` instead of
 `midas_build` is a certainly a gain in time.
 
-### The install target
+A complete compilation from `${topLevel}` is then
+```sh
+## This command will run 'cmake' and change directory to build directory
+. ./src/config.dot.sh
+make -j all
+```
+
+### The `install` target
+
+The `install` target is quite a standard among compilation process.
+Be aware that despite this target exists in the build system since it
+is automatically available, the MIDAS project is not using it because
+it has several drawbacks:
+
+ * The name of the files generated must be decided when `cmake` is
+   called.  In MIDAS context, it is not possible because the version
+   can evolve quite a bit during the development process.  So to have
+   the expected names, `cmake` would need to be called each time and
+   it would take to much time.
+
+ * The installing process manipulates the binaries by adding `rpath`
+   so the installed programs are not the ones that are tested.
+   Prefering to keep the binaries that have been tested, the installed
+   programs will never been used.
 
 Calling `make install` first will trigger the compilation all the
 programs and create a `midas-config` that can be useful to obtain
 information about the compilation process.
 
+### The `prepare_test` target
 
-A complete install from `${topLevel}` is then
-```sh
-. ./src/config.dot.sh
-cd compiledir
-cmake ${MIDAS_SOURCE_DIR}
-make -j
-make install
-```
+A special target is available to update the testing environment which
+creates the files
+`maestro/suites/midas_system_tests/resources/resources.def` and
+`maestro/suites/midas_system_tests/abs.dot` that are necessary for the
+testing `maestro` suite.
 
 ### Calling make in parallel
 
