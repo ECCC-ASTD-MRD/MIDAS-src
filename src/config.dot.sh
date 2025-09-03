@@ -213,12 +213,10 @@ if [ "${__run_cmake}" != stop ]; then
     fi
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        COMPF_NOC="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
-        COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
+        COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -check all -fp-speculation=safe -init=snan,arrays"
         echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
     else
         COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
-        COMPF_NOC=${COMPF}
     fi
 
     if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
@@ -234,7 +232,6 @@ if [ "${__run_cmake}" != stop ]; then
             __status=false
         }
         COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
-        COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
     fi
 
     export COMPF
