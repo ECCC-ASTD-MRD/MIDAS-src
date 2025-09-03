@@ -177,14 +177,6 @@ if [ "${__run_cmake}" != stop ]; then
         echo "..."
     fi
 
-    # Set the optimization level
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-        FOPTMIZ="-fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
-    else
-        echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-        return 1
-    fi
-
     #----------------------------------------------------------------
     #  Set up dependent librarys and tools.
     #---------------------------------------------------------------
@@ -221,7 +213,6 @@ if [ "${__run_cmake}" != stop ]; then
     fi
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        FOPTMIZ=-O0
         COMPF_NOC="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
         COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
         echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
@@ -232,7 +223,6 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
         echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
-        FOPTMIZ="-O0"
         [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
             echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
             echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
@@ -248,7 +238,6 @@ if [ "${__run_cmake}" != stop ]; then
     fi
 
     export COMPF
-    export FOPTMIZ
     export MIDAS_ABS_LEAFDIR
 
     echo

@@ -39,12 +39,11 @@ set(SQLITE_Libraries SQLite::SQLite3 f90sqlite udfsqlite)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 # Necessary, as compiler presets sets it to -O2
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-  # 'FOPTMIZ' and 'COMPF' are set in src/config.dot.sh
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{FOPTMIZ} $ENV{COMPF} -static-intel")
-  message(STATUS "FOPTMIZ = $ENV{FOPTMIZ}")
+  # 'COMPF' is set in 'src/config.dot.sh'
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{COMPF} -static-intel")
   message(STATUS "COMPF = $ENV{COMPF}")
 endif()
 
