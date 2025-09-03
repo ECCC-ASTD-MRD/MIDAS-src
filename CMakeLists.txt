@@ -8,15 +8,6 @@ ec_git_version()           # Get the version from the git repository
 ec_parse_manifest()        # Parse MANIFEST file
 
 project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
-# get MIDAS version from midas.version, instead of using cmake_rpn ec_git_version() macro
-execute_process(
-  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-set(PROJECT_VERSION ${VERSION})
-message(STATUS "(EC) ${NAME} VERSION = ${PROJECT_VERSION}")
 
 ec_build_info()              # Generate build include file
 include(ec_compiler_presets) # Include compiler presets
