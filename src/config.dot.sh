@@ -68,10 +68,23 @@ fi
 
 typeset -r __run_cmake __show_instructions
 
-cmake_debug_options() {
+cmake_options() {
+    typeset __cmake_options_options__=
+
     if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes || -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]]; then
-        echo "-DCMAKE_BUILD_TYPE=Debug"
+        __cmake_options_options__=-DCMAKE_BUILD_TYPE=Debug
     fi
+
+    if [[ "${MIDAS_COMPILE_VERBOSE}" != FALSE ]]; then
+        typeset __cmake_options_verbose__=-DCMAKE_VERBOSE_MAKEFILE=${MIDAS_COMPILE_VERBOSE}
+        if [[ -n "${__cmake_options_options__}" ]]; then
+            __cmake_options_options__="${__cmake_options_options__} ${__cmake_options_verbose__}"
+        else
+            __cmake_options_options__=${__cmake_options_verbose__}
+        fi
+    fi
+
+    echo "${__cmake_options_options__}"
 } ## End of 'debug_options'
 
 if [ "${__run_cmake}" != stop ]; then
@@ -103,7 +116,7 @@ if [ "${__run_cmake}" != stop ]; then
     MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME:-midasCompilation}
     MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING:-false}
     MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
-    MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-1}
+    MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-FALSE}
     MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
     __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
@@ -275,7 +288,7 @@ if [ "${__run_cmake}" != stop ]; then
             else
                 echo "Running cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}"
                 echo
-                cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}
+                cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
                 ## Updating test environment
                 make prepare_test
             fi
@@ -292,7 +305,7 @@ if [ "${__run_cmake}" != stop ]; then
                     cat <<EOF
 You can run by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
-   cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}
+   cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
    make prepare_test
 and build the programs using
 EOF

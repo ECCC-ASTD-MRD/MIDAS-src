@@ -64,6 +64,9 @@ __target=all
 __abs_exist_list=${__abs_all}
 
 __clean_build_directory=--no-clean
+## When using 'midas_build', we want verbose compilation listing
+## This can be overriden with '--no-verbose' option
+MIDAS_COMPILE_VERBOSE=TRUE
 
 function print_usage {
     set -euo pipefail
@@ -74,6 +77,7 @@ function print_usage {
     echo "        --codecov: activate the code covering compiler options"
     echo "        --local: avoid launching a batch job to compile"
     echo "        --clean: erase the build directory if it already exists"
+    echo "        --no-verbose: Turn off the verbose output for the compilation"
     echo "        -h|-help|--help: show this help"
 } ## End of 'function print_usage'
 
@@ -100,6 +104,8 @@ if [ $# -gt 0 ]; then
             shift
         elif [[ "${arg}" = --local ]]; then
             MIDAS_COMPILE_HEADNODE_FRONTEND=true
+        elif [[ "${arg}" = --no-verbose ]]; then
+            MIDAS_COMPILE_VERBOSE=FALSE  ## We use 'FALSE' here because it is the standard for the variable 'CMAKE_VERBOSE_MAKEFILE'
         elif [[ "${arg}" = --clean ]]; then
             __clean_build_directory=--clean
         elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
@@ -285,7 +291,6 @@ export MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND}
 export MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME}
 export MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}
 export MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES}
-export MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
 export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
 export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
@@ -300,7 +305,7 @@ cd ${__here}
 ## calling script
 source ${__midas_dot_cfg} --no-cmake --no-show-instructions
 
-make VERBOSE=${MIDAS_COMPILE_VERBOSE} --jobs=${MIDAS_COMPILE_NCORES} ${__target}
+make --jobs=${MIDAS_COMPILE_NCORES} ${__target}
 EOF
 
 ##=========================================================
@@ -316,7 +321,7 @@ if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
 then
     ## compile directly on head node
     echo "    > ${__listing_frontend}"
-    make VERBOSE=${MIDAS_COMPILE_VERBOSE} --jobs=${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
+    make --jobs=${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
     __job_or_pid_frontend=$!
     echo "    ${MIDAS_COMPILE_FRONTEND} (headnode) compilation process id: ${__job_or_pid_frontend}"
 else

@@ -73,7 +73,7 @@ Their default values (in parentheses), **should be good for most users**.
   and the prefix for listings
 * `MIDAS_COMPILE_NCORES (8)` : numbers of cores to be used on each machine to
   compile (more than 8 provide no significant improvement).
-* `MIDAS_COMPILE_VERBOSE (2)` : verbosity level
+* `MIDAS_COMPILE_VERBOSE` : Defaults to `TRUE` when using `midas_build` otherwise it is `FALSE`.
 
 
 Note that the values of `CHECK_RESULTS_CATCHUP` and
