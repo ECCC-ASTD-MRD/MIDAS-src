@@ -13,7 +13,7 @@
 __run_cmake=true
 __show_instructions=true
 __cd_to_build_directory=true
-__clean_build_directory=false
+__fresh_build_directory=false
 
 while [[ $# > 0 ]]; do
     arg=${1}
@@ -30,10 +30,10 @@ while [[ $# > 0 ]]; do
         __show_instructions=false
     elif [[ "${arg}" = --no-cd-build ]]; then
         __cd_to_build_directory=false
-    elif [[ "${arg}" = --clean ]]; then
-        __clean_build_directory=true
-    elif [[ "${arg}" = --no-clean ]]; then
-        __clean_build_directory=false
+    elif [[ "${arg}" = --fresh ]]; then
+        __fresh_build_directory=true
+    elif [[ "${arg}" = --no-fresh ]]; then
+        __fresh_build_directory=false
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
@@ -42,8 +42,8 @@ while [[ $# > 0 ]]; do
         echo "        --no-cd-build: do not move to build directory "
         echo "        --show-instructions: do print any instructions for the user (default)"
         echo "        --cd-build: do move to build directory (default)"
-        echo "        --clean: do clean to build directory to start fresh"
-        echo "        --no-clean: do not clean to build directory to use previous builds (default)"
+        echo "        --fresh: do clean to build directory to start fresh"
+        echo "        --no-fresh: do not clean to build directory to use previous builds (default)"
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
@@ -252,7 +252,7 @@ if [ "${__run_cmake}" != stop ]; then
 
     echo
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
-        if [ "${__clean_build_directory}" = true ]; then
+        if [ "${__fresh_build_directory}" = true ]; then
             echo "Erase the previous build directory: ${MIDAS_COMPILE_DIR_BUILD}"
             rm -rf ${MIDAS_COMPILE_DIR_BUILD}
             echo "Create the build directory: ${MIDAS_COMPILE_DIR_BUILD}"
