@@ -9,6 +9,14 @@ ec_parse_manifest()        # Parse MANIFEST file
 
 project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
 
+## Find the 'base' version of the project (the latest tag of the project)
+execute_process(
+  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version --abbrev=0"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE MIDAS_BASE_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 ec_build_info()              # Generate build include file
 include(ec_compiler_presets) # Include compiler presets
 
