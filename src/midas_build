@@ -126,7 +126,7 @@ if [ $# -gt 0 ]; then
         shift
     done ## End of 'while [[ $# > 0 ]]'
 
-    if [[ -n "${__target}" ]]; then
+    if [[ -n "${__target}" && "${__target}" != all ]]; then
         __abs_exist_list=
         for __targ in ${__target}; do
             grep_status=0
@@ -401,6 +401,7 @@ if [ -n "${__err_front}" ]; then
 fi
 
 ##========================================================
+
 if [ -n "${__abs_exist_list}" ]; then
     [ ! -d ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR} ] && mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     ##  Verification of compiled programs
