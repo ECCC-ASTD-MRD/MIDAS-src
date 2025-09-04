@@ -88,10 +88,26 @@ add_subdirectory(tools)
 #Don't add dumpBmatrix for now: if needed, it can be compiled with its own Makefile
 #add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
-ec_build_config()      # Create build configuration script
+#ec_build_config()      # Create build configuration script
 
-#configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
-## Commenting out this line above since this same line is called in macro 'ec_build_config()'.
-## If the issue
-##   https://gitlab.science.gc.ca/RPN-SI/cmake_rpn/-/issues/22 is ever
-## addressed, we may need to reintroduce it.
+## Those commands are extracted from 'ec_build_config' macro which is
+## 'cmake_rpn'.  We cannot use that macro because it includes an install target
+
+# Get preprocessor defines
+get_directory_property(EC_CMAKE_DEFINITIONS DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS)
+list(TRANSFORM EC_CMAKE_DEFINITIONS PREPEND "-D")
+list(JOIN EC_CMAKE_DEFINITIONS " " EC_CMAKE_DEFINITIONS)
+
+# Build flags list
+set(EC_C_FLAGS "${CMAKE_C_FLAGS}")
+set(EC_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(EC_C_FLAGS "${EC_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
+    set(EC_Fortran_FLAGS "${EC_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_DEBUG}")
+endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(EC_C_FLAGS "${EC_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+    set(EC_Fortran_FLAGS "${EC_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_RELEASE}")
+endif()
+
+configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
