@@ -81,4 +81,9 @@ add_subdirectory(tools)
 #add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
 ec_build_config()      # Create build configuration script
-configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
+
+#configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
+## Commenting out this line above since this same line is called in macro 'ec_build_config()'.
+## If the issue
+##   https://gitlab.science.gc.ca/RPN-SI/cmake_rpn/-/issues/22 is ever
+## addressed, we may need to reintroduce it.
