@@ -18,7 +18,7 @@ has_rpncomm=@rpncomm_VERSION@
 has_vgrid=@vgrid_VERSION@
 has_hdf5=@HDF5_VERSION@
 has_sqlite3=@SQLite3_VERSION@
-has_rttov=$ENV{RTTOV_VERSION}
+has_rttov=@rttov_VERSION@
 
 usage()
 {
