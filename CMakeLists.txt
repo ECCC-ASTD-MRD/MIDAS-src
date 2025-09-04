@@ -11,7 +11,7 @@ project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
 
 ## Find the 'base' version of the project (the latest tag of the project)
 execute_process(
-  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version --abbrev=0"
+  COMMAND sh "-c" "${CMAKE_SOURCE_DIR}/midas.version --abbrev=0 HEAD"
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE MIDAS_BASE_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE
