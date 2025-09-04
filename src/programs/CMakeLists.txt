@@ -97,8 +97,11 @@ foreach(prog ${PROJECT_PROGRAMS})
   add_custom_command(
       TARGET ${prog}
       POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E echo "Copy '${prog}' to ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
+
+      COMMAND ${CMAKE_COMMAND} -E echo Copy '${prog}' to ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
       COMMAND cp ${prog} ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
+
+      #COMMENT Copy '${prog}' to ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
 endforeach()
