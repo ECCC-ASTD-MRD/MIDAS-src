@@ -12,4 +12,4 @@ target_link_libraries(midas PUBLIC
   rpncomm::rpncomm
   vgrid::vgrid
   ${HDF5_Libraries}
-  )
+)

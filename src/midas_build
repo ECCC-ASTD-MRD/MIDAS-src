@@ -15,6 +15,7 @@
 ##      * use '-opt-report' to activate compiler optimization report, which is equivalent to setting 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes'
 ##      * use '--codecov ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
 ##
+##         (see other options below or with './midas_build --help')
 ##
 ##  @REFERENCES
 ##      * `./README.md`

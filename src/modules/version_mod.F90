@@ -12,7 +12,7 @@ module version_mod
   ! Public routines
   public :: ver_printNameAndVersion
 
-  ! Acquire the 'VERSION' variable
+! Acquire the 'GIT_VERSION' variable
 #include <midas_build_info.h>
 
 contains
