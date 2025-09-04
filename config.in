@@ -18,6 +18,7 @@ has_rpncomm=@rpncomm_VERSION@
 has_vgrid=@vgrid_VERSION@
 has_hdf5=@HDF5_VERSION@
 has_sqlite3=@SQLite3_VERSION@
+has_rttov=$ENV{RTTOV_VERSION}
 
 usage()
 {
@@ -40,6 +41,7 @@ Available values for OPTION include:
   --has-vgrid    which version of vgrid is it compiled with [${has_vgrid}]
   --has-hdf5     which version of hdf5 is it compiled with [${has_hdf5}]
   --has-sqlite3  which version of sqlite3 is it compiled with [${has_sqlite3}]
+  --has-rttov    which version of RTTOV is it compiled with [${has_rttov}]
 
 EOF
 }
@@ -102,6 +104,10 @@ while test $# -gt 0; do
     --has-sqlite3)
        	echo ${has_sqlite3:-no}
        	;;
+
+    --has-rttov)
+        echo ${has_rttov:-no}
+        ;;
 
     --version)
 	    echo ${version}
