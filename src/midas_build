@@ -340,6 +340,7 @@ echo "Build directory: ${MIDAS_COMPILE_DIR_BUILD}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+rm .compile_job
 
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
@@ -432,8 +433,10 @@ if [ -n "${__abs_exist_list}" ]; then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
             echo "(in your environment, profile or config.dot.sh)"
-            echo " ... cleaning build directory "
-            make clean
+            echo " ... cleaning build directory ${MIDAS_COMPILE_DIR_BUILD}"
+            make VERBOSE= clean
+            cd ${MIDAS_SOURCE_DIR}
+            rm -rf ${MIDAS_COMPILE_DIR_BUILD}
         fi
     else
         echo
@@ -459,7 +462,5 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     rm ${__listing_frontend}
     [ -f ${__listing_frontend}.o ] && rm ${__listing_frontend}.o
 fi
-
-rm .compile_job
 
 printFooter
