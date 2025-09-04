@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
+
 #----- Append EC specific module path
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
@@ -19,8 +21,6 @@ execute_process(
 
 ec_build_info()              # Generate build include file
 include(ec_compiler_presets) # Include compiler presets
-
-set(CMAKE_SKIP_INSTALL_RULES TRUE)
 
 find_package(MPI REQUIRED)
 
@@ -88,26 +88,13 @@ add_subdirectory(tools)
 #Don't add dumpBmatrix for now: if needed, it can be compiled with its own Makefile
 #add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
-#ec_build_config()      # Create build configuration script
+## The 'cmake_rpn' macro 'ec_build_config' contains an install target
+## which generates the 'midas-config' script and this conflicts with
+##      set(CMAKE_SKIP_INSTALL_RULES TRUE)
+## which issues this warning message at cmake call:
+##      CMake Warning in CMakeLists.txt:
+##        CMAKE_SKIP_INSTALL_RULES was enabled even though installation rules have
+##        been specified
+## with no other consequences.
 
-## Those commands are extracted from 'ec_build_config' macro which is
-## 'cmake_rpn'.  We cannot use that macro because it includes an install target
-
-# Get preprocessor defines
-get_directory_property(EC_CMAKE_DEFINITIONS DIRECTORY ${CMAKE_SOURCE_DIR} COMPILE_DEFINITIONS)
-list(TRANSFORM EC_CMAKE_DEFINITIONS PREPEND "-D")
-list(JOIN EC_CMAKE_DEFINITIONS " " EC_CMAKE_DEFINITIONS)
-
-# Build flags list
-set(EC_C_FLAGS "${CMAKE_C_FLAGS}")
-set(EC_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(EC_C_FLAGS "${EC_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
-    set(EC_Fortran_FLAGS "${EC_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_DEBUG}")
-endif()
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(EC_C_FLAGS "${EC_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    set(EC_Fortran_FLAGS "${EC_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_RELEASE}")
-endif()
-
-configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
+ec_build_config()
