@@ -215,7 +215,7 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}"
     . r.load.dot eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}
 
-    OPTF="-qmkl ${OPTF} -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
+    OPTF="-qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
