@@ -151,8 +151,8 @@ HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20231219"
-. r.load.dot eccc/mrd/rpn/libs/20231219
+echo "... loading eccc/mrd/rpn/libs/20250804"
+. r.load.dot eccc/mrd/rpn/libs/20250804
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
 
