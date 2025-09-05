@@ -435,6 +435,10 @@ if [ -n "${__abs_exist_list}" ]; then
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
+
+        ## Copy 'midas-config' to '${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}'
+        cp midas-config ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+
         if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT}" = yes ]; then
             cat <<EOF
 You will find the optimization reports (*.optrpt files) in one of the build directories:

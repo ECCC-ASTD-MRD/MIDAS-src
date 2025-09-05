@@ -119,7 +119,7 @@ install_midasabs() {
 
     ## install 'midas-config' script which informs the user about the
     ## building process
-    cp ${midasabs}/bin/midas-config ${__install_builddir__}
+    cp ${midasabs}/midas-config ${__install_builddir__}
 
     unset __install_builddir__
 } ## End of function 'install_midasabs'
