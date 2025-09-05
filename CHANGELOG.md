@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
 
 ## [3.9.7]
 
