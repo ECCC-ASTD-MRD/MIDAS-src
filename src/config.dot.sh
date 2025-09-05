@@ -297,9 +297,17 @@ if [ "${__run_cmake}" != stop ]; then
 
         if [ "${__run_cmake}" = true ]; then
             if [ -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
-                echo "cmake has already been run in build directory ${MIDAS_COMPILE_DIR_BUILD}"
+                cat <<EOF
+It seems 'cmake' has already been run in build directory ${MIDAS_COMPILE_DIR_BUILD}
+
+You can reurun by yourself 'cmake' with the commands
+   cd ${MIDAS_COMPILE_DIR_BUILD}
+   cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
+   make prepare_test
+
+EOF
             else
-                echo "Running cmake $(cmake_debug_options) ${MIDAS_SOURCE_DIR}"
+                echo "Running cmake $(cmake_options) ${MIDAS_SOURCE_DIR}"
                 echo
                 cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
                 ## Updating test environment
@@ -310,9 +318,11 @@ if [ "${__run_cmake}" != stop ]; then
         if [ "${__show_instructions}" = true ]; then
             echo
             if [ "${__run_cmake}" = true ]; then
-                echo "The build directory has already been prepared by 'cmake'."
-                echo "You have been moved into the build directory: ${PWD}"
-                echo "You can now compile all the programs using simply"
+                cat <<EOF
+The build directory has already been prepared by 'cmake'.
+You have been moved into the build directory: ${PWD}
+You can now compile all the programs using simply
+EOF
             elif [ "${__run_cmake}" = false ]; then
                 if [ ! -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
                     cat <<EOF
@@ -323,9 +333,11 @@ You can run by yourself 'cmake' with the commands
 and build the programs using
 EOF
                 else
-                    echo "The build directory has already been prepared by 'cmake'."
-                    echo "You have been moved into the build directory: ${PWD}"
-                    echo "You can now compile all the programs using simply"
+                cat <<EOF
+The build directory has already been prepared by 'cmake'.
+You have been moved into the build directory: ${PWD}
+You can now compile all the programs using simply
+EOF
                 fi
             fi
 
