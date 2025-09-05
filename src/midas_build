@@ -435,7 +435,16 @@ if [ -n "${__abs_exist_list}" ]; then
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
-        if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
+        if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT}" = yes ]; then
+            cat <<EOF
+You will find the optimization reports (*.optrpt files) in one of the build directories:
+   ${MIDAS_COMPILE_DIR_BUILD}/src/modules/CMakeFiles/midas.dir
+   ${MIDAS_COMPILE_DIR_BUILD}/src/programs/CMakeFiles/*.dir
+EOF
+            if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
+                echo "Do not erase the build directory to keep access to optimization report files"
+            fi
+        elif [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
             echo "(in your environment, profile or config.dot.sh)"
