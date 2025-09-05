@@ -119,7 +119,7 @@ It will
    `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format
    `midas-${program}_${ORDENV_PLAT}-${VERSION}.Abs`
 3. if `MIDAS_COMPILE_CLEAN=true`, will clean the build directory if the
-   compilation was successful (but keep installes binaries)
+   compilation was successful (but keep installed binaries)
    (directory `midas_bld-${VERSION}`)
 4. if `MIDAS_COMPILE_KEEP_LISTING=false`, will delete the listings if the
    compilation was successful
@@ -438,8 +438,8 @@ several drawbacks:
    it would take to much time.
  * The installing process manipulates the binaries by adding `rpath`
    so the installed programs are not the ones that are tested.
-   Prefering to keep the binaries that have been tested, the installed
-   programs will never been used.
+   Preferring to keep the binaries that have been tested, the
+   installed programs will never been used.
 
 ### The `prepare_test` target
 
