@@ -60,13 +60,26 @@ if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" !=
     echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
     __run_cmake=stop
 fi
+typeset -r __run_cmake
 
 if [ "${__show_instructions}" != true -a "${__show_instructions}" != false ]; then
     echo "config.dot.sh: The variable '__show_instructions' can only be 'true' or 'false' and not '${__show_instructions}'." >&2
     __run_cmake=stop
 fi
+typeset -r __show_instructions
 
-typeset -r __run_cmake __show_instructions
+if [ "${__cd_to_build_directory}" != true -a "${__cd_to_build_directory}" != false ]; then
+    echo "config.dot.sh: The variable '__cd_to_build_directory' can only be 'true' or 'false' and not '${__cd_to_build_directory}'." >&2
+    __run_cmake=stop
+fi
+typeset -r __cd_to_build_directory
+
+if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != false ]; then
+    echo "config.dot.sh: The variable '__fresh_build_directory' can only be 'true' or 'false' and not '${__fresh_build_directory}'." >&2
+    __run_cmake=stop
+fi
+typeset -r __fresh_build_directory
+
 
 cmake_options() {
     typeset __cmake_options_options__=
@@ -273,7 +286,7 @@ if [ "${__run_cmake}" != stop ]; then
         echo
     else
         echo "Create the install directory: ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
-	mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+        mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
     fi
 
     if [ -d "${MIDAS_COMPILE_DIR_BUILD}" ]; then
