@@ -239,14 +239,14 @@ if [ "${__run_cmake}" != stop ]; then
     fi
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -check all -fp-speculation=safe -init=snan,arrays"
-        echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
+        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -check all -fp-speculation=safe -init=snan,arrays"
+        echo "... > !WARNING! You are compiling in DEBUG MODE: '${MIDAS_COMPILE_COMPF}'"
     else
-        COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
+        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
     fi
 
     if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
-        echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
+        echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${MIDAS_COMPILE_COMPF}'"
         [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
             echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
             echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
@@ -257,10 +257,10 @@ if [ "${__run_cmake}" != stop ]; then
             echo "Could not create the directory ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
             __status=false
         }
-        COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
     fi
 
-    export COMPF
+    export MIDAS_COMPILE_COMPF
     export MIDAS_ABS_LEAFDIR
 
     echo

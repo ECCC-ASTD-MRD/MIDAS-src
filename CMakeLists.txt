@@ -50,12 +50,12 @@ set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5:
 # Necessary, as compiler presets sets it to -O2
 set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
 
-# 'COMPF' is set in 'src/config.dot.sh'
-if(DEFINED ENV{COMPF})
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{COMPF}")
-  message(STATUS "Appending CMAKE_Fortran_FLAGS with options from COMPF = $ENV{COMPF}")
+# 'MIDAS_COMPILE_COMPF' is set in 'src/config.dot.sh'
+if(DEFINED ENV{MIDAS_COMPILE_COMPF})
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{MIDAS_COMPILE_COMPF}")
+  message(STATUS "Appending CMAKE_Fortran_FLAGS with options from MIDAS_COMPILE_COMPF = $ENV{MIDAS_COMPILE_COMPF}")
 else()
-  message(WARNING "The environment variable 'COMPF' does not exist.  It should be defined in 'src/config.dot.sh'.")
+  message(WARNING "The environment variable 'MIDAS_COMPILE_COMPF' does not exist.  It should be defined in 'src/config.dot.sh'.")
 endif()
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
