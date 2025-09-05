@@ -9,12 +9,12 @@ The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+* `v_3.10` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
 * `v_3.9` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
-* `v_3.7` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
 
 # Contributing
 
@@ -35,40 +35,18 @@ or if one is interested in the latest version of the `main` branch
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
 
-## Getting code related to IC-4 implementation
+## Getting code related to IC-4 implementation on HPCR-U2
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.9
 ```
 
-If you created a new branch with the GitLab web UI, then the branch
-has been created using the default branch which is `main`.  One must
-reset it to the release branch.  One can simply do:
-```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
-cd midas-${ISSUE_NUMBER}
-git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
-git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
-```
-
-## Getting code related to IC-3 implementation on HPCR-U2
+## Getting code related to IC-4 implementation on HPCR-U3
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.7
-```
-
-If you created a new branch with the GitLab web UI, then the branch
-has been created using the default branch which is `main`.  One must
-reset it to the release branch.  One can simply do:
-```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
-cd midas-${ISSUE_NUMBER}
-git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
-git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
+clone_projet --no-central -c v_3.10 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10
 ```
 
 # Compiling MIDAS
