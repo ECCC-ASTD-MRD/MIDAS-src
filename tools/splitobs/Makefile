@@ -32,11 +32,12 @@ splitobs_rhel-9-graniterapids-64: version.h $(SRC)
 
 splitobs_libs: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/libs/20250804; \
-	. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}; \
+	. r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_rhel-9-amd64-64; \
+        . ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH};    \
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburp_c -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
 
 
 version.h:
