@@ -11,6 +11,14 @@ set -x
 ##  USER CONFIGURATION
 ##
 ###########################################################
+
+## This branch does not support the value
+## 'build_directory_local_to_the_repository' for the variable
+## '${MIDAS_COMPILE_DIR_MAIN}' so we unset this variable to avoid
+## confusion.
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
+    unset MIDAS_COMPILE_DIR_MAIN
+fi
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}

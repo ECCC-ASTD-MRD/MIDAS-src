@@ -130,7 +130,12 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
 fi
 
 echo "MIDAS_toplevel=${__toplevel}" > abs.dot
-echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${__toplevel}/compiledir}/midas_abs" >> abs.dot
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository -o -z "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+    echo "ABS_DIR=${__toplevel}/compiledir/midas_abs" >> abs.dot
+else
+    echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN}/midas_abs" >> abs.dot
+fi
+
 echo "MIDAS_version=\$(cd ${__toplevel}; ./midas.version.sh)" >> abs.dot
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
