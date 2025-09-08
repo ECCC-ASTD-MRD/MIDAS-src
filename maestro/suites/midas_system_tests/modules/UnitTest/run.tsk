@@ -69,15 +69,15 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
     echo . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20231219 >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20231219 >> load_env.sh
     echo . r.load.dot eccc/mrd/rpn/libs/20231219 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    echo echo loading rpn/code-tools/20250826/env/inteloneapi-2025.1.0 >> load_env.dot
-    echo . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2025.1.0 >> load_env.dot
-    echo echo loading eccc/mrd/rpn/libs/20250804 >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/libs/20250804 >> load_env.dot
-    echo echo ... loading hdf5                                                                   >> load_env.dot
-    echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
+    echo echo loading rpn/code-tools/20250826/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20250804 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20250804 >> load_env.sh
+    echo echo ... loading hdf5                                                                   >> load_env.sh
+    echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
 
     ## The following definitions ensure the 'allreduce' MPI collective
     ## operation is giving the same results from run to run.  In
@@ -90,8 +90,8 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     ##         the caveat that results of MPI collectives are not
     ##         reproducible, unless you set the env variable I_MPI_CBWR=1 or
     ##         I_MPI_CBWR=2
-    #echo export I_MPI_CBWR=1 >> load_env.dot
-    #echo export I_MPI_CBWR=2 >> load_env.dot
+    #echo export I_MPI_CBWR=1 >> load_env.sh
+    #echo export I_MPI_CBWR=2 >> load_env.sh
     ##
     ## Vivian:
     ##         Since the change of configurations of moira's CPU to
@@ -126,7 +126,7 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     ##         choisis. Je teste ces options encore avec mes grosses
     ##         configurations (GDPS, HRDPS)
 
-    #echo export I_MPI_ADJUST_ALLREDUCE=5 >> load_env.dot
+    #echo export I_MPI_ADJUST_ALLREDUCE=5 >> load_env.sh
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
