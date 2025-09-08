@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_SKIP_INSTALL_RULES TRUE)
-
 #----- Append EC specific module path
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
@@ -100,12 +98,5 @@ add_subdirectory(tools)
 #add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
 ## The 'cmake_rpn' macro 'ec_build_config' contains an install target
-## which generates the 'midas-config' script and this conflicts with
-##      set(CMAKE_SKIP_INSTALL_RULES TRUE)
-## which issues this warning message at cmake call:
-##      CMake Warning in CMakeLists.txt:
-##        CMAKE_SKIP_INSTALL_RULES was enabled even though installation rules have
-##        been specified
-## with no other consequences.
-
+## which generates the 'midas-config' script.
 ec_build_config()
