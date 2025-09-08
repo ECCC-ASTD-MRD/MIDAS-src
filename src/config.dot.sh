@@ -160,8 +160,8 @@ echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_AR
 . r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_rhel-9-amd64-64
 
 #echo "... loading eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}"
-echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}"
-. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250808/${COMP_ARCH}
+echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250804/${COMP_ARCH}"
+. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250804/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
