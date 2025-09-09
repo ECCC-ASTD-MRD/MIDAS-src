@@ -224,9 +224,14 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
+    if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+        rttovdebug=-debug
+    else
+        rttovdebug=
+    fi
     export RTTOV_VERSION=2.0.2-ci-do-not-use
-    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}
+    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
+    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 
     OPTF="-qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
 
