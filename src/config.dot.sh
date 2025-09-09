@@ -224,9 +224,9 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    export RTTOV_VERSION=13v2.0
-    echo "... loading eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/${RTTOV_VERSION}/${COMP_ARCH}
+    export RTTOV_VERSION=2.0.2-ci-do-not-use
+    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}"
+    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}
 
     OPTF="-qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
 
