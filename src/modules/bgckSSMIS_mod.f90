@@ -1630,7 +1630,7 @@ contains
   !--------------------------------------------------------------------------
   ! ssbg_satqcSsmis
   !--------------------------------------------------------------------------
-  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
+  subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject, waterObs)
     !
     ! :Purpose: This program is applied as a first stage of processing to
     !           SSMIS data after it is received from UK MetOffice and
@@ -1660,6 +1660,7 @@ contains
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex            ! Current header index
     logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
+    logical, allocatable, intent(out)   :: waterObs(:)            ! Observations over land and sea-ice 
 
     ! Locals:
     ! arrays to get from obsspacedata
@@ -1714,7 +1715,6 @@ contains
     logical, allocatable       :: iwvReject(:)
     logical, allocatable       :: precipObs(:)
     logical, allocatable       :: rainDetectionUKMethod(:)
-    logical, allocatable       :: waterObs(:)
     logical,              save :: ifFirstCall = .true.
     logical                    :: sensorIndexFound
     logical                    :: ssmisDataPresent
@@ -2106,7 +2106,7 @@ contains
   !--------------------------------------------------------------------------
   ! ssbg_updateObsSpaceAfterSatQc
   !--------------------------------------------------------------------------
-  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject)
+  subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject, waterObs)
     !
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     !
@@ -2116,6 +2116,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,          intent(in)    :: headerIndex            ! Current header index
     logical,          intent(in)    :: obsToReject(:)         ! Observations that will be rejected
+    logical,          intent(in)    :: waterObs(:)            ! Observations over land and sea-ice 
 
     ! Locals:
     integer, allocatable                :: obsFlags(:)
@@ -2199,6 +2200,7 @@ contains
         dataIndex = dataIndex+1
         if (resetQc) obsFlags(dataIndex) = 0
         if (obsToReject(dataIndex)) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),7)
+        if ((obsToReject(dataIndex)) .and. (.not. waterObs(dataIndex))) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),19)       
       end do
     end do
 
@@ -2830,6 +2832,7 @@ contains
     ! Locals:
     integer, allocatable                :: flagsInovQc(:)
     logical, allocatable                :: obsToReject(:)
+    logical, allocatable                :: waterObs(:)
     integer                             :: codtyp
     integer                             :: dataIndex
     integer                             :: dataIndex1
@@ -2890,13 +2893,13 @@ contains
       ! STEP 1) call satQC SSMIS program                                             !
       !###############################################################################
       if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 1) call satQC SSMIS program'
-      call ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
+      call ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject, waterObs)
 
       !###############################################################################
       ! STEP 2) update Flags after satQC SSMIS program                               !
       !###############################################################################
       if (ssbg_debug) write(*,*) 'ssbg_bgCheckSSMIS: STEP 2) update Flags after satQC SSMIS program'
-      call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject)
+      call ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject, waterObs)
 
       !###############################################################################
       ! STEP 3) call inovQC SSMIS program                                            !
