@@ -300,11 +300,10 @@ if [ "${__run_cmake}" != stop ]; then
                 cat <<EOF
 It seems 'cmake' has already been run in build directory ${MIDAS_COMPILE_DIR_BUILD}
 
-You can reurun by yourself 'cmake' with the commands
+You can rerun by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
    cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
    make prepare_test
-
 EOF
             else
                 echo "Running cmake $(cmake_options) ${MIDAS_SOURCE_DIR}"
@@ -321,7 +320,8 @@ EOF
                 cat <<EOF
 The build directory has already been prepared by 'cmake'.
 You have been moved into the build directory: ${PWD}
-You can now compile all the programs using simply
+
+You can now compile all of the programs by simply using
 EOF
             elif [ "${__run_cmake}" = false ]; then
                 if [ ! -f ${MIDAS_COMPILE_DIR_BUILD}/CMakeCache.txt ]; then
@@ -336,7 +336,7 @@ EOF
                 cat <<EOF
 The build directory has already been prepared by 'cmake'.
 You have been moved into the build directory: ${PWD}
-You can now compile all the programs using simply
+You can now compile all of the programs by simply using
 EOF
                 fi
             fi
@@ -346,10 +346,17 @@ EOF
 or just a single program
    make \${program} ## for example 'make var'
 
-You can compile a single module by going to 'src/modules'
+You can compile all modules by using
+   make midas
+
+Or you can compile a single module by going to 'src/modules' (but only
+after you have first compiled all modules or a program at least once)
    cd src/modules
    make gridStateVector_mod.o
-then to compile the program, you go back to the main build directory
+
+Then, to compile any remaining dependent modules and the program and
+also create the executable, you need to first go back to the main
+build directory
    cd ../..
    make var
 EOF
