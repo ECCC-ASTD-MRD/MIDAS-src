@@ -79,7 +79,7 @@ function print_usage {
     echo "        --local: avoid launching a batch job to compile"
     echo "        --fresh: erase the build directory if it already exists before compilation"
     echo "        --no-clean: do not erase the build directory after the compilation"
-    echo "        --no-erase-listing: do not erase compilation listing after the compilation"
+    echo "        --keep-listing: do not erase compilation listing after the compilation"
     echo "        --no-verbose: Turn off the verbose output for the compilation"
     echo "        -h|-help|--help: show this help"
 } ## End of 'function print_usage'
@@ -113,7 +113,7 @@ if [ $# -gt 0 ]; then
             __fresh_build_directory=--fresh
         elif [[ "${arg}" = --no-clean ]]; then
             MIDAS_COMPILE_CLEAN=false
-        elif [[ "${arg}" = --no-erase-listing ]]; then
+        elif [[ "${arg}" = --keep-listing ]]; then
             MIDAS_COMPILE_KEEP_LISTING=true
         elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
             print_usage
