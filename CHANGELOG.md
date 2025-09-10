@@ -32,10 +32,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
+ * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
 
 ### Removed
 
- * (Nothing yet)
+ * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
 
 ## [3.9.7]
 
