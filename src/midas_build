@@ -75,6 +75,7 @@ function print_usage {
     echo "midas_build: "
     echo "        -d|-debug|--debug: compile using the debug options"
     echo "        --opt-report: add the compiler options to output the optimization report"
+    echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
     echo "        --codecov: activate the code covering compiler options"
     echo "        --local: avoid launching a batch job to compile"
     echo "        --fresh: erase the build directory if it already exists before compilation"
@@ -95,6 +96,10 @@ if [ $# -gt 0 ]; then
         elif [[ "${arg}" = --optreport ]]; then
             echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
             exit 1
+        elif [[ "${arg}" = --vtune ]]; then
+            __vtune_options="-debug -parallel-source-info=2"
+            export MIDAS_COMPILE_COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL} ${__vtune_options}"
+            echo "midas_build: Adding compilation options '${__vtune_options}' needed for 'vtune'"
         elif [[ "${arg}" = --codecov ]]; then
             if [[ $# -lt 2 ]]; then
                 echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2
