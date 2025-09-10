@@ -229,7 +229,7 @@ if [ "${__run_cmake}" != stop ]; then
     else
         rttovdebug=
     fi
-    export RTTOV_VERSION=2.0.2-ci-do-not-use
+    export RTTOV_VERSION=2.0.2
     echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
     . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 
