@@ -60,7 +60,7 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##  parsing input and building job for submissions
 ##
 
-## default: make install
+## default: make all
 __target=all
 __abs_exist_list=${__abs_all}
 
