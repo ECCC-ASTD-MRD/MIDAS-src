@@ -24,6 +24,7 @@ midas_build:
     - v_3.10
     - v_3.9
     - v_3.9-RandD
+    - v_3.10-RandD
     - tags
   tags:
     - hpcr-u2
@@ -38,6 +39,7 @@ monitor_build:
     - v_3.10
     - v_3.9
     - v_3.9-RandD
+    - v_3.10-RandD
     - tags
   tags:
     - hpcr-u2
@@ -52,6 +54,7 @@ monitor_tests:
      - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -114,6 +117,7 @@ midas_tests:
      - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -128,6 +132,7 @@ findTrials_tests:
      - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -144,6 +149,7 @@ clean_midas_abs:
      - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -163,6 +169,7 @@ doc_sphinx:
      - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
