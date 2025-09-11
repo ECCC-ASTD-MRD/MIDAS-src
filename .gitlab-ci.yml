@@ -21,9 +21,10 @@ midas_build:
     - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
   only:
     - main
-    - v_3.7
+    - v_3.10
     - v_3.9
     - v_3.9-RandD
+    - v_3.10-RandD
     - tags
   tags:
     - hpcr-u2
@@ -35,9 +36,10 @@ monitor_build:
     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
   only:
     - main
-    - v_3.7
+    - v_3.10
     - v_3.9
     - v_3.9-RandD
+    - v_3.10-RandD
     - tags
   tags:
     - hpcr-u2
@@ -49,9 +51,10 @@ monitor_tests:
      - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version).Abs
    only:
      - main
-     - v_3.7
+     - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -111,9 +114,10 @@ midas_tests:
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
      - main
-     - v_3.7
+     - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -125,9 +129,10 @@ findTrials_tests:
      - ./midas.findTrials --unittest
    only:
      - main
-     - v_3.7
+     - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -141,9 +146,10 @@ clean_midas_abs:
      - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
    only:
      - main
-     - v_3.7
+     - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2
@@ -160,9 +166,10 @@ doc_sphinx:
    - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
    only:
      - main
-     - v_3.7
+     - v_3.10
      - v_3.9
      - v_3.9-RandD
+     - v_3.10-RandD
      - tags
    tags:
      - hpcr-u2

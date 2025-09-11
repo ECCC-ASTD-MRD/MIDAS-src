@@ -1286,7 +1286,10 @@ module physicsFunctions_mod
     dlat = lat2 - lat1
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
+    if ( a > 1.d0 ) a = 1.d0
+    if ( a < 0.d0 ) a = 0.d0 
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
+
     distanceInM = ec_ra * c
 
   end function phf_calcDistance

@@ -9,15 +9,18 @@ The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+* `v_3.10` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
+* `v_3.10-RandD` branch: The code in this branch validates with `v_3.10` but contains new features for testing using IC-4 final cycles as the reference.
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10-RandD/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10-RandD)
 * `v_3.9` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 * `v_3.9-RandD` branch: The code in this branch validates with `v_3.9` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9-RandD/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
-* `v_3.7` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
 
 # Contributing
 
@@ -38,7 +41,7 @@ or if one is interested in the latest version of the `main` branch
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
 
-## Getting code related to IC-4 implementation
+## Getting code related to IC-4 implementation on HPCR-U2
 
 The official code related to IC-4 implementation is available with the command:
 ```bash
@@ -66,22 +69,19 @@ git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
 git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
 ```
 
-## Getting code related to IC-3 implementation on HPCR-U2
+## Getting code related to IC-4 implementation on HPCR-U3
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.7
+clone_projet --no-central -c v_3.10 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10
 ```
 
-If you created a new branch with the GitLab web UI, then the branch
-has been created using the default branch which is `main`.  One must
-reset it to the release branch.  One can simply do:
+One can also use the branch `v_3.10-RandD`.  The code in this branch
+validates with `v_3.10` but contains new features for testing using
+IC-4 HPCR-U3 final cycles as the reference.
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
-cd midas-${ISSUE_NUMBER}
-git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
-git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
+clone_projet --no-central -c v_3.10-RandD git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10-RandD
 ```
 
 # Compiling MIDAS
