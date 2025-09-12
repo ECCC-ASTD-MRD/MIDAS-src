@@ -81,6 +81,7 @@ function print_usage {
     echo "        --fresh: erase the build directory if it already exists before compilation"
     echo "        --no-clean: do not erase the build directory after the compilation"
     echo "        --keep-listing: do not erase compilation listing after the compilation"
+    echo "        --append-version-id-builddir: append version id to the build directory (override the variable 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR'"
     echo "        --no-verbose: Turn off the verbose output for the compilation"
     echo "        -h|-help|--help: show this help"
 } ## End of 'function print_usage'
@@ -120,6 +121,11 @@ if [ $# -gt 0 ]; then
             MIDAS_COMPILE_CLEAN=false
         elif [[ "${arg}" = --keep-listing ]]; then
             MIDAS_COMPILE_KEEP_LISTING=true
+        elif [[ "${arg}" = --append-version-id-builddir ]]; then
+            if [[  -n "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" ]]; then
+                echo "override 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR' from '${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}' to 'true'"
+            fi
+            export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
         elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
             print_usage
             exit 1
