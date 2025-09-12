@@ -8,6 +8,7 @@ MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 
 # set the resources.def file, which depends on the TRUE_HOST name
 ${__toplevel}/set_resources_def.sh
+## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
@@ -129,7 +130,12 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
 fi
 
 echo "MIDAS_toplevel=${__toplevel}" > abs.dot
-echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${__toplevel}/compiledir}/midas_abs" >> abs.dot
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository -o -z "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+    echo "ABS_DIR=${__toplevel}/compiledir/midas_abs" >> abs.dot
+else
+    echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN}/midas_abs" >> abs.dot
+fi
+
 echo "MIDAS_version=\$(cd ${__toplevel}; ./midas.version.sh)" >> abs.dot
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
@@ -140,21 +146,9 @@ fi
 [ -L ~/.suites/${MIDAS_TESTS_SUITE} ] && rm ~/.suites/${MIDAS_TESTS_SUITE}
 ln -s $PWD ~/.suites/${MIDAS_TESTS_SUITE}
 
-## Initialize the hosts list for the test suite
 ## if 'MIDAS_MAKE_LINKS_MACHINE_LIST' exists then use that list
 if [ -n "${MIDAS_MAKE_LINKS_MACHINE_LIST}" ]; then
     export MAKE_LINKS_MACHINE_LIST=${MIDAS_MAKE_LINKS_MACHINE_LIST}
-elif [ -n "${GITLAB_CI}" ]; then
-    ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
-    frontend=$(getdef -e ${PWD} resources/resources.def FRONTEND)
-    backend=$(getdef -e ${PWD} resources/resources.def BACKEND)
-    MAKE_LINKS_MACHINE_LIST="${frontend} ${backend}"
-    ## if the user runs that script, 'install_suite.sh', on another host than 'FRONTEND' or 'BACKEND'
-    ## then, we add this host to the hosts list.  This will be often the case with 'eccc-gpsc1'.
-    if [ "${TRUE_HOST}" != "${frontend}" -a "${TRUE_HOST}" != "${backend}" ]; then
-        MAKE_LINKS_MACHINE_LIST="${MAKE_LINKS_MACHINE_LIST} ${TRUE_HOST}"
-    fi
-    export MAKE_LINKS_MACHINE_LIST
 fi
 
 export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
