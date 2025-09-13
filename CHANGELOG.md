@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Create links for all machines when doing the tests suite setup (#1110 and !1024)
  * Improve `midas.version` to find the highest reachable semantic version tag in the history line (#1087 and !997)
  * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
  * Read namelists from strings instead of files for improved efficiency (#886 and !794)

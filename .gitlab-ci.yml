@@ -100,6 +100,9 @@ splitobs_rdb_tests:
 
 midas_tests:
    stage: test
+   variables:
+       ## 2880 minutes is 48 hours
+       ORD_SOUMET_ARGS: "-jn midas_tests_ci -cpus 1 -w 2880 -q dev_daemon -mach ${ORDENV_TRUEHOST}"
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
      - cd maestro/suites/midas_system_tests
