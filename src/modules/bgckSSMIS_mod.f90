@@ -2200,7 +2200,7 @@ contains
         dataIndex = dataIndex+1
         if (resetQc) obsFlags(dataIndex) = 0
         if (obsToReject(dataIndex)) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),7)
-        if ((obsToReject(dataIndex)) .and. (.not. waterObs(numObsToProcess))) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),19)       
+        if ((obsToReject(dataIndex)) .and. (.not. waterObs(obsIndex))) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),19)       
       end do
     end do
 
