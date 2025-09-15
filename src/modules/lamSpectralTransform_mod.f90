@@ -73,8 +73,6 @@ module lamSpectralTransform_mod
      integer, allocatable :: KfromMNglb(:,:)
      character(len=10)    :: MpiMode
      character(len=3)     :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
-     integer              :: sendType_LevToLon, recvType_LevToLon
-     integer              :: sendType_LonToLev, recvType_LonToLev
    end type struct_lst
 
   ! TransformType = 'SinCos'
@@ -1433,38 +1431,6 @@ contains
   end subroutine transpose2d_LonToLev
 
   !--------------------------------------------------------------------------
-  ! lst_Transpose2d_LonToLev_kij_mpitypes
-  !--------------------------------------------------------------------------
-  subroutine transpose2d_LonToLev_kij_mpitypes(gd_out, gd_in, nk, lst)
-    implicit none
-
-    ! Arguments:
-    type(struct_lst), intent(in)  :: lst
-    integer,          intent(in)  :: nk
-    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-
-    if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
-    call rpn_comm_barrier("GRID",ierr)
-
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
-
-    nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
-    if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,      1, lst%sendType_LonToLev,  &
-                        gd_out,     1, lst%recvType_LonToLev, mmpi_comm_EW, ierr)
-    else
-       gd_out(:,:,:) = gd_in(:,:,:)
-    end if
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LonToLev_kij_mpitypes
-
-  !--------------------------------------------------------------------------
   ! lst_Transpose2d_LonToLev_kij
   !--------------------------------------------------------------------------
   subroutine transpose2d_LonToLev_kij(gd_out, gd_in, nk, lst)
@@ -1582,38 +1548,6 @@ contains
     call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
-
-  !--------------------------------------------------------------------------
-  ! lst_Transpose2d_LevToLon_kij_mpitypes
-  !--------------------------------------------------------------------------
-  subroutine transpose2d_LevToLon_kij_mpitypes(gd_out,gd_in,nk,lst)
-    implicit none
-
-    ! Arguments:
-    type(struct_lst), intent(in)  :: lst
-    integer,          intent(in)  :: nk
-    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-
-    if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
-    call rpn_comm_barrier("GRID",ierr)
-
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
-
-    nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
-    if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,      1, lst%sendType_LevToLon,  &
-                        gd_out,     1, lst%recvType_LevToLon, mmpi_comm_EW, ierr)
-    else
-      gd_out(:,:,:) = gd_in(:,:,:)
-    end if
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LevtoLon_kij_mpitypes
 
   !--------------------------------------------------------------------------
   ! lst_Transpose2d_LevToLon_kij
