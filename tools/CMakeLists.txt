@@ -6,9 +6,11 @@ target_link_libraries(splitobs PRIVATE
   burpc.a
   rmn::rmn
 )
-set_target_properties(splitobs PROPERTIES
-   BUILD_RPATH ${CMAKE_INSTALL_RPATH}
-)
+if (DEFINED CMAKE_INSTALL_RPATH)
+  set_target_properties(splitobs PROPERTIES
+     BUILD_RPATH ${CMAKE_INSTALL_RPATH}
+  )
+endif()
 
 add_custom_command(
     TARGET splitobs
