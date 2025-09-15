@@ -12,6 +12,9 @@ module version_mod
   ! Public routines
   public :: ver_printNameAndVersion
 
+! Acquire the 'GIT_VERSION' variable
+#include <midas_build_info.h>
+
 contains
 
   subroutine ver_printNameAndVersion(progName, progDescription)
@@ -24,13 +27,10 @@ contains
     character(len=*), intent(in) :: progName
     character(len=*), intent(in) :: progDescription
 
-    ! Locals:
-    character(len=100), parameter :: ver_version = "GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE"
-
     write(*,*) " --------------------------------------------"
     write(*,*) " ---  START OF MAIN PROGRAM midas-", trim(progName), " ---"
     write(*,*) " ---  ", trim(progDescription), " ---"
-    write(*,*) " ---  Revision: ", trim(ver_version)
+    write(*,*) " ---  Revision: ", trim(GIT_VERSION)
     write(*,*) " --------------------------------------------"
 
   end subroutine ver_printNameAndVersion

@@ -2,21 +2,72 @@
 
 set -euo pipefail
 
-if [ $# -gt 1 ]; then
-    echo "$0: Cannot give more than 1 argument which would be a git object.  You gave '${*}'." >&2
-    exit 1
-fi
+MIDAS_REPO_DIR="${MIDAS_SOURCE_DIR:-$(dirname "$(readlink -f "$0")")}"
+cd $MIDAS_REPO_DIR
 
-if [ $# -eq 1 ]; then
-    gitobject=${1}
-else
-    gitobject=
+function print_usage {
+    set -euo pipefail
+
+    echo "${0}: [--abbrev=<n>] [<commit-ish>...]"
+    echo "       --abbrev=<n>"
+    echo "           Instead of using the default 7 hexadecimal digits as the"
+    echo "           abbreviated object name, use <n> digits, or as many digits as"
+    echo "           needed to form a unique object name. An <n> of 0 will suppress"
+    echo "           long format, only showing the closest tag."
+    echo "       -h|-help|--help:"
+    echo "           show this help"
+} ## End of 'function print_usage'
+
+gitobject=
+git_describe_options=
+
+add_git_describe_options() {
+    if [[ -n "${git_describe_options}" ]]; then
+        git_describe_options="${git_describe_options} ${*}"
+    else
+        git_describe_options=${*}
+    fi
+} ## End of 'add_git_describe_options'
+
+
+if [ $# -gt 0 ]; then
+    while [[ $# > 0 ]]; do
+        arg=${1}
+
+        if [[ "${arg}" = --abbrev=* ]]; then
+            add_git_describe_options ${arg}
+        elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
+            print_usage
+            exit 1
+        elif [[ "${arg}" = -* ]]; then
+            echo "$0: This option '${arg}' is not allowed" >&2
+            echo
+            print_usage
+            exit 1
+        elif [[ -n "${gitobject}" ]]; then
+            echo "$0: You cannot provide several <commit-ish>..." >&2
+            echo "     '${gitobject}' and '${arg}' was given" >&2
+            echo
+            print_usage
+            exit 1
+        else
+            gitobject=${arg}
+        fi
+
+        shift
+    done ## End of 'while [[ $# > 0 ]]'
+    #echo "after while gitobject='${gitobject}'"
+fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
+
+## 'git describe' accepts '--dirty' option only if it called without any '<commit-ish>...'
+if [[ -z "${gitobject}" ]]; then
+    add_git_describe_options --dirty=_M
 fi
 
 status=0
 most_recent_tag_reachable=$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1) || status=1
 if [ "${status}" -eq 0 ]; then
-    git describe --dirty='_M' --match ${most_recent_tag_reachable} ${gitobject} || status=1
+    git describe ${git_describe_options} --match ${most_recent_tag_reachable} ${gitobject} || status=1
 fi
 
 ## If one of the above two command fails, we try on one of the PPPs.
@@ -26,5 +77,5 @@ if [ "${status}" -ne 0 ]; then
     suite=${toplevel}/maestro/suites/midas_system_tests
     . ${suite}/set_machine_list.dot ${suite}
 
-    ssh ${MACHINE_PPP} "cd ${toplevel}; most_recent_tag_reachable=\$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1); git describe --dirty='_M' --match \${most_recent_tag_reachable}"  || echo unkown revision
+    ssh ${MACHINE_PPP} "cd ${toplevel}; most_recent_tag_reachable=\$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1); git describe ${git_describe_options} --match \${most_recent_tag_reachable}"  || echo unkown revision
 fi
