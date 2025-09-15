@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Modified `LOCALSELECTIONOUTPUT` verbosity level (#1063 and !1014)
 
 ### Changed
 
@@ -16,12 +16,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Create links for all machines when doing the tests suite setup (#1110 and !1024)
+ * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
  * Fix the computation of pressure and heights in GEM-H to make the results similar to GEM-P (#1097 and !1011)
  * Fix for `stateToColumn_mod` to correctly handle `real(4)` argument (#1095 and !1004).
+ * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
 ### Removed
 
- * (Nothing yet)
+ * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
 
 ## [4.1.2]
 

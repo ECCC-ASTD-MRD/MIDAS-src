@@ -1,7 +1,7 @@
 
 module lamSpectralTransform_mod
   ! MODULE lamSpectralTransform_mod (prefix='lst' category='4. Data Object transformations')
-  ! 
+  !
   !:Purpose:  Bi-Fourier spectral transform for limited-area applications.
   !           Depends on ffft8 and setfft8 routines in ARMNLIB.
   !
@@ -75,7 +75,6 @@ module lamSpectralTransform_mod
      character(len=3)     :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
      integer              :: sendType_LevToLon, recvType_LevToLon
      integer              :: sendType_LonToLev, recvType_LonToLev
-     logical              :: lonLatDivisible
    end type struct_lst
 
   ! TransformType = 'SinCos'
@@ -119,9 +118,6 @@ contains
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
     character(len=60)               :: kreftype
-    logical                         :: divisibleLon, divisibleLat
-    integer(kind=MPI_ADDRESS_KIND)  :: lowerBound, extent
-    integer :: realSize, sendType, recvType, ierr
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
@@ -142,7 +138,7 @@ contains
 
     !  1.1 Check grid dimensions and set padding for the RPN DFT routines
 
-    ! We need to padd the input array such as ...                              
+    ! We need to padd the input array such as ...
     ! O O O O O O O O O
     ! O O O O O O O O O
     ! X X X X X X X O O
@@ -183,7 +179,7 @@ contains
     lst%nmax = lst%nj/2
 
     write(*,'(A,f8.1)') ' lst_Setup: Your grid spacing (in km) = ', ec_ra*dlon_in/1000.0
-    write(*,*) '           Max wavenumbers in x-axis = ', lst%mmax            
+    write(*,*) '           Max wavenumbers in x-axis = ', lst%mmax
     write(*,*) '           Max wavenumbers in y-axis = ', lst%nmax
 
     !- 1.3 MPI Strategy
@@ -226,17 +222,12 @@ contains
        ! range of LONS handled by this processor in GRIDPOINT SPACE
        call mmpi_setup_lonbands(lst%ni,                        & ! IN
                                 lst%lonPerPE, lst%lonPerPEmax, & ! OUT
-                                lst%myLonBeg, lst%myLonEnd,    & ! OUT
-                                divisible_opt=divisibleLon)      ! OUT
+                                lst%myLonBeg, lst%myLonEnd)      ! OUT
 
        ! range of LATS handled by this processor in GRIDPOINT SPACE
        call mmpi_setup_latbands(lst%nj,                        & ! IN
                                 lst%latPerPE, lst%latPerPEmax, & ! OUT
-                                lst%myLatBeg, lst%myLatEnd,    & ! OUT
-                                divisible_opt=divisibleLat)      ! OUT
-
-       lst%lonLatDivisible = (divisibleLon .and. divisibleLat)
-       if(mmpi_myid == 0) write(*,*) 'lst_setup: lonLatDivisible = ', lst%lonLatDivisible
+                                lst%myLatBeg, lst%myLatEnd)      ! OUT
 
        ! range of M handled by this processor in SPECTRAL SPACE
        call mmpi_setup_m(lst%mmax,                                        & ! IN
@@ -276,7 +267,7 @@ contains
         lst%mymIndex(m) = lst%mymIndex(m-lst%mymSkip) + 1
       end if
     end do
-    
+
     ! Set N index
     allocate(lst%mynIndex(lst%mynBeg:lst%mynEnd))
     lst%mynIndex(:)=0
@@ -332,7 +323,7 @@ contains
       call rpn_comm_allgather(lst%mymEnd ,1,"mpi_integer",       &
                               lst%allmEnd,1,"mpi_integer","NS",ier)
       if (mmpi_myid == 0) write(*,*) 'allmEnd =', lst%allmEnd(:)
-    
+
       allocate(lst%allmSkip(mmpi_npey))
       call rpn_comm_allgather(lst%mymSkip ,1,"mpi_integer",       &
                               lst%allmSkip,1,"mpi_integer","NS",ier)
@@ -347,7 +338,7 @@ contains
       call rpn_comm_allgather(lst%mynEnd ,1,"mpi_integer",       &
                               lst%allnEnd,1,"mpi_integer","EW",ier)
       if (mmpi_myid == 0) write(*,*) 'AllnEnd =', lst%allnEnd(:)
-    
+
       allocate(lst%allnSkip(mmpi_npex))
       call rpn_comm_allgather(lst%mynSkip ,1,"mpi_integer",       &
                               lst%allnSkip,1,"mpi_integer","EW",ier)
@@ -368,45 +359,10 @@ contains
                               lst%allLevEnd,1,"mpi_integer","EW",ier)
       if (mmpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
 
-      ! Setup mpi derived types used in transposes (only used when grid is divisible)
-      ! ... mpi_type_vector(count, blocklength, stride, ...)
-      ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
-   
-      call mpi_type_size(MPI_REAL8, realSize, ierr)
-      lowerBound = 0
-
-      ! create the send type for LevToLon
-      extent = lst%maxLevCount * lst%lonPerPE * realSize
-      call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-           lst%maxLevCount * lst%ni, MPI_REAL8, sendtype, ierr)
-      call mpi_type_create_resized(sendtype, lowerBound , extent, lst%sendType_LevToLon, ierr);
-      call mpi_type_commit(lst%sendType_LevToLon,ierr)
-
-      ! create the receive type for LevToLon
-      extent = lst%maxLevCount * realSize
-      call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-           maxlevels_opt, MPI_REAL8, recvtype, ierr);
-      call mpi_type_create_resized(recvtype, lowerBound, extent, lst%recvType_LevToLon, ierr);
-      call mpi_type_commit(lst%recvType_LevToLon, ierr)
-
-      ! create the send type for LonToLev
-      extent = lst%maxLevCount * realSize
-      call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-           maxlevels_opt, MPI_REAL8, sendtype, ierr);
-      call mpi_type_create_resized(sendtype, lowerBound, extent, lst%sendType_LonToLev, ierr);
-      call mpi_type_commit(lst%sendType_LonToLev, ierr)
-      
-      ! create the recv type for LonToLev
-      extent = lst%maxLevCount * lst%lonPerPE * realSize
-      call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-           lst%maxLevCount * lst%ni, MPI_REAL8, recvtype, ierr)
-      call mpi_type_create_resized(recvtype, lowerBound , extent, lst%recvType_LonToLev, ierr);
-      call mpi_type_commit(lst%recvType_LonToLev,ierr)
-      
      end if
 
     !- 1.4 Compute the Total Wavenumber associated with weach m,n pairs and
-    !      the number of spectral element in the VAR array (nla) 
+    !      the number of spectral element in the VAR array (nla)
     !      FOR THE LOCAL PROCESSOR
     allocate(Kr8fromMN(0:lst%mmax,0:lst%nmax))
     Kr8FromMN(:,:) = -1.d0
@@ -510,7 +466,7 @@ contains
       call rpn_comm_allreduce(my_KFromMNglb,lst%KFromMNglb, &
                                 (lst%mmax+1)*(lst%nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
     end if
-    deallocate(my_KfromMNglb) 
+    deallocate(my_KfromMNglb)
 
     lst%mymActiveCount=0
     do m = lst%mymBeg, lst%mymEnd, lst%mymSkip
@@ -583,7 +539,7 @@ contains
 
     if (trim(lst%MpiMode) /= 'NoMpi') then
       call rpn_comm_allreduce(lst%nePerK, lst%nePerKglobal, lst%ktrunc+1, &
-                              "mpi_integer", "mpi_sum", "GRID", ierr)
+                              "mpi_integer", "mpi_sum", "GRID", ier)
     end if
 
     deallocate(Kr8fromMN)
@@ -598,7 +554,7 @@ contains
 
     select case (trim(lst%gridDataOrder))
     case ('ijk')
-       write(*,*) 'lst_setup: gridded data ordering = IJK' 
+       write(*,*) 'lst_setup: gridded data ordering = IJK'
     case ('kij')
        write(*,*) 'lst_setup: gridded data ordering = KIJ'
     case default
@@ -642,7 +598,7 @@ contains
             call utl_abort('lst_Setup: Error in NormFactor')
          end if
 
-         if (i == 1 .or. j == 1) then  
+         if (i == 1 .or. j == 1) then
             if (i == 1 .and. j == 1) then
                factor   = Normfactor1
                factorAd = NormfactorAd1
@@ -654,11 +610,11 @@ contains
             factor   = Normfactor3
             factorAd = NormfactorAd3
          end if
-         
+
          lst%NormFactor  (ila,p) = factor
          lst%NormFactorAd(ila,p) = factorAd
       end do
-      
+
    end do
 
     !
@@ -779,7 +735,7 @@ contains
     !- 1.1 Settings and Data Selection
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
-       iStart = 1 
+       iStart = 1
        iEnd   = lst%ni
        jStart = lst%myLatBeg
        jEnd   = lst%myLatEnd
@@ -862,7 +818,7 @@ contains
 
     !
     !- 2.0 Second pass (Step1 -> Step2)
-    !   
+    !
 
     !- 2.1 Settings
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -896,7 +852,7 @@ contains
     allocate(Step2(ni_l+nip_l,nj_l+njp_l,kStart:kEnd))
 
     !- 2.2 Communication between processors
-    
+
     if (trim(TransformDirection) == 'GridPointToSpectral') then
        if      (trim(lst%MpiMode) == 'NoMpi') then
          Step2(:,1:lst%nj,:) = Step1(:,1:lst%nj,:)
@@ -924,11 +880,11 @@ contains
 
     !
     !- 3.0 Post-processing (Step2 -> Step3 -> Output)
-    ! 
+    !
 
     select case (trim(TransformDirection))
     case ('GridPointToSpectral')
-       iStart = 1 
+       iStart = 1
        iEnd   = 2*lst%mymCount
        jStart = 1
        jEnd   = 2*lst%mynCount
@@ -1012,7 +968,7 @@ contains
     !- 1.1 Settings and Data Selection
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
-       iStart = 1 
+       iStart = 1
        iEnd   = lst%ni
        jStart = lst%myLatBeg
        jEnd   = lst%myLatEnd
@@ -1027,13 +983,8 @@ contains
        if (trim(lst%MpiMode) == 'NoMpi') then
          Step0(:,:,:) = GridState(:,:,:)
        else
-         if(lst%lonLatDivisible) then
-           call transpose2d_LonToLev_kij_mpitypes(Step0,            & ! OUT
-                                                  GridState, nk, lst) ! IN
-         else
-           call transpose2d_LonToLev_kij(Step0,            & ! OUT
-                                         GridState, nk, lst) ! IN
-         end if
+         call transpose2d_LonToLev_kij(Step0,            & ! OUT
+                                       GridState, nk, lst) ! IN
        end if
     end if
 
@@ -1100,7 +1051,7 @@ contains
 
     !
     !- 2.0 Second pass (Step1 -> Step2)
-    !   
+    !
 
     !- 2.1 Settings
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -1134,7 +1085,7 @@ contains
     allocate(Step2(kStart:kEnd,ni_l+nip_l,nj_l+njp_l))
 
     !- 2.2 Communication between processors
-    
+
     if (trim(TransformDirection) == 'GridPointToSpectral') then
        if      (trim(lst%MpiMode) == 'NoMpi') then
          Step2(:,1:lst%nj,:) = Step1(:,1:lst%nj,:)
@@ -1162,11 +1113,11 @@ contains
 
     !
     !- 3.0 Post-processing (Step2 -> Step3 -> Output)
-    ! 
+    !
 
     select case (trim(TransformDirection))
     case ('GridPointToSpectral')
-       iStart = 1 
+       iStart = 1
        iEnd   = 2*lst%mymCount
        jStart = 1
        jEnd   = 2*lst%mynCount
@@ -1205,13 +1156,8 @@ contains
        if (trim(lst%MpiMode) == 'NoMpi') then
          Step3(:,:,:) = Step2(:,1:lst%ni,:)
        else
-         if(lst%lonLatDivisible) then
-           call transpose2d_LevToLon_kij_mpitypes(Step3,                      & ! OUT
-                                                  Step2(:,1:lst%ni,:), nk, lst) ! IN
-         else
-           call transpose2d_LevToLon_kij(Step3,                      & ! OUT
-                                         Step2(:,1:lst%ni,:), nk, lst) ! IN
-         end if
+         call transpose2d_LevToLon_kij(Step3,                      & ! OUT
+                                       Step2(:,1:lst%ni,:), nk, lst) ! IN
        end if
 
        GridState(:,lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd) = Step3(:,1:lst%lonPerPE,1:lst%latPerPE)
@@ -1615,7 +1561,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
     if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
@@ -1660,7 +1606,7 @@ contains
     nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
     if (mmpi_npex > 1) then
       call mpi_alltoall(gd_in,      1, lst%sendType_LevToLon,  &
-                        gd_out,     1, lst%recvType_LevToLon, mmpi_comm_EW, ierr) 
+                        gd_out,     1, lst%recvType_LevToLon, mmpi_comm_EW, ierr)
     else
       gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1690,7 +1636,7 @@ contains
     call rpn_comm_barrier("GRID",ierr)
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
-    
+
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
     do yourid = 0, (mmpi_npex-1)
       gd_send(:,:,:,yourid+1) = 0.0d0
@@ -1741,7 +1687,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst), intent(in)  :: lst    
+    type(struct_lst), intent(in)  :: lst
     real(8),          intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
     real(8),          intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
@@ -1758,7 +1704,7 @@ contains
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
-        levIndex2 = levIndex - lst%myLevBeg + 1 
+        levIndex2 = levIndex - lst%myLevBeg + 1
         gd_send(:,:,:,levIndex2,yourid+1) = 0.d0
         do latIndex = 1, lst%latPerPE
           icount = 0
@@ -1803,7 +1749,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     call utl_tmg_stop(154)
 
   end subroutine transpose2d_LatToM
@@ -1953,7 +1899,7 @@ contains
     !$OMP END PARALLEL DO
 
     call utl_tmg_stop(154)
-    
+
   end subroutine transpose2d_MtoLat
 
   !--------------------------------------------------------------------------
@@ -2059,7 +2005,7 @@ contains
         gd_send(:,:,levIndex2,yourid+1) = 0.d0
         icount = 0
         do nIndex = lst%allnBeg(yourid+1), lst%allnEnd(yourid+1), lst%allnSkip(yourid+1)
-          do mIndex = lst%mymBeg, lst%mymEnd, lst%mymSkip 
+          do mIndex = lst%mymBeg, lst%mymEnd, lst%mymSkip
             if (lst%KfromMNglb(mIndex,nIndex) /= -1) then
               icount = icount + 1
               gd_send(icount,1,levIndex2,yourid+1) = gd_in(2*lst%mymIndex(mIndex)-1,2*nIndex+1,levIndex)
@@ -2072,7 +2018,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
@@ -2089,7 +2035,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     call utl_tmg_stop(153)
 
   end subroutine transpose2d_LevToN
@@ -2123,7 +2069,7 @@ contains
         gd_send(:,:,levIndex2,yourid+1) = 0.d0
         icount = 0
         do nIndex = lst%allnBeg(yourid+1), lst%allnEnd(yourid+1), lst%allnSkip(yourid+1)
-          do mIndex = lst%mymBeg, lst%mymEnd, lst%mymSkip 
+          do mIndex = lst%mymBeg, lst%mymEnd, lst%mymSkip
             if (lst%KfromMNglb(mIndex,nIndex) /= -1) then
               icount = icount + 1
               gd_send(icount,1,levIndex2,yourid+1) = gd_in(levIndex,2*lst%mymIndex(mIndex)-1,2*nIndex+1)
@@ -2153,7 +2099,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     call utl_tmg_stop(153)
 
   end subroutine transpose2d_LevToN_kij
@@ -2224,7 +2170,7 @@ contains
     !$OMP END PARALLEL DO
 
     call utl_tmg_stop(153)
-    
+
   end subroutine transpose2d_NToLev
 
   !--------------------------------------------------------------------------
@@ -2258,7 +2204,7 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     nsize = lst%maxnla * 4 * lst%maxLevCount
     if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
@@ -2319,12 +2265,12 @@ contains
     select case (trim(Direction))
     case ('ToVAR')
       ! Truncation (if applicable) will be applied here
-      !$OMP PARALLEL DO PRIVATE (n,m,ila,k) 
+      !$OMP PARALLEL DO PRIVATE (n,m,ila,k)
       do n = lst%mynBeg, lst%mynEnd, lst%mynSkip
         do m = lst%mymBeg, lst%mymEnd, lst%mymSkip
           ila = lst%nla_Index(m,n)
           if (ila /= -1) then
-            do k = kStart, kEnd 
+            do k = kStart, kEnd
               SpectralStateVar(ila,1,k) = SpectralStateRpn(2*lst%mymIndex(m)-1,2*lst%mynIndex(n)-1,k)
               SpectralStateVar(ila,2,k) = SpectralStateRpn(2*lst%mymIndex(m)-1,2*lst%mynIndex(n)  ,k)
               SpectralStateVar(ila,3,k) = SpectralStateRpn(2*lst%mymIndex(m)  ,2*lst%mynIndex(n)-1,k)
@@ -2384,12 +2330,12 @@ contains
     select case (trim(Direction))
     case ('ToVAR')
       ! Truncation (if applicable) will be applied here
-      !$OMP PARALLEL DO PRIVATE (n,m,ila,k) 
+      !$OMP PARALLEL DO PRIVATE (n,m,ila,k)
       do n = lst%mynBeg, lst%mynEnd, lst%mynSkip
         do m = lst%mymBeg, lst%mymEnd, lst%mymSkip
           ila = lst%nla_Index(m,n)
           if (ila /= -1) then
-            do k = kStart, kEnd 
+            do k = kStart, kEnd
               SpectralStateVar(ila,1,k) = SpectralStateRpn(k,2*lst%mymIndex(m)-1,2*lst%mynIndex(n)-1)
               SpectralStateVar(ila,2,k) = SpectralStateRpn(k,2*lst%mymIndex(m)-1,2*lst%mynIndex(n) )
               SpectralStateVar(ila,3,k) = SpectralStateRpn(k,2*lst%mymIndex(m)  ,2*lst%mynIndex(n)-1)
@@ -2470,7 +2416,7 @@ contains
     call lst_VarTransform(lst,                   & ! IN
                           SpectralStateVar,      & ! OUT
                           GridState,             & ! IN
-                          kind, nk)                ! IN    
+                          kind, nk)                ! IN
 
     !
     !- 3. Laplacian (forward or inverse) Transform
