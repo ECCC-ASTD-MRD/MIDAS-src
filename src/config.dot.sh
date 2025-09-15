@@ -201,6 +201,7 @@ if [ "${__run_cmake}" != stop ]; then
         echo "..."
         echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
         echo "..."
+        export MIDAS_COMPILE_COMPF_GLOBAL
     fi
 
     #----------------------------------------------------------------
@@ -233,25 +234,19 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
     . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 
-    OPTF="-qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
-
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
-        OPTF="${OPTF} -qopt-report=5"
         echo "... > !WARNING! Compiler optimization reports will be produced in the compile directory."
         echo "... >           To be able to see them, we ensure cleaning is not activated."
         MIDAS_COMPILE_CLEAN=false
     fi
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF} -check all -fp-speculation=safe -init=snan,arrays"
-        echo "... > !WARNING! You are compiling in DEBUG MODE: '${MIDAS_COMPILE_COMPF}'"
-    else
-        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF_GLOBAL} ${OPTF}"
+        echo "... > !WARNING! You are compiling in DEBUG MODE"
     fi
 
     if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
-        echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${MIDAS_COMPILE_COMPF}'"
+        echo "... > !WARNING! You are compiling in CODE COVERAGE MODE"
         [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
             echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
             echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
@@ -262,10 +257,8 @@ if [ "${__run_cmake}" != stop ]; then
             echo "Could not create the directory ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
             __status=false
         }
-        MIDAS_COMPILE_COMPF="${MIDAS_COMPILE_COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
     fi
 
-    export MIDAS_COMPILE_COMPF
     export MIDAS_ABS_LEAFDIR
 
     echo

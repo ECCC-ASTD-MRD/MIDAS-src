@@ -101,6 +101,7 @@ if [ $# -gt 0 ]; then
             __vtune_options="-debug -parallel-source-info=2"
             export MIDAS_COMPILE_COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL} ${__vtune_options}"
             echo "midas_build: Adding compilation options '${__vtune_options}' needed for 'vtune'"
+            unset __vtune_options
         elif [[ "${arg}" = --codecov ]]; then
             if [[ $# -lt 2 ]]; then
                 echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2

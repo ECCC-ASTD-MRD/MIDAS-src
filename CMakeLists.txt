@@ -42,36 +42,43 @@ endif()
 
 set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main)
 foreach(component ${rttov_FIND_COMPONENTS})
-    find_library(${component}_lib NAME ${component}
-       HINTS ENV LIBRARY_PATH)
+    find_library(${component}_lib NAME ${component} HINTS ENV LIBRARY_PATH)
     set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
 endforeach()
 
 set(SQLITE_Libraries SQLite::SQLite3 f90sqlite udfsqlite)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
-# Necessary, as compiler presets sets it to -O2
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
-
-# 'MIDAS_COMPILE_COMPF' is set in 'src/config.dot.sh'
-if(DEFINED ENV{MIDAS_COMPILE_COMPF})
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{MIDAS_COMPILE_COMPF}")
-  message(STATUS "Appending CMAKE_Fortran_FLAGS with options from MIDAS_COMPILE_COMPF = $ENV{MIDAS_COMPILE_COMPF}")
-else()
-  message(WARNING "The environment variable 'MIDAS_COMPILE_COMPF' does not exist.  It should be defined in 'src/config.dot.sh'.")
-endif()
-
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -static-intel")
+  # Necessary, as compiler presets sets it to -O2
+  set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
+
+  set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all -fp-speculation=safe -init=snan,arrays")
+
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal -static-intel")
+
+  if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qopt-report=5")
+  endif()
+
+  if( DEFINED ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH} )
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -prof-gen=srcpos -prof-dir=$ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH}")
+  endif()
 endif()
 
 link_libraries("-Wl,--disable-new-dtags")
+
+# 'MIDAS_COMPILE_COMPF_GLOBAL' is set in 'src/config.dot.sh'
+if(DEFINED ENV{MIDAS_COMPILE_COMPF_GLOBAL})
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} $ENV{MIDAS_COMPILE_COMPF_GLOBAL}")
+  message(STATUS "Appending CMAKE_Fortran_FLAGS with options from MIDAS_COMPILE_COMPF = $ENV{MIDAS_COMPILE_COMPF}")
+endif()
 
 # Printing flags
 message(STATUS "(EC) CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 message(STATUS "(EC) CMAKE_Fortran_FLAGS=${CMAKE_Fortran_FLAGS}")
 
-if (${CMAKE_BUILD_TYPE} MATCHES Debug )
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
   message(STATUS "(EC) CMAKE_C_FLAGS_DEBUG=${CMAKE_C_FLAGS_DEBUG}")
   message(STATUS "(EC) CMAKE_Fortran_FLAGS_DEBUG=${CMAKE_Fortran_FLAGS_DEBUG}")
 endif()
