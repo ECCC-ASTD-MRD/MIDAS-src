@@ -132,6 +132,9 @@ if [ $# -gt 0 ]; then
             exit 1
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
+            if [[ "${arg}" = --code-cov ]]; then
+                echo "midas_build: are you meaning '--codecov'?" >&2
+            fi
             echo
             print_usage
             exit 1
