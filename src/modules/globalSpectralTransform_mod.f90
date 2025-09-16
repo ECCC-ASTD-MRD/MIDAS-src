@@ -3,7 +3,7 @@ module globalSpectralTransform_mod
   ! MODULE globalSpectralTransform_mod (prefix='gst' category='4. Data Object transformations')
   !
   !:Purpose:  To perform global spectral transform (spherical harmonic transform
-  !           with grid-point field on a standard global Gaussian grid). 
+  !           with grid-point field on a standard global Gaussian grid).
   !
   use mpi ! this is the mpi library module
   use rpn_comm
@@ -70,9 +70,6 @@ module globalSpectralTransform_mod
     integer,allocatable   :: allnBeg(:), allnEnd(:), allnSkip(:)
     integer               :: myLevBeg, myLevEnd, myLevCount, maxMyLevCount
     integer,allocatable   :: allLevBeg(:), allLevEnd(:)
-    integer               :: sendType_LevToLon, recvType_LevToLon
-    integer               :: sendType_LonToLev, recvType_LonToLev
-    logical               :: lonLatDivisible
   end type T_gst
 
   integer,parameter :: nMaxGst = 20
@@ -90,7 +87,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: gstID_in
-  
+
     gstID = gstID_in
 
   end subroutine GST_setID
@@ -101,7 +98,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: gstID_in
-  
+
     gstIDDefault = gstID_in
 
   end subroutine GST_setDefaultID
@@ -232,7 +229,7 @@ contains
     ! Locals:
     integer :: gstID_l
     integer :: latIndex2
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -255,7 +252,7 @@ contains
 
     ! Locals:
     integer :: gstID_l
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -301,7 +298,7 @@ contains
     ! Locals:
     integer :: gstID_l
     integer :: latIndex2
-  
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -340,8 +337,8 @@ contains
 
 
   real(8) function GST_getzleg(legendreIndex,latIndex,gstID_in)
-    ! 
-    !:Purpose: To pass on Legendre polynomial element 
+    !
+    !:Purpose: To pass on Legendre polynomial element
     !
     implicit none
 
@@ -461,9 +458,6 @@ contains
     integer  :: mymBeg, mymEnd, mymSkip, mymCount
     integer  :: mynBeg, mynEnd, mynSkip, mynCount
     real(8)  :: znnp1, z1snp1
-    integer(kind=MPI_ADDRESS_KIND) :: lowerBound, extent
-    integer :: realSize, sendType, recvType
-    logical :: divisibleLon, divisibleLat
 
     if(nGstAlreadyAllocated.eq.nMaxGst) then
       if(mmpi_myid.eq.0) write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ', nMaxGst
@@ -490,12 +484,9 @@ contains
     if(mmpi_myid.eq.0) write(*,*) 'gst_setup: ntrunc=', gst(gstID)%ntrunc
 
     call mmpi_setup_latbands(gst(gstID)%nj,  &
-         latPerPE, latPerPEmax, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd, divisible_opt=divisibleLat)
+         latPerPE, latPerPEmax, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd)
     call mmpi_setup_lonbands(gst(gstID)%ni,  &
-         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt= divisibleLon)
-
-    gst(gstID)%lonLatDivisible = (divisibleLon .and. divisibleLat)
-    if( mmpi_myid == 0 ) write(*,*) 'gst_setup: lonLatDivisible = ', gst(gstID)%lonLatDivisible
+         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     gst(gstID)%nk = maxlevels_in
     ! 2D MPI decomposition: split levels across npex
@@ -506,14 +497,14 @@ contains
     ! range of lons handled by this processor
     gst(gstID)%myLonBeg = myLonBeg
     gst(gstID)%myLonEnd = myLonEnd
-    gst(gstID)%lonPerPE = lonPerPE 
+    gst(gstID)%lonPerPE = lonPerPE
     gst(gstID)%lonPerPEmax = lonPerPEmax
     ! range of lats handled by this processor
     gst(gstID)%myLatBeg = myLatBeg
     gst(gstID)%myLatEnd = myLatEnd
     gst(gstID)%myLatHalfBeg = myLatHalfBeg
     gst(gstID)%myLatHalfEnd = myLatHalfEnd
-    gst(gstID)%latPerPE = latPerPE 
+    gst(gstID)%latPerPE = latPerPE
     gst(gstID)%latPerPEmax = latPerPEmax
     ! range of n handled by this processor
     call mmpi_setup_n(gst(gstID)%ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
@@ -531,7 +522,7 @@ contains
                             1,'MPI_INTEGER','MPI_MAX','GRID',ierr)
     ! range of levels handled by this processor when in spectral space
     gst(gstID)%myLevBeg = myLevBeg
-    gst(gstID)%myLevEnd = myLevEnd      
+    gst(gstID)%myLevEnd = myLevEnd
     gst(gstID)%myLevCount = myLevCount
     call rpn_comm_allreduce(gst(gstID)%myLevCount,gst(gstID)%maxMyLevCount, &
                             1,'MPI_INTEGER','MPI_MAX','GRID',ierr)
@@ -645,43 +636,8 @@ contains
 
     call gst_zlegpol(gstID)
 
-    ! setup mpi derived types used in transposes (only used when grid is divisible)
-    ! ... mpi_type_vector(count, blocklength, stride, ...)
-    ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
-
-    call mpi_type_size(pre_specTransMpiType, realSize, ierr)
-    lowerBound = 0
-
-    ! create the send type for LevToLon
-    extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
-    call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, sendtype, ierr)
-    call mpi_type_create_resized(sendtype, lowerBound , extent, gst(gstID)%sendType_LevToLon, ierr);
-    call mpi_type_commit(gst(gstID)%sendType_LevToLon,ierr)
-
-    ! create the receive type for LevToLon
-    extent = gst(gstID)%maxMyLevCount * realSize
-    call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, pre_specTransMpiType, recvtype, ierr);
-    call mpi_type_create_resized(recvtype, lowerBound, extent, gst(gstID)%recvType_LevToLon, ierr);
-    call mpi_type_commit(gst(gstID)%recvType_LevToLon, ierr);
-
-    ! create the send type for LonToLev
-    extent = gst(gstID)%maxMyLevCount * realSize
-    call mpi_type_vector(gst(gstID)%lonPerPE * gst(gstID)%latPerPE , gst(gstID)%maxMyLevCount,  &
-                         gst(gstID)%nk, pre_specTransMpiType, sendtype, ierr);
-    call mpi_type_create_resized(sendtype, lowerBound, extent, gst(gstID)%sendType_LonToLev, ierr);
-    call mpi_type_commit(gst(gstID)%sendType_LonToLev, ierr);
-
-    ! create the recv type for LonToLev
-    extent = gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE * realSize
-    call mpi_type_vector(gst(gstID)%latPerPE, gst(gstID)%maxMyLevCount * gst(gstID)%lonPerPE,  &
-                         gst(gstID)%maxMyLevCount * gst(gstID)%ni, pre_specTransMpiType, recvtype, ierr)
-    call mpi_type_create_resized(recvtype, lowerBound , extent, gst(gstID)%recvType_LonToLev, ierr);
-    call mpi_type_commit(gst(gstID)%recvType_LonToLev,ierr)
-
     gst_setup = gstID
-  
+
   end function GST_SETUP
 
 !-------------------------------------------------------------------------------
@@ -1148,74 +1104,6 @@ contains
   end subroutine transpose2d_LevtoLon
 
 
-  subroutine transpose2d_LevtoLon_kij_mpitypes8(pgd_in,pgd_out)
-    implicit none
-
-    ! Arguments:
-    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8), intent(out) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    ! Locals:
-    integer :: nsize,ierr
-
-    call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call utl_tmg_stop(152)
-
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
-
-    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
-    if(mmpi_npex.gt.1) then
-      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
-    else
-      pgd_out(:,:,:) = pgd_in(:,:,:)
-    endif
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LevtoLon_kij_mpitypes8
-
-
-  subroutine transpose2d_LevtoLon_kij_mpitypes4(pgd_in,pgd_out)
-    implicit none
-
-    ! Arguments:
-    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8), intent(out) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    ! Locals:
-    integer :: nsize,ierr
-    real(4) :: pgd_in_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                         gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(4) :: pgd_out_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call utl_tmg_stop(152)
-
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
-
-    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
-    if(mmpi_npex.gt.1) then
-      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LevToLon,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LevToLon, mmpi_comm_EW, ierr)
-      pgd_out(:,:,:) = pgd_out_r4(:,:,:)
-    else
-      pgd_out(:,:,:) = pgd_in(:,:,:)
-    endif
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LevtoLon_kij_mpitypes4
-
-
   subroutine transpose2d_LevtoLon_kij(pgd_in,pgd_out)
     implicit none
 
@@ -1321,74 +1209,6 @@ contains
     call utl_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev
-
-
-  subroutine transpose2d_LontoLev_kij_mpitypes8(pgd_in,pgd_out)
-    implicit none
-
-    ! Arguments:
-    real(8), intent(in)  :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-
-    call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call utl_tmg_stop(152)
-
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
-
-    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
-    if(mmpi_npex.gt.1) then
-      call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
-    else
-      pgd_out(:,:,:) = pgd_in(:,:,:)
-    endif
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LontoLev_kij_mpitypes8
-
-
-  subroutine transpose2d_LontoLev_kij_mpitypes4(pgd_in,pgd_out)
-    implicit none
-
-    ! Arguments:
-    real(8), intent(in)  :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-    real(4) :: pgd_in_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                         gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(4) :: pgd_out_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    call utl_tmg_start(152,'low-level--gst_barr')
-    if(mmpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call utl_tmg_stop(152)
-
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
-
-    nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
-    if(mmpi_npex.gt.1) then
-      pgd_in_r4(:,:,:) = pgd_in(:,:,:)
-      call mpi_alltoall(pgd_in_r4,  1, gst(gstID)%sendType_LonToLev,  &
-                        pgd_out_r4, 1, gst(gstID)%recvType_LonToLev, mmpi_comm_EW, ierr)
-      pgd_out(:,:,:) = pgd_out_r4(:,:,:)
-    else
-      pgd_out(:,:,:) = pgd_in(:,:,:)
-    endif
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LontoLev_kij_mpitypes4
 
 
   subroutine transpose2d_LontoLev_kij(pgd_in,pgd_out)
@@ -1617,7 +1437,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the FFT 
+    ! 2.2 Apply the FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
     call utl_tmg_stop(151)
@@ -1626,7 +1446,7 @@ contains
     call transpose2d_LevtoLon(pgd3,pgd)
     deallocate(pgd3)
 
-    ! 2.4 Now undo reordering of wind components 
+    ! 2.4 Now undo reordering of wind components
     call unInterleaveWinds_gd(pgd,nflev)
 
   end subroutine gst_spgd
@@ -1683,7 +1503,7 @@ contains
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    ! 2.4 Now undo reordering of wind components 
+    ! 2.4 Now undo reordering of wind components
     call unInterleaveWinds_sp(psp,nflev)
 
   end subroutine gst_gdsp
@@ -1730,7 +1550,7 @@ contains
                 dlsp(inm,1,jk) = psp(ila,1,jk)
                 dlsp(inm,2,jk) = psp(ila,2,jk)
              else
-                ! Vector fields                
+                ! Vector fields
                 dlsp(inm,1,jk) = psp(ila,1,jk)*gst(gstID)%r1snp1(ila)
                 dlsp(inm,2,jk) = psp(ila,2,jk)*gst(gstID)%r1snp1(ila)
              endif
@@ -1924,7 +1744,7 @@ contains
        ! 2.3 First one with ALP for all scalar fields and for half the terms
        !     required to define the divergence and vorticity
        call legdir2d(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
-  
+
        ! 2.4  Second transform with DALP to complete the construction of the
        !      vorticity and divergence fields
        do jj = 1, gst(gstID)%njlath
@@ -2026,7 +1846,7 @@ contains
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    ! Now undo reordering of wind components 
+    ! Now undo reordering of wind components
     call unInterleaveWinds_sp(psp,nflev)
 
   end subroutine gst_spgda
@@ -2167,7 +1987,7 @@ contains
           ! 2.3 First one with ALP for all scalar fields and for half the terms
           !     required to define the divergence and vorticity
           call legdir2d(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
-                                
+
           ! 2.4  Second transform with DALP to complete the construction of the
           !      vorticity and divergence fields
           do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
@@ -2295,7 +2115,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the inverse FFT 
+    ! 2.2 Apply the inverse FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
     call utl_tmg_stop(151)
@@ -2353,21 +2173,13 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    ! 2.2 Apply the inverse FFT 
+    ! 2.2 Apply the inverse FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,+1)
     call utl_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
-    if( gst(gstID)%lonLatDivisible ) then
-      if (pre_specTransReal == 4) then
-        call transpose2d_LevtoLon_kij_mpitypes4(pgd3,pgd)
-      else
-        call transpose2d_LevtoLon_kij_mpitypes8(pgd3,pgd)
-      end if
-    else
-      call transpose2d_LevtoLon_kij(pgd3,pgd)
-    end if
+    call transpose2d_LevtoLon_kij(pgd3,pgd)
     deallocate(pgd3)
 
     call utl_tmg_start(152,'low-level--gst_barr')
@@ -2452,15 +2264,7 @@ contains
     allocate(pgd3(gst(gstID)%maxMyLevCount, gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd))
 
     ! Transpose data along npex from Longitudes to Levels
-    if( gst(gstID)%lonLatDivisible ) then
-      if (pre_specTransReal == 4) then
-        call transpose2d_LontoLev_kij_mpitypes4(pgd,pgd3)
-      else
-        call transpose2d_LontoLev_kij_mpitypes8(pgd,pgd3)
-      end if
-    else
-      call transpose2d_LontoLev_kij(pgd,pgd3)
-    end if
+    call transpose2d_LontoLev_kij(pgd,pgd3)
 
     ! 1. Apply the FFT
     call utl_tmg_start(151,'low-level--gst_fft')
@@ -3125,7 +2929,7 @@ contains
     !:Purpose: Subroutine for initializing the Legendre transform
     implicit none
 
-    allocate(gst(gstID)%rmu(gst(gstID)%nj))  
+    allocate(gst(gstID)%rmu(gst(gstID)%nj))
     allocate(gst(gstID)%rwt(gst(gstID)%nj))
     allocate(gst(gstID)%rwocs(gst(gstID)%nj))
     allocate(gst(gstID)%r1mu2(gst(gstID)%nj))
@@ -3375,9 +3179,9 @@ contains
     integer :: ilarh,ila,ilatbd
     real(8) :: dlalp(gst(gstID)%nlarh,nlatbd)
     real(8) :: dldalp(gst(gstID)%nlarh,nlatbd)
-    !     
+    !
     !     Memory allocation for Legendre polynomials
-    !     
+    !
     if(mmpi_myid.eq.0) write(*,*) 'allocating dalp:',gst(gstID)%nla,gst(gstID)%njlath,gst(gstID)%nla*gst(gstID)%njlath
     allocate( gst(gstID)%dalp(gst(gstID)%nla,gst(gstID)%njlath) )
     allocate( gst(gstID)%dealp(gst(gstID)%nla,gst(gstID)%njlath))
@@ -3419,7 +3223,7 @@ contains
     integer :: ktrunc
     integer :: km
 
-    ! Locals: 
+    ! Locals:
     integer :: ila,ind
     integer :: jlat,jn, jlen
 
@@ -3442,7 +3246,7 @@ contains
   end subroutine getalp
 
 
-  subroutine allp( p , g , x , lr , r , nlatp) 
+  subroutine allp( p , g , x , lr , r , nlatp)
 
     implicit none
 
@@ -3451,29 +3255,29 @@ contains
     integer :: nlatp
     integer :: lr(0:r)
     real(8) :: p(0:r,0:r,nlatp)
-    real(8) :: g(0:r,0:r,nlatp) 
-    real(8) :: x(nlatp) 
+    real(8) :: g(0:r,0:r,nlatp)
+    real(8) :: x(nlatp)
 
     ! Locals:
-    real(8) :: onehalf   
+    real(8) :: onehalf
     real(8) :: xp , xp2,  p0, enm, fnm
     integer :: ilat , m , l , n
 
     data onehalf /0.5d0/
 
     do ilat = 1,nlatp
-       xp2 = sqrt( 1.0d0 - x(ilat) ** 2 ) 
-       p(0,0,ilat) = sqrt(onehalf) 
-       do m = 1,r 
+       xp2 = sqrt( 1.0d0 - x(ilat) ** 2 )
+       p(0,0,ilat) = sqrt(onehalf)
+       do m = 1,r
           xp = real(m,8)
           p(0,m,ilat) = sqrt( (2.0d0*xp+1.0d0)/(2.0d0*xp) ) * xp2 * p(0,m-1,ilat)
        enddo
     enddo
 
     do ilat = 1,nlatp
-       do m = 0,r 
+       do m = 0,r
           xp = real(m,8)
-          g(0,m,ilat) = - x(ilat)*xp * p(0,m,ilat) 
+          g(0,m,ilat) = - x(ilat)*xp * p(0,m,ilat)
        enddo
     enddo
     do n = 1,r
@@ -3484,29 +3288,29 @@ contains
           enm = sqrt( ((p0*p0-xp*xp)*(2.0d0*p0+1.0d0))/(2.0d0*p0-1.0d0) )
           fnm = sqrt( (2.0d0*p0+1.0d0)/((p0*p0-xp*xp)*(2.0d0*p0-1.0d0)) )
 
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
-          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm 
-          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l) 
+          p(n,m,l) = ( x(l) * p0 * p(n-1,m,l) -  g(n-1,m,l) ) * fnm
+          g(n,m,l) = enm * p(n-1,m,l) - x(l) * p0 * p(n,m,l)
           l = l + 1
        enddo
     enddo
@@ -3522,11 +3326,11 @@ contains
     integer :: r
     integer :: nlatp
     real(8) :: p(0:r,0:r,nlatp)
-    real(8) :: g(0:r,0:r,nlatp) 
+    real(8) :: g(0:r,0:r,nlatp)
     real(8) :: x(nlatp)
 
     ! Locals:
-    real(8) :: onehalf   
+    real(8) :: onehalf
     real(8) :: xp , xp2,  p0, enm, fnm
     integer :: ilat , m , l , n, jlat
 
@@ -3631,7 +3435,7 @@ contains
 
     call dgemm('N','N',gst(gstID_in)%ntrunc+1, klev, gst(gstID_in)%nj, 1.0d0, zwork(0,1),  &
                        gst(gstID_in)%ntrunc+1, pf(1,1),  &
-                       gst(gstID_in)%nj, 0.0d0, pn(0,1), gst(gstID_in)%ntrunc+1) 
+                       gst(gstID_in)%nj, 0.0d0, pn(0,1), gst(gstID_in)%ntrunc+1)
 
     deallocate(zwork)
 
@@ -3665,7 +3469,7 @@ contains
 
     call dgemm('T','N',gst(gstID_in)%nj, klev, gst(gstID_in)%ntrunc+1, 1.0d0, zwork(0,1),  &
                        gst(gstID_in)%ntrunc+1, pn(0,1),   &
-                       gst(gstID_in)%ntrunc+1, 0.0d0, pf(1,1), gst(gstID_in)%nj) 
+                       gst(gstID_in)%ntrunc+1, 0.0d0, pf(1,1), gst(gstID_in)%nj)
 
     deallocate(zwork)
 
