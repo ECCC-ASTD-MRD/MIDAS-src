@@ -5,7 +5,7 @@ set -euo pipefail
 typeset -r toplevel=${1:-$(git rev-parse --show-toplevel)}
 
 echo "MIDAS_toplevel=${toplevel}" > ${TMPDIR}/abs.dot
-if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository -o -z "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+if [ "${MIDAS_COMPILE_DIR_MAIN:-}" = build_directory_local_to_the_repository -o -z "${MIDAS_COMPILE_DIR_MAIN:-}" ]; then
     echo "ABS_DIR=${toplevel}/compiledir/midas_abs" >> ${TMPDIR}/abs.dot
 else
     echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN}/midas_abs" >> ${TMPDIR}/abs.dot
