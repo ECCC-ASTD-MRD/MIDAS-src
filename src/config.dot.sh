@@ -219,8 +219,8 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20250909-beta/burp-tools_20.0.12-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20250909-beta/burp-tools_20.0.12-${COMP_ARCH}_${ORDENV_PLAT}
 
-    echo "... loading eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}"
-    . ssmuse-sh -x eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}"
+    . ssmuse-sh -x eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}
 
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
