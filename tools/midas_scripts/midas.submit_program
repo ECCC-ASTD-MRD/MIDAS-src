@@ -112,7 +112,7 @@ elif [[ "${env}" = 4.1.0 || "${env}" = 4.1.1 ]]; then
 elif [[ "${env}" = 4.1.2 ]]; then
     ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250604-beta eccc/mrd/rpn/utils/20250604-beta"
 elif [[ "${env}" = main || "${env}" = 4* ]]; then
-    ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250909-beta eccc/mrd/rpn/utils/20250909-beta"
+    ssm_to_load="rpn/code-tools/20250826/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250909-beta eccc/mrd/rpn/utils/20250909-beta"
 else
     die "The argument '-env' accepts only '3.9.5, '3.9*', '4.0.*' or 'main' as values but received '${env}'"
 fi
