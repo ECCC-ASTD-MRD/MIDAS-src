@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix use of Bit 19 to reject land-/sea-ice-affected microwave radiances (#1021 and !931)
  * Fix bugs reported when running the programs with `gfortran` (#1073 and !1013)
  * Avoid assumed-rank arrays for `char(len=*)` to be able to use both Intel and gfortran compilers (#1088 and !1001)
  * Fix warnings when compiling with `gfortran -Wall -Wextra` (#1072, !996 and !998)
