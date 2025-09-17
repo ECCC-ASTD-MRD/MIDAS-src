@@ -1730,7 +1730,7 @@ contains
       INDXCAN = utl_findloc(mwbg_chanRejectForTovUtil(:),obsChanNumWithOffset)
       if ( INDXCAN /= 0 )  then
         if (landQualifierIndice  == 0 .or. ITRN == 0)  then
-          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious,flg_19rejLandSea])
         end if
       end if
       if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) /= 1 ) then
@@ -1741,7 +1741,7 @@ contains
         else
           if (landQualifierIndice == 0 .or. ITRN == 0)  then
             SFCREJCT = .TRUE.
-            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious,flg_19rejLandSea])
           end if
         end if
         if ( SFCREJCT ) then
@@ -6163,6 +6163,11 @@ contains
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
+      if ((.not. waterobs) .and. &
+        ((obsChanNum >= 1 .and. obsChanNum <= mwbg_atmsNumSfcSensitiveChannel) .or. &
+        (obsChanNum >= 16 .and. obsChanNum <= 19))) then
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
+      end if     
       if (mwbg_useClwDiffForAllskyBcorr) then
         clwDiff = abs(cloudLiquidWaterPathObs - cloudLiquidWaterPathFG)
         obsTooCloudy = (clwDiff > mwbg_clwDiffThreshBcorr)
@@ -6407,6 +6412,10 @@ contains
       if (lflagchn(obsChanNum)) then
         call flg_setFlag(obsSpaceData, bodyIndex, flg_07rejVarious)
       end if
+      if ((.not. waterobs) .and. & 
+        (obsChanNum == 1 .or. obsChanNum == 10 .or. obsChanNum == 14 .or. obsChanNum == 15)) then
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
+      end if      
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
       if (instrumentIsAllskyHu .and. waterobs .and. channelIndex /= 0 .and. &
