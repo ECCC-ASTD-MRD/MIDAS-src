@@ -25,7 +25,8 @@
    FORECASTPATH='./forecasts/',
    includeHUnorm=.true.
    StratoNorm=.true.
-   FSOMODE='HFSO'
+   FSOMODE='HFSO',
+   DOFSR=.true.
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'

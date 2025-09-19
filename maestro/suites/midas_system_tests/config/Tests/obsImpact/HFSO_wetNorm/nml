@@ -24,7 +24,8 @@
    REPSG    = 1D-5,
    FORECASTPATH='./forecasts/',
    includeHUnorm=.true.
-   FSOMODE='HFSO'
+   FSOMODE='HFSO',
+   DOFSR=.true.
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
