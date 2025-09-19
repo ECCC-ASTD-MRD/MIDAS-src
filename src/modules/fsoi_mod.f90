@@ -122,7 +122,7 @@ module fsoi_mod
     else if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') then
       if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSR mode'
     else
-      call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO or EFSO')
+      call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO, EFSO, HFSR or EFSR')
     end if
 
     ! convert Latmin,max and Lonmin,max from degres into RAD

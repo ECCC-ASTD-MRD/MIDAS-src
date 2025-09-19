@@ -53,7 +53,6 @@ program midas_obsImpact
   !============================================== ====================================================================
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
-  ! ``anlm_$NN`` (e.g. ``anlm_01``)                In - Analysis state files for each timestep. Only needed for FSR mode.
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
@@ -185,8 +184,8 @@ program midas_obsImpact
   integer :: istamp,exdb,exfin,dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: columnTrlOnAnlIncLev, columnAnlOnAnlIncLev
-  type(struct_columnData),target :: columnTrlOnTrlLev, columnAnlOnAnlLev
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
+  type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_gsv)               :: stateVectorTrialHighRes
 
   character(len=48) :: obsMpiStrategy
@@ -281,7 +280,6 @@ program midas_obsImpact
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') call col_setVco(columnAnlOnAnlIncLev,vco_anl)
   call msg_memUsage('midas-obsImpact')
 
   !
@@ -300,7 +298,6 @@ program midas_obsImpact
   !- Memory allocation for background column data
   !
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') call col_allocate(columnAnlOnAnlIncLev,obs_numheader(obsSpaceData))
 
   !
   !- Initialize the observation error covariances
@@ -326,25 +323,6 @@ program midas_obsImpact
   call msg_memUsage('midas-obsImpact')
   call gsv_deallocate( stateVectorTrialHighRes )
 
-  ! Reading analysis
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') then
-    call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './anlm_01')
-    allocHeightSfc = (vco_trl%Vcode /= 0)
-
-    call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                       mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                       allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                       beSilent_opt=.false. )
-    call gsv_zero( stateVectorTrialHighRes )
-    call gio_readTrials( stateVectorTrialHighRes, trialFileNamePrefix_opt='anlm' )
-    call msg_memUsage('midas-obsImpact')
-    ! Horizontally interpolate trials to trial columns
-    call inn_setupColumnsOnTrlLev( columnAnlOnAnlLev, obsSpaceData, hco_core, &
-                                   stateVectorTrialHighRes )
-    call msg_memUsage('midas-obsImpact')
-  end if
-
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
@@ -367,14 +345,6 @@ program midas_obsImpact
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
-
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') then
-    ! Interpolate analysis columns to analysis levels and setup for linearized H
-    call inn_setupColumnsOnAnlIncLev(columnAnlOnAnlLev,columnAnlOnAnlIncLev)
-
-    ! Compute observation innovations and prepare obsSpaceData for sensitivity inner-product calculation
-    call inn_computeInnovation(columnAnlOnAnlLev,obsSpaceData, destObsColumn_opt=OBS_OMA)
-  end if
 
   ! Perform forecast sensitivity to observation calculation using ensemble approach
   call fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
