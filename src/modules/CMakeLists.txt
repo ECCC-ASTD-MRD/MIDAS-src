@@ -10,13 +10,16 @@ if(DEFINED ENV{rttov_INSTALLDIR})
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/include)
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/mod)
 endif()
+target_include_directories(midas PUBLIC $ENV{f90sqlite_installdir}/include)
 
 target_link_libraries(midas PUBLIC
   rmn::rmn-ompi
   rpncomm::rpncomm
   vgrid::vgrid
   ${hpcoperf}
+  random::random
   ${HDF5_Libraries}
+  burp::burp
 )
 
 if(MKL_SUPPORT)

@@ -113,7 +113,7 @@ cmake_options() {
     typeset __cmake_options_options__=
 
     if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes || -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]]; then
-        __cmake_options_options__=-DCMAKE_BUILD_TYPE=Debug
+        __cmake_options_options__="-DCMAKE_BUILD_TYPE=Debug -DWITH_WARNINGS=TRUE -DEXTRA_CHECKS=TRUE"
     fi
 
     if [[ "${MIDAS_COMPILE_VERBOSE}" != FALSE ]]; then
@@ -242,16 +242,16 @@ if [ "${__run_cmake}" != stop ]; then
         export MIDAS_COMPILE_COMPF_GLOBAL
     fi
 
-    #----------------------------------------------------------------
-    #  Set up dependent librarys and tools.
-    #---------------------------------------------------------------
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        __compiler=inteloneapi-2022.1.2
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        __compiler=inteloneapi-2025.1.0
+    if [ "${__compiler}" = gnu-14.2.0 ]; then
+        __original_ordenv_plat__=${ORDENV_PLAT}
+
+        echo "... loading gnu 14.2.0 compiler"
+        export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
+        . r.load.dot rpn/code-tools/20251217/env/exp/gnu-14.2.0
+    else
+        echo "... loading rpn/code-tools/20251217/env/${__compiler}"
+        . r.load.dot rpn/code-tools/20251217/env/${__compiler}
     fi
-    echo "... loading rpn/code-tools/20251217/env/${__compiler}"
-    . r.load.dot rpn/code-tools/20251217/env/${__compiler}
 
     echo "... loading eccc/mrd/rpn/libs/20260401-beta"
     . r.load.dot eccc/mrd/rpn/libs/20260401-beta
@@ -259,24 +259,41 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
-    echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
+    if [ "${__compiler}" = gnu-14.2.0 ]; then
+        ## Loading the compiler affects 'ORDENV_PLAT' and for the
+        ## rest, we need to use the original value.
+        export ORDENV_PLAT=${__original_ordenv_plat__}
+        unset __original_ordenv_plat__
 
-    echo "... loading hdf5-netcdf4"
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
-    fi
+        udfsqlite_installdir=/home/erv000/data/midas/sqllibs/libudfsqlite
+        echo "... loading ${udfsqlite_installdir}"
+        . ssmuse-sh -x ${udfsqlite_installdir}
 
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        perftools_version=2.0
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        perftools_version=2.1
-    fi
+        export f90sqlite_installdir=/home/erv000/data/midas/sqllibs/libf90sqlite
+        echo "... loading ${f90sqlite_installdir}"
+        . ssmuse-sh -x ${f90sqlite_installdir}
 
-    echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
+        echo "... loading /home/cpi001/MIDAS-benchmark/perftools/gnu-14"
+        . ssmuse-sh -x /home/cpi001/MIDAS-benchmark/perftools/gnu-14
+    else
+        echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
+        . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
+
+        echo "... loading hdf5-netcdf4"
+        if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+            . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+        elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+            . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+        fi
+
+        if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+            perftools_version=2.0
+        elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+            perftools_version=2.1
+        fi
+
+        echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
+        . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
         rttovdebug=-debug
@@ -284,6 +301,7 @@ if [ "${__run_cmake}" != stop ]; then
         rttovdebug=
     fi
     export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
+    export rttov_installdir=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}/${ORDENV_PLAT}
     echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
     . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 
