@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix a small bug in `src/midas_build` when some targets are specified at the command line (#1113 and !1026)
  * Create links for all machines when doing the tests suite setup (#1110 and !1024)
  * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
  * Fix the computation of pressure and heights in GEM-H to make the results similar to GEM-P (#1097 and !1011)

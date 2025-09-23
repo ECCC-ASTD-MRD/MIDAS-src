@@ -316,7 +316,7 @@ EOF
             echo
             if [ "${__run_cmake}" = true ]; then
                 cat <<EOF
-The build directory has already been prepared by 'cmake'.
+The build directory has just been prepared by 'cmake'.
 You have been moved into the build directory: ${PWD}
 
 You can now compile all of the programs by simply using

@@ -138,7 +138,9 @@ if [ $# -gt 0 ]; then
             echo
             print_usage
             exit 1
-        elif [[  -n "${__target}" ]]; then
+        elif [[ "${__target}" = all ]]; then
+            __target=${arg}
+        elif [[ -n "${__target}" ]]; then
             __target="${__target} ${arg}"
         else
             __target=${arg}
