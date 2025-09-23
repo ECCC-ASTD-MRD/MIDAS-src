@@ -72,9 +72,6 @@ module lamSpectralTransform_mod
      integer, allocatable :: KfromMNglb(:,:)
      character(len=10)    :: MpiMode
      character(len=3)     :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
-     type(mpi_datatype)   :: sendType_LevToLon, recvType_LevToLon
-     type(mpi_datatype)   :: sendType_LonToLev, recvType_LonToLev
-     logical              :: lonLatDivisible
    end type struct_lst
 
   ! TransformType = 'SinCos'
@@ -110,7 +107,7 @@ contains
     real(8), allocatable            :: Kr8fromMN(:,:)
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
-    integer                         :: kref, mref, nref, realSize, ierr
+    integer                         :: kref, mref, nref
     integer                         :: m, n, k, kMax, ila, nfact_lon, nfact_lat
     integer                         :: ilaglb, i, j, p
     real(8)                         :: dlon, dx2, fac, ca, cp, cb, cq, r
@@ -118,9 +115,6 @@ contains
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
     character(len=60)               :: kreftype
-    logical                         :: divisibleLon, divisibleLat
-    integer(kind=MPI_ADDRESS_KIND)  :: lowerBound, extent
-    type(mpi_datatype)              :: sendType, recvType
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
@@ -225,17 +219,12 @@ contains
        ! range of LONS handled by this processor in GRIDPOINT SPACE
        call mmpi_setup_lonbands(lst%ni,                        & ! IN
                                 lst%lonPerPE, lst%lonPerPEmax, & ! OUT
-                                lst%myLonBeg, lst%myLonEnd,    & ! OUT
-                                divisible_opt=divisibleLon)      ! OUT
+                                lst%myLonBeg, lst%myLonEnd)      ! OUT
 
        ! range of LATS handled by this processor in GRIDPOINT SPACE
        call mmpi_setup_latbands(lst%nj,                        & ! IN
                                 lst%latPerPE, lst%latPerPEmax, & ! OUT
-                                lst%myLatBeg, lst%myLatEnd,    & ! OUT
-                                divisible_opt=divisibleLat)      ! OUT
-
-       lst%lonLatDivisible = (divisibleLon .and. divisibleLat)
-       if(mmpi_myid == 0) write(*,*) 'lst_setup: lonLatDivisible = ', lst%lonLatDivisible
+                                lst%myLatBeg, lst%myLatEnd)      ! OUT
 
        ! range of M handled by this processor in SPECTRAL SPACE
        call mmpi_setup_m(lst%mmax,                                        & ! IN
@@ -351,41 +340,6 @@ contains
       allocate(lst%allLevEnd(mmpi_npex))
       call mmpi_allGather(lst%myLevEnd, lst%allLevEnd, communicator_opt = mmpi_comm_EW)
       if (mmpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
-
-      ! Setup mpi derived types used in transposes (only used when grid is divisible)
-      ! ... mpi_type_vector(count, blocklength, stride, ...)
-      ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
-
-      call mpi_type_size(mmpi_real8, realSize, ierr)
-      lowerBound = 0
-
-      ! create the send type for LevToLon
-      extent = lst%maxLevCount * lst%lonPerPE * realSize
-      call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-                           lst%maxLevCount * lst%ni, mmpi_real8, sendtype)
-      call mpi_type_create_resized(sendtype, lowerBound , extent, lst%sendType_LevToLon, ierr);
-      call mpi_type_commit(lst%sendType_LevToLon,ierr)
-
-      ! create the receive type for LevToLon
-      extent = lst%maxLevCount * realSize
-      call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-                           maxlevels_opt, mmpi_real8, recvtype, ierr);
-      call mpi_type_create_resized(recvtype, lowerBound, extent, lst%recvType_LevToLon, ierr);
-      call mpi_type_commit(lst%recvType_LevToLon, ierr)
-
-      ! create the send type for LonToLev
-      extent = lst%maxLevCount * realSize
-      call mpi_type_vector(lst%lonPerPE * lst%latPerPE , lst%maxLevCount,  &
-                           maxlevels_opt, mmpi_real8, sendtype, ierr);
-      call mpi_type_create_resized(sendtype, lowerBound, extent, lst%sendType_LonToLev, ierr);
-      call mpi_type_commit(lst%sendType_LonToLev, ierr)
-
-      ! create the recv type for LonToLev
-      extent = lst%maxLevCount * lst%lonPerPE * realSize
-      call mpi_type_vector(lst%latPerPE, lst%maxLevCount * lst%lonPerPE,  &
-                           lst%maxLevCount * lst%ni, mmpi_real8, recvtype, ierr)
-      call mpi_type_create_resized(recvtype, lowerBound , extent, lst%recvType_LonToLev, ierr);
-      call mpi_type_commit(lst%recvType_LonToLev,ierr)
 
      end if
 
@@ -1007,13 +961,8 @@ contains
        if (trim(lst%MpiMode) == 'NoMpi') then
          Step0(:,:,:) = GridState(:,:,:)
        else
-         if(lst%lonLatDivisible) then
-           call transpose2d_LonToLev_kij_mpitypes(Step0,            & ! OUT
-                                                  GridState, nk, lst) ! IN
-         else
-           call transpose2d_LonToLev_kij(Step0,            & ! OUT
-                                         GridState, nk, lst) ! IN
-         end if
+         call transpose2d_LonToLev_kij(Step0,            & ! OUT
+                                       GridState, nk, lst) ! IN
        end if
     end if
 
@@ -1185,13 +1134,8 @@ contains
        if (trim(lst%MpiMode) == 'NoMpi') then
          Step3(:,:,:) = Step2(:,1:lst%ni,:)
        else
-         if(lst%lonLatDivisible) then
-           call transpose2d_LevToLon_kij_mpitypes(Step3,                      & ! OUT
-                                                  Step2(:,1:lst%ni,:), nk, lst) ! IN
-         else
-           call transpose2d_LevToLon_kij(Step3,                      & ! OUT
-                                         Step2(:,1:lst%ni,:), nk, lst) ! IN
-         end if
+         call transpose2d_LevToLon_kij(Step3,                      & ! OUT
+                                       Step2(:,1:lst%ni,:), nk, lst) ! IN
        end if
 
        GridState(:,lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd) = Step3(:,1:lst%lonPerPE,1:lst%latPerPE)
@@ -1465,38 +1409,6 @@ contains
   end subroutine transpose2d_LonToLev
 
   !--------------------------------------------------------------------------
-  ! lst_Transpose2d_LonToLev_kij_mpitypes
-  !--------------------------------------------------------------------------
-  subroutine transpose2d_LonToLev_kij_mpitypes(gd_out, gd_in, nk, lst)
-    implicit none
-
-    ! Arguments:
-    type(struct_lst), intent(in)  :: lst
-    integer,          intent(in)  :: nk
-    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-
-    if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
-    call mmpi_barrier
-
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
-
-    nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
-    if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,  1, lst%sendType_LonToLev,  &
-                        gd_out, 1, lst%recvType_LonToLev, mmpi_comm_EW, ierr)
-    else
-       gd_out(:,:,:) = gd_in(:,:,:)
-    end if
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LonToLev_kij_mpitypes
-
-  !--------------------------------------------------------------------------
   ! lst_Transpose2d_LonToLev_kij
   !--------------------------------------------------------------------------
   subroutine transpose2d_LonToLev_kij(gd_out, gd_in, nk, lst)
@@ -1610,38 +1522,6 @@ contains
     call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
-
-  !--------------------------------------------------------------------------
-  ! lst_Transpose2d_LevToLon_kij_mpitypes
-  !--------------------------------------------------------------------------
-  subroutine transpose2d_LevToLon_kij_mpitypes(gd_out,gd_in,nk,lst)
-    implicit none
-
-    ! Arguments:
-    type(struct_lst), intent(in)  :: lst
-    integer,          intent(in)  :: nk
-    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
-    ! Locals:
-    integer :: nsize, ierr
-
-    if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
-    call mmpi_barrier
-
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
-
-    nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
-    if (mmpi_npex > 1) then
-      call mpi_alltoall(gd_in,  1, lst%sendType_LevToLon,  &
-                        gd_out, 1, lst%recvType_LevToLon, mmpi_comm_EW, ierr)
-    else
-      gd_out(:,:,:) = gd_in(:,:,:)
-    end if
-
-    call utl_tmg_stop(155)
-
-  end subroutine transpose2d_LevtoLon_kij_mpitypes
 
   !--------------------------------------------------------------------------
   ! lst_Transpose2d_LevToLon_kij

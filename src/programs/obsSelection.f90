@@ -209,7 +209,9 @@ program midas_obsSelection
   use message_mod
   use oceanMask_mod
   use getGridPosition_mod
-
+  use costFunction_mod
+  use rmatrix_mod
+  
   implicit none
 
   integer :: dateStampFromObs, headerIndex, ierr
@@ -225,6 +227,7 @@ program midas_obsSelection
   type(struct_ocm)               :: oceanMask
 
   logical :: allocHeightSfc, fileExists
+  real(8) :: Jo
   real(8) :: minGridSpacing
   logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
   character(len=12) :: trialFileName
@@ -524,6 +527,13 @@ program midas_obsSelection
       call bcs_applyBiasCorrection(obsSpaceData, obs_var, 'TO') ! Apply bias correction to OBS
       call bcs_applyBiasCorrection(obsSpaceData, obs_omp, 'TO') ! Apply bias correction to O-F
 
+      ! Recompute Jo (first computed in inn_computeInnovation)
+      call msg('midas_obsSelection', 'Jo AFTER satellite radiance bias correction')
+
+      call rmat_RsqrtInverseAllObs(obsSpaceData, obs_work, obs_omp)
+      call cfn_calcJo(obsSpaceData)
+      call cfn_sumJo(obsSpaceData, Jo, beSilent_opt = .false.)
+      
       ! Do the TO background check
       call irbg_bgCheckIR(columnTrlOnTrlLev, obsSpaceData)
       call mwbg_bgCheckMW(obsSpaceData)

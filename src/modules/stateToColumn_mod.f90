@@ -1947,7 +1947,7 @@ contains
     integer :: numHeader, numVarLev, headerIndex, varLevIndex
     integer :: codeType, nlev_T, nlev_M, levIndex
     real(4) :: lon_r4, lat_r4
-    real(4), pointer :: height3D_r4_ptr2(:,:,:)
+    real(4), pointer :: height3D_r4_ptr1(:,:,:), height3D_r4_ptr2(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     real(4), pointer :: height3D_M_r4(:,:,:), height3D_T_r4(:,:,:)
     logical :: rejectOutsideObs
@@ -1999,13 +1999,23 @@ contains
                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                           dataKind_opt=4, varNames_opt=['Z_M','Z_T'])
 
-        call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_T')
-        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_T')
-        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
+        call gsv_getField(stateVector3dHeights, height3D_r4_ptr2, 'Z_T')
+        if (stateVector%dataKind == 4) then
+          call gsv_getField(stateVector, height3D_r4_ptr1, 'Z_T')
+          height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
+        else
+          call gsv_getField(stateVector, height3D_r8_ptr1, 'Z_T')
+          height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:), 4)
+        end if
 
-        call gsv_getField(stateVector,         height3D_r8_ptr1,'Z_M')
-        call gsv_getField(stateVector3dHeights,height3D_r4_ptr2,'Z_M')
-        height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:),4)
+        call gsv_getField(stateVector3dHeights, height3D_r4_ptr2, 'Z_M')
+        if (stateVector%dataKind == 4) then
+          call gsv_getField(stateVector, height3D_r4_ptr1, 'Z_M')
+          height3D_r4_ptr2(:,:,:) = height3D_r4_ptr1(:,:,:)
+        else
+          call gsv_getField(stateVector, height3D_r8_ptr1, 'Z_M')
+          height3D_r4_ptr2(:,:,:) = real(height3D_r8_ptr1(:,:,:), 4)
+        end if
 
       else
 

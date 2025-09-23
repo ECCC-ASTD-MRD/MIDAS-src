@@ -2,7 +2,7 @@
 module physicsFunctions_mod
   ! MODULE physicsFunctions_mod (prefix='phf' category='8. Low-level utilities and constants')
   !
-  !:Purpose:  A collection of basic functions for various purposes 
+  !:Purpose:  A collection of basic functions for various purposes
   !           (e.g. computing saturation vapour pressure).
   !
   use MathPhysConstants_mod
@@ -10,7 +10,7 @@ module physicsFunctions_mod
   use utilities_mod
   use message_mod
   use codePrecision_mod
-  
+
   implicit none
   private
 
@@ -21,10 +21,15 @@ module physicsFunctions_mod
   public :: phf_FOEWI8_CMAM, phf_FODLE8_CMAM, phf_FOQST8_CMAM, phf_FOTW8_CMAM, phf_FOTI8_CMAM, phf_FODTW8_CMAM
   public :: phf_FODTI8_CMAM, phf_FOTWI8_CMAM, phf_FODTWI8_CMAM, phf_FQBRANCH, phf_FOEFQL, phf_fotvvl, phf_FOEFQA
   public :: phf_FOEFQPSA, phf_fottva, phf_folnqva
-  public :: phf_convertZtoPressure,phf_convertZtoGZ
+  public :: phf_convertZtoPressure, phf_convertZtoGZ, phf_convertGZtoZ
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
   public :: phf_gpsRadii, phf_Rad_CCoC, phf_delR
+
+  interface phf_convertGZtoZ
+    module procedure convertGZtoZ_r8
+    module procedure convertGZtoZ_r4
+  end interface phf_convertGZtoZ
 
   logical           :: phf_initialized = .false.
 
@@ -259,7 +264,7 @@ module physicsFunctions_mod
    ! LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
    ! NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
    ! DE SATURATION.
-  
+
    !--------------------------------------------------------------------------
    ! phf_FOEWA8
    !--------------------------------------------------------------------------
@@ -474,7 +479,7 @@ module physicsFunctions_mod
      ! :Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
      !
      implicit none
- 
+
      ! Arguments:
      real(8), intent(in) :: TTT
      real(8), intent(in) :: EEE
@@ -485,16 +490,16 @@ module physicsFunctions_mod
 
   ! LES 7 FONCTIONS SUIVANTES POUR EW-EI SONT REQUISES POUR LES MODELES
   ! CMAM ET CGCM. (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
-  
+
   !--------------------------------------------------------------------------
   ! phf_FOEW8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOEW8_CMAM(TTT)  
+  real(8) function phf_FOEW8_CMAM(TTT)
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EW
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
 
@@ -504,12 +509,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOEI8_CMAM(TTT)  
+  real(8) function phf_FOEI8_CMAM(TTT)
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EI
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
 
@@ -519,12 +524,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOERAT8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOERAT8_CMAM(TTT) 
+  real(8) function phf_FOERAT8_CMAM(TTT)
         !
         !:Purpose: FONCTION DE LA PROPORTION DE LA CONTRIBUTION DE EW VS EI
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
 
@@ -535,12 +540,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEWI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOEWI8_CMAM(TTT)  
+  real(8) function phf_FOEWI8_CMAM(TTT)
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE RESULTANTE - EW et EI
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
 
@@ -551,7 +556,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODLE8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FODLE8_CMAM(TTT)  
+  real(8) function phf_FODLE8_CMAM(TTT)
         !
         !:Purpose: FONCTION DE LA DERIVE DE LN(E) PAR RAPPORT A LA TEMPERATURE
         !
@@ -567,13 +572,13 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOQST8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOQST8_CMAM(TTT,PRS) 
+  real(8) function phf_FOQST8_CMAM(TTT,PRS)
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT).
         !          PREND EN COMPTE LES PHASES GLACE ET EAU.
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
         real(8), intent(in) :: PRS
@@ -589,13 +594,13 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTW8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOTW8_CMAM(EEE) 
+  real(8) function phf_FOTW8_CMAM(EEE)
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EW.
         !
         implicit none
- 
+
         ! Arguments:
         real(8) :: EEE
 
@@ -605,13 +610,13 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOTI8_CMAM(EEE) 
+  real(8) function phf_FOTI8_CMAM(EEE)
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EI.
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: EEE
 
@@ -621,13 +626,13 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODTW8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FODTW8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTW8_CMAM(TTT,EEE)
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EW).
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
         real(8), intent(in) :: EEE
@@ -638,13 +643,13 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODTI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FODTI8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTI8_CMAM(TTT,EEE)
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EI).
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
         real(8), intent(in) :: EEE
@@ -655,12 +660,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTWI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FOTWI8_CMAM(TTT,EEE) 
+  real(8) function phf_FOTWI8_CMAM(TTT,EEE)
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
         real(8), intent(in) :: EEE
@@ -672,12 +677,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODTWI8_CMAM
   !--------------------------------------------------------------------------
-  real(8) function phf_FODTWI8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTWI8_CMAM(TTT,EEE)
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: TTT
         real(8), intent(in) :: EEE
@@ -690,14 +695,14 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOBRANCH
   !--------------------------------------------------------------------------
-  real(8) function phf_FQBRANCH(QQQ)  
+  real(8) function phf_FQBRANCH(QQQ)
         !
         !:Purpose: function returning 0/1 depending on the minimum q branch condition
         !          as discussed by Brunet (1996) to prevent getting a vapour pressure that exceeds
         !          the total pressure p when q exceeds 1.
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: QQQ
 
@@ -709,29 +714,29 @@ module physicsFunctions_mod
   !     TLM  of  THERMODYNAMIC FUNCTIONS USED IN 3DVAR
   !     CONSTANTS FROM COMMON /CTESDYN/
   !     NOTE: ALL FUNCTIONS WORK IN  S.I. UNITS
-  !           I.E PRS IN PA, QQQ IN KG/KG 
-  
+  !           I.E PRS IN PA, QQQ IN KG/KG
+
   !--------------------------------------------------------------------------
   ! phf_FOEFQL
   !--------------------------------------------------------------------------
-   real(8) function phf_FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
+   real(8) function phf_FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)
         !
         !:Purpose: TLM  OF FUNCTION CALCULATING VAPOUR PRESSURE
         !
         !          INPUTS:
-        !  
+        !
         !          * QQL ,  PERTURBATION OF LN SPECIFIC HUM
         !          * PRSL ,   PERTURBATION OF SURFACE PRESSURE
         !          * QQQ   ,  SPECIFIC HUMIDITY
         !          * PRS   , PRESSURE
         !          * PNETA   , VALUE OF ETA LEVEL
         !
-        !          OUTPUT: 
+        !          OUTPUT:
         !
         !          * FOEFQL,  PERTURBATION  OF VAPOUR PRESSURE
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: QQL
         real(8), intent(in) :: PRSL
@@ -748,12 +753,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTVVL
   !--------------------------------------------------------------------------
-   real(8) function phf_fotvvl(qqq,ttt,ttl,plnql) 
+   real(8) function phf_fotvvl(qqq,ttt,ttl,plnql)
         !
-        !:Purpose: Tangent-linear operator of virtual temperature 
+        !:Purpose: Tangent-linear operator of virtual temperature
         !
         implicit none
-  
+
         ! Arguments:
         real(8), intent(in) :: qqq   ! backgroud specific humidity
         real(8), intent(in) :: ttt   ! backgroud temperature
@@ -774,12 +779,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEFQA
   !--------------------------------------------------------------------------
-  real(8) function phf_FOEFQA(PADES,PGAMMA,QQQ,PRS)  
+  real(8) function phf_FOEFQA(PADES,PGAMMA,QQQ,PRS)
         !
         !:Purpose: ADJOINT OF LN SPECIFIC  HUM (QQQ) DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
         real(8), intent(in) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
@@ -793,12 +798,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEFQPSA
   !--------------------------------------------------------------------------
-  real(8) function phf_FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
+  real(8) function phf_FOEFQPSA(PADES,PGAMMA,QQQ,PNETA)
         !
         !:Purpose: ADJOINT OF SURFACE PRESSURE  DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
         real(8), intent(in) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
@@ -812,12 +817,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTTVa
   !--------------------------------------------------------------------------
-  real(8) function phf_fottva(qqq,tva)  
+  real(8) function phf_fottva(qqq,tva)
         !
         !:Purpose: Adjoint of temperature due to virtual temperature correction
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: qqq ! background specific humidity
         real(8), intent(in) :: tva ! adjoint variable of virtual temperature
@@ -828,12 +833,12 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOLNQVA
   !--------------------------------------------------------------------------
-  real(8) function phf_folnqva(qqq,ttt,tva) 
+  real(8) function phf_folnqva(qqq,ttt,tva)
         !
         !:Purpose:  Adjoint of logarithm of specific humidity due to virtual temperature correction
         !
         implicit none
- 
+
         ! Arguments:
         real(8), intent(in) :: qqq ! background specific humidity
         real(8), intent(in) :: ttt ! background temperature
@@ -848,9 +853,9 @@ module physicsFunctions_mod
   ! phf_convertZtoPressure
   !--------------------------------------------------------------------------
   function  phf_convertZtoPressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
-    !          
+    !
     !:Purpose: Converts an array of (geometric) altitudes to pressures. Uses linear interpolation
-    !          in log(p).  
+    !          in log(p).
     implicit none
 
     ! Arguments:
@@ -870,7 +875,7 @@ module physicsFunctions_mod
 
     ! Check model pressures
     if (any(press_mod < 0.0d0)) call utl_abort("phf_convertZtoPressure: Invalid model pressure.")
-    
+
     ! Convert altitudes to geopotential heights
     rgz = phf_convertZtoGZ(altitude,lat,nlev)
 
@@ -878,17 +883,17 @@ module physicsFunctions_mod
       ! Check if height is within model boundaries
       if ( rgz(ilev) <= rgz_mod(1) .and. rgz(ilev) >= rgz_mod(nlev_mod) ) then
         ! Find model layers directly above and below rgz(ilev).
-        ! After exit of loop we will have 
+        ! After exit of loop we will have
         ! rgz_mod(ilev_mod) >= rgz(ilev) > rgz_mod(ilev_mod+1)
         do ilev_mod = 1, nlev_mod-1
           if ( rgz(ilev) <= rgz_mod(ilev_mod) .and. &
                rgz(ilev) > rgz_mod(ilev_mod+1) ) exit
-        end do          
+        end do
         ! Linear interpolation in gz,log(p)
         press(ilev) = press_mod(ilev_mod+1) * (press_mod(ilev_mod)/press_mod(ilev_mod+1))**( &
           (rgz(ilev)-rgz_mod(ilev_mod+1))/(rgz_mod(ilev_mod)-rgz_mod(ilev_mod+1)) )
       else
-        ! Linear extrapolation 
+        ! Linear extrapolation
         if (rgz(ilev) > rgz_mod(1)) then
           press(ilev) = press_mod(2) * (press_mod(1)/press_mod(2))**( &
             (rgz(ilev)-rgz_mod(2))/(rgz_mod(1)-rgz_mod(2)) )
@@ -913,7 +918,7 @@ module physicsFunctions_mod
   ! phf_convertZtoGZ
   !--------------------------------------------------------------------------
   function phf_convertZtoGZ(altitude,lat,nlev) result(rgz)
-    !          
+    !
     !:Purpose: Converts altitudes to geopotential heights. Uses the Helmert formula to
     !          parameterize the latitude dependence and uses analytical result of the
     !          integral of \int g(z)dz for the altitude dependence (see J.A. Dutton 1976,
@@ -934,11 +939,87 @@ module physicsFunctions_mod
   end function phf_convertZtoGZ
 
   !--------------------------------------------------------------------------
+  ! convertGZtoZ_r8
+  !--------------------------------------------------------------------------
+  function convertGZtoZ_r8(rgz,lat,nlev) result(altitude)
+    !
+    !:Purpose: Convert geopotential heights to altitudes. Real(8) version.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nlev      ! number of levels
+    real(8), intent(in) :: rgz(nlev) ! geopotential heights (m)
+    real(8), intent(in) :: lat       ! latitude (rad)
+    ! Result:
+    real(8) :: altitude(nlev)        ! altitudes (m)
+
+    ! Locals:
+    real(8) :: sLat
+    real(8) :: coefA, coefB, coefC, coefD, coefE, coefF
+    real(8) :: gravity0, gravity1, gravity2
+
+    sLat = sin(lat)
+
+    gravity0 = phf_gravitysrf(sLat)
+    gravity1 = gravity0*(-2.d0/ec_wgs_a*(1.d0+ec_wgs_f+ec_wgs_m-2.d0*ec_wgs_f*sLat**2))
+    gravity2 = gravity0*(3.d0/ec_wgs_a**2)
+
+    coefA = gravity0 / ec_rg
+    coefB = gravity1 / (2.d0*ec_rg)
+    coefC = gravity2 / (3.d0*ec_rg)
+    coefD = 1.d0/coefA
+    coefE = -coefB/coefA**3
+    coefF = (2.d0*coefB**2-coefA*coefC)/coefA**5
+
+    altitude(:) = coefD*rgz(:) + coefE*rgz(:)**2 + coefF*rgz(:)**3
+
+  end function convertGZtoZ_r8
+
+  !--------------------------------------------------------------------------
+  ! convertGZtoZ_r4
+  !--------------------------------------------------------------------------
+  function convertGZtoZ_r4(rgz,lat,nlev) result(altitude)
+    !
+    !:Purpose: Convert geopotential heights to altitudes. Real(4) version.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nlev      ! number of levels
+    real(4), intent(in) :: rgz(nlev) ! geopotential heights (m)
+    real(4), intent(in) :: lat       ! latitude (rad)
+    ! Result:
+    real(4) :: altitude(nlev)        ! altitudes (m)
+
+    ! Locals:
+    real(8) :: sLat
+    real(4) :: coefA, coefB, coefC, coefD, coefE, coefF
+    real(4) :: gravity0, gravity1, gravity2
+
+    sLat = real(sin(lat),8)
+
+    gravity0 = real(phf_gravitysrf(sLat),4)
+    gravity1 = gravity0*real(-2.d0/ec_wgs_a*(1.d0+ec_wgs_f+ec_wgs_m-2.d0*ec_wgs_f*sLat**2),4)
+    gravity2 = gravity0*real(3.d0/ec_wgs_a**2,4)
+
+    coefA = gravity0 / real(ec_rg,4)
+    coefB = gravity1 / real(2.d0*ec_rg,4)
+    coefC = gravity2 / real(3.d0*ec_rg,4)
+    coefD = 1.0/coefA
+    coefE = -coefB/coefA**3
+    coefF = (2.0*coefB**2-coefA*coefC)/coefA**5
+
+    altitude(:) = coefD*rgz(:) + coefE*rgz(:)**2 + coefF*rgz(:)**3
+
+  end function convertGZtoZ_r4
+
+  !--------------------------------------------------------------------------
   ! phf_calcTropopause
   !--------------------------------------------------------------------------
   function phf_calcTropopause(nmodlev,pressmod,tt,height,hu_opt) result(tropo_press)
-    !          
-    !:Purpose: Determines pressure level of tropopause. 
+    !
+    !:Purpose: Determines pressure level of tropopause.
     !          Final tropopause is taken as max pressure (lowest altitude) from the
     !          water vapour and temperature based tropopauses.
     !
@@ -958,7 +1039,7 @@ module physicsFunctions_mod
     real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
     real(8), parameter :: press_min=6.0d3         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
     real(8), parameter :: height_min=6.0d3        ! Min tropopause level in meters.
-    real(8), parameter :: ppmv_threshold=10.0d0     
+    real(8), parameter :: ppmv_threshold=10.0d0
     real(8), parameter :: tgrad_threshold=0.002d0 ! degrees/m (2 degrees/km)
     real(8), parameter :: consth=0.160754938d7    ! conversion from mass mixing ratio to ppmv;  1.0d06 / (18.015/28.96)
 
@@ -967,7 +1048,7 @@ module physicsFunctions_mod
 
     ! Initialize tropopause pressure level using temperature gradient.
     ! Thermal tropopause is defined as the lowest level (above height_min) at which (1) the lapse rate decreases
-    ! to <= 2 C/km and (2) the average lapse rate between this level and all higher levels within 2 km are <= 2 C/km. 
+    ! to <= 2 C/km and (2) the average lapse rate between this level and all higher levels within 2 km are <= 2 C/km.
     ! Ref: International Meteorological Vocabulary (2nd ed.). Geneva: Secretariat of the World Meteorological
     !      Organization. 1992. p. 636. ISBN 92-63-02182-1.
     ! The second requirement, based on hu, may give levels that are to high (pressure too low) in the winter hemisphere.
@@ -976,7 +1057,7 @@ module physicsFunctions_mod
       if (pressmod(itop) >= press_min) exit
     end do
     itop = itop-1
-       
+
     do i = nmodlev, itop+1, -1
       if (height(i)-height(nmodlev) < height_min) cycle
       xlaps = -(tt(i)-tt(i-1))/(height(i)-height(i-1))
@@ -991,11 +1072,11 @@ module physicsFunctions_mod
       end if
     enddo
     tropo_press = pressmod(i)
-    
+
     ! Improve on tropopause pressure levels using specific humidity if available,
 
-    if (present(hu_opt)) then    
-      !  Use water vapour      
+    if (present(hu_opt)) then
+      !  Use water vapour
       hu_ppmv1 = 0.0d0
       do i = itop, nmodlev
         ! Convert specific humidity to ppmv mixing ratio.
@@ -1027,36 +1108,36 @@ module physicsFunctions_mod
         end if
         hu_ppmv1 = hu_ppmv2
       end do
-       
-      if (hu_ppmv2 >= ppmv_threshold .and. ilaps == 1) then       
-        ! Interpolate between levels      
+
+      if (hu_ppmv2 >= ppmv_threshold .and. ilaps == 1) then
+        ! Interpolate between levels
         if (abs(hu_ppmv2-hu_ppmv1) < 0.1) hu_ppmv1 = hu_ppmv2-0.1
 !        tropo_press_hu = (log(pressmod(i))*(ppmv_threshold-hu_ppmv1)+ &
 !                        log(pressmod(i-1))*(hu_ppmv2-ppmv_threshold)) &
 !                        /(hu_ppmv2-hu_ppmv1)
 !        tropo_press_hu = exp(tropo_press_hu)
         tropo_press_hu = pressmod(i)
-             
+
         tropo_press = min(tropo_press,tropo_press_hu)
       else
         write(*,*) 'phf_calcTropopause: Level and specific humidity: ',itop,hu_ppmv2
         call utl_abort('phf_calcTropopause: Specific humidity too small.')
       end if
     end if
-    
+
   end function phf_calcTropopause
 
   !--------------------------------------------------------------------------
   ! phf_calcPBL
   !--------------------------------------------------------------------------
   function phf_calcPBL(nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(pbl_press)
-    ! 
-    !:Purpose: Determines pressure level of planetary boundary layer using 
-    !          a first threshold of 0.5 for the bulk Richadson number (after Mahrt, 1981; 
-    !          requires availability of uu and vv). Threshold reduced to largest value
-    !          between 0.25 and 0.5 if first not satisfied. 
     !
-    !          If not found with this approach, applies a variant of the Heffter approach 
+    !:Purpose: Determines pressure level of planetary boundary layer using
+    !          a first threshold of 0.5 for the bulk Richadson number (after Mahrt, 1981;
+    !          requires availability of uu and vv). Threshold reduced to largest value
+    !          between 0.25 and 0.5 if first not satisfied.
+    !
+    !          If not found with this approach, applies a variant of the Heffter approach
     !          described in Aliabadi et al (2016), with some local variation.
     !
     !          References:
@@ -1070,12 +1151,12 @@ module physicsFunctions_mod
     !          * Mahrt, L. 1981: Modelling depth of the stable boundary-layer,
     !            Bound-Lay. Meteorol., 21, 3-19
     !
-    !          * Heffter, J.L.,1980: Transport layer depth calculations, Second 
+    !          * Heffter, J.L.,1980: Transport layer depth calculations, Second
     !            Joint Conference on Applications of Air Pollution Meteorology,
     !            New Orleans, LA, 24-27 March 1980. American Meteorological
     !            Society, Boston, MA.
-    !       
-    !          Comments: Currently assumes (uu,vv) midlayer levels approximately 
+    !
+    !          Comments: Currently assumes (uu,vv) midlayer levels approximately
     !          at tt, height, and hu levels when size(uu).ne.nmodlev.
     !
     implicit none
@@ -1095,17 +1176,17 @@ module physicsFunctions_mod
     integer :: itop,i,id,igradmax,inv,iRiBmax
     real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(nmodlev),us,vs,uv,hus,huh,gradmax,grad
     real(8), parameter :: kappa = 287.04d0/1004.67d0  ! R/Cp
-    real(8), parameter :: RiB_threshold=0.5d0, reduced=0.5d0 
+    real(8), parameter :: RiB_threshold=0.5d0, reduced=0.5d0
     ! Imposed min presssure of PBL height of 200 hPa (extreme; PBL height should normally be under 3km)
-    real(8), parameter :: press_min=2.0d4  
+    real(8), parameter :: press_min=2.0d4
     real(8) :: huw(nmodlev)
 
     pbl_press=-1.0
-     
-    ! Set values for lowest prognostic level 
 
-    i = nmodlev   
-    
+    ! Set values for lowest prognostic level
+
+    i = nmodlev
+
     if (all(height < 0.0d0))  call utl_abort('phf_calcPBL: Missing height for determining PBL pressure')
 
     ! Convert hu to mass mixing ratio
@@ -1115,7 +1196,7 @@ module physicsFunctions_mod
     else
        huw(:) = 0.0d0
     end if
-    
+
     if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
       hus = huw(i)/(1.0d0-huw(i))
     else if (huw(i) > 0.8d0) then
@@ -1124,7 +1205,7 @@ module physicsFunctions_mod
       hus = 0.0d0
     end if
     zs = height(i)*0.001d0
-    
+
     ! Potential virtual temperature at lowest prognostic level
     thetavs = tt(i)*(1.d5/pressmod(i))**kappa* (1.0d0 + 0.61d0*hus )
     thetavh(nmodlev)=thetavs
@@ -1141,17 +1222,17 @@ module physicsFunctions_mod
     if (present(uu_opt) .and. present(vv_opt)) then
       id = nmodlev-size(uu_opt)
       if (id > 1 .or. id < 0) then
-        call utl_abort('phf_calcPBL: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )    
+        call utl_abort('phf_calcPBL: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )
       end if
       us = uu_opt(size(uu_opt))
       vs = vv_opt(size(vv_opt))
-       
+
 !     us,vs set to 0.0d0
 !     us=0.0d0
 !     vs=0.0d0
- 
-      ! Calc RiB from near-surface to level attaining RiB_threshold 
-      do i = nmodlev-1, itop, -1  
+
+      ! Calc RiB from near-surface to level attaining RiB_threshold
+      do i = nmodlev-1, itop, -1
         if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
           huh = huw(i)/(1.0d0-huw(i))
         else if (huw(i) > 0.8d0) then
@@ -1162,12 +1243,12 @@ module physicsFunctions_mod
         thetavh(i) = tt(i)*(1.d5/pressmod(i))**kappa* ( 1.0d0 + 0.61d0*huh )
 
         if (id == 0) then
-          uv = max( (uu_opt(i)-us)**2 + (vv_opt(i)-vs)**2, 1.0d-8 ) 
+          uv = max( (uu_opt(i)-us)**2 + (vv_opt(i)-vs)**2, 1.0d-8 )
         else
           ! Take layer midpoint values
-          uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0d0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0d0-vs)**2, 1.0d-8 ) 
+          uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0d0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0d0-vs)**2, 1.0d-8 )
         end if
-         
+
         RiB2 = ec_rg * (thetavh(i)-thetavs) * (height(i)*0.001d0-zs) / (thetavs*uv)
         if (RiBmax < RiB2 .and. RiB2 >= reduced*RiB_threshold) then
           RiBmax = RiB2
@@ -1176,9 +1257,9 @@ module physicsFunctions_mod
         if (RiB2 >= RiB_threshold) exit
         RiB1 = RiB2
       end do
-    else    
-      ! Calc only theta      
-      do i = nmodlev-1, itop, -1  
+    else
+      ! Calc only theta
+      do i = nmodlev-1, itop, -1
         if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
           huh = huw(i)/(1.0d0-huw(i))
         else if (huw(i) > 0.8d0) then
@@ -1188,8 +1269,8 @@ module physicsFunctions_mod
         end if
         thetavh(i) = tt(i)*(1.d5/pressmod(i))**kappa* ( 1.0d0 + 0.61d0*huh )
       end do
-    end if   
-    
+    end if
+
     if (RiB2 >= RiB_threshold) then
       !  Interpolate between levels
       pbl_press = (log(pressmod(i))*(RiB_threshold-RiB1)+ &
@@ -1199,20 +1280,20 @@ module physicsFunctions_mod
     else if (RiBmax >= reduced*RiB_threshold) then
       ! Apply to level with largest RiB between reduced*RiB_threshold and RiB_threshold
       pbl_press = pressmod(iRiBmax)
-    else    
+    else
       ! Estimate PBL level using the Heffter conditions:
       ! First find lowest inversion layer where dtheta>2K.
-      ! If found, assign mid of layer as PBL level. 
+      ! If found, assign mid of layer as PBL level.
       ! Otherwise, assign PBL level as that with largest
-      ! theta gradient.       
+      ! theta gradient.
       i = nmodlev-1
-      do while (i > itop) 
+      do while (i > itop)
         !if (thetavh(i)-thetavh(i+1) > 0.0d0) then
         if ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)) >= 0.005d0) then
           ! Near bottom of inversion layer found
           inv = i+1
           i = i-1
-          !do while (thetavh(i)-thetavh(i+1) > 0.0d0 .and. i > itop) 
+          !do while (thetavh(i)-thetavh(i+1) > 0.0d0 .and. i > itop)
           do while ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)) >= 0.005d0 &
                .and. i > itop)
             i = i-1
@@ -1221,7 +1302,7 @@ module physicsFunctions_mod
             ! Apply  midlayer as PBL
             pbl_press = sqrt(pressmod(i+1)*pressmod(inv))
             exit
-          end if 
+          end if
         else
           i=i-1
         end if
@@ -1238,11 +1319,11 @@ module physicsFunctions_mod
               if ((thetavh(i-1)-thetavh(i))/(height(i-1)-height(i)) >= 0.005) exit
             end if
           end if
-        end do          
+        end do
         pbl_press = pressmod(igradmax)
       ! write(*,*) 'phf_calcPBL: Warning2 - Max allowed altitude reached for. ',pbl_press,igradmax,gradmax,RiB2,iRiBmax,RiBmax
       !else
-      !  write(*,*) 'phf_calcPBL: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax     
+      !  write(*,*) 'phf_calcPBL: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax
       end if
     end if
 
@@ -1253,10 +1334,10 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   function phf_calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
     !
-    !:Purpose: Compute the distance between two point on earth: (lat1,lon1) 
+    !:Purpose: Compute the distance between two point on earth: (lat1,lon1)
     !          and (lat2,lon2). Calcul utilisant la Formule d'Haversine.
     !
-    !          Reference: R.W. Sinnott,'Virtues of Haversine',Sky and 
+    !          Reference: R.W. Sinnott,'Virtues of Haversine',Sky and
     !          Telescope, vol.68, no.2, 1984, p.159)
     !
     implicit none
@@ -1276,7 +1357,10 @@ module physicsFunctions_mod
     dlat = lat2 - lat1
 
     a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
+    if ( a > 1.d0 ) a = 1.d0
+    if ( a < 0.d0 ) a = 0.d0
     c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
+
     distanceInM = ec_ra * c
 
   end function phf_calcDistance
@@ -1287,7 +1371,7 @@ module physicsFunctions_mod
   function phf_calcDistanceFast(lat2, lon2, lat1, lon1) result(distanceInM)
     !
     !:Purpose: Compute the distance between two point on earth: (lat1,lon1)
-    !          and (lat2,lon2). Using a quick and dirty formula good for 
+    !          and (lat2,lon2). Using a quick and dirty formula good for
     !          short distances not close to the pole.
     !
     implicit none
@@ -1388,7 +1472,7 @@ module physicsFunctions_mod
     integer           :: nlev, nlev500m
     real(8), allocatable :: alt500m(:), gravity500m(:)
     real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
-    integer           :: i, ilev 
+    integer           :: i, ilev
 
     nlev = size(altitude)
     sLat = sin(latitude)
@@ -1412,10 +1496,10 @@ module physicsFunctions_mod
         geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity
       enddo
 
-      ! Add the contribution from top of the last 500m-layer to the altitude  
+      ! Add the contribution from top of the last 500m-layer to the altitude
       delAlt = altitude(nlev) - alt500m(nlev500m)
       aveGravity = 0.5D0 * (phf_gravityalt(sLat, altitude(nlev)) + gravity500m(nlev500m))
-      geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity 
+      geopotential(nlev) = geopotential(nlev) + delAlt * aveGravity
       gravityM1 = phf_gravityalt(sLat, altitude(nlev))
 
       deallocate(alt500m)
@@ -1429,7 +1513,7 @@ module physicsFunctions_mod
 
     endif
 
-    ! At upper-levels, integrate on model levels to get height 
+    ! At upper-levels, integrate on model levels to get height
     do ilev = nlev-1, 1, -1
       gravity = phf_gravityalt(sLat,altitude(ilev))
       aveGravity = 0.5D0 * (gravity + gravityM1)
@@ -1601,7 +1685,7 @@ module physicsFunctions_mod
   function phf_getFreezingPoint(salinity, pressure) result(freezingPointTemperature)
     !
     !:Purpose: Computes the freezing point of sea water (in K) as a function of
-    !          salinity (psu) and pressure (bar).  From Millero (1978) as cited 
+    !          salinity (psu) and pressure (bar).  From Millero (1978) as cited
     !          in Gill, 1982, Atmosphere-Ocean Dynamics.
     implicit none
 
@@ -1621,7 +1705,5 @@ module physicsFunctions_mod
                                     salinity + b1 * pressure + MPC_K_C_DEGREE_OFFSET_R8, pre_obsReal)
 
   end function phf_getFreezingPoint
-  
+
 end module physicsFunctions_mod
-
-

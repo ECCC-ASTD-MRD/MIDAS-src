@@ -58,6 +58,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [4.1.3]
+
+### Added
+
+ * Modified `LOCALSELECTIONOUTPUT` verbosity level (#1063 and !1014)
+
+### Changed
+
+ * The MIDAS build system is now based on `cmake` (#695 and !1015)
+
+### Fixed
+
+ * Fix a small bug in `src/midas_build` when some targets are specified at the command line (#1113 and !1026)
+ * Create links for all machines when doing the tests suite setup (#1110 and !1024)
+ * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
+ * Fix the computation of pressure and heights in GEM-H to make the results similar to GEM-P (#1097 and !1011)
+ * Fix for `stateToColumn_mod` to correctly handle `real(4)` argument (#1095 and !1004).
+ * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
+
+### Removed
+
+ * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
+
 ## [4.1.2]
 
 ### Added
@@ -1532,7 +1555,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...HEAD
+[4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
 [4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
 [4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1
 [4.1.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0
