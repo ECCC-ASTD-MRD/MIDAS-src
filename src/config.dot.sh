@@ -21,6 +21,18 @@ __show_instructions=true
 __cd_to_build_directory=true
 __fresh_build_directory=false
 
+function __default_compiler {
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        echo inteloneapi-2022.1.2
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        echo inteloneapi-2025.1.0
+    else
+        echo "config.dot.sh: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are    ." >&2
+        exit 1
+    fi
+}
+__compiler=$(__default_compiler)
+
 while [[ $# > 0 ]]; do
     arg=${1}
 
@@ -38,6 +50,16 @@ while [[ $# > 0 ]]; do
         else
             echo "config.dot.sh: this option '${arg}' needs a build id" >&2
         fi
+    elif [[ "${arg}" = --compiler ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo "config.dot.sh: The option '--compiler' must be followed by a compiler identificator" >&2
+            exit 1
+        elif [[ ${2} = -* || -z "${2}" ]]; then
+            echo "config.dot.sh: The option '--compiler' must be followed by a compiler identificator" >&2
+            exit 1
+        fi
+        __compiler=${2}
+        shift
     elif [[ "${arg}" = --no-cmake ]]; then
         __run_cmake=false
     elif [[ "${arg}" = --cmake ]]; then
@@ -58,6 +80,7 @@ while [[ $# > 0 ]]; do
         echo "config.dot.sh: "
         echo "        --build: explicitly specify a build directory"
         echo "        --build-id: specify an extension the build directory name"
+        echo "        --compiler: set the compiler to use (default is ${__compiler})"
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
@@ -103,6 +126,16 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
     echo "config.dot.sh: The variable '__fresh_build_directory' can only be 'true' or 'false' and not '${__fresh_build_directory}'." >&2
     __run_cmake=stop
 fi
+
+if [ "${__compiler}" = list ]; then
+    echo "The compiler supported are 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0' and 'gnu-14.2.0'."
+    __run_cmake=stop
+elif [ "${__compiler}" != inteloneapi-2022.1.2 -a "${__compiler}" != gnu-14.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
+    echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0' are." >&2
+    __status=false
+    __run_cmake=stop
+fi
+typeset -r __compiler
 
 if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
     echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
@@ -448,3 +481,6 @@ EOF
     ${__status}
 
 fi ## End of 'if [ "${__run_cmake}" != stop ]'
+
+# config return status
+${__status}
