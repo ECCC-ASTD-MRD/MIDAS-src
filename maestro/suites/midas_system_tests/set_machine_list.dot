@@ -5,29 +5,22 @@ which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 __set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 
-if [ -n "${GITLAB_CI}" ]; then
-    ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
-    frontend=$(getdef -e ${PWD} resources/resources.def FRONTEND)
-    backend=$(getdef -e ${PWD} resources/resources.def BACKEND)
-    MAKE_LINKS_MACHINE_LIST="${frontend} ${backend}"
-    ## if the user runs that script, 'install_suite.sh', on another host than 'FRONTEND' or 'BACKEND'
-    ## then, we add this host to the hosts list.  This will be often the case with 'eccc-gpsc1'.
-    if [ "${TRUE_HOST}" != "${frontend}" -a "${TRUE_HOST}" != "${backend}" ]; then
-        MAKE_LINKS_MACHINE_LIST="${MAKE_LINKS_MACHINE_LIST} ${TRUE_HOST}"
-    fi
-    export MAKE_LINKS_MACHINE_LIST
-elif [ "${TRUE_HOST}" = ppp5 -o "${TRUE_HOST}" = ppp6 -o "${TRUE_HOST}" = robert -o "${TRUE_HOST}" = underhill ]; then
-    export MAKE_LINKS_MACHINE_LIST="ppp6 ppp5:ppp6 robert:ppp6 underhill:ppp6"
-else
-    MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
-    MACHINE_SUPER=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
-    echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}"
+MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
+MACHINE_SUPER=$( cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
 
-    if [ "${MACHINE_PPP}" = "${TRUE_HOST}" -o "${MACHINE_SUPER}" = "${TRUE_HOST}" ]; then
-        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
-    else
-        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST} ${MACHINE_SUPER}"
+if [ "${MACHINE_PPP}" = "${TRUE_HOST}" -o "${MACHINE_SUPER}" = "${TRUE_HOST}" ]; then
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+else
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST} ${MACHINE_SUPER}"
+fi
+
+if [[ -z "${GITLAB_CI}" ]]; then
+    if [[ "${TRUE_HOST}" = ppp5 || "${TRUE_HOST}" = ppp6 || "${TRUE_HOST}" = robert || "${TRUE_HOST}" = underhill ]]; then
+        export MAKE_LINKS_MACHINE_LIST="ppp6 ppp5:ppp6 robert:ppp6 underhill:ppp6"
     fi
 fi
+
+echo "set_machine_list: ${MAKE_LINKS_MACHINE_LIST}"
+export MAKE_LINKS_MACHINE_LIST
 
 unset __set_machine_list_suite__
