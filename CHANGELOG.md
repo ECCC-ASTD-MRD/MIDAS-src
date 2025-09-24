@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * The CI is publishing again automatically the SSM domains (#1115 and !1028)
 
 ### Removed
 
