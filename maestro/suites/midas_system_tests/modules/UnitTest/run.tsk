@@ -67,19 +67,13 @@ echo                    >> load_env.dot
 echo "tty -s || set +x" >> load_env.dot
 
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        __compiler=inteloneapi-2022.1.2
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        __compiler=inteloneapi-2025.1.0
-    fi
-
-    if [ "${__compiler}" = gnu-14.2.0 ]; then
+    if [ "${UnitTest_compiler}" = gnu-14.2.0 ]; then
         echo echo ... loading gnu 14.2.0 compiler >> load_env.dot
         echo export MODULEPATH=/home/sidr000/modules:\${MODULEPATH}  >> load_env.dot
         echo . r.load.dot rpn/code-tools/20251217/env/exp/gnu-14.2.0 >> load_env.dot
     else
-        echo echo loading rpn/code-tools/20251217/env/${__compiler}  >> load_env.dot
-        echo . r.load.dot rpn/code-tools/20251217/env/${__compiler}  >> load_env.dot
+        echo echo loading rpn/code-tools/20251217/env/${UnitTest_compiler}  >> load_env.dot
+        echo . r.load.dot rpn/code-tools/20251217/env/${UnitTest_compiler}  >> load_env.dot
     fi
 
     echo echo loading eccc/mrd/rpn/libs/20260316-beta  >> load_env.dot
@@ -87,9 +81,9 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
     echo . r.load.dot eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
 
-    if [ "${__compiler}" = gnu-14.2.0 ]; then
+    if [ "${UnitTest_compiler}" = gnu-14.2.0 ]; then
         ## Back to original values
-        echo export ORDENV_PLAT=${ORDENV_PLAT}      >> load_env.dot
+        echo export ORDENV_PLAT=${ORDENV_PLAT}         >> load_env.dot
 
         ## The directory '/home/erv000/data/midas/gfortran/libs/lib64'
         ## contains the libraries that are not installed on 'robert' or
@@ -129,10 +123,12 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         ##         "prte_silence_shared_fs" MCA param to "1".
         ##         ------------------------------------------------
         echo export PRTE_MCA_prte_silence_shared_fs=1 >> load_env.dot
-    else
-        ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
-        ## because the programs are not compiled statically with this
-        ## library.
+    fi
+
+    ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
+    ## because the programs are not compiled statically with this
+    ## library.
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
         echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
 
@@ -201,7 +197,6 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         ##         configurations (GDPS, HRDPS)
         #echo export I_MPI_ADJUST_ALLREDUCE=5 >> load_env.dot
     fi
-    unset __compiler
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1

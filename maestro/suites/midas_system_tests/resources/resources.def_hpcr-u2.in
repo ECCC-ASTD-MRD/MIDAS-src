@@ -19,6 +19,10 @@ SEQ_CONTAINER_METHOD=immediate
 
 SEQ_JOBNAME_PREFIX=midas-
 
+## Set this variable to 'inteloneapi-2022.1.2' or 'gnu-14.2.0' to
+## choose the compiler
+COMPILER=inteloneapi-2022.1.2
+
 ## Resources for the test '/Tests/var/Envar/gdps'
 VAR_GDPS_CPUS=20x45x4
 ## Resources for the test '/Tests/letkf/glb_xc40'
@@ -60,5 +64,9 @@ LETKF_GLB15KM_NUM_THREADS=@LETKF_GLB15KM_NUM_THREADS@
 ## Set this variable to '9' if you want to avoid running the test
 ## '/Tests/letkf/glb_10km'.
 LETKF_GLB10KM_CATCHUP=@LETKF_GLB10KM_CATCHUP@
+
+## Set this variable to '${CMAKE_Fortran_COMPILER_ID}' to
+## choose the compiler
+COMPILER=@CMAKE_Fortran_COMPILER_ID@
 
 @RESOURCES_FOOTER@
