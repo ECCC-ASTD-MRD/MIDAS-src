@@ -258,7 +258,7 @@ if [ "${__run_cmake}" != stop ]; then
     else
         __versionid_build=
     fi
-    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
+    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}/${__compiler}
 
     ###########################################################
     ##  compilation needed for compilation
@@ -327,16 +327,23 @@ if [ "${__run_cmake}" != stop ]; then
 
         echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
         . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
+    fi
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        rttovdebug=-debug
+        __rttovdebug__=-debug
     else
-        rttovdebug=
+        __rttovdebug__=
     fi
     export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
-    export rttov_installdir=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}/${ORDENV_PLAT}
-    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
+    __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
+    echo "... loading ${__rttov_path__}"
+    . r.load.dot ${__rttov_path__}
+
+    ## Why is this needed to 'gfortran' and not for Intel
+    if [ "${__compiler}" = gnu-14.2.0 ]; then
+        export rttov_installdir=${__rttov_path__}/${ORDENV_PLAT}
+    fi
+    unset __rttov_path__ __rttovdebug__
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then

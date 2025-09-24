@@ -95,7 +95,7 @@ function print_usage {
 
     echo "midas_build: "
     echo "        -d|-debug|--debug: compile using the debug options (override the variable 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS')"
-    echo "        --compiler: set the compiler to use (default is $(default_compiler))"
+    echo "        --compiler: set the compiler to use (default is $(default_compiler) and if 'list' then it will list the supported compilers)"
     echo "        --opt-report: add the compiler options to output the optimization report (override the variable 'MIDAS_COMPILE_OPTIMIZE_REPORT')"
     echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
     echo "        --codecov: activate the code covering compiler options (needs a directory for storing the code coverage information) (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
@@ -383,7 +383,7 @@ cd ${__here}
 
 ## No need to rerun 'cmake' here since it has already been run by the
 ## calling script
-source ${__midas_dot_cfg} --no-cmake --no-show-instructions
+source ${__midas_dot_cfg} --compiler ${compiler} --no-cmake --no-show-instructions
 
 make --jobs=${MIDAS_COMPILE_NCORES} ${__target}
 EOF
