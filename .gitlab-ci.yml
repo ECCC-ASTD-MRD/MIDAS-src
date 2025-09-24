@@ -163,6 +163,7 @@ clean_midas_abs:
      - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
      - echo Moving programs for version ${version} in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
      - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
+     - mv $MIDAS_ABS/midas-config $MIDAS_ABS_ARCHIVE/${version}
    only:
      - main
      - v_3.10
