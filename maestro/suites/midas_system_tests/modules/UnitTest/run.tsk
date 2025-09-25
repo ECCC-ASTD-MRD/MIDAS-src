@@ -152,7 +152,7 @@ status=0
 ./launch_program.sh ${vtune_args} --npex ${SEQ_NPEX} --npey ${SEQ_NPEY} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
 listingSize=$(stat --format="%s" listing)
 tenGigabytes=$((1024*1024*1024*10))
-if [[ "${listingSize}" < ${tenGigabytes} ]]; then
+if (( listingSize < tenGigabytes )); then
     cat listing
 else
     echo "The listing has a size bigger than 10GB.  We avoid to list it here.  You can find it in the working directory."
