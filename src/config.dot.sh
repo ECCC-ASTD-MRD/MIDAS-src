@@ -210,8 +210,24 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading rpn/code-tools/20250826/env/inteloneapi-2022.1.2"
     . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2022.1.2
 
-    echo "... loading eccc/mrd/rpn/libs/20250909-beta"
-    . r.load.dot eccc/mrd/rpn/libs/20250909-beta
+    #echo "... loading eccc/mrd/rpn/libs/20250909-beta"
+    #. r.load.dot eccc/mrd/rpn/libs/20250909-beta
+
+    #echo "... loading eccc/mrd/rpn/libs/20250909-beta/rpncomm_4.6.7-${COMP_ARCH}_${ORDENV_PLAT}"
+    #. r.load.dot eccc/mrd/rpn/libs/20250909-beta/rpncomm_4.6.7-${COMP_ARCH}_${ORDENV_PLAT}
+    echo "... loading eccc/mrd/rpn/libs/20250909-beta/random_1.1.0.11-${COMP_ARCH}_${ORDENV_PLAT}"
+    . r.load.dot eccc/mrd/rpn/libs/20250909-beta/random_1.1.0.11-${COMP_ARCH}_${ORDENV_PLAT}
+
+    #echo "... loading eccc/mrd/rpn/libs/20250909-beta/vgrid_6.9.9.1-${COMP_ARCH}_${ORDENV_PLAT}"
+    #. r.load.dot eccc/mrd/rpn/libs/20250909-beta/vgrid_6.9.9.1-${COMP_ARCH}_${ORDENV_PLAT}
+    #echo "... loading eccc/mrd/rpn/libs/20250604-beta/vgrid_6.9.7.2-${COMP_ARCH}_${ORDENV_PLAT}"
+    #. r.load.dot eccc/mrd/rpn/libs/20250604-beta/vgrid_6.9.7.2-${COMP_ARCH}_${ORDENV_PLAT}
+    #echo "... loading eccc/mrd/rpn/libs/20250604-beta/rmn_20.1.0-b1-${COMP_ARCH}_${ORDENV_PLAT}"
+    #. r.load.dot eccc/mrd/rpn/libs/20250604-beta/rmn_20.1.0-b1-${COMP_ARCH}_${ORDENV_PLAT}
+    #echo "... loading /home/sici000/ci_package/ssm/dev_alpha_102258/libs"
+    #. r.load.dot /home/sici000/ci_package/ssm/dev_alpha_102258/libs
+    #export LD_LIBRARY_PATH=/home/vma000/site5/build/rpn_for_midas/install/lib:${LD_LIBRARY_PATH}
+    #export CMAKE_MODULE_PATH=/home/vma000/site5/build/rpn_for_midas/install/lib/cmake/rmn-20.1.0-b2-dirty:${CMAKE_MODULE_PATH}
 
     echo "... loading hdf5"
     . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
