@@ -4,32 +4,27 @@
 ##  MIDAS automated build script
 ##
 ##  @SYNOPSIS
-##      * edit configuration: `./config.dot.sh`
+##      * specify your configuration by exporting some MIDAS_ variables in the environment
+##        (consult `./config.dot.sh` for these variables)
 ##
-##      * compile, link and install all programs on both architectures
+##      * compile, link and install all programs
 ##        ```
 ##        ./midas_build
 ##        ```
-##      * build specific targets on both architectures
-##        ```
-##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
-##        ```
 ##      * use '-d', '-debug' or '--debug' to activate debug options, which is equivalent to setting 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
 ##      * use '-opt-report' to activate compiler optimization report, which is equivalent to setting 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes'
-##      * use '--codepath ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
+##      * use '--codecov ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
 ##
-##      * install auto-completion feature
-##        ```
-##        ./install_build_completion.sh
-##        source ${HOME}/.bash_completion
-##        ```
+##         (see other options below or with './midas_build --help')
 ##
 ##  @REFERENCES
 ##      * `./README.md`
-##      * `./Makefile`
 ##
 ##  @AUTHORS
 ##      Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
+##
+##  @MAJOR MODIFICATIONS
+##      * november 2024 - adapatation and simplification for the usage of cmake
 ##
 ###############################################################################
 
@@ -38,9 +33,7 @@
 typeset __target
 typeset __job
 typeset __job_opt
-typeset __job_test_target
 typeset __here
-typeset __abs_exist_list
 typeset __abs_all
 
 __here=$(pwd)
@@ -53,27 +46,47 @@ __revstring=$(${__toplevel}/midas.version)
 ##=========================================================
 ##  sourcing user configuration
 if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-  echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
-  exit 1
+    echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
+    exit 1
 fi
 
 ##=========================================================
 ##  finding all possible targets
 __abs_all=$(cd ${__toplevel}/src; ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
-__abs_external='splitobs'
+__abs_external='splitobs monitor'
 __abs_all="${__abs_all} ${__abs_external}"
 
 ##=========================================================
 ##  parsing input and building job for submissions
 ##
 
-if [ $# -eq 0 ]
 ## default: make all
-then
-    __target='all'
-    __abs_exist_list=${__abs_all}
-else
-    __target=
+__target=all
+__abs_exist_list=${__abs_all}
+
+__fresh_build_directory=--no-fresh
+## When using 'midas_build', we want verbose compilation listing
+## This can be overriden with '--no-verbose' option
+MIDAS_COMPILE_VERBOSE=TRUE
+
+function print_usage {
+    set -euo pipefail
+
+    echo "midas_build: "
+    echo "        -d|-debug|--debug: compile using the debug options (override the variable 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS')"
+    echo "        --opt-report: add the compiler options to output the optimization report (override the variable 'MIDAS_COMPILE_OPTIMIZE_REPORT')"
+    echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
+    echo "        --codecov: activate the code covering compiler options (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
+    echo "        --local: avoid launching a batch job to compile (override the variable 'MIDAS_COMPILE_'HEADNODE_FRONTEND)"
+    echo "        --fresh: erase the build directory if it already exists before compilation"
+    echo "        --no-clean: do not erase the build directory after the compilation (override the variable 'MIDAS_COMPILE_CLEAN'"
+    echo "        --keep-listing: do not erase compilation listing after the compilation (override the variable 'MIDAS_COMPILE_KEEP_LISTING')"
+    echo "        --append-version-id-builddir: append version id to the build directory (override the variable 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR'"
+    echo "        --no-verbose: Turn off the verbose output for the compilation (override the variable 'MIDAS_COMPILE_VERBOSE')"
+    echo "        -h|-help|--help: show this help"
+} ## End of 'function print_usage'
+
+if [ $# -gt 0 ]; then
     while [[ $# > 0 ]]; do
         arg=${1}
 
@@ -88,20 +101,46 @@ else
             __vtune_options="-debug -parallel-source-info=2"
             export MIDAS_COMPILE_COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL} ${__vtune_options}"
             echo "midas_build: Adding compilation options '${__vtune_options}' needed for 'vtune'"
+            unset __vtune_options
         elif [[ "${arg}" = --codecov ]]; then
             if [[ $# -lt 2 ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2
                 exit 1
             elif [[ ${2} = -* || -z "${2}" ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2
                 exit 1
             fi
             export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
             shift
+        elif [[ "${arg}" = --local ]]; then
+            MIDAS_COMPILE_HEADNODE_FRONTEND=true
+        elif [[ "${arg}" = --no-verbose ]]; then
+            MIDAS_COMPILE_VERBOSE=FALSE  ## We use 'FALSE' here because it is the standard for the variable 'CMAKE_VERBOSE_MAKEFILE'
+        elif [[ "${arg}" = --fresh ]]; then
+            __fresh_build_directory=--fresh
+        elif [[ "${arg}" = --no-clean ]]; then
+            MIDAS_COMPILE_CLEAN=false
+        elif [[ "${arg}" = --keep-listing ]]; then
+            MIDAS_COMPILE_KEEP_LISTING=true
+        elif [[ "${arg}" = --append-version-id-builddir ]]; then
+            if [[  -n "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" ]]; then
+                echo "override 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR' from '${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}' to 'true'"
+            fi
+            export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
+        elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
+            print_usage
+            exit 1
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
+            if [[ "${arg}" = --code-cov ]]; then
+                echo "midas_build: are you meaning '--codecov'?" >&2
+            fi
+            echo
+            print_usage
             exit 1
-        elif [[  -n "${__target}" ]]; then
+        elif [[ "${__target}" = all ]]; then
+            __target=${arg}
+        elif [[ -n "${__target}" ]]; then
             __target="${__target} ${arg}"
         else
             __target=${arg}
@@ -110,30 +149,39 @@ else
         shift
     done ## End of 'while [[ $# > 0 ]]'
 
-    if [[ -n "${__target}" ]]; then
-        __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
-        ## ^ there must be a simpler solution
-    else
-        __target='all'
-        __abs_exist_list=${__abs_all}
+    if [[ -n "${__target}" && "${__target}" != all ]]; then
+        __abs_exist_list=
+        for __targ in ${__target}; do
+            grep_status=0
+            echo ${__abs_all} | grep -sq "\b${__targ}\b" || grep_status=1
+            if [[ "${grep_status}" -eq 0 ]]; then
+                if [[  -n "${__abs_exist_list}" ]]; then
+                    __abs_exist_list="${__abs_exist_list} ${__targ}"
+                else
+                    __abs_exist_list=${__targ}
+                fi
+            fi
+        done
     fi
-fi
+fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
 
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg} &> .tmp.config.out || __midas_source_config_status__=1
-__listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
-__listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
-if [ "${__midas_source_config_status__}" -ne 0 ]; then
-  mv .tmp.config.out ${__listing_config}
-  echo "An error occured in the build configuration, consult ${__listing_config}"
-  exit 1
-fi
-mv .tmp.config.out ${__listing_config}
+source ${__midas_dot_cfg} --cmake --no-show-instructions ${__fresh_build_directory} &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
 
-##=========================================================
-##  functions
+__listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
+__listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+if [ "${__midas_source_config_status__}" -ne 0 ]; then
+    mv ${__here}/.tmp.config.out ${__listing_config}
+    echo "An error occured in the build configuration, consult ${__listing_config}"
+    exit 1
+fi
+
+mv ${__here}/.tmp.config.out ${__listing_config}
+
+cd ${__here}
+
 function are_jobs_completed {
     set -e
     typeset job_or_pid_front=$1
@@ -163,15 +211,21 @@ function are_jobs_completed {
     done
 }
 
-function abs_path {
-    abs_name=${1}
-    platform=${2}
-    if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
+function abs_prefix {
+    typeset abs_name=${1}
+    typeset revstring=${2:-}
+    typeset platform=_${3:-${ORDENV_PLAT}}
+
+    if ${__toplevel}/tools/midas_scripts/midas.isFileInList "${__abs}" in "${__abs_external}"; then
+        typeset __abs_prfx=tools/midas.
+        if [ "${abs_name}" = monitor ]; then
+            platform=
+        fi
     else
-        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
+        typeset __abs_prfx=src/programs/midas-
     fi
-    echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
+
+    echo ${__abs_prfx}${abs_name}${platform}${revstring}.Abs
 }
 
 function printHeader {
@@ -183,13 +237,10 @@ function printHeader {
         echo "| * ${__t}"
     done
     echo "| code version : ${__revstring}"
-    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" != true ]; then
-        echo "| append version to build dir : (override 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR' from '${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}' to 'true'"
-        export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
-    fi
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
+    echo "| build directory : ${MIDAS_COMPILE_DIR_BUILD}"
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
@@ -199,6 +250,9 @@ function printHeader {
         echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
         echo "| no installation (no absolute target)"
+    fi
+    if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]; then
+        echo "| compiling locally"
     fi
     echo "| listings"
     echo "| * ${__listing_frontend}"
@@ -218,62 +272,36 @@ function printFooter {
     echo "| execution time : ${__dateDiff} s"
     echo "+-----------------------------------------------------------------------------"
     echo
-
 }
 
 ##=========================================================
-## Header and dependency check
+## Header
 printHeader
 
-echo "Building dependencies"
-make depend || exit 1
+cd ${MIDAS_COMPILE_DIR_BUILD}
 
 ##=========================================================
-## testing target validity on frontend first
-
-__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
-__job_test_target="make -n ${__target} ${__job_opt}"
-
-##-- lauching dry-run to test target
-echo ${__job_test_target}
-${__job_test_target} > /dev/null 2>&1 || {
-    echo
-    echo "> ${__target}"
-    echo "+-------------------+"
-    echo "|                   |"
-    echo "| INVALID TARGET(S) |"
-    echo "|                   |"
-    echo "+-------------------+"
-    exit 1
-    }
-
-##-- if the dry-run passes, then we define the job adding multi-cores query
-__job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt}"
-
-
-##=========================================================
-##  Checking presence of absolute targets in programs.mk
+##  Checking presence of absolute targets in 'src/programs/CMakeLists.txt'
 ##  Check prior existence of absolutes : remove them first
-if [ -n "${__abs_exist_list}" ]; then
-    echo "Checking src/programs/programs.mk for absolute targets"
-    for __abs in ${__abs_exist_list}; do
-        ## external programs are not expected in programs/programs.mk
-        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
-            typeset __search=$(grep "^ *${__abs}.Abs *:" programs/programs.mk)
-            if [ -z "${__search}" ]; then
-                echo "<!> ${__abs}.Abs target not in src/programs/programs.mk"
-                exit 1
-        fi; fi
-    done
-    echo "Checking prior existence of target absolutes"
-    for __abs in ${__abs_exist_list}; do
-        typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
-        [ -f  "${__abs_full}" ] && \
-        ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
-        rm ${__abs_full} )
-    done
-    echo
-fi
+for __abs in ${__abs_exist_list}; do
+    ## external programs are not expected in src/programs/CMakeLists.txt
+    if ${__toplevel}/tools/midas_scripts/midas.isFileInList "${__abs}" not in "${__abs_external}"; then
+        typeset __search=$(grep "add_executable(${__abs}" ${__toplevel}/src/programs/CMakeLists.txt)
+        if [ -z "${__search}" ]; then
+            echo "<!> ${__abs} target not in src/programs/CMakeLists.txt"
+            exit 1
+        fi
+    fi
+done
+echo "Checking prior existence of target absolutes"
+for __abs in ${__abs_exist_list}; do
+    typeset __abs_full=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
+    if [ -f "${__abs_full}" ]; then
+        echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
+        rm ${__abs_full}
+    fi
+done
+echo
 
 ##=========================================================
 ##  Compilation job for submission
@@ -287,7 +315,6 @@ export MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND}
 export MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME}
 export MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}
 export MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES}
-export MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
 export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
 export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
@@ -295,52 +322,54 @@ export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
 export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
 export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
-export MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET}
-export MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME}
-export MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER}
-export MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION}
-export MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO}
-export MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION}
 
 cd ${__here}
-source ${__midas_dot_cfg}
-EOF
 
-echo "${__job}" >> .compile_job
+## No need to rerun 'cmake' here since it has already been run by the
+## calling script
+source ${__midas_dot_cfg} --no-cmake --no-show-instructions
+
+make --jobs=${MIDAS_COMPILE_NCORES} ${__target}
+EOF
 
 ##=========================================================
 ##  Compilation on frontend
+echo "========================================================================"
+echo "Job submitted:"
+echo "\`\`\`"
+cat .compile_job
+echo "\`\`\`"
 echo "========================================================================"
 echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
 if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
 then
     ## compile directly on head node
     echo "    > ${__listing_frontend}"
-    ${__job} >  ${__listing_frontend} 2>&1 &
+    make --jobs=${MIDAS_COMPILE_NCORES} ${__target} >  ${__listing_frontend} 2>&1 &
     __job_or_pid_frontend=$!
     echo "    ${MIDAS_COMPILE_FRONTEND} (headnode) compilation process id: ${__job_or_pid_frontend}"
 else
     ## use ord_soumet
     __job_or_pid_frontend=$(ord_soumet .compile_job -jn ${MIDAS_COMPILE_JOBNAME} \
-        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock} \
+        -mach ${MIDAS_COMPILE_FRONTEND} -listing ${PWD} -w ${__ordsoumet_wallclock:-20} \
         -cpus ${MIDAS_COMPILE_NCORES}  -m 8G -shell /bin/bash)
 fi
 
 ##=========================================================
-
 ## waiting for compilation to terminate
 echo
-echo "Compilation underway : ${__job_or_pid_frontend}"
-echo "Working directory : ${__build_dir_version}"
+echo "Compilation underway: ${__job_or_pid_frontend}"
+echo "Build directory: ${MIDAS_COMPILE_DIR_BUILD}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+rm .compile_job
 
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
     __listing_frontend_search="^${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-.*-$(date +%Y%m%d).*\.out$"
     __listing_frontend_found=$(ls -rt1 ${MIDAS_COMPILE_JOBNAME}* | grep "${__listing_frontend_search}" | tail -n 1)
-    mv ${__listing_frontend_found} ${__listing_frontend}
+    mv ${__listing_frontend_found}   ${__listing_frontend}
     mv ${__listing_frontend_found}.o ${__listing_frontend}.o
     unset __listing_frontend_search
     unset __listing_frontend_found
@@ -396,75 +425,54 @@ if [ -n "${__err_front}" ]; then
 fi
 
 ##========================================================
-##  Installing (copying + renaming) target programs
-if [ -n "${__abs_exist_list}" -a  "${__install_always_midas}" = true ]
-then
-    ##  Copying target programs to the install directory
-    echo
-    echo "Installing target programs"
+
+if [ -n "${__abs_exist_list}" ]; then
+    [ ! -d ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR} ] && mkdir ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
+    ##  Verification of compiled programs
     typeset __status=0
-    typeset __abs_name
-    typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
-    [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir}
     for __abs in ${__abs_exist_list}; do
-        typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
-        if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${ORDENV_PLAT}/
-        else
-            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld/${ORDENV_PLAT}/
-        fi
-        find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \;
+        typeset __abs_installed=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/$(basename $(abs_prefix ${__abs} -${__revstring}))
         if [ ! -f  "${__abs_installed}" ]; then
-            echo "  <!> ${__abs} not found in ${__install_dir}"
+            echo "  <!> ${__abs_installed} not found"
             __status=1
         else
             echo "  ${__abs_installed} installed" >> .checkAbs
         fi
-
     done
-    [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
+    [ -f ".checkAbs" ] && ( cat .checkAbs >> ${__listing_frontend} && rm .checkAbs )
 
     if [ "${__status}" -eq 0 ]; then
-        if [ "${__abs_exist_list}" = "${__abs_all}" ]; then
-            echo
-            echo "+------------------------------+"
-            echo "|                              |"
-            echo "| MIDAS INSTALLATION COMPLETED |"
-            echo "|   ALL PROGRAMS INSTALLED     |"
-            echo "|                              |"
-        else
-            echo
-            echo "+------------------------------+"
-            echo "|                              |"
-            echo "| MIDAS INSTALLATION COMPLETED |"
-            echo "|                              |"
-            echo "    All target programs have been installed correctly!"
-            for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
-        fi
-        if [ "${__remarks}" -eq 1 ]; then
-            echo "| <!> with some remarks <!>    |"
-        fi
+        echo
         echo "+------------------------------+"
-        if [ "${__warnings}" -eq 1 ]; then
-            echo "| <!> with some warnings <!>    |"
-        fi
+        echo "|                              |"
+        echo "| MIDAS INSTALLATION COMPLETED |"
+        echo "|   ALL PROGRAMS INSTALLED     |"
+        echo "|                              |"
         echo "+------------------------------+"
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
 
-	${__toplevel}/src/update_resources.sh ${__toplevel}
-        ${__toplevel}/maestro/suites/midas_system_tests/update_abs.dot.sh ${__toplevel}
+        ## Copy 'midas-config' to '${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}'
+        cp midas-config ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
 
-        if [ "${MIDAS_COMPILE_CLEAN}" = true ]
-        then
+        if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT}" = yes ]; then
+            cat <<EOF
+You will find the optimization reports (*.optrpt files) in one of the build directories:
+   ${MIDAS_COMPILE_DIR_BUILD}/src/modules/CMakeFiles/midas.dir
+   ${MIDAS_COMPILE_DIR_BUILD}/src/programs/CMakeFiles/*.dir
+EOF
+            if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
+                echo "Do not erase the build directory to keep access to optimization report files"
+            fi
+        elif [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
             echo
             echo "MIDAS_COMPILE_CLEAN=true"
             echo "(in your environment, profile or config.dot.sh)"
-            echo " ... cleaning build directory "
-            make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} \
-                 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE} \
-                 MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
+            echo " ... cleaning build directory ${MIDAS_COMPILE_DIR_BUILD}"
+            make VERBOSE= clean
+            cd ${MIDAS_SOURCE_DIR}
+            rm -rf ${MIDAS_COMPILE_DIR_BUILD}
         fi
     else
         echo
@@ -476,7 +484,7 @@ then
         echo
         exit 1
     fi
-fi
+fi ## End of 'if [ -n "${__abs_exist_list}" ]'
 
 ##=========================================================
 ## Some final clean up if compilation (and possibly linking
@@ -487,11 +495,8 @@ if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
     echo "MIDAS_COMPILE_KEEP_LISTING=false"
     echo "(in your environment, profile or config.dot.sh)"
     echo " ... removing listings"
-    rm -rf ${__listing_frontend}
+    rm ${__listing_frontend}
+    [ -f ${__listing_frontend}.o ] && rm ${__listing_frontend}.o
 fi
-
-[ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
-
-rm -rf .compile_job
 
 printFooter

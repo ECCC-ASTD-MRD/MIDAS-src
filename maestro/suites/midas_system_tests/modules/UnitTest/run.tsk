@@ -150,7 +150,13 @@ fi
 
 status=0
 ./launch_program.sh ${vtune_args} --npex ${SEQ_NPEX} --npey ${SEQ_NPEY} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
-cat listing
+listingSize=$(stat --format="%s" listing)
+tenGigabytes=$((1024*1024*1024*10))
+if [[ "${listingSize}" < ${tenGigabytes} ]]; then
+    cat listing
+else
+    echo "The listing has a size bigger than 10GB.  We avoid to list it here.  You can find it in the working directory."
+fi
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
     ${MAESTRO_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you continue to work interactively."
@@ -201,14 +207,20 @@ else
 
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot isFileInList.sh
-    rm -f load_env.dot launch_program.sh launch_cmd listing localFilesNotToErase
+    rm -f load_env.dot launch_program.sh launch_cmd localFilesNotToErase
     rm -r mpitmpdir
-    [ -d obs ] && rm -r obs
-    [ -d obsfiles_split ] && rm -r obsfiles_split
+    [ -d obs               ] && rm -r obs
+    [ -d obsfiles_split    ] && rm -r obsfiles_split
     [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
 
-    ## put all the rest in 'output'
+    ## We hide temporarily the listing because we don't need it in '${TASK_OUTPUT}'
+    mv listing .listing
+
+    ## put all the rest in 'output' (except .listing)
     mv * ${TASK_OUTPUT}
+
+    ## Move back the listing to its original name after results have been moved to '${TASK_OUTPUT}'
+    mv .listing listing
 
     ## Check runtime
     if [ -n "${UnitTest_maximum_execution_time}" ]; then

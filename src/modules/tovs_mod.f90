@@ -5950,7 +5950,6 @@ contains
         errorStatus = errorStatus_success
 
         !  set nthreads to actual number of threads which will be used.
-
         nthreads = min(mmpi_numThread, profileCount)
         call rttov_parallel_tl(                             &
             errorStatus,                                    & ! out

@@ -1270,16 +1270,16 @@ contains
 
       if (vcode_out==5002 .or. vcode_out==5005) then
         ! output grid GEM-P interpolation in log-pressure
-        call czp_calcReturnPressure_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
+        call czp_calcReturnPressure_col_nl(columnInRef_ptr , hLikeT_in , hLikeM_in)
         call czp_calcReturnPressure_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
         hLikeT_in(:,:)  = -1.d0 * log(hLikeT_in(:,:))  ! -1 is to get increasing values when level decrease
         hLikeM_in(:,:)  = -1.d0 * log(hLikeM_in(:,:))
         hLikeT_out(:,:) = -1.d0 * log(hLikeT_out(:,:))
         hLikeM_out(:,:) = -1.d0 * log(hLikeM_out(:,:))
       else if (vcode_out==21001) then
-        ! output grid GEM-H interpolation in height
-        call czp_calcReturnHeight_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
-        call czp_calcReturnHeight_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
+        ! output grid GEM-H interpolation in geopotential height
+        call czp_calcReturnHeight_col_nl(columnInRef_ptr , hLikeT_in , hLikeM_in , heightType_opt='geopotHeight')
+        call czp_calcReturnHeight_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out, heightType_opt='geopotHeight')
       end if
 
       do columnIndex = 1, col_getNumCol(column_out)

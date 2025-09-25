@@ -4,11 +4,13 @@ set -euo pipefail
 
 typeset -r toplevel=${1:-$(git rev-parse --show-toplevel)}
 
-cat > ${TMPDIR}/abs.dot <<EOF
-MIDAS_toplevel=${toplevel}
-ABS_DIR=${MIDAS_COMPILE_DIR_MAIN:-${toplevel}/compiledir}/midas_abs >> abs.dot
-MIDAS_version=\$(cd ${toplevel}; ./midas.version)
-EOF
+echo "MIDAS_toplevel=${toplevel}" > ${TMPDIR}/abs.dot
+if [ "${MIDAS_COMPILE_DIR_MAIN:-}" = build_directory_local_to_the_repository -o -z "${MIDAS_COMPILE_DIR_MAIN:-}" ]; then
+    echo "ABS_DIR=${toplevel}/compiledir/midas_abs" >> ${TMPDIR}/abs.dot
+else
+    echo "ABS_DIR=${MIDAS_COMPILE_DIR_MAIN}/midas_abs" >> ${TMPDIR}/abs.dot
+fi
+echo "MIDAS_version=\$(cd ${toplevel}; ./midas.version)" >> ${TMPDIR}/abs.dot
 
 typeset -r absdotfile=${toplevel}/maestro/suites/midas_system_tests/abs.dot
 

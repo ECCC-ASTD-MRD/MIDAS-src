@@ -1213,14 +1213,14 @@ contains
     do k=1,ktrials
        if(cdvar.eq.'U1') then
           clnomvar_3='UT1'
-          ier = fstinl(kinmpg(k),INI,INJ, INK, kstampv, ' ', -1, -1, -1, &
+          ier = fstinl(kinmpg(k),INI,INJ, INK, -1, ' ', -1, -1, -1, &
                ' ',clnomvar_3,ikeys, knlev, knmaxlev)
        else if(cdvar.eq.'V1') then
           clnomvar_3='VT1'
-          ier = fstinl(kinmpg(k),ini,inj, ink, kstampv, ' ', -1, -1, -1, &
+          ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1, &
                ' ',clnomvar_3,ikeys, knlev, knmaxlev)
        else
-          ier = fstinl(kinmpg(k),INI,INJ, INK, kstampv, ' ', -1, -1, -1, &
+          ier = fstinl(kinmpg(k),INI,INJ, INK, -1, ' ', -1, -1, -1, &
                ' ',cdvar,IKEYS, KNLEV, knmaxlev)
        end if
        !

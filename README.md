@@ -19,15 +19,18 @@ The documentation for officially supported branches is available:
 * `v_4.0.0` release: includes non-backward compatible changes with respect to `v_3.9`
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_4.0.0/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_4.0.0)
+* `v_3.10` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
+* `v_3.10-RandD` branch: The code in this branch validates with `v_3.10` but contains new features for testing using IC-4 final cycles as the reference.
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10-RandD/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10-RandD)
 * `v_3.9` branch: related to IC-4 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 * `v_3.9-RandD` branch: The code in this branch validates with `v_3.9` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9-RandD/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
-* `v_3.7` branch: related to IC-3 release
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
 
 # Getting a local copy of the code
 
@@ -56,7 +59,7 @@ clone_projet --no-central -c v_4.0.0 git@gitlab.science.gc.ca:atmospheric-data-a
 To use this version, it is necessary to load LibRMN 20 utilities
 starting from version `rpn/utils/20231219`.
 
-## Getting code related to IC-4 implementation
+## Getting code related to IC-4 implementation on HPCR-U2
 
 The official code related to IC-4 implementation is available with the command:
 ```bash
@@ -84,49 +87,26 @@ git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
 git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
 ```
 
-## Getting code related to IC-3 implementation on HPCR-U2
+## Getting code related to IC-4 implementation on HPCR-U3
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.7
+clone_projet --no-central -c v_3.10 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10
 ```
 
-If you created a new branch with the GitLab web UI, then the branch
-has been created using the default branch which is `main`.  One must
-reset it to the release branch.  One can simply do:
+One can also use the branch `v_3.10-RandD`.  The code in this branch
+validates with `v_3.10` but contains new features for testing using
+IC-4 HPCR-U3 final cycles as the reference.
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
-cd midas-${ISSUE_NUMBER}
-git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
-git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
+clone_projet --no-central -c v_3.10-RandD git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10-RandD
 ```
 
 # Compiling MIDAS
 
 [`src/midas_build`](./src/README.md)
-is now the official compilation tool to build MIDAS.
-To proceed to compilation tasks, you should be in the `src/` directory.
-`midas_build` compiles by default on both platforms.
+is the official compilation tool to build MIDAS.
 
-## Compiling a single program
-To compile a single program on both platforms, do the following from the
-frontnode:
-```bash
-cd ${where_your_code_is}
-cd src
-./midas_build ${program_basename}.Abs
-```
-where `program_basename` is the **basename** of one the files with extention `.f90` in
-the sub-directory `src/programs` or [`splitobs`](./src/README.md#splitobs-an-external-program).
-If you installed the [auto-completion feature](./src/README.md#auto-completion)
-you can browse all install targets by pressing `<TAB>` following `./midas_build`.
-
-By default the binary will be installed in
-`${HOME}/data_maestro/ords/midas-bld/midas_abs/`
-(this can be [configured by environment variables](./src/README.md#configuring-the-compilation-and-linking-process)).
-
-## Compiling all programs
 To compile all programs (`src/programs/*.f90` as well as
 [`splitobs`](./src/README.md#splitobs-an-external-program)),
 simply do:
@@ -136,7 +116,8 @@ cd src
 ./midas_build
 ```
 
-## Complete documentation on using `midas_build` and `make`
+## Complete documentation on using `midas_build`, `cmake` and `make`
+
 If you are [contributing a new program, changing external dependencies](./src/README.md#adding-a-new-program-or-changing-external-dependencies),
 recompiling a lot or debugging the code,
 you should take the time to read the detailed instructions found in
