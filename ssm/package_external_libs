@@ -1,0 +1,257 @@
+#!/bin/bash
+
+## This script builds SSM package for external libraries MIDAS needs:
+##     f90sqlite
+##     udfsqlite
+##     perftools
+
+set -e
+
+SECONDS=0
+
+typeset -r scriptName=package_external_libs
+
+function say {
+    printf "${scriptName}: ${*}\n"
+} ## End of 'function say'
+
+function die {
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+getArg () {
+    set -e
+    if [ $# -le 1 ]; then
+        die "The option '$1' expects an argument"
+    fi
+    if [[ "$2" == -* ]]; then
+        die "The option '$1' expects an argument but have '$2'"
+    fi
+    echo $2
+} ## End of function 'getArg'
+
+args=
+while [ $# -gt 0 ]; do
+    if [ "${1}" = --lib ]; then
+        libs=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --pkgname ]; then
+        pkgname=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --compiler ]; then
+        pkgname=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --platform ]; then
+        platform=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --version ]; then
+        version=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --ssmpkgdestination ]; then
+        ssmpkgdestination=$(getArg $1 $2)
+        shift
+    elif [ "${1}" = --workdir ]; then
+        workdir=$(getArg $1 $2)
+        shift
+    else
+        args="${args} ${1}"
+    fi
+    shift
+done
+
+if [ -n "${args}" ]; then
+    die "Those arguments '${args}' have not been digested by the option parser"
+fi
+
+if [ -z "${libs}" ]; then
+    libs="udfsqlite f90sqlite perftools hdf5 netcdf4"
+    libs="hdf5 netcdf4"
+    libs=hdf5
+fi
+
+for optionarg in pkgname compiler platform src version ssmpkgdestination workdir; do
+    eval optionvalue="\${${optionarg}}"
+    if [ -z "${optionvalue}" ]; then
+        die "The option '--${optionarg}' should be specified and non-empty"
+    fi
+done
+
+
+build_control_file() {
+    set -e
+    typeset -r version=${1}
+    typeset -r src=${2}
+
+    __build_control_file_srcinfo__="git clone -b ${version} ${src}"
+    __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; HOW TO COMPILE THE LIBRARY"
+
+    if [ "${platform}" = all ]; then
+        __build_control_file_buildplatform__=${ORDENV_PLAT}
+    else
+        __build_control_file_buildplatform__=${platform}
+    fi
+
+    cat <<EOF
+{
+    "name": "$(echo ${pkgname} | cut -d_ -f1)",
+    "package": "${pkgname}",
+    "version": "${version}",
+    "platform": "${platform}",
+    "maintainer": "RPN-AD",
+    "x-build-user": "${USER}",
+    "x-build-platform": "${__build_control_file_buildplatform__}",
+    "x-buildinfo": "${__build_control_file_buildinfo__}",
+    "summary": "Modular and Integrated Data Assimilation System (MIDAS)",
+    "build_info": "${__build_control_file_buildinfo__}"
+}
+EOF
+
+    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__ __build_control_file_buildplatform__
+} ## End of function 'build_control_file'
+
+load_compiler() {
+    typeset -r compiler=${1}
+
+    if [ "${__compiler}" = inteloneapi-2022.1.2 ]; then
+        typeset compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+    elif [ "${__compiler}" = gnu-14.2.0 -o "${__compiler}" = gnu-15.1.0 -o "${__compiler}" = nvhpc-25.3.0 ]; then
+        typeset compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
+        export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
+    else
+        die "The compiler '${compiler}' is not supported!"
+    fi
+
+    say "... loading ${compiler_path}"
+    . r.load.dot ${compiler_path}
+} ## End of function 'load_compiler()'
+
+
+download_lib() {
+    typeset -r lib=${1}
+    typeset -r version=${2}
+    typeset -r workdir=${3}
+
+    if [ "${lib}" = hdf5 ]; then
+        mkdir -p ${workdir}/${lib}
+        wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_${version}.zip -O ${workdir}/${lib}/hdf5_${version}.zip
+        unzip -q ${workdir}/${lib}/hdf5_${version}.zip -d ${workdir}/${lib}
+    elif [ "${lib}" = netcdf4 ]; then
+        git clone --config advice.detachedHead=false --branch ${version} https://github.com/Unidata/netcdf-c.git ${workdir}/${lib}
+    else
+        die "(download_lib) This library '${lib}' is not supported!ù"
+    fi
+} ## End of function 'download_lib()'
+
+build_lib() {
+    typeset -r lib=${1}
+    typeset -r version=${2}
+    typeset -r pkgname=${2}
+    typeset -r workdir=${4}
+
+    mkdir ${workdir}/${lib}/build
+    cd ${workdir}/${lib}/build
+
+    if [ "${lib}" = hdf5 ]; then
+        ## Setting '-DHDF5_ENABLE_ZLIB_SUPPORT=ON' at the 'cmake' call
+        ## generates this warning:
+        ##     CMake Warning:
+        ##       Manually-specified variables were not used by the project:
+        ##
+        ##         HDF5_ENABLE_ZLIB_SUPPORT
+
+        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DHDF5_BUILD_CPP_LIB=OFF \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DHDF5_ENABLE_SZIP_SUPPORT=OFF \
+              ${workdir}/${lib}/hdf5_${version}
+
+        make -j install
+    else
+        die "(build_lib) This library '${lib}' is not supported!ù"
+    fi
+}
+
+#install_lib() {
+#    set -e
+#
+#    typeset -r __install_builddir__=${1}
+#
+#    echo ">>> building the install directory for programs on platform ${platform} in ${__install_builddir__}"
+#
+#    ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
+#    for prog in ${midastoplevel}/src/programs/*.f90; do
+#        progname=$(basename ${prog} .f90)
+#        absname=midas-${progname}_${platform}-${version}.Abs
+#        cp ${midasabs}/${absname} ${__install_builddir__}
+#        ln -sf ${absname} ${__install_builddir__}/midas-${progname}.Abs
+#    done
+#
+#    ## install MIDAS tools with prefix 'midas.'
+#    progname=midas.splitobs
+#    cp ${midasabs}/${progname}_${platform}-${version}.Abs ${__install_builddir__}
+#    ln -s ${progname}_${platform}-${version}.Abs ${__install_builddir__}/${progname}.Abs
+#
+#    ## install 'midas-config' script which informs the user about the
+#    ## building process
+#    cp ${midasabs}/midas-config ${__install_builddir__}
+#} ## End of function 'install_lib'
+
+#install_scripts() {
+#    set -e
+#
+#    __install_builddir__=${1}
+#
+#    echo ">>> building the install directory for scripts in ${__install_builddir__}"
+#
+#    ## install scripts to be published for 'all' platform
+#    for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
+#                  ${midastoplevel}/tools/timingTool/midas.timingTool \
+#                  ${midastoplevel}/tools/midas_scripts/midas.*; do
+#        bscript=$(basename ${script})
+#        cp ${script} ${__install_builddir__}/${bscript}_${version}
+#        ln -s ${bscript}_${version} ${__install_builddir__}/${bscript}
+#    done
+#
+#    ## The program 'midas.monitor' does not need to be compiled on a specific platform
+#    progname=midas.monitor
+#    absname=${progname}-${version}.Abs
+#    cp ${midasabs}/${absname} ${INSTALL_DIR}
+#    ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
+#
+#    unset __install_builddir__
+#} ## End of function 'install_scripts'
+
+build_ssm_package() {
+    set -e
+
+    typeset -r lib=${1}
+    typeset -r pkgname=${2}
+    typeset -r ssmpkg_destination=${3}
+    typeset -r workdir=${4}
+
+    mkdir -p ${workdir}/${pkgname}/.ssm.d
+    say "Building the SSM control file"
+    build_control_file ${lib} > ${workdir}/${pkgname}/.ssm.d/control.json
+
+    say "Building the SSM tarball in ${__build_ssmpkg_dir__}"
+
+    cd ${workdir}
+    tar cvfzh ${pkgname}.ssm ${pkgname}
+
+    cp ${pkgname}.ssm ${ssmpkg_destination}
+
+    say "The SSM package '${pkgname}.ssm' is available in directory ${ssmpkg_destination}"
+} ## End of function 'build_ssm_package'
+
+INSTALL_DIR=${workdir}/${pkgname}/bin
+mkdir -p ${INSTALL_DIR}
+
+for lib in ${libs}; do
+    download_lib ${lib} ${workdir}
+    build_lib    ${lib} ${workdir}
+    build_ssm_package ${lib} ${pkgname} ${ssmpkgdestination} ${workdir}
+done
+
+cd
+rm -r ${workdir}
