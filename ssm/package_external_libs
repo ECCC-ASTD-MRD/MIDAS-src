@@ -96,8 +96,12 @@ build_control_file() {
         typeset -r description="NetCDF (network Common Data Form) is a set of interfaces for array-oriented data access and a freely distributed collection of data access libraries for C, Fortran, C++, Java, and other languages. The netCDF libraries support a machine-independent format for representing scientific data. Together, the interfaces, libraries, and format support the creation, access, and sharing of scientific data. The main Website is: http://www.unidata.ucar.edu/software/netcdf"
     elif [[ "${lib}" = perftools ]]; then
         typeset -r summary="MPI-aware timing library"
-        typeset -r maintainer="michel.beland@ssc-spc.gc.ca"
+        typeset -r maintainer="Michel Beland <michel.beland@ssc-spc.gc.ca>"
         typeset -r description="Timing library inspired by the hpm timing package on IBM Power systems under AIX."
+    elif [[ "${lib}" = udfsqlite ]]; then
+        typeset -r summary="Supplementary SQL functions"
+        typeset -r maintainer="Anthony Chartier <anthony.chartier@canada.ca>"
+        typeset -r description="SQLite User Defined Functions add-on"
     else
         die "(build_control_file) This library '${lib}' is not supported!ù"
     fi
@@ -122,13 +126,26 @@ EOF
 } ## End of function 'build_control_file'
 
 load_compiler() {
+    ## This function initiliazed the variables 'CLANG_COMPILER' and
+    ## 'FORTRAN_COMPILER' which contains the C compiler and Fortran
+    ## compiler, respectively.
     typeset -r compiler=${1}
 
-    if [ "${compiler}" = inteloneapi-2022.1.2 ]; then
+    if [[ "${compiler}" = inteloneapi-2022.1.2 ]]; then
         typeset compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
-    elif [ "${compiler}" = gnu-14.2.0 -o "${compiler}" = gnu-15.1.0 -o "${compiler}" = nvhpc-25.3.0 ]; then
+        CLANG_COMPILER=icc
+        FORTRAN_COMPILER=ifort
+    elif [[ "${compiler}" = gnu-14.2.0 || "${compiler}" = gnu-15.1.0 || "${compiler}" = nvhpc-25.3.0 ]]; then
         typeset compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
+
+        if [[ "${compiler}" = nvhpc-25.3.0 ]]; then
+            CLANG_COMPILER=nvcc
+            FORTRAN_COMPILER=nvfortran
+        else
+            CLANG_COMPILER=gcc
+            FORTRAN_COMPILER=gfortran
+        fi
     else
         die "(load_compiler) The compiler '${compiler}' is not supported!"
     fi
@@ -153,6 +170,8 @@ download_lib() {
         git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-fortran.git ${workdir}/${lib}/src
     elif [ "${lib}" = perftools ]; then
         git clone --config advice.detachedHead=false --branch v${version} git@gitlab.science.gc.ca:perftools/perftools.git ${workdir}/${lib}
+    elif [ "${lib}" = udfsqlite ]; then
+        git clone --config advice.detachedHead=false --branch ${version} git@gitlab.science.gc.ca:wxobs-libs/libudfsqlite.git ${workdir}/${lib}
     else
         die "(download_lib) This library '${lib}' is not supported!ù"
     fi
@@ -212,6 +231,19 @@ build_lib() {
         cd ${workdir}/${lib}/src
         make
         INSTALL_DIR=${workdir}/${pkgname} make install
+    elif [ "${lib}" = udfsqlite ]; then
+        . r.load.dot eccc/mrd/rpn/libs/20251009-beta
+
+        cd ${workdir}/${lib}/src
+
+        ${CLANG_COMPILER} -o libudfsqlite.a -c udfsqlite.c -DSQLITE_CORE
+
+        mkdir ${workdir}/${pkgname}
+        mkdir ${workdir}/${pkgname}/lib
+        mv libudfsqlite.a ${workdir}/${pkgname}/lib
+
+        mkdir ${workdir}/${pkgname}/include
+        cp udfsqlite.h ${workdir}/${pkgname}/include
     else
         die "(build_lib) This library '${lib}' is not supported"
     fi
@@ -251,6 +283,8 @@ find_version() {
         echo 4.6.2
     elif [ "${lib}" = perftools ]; then
         echo 2.1
+    elif [ "${lib}" = udfsqlite ]; then
+        echo 1.19
     else
         die "(find_version) This library '${lib}' is not supported!ù"
     fi
