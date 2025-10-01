@@ -219,11 +219,14 @@ build_lib() {
               ${workdir}/${lib}/src
 
         make -j install
+
+        ## SSM does not recognize 'lib64' so rename it to 'lib'
+        mv ${workdir}/${pkgname}/lib64 ${workdir}/${pkgname}/lib
     elif [ "${lib}" = netcdf-fortran ]; then
         typeset -r netcdfc_version=$(find_version netcdf-c)
         typeset -r netcdfc_pkgname=$(package_name netcdf-c ${netcdfc_version} ${compiler})
         typeset -r netcfc_c_include=${workdir}/${netcdfc_pkgname}/include
-        typeset -r netcfc_c_lib=${workdir}/${netcdfc_pkgname}/lib64/libnetcdf.so
+        typeset -r netcfc_c_lib=${workdir}/${netcdfc_pkgname}/lib/libnetcdf.so
         if [[ ! -d "${netcfc_c_include}" || ! -f "${netcfc_c_lib}" ]]; then
            die "(build_lib) To build 'netcdf-fortran' you must 'netcdf-c' must be build first"
         fi
@@ -235,6 +238,9 @@ build_lib() {
               ${workdir}/${lib}/src
 
         make -j install
+
+        ## SSM does not recognize 'lib64' so rename it to 'lib'
+        mv ${workdir}/${pkgname}/lib64/* ${workdir}/${pkgname}/lib
     elif [ "${lib}" = perftools ]; then
         cd ${workdir}/${lib}/src
         make
