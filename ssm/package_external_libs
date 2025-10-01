@@ -94,6 +94,10 @@ build_control_file() {
         typeset -r summary="NetCDF library"
         typeset -r maintainer="MIDAS maintainers"
         typeset -r description="NetCDF (network Common Data Form) is a set of interfaces for array-oriented data access and a freely distributed collection of data access libraries for C, Fortran, C++, Java, and other languages. The netCDF libraries support a machine-independent format for representing scientific data. Together, the interfaces, libraries, and format support the creation, access, and sharing of scientific data. The main Website is: http://www.unidata.ucar.edu/software/netcdf"
+    elif [[ "${lib}" = perftools ]]; then
+        typeset -r summary="MPI-aware timing library"
+        typeset -r maintainer="michel.beland@ssc-spc.gc.ca"
+        typeset -r description="Timing library inspired by the hpm timing package on IBM Power systems under AIX."
     else
         die "(build_control_file) This library '${lib}' is not supported!ù"
     fi
@@ -103,15 +107,16 @@ build_control_file() {
   "name": "$(echo ${pkgname} | cut -d_ -f1)",
   "package": "${pkgname}",
   "version": "${version}-${compiler}",
+  "platform": "${ORDENV_PLAT}",
   "summary": "${summary}",
   "maintainer": "${maintainer}",
   "description": "${description}",
+  "build-script": "ssm/package_external_libs from MIDAS",
   "x-build-platform": "${ORDENV_PLAT}",
   "x-build-date": "$(date)",
-  "platform": "${ORDENV_PLAT}",
   "x-build-host": "$(hostname)",
   "x-build-user": "${USER}",
-  "x-build-uname": "('Linux', 'inter-nrc-ubuntu2004.science.gc.ca', '5.4.0-96-generic', '#109-Ubuntu SMP Wed Jan 12 16:49:16 UTC 2022', 'x86_64')",
+  "x-build-uname": "$(python3 -c 'import os; print(os.uname())')"
 }
 EOF
 } ## End of function 'build_control_file'
@@ -146,6 +151,8 @@ download_lib() {
         git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-c.git ${workdir}/${lib}/src
     elif [ "${lib}" = netcdf-fortran ]; then
         git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-fortran.git ${workdir}/${lib}/src
+    elif [ "${lib}" = perftools ]; then
+        git clone --config advice.detachedHead=false --branch v${version} git@gitlab.science.gc.ca:perftools/perftools.git ${workdir}/${lib}
     else
         die "(download_lib) This library '${lib}' is not supported!ù"
     fi
@@ -201,60 +208,14 @@ build_lib() {
               ${workdir}/${lib}/src
 
         make -j install
+    elif [ "${lib}" = perftools ]; then
+        cd ${workdir}/${lib}/src
+        make
+        INSTALL_DIR=${workdir}/${pkgname} make install
     else
         die "(build_lib) This library '${lib}' is not supported"
     fi
 }
-
-#install_lib() {
-#    set -e
-#
-#    typeset -r __install_builddir__=${1}
-#
-#    echo ">>> building the install directory for programs on platform ${platform} in ${__install_builddir__}"
-#
-#    ## install MIDAS programs build with MIDAS fortran modules with prefix 'midas-'
-#    for prog in ${midastoplevel}/src/programs/*.f90; do
-#        progname=$(basename ${prog} .f90)
-#        absname=midas-${progname}_${platform}-${version}.Abs
-#        cp ${midasabs}/${absname} ${__install_builddir__}
-#        ln -sf ${absname} ${__install_builddir__}/midas-${progname}.Abs
-#    done
-#
-#    ## install MIDAS tools with prefix 'midas.'
-#    progname=midas.splitobs
-#    cp ${midasabs}/${progname}_${platform}-${version}.Abs ${__install_builddir__}
-#    ln -s ${progname}_${platform}-${version}.Abs ${__install_builddir__}/${progname}.Abs
-#
-#    ## install 'midas-config' script which informs the user about the
-#    ## building process
-#    cp ${midasabs}/midas-config ${__install_builddir__}
-#} ## End of function 'install_lib'
-
-#install_scripts() {
-#    set -e
-#
-#    __install_builddir__=${1}
-#
-#    echo ">>> building the install directory for scripts in ${__install_builddir__}"
-#
-#    ## install scripts to be published for 'all' platform
-#    for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
-#                  ${midastoplevel}/tools/timingTool/midas.timingTool \
-#                  ${midastoplevel}/tools/midas_scripts/midas.*; do
-#        bscript=$(basename ${script})
-#        cp ${script} ${__install_builddir__}/${bscript}_${version}
-#        ln -s ${bscript}_${version} ${__install_builddir__}/${bscript}
-#    done
-#
-#    ## The program 'midas.monitor' does not need to be compiled on a specific platform
-#    progname=midas.monitor
-#    absname=${progname}-${version}.Abs
-#    cp ${midasabs}/${absname} ${INSTALL_DIR}
-#    ln -sf ${absname} ${INSTALL_DIR}/${progname}.Abs
-#
-#    unset __install_builddir__
-#} ## End of function 'install_scripts'
 
 build_ssm_package() {
     set -e
@@ -288,6 +249,8 @@ find_version() {
         echo 4.8.1
     elif [ "${lib}" = netcdf-fortran ]; then
         echo 4.6.2
+    elif [ "${lib}" = perftools ]; then
+        echo 2.1
     else
         die "(find_version) This library '${lib}' is not supported!ù"
     fi
