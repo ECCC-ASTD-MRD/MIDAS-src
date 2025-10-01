@@ -102,6 +102,10 @@ build_control_file() {
         typeset -r summary="Supplementary SQL functions"
         typeset -r maintainer="Anthony Chartier <anthony.chartier@canada.ca>"
         typeset -r description="SQLite User Defined Functions add-on"
+    elif [[ "${lib}" = f90sqlite ]]; then
+        typeset -r summary="Fortran interface for SQLite"
+        typeset -r maintainer="Anthony Chartier <anthony.chartier@canada.ca>"
+        typeset -r description="Fortran interface for SQLite"
     else
         die "(build_control_file) This library '${lib}' is not supported!ù"
     fi
@@ -172,6 +176,8 @@ download_lib() {
         git clone --config advice.detachedHead=false --branch v${version} git@gitlab.science.gc.ca:perftools/perftools.git ${workdir}/${lib}
     elif [ "${lib}" = udfsqlite ]; then
         git clone --config advice.detachedHead=false --branch ${version} git@gitlab.science.gc.ca:wxobs-libs/libudfsqlite.git ${workdir}/${lib}
+    elif [[ "${lib}" = f90sqlite ]]; then
+        git clone --config advice.detachedHead=false --branch ${version} git@gitlab.science.gc.ca:wxobs-libs/libf90sqlite.git ${workdir}/${lib}
     else
         die "(download_lib) This library '${lib}' is not supported!ù"
     fi
@@ -217,7 +223,7 @@ build_lib() {
         typeset -r netcfc_c_include=${workdir}/${netcdfc_pkgname}/include
         typeset -r netcfc_c_lib=${workdir}/${netcdfc_pkgname}/lib64/libnetcdf.so
         if [[ ! -d "${netcfc_c_include}" || ! -f "${netcfc_c_lib}" ]]; then
-           die "(build_lib) To build netcdf-fortran you must 'netcdf-c' must be build first"
+           die "(build_lib) To build 'netcdf-fortran' you must 'netcdf-c' must be build first"
         fi
 
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
@@ -244,6 +250,26 @@ build_lib() {
 
         mkdir ${workdir}/${pkgname}/include
         cp udfsqlite.h ${workdir}/${pkgname}/include
+    elif [ "${lib}" = f90sqlite ]; then
+        typeset -r udfsqlite_version=$(find_version udfsqlite)
+        typeset -r udfsqlite_pkgname=$(package_name udfsqlite ${udfsqlite_version} ${compiler})
+        typeset -r udfsqlite_include=${workdir}/${udfsqlite_pkgname}/include
+        if [[ ! -d "${udfsqlite_include}" ]]; then
+           die "(build_lib) To build 'f90sqlite' you must 'udfsqlite' must be build first"
+        fi
+
+        cd ${workdir}/${lib}/src
+
+        ${CLANG_COMPILER} -o csqlite.o -I${udfsqlite_include} -c csqlite.c
+        ${FORTRAN_COMPILER} -o fsqlite.o -c fsqlite.f90
+        ar -r libf90sqlite.a csqlite.o fsqlite.o
+
+        mkdir ${workdir}/${pkgname}
+        mkdir ${workdir}/${pkgname}/lib
+        mv libf90sqlite.a ${workdir}/${pkgname}/lib
+
+        mkdir ${workdir}/${pkgname}/include
+        cp *.mod ${workdir}/${pkgname}/include
     else
         die "(build_lib) This library '${lib}' is not supported"
     fi
@@ -285,6 +311,8 @@ find_version() {
         echo 2.1
     elif [ "${lib}" = udfsqlite ]; then
         echo 1.19
+    elif [ "${lib}" = f90sqlite ]; then
+        echo 1.5
     else
         die "(find_version) This library '${lib}' is not supported!ù"
     fi
