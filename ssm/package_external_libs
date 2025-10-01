@@ -56,9 +56,10 @@ if [ -n "${args}" ]; then
 fi
 
 if [ -z "${libs}" ]; then
-    libs="udfsqlite f90sqlite perftools hdf5 netcdf4"
-    libs="hdf5 netcdf4"
-    libs=hdf5
+    libs="udfsqlite f90sqlite perftools hdf5 netcdf-c netcdf-fortran"
+    libs="hdf5 netcdf-c netcdf-fortran"
+    #libs=hdf5
+    #libs=netcdf-c
 fi
 
 for optionarg in libs compiler ssmpkgdestination workdir; do
@@ -85,15 +86,26 @@ build_control_file() {
     typeset -r version=${2}
     typeset -r compiler=${3}
 
-    if [ "${lib}" = hdf5 ]; then
+    if [[ "${lib}" = hdf5 ]]; then
+        typeset -r summary="HDF5 library"
+        typeset -r maintainer="MIDAS maintainers"
+        typeset -r description="HDF5 is a data model, library, and file format for storing and managing data. It supports an unlimited variety of datatypes, and is designed for flexible and efficient I/O and for high volume and complex data. HDF5 is portable and is extensible, allowing applications to evolve in their use of HDF5. The HDF5 Technology suite includes tools and applications for managing, manipulating, viewing, and analyzing data in the HDF5 format. Please see https://support.hdfgroup.org/HDF5/ for more info."
+    elif [[ "${lib}" =~ ^netcdf-.* ]]; then
+        typeset -r summary="NetCDF library"
+        typeset -r maintainer="MIDAS maintainers"
+        typeset -r description="NetCDF (network Common Data Form) is a set of interfaces for array-oriented data access and a freely distributed collection of data access libraries for C, Fortran, C++, Java, and other languages. The netCDF libraries support a machine-independent format for representing scientific data. Together, the interfaces, libraries, and format support the creation, access, and sharing of scientific data. The main Website is: http://www.unidata.ucar.edu/software/netcdf"
+    else
+        die "(build_control_file) This library '${lib}' is not supported!ù"
+    fi
+
         cat <<EOF
 {
   "name": "$(echo ${pkgname} | cut -d_ -f1)",
   "package": "${pkgname}",
   "version": "${version}-${compiler}",
-  "summary": "HDF5 library",
-  "maintainer": "MIDAS maintainers",
-  "description": "HDF5 is a data model, library, and file format for storing and managing data. It supports an unlimited variety of datatypes, and is designed for flexible and efficient I/O and for high volume and complex data. HDF5 is portable and is extensible, allowing applications to evolve in their use of HDF5. The HDF5 Technology suite includes tools and applications for managing, manipulating, viewing, and analyzing data in the HDF5 format. Please see https://support.hdfgroup.org/HDF5/ for more info.",
+  "summary": "${summary}",
+  "maintainer": "${maintainer}",
+  "description": "${description}",
   "x-build-platform": "${ORDENV_PLAT}",
   "x-build-date": "$(date)",
   "platform": "${ORDENV_PLAT}",
@@ -102,9 +114,6 @@ build_control_file() {
   "x-build-uname": "('Linux', 'inter-nrc-ubuntu2004.science.gc.ca', '5.4.0-96-generic', '#109-Ubuntu SMP Wed Jan 12 16:49:16 UTC 2022', 'x86_64')",
 }
 EOF
-    else
-        die "(build_control_file) This library '${lib}' is not supported!ù"
-    fi
 } ## End of function 'build_control_file'
 
 load_compiler() {
@@ -133,8 +142,10 @@ download_lib() {
         mkdir ${workdir}/${lib}
         wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_${version}.zip -O ${workdir}/${lib}/hdf5_${version}.zip
         unzip -q ${workdir}/${lib}/hdf5_${version}.zip -d ${workdir}/${lib}
-    elif [ "${lib}" = netcdf4 ]; then
-        git clone --config advice.detachedHead=false --branch ${version} https://github.com/Unidata/netcdf-c.git ${workdir}/${lib}
+    elif [ "${lib}" = netcdf-c ]; then
+        git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-c.git ${workdir}/${lib}/src
+    elif [ "${lib}" = netcdf-fortran ]; then
+        git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-fortran.git ${workdir}/${lib}/src
     else
         die "(download_lib) This library '${lib}' is not supported!ù"
     fi
@@ -143,8 +154,9 @@ download_lib() {
 build_lib() {
     typeset -r lib=${1}
     typeset -r version=${2}
-    typeset -r pkgname=${3}
-    typeset -r workdir=${4}
+    typeset -r compiler=${3}
+    typeset -r pkgname=${4}
+    typeset -r workdir=${5}
 
     mkdir ${workdir}/${lib}/build
     cd ${workdir}/${lib}/build
@@ -164,6 +176,27 @@ build_lib() {
               -DBUILD_SHARED_LIBS=OFF \
               -DHDF5_ENABLE_SZIP_SUPPORT=OFF \
               ${workdir}/${lib}/hdf5-hdf5_${version}
+
+        make -j install
+    elif [ "${lib}" = netcdf-c ]; then
+        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DENABLE_NETCDF_4=ON \
+              ${workdir}/${lib}/src
+
+        make -j install
+    elif [ "${lib}" = netcdf-fortran ]; then
+        typeset -r netcdfc_version=$(find_version netcdf-c)
+        typeset -r netcdfc_pkgname=$(package_name netcdf-c ${netcdfc_version} ${compiler})
+        typeset -r netcfc_c_include=${workdir}/${netcdfc_pkgname}/include
+        typeset -r netcfc_c_lib=${workdir}/${netcdfc_pkgname}/lib64/libnetcdf.so
+        if [[ ! -d "${netcfc_c_include}" || ! -f "${netcfc_c_lib}" ]]; then
+           die "(build_lib) To build netcdf-fortran you must 'netcdf-c' must be build first"
+        fi
+
+        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DNETCDF_C_INCLUDE_DIR=${netcfc_c_include}   \
+              -DNETCDF_C_LIBRARY=${netcfc_c_lib}           \
+              ${workdir}/${lib}/src
 
         make -j install
     else
@@ -249,6 +282,10 @@ find_version() {
 
     if [ "${lib}" = hdf5 ]; then
         echo 1.14.6
+    elif [ "${lib}" = netcdf-c ]; then
+        echo 4.8.1
+    elif [ "${lib}" = netcdf-fortran ]; then
+        echo 4.4.5
     else
         die "(find_version) This library '${lib}' is not supported!ù"
     fi
@@ -259,7 +296,7 @@ package_name() {
     typeset -r version=${2}
     typeset -r compiler=${3}
 
-    echo ${lib}_${version}-${compiler}_${ORDENVPLAT}
+    echo ${lib}_${version}-${compiler}_${ORDENV_PLAT}
 } ## End of function 'package_name'
 
 load_compiler ${compiler}
@@ -269,7 +306,7 @@ for lib in ${libs}; do
     pkgname=$(package_name ${lib} ${version} ${compiler})
 
     download_lib      ${lib} ${version} ${workdir}
-    build_lib         ${lib} ${version} ${pkgname} ${workdir}
+    build_lib         ${lib} ${version} ${compiler} ${pkgname} ${workdir}
     build_ssm_package ${lib} ${version} ${compiler} ${pkgname} ${ssmpkgdestination} ${workdir}
 done
 
