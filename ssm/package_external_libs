@@ -57,9 +57,11 @@ fi
 
 if [ -z "${libs}" ]; then
     libs="udfsqlite f90sqlite perftools hdf5 netcdf-c netcdf-fortran"
-    libs="hdf5 netcdf-c netcdf-fortran"
+    #libs="perftools hdf5 netcdf-c netcdf-fortran"
     #libs=hdf5
     #libs=netcdf-c
+    #libs=perftools
+    #libs="udfsqlite f90sqlite"
 fi
 
 for optionarg in libs compiler ssmpkgdestination workdir; do
