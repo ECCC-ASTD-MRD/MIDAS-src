@@ -172,9 +172,10 @@ build_lib() {
         ##         HDF5_ENABLE_ZLIB_SUPPORT
 
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
-              -DHDF5_BUILD_CPP_LIB=OFF \
-              -DBUILD_SHARED_LIBS=OFF \
-              -DHDF5_ENABLE_SZIP_SUPPORT=OFF \
+              -DHDF5_BUILD_FORTRAN=ON                      \
+              -DHDF5_BUILD_CPP_LIB=OFF                     \
+              -DBUILD_SHARED_LIBS=OFF                      \
+              -DHDF5_ENABLE_SZIP_SUPPORT=OFF               \
               ${workdir}/${lib}/hdf5-hdf5_${version}
 
         make -j install
@@ -196,6 +197,7 @@ build_lib() {
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DNETCDF_C_INCLUDE_DIR=${netcfc_c_include}   \
               -DNETCDF_C_LIBRARY=${netcfc_c_lib}           \
+              -DBUILD_SHARED_LIBS=off                      \
               ${workdir}/${lib}/src
 
         make -j install
