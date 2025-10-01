@@ -33,20 +33,11 @@ getArg () {
 
 args=
 while [ $# -gt 0 ]; do
-    if [ "${1}" = --lib ]; then
+    if [ "${1}" = --libs ]; then
         libs=$(getArg $1 $2)
         shift
-    elif [ "${1}" = --pkgname ]; then
-        pkgname=$(getArg $1 $2)
-        shift
     elif [ "${1}" = --compiler ]; then
-        pkgname=$(getArg $1 $2)
-        shift
-    elif [ "${1}" = --platform ]; then
-        platform=$(getArg $1 $2)
-        shift
-    elif [ "${1}" = --version ]; then
-        version=$(getArg $1 $2)
+        compiler=$(getArg $1 $2)
         shift
     elif [ "${1}" = --ssmpkgdestination ]; then
         ssmpkgdestination=$(getArg $1 $2)
@@ -70,56 +61,62 @@ if [ -z "${libs}" ]; then
     libs=hdf5
 fi
 
-for optionarg in pkgname compiler platform src version ssmpkgdestination workdir; do
+for optionarg in libs compiler ssmpkgdestination workdir; do
     eval optionvalue="\${${optionarg}}"
     if [ -z "${optionvalue}" ]; then
         die "The option '--${optionarg}' should be specified and non-empty"
     fi
 done
 
+if [[ -d "${workdir}" ]]; then
+    die "The workdir directory ${workdir} exists!"
+fi
+mkdir -p ${workdir}
+
+if [[ ! -d "${ssmpkgdestination}" ]]; then
+    say "Creating '${ssmpkgdestination}'"
+    mkdir -p ${ssmpkgdestination}
+fi
 
 build_control_file() {
     set -e
-    typeset -r version=${1}
-    typeset -r src=${2}
 
-    __build_control_file_srcinfo__="git clone -b ${version} ${src}"
-    __build_control_file_buildinfo__="${__build_control_file_srcinfo__}; HOW TO COMPILE THE LIBRARY"
+    typeset -r lib=${1}
+    typeset -r version=${2}
+    typeset -r compiler=${3}
 
-    if [ "${platform}" = all ]; then
-        __build_control_file_buildplatform__=${ORDENV_PLAT}
-    else
-        __build_control_file_buildplatform__=${platform}
-    fi
-
-    cat <<EOF
+    if [ "${lib}" = hdf5 ]; then
+        cat <<EOF
 {
-    "name": "$(echo ${pkgname} | cut -d_ -f1)",
-    "package": "${pkgname}",
-    "version": "${version}",
-    "platform": "${platform}",
-    "maintainer": "RPN-AD",
-    "x-build-user": "${USER}",
-    "x-build-platform": "${__build_control_file_buildplatform__}",
-    "x-buildinfo": "${__build_control_file_buildinfo__}",
-    "summary": "Modular and Integrated Data Assimilation System (MIDAS)",
-    "build_info": "${__build_control_file_buildinfo__}"
+  "name": "$(echo ${pkgname} | cut -d_ -f1)",
+  "package": "${pkgname}",
+  "version": "${version}-${compiler}",
+  "summary": "HDF5 library",
+  "maintainer": "MIDAS maintainers",
+  "description": "HDF5 is a data model, library, and file format for storing and managing data. It supports an unlimited variety of datatypes, and is designed for flexible and efficient I/O and for high volume and complex data. HDF5 is portable and is extensible, allowing applications to evolve in their use of HDF5. The HDF5 Technology suite includes tools and applications for managing, manipulating, viewing, and analyzing data in the HDF5 format. Please see https://support.hdfgroup.org/HDF5/ for more info.",
+  "x-build-platform": "${ORDENV_PLAT}",
+  "x-build-date": "$(date)",
+  "platform": "${ORDENV_PLAT}",
+  "x-build-host": "$(hostname)",
+  "x-build-user": "${USER}",
+  "x-build-uname": "('Linux', 'inter-nrc-ubuntu2004.science.gc.ca', '5.4.0-96-generic', '#109-Ubuntu SMP Wed Jan 12 16:49:16 UTC 2022', 'x86_64')",
 }
 EOF
-
-    unset __build_control_file_srcinfo__ __build_control_file_buildinfo__ __build_control_file_buildplatform__
+    else
+        die "(build_control_file) This library '${lib}' is not supported!ù"
+    fi
 } ## End of function 'build_control_file'
 
 load_compiler() {
     typeset -r compiler=${1}
 
-    if [ "${__compiler}" = inteloneapi-2022.1.2 ]; then
+    if [ "${compiler}" = inteloneapi-2022.1.2 ]; then
         typeset compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
-    elif [ "${__compiler}" = gnu-14.2.0 -o "${__compiler}" = gnu-15.1.0 -o "${__compiler}" = nvhpc-25.3.0 ]; then
+    elif [ "${compiler}" = gnu-14.2.0 -o "${compiler}" = gnu-15.1.0 -o "${compiler}" = nvhpc-25.3.0 ]; then
         typeset compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
     else
-        die "The compiler '${compiler}' is not supported!"
+        die "(load_compiler) The compiler '${compiler}' is not supported!"
     fi
 
     say "... loading ${compiler_path}"
@@ -133,7 +130,7 @@ download_lib() {
     typeset -r workdir=${3}
 
     if [ "${lib}" = hdf5 ]; then
-        mkdir -p ${workdir}/${lib}
+        mkdir ${workdir}/${lib}
         wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_${version}.zip -O ${workdir}/${lib}/hdf5_${version}.zip
         unzip -q ${workdir}/${lib}/hdf5_${version}.zip -d ${workdir}/${lib}
     elif [ "${lib}" = netcdf4 ]; then
@@ -146,13 +143,15 @@ download_lib() {
 build_lib() {
     typeset -r lib=${1}
     typeset -r version=${2}
-    typeset -r pkgname=${2}
+    typeset -r pkgname=${3}
     typeset -r workdir=${4}
 
     mkdir ${workdir}/${lib}/build
     cd ${workdir}/${lib}/build
 
+    say "(build_lib) Building library '${lib}'"
     if [ "${lib}" = hdf5 ]; then
+
         ## Setting '-DHDF5_ENABLE_ZLIB_SUPPORT=ON' at the 'cmake' call
         ## generates this warning:
         ##     CMake Warning:
@@ -164,11 +163,11 @@ build_lib() {
               -DHDF5_BUILD_CPP_LIB=OFF \
               -DBUILD_SHARED_LIBS=OFF \
               -DHDF5_ENABLE_SZIP_SUPPORT=OFF \
-              ${workdir}/${lib}/hdf5_${version}
+              ${workdir}/${lib}/hdf5-hdf5_${version}
 
         make -j install
     else
-        die "(build_lib) This library '${lib}' is not supported!ù"
+        die "(build_lib) This library '${lib}' is not supported"
     fi
 }
 
@@ -226,31 +225,52 @@ build_ssm_package() {
     set -e
 
     typeset -r lib=${1}
-    typeset -r pkgname=${2}
-    typeset -r ssmpkg_destination=${3}
-    typeset -r workdir=${4}
+    typeset -r version=${2}
+    typeset -r compiler=${3}
+    typeset -r pkgname=${4}
+    typeset -r ssmpkg_destination=${5}
+    typeset -r workdir=${6}
 
     mkdir -p ${workdir}/${pkgname}/.ssm.d
     say "Building the SSM control file"
-    build_control_file ${lib} > ${workdir}/${pkgname}/.ssm.d/control.json
+    build_control_file ${lib} ${version} ${compiler} > ${workdir}/${pkgname}/.ssm.d/control.json
 
     say "Building the SSM tarball in ${__build_ssmpkg_dir__}"
-
     cd ${workdir}
     tar cvfzh ${pkgname}.ssm ${pkgname}
 
-    cp ${pkgname}.ssm ${ssmpkg_destination}
+    mv ${pkgname}.ssm ${ssmpkg_destination}
 
     say "The SSM package '${pkgname}.ssm' is available in directory ${ssmpkg_destination}"
 } ## End of function 'build_ssm_package'
 
-INSTALL_DIR=${workdir}/${pkgname}/bin
-mkdir -p ${INSTALL_DIR}
+find_version() {
+    typeset -r lib=${1}
+
+    if [ "${lib}" = hdf5 ]; then
+        echo 1.14.6
+    else
+        die "(find_version) This library '${lib}' is not supported!ù"
+    fi
+} ## End of function 'find_version'
+
+package_name() {
+    typeset -r lib=${1}
+    typeset -r version=${2}
+    typeset -r compiler=${3}
+
+    echo ${lib}_${version}-${compiler}_${ORDENVPLAT}
+} ## End of function 'package_name'
+
+load_compiler ${compiler}
 
 for lib in ${libs}; do
-    download_lib ${lib} ${workdir}
-    build_lib    ${lib} ${workdir}
-    build_ssm_package ${lib} ${pkgname} ${ssmpkgdestination} ${workdir}
+    version=$(find_version ${lib})
+    pkgname=$(package_name ${lib} ${version} ${compiler})
+
+    download_lib      ${lib} ${version} ${workdir}
+    build_lib         ${lib} ${version} ${pkgname} ${workdir}
+    build_ssm_package ${lib} ${version} ${compiler} ${pkgname} ${ssmpkgdestination} ${workdir}
 done
 
 cd
