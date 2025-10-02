@@ -59,7 +59,7 @@ if [ -z "${libs}" ]; then
     libs="udfsqlite f90sqlite perftools hdf5 netcdf-c netcdf-fortran"
     #libs="perftools hdf5 netcdf-c netcdf-fortran"
     #libs=hdf5
-    #libs=netcdf-c
+    #libs="hdf5 netcdf-c"
     #libs=perftools
     #libs="udfsqlite f90sqlite"
 fi
@@ -168,7 +168,7 @@ download_lib() {
 
     if [ "${lib}" = hdf5 ]; then
         mkdir ${workdir}/${lib}
-        wget https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_${version}.zip -O ${workdir}/${lib}/hdf5_${version}.zip
+        wget --quiet https://github.com/HDFGroup/hdf5/archive/refs/tags/hdf5_${version}.zip -O ${workdir}/${lib}/hdf5_${version}.zip
         unzip -q ${workdir}/${lib}/hdf5_${version}.zip -d ${workdir}/${lib}
     elif [ "${lib}" = netcdf-c ]; then
         git clone --config advice.detachedHead=false --branch v${version} https://github.com/Unidata/netcdf-c.git ${workdir}/${lib}/src
@@ -206,6 +206,7 @@ build_lib() {
         ##         HDF5_ENABLE_ZLIB_SUPPORT
 
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
               -DHDF5_BUILD_FORTRAN=ON                      \
               -DHDF5_BUILD_CPP_LIB=OFF                     \
               -DDEFAULT_API_VERSION:STRING=v18             \
