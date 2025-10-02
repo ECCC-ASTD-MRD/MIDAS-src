@@ -217,7 +217,11 @@ build_lib() {
         make -j install
     elif [ "${lib}" = netcdf-c ]; then
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
+              -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}           \
               -DENABLE_NETCDF_4=ON                         \
+              -DBUILD_SHARED_LIBS=OFF                      \
+              -DCMAKE_EXE_LINKER_FLAGS=-lz                 \
               ${workdir}/${lib}/src
 
         make -j install
