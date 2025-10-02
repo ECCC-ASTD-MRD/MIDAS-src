@@ -231,13 +231,15 @@ build_lib() {
     elif [ "${lib}" = netcdf-fortran ]; then
         typeset -r netcdfc_version=$(find_version netcdf-c)
         typeset -r netcdfc_pkgname=$(package_name netcdf-c ${netcdfc_version} ${compiler})
-        typeset -r netcfc_c_include=${workdir}/${netcdfc_pkgname}/include
-        typeset -r netcfc_c_lib=${workdir}/${netcdfc_pkgname}/lib/libnetcdf.so
-        if [[ ! -d "${netcfc_c_include}" || ! -f "${netcfc_c_lib}" ]]; then
-           die "(build_lib) To build 'netcdf-fortran' you must 'netcdf-c' must be build first"
+        typeset -r netcdfc_include=${workdir}/${netcdfc_pkgname}/include
+        typeset -r netcdfc_lib=${workdir}/${netcdfc_pkgname}/lib/libnetcdf.so
+        if [[ ! -d "${netcdfc_include}" || ! -f "${netcdfc_lib}" ]]; then
+           die "(build_lib) To build 'netcdf-fortran', 'netcdf-c' must be build first"
         fi
 
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+              -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
+              -DCMAKE_FORTRAN_COMPILER=${FORTRAN_COMPILER} \
               -DNETCDF_C_INCLUDE_DIR=${netcfc_c_include}   \
               -DNETCDF_C_LIBRARY=${netcfc_c_lib}           \
               -DBUILD_SHARED_LIBS=off                      \
@@ -269,7 +271,7 @@ build_lib() {
         typeset -r udfsqlite_pkgname=$(package_name udfsqlite ${udfsqlite_version} ${compiler})
         typeset -r udfsqlite_include=${workdir}/${udfsqlite_pkgname}/include
         if [[ ! -d "${udfsqlite_include}" ]]; then
-           die "(build_lib) To build 'f90sqlite' you must 'udfsqlite' must be build first"
+           die "(build_lib) To build 'f90sqlite', 'udfsqlite' must be build first"
         fi
 
         cd ${workdir}/${lib}/src
