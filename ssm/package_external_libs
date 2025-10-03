@@ -143,7 +143,7 @@ load_compiler() {
         CLANG_COMPILER=icc
         FORTRAN_COMPILER=ifort
     elif [[ "${compiler}" = gnu-14.2.0 || "${compiler}" = gnu-15.1.0 || "${compiler}" = nvhpc-25.3.0 ]]; then
-        typeset -r compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
+        typeset -r compiler_path=rpn/code-tools/20250804/env/exp/${compiler}
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
 
         if [[ "${compiler}" = nvhpc-25.3.0 ]]; then
