@@ -220,7 +220,7 @@ build_lib() {
         typeset -r hdf5_version=$(find_version hdf5)
         typeset -r hdf5_ssmpkg=${workdir}/$(package_name hdf5 ${hdf5_version} ${compiler})
         if [[ ! -d "${hdf5_ssmpkg}" ]]; then
-           die "(build_lib) To build '${lib}', 'hdf5' must be build first"
+           die "(build_lib) To build '${lib}', 'hdf5' must be build first (${hdf5_ssmpkg} not found)"
         fi
 
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
@@ -239,7 +239,7 @@ build_lib() {
         typeset -r hdf5_version=$(find_version hdf5)
         typeset -r hdf5_ssmpkg=${workdir}/$(package_name hdf5 ${hdf5_version} ${compiler})
         if [[ ! -d "${hdf5_ssmpkg}" ]]; then
-           die "(build_lib) To build '${lib}', 'hdf5' must be build first"
+           die "(build_lib) To build '${lib}', 'hdf5' must be build first (${hdf5_ssmpkg} not found)"
         fi
 
         typeset -r netcdfc_version=$(find_version netcdf-c)
@@ -247,8 +247,11 @@ build_lib() {
         typeset -r netcdfc_pkgpath=${workdir}/${netcdfc_pkgname}
         typeset -r netcdfc_include=${netcdfc_pkgpath}/include
         typeset -r netcdfc_lib=${netcdfc_pkgpath}/lib/libnetcdf.a
-        if [[ ! -d "${netcdfc_include}" || ! -f "${netcdfc_lib}" ]]; then
-           die "(build_lib) To build '${lib}', 'netcdf-c' must be build first"
+        if [[ ! -d "${netcdfc_include}" ]]; then
+           die "(build_lib) To build '${lib}', 'netcdf-c' must be build first (${netcdfc_include} not found)"
+        fi
+        if [[ ! -f "${netcdfc_lib}" ]]; then
+           die "(build_lib) To build '${lib}', 'netcdf-c' must be build first (${netcdfc_lib} not found)"
         fi
 
 
@@ -289,12 +292,12 @@ build_lib() {
         typeset -r udfsqlite_pkgname=$(package_name udfsqlite ${udfsqlite_version} ${compiler})
         typeset -r udfsqlite_include=${workdir}/${udfsqlite_pkgname}/include
         if [[ ! -d "${udfsqlite_include}" ]]; then
-           die "(build_lib) To build '${lib}', 'udfsqlite' must be build first"
+           die "(build_lib) To build '${lib}', 'udfsqlite' must be build first (${udfsqlite_include} is not found)"
         fi
 
         cd ${workdir}/${lib}/src
 
-        ${CLANG_COMPILER} -o csqlite.o -I${udfsqlite_include} -c csqlite.c
+        ${CLANG_COMPILER}   -o csqlite.o -I${udfsqlite_include} -c csqlite.c
         ${FORTRAN_COMPILER} -o fsqlite.o -c fsqlite.f90
         ar -r libf90sqlite.a csqlite.o fsqlite.o
 
@@ -330,6 +333,7 @@ build_ssm_package() {
     mv ${pkgname}.ssm ${ssmpkg_destination}
 
     say "The SSM package '${pkgname}.ssm' is available in directory ${ssmpkg_destination}"
+    echo
 } ## End of function 'build_ssm_package'
 
 find_version() {
