@@ -223,7 +223,8 @@ build_lib() {
            die "(build_lib) To build '${lib}', 'hdf5' must be build first (${hdf5_ssmpkg} not found)"
         fi
 
-        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+        cmake -DCMAKE_BUILD_TYPE=Release                   \
+              -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
               -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}           \
               -DENABLE_NETCDF_4=ON                         \
