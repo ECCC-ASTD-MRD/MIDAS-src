@@ -60,6 +60,7 @@ if [ -z "${libs}" ]; then
     #libs="perftools hdf5 netcdf-c netcdf-fortran"
     #libs=hdf5
     #libs="hdf5 netcdf-c"
+    #libs=netcdf-fortran
     #libs=perftools
     #libs="udfsqlite f90sqlite"
 fi
@@ -138,11 +139,11 @@ load_compiler() {
     typeset -r compiler=${1}
 
     if [[ "${compiler}" = inteloneapi-2022.1.2 ]]; then
-        typeset compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+        typeset -r compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
         CLANG_COMPILER=icc
         FORTRAN_COMPILER=ifort
     elif [[ "${compiler}" = gnu-14.2.0 || "${compiler}" = gnu-15.1.0 || "${compiler}" = nvhpc-25.3.0 ]]; then
-        typeset compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
+        typeset -r compiler_path=rpn/code-tools/20250804/env/exp/${__compiler}
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
 
         if [[ "${compiler}" = nvhpc-25.3.0 ]]; then
@@ -216,6 +217,12 @@ build_lib() {
 
         make -j install
     elif [ "${lib}" = netcdf-c ]; then
+        typeset -r hdf5_version=$(find_version hdf5)
+        typeset -r hdf5_ssmpkg=${workdir}/$(package_name hdf5 ${hdf5_version} ${compiler})
+        if [[ ! -d "${hdf5_ssmpkg}" ]]; then
+           die "(build_lib) To build '${lib}', 'hdf5' must be build first"
+        fi
+
         cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
               -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}           \
@@ -229,25 +236,36 @@ build_lib() {
         ## SSM does not recognize 'lib64' so rename it to 'lib'
         mv ${workdir}/${pkgname}/lib64 ${workdir}/${pkgname}/lib
     elif [ "${lib}" = netcdf-fortran ]; then
-        typeset -r netcdfc_version=$(find_version netcdf-c)
-        typeset -r netcdfc_pkgname=$(package_name netcdf-c ${netcdfc_version} ${compiler})
-        typeset -r netcdfc_include=${workdir}/${netcdfc_pkgname}/include
-        typeset -r netcdfc_lib=${workdir}/${netcdfc_pkgname}/lib/libnetcdf.so
-        if [[ ! -d "${netcdfc_include}" || ! -f "${netcdfc_lib}" ]]; then
-           die "(build_lib) To build 'netcdf-fortran', 'netcdf-c' must be build first"
+        typeset -r hdf5_version=$(find_version hdf5)
+        typeset -r hdf5_ssmpkg=${workdir}/$(package_name hdf5 ${hdf5_version} ${compiler})
+        if [[ ! -d "${hdf5_ssmpkg}" ]]; then
+           die "(build_lib) To build '${lib}', 'hdf5' must be build first"
         fi
 
-        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
-              -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
-              -DCMAKE_FORTRAN_COMPILER=${FORTRAN_COMPILER} \
-              -DNETCDF_C_INCLUDE_DIR=${netcfc_c_include}   \
-              -DNETCDF_C_LIBRARY=${netcfc_c_lib}           \
-              -DBUILD_SHARED_LIBS=off                      \
+        typeset -r netcdfc_version=$(find_version netcdf-c)
+        typeset -r netcdfc_pkgname=$(package_name netcdf-c ${netcdfc_version} ${compiler})
+        typeset -r netcdfc_pkgpath=${workdir}/${netcdfc_pkgname}
+        typeset -r netcdfc_include=${netcdfc_pkgpath}/include
+        typeset -r netcdfc_lib=${netcdfc_pkgpath}/lib/libnetcdf.a
+        if [[ ! -d "${netcdfc_include}" || ! -f "${netcdfc_lib}" ]]; then
+           die "(build_lib) To build '${lib}', 'netcdf-c' must be build first"
+        fi
+
+
+        cmake -DCMAKE_BUILD_TYPE=Release                            \
+              -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname}          \
+              -DCMAKE_C_COMPILER=${CLANG_COMPILER}                  \
+              -DCMAKE_Fortran_COMPILER=${FORTRAN_COMPILER}          \
+              -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}                    \
+              -DNETCDF_C_INCLUDE_DIR=${netcdfc_include}             \
+              -DNETCDF_C_LIBRARY=${netcdfc_lib}                     \
+              -DBUILD_SHARED_LIBS=off                               \
+              -DCMAKE_EXE_LINKER_FLAGS='-lcurl -lhdf5 -lhdf5_hl'    \
               ${workdir}/${lib}/src
 
         make -j install
 
-        ## SSM does not recognize 'lib64' so rename it to 'lib'
+        ## SSM does not recognize 'lib64' so move its content to 'lib'
         mv ${workdir}/${pkgname}/lib64/* ${workdir}/${pkgname}/lib
     elif [ "${lib}" = perftools ]; then
         cd ${workdir}/${lib}/src
@@ -271,7 +289,7 @@ build_lib() {
         typeset -r udfsqlite_pkgname=$(package_name udfsqlite ${udfsqlite_version} ${compiler})
         typeset -r udfsqlite_include=${workdir}/${udfsqlite_pkgname}/include
         if [[ ! -d "${udfsqlite_include}" ]]; then
-           die "(build_lib) To build 'f90sqlite', 'udfsqlite' must be build first"
+           die "(build_lib) To build '${lib}', 'udfsqlite' must be build first"
         fi
 
         cd ${workdir}/${lib}/src
@@ -330,7 +348,7 @@ find_version() {
     elif [ "${lib}" = f90sqlite ]; then
         echo 1.5
     else
-        die "(find_version) This library '${lib}' is not supported!ù"
+        die "(find_version) This library '${lib}' is not supported"
     fi
 } ## End of function 'find_version'
 
