@@ -229,8 +229,10 @@ build_lib() {
               -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}           \
               -DENABLE_NETCDF_4=ON                         \
               -DBUILD_SHARED_LIBS=OFF                      \
-              -DCMAKE_EXE_LINKER_FLAGS=-lz                 \
-              ${workdir}/${lib}/src
+              -DENABLE_DAP=OFF                             \
+              -DENABLE_DAP_REMOTE_TESTS=OFF                \
+              -DCMAKE_EXE_LINKER_FLAGS='-lz -lhdf5_hl'     \
+              ${workdir}/${lib}/src -Wno-dev
 
         make -j install
 
