@@ -268,8 +268,8 @@ build_lib() {
         ## SSM does not recognize 'lib64' so move its content to 'lib'
         mv ${workdir}/${pkgname}/lib64/* ${workdir}/${pkgname}/lib
     elif [ "${lib}" = perftools ]; then
-        cd ${workdir}/${lib}/src
-        make
+        cd ${workdir}/${lib}/src/timing
+        make lib
         INSTALL_DIR=${workdir}/${pkgname} make install
     elif [ "${lib}" = udfsqlite ]; then
         . r.load.dot eccc/mrd/rpn/libs/20251009-beta
