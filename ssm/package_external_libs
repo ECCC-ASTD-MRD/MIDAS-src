@@ -213,7 +213,8 @@ build_lib() {
         ##
         ##         HDF5_ENABLE_ZLIB_SUPPORT
 
-        cmake -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
+        cmake -DCMAKE_BUILD_TYPE=Release                   \
+              -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
               -DHDF5_BUILD_FORTRAN=ON                      \
               -DHDF5_BUILD_CPP_LIB=OFF                     \
@@ -229,20 +230,11 @@ build_lib() {
         mv ${workdir}/${pkgname}/include/static/*.mod ${workdir}/${pkgname}/include
         rmdir ${workdir}/${pkgname}/include/static
     elif [ "${lib}" = netcdf-c ]; then
-        #pwd
-        #echo workdir=${workdir}
-        #echo lib=${lib}
-        #echo version=${version}
-        #echo compiler=${compiler}
-        #echo pkgname=${pkgname}
-
         typeset -r hdf5_version=$(find_version hdf5)
         typeset -r hdf5_ssmpkg=${workdir}/$(package_name hdf5 ${hdf5_version} ${compiler})
         if [[ ! -d "${hdf5_ssmpkg}" ]]; then
            die "(build_lib) To build '${lib}', 'hdf5' must be build first (${hdf5_ssmpkg} not found)"
         fi
-        #echo hdf5_ssmpkg=${hdf5_ssmpkg}
-        #exit 1
 
         cmake -DCMAKE_BUILD_TYPE=Release                   \
               -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
@@ -253,9 +245,8 @@ build_lib() {
               -DENABLE_DAP=OFF                             \
               -DENABLE_DAP_REMOTE_TESTS=OFF                \
               -DCMAKE_EXE_LINKER_FLAGS='-lz -lhdf5_hl'     \
-              ${workdir}/${lib}/src -Wno-dev
-
-        # -DNETCDF_ENABLE_HDF5=ON
+              -Wno-dev                                     \
+              ${workdir}/${lib}/src
 
         make -j install
 
@@ -280,48 +271,23 @@ build_lib() {
            die "(build_lib) To build '${lib}', 'netcdf-c' must be build first (${netcdfc_lib} not found)"
         fi
 
-        #export LDFLAGS=$(${netcdfc_pkgpath}/bin/nc-config --libs)
-        pwd
-        echo workdir=${workdir}
-        echo lib=${lib}
-        echo version=${version}
-        echo compiler=${compiler}
-        echo pkgname=${pkgname}
-        echo netcdfc_pkgpath=${netcdfc_pkgpath}
-        echo netcdfc_include=${netcdfc_include}
-        echo netcdfc_lib=${netcdfc_lib}
-        echo hdf5_ssmpkg=${hdf5_ssmpkg}
-        echo CLANG_COMPILER=${CLANG_COMPILER}
-        echo FORTRAN_COMPILER=${FORTRAN_COMPILER}
-        #
-        #exit 1
         cmake -DCMAKE_BUILD_TYPE=Release                   \
               -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
               -DCMAKE_Fortran_COMPILER=${FORTRAN_COMPILER} \
               -DCMAKE_PREFIX_PATH=${hdf5_ssmpkg}           \
               -DNETCDF_INCLUDE_DIR=${netcdfc_include}      \
-              -DNETCDF_C_INCLUDE_DIR=${netcdfc_include}    \
               -DNETCDF_C_LIBRARY=${netcdfc_lib}            \
               -DENABLE_TESTS=OFF                           \
               -DBUILD_EXAMPLES=OFF                         \
-              -DBUILD_SHARED_LIBS=off                      \
-              -DNC_EXTRA_DEPS='-lz -lhdf5_hl -lhdf5'       \
-              ${workdir}/${lib}/src -Wno-dev
+              -DBUILD_SHARED_LIBS=OFF                      \
+              -Wno-dev                                     \
+              ${workdir}/${lib}/src
 
         make -j install
 
-        ## -DNC_EXTRA_DEPS='-lz -lhdf5 -lhdf5_hl'                \
-        ## -DNC_EXTRA_DEPS="${hdf5_ssmpkg}/lib/libhdf5.a;${hdf5_ssmpkg}/lib/libhdf5_hl.a" \
-
-        ## -DCMAKE_EXE_LINKER_FLAGS='-lz -lhdf5 -lhdf5_hl'       \
-        ## -DCMAKE_EXE_LINKER_FLAGS='-lcurl -lhdf5 -lhdf5_hl'
-        ##      -DHDF5_INCLUDE_DIR=${hdf5_ssmpkg}/include             \
-        ##      -DHDF5_LIBRARY=${hdf5_ssmpkg}/lib/libhdf5.a           \
-        ## -DCMAKE_EXE_LINKER_FLAGS="-L${hdf5_ssmpkg}/lib -lhdf5 -lhdf5_hl -lcurl" \
-
-        ## SSM does not recognize 'lib64' so move its content to 'lib'
-        mv ${workdir}/${pkgname}/lib64/* ${workdir}/${pkgname}/lib
+        ## SSM does not recognize 'lib64' so rename it to 'lib'
+        mv ${workdir}/${pkgname}/lib64 ${workdir}/${pkgname}/lib
     elif [ "${lib}" = perftools ]; then
         cd ${workdir}/${lib}/src/timing
         make lib
