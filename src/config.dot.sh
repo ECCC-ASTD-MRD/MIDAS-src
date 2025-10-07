@@ -159,9 +159,8 @@ echo "... loading hdf5"
 echo "... loading eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}"
 . r.load.dot eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}
 
-#echo "... loading eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}"
-echo "... loading /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250804/${COMP_ARCH}"
-. ssmuse-sh -d /home/ant000/data/sitestore7/fs/ssm/eccc/cmd/cmda/libs/20250804/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20250804/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20250804/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
