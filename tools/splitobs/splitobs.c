@@ -358,7 +358,7 @@ int main(int argc, char** argv) {
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     status = close_stdfile(iun,opt.fstin);
     if (status == NOT_OK) {
-      fprintf(stderr, "Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",ier,opt.fstin);
+      fprintf(stderr, "Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",status,opt.fstin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
