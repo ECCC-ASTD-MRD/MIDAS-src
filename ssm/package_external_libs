@@ -31,12 +31,18 @@ getArg () {
     echo $2
 } ## End of function 'getArg'
 
+last_option=
 args=
 while [ $# -gt 0 ]; do
+    if [[ "${1}" =~ --.* ]]; then
+        last_option=${1}
+    fi
+
     if [ "${1}" = --libs ]; then
         libs=$(getArg $1 $2)
         shift
     elif [ "${1}" = --compiler ]; then
+        last_option=${1}
         compiler=$(getArg $1 $2)
         shift
     elif [ "${1}" = --ssmpkgdestination ]; then
@@ -45,6 +51,9 @@ while [ $# -gt 0 ]; do
     elif [ "${1}" = --workdir ]; then
         workdir=$(getArg $1 $2)
         shift
+    elif [ "${last_option}" = --libs ]; then
+        ## The option '--libs' accepts several values like 'udfsqlite f90sqlite'
+        libs="${libs} ${1}"
     else
         args="${args} ${1}"
     fi
