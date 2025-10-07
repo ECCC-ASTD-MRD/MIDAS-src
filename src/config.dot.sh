@@ -293,21 +293,16 @@ if [ "${__run_cmake}" != stop ]; then
     . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
     if [ "${__compiler}" = gnu-14.2.0 ]; then
+        ## This is needed for CMake to find the library
+        export f90sqlite_installdir=/home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}/${ORDENV_PLAT}
+
         ## Loading the compiler affects 'ORDENV_PLAT' and for the
         ## rest, we need to use the original value.
         export ORDENV_PLAT=${__original_ordenv_plat__}
         unset __original_ordenv_plat__
 
-        udfsqlite_installdir=/home/erv000/data/midas/sqllibs/libudfsqlite
-        echo "... loading ${udfsqlite_installdir}"
-        . ssmuse-sh -x ${udfsqlite_installdir}
-
-        export f90sqlite_installdir=/home/erv000/data/midas/sqllibs/libf90sqlite
-        echo "... loading ${f90sqlite_installdir}"
-        . ssmuse-sh -x ${f90sqlite_installdir}
-
-        echo "... loading /home/cpi001/MIDAS-benchmark/perftools/gnu-14"
-        . ssmuse-sh -x /home/cpi001/MIDAS-benchmark/perftools/gnu-14
+        echo "... loading perftools, udfsqlite and f90sqlite for ${COMP_ARCH}"
+        . r.load.dot /home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}
     else
         echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
         . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
