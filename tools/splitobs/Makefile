@@ -27,7 +27,7 @@ OPT_LEVEL = 2
 install : # defining default target
 
 splitobs_rhel-9-graniterapids-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20250826/env/inteloneapi-2025.1.0; \
+	. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
@@ -37,7 +37,7 @@ splitobs_libs: version.h $(SRC)
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
 
 
 version.h:

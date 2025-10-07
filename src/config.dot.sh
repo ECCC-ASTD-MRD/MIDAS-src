@@ -143,8 +143,8 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools.
 #---------------------------------------------------------------
-echo "... loading rpn/code-tools/20250826/env/inteloneapi-2025.1.0"
-. r.load.dot rpn/code-tools/20250826/env/inteloneapi-2025.1.0
+echo "... loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0"
+. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
@@ -175,7 +175,7 @@ echo "... loading makedepf90"
 . ssmuse-sh -d /home/erv000/SSM/makedepf90/2.8.9
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
-OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="-strict -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 OPTF="-qmkl ${OPTF} -warn noexternal"
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
