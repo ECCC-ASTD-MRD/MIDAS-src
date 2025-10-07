@@ -47,8 +47,8 @@ elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
     echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0
     . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
-    echo loading eccc/mrd/rpn/libs/202500804
-    . r.load.dot eccc/mrd/rpn/libs/202500804
+    echo loading eccc/mrd/rpn/libs/20251001
+    . r.load.dot eccc/mrd/rpn/libs/20251001
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
