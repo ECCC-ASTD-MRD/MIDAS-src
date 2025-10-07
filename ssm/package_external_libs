@@ -142,11 +142,11 @@ load_compiler() {
         typeset -r compiler_path=rpn/code-tools/20250925/env/inteloneapi-2022.1.2
         CLANG_COMPILER=icc
         FORTRAN_COMPILER=ifort
-    elif [[ "${compiler}" = gnu-14.2.0 || "${compiler}" = gnu-15.1.0 || "${compiler}" = nvhpc-25.3.0 ]]; then
+    elif [[ "${compiler}" = gnu-14.2.0 || "${compiler}" = gnu-15.1.0 || "${compiler}" = nvhpc-23.7.0 ]]; then
         typeset -r compiler_path=rpn/code-tools/20250804/env/exp/${compiler}
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
 
-        if [[ "${compiler}" = nvhpc-25.3.0 ]]; then
+        if [[ "${compiler}" =~ nvhpc-.* ]]; then
             CLANG_COMPILER=nvcc
             FORTRAN_COMPILER=nvfortran
         else
@@ -216,6 +216,7 @@ build_lib() {
         cmake -DCMAKE_BUILD_TYPE=Release                   \
               -DCMAKE_INSTALL_PREFIX=${workdir}/${pkgname} \
               -DCMAKE_C_COMPILER=${CLANG_COMPILER}         \
+              -DCMAKE_Fortran_COMPILER=${FORTRAN_COMPILER} \
               -DHDF5_BUILD_FORTRAN=ON                      \
               -DHDF5_BUILD_CPP_LIB=OFF                     \
               -DDEFAULT_API_VERSION:STRING=v18             \
