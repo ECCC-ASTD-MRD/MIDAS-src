@@ -1786,7 +1786,7 @@ int main(int argc, char** argv) {
 	      continue;
 	    }
 
-	    if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout)) == 1 )
+	    if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout)) == 1 ) {
 	      if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
 		for (i=0;i<opt.npex*opt.npey;i++) {
                   /* Si on est en mode 'cherrypick', alors on ne
@@ -1820,6 +1820,7 @@ int main(int argc, char** argv) {
 			adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout),
 			BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
 	      }
+            }
 
 	    brp_freeblk(blkout);
 	  } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
