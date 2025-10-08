@@ -16,7 +16,7 @@ extern void f77name(exfin)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
 /*****************************************************/
 
 /* Ce compteur global est utilise dans la fonction stats_field() pour
- * compter le nombre de champs qui sera affiche.  
+ * compter le nombre de champs qui sera affiche.
  */
 static int compteur_stats = 0;
 
@@ -40,7 +40,7 @@ int open_stdfile(int iun, char* filename, char* mode) {
 
     return NOT_OK;
   }
-  
+
   return OK;
 } /* Fin de la fonction open_stdfile */
 
@@ -50,7 +50,7 @@ int open_stdfile(int iun, char* filename, char* mode) {
  ***************************************************************************/
 int close_stdfile(int iun, char* filename) {
   int ier;
-  
+
   /* On ferme le fichier standard ouvert par open_stdfile */
   ier = c_fstfrm(iun);
   if (ier<0) {
@@ -72,11 +72,11 @@ int close_stdfile(int iun, char* filename) {
  ***************************************************************************/
 int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
   int key, ier;
-  
+
   /**********************************************************
    * Dans cette partie, on va lire le champ desire dans le fichier
    * opt.glb tel qu'identifie par les elements dans la structure
-   * (options) opt .  
+   * (options) opt .
    **********************************************************/
 
   key = c_fstinf(iun,&fst->ni,&fst->nj,&fst->nk,fst->dateo,fst->etiket,
@@ -117,11 +117,11 @@ int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
   gridptr->gridid = c_ezqkdef(gridptr->ni,gridptr->nj,gridptr->grtyp,gridptr->ig1,gridptr->ig2,gridptr->ig3,gridptr->ig4,iun);
   if ( gridptr->gridid < 0 ) {
     fprintf(stderr,"Fonction getgrid: Probleme %d avec la fonction c_ezqkdef "
-	    "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n", 
+	    "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n",
 	    gridptr->gridid, fst->nomvar,fst->etiket,fst->ip1,fst->ip2,fst->ip3,fst->dateo,fst->typvar);
     return NOT_OK;
   }
-  
+
   return OK;
 } /* Fin de la fonction getgrid */
 
@@ -153,7 +153,7 @@ int stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr) {
   statsptr[compteur_stats].variance = var;
 
   compteur_stats++;
-  
+
   return OK;
 
 } /* Fin de la fonction stats_field */
@@ -206,13 +206,13 @@ int padtime(char* argv) {
   /* On padde avec des zeros a droite pour completer l'adresse */
   for(j=0;j<MAXSTR_DATETIME-strlen(argv);j++)
     strcat(dattimstr,"0");
-  
+
   strncpy(datstr,dattimstr,MAXSTR_DATE);
   strncpy(timstr,&dattimstr[MAXSTR_DATE],MAXSTR_TIME);
-  
+
   dat = atoi(datstr);
   tim = atoi(timstr);
-  
+
   mode = 3;
   f77name(newdate)(&datev,&dat,&tim,&mode);  /* printable to CMCstamp */
 
