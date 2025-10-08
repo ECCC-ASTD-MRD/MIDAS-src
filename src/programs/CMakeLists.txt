@@ -90,7 +90,14 @@ set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats createLamTemplateGrid
   energyNorm ensembleH ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF
   prepcma pseudoOceanIceObs randomPert sstBias sstTrial var var1D)
 
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+   ## The variable 'MKLROOT' defined in '$(git rev-parse --show-toplevel)/CMakeLists.txt'
+   ## From 'https://hpc.ncsu.edu/Software/Libraries.php?app=MKL'
+   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${MKLROOT}/lib/intel64 -lmkl_gf_lp64 -lmkl_core -lmkl_gnu_thread")
+endif()
+
 foreach(prog ${PROJECT_PROGRAMS})
+
   set_target_properties(${prog} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"

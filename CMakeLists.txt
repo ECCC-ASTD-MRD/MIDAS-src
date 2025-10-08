@@ -134,10 +134,8 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "IntelLLVM")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qopt-report=5")
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+  ## This variable is used to add some libraries at link time in 'src/programs/CMakeLists.txt'
   set(MKLROOT "/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -m64 -I${MKLROOT}/include")
-  ## From 'https://hpc.ncsu.edu/Software/Libraries.php?app=MKL'
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${MKLROOT}/lib/intel64 -lmkl_gf_lp64 -lmkl_core -lmkl_gnu_thread")
 
   if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
     message(WARNING "(EC) The option 'MIDAS_COMPILE_OPTIMIZE_REPORT' is not supported for this compiler")
