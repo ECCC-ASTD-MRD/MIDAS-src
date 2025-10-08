@@ -44,3 +44,7 @@ LETKF_GLB15KM_MEMORY=11G
 ## 'nml', 'inputs*.ca' and 'results.ca' files will be selected.
 LETKF_GLB10KM_MPITOPOLOGY=11x52
 ##LETKF_GLB10KM_MPITOPOLOGY=48x52
+
+## Set this variable to '9' if you want to avoid running the test
+## '/Tests/letkf/glb_10km'.
+LETKF_GLB10KM_CATCHUP=2
