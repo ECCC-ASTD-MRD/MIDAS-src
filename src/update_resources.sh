@@ -30,6 +30,9 @@ else
     typeset -r letkf_glb15km_memory_expected_value=11G
 fi
 
+## For the moment, the test '/Tests/letkf/glb_10km' is always run.
+typeset -r letkf_glb10km_catchup_expected_value=2
+
 typeset -r resources_file=${toplevel}/maestro/suites/midas_system_tests/resources/resources.def
 
 ## Rebuild the 'resources.def' file by calling 'set_resources_def.sh'
@@ -38,7 +41,7 @@ ${toplevel}/set_resources_def.sh ${toplevel}
 ## First, check if there is one and only one definition of at least one of the
 ## variables in the resources file
 found_several_definitions_of_the_same_variable=false
-for variable in CHECK_RESULTS_CATCHUP CLEAN_UNITTEST_CATCHUP LETKF_GLB15KM_NUM_THREADS LETKF_GLB15KM_MEMORY; do
+for variable in CHECK_RESULTS_CATCHUP CLEAN_UNITTEST_CATCHUP LETKF_GLB15KM_NUM_THREADS LETKF_GLB15KM_MEMORY LETKF_GLB10KM_CATCHUP; do
     if [ "$(grep -c "^${variable}=" ${resources_file})" -ne 1 ]; then
         echo "Found none or several definitions of the variable '${variable}' in '${resources_file}'" >&2
         found_several_definitions_of_the_same_variable=true
@@ -60,9 +63,14 @@ typeset -r letkf_glb15km_memory=$(awk -F= '/^LETKF_GLB15KM_MEMORY=/ {print $2}' 
 if [ "${check_result_catchup}"      -eq "${check_result_catchup_expected_value}"      -a \
      "${clean_unittest_catchup}"    -eq "${clean_unittest_catchup_expected_value}"    -a \
      "${letkf_glb15km_num_threads}" -eq "${letkf_glb15km_num_threads_expected_value}" -a \
-     "${letkf_glb15km_memory}"       =  "${letkf_glb15km_memory_expected_value}" ]; then
-    ## All variables 'CHECK_RESULTS_CATCHUP', 'CLEAN_UNITTEST_CATCHUP', 'LETKF_GLB15KM_NUM_THREADS' and 'LETKF_GLB15KM_MEMORY' are all already set
-    ## to ${check_result_catchup}, ${clean_unittest_catchup}, ${letkf_glb15km_num_threads} and ${letkf_glb15km_memory}
+     "${letkf_glb15km_memory}"       =  "${letkf_glb15km_memory_expected_value}"      -a \
+     "${letkf_glb10km_catchup}"     -eq "${letkf_glb10km_catchup_expected_value}"]; then
+    ## All variables 'CHECK_RESULTS_CATCHUP',
+    ## 'CLEAN_UNITTEST_CATCHUP', 'LETKF_GLB15KM_NUM_THREADS',
+    ## 'LETKF_GLB15KM_MEMORY', 'COMPILER' and 'LETKF_GLB10KM_CATCHUP'
+    ## are all already set to ${check_result_catchup},
+    ## ${clean_unittest_catchup}, ${letkf_glb15km_num_threads},
+    ## ${letkf_glb15km_memory} and ${letkf_glb10km_catchup}
     ## respectively in '${resources_file}'.
     ## We will not modify the resources file
     exit
@@ -86,4 +94,9 @@ fi
 if [ "${letkf_glb15km_memory}" !=  "${letkf_glb15km_memory_expected_value}" ]; then
     echo "Set 'LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}' in ${resources_file}"
     sed -i "s/^LETKF_GLB15KM_MEMORY=[0-9]\+[MGT]$/LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}/" ${resources_file}
+fi
+
+if [ "${letkf_glb10km_catchup}" !=  "${letkf_glb10km_catchup_expected_value}" ]; then
+    echo "Set 'LETKF_GLB10KM_CATCHUP=${letkf_glb10km_catchup_expected_value}' in ${resources_file}"
+    sed -i "s/^LETKF_GLB10KM_CATCHUP=[^ ]\+$/LETKF_GLB10KM_CATCHUP=${letkf_glb10km_catchup_expected_value}/" ${resources_file}
 fi
