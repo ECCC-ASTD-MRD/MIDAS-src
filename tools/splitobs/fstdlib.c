@@ -7,15 +7,8 @@
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
 #include "fstdlib.h"
 
-extern void f77name(newdate)();  /* rmnlib.a */
-extern void f77name(exfin)();  /* rmnlib.a */
-extern int c_fnom();
-extern int c_fclos();
-extern int c_fstouv();
-extern int c_fstfrm();
-extern int c_fstinf();
-extern int c_fstprm();
-extern int c_ezqkdef();
+/* Include pour les librairies RPN */
+#include "rmn.h"
 
 /*****************************************************/
 /*******        Variables globales        ************/
