@@ -12,6 +12,7 @@
 /* Include pour les librairies RPN */
 #include "rmn.h"
 #include "rmn/rpnmacros.h"
+extern void f77name(exdb)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
 
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
@@ -207,10 +208,6 @@ int    fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_
 int    parseOptions(int argc, char** argv, optionsptr optptr);
 void   aide(void);
 void   help(void);
-
-/* rmnlib.a */
-extern void f77name(exdb)();
-extern int c_mrfbfl();
 
 /* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
  * pour estimer la hauteur de la pression donnee

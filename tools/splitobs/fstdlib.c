@@ -9,6 +9,7 @@
 
 /* Include pour les librairies RPN */
 #include "rmn.h"
+extern void f77name(exfin)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
 
 /*****************************************************/
 /*******        Variables globales        ************/
