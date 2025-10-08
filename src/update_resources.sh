@@ -17,6 +17,11 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-}" = yes -o -n "${MIDAS_COMPILE_CODECOV
     # and we want to use 2 OpenMP threads and 11G of memory for task '/Tests/letkf/glb_15km/UnitTest/run'
     typeset -r letkf_glb15km_num_threads_expected_value=4
     typeset -r letkf_glb15km_memory_expected_value=22G
+
+    ## In normal mode, the tests '/Tests/var/EnVar/gdps' and
+    ## '/Tests/var/EnVar/hrdps' run very fine with the operational
+    ## number of iterations.
+    typeset -r var_nitermax_expected_value=15
 else
     ## If neither of these environment variable above are set, we want
     ## to run the 'check' and 'clean' tasks in the 'UnitTest' module
@@ -28,6 +33,11 @@ else
     # and we want to use 2 OpenMP threads and 11G of memory for task '/Tests/letkf/glb_15km/UnitTest/run'
     typeset -r letkf_glb15km_num_threads_expected_value=2
     typeset -r letkf_glb15km_memory_expected_value=11G
+
+    ## In DEBUG mode, the tests '/Tests/var/EnVar/gdps' and
+    ## '/Tests/var/EnVar/hrdps' are so long that we cannot run them
+    ## with 70 iterations within the maximum wall clock time.
+    typeset -r var_nitermax_expected_value=70
 fi
 
 ## For the moment, the test '/Tests/letkf/glb_10km' is always run.
@@ -41,7 +51,7 @@ ${toplevel}/set_resources_def.sh ${toplevel}
 ## First, check if there is one and only one definition of at least one of the
 ## variables in the resources file
 found_several_definitions_of_the_same_variable=false
-for variable in CHECK_RESULTS_CATCHUP CLEAN_UNITTEST_CATCHUP LETKF_GLB15KM_NUM_THREADS LETKF_GLB15KM_MEMORY LETKF_GLB10KM_CATCHUP; do
+for variable in CHECK_RESULTS_CATCHUP CLEAN_UNITTEST_CATCHUP LETKF_GLB15KM_NUM_THREADS LETKF_GLB15KM_MEMORY LETKF_GLB10KM_CATCHUP VAR_NITERMAX; do
     if [ "$(grep -c "^${variable}=" ${resources_file})" -ne 1 ]; then
         echo "Found none or several definitions of the variable '${variable}' in '${resources_file}'" >&2
         found_several_definitions_of_the_same_variable=true
@@ -60,17 +70,20 @@ typeset -r check_result_catchup=$(awk -F= '/^CHECK_RESULTS_CATCHUP=/ {print $2}'
 typeset -r clean_unittest_catchup=$(awk -F= '/^CLEAN_UNITTEST_CATCHUP=/ {print $2}' ${resources_file})
 typeset -r letkf_glb15km_num_threads=$(awk -F= '/^LETKF_GLB15KM_NUM_THREADS=/ {print $2}' ${resources_file})
 typeset -r letkf_glb15km_memory=$(awk -F= '/^LETKF_GLB15KM_MEMORY=/ {print $2}' ${resources_file})
+typeset -r letkf_glb10km_catchup=$(awk -F= '/^LETKF_GLB10KM_CATCHUP=/ {print $2}' ${resources_file})
+typeset -r var_nitermax=$(awk -F= '/^VAR_NITERMAX=/ {print $2}' ${resources_file})
 if [ "${check_result_catchup}"      -eq "${check_result_catchup_expected_value}"      -a \
      "${clean_unittest_catchup}"    -eq "${clean_unittest_catchup_expected_value}"    -a \
      "${letkf_glb15km_num_threads}" -eq "${letkf_glb15km_num_threads_expected_value}" -a \
      "${letkf_glb15km_memory}"       =  "${letkf_glb15km_memory_expected_value}"      -a \
-     "${letkf_glb10km_catchup}"     -eq "${letkf_glb10km_catchup_expected_value}"]; then
+     "${letkf_glb10km_catchup}"     -eq "${letkf_glb10km_catchup_expected_value}"     -a \
+     "${var_nitermax}"              -eq "${var_nitermax_expected_value}" ]; then
     ## All variables 'CHECK_RESULTS_CATCHUP',
     ## 'CLEAN_UNITTEST_CATCHUP', 'LETKF_GLB15KM_NUM_THREADS',
-    ## 'LETKF_GLB15KM_MEMORY', 'COMPILER' and 'LETKF_GLB10KM_CATCHUP'
-    ## are all already set to ${check_result_catchup},
+    ## 'LETKF_GLB15KM_MEMORY', 'COMPILER', 'LETKF_GLB10KM_CATCHUP' and
+    ## 'VAR_NITERMAX' are all already set to ${check_result_catchup},
     ## ${clean_unittest_catchup}, ${letkf_glb15km_num_threads},
-    ## ${letkf_glb15km_memory} and ${letkf_glb10km_catchup}
+    ## ${letkf_glb15km_memory}, ${letkf_glb10km_catchup} and ${var_nitermax}
     ## respectively in '${resources_file}'.
     ## We will not modify the resources file
     exit
@@ -100,3 +113,13 @@ if [ "${letkf_glb10km_catchup}" !=  "${letkf_glb10km_catchup_expected_value}" ];
     echo "Set 'LETKF_GLB10KM_CATCHUP=${letkf_glb10km_catchup_expected_value}' in ${resources_file}"
     sed -i "s/^LETKF_GLB10KM_CATCHUP=[^ ]\+$/LETKF_GLB10KM_CATCHUP=${letkf_glb10km_catchup_expected_value}/" ${resources_file}
 fi
+
+if [ "${var_nitermax}" !=  "${var_nitermax_expected_value}" ]; then
+    echo "Set 'VAR_NITERMAX=${var_nitermax_expected_value}' in ${resources_file}"
+    sed -i "s/^VAR_NITERMAX=[^ ]\+$/VAR_NITERMAX=${var_nitermax_expected_value}/" ${resources_file}
+fi
+
+#if [ "${}" !=  "${_expected_value}" ]; then
+#    echo "Set '=${_expected_value}' in ${resources_file}"
+#    sed -i "s/^=[^ ]\+$/=${_expected_value}/" ${resources_file}
+#fi

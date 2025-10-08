@@ -11,7 +11,11 @@ if [ -n "${args}" ]; then
     done
 fi
 
-cp ${UnitTest_run_namelist} flnml
+echo "cat <<EOF " > gen_nml.dot
+cat ${UnitTest_run_namelist} >> gen_nml.dot
+printf "\nEOF" >> gen_nml.dot
+. ./gen_nml.dot > flnml
+
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 

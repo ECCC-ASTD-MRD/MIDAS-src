@@ -31,7 +31,7 @@
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 70,
+   NITERMAX = ${VAR_NITERMAX},
    NSIMMAX  = 110,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
