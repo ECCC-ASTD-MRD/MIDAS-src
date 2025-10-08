@@ -85,6 +85,10 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         ## Back to original values
         echo export ORDENV_PLAT=${ORDENV_PLAT}         >> load_env.dot
 
+        ## We need to add the path to MKL shared objects
+        MKLROOT=/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest
+        echo export LD_LIBRARY_PATH=${MKLROOT}/lib/intel64:\${LD_LIBRARY_PATH} >> load_env.dot
+
         ## The directory '/home/erv000/data/midas/gfortran/libs/lib64'
         ## contains the libraries that are not installed on 'robert' or
         ## 'underhill'.  We did those commands on 'ppp6':
