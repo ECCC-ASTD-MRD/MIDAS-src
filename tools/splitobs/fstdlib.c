@@ -25,7 +25,7 @@ static int compteur_stats = 0;
 int open_stdfile(int iun, char* filename, char* mode) {
   int ier;
 
-  ier = c_fnom(iun,filename,mode,0);
+  ier = c_fnom(&iun,filename,mode,0);
   if (ier<0) {
     fprintf(stderr,"fonction open_stdfile: Erreur %d avec le fichier %s dans la fonction c_fnom\n",ier,filename);
     return NOT_OK;
