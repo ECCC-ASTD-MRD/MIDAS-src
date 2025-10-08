@@ -68,14 +68,22 @@ if [ "${check_result_catchup}"      -eq "${check_result_catchup_expected_value}"
     exit
 fi
 
-echo "Set 'CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}' in ${resources_file}"
-sed -i "s/^CHECK_RESULTS_CATCHUP=[1-9]$/CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}/" ${resources_file}
+if [ "${check_result_catchup}" -ne "${check_result_catchup_expected_value}" ]; then
+    echo "Set 'CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}' in ${resources_file}"
+    sed -i "s/^CHECK_RESULTS_CATCHUP=[1-9]$/CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}/" ${resources_file}
+fi
 
-echo "Set 'CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}' in ${resources_file}"
-sed -i "s/^CLEAN_UNITTEST_CATCHUP=[1-9]$/CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}/" ${resources_file}
+if [ "${clean_unittest_catchup}" -ne "${clean_unittest_catchup_expected_value}" ]; then
+    echo "Set 'CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}' in ${resources_file}"
+    sed -i "s/^CLEAN_UNITTEST_CATCHUP=[1-9]$/CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}/" ${resources_file}
+fi
 
-echo "Set 'LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}' in ${resources_file}"
-sed -i "s/^LETKF_GLB15KM_NUM_THREADS=[1-9]$/LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}/" ${resources_file}
+if [ "${letkf_glb15km_num_threads}" -ne "${letkf_glb15km_num_threads_expected_value}" ]; then
+    echo "Set 'LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}' in ${resources_file}"
+    sed -i "s/^LETKF_GLB15KM_NUM_THREADS=[1-9]$/LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}/" ${resources_file}
+fi
 
-echo "Set 'LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}' in ${resources_file}"
-sed -i "s/^LETKF_GLB15KM_MEMORY=[0-9]\+[MGT]$/LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}/" ${resources_file}
+if [ "${letkf_glb15km_memory}" !=  "${letkf_glb15km_memory_expected_value}" ]; then
+    echo "Set 'LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}' in ${resources_file}"
+    sed -i "s/^LETKF_GLB15KM_MEMORY=[0-9]\+[MGT]$/LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}/" ${resources_file}
+fi
