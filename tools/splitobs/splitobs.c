@@ -13,6 +13,7 @@
 #include "rmn.h"
 #include "rmn/rpnmacros.h"
 extern int f77name(exdb)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
+extern int c_mrfbfl(int);
 
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
