@@ -14,10 +14,8 @@ ${__toplevel}/set_resources_def.sh
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 
-if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        __rmnlib_version__=20250804
-elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    __rmnlib_version__=20231219
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        __rmnlib_version__=20251001
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     __rmnlib_version__=19.6.0
 else
