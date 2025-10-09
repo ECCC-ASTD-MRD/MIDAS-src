@@ -56,12 +56,6 @@ while [[ $# > 0 ]]; do
     shift
 done ## End of 'while [[ $# > 0 ]]'
 
-if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
-    echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
-    __run_cmake=stop
-fi
-typeset -r __run_cmake
-
 if [ "${__show_instructions}" != true -a "${__show_instructions}" != false ]; then
     echo "config.dot.sh: The variable '__show_instructions' can only be 'true' or 'false' and not '${__show_instructions}'." >&2
     __run_cmake=stop
@@ -80,6 +74,11 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
 fi
 typeset -r __fresh_build_directory
 
+if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
+    echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
+    __run_cmake=stop
+fi
+typeset -r __run_cmake
 
 cmake_options() {
     typeset __cmake_options_options__=
