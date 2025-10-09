@@ -73,15 +73,10 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo echo loading rpn/code-tools/20250826/env/inteloneapi-2022.1.2 >> load_env.dot
     echo . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2022.1.2 >> load_env.dot
-    echo echo loading eccc/mrd/rpn/libs/20250909-beta >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/libs/20250909-beta >> load_env.dot
-    #echo echo ... loading eccc/mrd/rpn/libs/20250604-beta/vgrid_6.9.7.2-\${COMP_ARCH}_\${ORDENV_PLAT} >> load_env.dot
-    #echo . r.load.dot eccc/mrd/rpn/libs/20250604-beta/vgrid_6.9.7.2-\${COMP_ARCH}_\${ORDENV_PLAT}     >> load_env.dot
-    #echo echo ... loading eccc/mrd/rpn/libs/20250604-beta/rmn_20.1.0-b1-\${COMP_ARCH}_\${ORDENV_PLAT} >> load_env.dot
-    #echo . r.load.dot eccc/mrd/rpn/libs/20250604-beta/rmn_20.1.0-b1-\${COMP_ARCH}_\${ORDENV_PLAT}     >> load_env.dot
-    echo export LD_LIBRARY_PATH=/home/vma000/site5/build/rpn_for_midas/install/lib:\${LD_LIBRARY_PATH} >> load_env.dot
-    echo echo loading eccc/mrd/rpn/utils/20250909-beta >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/utils/20250909-beta >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20251008-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/libs/20251008-beta >> load_env.dot
+    echo echo loading eccc/mrd/rpn/utils/20251008-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/utils/20251008-beta >> load_env.dot
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
