@@ -8,10 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+* (Nothing yet)
 
 ### Changed
 
+ * Warning message related to the fix to the RttovScatt bug is only printed once (#1112 and !1030)
  * Create links for all machines when doing the tests suite setup (#1110 and !1024)
 
 ### Fixed

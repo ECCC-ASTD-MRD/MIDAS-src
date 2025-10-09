@@ -3361,7 +3361,7 @@ contains
     real (kind=jprb)    :: waveNumber, oldWaveNumber, freq1, freq2
     logical (kind=jplm) :: luse(nprofiles, n_chan)
     logical (kind=jplm) :: polarisedScattering
-
+    logical, save      :: first=.true.
 
     errorstatus = errorstatus_success
 
@@ -3421,13 +3421,15 @@ contains
           chanprof   (channelIndex2)%prof  = profileIndex
           freq1 = speedl * coef_rttov % coef % ff_cwn(channelIndex1) / 1000000000.d0 ! conversion from cm-1 to GHz
           freq2 = coef_scatt % freq(frequencyIndex) 
-          if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+          if (abs(freq1-freq2) > 0.05d0 .and. first) then
+            write(*,*) "tvs_rttov_scatt_setupindex: warning application of RttovScatt bugfix ", freq1, freq2, channelIndex1, frequencyIndex
+            first = .false.
           end if
           frequencies(channelIndex2) = coef_rttov % coef % ff_ori_chn( frequencyIndex ) ! the bug fix
           freq2 = coef_scatt % freq( frequencies(channelIndex2) )
           if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+            !This should never happen. It never happened in any test meaning that the proposed bug fix is working for the instrument we currently assimilate as discussed with James Hocking
+            write(*,*) "tvs_rttov_scatt_setupindex: fatal error: found inconsistent frequencies after application of RttovScatt bugfix  ...", freq1, freq2, channelIndex1, frequencyIndex
             call utl_abort('tvs_rttov_scatt_setupindex')
           end if
         end if
