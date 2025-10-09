@@ -422,18 +422,18 @@ contains
       statevectorRef => statevector_in
     end if
 
-    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call msg('vInterp_gsv_r8', 'The input and output statevectors are already on same vertical levels')
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
       call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
       call utl_abort('vInterp_gsv_r8: Incorrect value for dataKind. Only compatible with dataKind=8')
+    end if
+
+    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
+      call msg('vInterp_gsv_r8', 'The input and output statevectors are already on same vertical levels')
+      call gsv_copy(statevector_in, statevector_out)
+      return
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -731,19 +731,18 @@ contains
       statevectorRef => statevector_in
     end if
 
-    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call msg('vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
       call utl_abort('vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
-    ! DBGmad remove?
     if ( gsv_getDataKind(statevector_in) /= 4 .or. gsv_getDataKind(statevector_out) /= 4 ) then
       call utl_abort('vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+    end if
+
+    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
+      call msg('vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
+      call gsv_copy(statevector_in, statevector_out)
+      return
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -1214,6 +1213,11 @@ contains
       useSfcPressureRef = .false.
     end if
 
+    vcoIn_ptr => col_getVco(column_in)
+    vcode_in  = vcoIn_ptr%vcode
+    vcoOut_ptr => col_getVco(column_out)
+    vcode_out = vcoOut_ptr%vcode
+
     vInterp = .true.
     if( useSfcPressureRef ) then
       call msg('int_vInterp_col', 'Use external Surface Pressure')
@@ -1224,12 +1228,10 @@ contains
               col_getNumLev(column_in ,'MM') <= 1 ) then
       vInterp = .false.
       call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
+    else if ( vco_equal(vcoIn_ptr, vcoOut_ptr) ) then
+      vInterp = .false.
+      call msg('int_vInterp_col', 'The vertical coordinates are equal. Vertical interpolation WILL NOT BE PERFORMED')
     end if
-
-    vcoIn_ptr => col_getVco(column_in)
-    vcode_in  = vcoIn_ptr%vcode
-    vcoOut_ptr => col_getVco(column_out)
-    vcode_out = vcoOut_ptr%vcode
 
     nLevIn_T  = col_getNumLev(column_in,  'TH')
     nLevIn_M  = col_getNumLev(column_in,  'MM')
