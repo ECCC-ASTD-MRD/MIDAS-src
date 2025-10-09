@@ -45,6 +45,13 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
+    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+    echo loading eccc/mrd/rpn/libs/20251001
+    . r.load.dot eccc/mrd/rpn/libs/20251001
+    set -x
+elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
+    set +x
     echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0
     . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
     echo loading eccc/mrd/rpn/libs/20251001
