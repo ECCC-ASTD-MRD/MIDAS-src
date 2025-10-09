@@ -37,7 +37,7 @@ splitobs_libs: version.h $(SRC)
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251001/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251001/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/main/opt/intelcomp/${COMP_ARCH}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib" $(SRC); rm version.h
 
 
 version.h:
