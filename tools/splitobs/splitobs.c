@@ -12,7 +12,7 @@
 /* Include pour les librairies RPN */
 #include "rmn.h"
 #include "rmn/rpnmacros.h"
-extern void f77name(exdb)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
+extern int f77name(exdb)(char*, char*, char*, F2Cl, F2Cl, F2Cl);
 
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
