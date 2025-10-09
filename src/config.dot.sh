@@ -202,8 +202,8 @@ if [ "${__run_cmake}" != stop ]; then
     #----------------------------------------------------------------
     #  Set up dependent librarys and tools.
     #---------------------------------------------------------------
-    echo "... loading rpn/code-tools/20250826/env/inteloneapi-2022.1.2"
-    . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2022.1.2
+    echo "... loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2"
+    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
 
     echo "... loading eccc/mrd/rpn/libs/20251009-beta"
     . r.load.dot eccc/mrd/rpn/libs/20251009-beta

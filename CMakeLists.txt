@@ -46,7 +46,7 @@ foreach(component ${rttov_FIND_COMPONENTS})
     set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
 endforeach()
 
-set(SQLITE_Libraries SQLite::SQLite3 f90sqlite udfsqlite)
+set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
