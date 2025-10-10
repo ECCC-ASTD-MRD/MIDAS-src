@@ -2065,8 +2065,7 @@ function rdbsplit_resume {
             ${sqlite3} ${rdbout}_${procx_str}_${procy_str} <<EOF
 drop index idx1;
 
-PRAGMA journal_mode = OFF;
-PRAGMA  synchronous = OFF;
+PRAGMA synchronous = OFF;
 
 attach '${rdbin}' as db1;
 
