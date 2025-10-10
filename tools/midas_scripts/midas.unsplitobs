@@ -74,8 +74,8 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    say "loading eccc/mrd/rpn/utils/20250909-alpha"
-   . r.load.dot eccc/mrd/rpn/utils/20250909-alpha
+    say "loading eccc/mrd/rpn/utils/20251009-beta"
+   . r.load.dot  eccc/mrd/rpn/utils/20251009-beta
 fi
 
 if ! which liburp >/dev/null 2>&1; then

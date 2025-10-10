@@ -125,11 +125,11 @@ export FOR_DUMP_CORE_FILE=
 echo loading rpn/code-tools/20250826/env/inteloneapi-2022.1.2
 . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2022.1.2
 
-echo loading eccc/mrd/rpn/libs/20251008-beta
-. r.load.dot eccc/mrd/rpn/libs/20251008-beta
+echo loading eccc/mrd/rpn/libs/20251009-beta
+. r.load.dot eccc/mrd/rpn/libs/20251009-beta
 
-echo loading eccc/mrd/rpn/utils/20251008-beta
-. r.load.dot eccc/mrd/rpn/utils/20251008-beta
+echo loading eccc/mrd/rpn/utils/20251009-beta
+. r.load.dot eccc/mrd/rpn/utils/20251009-beta
 
 cd ${PWD}
 
