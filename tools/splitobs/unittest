@@ -28,6 +28,7 @@ SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
 INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
 REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
 GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
+grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251001
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251001
@@ -1076,7 +1077,7 @@ test_burp_latbands () {
 
 	status=0
 	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -fstin /home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.8/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north \
+	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -fstin ${grid_800x400} \
 	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
 	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
