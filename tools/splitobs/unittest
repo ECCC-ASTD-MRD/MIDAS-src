@@ -2058,7 +2058,10 @@ function rdbsplit_resume {
             procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
             procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
 
-            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
+            ## The command-line 'sqlite3' does not accept that we
+            ## create the table 'sqlite_stat1' since it is reserved
+            ## for internal usage.
+            echo .schema | ${sqlite3} ${rdbin} | grep -v '^CREATE TABLE sqlite_stat1(tbl,idx,stat);$' | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
             ${sqlite3} ${rdbout}_${procx_str}_${procy_str} <<EOF
 drop index idx1;
 
