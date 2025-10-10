@@ -2070,10 +2070,8 @@ attach '${rdbin}' as db1;
 insert into header select * from db1.header where id_obs % ${nprocs} = $id;
 insert into data   select * from db1.data   where id_obs % ${nprocs} = $id;
 
-CREATE TABLE rdb4_schema( schema  varchar(9) );
 insert into rdb4_schema values('${TYPE}');
-create table resume(date integer , time integer , run varchar(9)) ;
-insert into resume values("$DATE","$HEURE","$RUN") ;
+insert into resume values('$DATE','$HEURE','$RUN') ;
 EOF
             let id=id+1
             let procy=procy+1
