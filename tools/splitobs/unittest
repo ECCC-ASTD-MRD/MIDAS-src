@@ -32,6 +32,7 @@ GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251001
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251001
 RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20251001
+SQLITE3_SSM_DOMAIN=eccc/cmd/cmds/ext/20250808
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -58,7 +59,7 @@ reflex=${reflex:-$(which reflex 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_D
 burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite3=${sqlite3:-$(which sqlite3)}
+sqlite3=${sqlite3:-$(. ssmuse-sh -d ${SQLITE3_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
