@@ -575,8 +575,8 @@ contains
 
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
-    ! Sea surface temperature
-    call oop_sst_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
+    ! Ocean temperature
+    call oop_oceanTemperature_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
 
     ! Sea ice concentration
     if ( filterObsAndInitOer ) then

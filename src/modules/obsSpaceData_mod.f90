@@ -1644,7 +1644,9 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_xtrInside      = 0 ! OBS_XTR value for obs inside vertical domain
    integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
    integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
-
+   real(8), public, parameter :: obs_vcoDiurnalSST    = -100.0d0 ! Diurnal SST corresponding to the NEMO model level 1 (0.5m)
+   real(8), public, parameter :: obs_vcoFoundationSST = -200.0d0 ! Foundation SST corresponding to the NEMO model level 2 (1.5m)
+   
    ! The BURP standard is to use 9 characters for the station ID but
    ! SQLite does not have this limitation and some applications need
    ! more characters so we use 12.
