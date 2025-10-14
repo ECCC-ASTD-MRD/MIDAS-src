@@ -1,20 +1,8 @@
- &NAMCT0
-   NCONF  = 141,
-   WRITEANALYSIS = .TRUE.
-/
  &NAMBHI
    NTRUNC  = 500,
    SCALEFACTOR   = 100*1.0D0
 /
  &NAMBEN
-   NTRUNC  = 24,
-   NENS = 96,
-   SCALEFACTOR=    100*0.0D0,
-   ENSPATHNAME='./ensemble/',
-/
- &NAMBCHM
-   NTRUNC  = 399
-   NUMMODEZERO = 20
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -25,8 +13,6 @@
    LWRTHESS = .FALSE.,
    LVARQC=.FALSE.,
    NWOQCV=5,
-/
- &NAMSPECTRAL
 /
  &NAMDIMO
    NMXOBS=3000,
@@ -44,13 +30,11 @@
   NLIST(4)=15223,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
-  NLISTFLG(3)=5, 
-  NLISTFLG(4)=11, 
-  NLISTFLG(5)=-5, 
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=11,
+  NLISTFLG(5)=-5,
   NLISTFLG(6)=-8,
   RLIMLVHU=70.,
-/
- &NAMRMAT
 /
  &NAMSTATE
   RHUMIN    = 1.0D-07
@@ -61,35 +45,6 @@
   ANLVAR(5) ='AF'
   ANLVAR(6) ='HU'
 /
- &NAMTOV   
-/
- &NAMSAT
-/
- &NAMINST
-/ 
- &NAMCHANOFFSET
-/
- &NAMTOVSINST
-/
- &NAMHYPER
-/
- &NAMGEO
-/
- &NAMGPSRO
-/
- &NAMGPSGB
-/
- &NAMBURP_FILTER_SFC
-/ 
- &NAMBURP_FILTER_CONV
-/ 
- &NAMBURP_FILTER_TOVS
-/
- &NAMCODTYP
-  cnames(1)='CHEMINSITU',
-  icod(1)=196,
-/
-
  &NAMBURP_FILTER_CHM_SFC
   BLISTELEMENTS_SFC=15208,15223,8090
 /
@@ -107,17 +62,8 @@
   assim_stnid(1,3)='UMS***26'
   assim_varno(1,3)=15223
 /
- &NAMPHY
-  saturationCurve='Tetens_2018'
-/
  &NAMOER
   NEW_OER_SW=.true.,
 /
- &NAMBGCKCONV
-  NEW_BGCK_SW=.true.
-/
  &NAMBURP_UPDATE
-/
- &NAMINC
-  etiket_rebm ='ENVAR',
 /
