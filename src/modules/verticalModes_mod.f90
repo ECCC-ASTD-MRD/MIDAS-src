@@ -530,9 +530,9 @@ contains
         do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
           do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
             if (levIndex1 == vModes%allVar3d(var3dIndex)%nLev) then
-              write(99,'(2X,E10.4)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
+              write(99,'(2X,E11.4)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
             else
-              write(99,'(2X,E10.4,$)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
+              write(99,'(2X,E11.4,$)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
             end if
           end do
         end do
@@ -542,9 +542,9 @@ contains
         do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
           do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
             if (levIndex1 == vModes%allVar3d(var3dIndex)%nLev) then
-              write(99,'(2X,E10.4)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
+              write(99,'(2X,E11.4)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
             else
-              write(99,'(2X,E10.4,$)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
+              write(99,'(2X,E11.4,$)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
             end if
           end do
         end do
@@ -552,7 +552,7 @@ contains
         outfilename = "./vModes_eigenValues_"//trim(vModes%allVar3d(var3dIndex)%varName)//".txt"
         open (unit=99,file=outfilename,action="write",status="new")
         do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
-          write(99,'(2X,E10.4)') vModes%allVar3d(var3dIndex)%eigenValues(levIndex1)
+          write(99,'(2X,E11.4)') vModes%allVar3d(var3dIndex)%eigenValues(levIndex1)
         end do
         close(unit=99)
       end do
