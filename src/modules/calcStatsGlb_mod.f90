@@ -3441,7 +3441,7 @@ module calcStatsGlb_mod
         end if
         
         do modeIndex = 1, nMode
-          write(99,'(I4,2X,E10.4)') modeIndex, powerSpec(varIndex,modeIndex)
+          write(99,'(I4,2X,E11.4)') modeIndex, powerSpec(varIndex,modeIndex)
         end do
         close(unit=99)
       end do

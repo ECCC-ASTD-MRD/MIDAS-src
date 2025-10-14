@@ -1387,6 +1387,7 @@ contains
     
     elemId=0
     if (NListSize.gt.Nmax-1) then
+       write(*,*) 'utl_get_stringId: NListSize > Nmax-1 (', NListSize, '>', Nmax-1, ')'
        call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')     
     else if (NListSize.gt.0) then
        if (nobslev.eq.1) then 
