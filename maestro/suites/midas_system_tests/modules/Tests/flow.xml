@@ -18,7 +18,7 @@
   <SUBMITS sub_name="analysisErrorOI"/>
   <SUBMITS sub_name="SST"/>
   <SUBMITS sub_name="adjointTest"/>
-  
+
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
     <FAMILY  name="EnVar">
@@ -113,6 +113,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="2D_ch"/>
+      <FAMILY  name="2D_ch">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="sea_ice"/>
       <FAMILY  name="sea_ice">
         <SUBMITS sub_name="UnitTest"/>
@@ -151,7 +156,7 @@
     <FAMILY  name="radiosonde">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>    
+    </FAMILY>
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
       <SUBMITS sub_name="UnitTest"/>
@@ -166,7 +171,7 @@
     <FAMILY  name="BgckAtms_obsDB">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY> 
+    </FAMILY>
     <SUBMITS sub_name="BgckAmsua"/>
     <FAMILY  name="BgckAmsua">
       <SUBMITS sub_name="UnitTest"/>
@@ -175,7 +180,7 @@
     <SUBMITS sub_name="BgckAmsua_obsDB"/>
     <FAMILY  name="BgckAmsua_obsDB">
       <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>    
+      <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="BgckAmsub"/>
     <FAMILY  name="BgckAmsub">
@@ -201,7 +206,7 @@
     <FAMILY  name="BgckCsr">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>    
+    </FAMILY>
     <SUBMITS sub_name="BgckRadvel"/>
     <FAMILY  name="BgckRadvel">
       <SUBMITS sub_name="UnitTest"/>
@@ -218,12 +223,12 @@
       <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="conv_ro_bending"/>
-    <FAMILY  name="conv_ro_bending">   
+    <FAMILY  name="conv_ro_bending">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="convWBcor"/>
-    <FAMILY  name="convWBcor">   
+    <FAMILY  name="convWBcor">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -284,12 +289,12 @@
     <FAMILY  name="o-p_sst">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>   
+    </FAMILY>
     <SUBMITS sub_name="o-p_diagsql"/>
     <FAMILY  name="o-p_diagsql">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY> 
+    </FAMILY>
     <SUBMITS sub_name="o-p_sfc"/>
     <FAMILY  name="o-p_sfc">
       <SUBMITS sub_name="UnitTest"/>
@@ -362,7 +367,7 @@
     <FAMILY  name="thin_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
-    </FAMILY>    
+    </FAMILY>
     <SUBMITS sub_name="SST"/>
     <FAMILY  name="SST">
       <SUBMITS sub_name="UnitTest"/>
@@ -586,7 +591,7 @@
         <MODULE  name="UnitTest"/>
       </FAMILY>
   </FAMILY>
- 
+
   <FAMILY  name="SST">
     <SUBMITS sub_name="SSTtrial"/>
     <FAMILY  name="SSTtrial">
@@ -604,7 +609,7 @@
       <MODULE  name="UnitTest"/>
     </FAMILY>
   </FAMILY>
-  
+
   <FAMILY  name="adjointTest">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>

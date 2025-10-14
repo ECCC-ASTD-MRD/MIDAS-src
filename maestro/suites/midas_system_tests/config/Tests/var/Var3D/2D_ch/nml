@@ -1,0 +1,69 @@
+ &NAMBHI
+   NTRUNC  = 500,
+   SCALEFACTOR   = 100*1.0D0
+/
+ &NAMBEN
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 50,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC=.FALSE.,
+   NWOQCV=5,
+/
+ &NAMDIMO
+   NMXOBS=3000,
+   NDATAMX=30000,
+/
+ &NAMTIME
+  DSTEPOBS = 1.0D0
+  DSTEPOBSINC = 1.0D0
+  DWINDOWSIZE = 1.0D0
+/
+ &NAMFILT
+  NLIST(1)=15208,
+  NLIST(2)=15199,
+  NLIST(3)=15008,
+  NLIST(4)=15223,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=11,
+  NLISTFLG(5)=-5,
+  NLISTFLG(6)=-8,
+  RLIMLVHU=70.,
+/
+ &NAMSTATE
+  RHUMIN    = 1.0D-07
+  ANLVAR(1) ='TT'
+  ANLVAR(2) ='P0'
+  ANLVAR(3) ='TNO2'
+  ANLVAR(4) ='TO3'
+  ANLVAR(5) ='AF'
+  ANLVAR(6) ='HU'
+/
+ &NAMBURP_FILTER_CHM_SFC
+  BLISTELEMENTS_SFC=15208,15223,8090
+/
+ &NAMBURP_FILTER_CHM
+  BLISTELEMENTS=15208,15223,8090
+/
+ &NAMCHEM
+  MODELNAME='GEM-MACH'
+  assim_all(1)=.false.
+  assim_num(1)=3
+  assim_stnid(1,1)='UMS***00'
+  assim_varno(1,1)=15208
+  assim_stnid(1,2)='UMS***05'
+  assim_varno(1,2)=15208
+  assim_stnid(1,3)='UMS***26'
+  assim_varno(1,3)=15223
+/
+ &NAMOER
+  NEW_OER_SW=.true.,
+/
+ &NAMBURP_UPDATE
+/
