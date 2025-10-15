@@ -1,5 +1,10 @@
 #! /bin/sh
 
+if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
+    return 1
+fi
+
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version.sh)
 __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
@@ -22,7 +27,13 @@ fi
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
-MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp7}
+if [ -z "${MIDAS_COMPILE_FRONTEND}" ]; then
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        MIDAS_COMPILE_FRONTEND=ppp5
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        MIDAS_COMPILE_FRONTEND=ppp7
+    fi
+fi
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
 MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND:-false}
@@ -77,11 +88,10 @@ if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
 fi
 
 # Set the optimization level
-if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ];then
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    FOPTMIZ=4
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     FOPTMIZ=3
-else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    return 1
 fi
 
 ## https://stackoverflow.com/a/4025065
@@ -143,8 +153,13 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools.
 #---------------------------------------------------------------
-echo "... loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0"
-. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    __compiler=inteloneapi-2022.1.2
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    __compiler=inteloneapi-2025.1.0
+fi
+echo "... loading rpn/code-tools/20250925/env/${__compiler}"
+. r.load.dot rpn/code-tools/20250925/env/${__compiler}
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
@@ -153,8 +168,13 @@ HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 VGRID_LIBNAME="vgrid"
 echo "... loading eccc/mrd/rpn/libs/20251001"
 . r.load.dot eccc/mrd/rpn/libs/20251001
-echo "... loading hdf5"
-. ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+
+echo "... loading hdf5-netcdf4"
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+fi
 
 echo "... loading eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}"
 . r.load.dot eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}
@@ -162,16 +182,27 @@ echo "... loading eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${
 echo "... loading eccc/cmd/cmda/libs/20251001/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/20251001/${COMP_ARCH}
 
-echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
-. ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+    . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-echo "... loading /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}"
-. ssmuse-sh -d /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}
+    echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
+    . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
 
-## loading makedep90
-echo "... loading makedepf90"
-#. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
-. ssmuse-sh -d /home/erv000/SSM/makedepf90/2.8.9
+    ## loading makedep90
+    echo "... loading makedepf90"
+    . ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
+    . ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
+
+    echo "... loading /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}"
+    . ssmuse-sh -d /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}
+
+    ## loading makedep90
+    echo "... loading makedepf90"
+    . ssmuse-sh -d /home/erv000/SSM/makedepf90/2.8.9
+fi
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-strict -check noarg_temp_created -no-wrap-margin -warn all -warn errors"

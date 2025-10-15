@@ -30,6 +30,10 @@ splitobs_rhel-9-graniterapids-64: version.h $(SRC)
 	. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0; \
 	make splitobs_libs
 
+splitobs_rhel-8-icelake-64: version.h $(SRC)
+	. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2; \
+	make splitobs_libs
+
 splitobs_libs: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/libs/20251001; \
 	. r.load.dot eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}; \

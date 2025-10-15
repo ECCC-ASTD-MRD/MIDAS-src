@@ -70,12 +70,15 @@ if [ -z "${MIDAS_SOURCE}" ]; then
     MIDAS_SOURCE=git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git
 fi
 
-platforms="rhel-9-graniterapids-64 all"
+platforms="${ORDENV_PLAT} all"
 
 for platform in ${platforms}; do
     case "${platform}" in
 	all)
 	    compiler=
+	    ;;
+        rhel-8-icelake-64)
+            compiler=-inteloneapi-2022.1.2
 	    ;;
         rhel-9-graniterapids-64)
 	    compiler=-inteloneapi-2025.1.0
