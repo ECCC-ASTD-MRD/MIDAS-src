@@ -56,6 +56,8 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
     echo loading eccc/mrd/rpn/libs/20251001
     . r.load.dot eccc/mrd/rpn/libs/20251001
+    echo loading hdf5-netcdf4
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
