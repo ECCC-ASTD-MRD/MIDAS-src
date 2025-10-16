@@ -32,7 +32,7 @@ module obsFilter_mod
   public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration, filt_radvel
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
   public :: filt_getSfcBufferZoneCHheight
-  
+
   integer, parameter :: nelemsMax = 30
   integer, parameter :: nflagsMax = 15
   integer :: filt_nelems, filt_nflags
@@ -70,7 +70,7 @@ contains
 
   !--------------------------------------------------------------------------
   ! findElemIndex
-  !------------------------------------------------------------------------- 
+  !-------------------------------------------------------------------------
   function findElemIndex(varNum) result(listIndex)
     implicit none
 
@@ -170,7 +170,7 @@ contains
     surfaceBufferZone_Height =  400.0d0   ! default value in Metres
     surfaceBufferZoneCH_Pres = 5000.0d0   ! default value in Pascals
     surfaceBufferZoneCH_Height = 400.0d0  ! default value in Metres
-    
+
     useEnkfTopoFilt = .false.
     rejectGZforAnalysis = .true.
 
@@ -181,7 +181,7 @@ contains
     call utl_tmg_stop(181)
 
     filt_rlimlvhu    = rlimlvhu
-    
+
     if (nelems /= MPC_missingValue_INT) then
       call utl_abort('filt_setup: check NAMFILT namelist section; NELEMS should be removed')
     end if
@@ -192,7 +192,7 @@ contains
         filt_nelems = filt_nelems + 1
       end if
     end do
-    
+
     if (nflags /= MPC_missingValue_INT) then
       call utl_abort('filt_setup: check NAMFILT namelist section; NFLAGS should be removed')
     end if
@@ -240,7 +240,7 @@ contains
     end do
 
     !
-    !- Set the topographic rejection list 
+    !- Set the topographic rejection list
     !
     if (all(list_topoFilt(:) == '**')) then
       ! default list
@@ -265,7 +265,7 @@ contains
   end subroutine filt_setup
 
   !--------------------------------------------------------------------------
-  ! filt_getSfcBufferZoneCHheight  
+  ! filt_getSfcBufferZoneCHheight
   !--------------------------------------------------------------------------
   function filt_getSfcBufferZoneCHheight()   result(sfcBufferZoneCHheight)
     implicit none
@@ -317,7 +317,7 @@ contains
         cycle BODY
       end if
       !
-      ! Allow gz for bogus data only in analysis case 
+      ! Allow gz for bogus data only in analysis case
       !
       llbogus = ( idburp == 150 .or. idburp == 151 .or. idburp == 152 .or. idburp == 153 )
       if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm == BUFR_NEGZ .and. .not.llbogus ) then
@@ -369,8 +369,8 @@ contains
       !
       ! SAR winds: assimilates wind speed only for SAR winds
       !
-      if ( ivnm == BUFR_NEFS ) then 
-        if ( idburp .ne. 204 ) then 
+      if ( ivnm == BUFR_NEFS ) then
+        if ( idburp .ne. 204 ) then
           llok = .false.
         end if
       end if
@@ -499,7 +499,7 @@ contains
 
           ! loop over all body indices (still in the same family)
           call obs_set_current_body_list(obsSpaceData, headerIndex)
-          BODY: do 
+          BODY: do
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit BODY
 
@@ -616,7 +616,7 @@ contains
 
       ! loop over all body indices (still in the 'UA' family)
       call obs_set_current_body_list(obsSpaceData, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
 
@@ -678,7 +678,7 @@ contains
 
       ! Set the body list & start at the beginning of the list
       call obs_set_current_body_list(obsSpaceData, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY2
 
@@ -805,7 +805,7 @@ contains
 
     ! loop over all body indices of each family
     call obs_set_current_body_list(obsSpaceData, obsFamily)
-    BODY: do 
+    BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
       if (bodyIndex < 0) exit BODY
 
@@ -914,7 +914,7 @@ end subroutine filt_topoAISW
        obsSfcAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
 
        ! loop over all body indices (still in the 'PR' family)
-       BODY: do 
+       BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
@@ -1037,11 +1037,11 @@ end subroutine filt_topoAISW
        ! ATMOSPHERE
        !
        colSfcAltitude = col_getHeight(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM'), &
-                               headerIndex,'MM') 
+                               headerIndex,'MM')
        colAltitudeAbove = colSfcAltitude + surfaceBufferZone_Height
 
        ! Loop over all body indices (still in the 'AL' family)
-       BODY: do 
+       BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
@@ -1148,7 +1148,7 @@ end subroutine filt_topoAISW
 
        ! loop over all body indices (still in the 'TO' family)
        call obs_set_current_body_list(obsSpaceData, headerIndex)
-       BODY: do 
+       BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
@@ -1263,7 +1263,7 @@ end subroutine filt_topoAISW
           ! Set the body list
           ! (& start at the beginning of the list)
           call obs_set_current_body_list(obsSpaceData, index_header)
-          BODY: do 
+          BODY: do
              index_body = obs_getBodyIndex(obsSpaceData)
              if (index_body < 0) exit BODY
 
@@ -1332,7 +1332,7 @@ end subroutine filt_topoAISW
     !           within bounds Altitude and check the horizontal distance between levels
     !           for further processing
     implicit none
-    
+
     ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
@@ -1356,10 +1356,10 @@ end subroutine filt_topoAISW
       write(*,*)
       write(*,*) 'filt_radvel: begin'
     end if
-    
+
     ! reading namelist variables
     if (firstCall) then
-      ! default value 
+      ! default value
       maxRangeInterp = -1.0D0
 
       if ( utl_isNamelistPresent('namradvel', './flnml') ) then
@@ -1378,13 +1378,13 @@ end subroutine filt_topoAISW
     ! Loop over all header indices of the 'RA' family (Doppler Velocity)
     !
     call obs_set_current_header_list(obsSpaceData, 'RA')
-    HEADER: do  
-      headerIndex = obs_getHeaderIndex(obsSpaceData)  
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
       if ( headerIndex < 0 ) exit HEADER
-      ! 
+      !
       numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
-      ! Elevation beam (PPI) 
-      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) 
+      ! Elevation beam (PPI)
+      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex)
       ! Altitude radar
       radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
       !
@@ -1442,7 +1442,7 @@ end subroutine filt_topoAISW
         end if
 
       end do BODY
-    end do HEADER  
+    end do HEADER
     if ( .not. beSilent ) write(*,*) 'filt_radvel: end'
   end subroutine filt_radvel
 
@@ -1524,7 +1524,7 @@ end subroutine filt_topoAISW
         ! (start at the beginning of the list)
         !
         call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
-        BODY: do 
+        BODY: do
           index_body = obs_getBodyIndex(obsSpaceData)
           if (index_body < 0) exit BODY
           !
@@ -1586,7 +1586,7 @@ end subroutine filt_topoAISW
       HEADER2: do
         index_header = obs_getHeaderIndex(obsSpaceData)
         if (index_header < 0) exit HEADER2
-        !     
+        !
         ! Process only refractivity data (codtyp 169):
         !
         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
@@ -1606,7 +1606,7 @@ end subroutine filt_topoAISW
           ! Loop over all body indices
           ! For storing varNum of each profile for the 'RO' family
           !
-          BODY2: do 
+          BODY2: do
             index_body = obs_getBodyIndex(obsSpaceData)
             if (index_body < 0) exit BODY2
             varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
@@ -1712,7 +1712,7 @@ end subroutine filt_topoAISW
 
     ! Namelist variables:
     integer, save            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=12), save  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
+    character(len=12), save  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 
@@ -1733,7 +1733,7 @@ end subroutine filt_topoAISW
           call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
         end if
         nPlatformIce = 0
-        do platformIndex = 1, maxPlatformIce 
+        do platformIndex = 1, maxPlatformIce
           if (listPlatformIce(platformIndex) == '1234567890ab') exit
           nPlatformIce = nPlatformIce + 1
         end do
@@ -1783,7 +1783,7 @@ end subroutine filt_topoAISW
       if ( .not. inPlatformList ) then
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY: do 
+        BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
 
@@ -1838,7 +1838,7 @@ end subroutine filt_topoAISW
     real(8) :: previousAltitude, previousPressure
     real(8) :: stationAltitude
     logical :: list_is_empty, highestLvlBelowSfc,stationBelowSurface
-    integer, parameter :: Nmax=100
+    integer, parameter :: Nmax=1000
     integer :: Num_stnid_chm,nobslev,Num_chm
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
@@ -1883,12 +1883,12 @@ end subroutine filt_topoAISW
       ! Identify element index of stnid list for the CH family
       call utl_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
- 
+
       ! Set pressure and geopotential height vertical boundaries.
       call filt_topoChemSetBounds
 
       ! Initialize reference values used in the following loop
-      highestLvlBelowSfc = .false. ! Where required, to identify 
+      highestLvlBelowSfc = .false. ! Where required, to identify
                                    ! if highest accepted level below surface was found.
       previousAltitude = 1.0D10 ! Set to large value in meters
       previousPressure = 0.0d0
@@ -1973,7 +1973,7 @@ end subroutine filt_topoAISW
 224 format(2x,a29,100(2x,i6))
 
   contains
-  
+
     !--------------------------------------------------------------------------
     ! filt_topoChemSetBounds
     !--------------------------------------------------------------------------
@@ -1991,9 +1991,9 @@ end subroutine filt_topoAISW
         ! Check acceptability of surface station elevation when relevant
 
         ! To identify if the station elevation is below the surface where relevant.
-        stationBelowSurface = .false.  
+        stationBelowSurface = .false.
         ! Identify station altitude (not provided when value = 0.0)
-        stationAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)        
+        stationAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
         ! Check if station height is far below column sfc altitude
         sfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
         if (stationAltitude /= 0.0d0) then
@@ -2037,7 +2037,7 @@ end subroutine filt_topoAISW
       !           or acceptance of the station elevation, when present
       !           (when /= 0.0), relative to the column surface. When the
       !           station elevation is present and accepted, also re-adjust
-      !           obs altitude relative to the column surface (when within 
+      !           obs altitude relative to the column surface (when within
       !           the difference threshold for checking the obs altitude.
       !
 
@@ -2213,7 +2213,7 @@ end subroutine filt_topoAISW
 
   !--------------------------------------------------------------------------
   ! filt_bufrCodeAssimilated
-  !------------------------------------------------------------------------- 
+  !-------------------------------------------------------------------------
   function filt_bufrCodeAssimilated(bufrCode) result(assimilated)
     !
     ! :Purpose: To test if a bufr code part of the assimilated observation list
@@ -2243,7 +2243,7 @@ end subroutine filt_topoAISW
 
   !--------------------------------------------------------------------------
   ! filt_getBufrCodeAssimilated
-  !------------------------------------------------------------------------- 
+  !-------------------------------------------------------------------------
   subroutine filt_getBufrCodeAssimilated(bufrCodeList)
     !
     ! :Purpose: To get the assimilated observation list
@@ -2261,7 +2261,7 @@ end subroutine filt_topoAISW
 
   !--------------------------------------------------------------------------
   ! filt_nBufrCodeAssimilated
-  !------------------------------------------------------------------------- 
+  !-------------------------------------------------------------------------
   function filt_nBufrCodeAssimilated() result(nBufrCode)
     !
     ! :Purpose: To get the number of assimilated observations
