@@ -724,11 +724,24 @@ contains
     character(len=4)  :: varName
     real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
     real(8)           :: obsDepth   ! double precision working copy
+    integer           :: numberVerticalLevels
+    real(8), pointer  :: allDepths(:)
+    integer, pointer  :: allVerticalLevelIndexes(:)
+    integer           :: nDepths, indexObsDepth
+    logical           :: found
+    character(len=50) :: charDataType
 
     if (.not.beSilent) write(*,*) 'Entering oop_oceanTemperature_nl, family: ', trim(cdfam)
 
     ! Loop over all headers for the given observation family
     call obs_set_current_header_list(obsSpaceData, cdfam)
+
+    ! get the number of vertical levels in the column
+    numberVerticalLevels = col_getNumVarLev(columnTrlOnTrlLev)
+
+    nDepths = 0
+    allocate(allDepths(0))
+    allocate(allVerticalLevelIndexes(0))
 
     HEADER: do
 
@@ -748,7 +761,6 @@ contains
 
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         
-
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof) cycle BODY
 
         if (col_varExist(columnTrlOnTrlLev, 'TM')) then
@@ -764,46 +776,45 @@ contains
         else
           obsDepth = dble(obsDepth_r)
         end if        
-       
-        ! Backward compatibility for old SST files in LETKF
-        if (bufrCode == bufr_sst .and. obsDepth > 100.0d0) then
-          obsDepth = obs_vcoFoundationSST
-        end if
 
-        ! Backward compatibility for old SST files in SST analysis programs (2D)
-        if (bufrCode == bufr_sst .and. obsDepth == 0.0d0) then
-          ! verticalLevelIndex = 1 is required because it's the only one available
-          obsDepth = obs_vcoDiurnalSST
-        end if
-
+        ! Define vertical level index from obs depth 
         if (obsDepth == obs_vcoDiurnalSST) then
-
           ! Diurnal SST: use model level 1 (~0.5m)
           verticalLevelIndex = 1
-
         else if(obsDepth == obs_vcoFoundationSST) then
-
-          ! Default: foundation SST: model level 2 (~1.5m)
-          verticalLevelIndex = 2
-
+          ! Foundation SST: model level 2 (~1.5m)
+          verticalLevelIndex = 2          
+          ! In 2D background configurations, only one vertical level is available,
+          ! so the vertical level index must always be set to 1.        
+          if (numberVerticalLevels == 1) verticalLevelIndex = 1
         else if(obsDepth > 0.0d0) then
-
           ! (2) Vertical profiles of ocean temperature
           verticalLevelIndex = oop_nearestModelLevel(obsDepth, columnTrlOnTrlLev)
           ! Sanity check: level index within model range
-          if (verticalLevelIndex < 1 .or. verticalLevelIndex > col_getNumVarLev(columnTrlOnTrlLev)) then
+          if (verticalLevelIndex < 1 .or. verticalLevelIndex > numberVerticalLevels) then
             call utl_abort('oop_oceanTemperature_nl: vertical level index'// &
                            str(verticalLevelIndex)//' out of range.')
           end if
-
         else
-
-          ! unexpected negative/invalid vcoord
-          call utl_abort('oop_oceanTemperature_nl: undefined observation vcoord.'//str(obsDepth))
-
+          call utl_abort('oop_oceanTemperature_nl: undefined obs depth: '//str(obsDepth))
         end if
 
-        write(*,*) 'SSN DEBUG: obsDepth header, body, vertical index: ', obsDepth, headerIndex,bodyIndex, verticalLevelIndex 
+        ! Collect distinct observation depths and vertical level index values
+        found = .false.
+        do indexObsDepth = 1, nDepths
+          if (abs(allDepths(indexObsDepth) - obsDepth) < 1.0d-6) then          
+            found = .true.
+            exit
+          end if
+        end do
+        if (.not. found) then
+          ! resize array by 1: tmpDepths -> new array, copy, replace allVerticalLevelIndexes 
+          nDepths = nDepths + 1
+          call utl_resize(allDepths, nDepths)
+          call utl_resize(allVerticalLevelIndexes, nDepths)
+          allDepths(nDepths) = obsDepth
+          allVerticalLevelIndexes(nDepths) = verticalLevelIndex
+        end if
 
         obsValue = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
 
@@ -811,9 +822,30 @@ contains
         call obs_bodySet_r(obsSpaceData, destObsColumn, bodyIndex,    &
                            obsValue - col_getElem(columnTrlOnTrlLev,  &
                                                   verticalLevelIndex, &
-                                                  headerIndex, varName))
+                                                  headerIndex, varName))      
       end do BODY
     end do HEADER
+
+    if (.not. beSilent) then
+      if (nDepths == 0) then
+        write(*,*) 'No ocean temperature observations were found.'
+      else
+        write(*,*) 'Distinct model vertical level index / obsDepth / type values (count = ', nDepths, '):'
+        do indexObsDepth = 1, nDepths
+          if (allDepths(indexObsDepth) == obs_vcoDiurnalSST) then
+            charDataType = 'Diurnal SST observations'
+          else if (allDepths(indexObsDepth) == obs_vcoFoundationSST) then
+            charDataType = 'Foundation SST observations'
+          else if (allDepths(indexObsDepth) > 0.0d0) then
+            charDataType = 'Vertical profile of ocean temperature observations'
+          end if
+          write(*,'(1x,i5,1x,f10.3,1x,a)') allVerticalLevelIndexes(indexObsDepth), &
+                                           allDepths(indexObsDepth), trim(charDataType)
+        end do
+      end if
+    end if
+
+    if (.not.beSilent) write(*,*) 'oop_oceanTemperature_nl completed.'
 
   end subroutine oop_oceanTemperature_nl
 
@@ -2160,8 +2192,12 @@ contains
       integer           :: verticalLevelIndex
       real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
       real(8)           :: obsDepth
+      integer           :: numberVerticalLevels
 
       call obs_set_current_body_list(obsSpaceData, 'TM')
+      
+      ! get the number of vertical levels in the column
+      numberVerticalLevels = col_getNumVarLev(columnAnlInc)
 
       !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, &
       !$OMP                     verticalLevelIndex, obsDepth_r, obsDepth, anlIncValueBot)
@@ -2188,45 +2224,29 @@ contains
           else
             obsDepth = dble(obsDepth_r)
           end if        
-
-          ! Backward compatibility for old SST files in LETKF
-          if (bufrCode == bufr_sst .and. obsDepth > 100.0d0) then
-            obsDepth = obs_vcoFoundationSST
-          end if
-
-          ! Backward compatibility for old SST files in SST analysis programs (2D)
-          if (bufrCode == bufr_sst .and. obsDepth == 0.0d0) then
-            ! verticalLevelIndex = 1 is required because it's the only one available
-            obsDepth = obs_vcoDiurnalSST
-          end if
-      
+         
+          ! Define vertical level index from obs depth 
           if (obsDepth == obs_vcoDiurnalSST) then
-
             ! Diurnal SST: use model level 1 (~0.5m)
             verticalLevelIndex = 1
-
           else if(obsDepth == obs_vcoFoundationSST) then
-
-            ! Default: foundation SST: model level 2 (~1.5m)
+            ! Foundation SST: model level 2 (~1.5m)
             verticalLevelIndex = 2
-
-          else if(obsDepth > 0.0d0) then
-
+            ! In 2D background configurations, only one vertical level is available,
+            ! so the vertical level index must always be set to 1.        
+            if (numberVerticalLevels == 1) verticalLevelIndex = 1
+         else if(obsDepth > 0.0d0) then
             ! (2) Vertical profiles of ocean temperature
             verticalLevelIndex = oop_nearestModelLevel(obsDepth, columnAnlInc)
             ! Sanity check: level index within model range
-            if (verticalLevelIndex < 1 .or. verticalLevelIndex > col_getNumVarLev(columnAnlInc)) then
+            if (verticalLevelIndex < 1 .or. verticalLevelIndex > numberVerticalLevels) then
               call utl_abort('oop_HoceanTemperature: vertical level index'// &
                              str(verticalLevelIndex)//' out of range.')
-            end if
-
+            end if        
           else
-
-            ! unexpected negative/invalid vcoord
-            call utl_abort('oop_HoceanTemperature: undefined observation vcoord.'//str(obsDepth))
-
+            call utl_abort('oop_HoceanTemperature: undefined obs depth: '//str(obsDepth))
           end if
-
+        
           anlIncValueBot = col_getElem(columnAnlInc, verticalLevelIndex, &
                                        headerIndex, varName_opt = varName)
           call obs_bodySet_r(obsSpaceData, obs_work, bodyIndex, anlIncValueBot)
@@ -2987,8 +3007,12 @@ contains
       integer          :: verticalLevelIndex
       real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
       real(8)           :: obsDepth   ! double precision working copy
+      integer           :: numberVerticalLevels
 
       call obs_set_current_body_list(obsSpaceData, 'TM')
+    
+      ! get the number of vertical levels in the column
+      numberVerticalLevels = col_getNumVarLev(columnAnlInc)
 
       !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, residual, &
       !$OMP                    columnTG, obsDepth_r, obsDepth, verticalLevelIndex)
@@ -3018,43 +3042,27 @@ contains
           else
             obsDepth = dble(obsDepth_r)
           end if 
- 
-          ! Backward compatibility for old SST files in LETKF
-          if (bufrCode == bufr_sst .and. obsDepth > 100.0d0) then
-            obsDepth = obs_vcoFoundationSST
-          end if
-
-          ! Backward compatibility for old SST files in SST analysis programs (2D)
-          if (bufrCode == bufr_sst .and. obsDepth == 0.0d0) then
-            ! verticalLevelIndex = 1 is required because it's the only one available
-            obsDepth = obs_vcoDiurnalSST
-          end if
-      
+        
+          ! Define vertical level index from obs depth 
           if (obsDepth == obs_vcoDiurnalSST) then
-
             ! Diurnal SST: use model level 1 (~0.5m)
             verticalLevelIndex = 1
-
           else if(obsDepth == obs_vcoFoundationSST) then
-
             ! Default: foundation SST: model level 2 (~1.5m)
             verticalLevelIndex = 2
-
+            ! In 2D background configurations, only one vertical level is available,
+            ! so the vertical level index must always be set to 1.        
+            if (numberVerticalLevels == 1) verticalLevelIndex = 1
           else if(obsDepth > 0.0d0) then
-
             ! (2) Vertical profiles of ocean temperature
             verticalLevelIndex = oop_nearestModelLevel(obsDepth, columnAnlInc)
             ! Sanity check: level index within model range
-            if (verticalLevelIndex < 1 .or. verticalLevelIndex > col_getNumVarLev(columnAnlInc)) then
+            if (verticalLevelIndex < 1 .or. verticalLevelIndex > numberVerticalLevels) then
               call utl_abort('oop_HToceanTemperature: vertical level index'// &
                              str(verticalLevelIndex)//' out of range.')
-            end if
-
+            end if          
           else
-
-            ! unexpected negative/invalid vcoord
-            call utl_abort('oop_HToceanTemperature: undefined observation vcoord.'//str(obsDepth))
-
+            call utl_abort('oop_HToceanTemperature: undefined obs depth: '//str(obsDepth))
           end if
 
           residual = obs_bodyElem_r(obsSpaceData, obs_work, bodyIndex)

@@ -662,7 +662,8 @@ module sqliteRead_mod
         select case(trim(bodySqlNames(columnIndex)))
           case('VCOORD')
             vertCoord = bodyValues(rowIndex,columnIndex)
-            if (trim(familyType) /= 'RA' .and. trim(familyType) /= 'TO') then
+            if (trim(familyType) /= 'RA' .and. trim(familyType) /= 'TO' .and. &
+                trim(familyType) /= 'TM') then
               vertCoord = vertCoord * vertCoordFact + elevReal * elevFact
             end if
             call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord)

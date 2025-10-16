@@ -1,33 +1,30 @@
+ &NAMTIME
+  DSTEPOBS    = 48.0d0
+  DSTEPOBSINC = 48.0d0
+  DWINDOWSIZE = 48.0d0
+/
  &NAMOMF
-   ADDSIGMAO = .TRUE.
-   ADDHBHT   = .FALSE.
+   ADDSIGMAO = .true.
+   ADDHBHT   = .false.
 /
  &NAMDIMO
    NMXOBS=400000,
    NDATAMX=7000000,
 /
- &NAMTIME
-  DSTEPOBS = 1.0D0
-/
  &NAMFILT
   NLIST(1)=22042,
-  RLIMLVHU   = 70.D0
 /
  &NAMSTATE
-   RHUMIN  = 1.0D-07
-   ANLVAR(5)   ='P0'
-   ANLVAR(6)   ='TG'
+   ANLVAR(1)   ='TM'
 /
  &namSQLInsert
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
   itemInsertList(4)=11004
-
 /
  &namSQLUpdate
  itemUpdateBodyList(1)='OMP'
- itemUpdateBodyList(2)='OMA'
 /
  &namSSTObsErrors
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
