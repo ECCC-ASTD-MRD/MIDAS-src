@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Increase hard-coded value of `Nmax` in routine `filt_topoChemistry` (#1118 and !1033)
+ * Warning message related to the fix to the RttovScatt bug is only printed once (#1112 and !1030)
 
 ### Fixed
 
