@@ -183,12 +183,13 @@ echo "... loading eccc/cmd/cmda/libs/20251021/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH}
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+    perftools_version=2.0
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
+    perftools_version=2.1
 fi
+
+echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
+. ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 
 echo "... loading eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}"
 . r.load.dot eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}
