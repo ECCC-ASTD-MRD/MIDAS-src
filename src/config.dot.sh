@@ -186,9 +186,6 @@ if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
-
     ## loading makedep90
     echo "... loading makedepf90"
     . ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
@@ -196,13 +193,13 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.1/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.1/${COMP_ARCH}
 
-    echo "... loading /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}"
-    . ssmuse-sh -d /home/erv000/SSM/rttov/13v2.0.1-15-gaad92f2/${COMP_ARCH}
-
     ## loading makedep90
     echo "... loading makedepf90"
     . ssmuse-sh -d /home/erv000/SSM/makedepf90/2.8.9
 fi
+
+echo "... loading eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-strict -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
