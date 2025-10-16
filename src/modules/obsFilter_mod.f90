@@ -1804,7 +1804,7 @@ end subroutine filt_topoAISW
     real(8) :: obsAltitude, obsPressure, colTopPressure, colSfcPressure
     real(8) :: colAltitudeBelow, colAltitudeAbove
     logical :: list_is_empty
-    integer, parameter :: Nmax=100
+    integer, parameter :: Nmax=1000
     integer :: Num_stnid_chm,nobslev,Num_chm
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
