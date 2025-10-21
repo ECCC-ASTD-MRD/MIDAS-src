@@ -251,7 +251,7 @@ module sqliteRead_mod
 
     ! Set multiplying factor for vertical coordinate
     select case(trim(familyType))
-      case('SF','TM','SC')
+      case('SF','SC')
         vertCoordFact = 0
       case default
         vertCoordFact = 1
@@ -259,7 +259,7 @@ module sqliteRead_mod
 
     ! Set multiplying factor used when adding elevation to vcoord
     select case(trim(familyType))
-      case('PR','SF','TM','GP')
+      case('PR','SF','GP')
         elevFact=1.0
       case default
         elevFact=0.0

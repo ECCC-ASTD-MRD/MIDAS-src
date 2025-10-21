@@ -576,7 +576,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_ASS = OBS_FLG+1  ! flag to indicate if assimilated
    integer, parameter, public :: OBS_HIND= OBS_ASS+1  ! corresponding header row index
    integer, parameter, public :: OBS_VCO = OBS_HIND+1 ! type of vertical coordinate
-   integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of anal level above observ'n
+   integer, parameter, public :: OBS_LYR = OBS_VCO+1  ! Index of analysis/model level above observ'n
                                              ! Flag: extrapolation necessary of
    integer, parameter, public :: OBS_XTR = OBS_LYR+1  ! anal variables to obs'n location
    integer, parameter, public :: OBS_QCF2= OBS_XTR+1  ! TOVs Data Level Qc Flag
@@ -1641,11 +1641,13 @@ module ObsSpaceData_mod
    integer, public, parameter :: obs_vcoChannel     = 3 ! OBS_VCO value for channel obs
    integer, public, parameter :: obs_vcoChemColumn  = 4 ! OBS_VCO value for chemistry column integrated obs
    integer, public, parameter :: obs_vcoChemSfc     = 5 ! OBS_VCO value for chemistry point surface obs
+   integer, public, parameter :: obs_vcoOceanDepth  = 6 ! OBS_VCO value for ocean temperature vertical profiles
    integer, public, parameter :: obs_xtrInside      = 0 ! OBS_XTR value for obs inside vertical domain
    integer, public, parameter :: obs_xtrAbove       = 1 ! OBS_XTR value for obs above vertical domain
    integer, public, parameter :: obs_xtrBelow       = 2 ! OBS_XTR value for obs below vertical domain
-   real(8), public, parameter :: obs_vcoDiurnalSST    = -100.0d0 ! Diurnal SST corresponding to the NEMO model level 1 (0.5m)
-   real(8), public, parameter :: obs_vcoFoundationSST = -200.0d0 ! Foundation SST corresponding to the NEMO model level 2 (1.5m)
+   real(8), public, parameter :: obs_pppDiurnalSST    = -100.0d0 ! Diurnal SST corresponding to the NEMO model level 1 (0.5m)
+   real(8), public, parameter :: obs_pppFoundationSST = -200.0d0 ! Foundation SST corresponding to the NEMO model level 2 (1.5m)
+
    
    ! The BURP standard is to use 9 characters for the station ID but
    ! SQLite does not have this limitation and some applications need
