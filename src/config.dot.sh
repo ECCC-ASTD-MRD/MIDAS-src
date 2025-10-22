@@ -191,8 +191,16 @@ fi
 echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 
-echo "... loading eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}"
-. r.load.dot eccc/mrd/rpn/anl/rttov13/2.1.0-rc2/${COMP_ARCH}
+## We cannot use the same version because the library on
+## 'rhel-8-icelake-64' includes a subset of LAPACK routines which have
+## been removed in the library published for 'rhel-9-graniterapids-64'.
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    rttov_version=rttov/13v1.3
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    rttov_version=rttov13/2.1.0-rc2
+fi
+echo "... loading eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading eccc/mrd/rpn/anl/makedepf90/2.8.9"
