@@ -12,7 +12,7 @@ ${__toplevel}/set_resources_def.sh
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
-which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         __rmnlib_version__=20251021
