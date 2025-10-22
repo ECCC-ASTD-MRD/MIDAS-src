@@ -31,7 +31,7 @@ module obsOperators_mod
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_ice_nl, oop_raDvel_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs, oop_iceScaling
-  public :: oop_oceanTemperature_nl
+  public :: oop_oceanTS_nl
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
@@ -745,19 +745,19 @@ contains
   end subroutine oop_sfc_nl
 
   !--------------------------------------------------------------------------
-  ! oop_oceanTemperature_nl
+  ! oop_oceanTS_nl
   !--------------------------------------------------------------------------
-  subroutine oop_oceanTemperature_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
-                                     cdfam, destObsColumn)
+  subroutine oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam, destObsColumn)
+    !
     ! :Purpose:
-    !   Compute innovations for all types of ocean temperature observations:
+    !   Compute innovations for all types of ocean temperature/salinity observations:
     !     (1) Diurnal surface temperature     : NEMO model level 1  (~0.5 m)
     !     (2) Foundation SST (non-diurnal)    : NEMO model level 2  (~1.5 m) or level 1 if only one level (SST programs)
-    !     (3) Vertical profiles of temperature: linear interpolation using layer index and weight from oop_vobslyrs
+    !     (3) Vertical profiles of T/S: linear interpolation using layer index and weight from oop_vobslyrs
     !
     !  :Algorithm: It uses col_getVco(column)%depths(:) to locate the layer bracket [k, k+1] 
     !              that contains the observation depth and then computes
-    !              :math:`T_{obs}(model) = (1 - w) T_{k} + w T_{k+1}`,
+    !              :math:`(T,S)_{obs}(model) = (1 - w) (T,S)_{k} + w (T,S)_{k+1}`,
     !              where :math:`w = (z_{obs} - z_{k}) / (z_{k+1} - z_{k})`
     !
     implicit none
@@ -786,7 +786,7 @@ contains
     real(8)           :: weight
     integer, parameter :: maxDebugObs = 10
 
-    if (.not.beSilent) write(*,*) 'Entering oop_oceanTemperature_nl, family: ', trim(cdfam)
+    if (.not.beSilent) write(*,*) 'Entering oop_oceanTS_nl, family: ', trim(cdfam)
 
     ! Loop over all headers for the given observation family
     call obs_set_current_header_list(obsSpaceData, cdfam)
@@ -816,12 +816,15 @@ contains
 
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         
-        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof) cycle BODY
-
-        if (col_varExist(columnTrlOnTrlLev, 'TM')) then
-          varName = 'TM'
-        else
-          varName = 'TG'
+        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
+                                 .and. bufrCode /= bufr_sprof) cycle BODY
+        
+        if (trim(cdfam) == 'TM') then
+          if (col_varExist(columnTrlOnTrlLev, 'TM')) then
+            varName = 'TM'
+          else
+            varName = 'TG'
+          end if
         end if
 
         ! Read raw vcoord
@@ -848,7 +851,7 @@ contains
           if (numberVerticalLevels == 1) verticalLevelIndex = 1
           modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, headerIndex, varName)
         else if(obsDepth > 0.0d0) then
-          ! (3) Vertical profiles of ocean temperature
+          ! (3) Vertical profiles of ocean temperature or salinity
           ! get vco pointer
           vco => col_getVco(columnTrlOnTrlLev)
           ! layerIndex is computed within oop_vobslyrs
@@ -856,7 +859,7 @@ contains
           ! vco%depths(layerIndex) <= obsDepth <= vco%depths(layerIndex+1)
           layerIndex = obs_bodyElem_i(obsSpaceData, obs_lyr, bodyIndex)
           if (layerIndex < 1 .or. layerIndex >= vco%nlev_depth) then
-            call utl_abort('oop_oceanTemperature_nl: invalid layer index='//str(layerIndex))
+            call utl_abort('oop_oceanTS_nl: invalid layer index='//str(layerIndex))
           end if          
           if (utl_isEqual(vco%depths(layerIndex + 1) - vco%depths(layerIndex), 0.0d0)) then
             weight = 0.0d0
@@ -870,8 +873,8 @@ contains
                                 weight  * col_getElem(columnTrlOnTrlLev, layerIndex + 1, headerIndex, varName)
         else
           ! unexpected negative obs depth
-          call utl_abort('oop_oceanTemperature_nl: undefined obs depth: '//str(obsDepth))
-        end if ! different types of obsDepth: diurnal SST, foundation SST or vertical T profile
+          call utl_abort('oop_oceanTS_nl: undefined obs depth: '//str(obsDepth))
+        end if ! different types of obsDepth: diurnal SST, foundation SST or vertical T/S profile
 
         ! Collect distinct observation depths and vertical level index values
         found = .false.
@@ -907,7 +910,7 @@ contains
 
     if (.not. beSilent) then
       if (nDepths == 0) then
-        write(*,*) 'No ocean temperature observations were found.'
+        write(*,*) 'No ocean T/S observations were found.'
       else
         write(*,*) 'Distinct model vertical level index / obsDepth / type values (count = ', nDepths, '):'
         do indexObsDepth = 1, nDepths
@@ -916,7 +919,7 @@ contains
           else if (allDepths(indexObsDepth) == obs_pppFoundationSST) then
             charDataType = 'Foundation SST observations'
           else if (allDepths(indexObsDepth) > 0.0d0) then
-            charDataType = 'Vertical profile of ocean temperature observations'
+            charDataType = 'Vertical profile of ocean T/S observations'
           end if
           write(*,'(1x,i5,1x,f10.3,1x,a)') allVerticalLevelIndexes(indexObsDepth), &
                                            allDepths(indexObsDepth), trim(charDataType)
@@ -924,9 +927,9 @@ contains
       end if
     end if
 
-    if (.not.beSilent) write(*,*) 'oop_oceanTemperature_nl completed.'
+    if (.not.beSilent) write(*,*) 'oop_oceanTS_nl completed.'
 
-  end subroutine oop_oceanTemperature_nl
+  end subroutine oop_oceanTS_nl
 
   !--------------------------------------------------------------------------
   ! oop_hydro_nl
@@ -1991,7 +1994,8 @@ contains
 
     call oop_Hchm()          ! fill in OBS_WORK : Hdx
 
-    call oop_HoceanTemperature() ! fill in OBS_WORK : Hdx
+    call oop_HoceanTS('TM')  ! fill in OBS_WORK : Hdx
+    call oop_HoceanTS('SALW')! fill in OBS_WORK : Hdx
 
     call oop_Hice()          ! fill in OBS_WORK : Hdx
 
@@ -2250,20 +2254,23 @@ contains
     end subroutine oop_Hsf
 
     !--------------------------------------------------------------------------
-    ! oop_HoceanTemperature
+    ! oop_HoceanTS
     !--------------------------------------------------------------------------
-    subroutine oop_HoceanTemperature()
+    subroutine oop_HoceanTS(familyName)
       !
-      ! :Purpose: Compute simulated ocean temperature observations (Hdx)
+      ! :Purpose: Compute simulated ocean temperature/salinity observations (Hdx)
       !           from profiled model increments.
       ! Handles:
       !     (1) Diurnal surface temperature: model level 1
       !     (2) Foundation SST             : model level 2
-      !     (3) Subsurface temperature     : linear interpolation between layer k and k+1
+      !     (3) Subsurface T/S             : linear interpolation between layer k and k+1
       !
       !   Result is written into OBS_WORK.
       !
       implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: familyName ! Temperature or salinity
 
       ! Locals:
       integer           :: headerIndex, bodyIndex, bufrCode
@@ -2275,7 +2282,7 @@ contains
       integer           :: numberVerticalLevels, nlev
       type(struct_vco), pointer :: vco
 
-      call obs_set_current_body_list(obsSpaceData, 'TM')
+      call obs_set_current_body_list(obsSpaceData, trim(familyName))
 
       ! get the number of vertical levels in the increments column
       numberVerticalLevels = col_getNumVarLev(columnAnlInc)
@@ -2289,12 +2296,15 @@ contains
         if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) cycle BODY
         
         bufrCode = obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex)
-        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof) cycle BODY
+        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
+                                 .and. bufrCode /= bufr_sprof) cycle BODY
 
-        if (col_varExist(columnAnlInc,'TM')) then
-          varName = 'TM'
-        else
-          varName = 'TG'
+        if (trim(familyName) == 'TM') then
+          if (col_varExist(columnAnlInc,'TM')) then
+            varName = 'TM'
+          else
+            varName = 'TG'
+          end if
         end if
 
         headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
@@ -2320,7 +2330,7 @@ contains
           if (numberVerticalLevels == 1) verticalLevelIndex = 1
           modelPert = col_getElem(columnAnlInc, verticalLevelIndex, headerIndex, varName_opt = varName)
         else if (obsDepth > 0.0d0) then
-          ! (3) Vertical profiles of ocean temperature - linear interpolation between k and k+1
+          ! (3) Vertical profiles of ocean T/S - linear interpolation between k and k+1
           vco => col_getVco(columnAnlInc)  ! use the increments column's vco
           nlev = vco%nLev_depth
           ! read layer index computed by oop_vobslyrs
@@ -2343,14 +2353,14 @@ contains
           modelPert = (1.0d0 - weight) * col_getElem(columnAnlInc, layerIndex    , headerIndex, varName_opt = varName) + &
                                weight  * col_getElem(columnAnlInc, layerIndex + 1, headerIndex, varName_opt = varName)
         else
-          call utl_abort('oop_HoceanTemperature: undefined obs depth: '//str(obsDepth))
+          call utl_abort('oop_HoceanTS: undefined obs depth: '//str(obsDepth))
         end if
 
         call obs_bodySet_r(obsSpaceData, obs_work, bodyIndex, modelPert)
 
       end do BODY
 
-    end subroutine oop_HoceanTemperature
+    end subroutine oop_HoceanTS
 
     !--------------------------------------------------------------------------
     ! oop_Hhydro
@@ -2840,7 +2850,8 @@ contains
 
     call oop_HTpp
 
-    call oop_HToceanTemperature
+    call oop_HToceanTS('TM')
+    call oop_HToceanTS('SALW')
 
     call oop_HTice
 
@@ -3080,9 +3091,9 @@ contains
     end subroutine oop_HTsf
 
     !---------------------------------------------------------------
-    ! oop_HToceanTemperature
+    ! oop_HToceanTS
     !---------------------------------------------------------------
-    subroutine oop_HToceanTemperature()
+    subroutine oop_HToceanTS(familyName)
       !
       ! :Purpose: Adjoint of the observation operator for ocean temperature data.
       !           It distributes residuals (from OBS_WORK) back to model increments.
@@ -3092,6 +3103,9 @@ contains
       !    (3) Vertical profiles of temperature: linear interpolation between k and k+1
       !
       implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: familyName 
 
       ! Locals:
       real(8)          :: residual
@@ -3106,7 +3120,7 @@ contains
       real(8)           :: weight
       type(struct_vco), pointer :: vco
 
-      call obs_set_current_body_list(obsSpaceData, 'TM')
+      call obs_set_current_body_list(obsSpaceData, trim(familyName))
 
       ! get the number of vertical levels in the increments column
       numberVerticalLevels = col_getNumVarLev(columnAnlInc)
@@ -3120,12 +3134,15 @@ contains
         if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) cycle BODY
 
         bufrCode = obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex)
-        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof) cycle BODY
-
-        if ( col_varExist(columnAnlInc,'TM') ) then
-          varName = 'TM'
-        else
-          varName = 'TG'
+        if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
+                                 .and. bufrCode /= bufr_sprof) cycle BODY
+        
+        if (trim(familyName) == 'TM') then
+          if (col_varExist(columnAnlInc,'TM')) then
+            varName = 'TM'
+          else
+            varName = 'TG'
+          end if
         end if
 
         headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
@@ -3177,12 +3194,12 @@ contains
           columnTG(layerIndex)     = columnTG(layerIndex)     + (1.0d0 - weight) * residual
           columnTG(layerIndex + 1) = columnTG(layerIndex + 1) +          weight  * residual
         else
-          call utl_abort('oop_HToceanTemperature: undefined obs depth: '//str(obsDepth))
+          call utl_abort('oop_HToceanTS: undefined obs depth: '//str(obsDepth))
         end if
 
       end do BODY
 
-    end subroutine oop_HToceanTemperature
+    end subroutine oop_HToceanTS
 
     !--------------------------------------------------------------------------
     ! oop_HThydro
