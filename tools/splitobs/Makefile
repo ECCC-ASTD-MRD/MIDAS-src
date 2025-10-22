@@ -35,13 +35,13 @@ splitobs_rhel-8-icelake-64: version.h $(SRC)
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20251001; \
-	. r.load.dot eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}; \
+	. r.load.dot eccc/mrd/rpn/libs/20251021; \
+	. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}; \
         . ssmuse-sh -d eccc/cmd/cmda/libs/20251001/${COMP_ARCH};    \
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251001/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251001/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/main/opt/intelcomp/${COMP_ARCH}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib" $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/main/opt/intelcomp/${COMP_ARCH}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib" $(SRC); rm version.h
 
 
 version.h:

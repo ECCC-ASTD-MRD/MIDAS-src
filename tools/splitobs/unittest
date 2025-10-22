@@ -31,8 +31,8 @@ GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251001
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251001
-RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20251001
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251021
+RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20251021
 SQLITE3_SSM_DOMAIN=eccc/cmd/cmds/ext/20250808
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}

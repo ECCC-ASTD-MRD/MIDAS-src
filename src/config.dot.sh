@@ -166,8 +166,8 @@ HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20251001"
-. r.load.dot eccc/mrd/rpn/libs/20251001
+echo "... loading eccc/mrd/rpn/libs/20251021"
+. r.load.dot eccc/mrd/rpn/libs/20251021
 
 echo "... loading hdf5-netcdf4"
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
@@ -176,8 +176,8 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
 fi
 
-echo "... loading eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}"
-. r.load.dot eccc/mrd/rpn/utils/20251001/burp-tools_20.0.13-${COMP_ARCH}_${ORDENV_PLAT}
+echo "... loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
 
 echo "... loading eccc/cmd/cmda/libs/20251001/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/20251001/${COMP_ARCH}

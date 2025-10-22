@@ -73,8 +73,8 @@ elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0 >> load_env.sh
     echo . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20251001 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20251001 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
     echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
     echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
 
