@@ -179,8 +179,8 @@ fi
 echo "... loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
 . r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
 
-echo "... loading eccc/cmd/cmda/libs/20251001/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20251001/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20251021/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH}
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"

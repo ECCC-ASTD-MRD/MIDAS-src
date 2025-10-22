@@ -37,7 +37,7 @@ splitobs_rhel-8-icelake-64: version.h $(SRC)
 splitobs_libs: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/libs/20251021; \
 	. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}; \
-        . ssmuse-sh -d eccc/cmd/cmda/libs/20251001/${COMP_ARCH};    \
+        . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH};    \
 	make splitobs
 
 splitobs: version.h $(SRC)
