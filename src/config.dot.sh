@@ -152,6 +152,7 @@ if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     __compiler=inteloneapi-2025.1.0
     FOPTMIZ=2
+    __compiler_supplementary_option=-strict
 fi
 echo "... loading rpn/code-tools/20250925/env/${__compiler}"
 . r.load.dot rpn/code-tools/20250925/env/${__compiler}
@@ -202,7 +203,7 @@ echo "... loading eccc/mrd/rpn/anl/makedepf90/2.8.9"
 . ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
-OPTF="-strict -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="${__compiler_supplementary_option} -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 OPTF="-qmkl ${OPTF} -warn noexternal"
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
