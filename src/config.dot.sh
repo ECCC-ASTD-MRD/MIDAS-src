@@ -87,13 +87,6 @@ if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
      echo "..."
 fi
 
-# Set the optimization level
-if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    FOPTMIZ=4
-elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    FOPTMIZ=3
-fi
-
 ## https://stackoverflow.com/a/4025065
 ## if $1 = $2, returns '='
 ## if $1 < $2, returns '<'
@@ -151,12 +144,14 @@ check_ec_atomic_profile_version () {
 
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools.
+#  Set up compiler, optimization level, libraries and tools
 #---------------------------------------------------------------
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     __compiler=inteloneapi-2022.1.2
+    FOPTMIZ=4
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     __compiler=inteloneapi-2025.1.0
+    FOPTMIZ=2
 fi
 echo "... loading rpn/code-tools/20250925/env/${__compiler}"
 . r.load.dot rpn/code-tools/20250925/env/${__compiler}
