@@ -24,30 +24,38 @@ DEBUG_OPTIONS =
 
 OPT_LEVEL = 2
 
+CFLAGS = -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3
+
+ifeq (${ORDENV_PLAT},rhel-8-icelake-64)
+    COMPILER=inteloneapi-2022.1.2
+    COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/all/lib
+else ifeq (${ORDENV_PLAT},rhel-9-graniterapids-64)
+    COMPILER=inteloneapi-2025.1.0
+    COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/${ORDENV_PLAT}/lib
+else
+    $(error This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT})
+endif
+
 install : # defining default target
 
-splitobs_rhel-9-graniterapids-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0; \
-	make splitobs_libs
-
-splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2; \
+splitobs_pgm: version.h $(SRC)
+	. r.load.dot rpn/code-tools/20250925/env/${COMPILER}; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20251021; \
+	. r.load.dot eccc/mrd/rpn/libs/20251021;                                                 \
 	. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}; \
-        . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH};    \
+        . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH};                                 \
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/main/opt/intelcomp/${COMP_ARCH}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib" $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) $(CFLAGS) $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:$(COMPILER_DYNLIBS)" $(SRC); rm version.h
 
 
 version.h:
 	echo "#define  VERSION   \"$(VERSION)\"" > version.h; echo "#define  VERSION_SHA1   \"$(VERSION_SHA1)\"" >> version.h
 
-install: $(PROGRAM)_$(ORDENV_PLAT)
+install: $(PROGRAM)_pgm
 	cp $(PROGRAM)_$(ORDENV_PLAT) $(PGM)
 
 clean:
