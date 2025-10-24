@@ -142,12 +142,12 @@ module sqliteRead_mod
     integer(8), allocatable  :: bodyHeadKeys(:), bodyPrimaryKeys(:)
     integer(8), allocatable  :: tempBodyKeys(:,:)
     logical                  :: finishedWithHeader
-    real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
-    real                     :: elev    , obsLat, obsLon, elevFact
+    real(pre_obsReal)        :: elev, xlat, xlon, vertCoord, elevFact
+    real                     :: elev_r4, obsLat, obsLon
     real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation
-    real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
+    real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal, vertCoordFact
     real(pre_obsReal)        :: beamLat, beamLon, beamHeight, beamDistance, beamRange
-    integer                  :: vertCoordType, vertCoordFact, ierr, idProf
+    integer                  :: vertCoordType, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, obsError
@@ -252,17 +252,17 @@ module sqliteRead_mod
     ! Set multiplying factor for vertical coordinate
     select case(trim(familyType))
       case('SF','SC')
-        vertCoordFact = 0
+        vertCoordFact = 0.0d0
       case default
-        vertCoordFact = 1
+        vertCoordFact = 1.0d0
     end select
 
     ! Set multiplying factor used when adding elevation to vcoord
     select case(trim(familyType))
       case('PR','SF','GP')
-        elevFact=1.0
+        elevFact = 1.0d0
       case default
-        elevFact=0.0
+        elevFact = 0.0d0
     end select
 
     ! Read appropriate namelist based on obs family
@@ -491,8 +491,8 @@ module sqliteRead_mod
         landSea     = MPC_missingValue_INT
         sensor      = MPC_missingValue_INT
         cloudCoverReal = MPC_missingValue_R4
-        elev = 0.
-        elevReal = 0.
+        elev_r4 = 0.0
+        elev    = 0.0d0
         solarAzimuthReal = MPC_missingValue_R4
         solarZenithReal  = MPC_missingValue_R4
         zenithReal = MPC_missingValue_R4
@@ -508,7 +508,7 @@ module sqliteRead_mod
         if (trim(familyType) == 'TO') then
           call obs_headSet_i(obsdat, OBS_TTYP, headerIndex, terrainType)
         end if
-        call obs_headSet_r(obsdat, OBS_ALT, headerIndex, elevReal)
+        call obs_headSet_r(obsdat, OBS_ALT, headerIndex, elev)
 
         call obs_setFamily(obsdat, trim(familyType), headerIndex)
         call obs_setHeadPrimaryKey(obsdat, headerIndex, headPrimaryKey)
@@ -541,10 +541,11 @@ module sqliteRead_mod
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsStatus)
               call obs_headSet_i(obsdat, OBS_ST1, headerIndex, obsStatus)
             case('ELEV','ANTENNA_ALTITUDE')
-              call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = elev, REAL_MISSING=MPC_missingValue_R4)
-              elevReal=elev
+              call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = elev_r4, &
+                                   real_missing = MPC_missingValue_R4)
+              elev = real(elev_r4, 8)
               if (trim(familyType) /= 'TO') then
-                call obs_headSet_r(obsdat, OBS_ALT ,headerIndex, elevReal)
+                call obs_headSet_r(obsdat, OBS_ALT ,headerIndex, elev)
               end if
             case('LAND_SEA')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = landSea, INT_MISSING=MPC_missingValue_INT)
@@ -664,7 +665,7 @@ module sqliteRead_mod
             vertCoord = bodyValues(rowIndex,columnIndex)
             if (trim(familyType) /= 'RA' .and. trim(familyType) /= 'TO' .and. &
                 trim(familyType) /= 'TM') then
-              vertCoord = vertCoord * vertCoordFact + elevReal * elevFact
+              vertCoord = vertCoord * vertCoordFact + elev * elevFact
             end if
             call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord)
           case('VCOORD_TYPE')
@@ -706,7 +707,7 @@ module sqliteRead_mod
             beamAzimuthReal   = beamAzimuth   * MPC_RADIANS_PER_DEGREE_R8
 
             call rdv_getlatlonHRfromRange(xlat, xlon, beamElevationReal, beamAzimuthReal, & !in
-                                          elevReal, beamRange,                            & !in
+                                          elev, beamRange,                                & !in
                                           beamLat, beamLon, beamHeight, beamDistance)       !out
             call obs_bodySet_r(obsdat, OBS_LATD, bodyIndex, beamLat)
             call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, beamLon)
@@ -728,7 +729,7 @@ module sqliteRead_mod
         ! Add an extra row to the obsSpaceData body table
         ! to contain quantity later calculated by ovt_transformObsValue
         call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
-        call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+        call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elev * elevFact, &
                                   ovt_getDestinationBufrCode(obsVarno), &
                                   vertCoordType, bodyIndex+1)
         bodyIndex = bodyIndex + 1
@@ -736,7 +737,7 @@ module sqliteRead_mod
         if (ovt_isWindObs(obsVarno)) then
           ! Add an extra row for the other wind component
           call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
-          call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+          call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elev * elevFact, &
                                     ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
                                     vertCoordType, bodyIndex+1)
           bodyIndex = bodyIndex + 1

@@ -46,9 +46,11 @@ contains
   ! oop_vobslyrs
   !--------------------------------------------------------------------------
   subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
+    !
     ! :Purpose:
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to obs data.
+    !
     implicit none
 
     ! Arguments:
@@ -57,13 +59,12 @@ contains
     logical,                 intent(in)    :: beSilent
 
     ! Locals:
-    integer :: levelIndex, jdata, nlev
+    integer :: levelIndex, nlev
     real(8) :: zlev, zpt, zpb
-    integer :: iobs, layerIndex, bufrCode
+    integer :: layerIndex, bufrCode
     character(len=4) :: varLevel
-    integer :: bodyIndex
-    type(struct_vco), pointer :: vco
-    real(8)           :: obsDepth
+    integer :: bodyIndex, headerIndex
+    real(8) :: obsDepth
 
     if (.not.beSilent) write(*,*) 'Entering subroutine oop_vobslyrs'
 
@@ -90,72 +91,72 @@ contains
     !     1.1 PPP Vertical coordinate
     !
 
-    !$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb)
-    do jdata= 1,obs_numbody(obsSpaceData)
-       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,jdata) == obs_assimilated .and. &
-           obs_bodyElem_i(obsSpaceData,OBS_VCO,jdata) == obs_vcoPressure) then
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,jdata) /= bufr_nedz) then
-             zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,jdata)
-          else
-             call utl_abort('oop_vobslyr: zlev cannot be set, bufr_nedz not supported!')
+    !$OMP PARALLEL DO PRIVATE(bodyIndex,zlev,headerIndex,bufrCode,varLevel,zpt,zpb)
+    do bodyIndex= 1,obs_numbody(obsSpaceData)
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+          obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == obs_vcoPressure) then
+        if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_nedz) then
+          zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
+        else
+          call utl_abort('oop_vobslyr: zlev cannot be set, bufr_nedz not supported!')
+        end if
+        headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+        varLevel = vnl_varLevelFromVarnum(bufrCode)
+        zpt= col_getPressure(columnTrl, 1, headerIndex, varLevel)
+        zpb= col_getPressure(columnTrl, col_getNumLev(columnTrl, varLevel), headerIndex, varLevel)
+        if (zlev < zpt) then
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrAbove)
+          !
+          !- !!! WARNING !!! This obs is above the model lid.
+          !  We must turn off its assimilation flag  because the
+          !  current obs operators cannot deal with this situation (JFC)
+          if (varLevel /= 'SF') then
+            write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, pressure = ', zlev,' < ',zpt
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
           end if
-          iobs = obs_bodyElem_i(obsSpaceData,OBS_HIND,jdata)
-          bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,jdata)
-          varLevel = vnl_varLevelFromVarnum(bufrCode)
-          zpt= col_getPressure(columnTrl,1,iobs,varLevel)
-          zpb= col_getPressure(columnTrl,COL_GETNUMLEV(columnTrl,varLevel),iobs,varLevel)
-          if (zlev < zpt) then
-             call obs_bodySet_i(obsSpaceData,OBS_XTR,jdata,obs_xtrAbove)
-             !
-             !- !!! WARNING !!! This obs is above the model lid.
-             !  We must turn off its assimilation flag  because the
-             !  current obs operators cannot deal with this situation (JFC)
-             if (varLevel /= 'SF') then
-                write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, pressure = ', zlev,' < ',zpt
-                call obs_bodySet_i(obsSpaceData,OBS_ASS,jdata, obs_notAssimilated)
-             end if
-          else if (zlev > zpb) then
-             call obs_bodySet_i(obsSpaceData, OBS_XTR, jdata, obs_xtrBelow)
-          else
-             call obs_bodySet_i(obsSpaceData, OBS_XTR, jdata, obs_xtrInside)
-          end if
-       end if
+        else if (zlev > zpb) then
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrBelow)
+        else
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrInside)
+        end if
+      end if
     end do
     !$OMP END PARALLEL DO
     !
     !     1.2 ZZZ Vertical coordinate
     !
-    !$OMP PARALLEL do PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb,nlev)
-    do jdata= 1,obs_numbody(obsSpaceData)
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, jdata) == obs_assimilated .and. &
-          obs_bodyElem_i(obsSpaceData, OBS_VCO, jdata) == obs_vcoHeight) then
-        iobs = obs_bodyElem_i(obsSpaceData, OBS_HIND, jdata)
-        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, jdata)
+    !$OMP PARALLEL do PRIVATE(bodyIndex,zlev,headerIndex,bufrCode,varLevel,zpt,zpb,nlev)
+    do bodyIndex= 1,obs_numbody(obsSpaceData)
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+          obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == obs_vcoHeight) then
+        headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         if (bufrCode /= bufr_nedz) then
-          zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,jdata)
+          zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
           if (bufrCode == bufr_nebd) then
-             zlev = zlev - obs_headElem_r(obsSpaceData, OBS_TRAD, iobs)
+            zlev = zlev - obs_headElem_r(obsSpaceData, OBS_TRAD, headerIndex)
           endif
         else
           call utl_abort('oop_vobslyr: zlev cannot be set, bufr_nedz not supported!')
         end if
         varLevel = vnl_varLevelFromVarnum(bufrCode)
         if (varLevel == 'SF') then
-          zpt= col_getHeight(columnTrl,1,iobs,'TH')
-          zpb= col_getHeight(columnTrl,0,iobs,'SF')
+          zpt= col_getHeight(columnTrl, 1, headerIndex,'TH')
+          zpb= col_getHeight(columnTrl, 0, headerIndex,'SF')
         else
           nlev = col_getNumLev(columnTrl, varLevel)
-          zpt  = col_getHeight(columnTrl, 1, iobs, varLevel)
-          zpb  = col_getHeight(columnTrl, nlev, iobs, varLevel)
+          zpt  = col_getHeight(columnTrl, 1, headerIndex, varLevel)
+          zpb  = col_getHeight(columnTrl, nlev, headerIndex, varLevel)
         end if
         if (zlev > zpt) then
-          call obs_bodySet_i(obsSpaceData, OBS_XTR, jdata, obs_xtrAbove)
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrAbove)
           write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, height =', zlev,' > ',zpt
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, jdata, obs_notAssimilated)
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
         else if (zlev < zpb) then
-          call obs_bodySet_i(obsSpaceData, OBS_XTR, jdata, obs_xtrBelow)
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrBelow)
         else
-          call obs_bodySet_i(obsSpaceData, OBS_XTR, jdata, obs_xtrInside)
+          call obs_bodySet_i(obsSpaceData, OBS_XTR, bodyIndex, obs_xtrInside)
         end if
       end if
     end do
@@ -168,42 +169,42 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-    !$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levelIndex,zpt,zpb)
-    do jdata = 1, obs_numbody(obsSpaceData)
-      call obs_bodySet_i(obsSpaceData, OBS_LYR, jdata, 0)
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, jdata) == obs_assimilated .and. &
-          obs_bodyElem_i(obsSpaceData, OBS_VCO, jdata) == obs_vcoPressure) then
-        iobs = obs_bodyElem_i(obsSpaceData, OBS_HIND, jdata)
-        zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, jdata)
-        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, jdata)
+    !$OMP PARALLEL DO PRIVATE(bodyIndex,headerIndex,zlev,bufrCode,varLevel,layerIndex,nlev,levelIndex,zpt,zpb)
+    do bodyIndex = 1, obs_numbody(obsSpaceData)
+      call obs_bodySet_i(obsSpaceData, OBS_LYR, bodyIndex, 0)
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+          obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == obs_vcoPressure) then
+        headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+        zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         varLevel = vnl_varLevelFromVarnum(bufrCode)
         layerIndex = 1
         nlev = col_getNumLev(columnTrl, varLevel)
         do levelIndex = 2, nlev - 1
-          zpt = col_getPressure(columnTrl, levelIndex, iobs, varLevel)
+          zpt = col_getPressure(columnTrl, levelIndex, headerIndex, varLevel)
           if (zlev > zpt) layerIndex = levelIndex
         end do
-        zpt = col_getPressure(columnTrl, layerIndex    , iobs, varLevel)
-        zpb = col_getPressure(columnTrl, layerIndex + 1, iobs, varLevel)
-        call obs_bodySet_i(obsSpaceData, OBS_LYR, jdata, layerIndex)
+        zpt = col_getPressure(columnTrl, layerIndex    , headerIndex, varLevel)
+        zpb = col_getPressure(columnTrl, layerIndex + 1, headerIndex, varLevel)
+        call obs_bodySet_i(obsSpaceData, OBS_LYR, bodyIndex, layerIndex)
       end if
     end do
     !$OMP END PARALLEL DO
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-    !$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levelIndex,zpt)
-    do jdata = 1, obs_numbody(obsSpaceData)
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, jdata) == obs_assimilated .and. &
-          obs_bodyElem_i(obsSpaceData, OBS_VCO, jdata) == obs_vcoHeight) then
-        iobs = obs_bodyElem_i(obsSpaceData, OBS_HIND, jdata)
-        zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, jdata)
-        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, jdata)
+    !$OMP PARALLEL DO PRIVATE(bodyIndex,headerIndex,zlev,bufrCode,varLevel,layerIndex,nlev,levelIndex,zpt)
+    do bodyIndex = 1, obs_numbody(obsSpaceData)
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+          obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == obs_vcoHeight) then
+        headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+        zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         varLevel = vnl_varLevelFromVarnum(bufrCode)
         layerIndex = 1
         nlev = col_getNumLev(columnTrl, varLevel)
         do levelIndex = 2, nlev - 1
-          zpt = col_getHeight(columnTrl, levelIndex, iobs, varLevel)
+          zpt = col_getHeight(columnTrl, levelIndex, headerIndex, varLevel)
           if (zlev < zpt) layerIndex = levelIndex
         end do
         if (bufrCode == bufr_neps .or. bufrCode == bufr_nepn .or. &
@@ -218,51 +219,50 @@ contains
           ! for surface observations associated with NON-surface analysis variables
           layerIndex = nlev - 1
         end if
-        call obs_bodySet_i(obsSpaceData, OBS_LYR, jdata, layerIndex)
+        call obs_bodySet_i(obsSpaceData, OBS_LYR, bodyIndex, layerIndex)
       end if
     end do
     !$OMP END PARALLEL DO
     !
     !     2.3  Ocean vertical coordinate (depth, positive downward)
     !
-    !$OMP PARALLEL DO PRIVATE(jdata, iobs, bufrCode, varLevel, obsDepth, vco, nlev, levelIndex, layerIndex)
-    do jdata = 1, obs_numbody(obsSpaceData)
+    !$OMP PARALLEL DO PRIVATE(bodyIndex, headerIndex, bufrCode, varLevel, obsDepth, nlev, levelIndex, layerIndex)
+    do bodyIndex = 1, obs_numbody(obsSpaceData)
 
-      if (obs_bodyElem_i(obsSpaceData, obs_ass, jdata) == obs_assimilated .and. &
-          obs_bodyElem_i(obsSpaceData, obs_vco, jdata) == obs_vcoOceanDepth) then
+      if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) == obs_assimilated .and. &
+          obs_bodyElem_i(obsSpaceData, obs_vco, bodyIndex) == obs_vcoOceanDepth) then
 
-        iobs     = obs_bodyElem_i(obsSpaceData, obs_hind, jdata)
-        bufrCode = obs_bodyElem_i(obsSpaceData, obs_vnm,  jdata)
-        varLevel = vnl_varLevelFromVarnum(bufrCode)
-        obsDepth = obs_bodyElem_r(obsSpaceData, obs_ppp,  jdata)
+        headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
+        bufrCode    = obs_bodyElem_i(obsSpaceData, obs_vnm,  bodyIndex)
+        varLevel    = vnl_varLevelFromVarnum(bufrCode)
+        obsDepth    = obs_bodyElem_r(obsSpaceData, obs_ppp,  bodyIndex)
 
         ! Retrieve vertical coordinate (depths, positive downward)
-        vco => col_getVco(columnTrl)
-        nlev = vco%nlev_depth
+        nlev = col_getNumLev(columnTrl, 'DP')
 
         !--- Check if obs is above, below or inside model range
-        if (obsDepth < vco%depths(1)) then
-          call obs_bodySet_i(obsSpaceData, obs_xtr, jdata, obs_xtrAbove)
-          call obs_bodySet_i(obsSpaceData, obs_lyr, jdata, 1)
+        if (obsDepth < col_getDepth(columnTrl, 1, 'DP')) then
+          call obs_bodySet_i(obsSpaceData, obs_xtr, bodyIndex, obs_xtrAbove)
+          call obs_bodySet_i(obsSpaceData, obs_lyr, bodyIndex, 1)
           cycle
-        else if (obsDepth > vco%depths(nlev)) then
-          call obs_bodySet_i(obsSpaceData, obs_xtr, jdata, obs_xtrBelow)
-          call obs_bodySet_i(obsSpaceData, obs_lyr, jdata, nlev)
+        else if (obsDepth > col_getDepth(columnTrl, nlev, 'DP')) then
+          call obs_bodySet_i(obsSpaceData, obs_xtr, bodyIndex, obs_xtrBelow)
+          call obs_bodySet_i(obsSpaceData, obs_lyr, bodyIndex, nlev)
           cycle
         else
-          call obs_bodySet_i(obsSpaceData, obs_xtr, jdata, obs_xtrInside)
+          call obs_bodySet_i(obsSpaceData, obs_xtr, bodyIndex, obs_xtrInside)
         end if
 
         ! Find the layer index (similar to pressure/height logic)
         layerIndex = 1
         do levelIndex = 2, nlev - 1
-          if (obsDepth > vco%depths(levelIndex)) layerIndex = levelIndex
+          if (obsDepth > col_getDepth(columnTrl, levelIndex, 'DP')) layerIndex = levelIndex
         end do
 
         ! Store result
         ! layerIndex is the upper level of the bracket such that:
         ! vco%depths(layerIndex) <= obsDepth <= vco%depths(layerIndex+1)
-        call obs_bodySet_i(obsSpaceData, obs_lyr, jdata, layerIndex)
+        call obs_bodySet_i(obsSpaceData, obs_lyr, bodyIndex, layerIndex)
 
       end if
     end do
@@ -747,7 +747,7 @@ contains
   !--------------------------------------------------------------------------
   ! oop_oceanTS_nl
   !--------------------------------------------------------------------------
-  subroutine oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, cdfam, destObsColumn)
+  subroutine oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     !
     ! :Purpose:
     !   Compute innovations for all types of ocean temperature/salinity observations:
@@ -766,7 +766,6 @@ contains
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
-    character(len=*)       , intent(in)    :: cdfam
     integer                , intent(in)    :: destObsColumn
 
     ! Locals:
@@ -782,21 +781,22 @@ contains
     integer           :: nDepths, indexObsDepth
     logical           :: found, debugOceanInterp
     character(len=50) :: charDataType
-    type(struct_vco), pointer :: vco
     real(8)           :: weight
     integer, parameter :: maxDebugObs = 10
 
-    if (.not.beSilent) write(*,*) 'Entering oop_oceanTS_nl, family: ', trim(cdfam)
+    if (.not. beSilent) then
+      write(*,*) 'Entering oop_oceanTS_nl...'
+      nDepths = 0
+      ! Allocate aux vectors for diagnostic output:
+      allocate(allDepths(0))
+      allocate(allVerticalLevelIndexes(0))
+    end if
 
-    ! Loop over all headers for the given observation family
-    call obs_set_current_header_list(obsSpaceData, cdfam)
+    ! Loop over all headers
+    call obs_set_current_header_list(obsSpaceData)
 
     ! get the number of vertical levels in the column
     numberVerticalLevels = col_getNumVarLev(columnTrlOnTrlLev)
-
-    nDepths = 0
-    allocate(allDepths(0))
-    allocate(allVerticalLevelIndexes(0))
 
     HEADER: do
 
@@ -815,22 +815,23 @@ contains
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
 
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
-        
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
         
-        if (trim(cdfam) == 'TM') then
+        if (bufrCode == bufr_sst .or. bufrCode == bufr_tprof) then
           if (col_varExist(columnTrlOnTrlLev, 'TM')) then
             varName = 'TM'
           else
             varName = 'TG'
           end if
+        else if (bufrCode == bufr_sprof) then
+          varName = 'SALW'
         end if
 
-        ! Read raw vcoord
+        ! Read raw obsDepth
         obsDepth_r = obs_bodyElem_r(obsSpaceData, obs_ppp, bodyIndex)
         if (utl_isEqual(obsDepth_r, obs_missingValue_R)) then
-          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present
+          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present in obs files
         else
           obsDepth = real(obsDepth_r,8)
         end if        
@@ -842,69 +843,69 @@ contains
         if (utl_isEqual(obsDepth, obs_pppDiurnalSST)) then
           ! (1) Diurnal SST: use model level 1 (~0.5m)
           verticalLevelIndex = 1
-          modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, headerIndex, varName)
+          modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, &
+                                   headerIndex, varName_opt = varName)
         else if(utl_isEqual(obsDepth, obs_pppFoundationSST)) then
           ! (2) Foundation SST: model level 2 (~1.5m)
           verticalLevelIndex = 2          
           ! In 2D background configurations, only one vertical level is available,
           ! so the vertical level index must always be set to 1.        
           if (numberVerticalLevels == 1) verticalLevelIndex = 1
-          modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, headerIndex, varName)
+          modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, &
+                                   headerIndex, varName_opt = varName)
         else if(obsDepth > 0.0d0) then
           ! (3) Vertical profiles of ocean temperature or salinity
-          ! get vco pointer
-          vco => col_getVco(columnTrlOnTrlLev)
           ! layerIndex is computed within oop_vobslyrs
           ! layerIndex is the upper level of the bracket such that:
-          ! vco%depths(layerIndex) <= obsDepth <= vco%depths(layerIndex+1)
+          ! depth(layerIndex) <= obsDepth <= depth(layerIndex+1)
           layerIndex = obs_bodyElem_i(obsSpaceData, obs_lyr, bodyIndex)
-          if (layerIndex < 1 .or. layerIndex >= vco%nlev_depth) then
-            call utl_abort('oop_oceanTS_nl: invalid layer index='//str(layerIndex))
-          end if          
-          if (utl_isEqual(vco%depths(layerIndex + 1) - vco%depths(layerIndex), 0.0d0)) then
-            weight = 0.0d0
-          else
-            weight = (obsDepth - vco%depths(layerIndex)) / &
-                     (vco%depths(layerIndex + 1) - vco%depths(layerIndex))
-          end if
+          ! compute interpolation weight
+          weight = (obsDepth - col_getDepth(columnTrlOnTrlLev, layerIndex, 'DP')) / &
+                   (col_getDepth(columnTrlOnTrlLev, layerIndex + 1, 'DP') - &
+                    col_getDepth(columnTrlOnTrlLev, layerIndex    , 'DP'))
           weight = max(0.0d0, min(1.0d0, weight))   ! safety clamp
 
-          modelValue = (1.0d0 - weight) * col_getElem(columnTrlOnTrlLev, layerIndex    , headerIndex, varName) + &
-                                weight  * col_getElem(columnTrlOnTrlLev, layerIndex + 1, headerIndex, varName)
+          modelValue = (1.0d0 - weight) * col_getElem(columnTrlOnTrlLev, layerIndex    , &
+                                                      headerIndex, varName) + &
+                                weight  * col_getElem(columnTrlOnTrlLev, layerIndex + 1, &
+                                                      headerIndex, varName)
         else
           ! unexpected negative obs depth
           call utl_abort('oop_oceanTS_nl: undefined obs depth: '//str(obsDepth))
         end if ! different types of obsDepth: diurnal SST, foundation SST or vertical T/S profile
 
-        ! Collect distinct observation depths and vertical level index values
-        found = .false.
-        do indexObsDepth = 1, nDepths
-          if (abs(allDepths(indexObsDepth) - obsDepth) < 1.0d-6) then          
-            found = .true.
-            exit
-          end if
-        end do
-        if (.not. found) then
-          ! resize array by 1: tmpDepths -> new array, copy, replace allVerticalLevelIndexes 
-          nDepths = nDepths + 1
-          call utl_resize(allDepths, nDepths)
-          call utl_resize(allVerticalLevelIndexes, nDepths)
-          allDepths(nDepths) = obsDepth
-          allVerticalLevelIndexes(nDepths) = verticalLevelIndex
-        end if
-
         ! Compute innovation (observation minus model)
         call obs_bodySet_r(obsSpaceData, destObsColumn, bodyIndex, obsValue - modelValue)
-       
-        ! Optional diagnostics
-        debugOceanInterp = .false.
-        if (debugOceanInterp) then
-          write(*,'(a, i6, a, f8.3, a, 2f8.3, a, f6.3, a, f8.3, a, f8.3)') &
-          'DEBUG(oceanInterp): obs#', bodyIndex, ' depth=', obsDepth, &
-          '  z1,z2= ', vco%depths(layerIndex), vco%depths(layerIndex + 1), '  w= ', weight, &
-          '  model= ', modelValue, '  obs= ', obsValue
+
+        if (.not. beSilent) then
+          ! Debugging info:
+          debugOceanInterp = .false.
+          if (debugOceanInterp) then
+            write(*,'(a, i6, a, f8.3, a, 2f8.3, a, f6.3, a, f8.3, a, f8.3)') &
+            'DEBUG(oceanInterp): obs#', bodyIndex, ' depth=', obsDepth, &
+            '  z1,z2= ', col_getDepth(columnTrlOnTrlLev, layerIndex    , 'DP'), &
+                         col_getDepth(columnTrlOnTrlLev, layerIndex + 1, 'DP'), &
+            '  w= ', weight, '  model= ', modelValue, '  obs= ', obsValue
+          end if
+        
+          ! Collect distinct observation depths and vertical level index values
+          found = .false.
+          do indexObsDepth = 1, nDepths
+            if (abs(allDepths(indexObsDepth) - obsDepth) < 1.0d-6) then          
+              found = .true.
+              exit
+            end if
+          end do
+          if (.not. found) then
+            ! resize array by 1: tmpDepths -> new array, copy, replace allVerticalLevelIndexes 
+            nDepths = nDepths + 1
+            call utl_resize(allDepths, nDepths)
+            call utl_resize(allVerticalLevelIndexes, nDepths)
+            allDepths(nDepths) = obsDepth
+            allVerticalLevelIndexes(nDepths) = verticalLevelIndex
+          end if
         end if
-     
+  
       end do BODY
     end do HEADER
 
@@ -925,9 +926,10 @@ contains
                                            allDepths(indexObsDepth), trim(charDataType)
         end do
       end if
-    end if
-
-    if (.not.beSilent) write(*,*) 'oop_oceanTS_nl completed.'
+      deallocate(allDepths)
+      deallocate(allVerticalLevelIndexes)
+      write(*,*) 'oop_oceanTS_nl completed.'
+    end if ! if (.not. beSilent)
 
   end subroutine oop_oceanTS_nl
 
@@ -1994,8 +1996,7 @@ contains
 
     call oop_Hchm()          ! fill in OBS_WORK : Hdx
 
-    call oop_HoceanTS('TM')  ! fill in OBS_WORK : Hdx
-    call oop_HoceanTS('SALW')! fill in OBS_WORK : Hdx
+    call oop_HoceanTS()      ! fill in OBS_WORK : Hdx
 
     call oop_Hice()          ! fill in OBS_WORK : Hdx
 
@@ -2256,7 +2257,7 @@ contains
     !--------------------------------------------------------------------------
     ! oop_HoceanTS
     !--------------------------------------------------------------------------
-    subroutine oop_HoceanTS(familyName)
+    subroutine oop_HoceanTS()
       !
       ! :Purpose: Compute simulated ocean temperature/salinity observations (Hdx)
       !           from profiled model increments.
@@ -2269,9 +2270,6 @@ contains
       !
       implicit none
 
-      ! Arguments:
-      character(len=*), intent(in) :: familyName ! Temperature or salinity
-
       ! Locals:
       integer           :: headerIndex, bodyIndex, bufrCode
       real(8)           :: anlIncValueBot
@@ -2280,9 +2278,9 @@ contains
       real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
       real(8)           :: obsDepth, weight, modelPert
       integer           :: numberVerticalLevels, nlev
-      type(struct_vco), pointer :: vco
 
-      call obs_set_current_body_list(obsSpaceData, trim(familyName))
+      ! Loop over all headers
+      call obs_set_current_body_list(obsSpaceData)
 
       ! get the number of vertical levels in the increments column
       numberVerticalLevels = col_getNumVarLev(columnAnlInc)
@@ -2299,59 +2297,57 @@ contains
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
 
-        if (trim(familyName) == 'TM') then
-          if (col_varExist(columnAnlInc,'TM')) then
+        if (bufrCode == bufr_sst .or. bufrCode == bufr_tprof) then
+          if (col_varExist(columnAnlInc, 'TM')) then
             varName = 'TM'
           else
             varName = 'TG'
           end if
+        else if (bufrCode == bufr_sprof) then
+          varName = 'SALW'
         end if
-
+	
         headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
 
-        ! Read raw vcoord
+        ! Read raw obsDepth
         obsDepth_r = obs_bodyElem_r(obsSpaceData, obs_ppp, bodyIndex)
         if (utl_isEqual(obsDepth_r, obs_missingValue_R)) then
-          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present
+          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present in obs files
         else
           obsDepth = real(obsDepth_r, 8)
         end if
 
-        ! Define vertical level index from obs depth
+        ! Define vertical level index from obs depth to compute the corresponding model value 
         if (utl_isEqual(obsDepth, obs_pppDiurnalSST)) then
           ! (1) Diurnal SST: use model level 1 (~0.5m)
           verticalLevelIndex = 1
-          modelPert = col_getElem(columnAnlInc, verticalLevelIndex, headerIndex, varName_opt = varName)
+          modelPert = col_getElem(columnAnlInc, verticalLevelIndex, &
+                                  headerIndex, varName_opt = varName)
         else if (utl_isEqual(obsDepth, obs_pppFoundationSST)) then
           ! (2) Foundation SST: model level 2 (~1.5m)
           verticalLevelIndex = 2
           ! In 2D background configurations, only one vertical level is available,
           ! so the vertical level index must always be set to 1.
           if (numberVerticalLevels == 1) verticalLevelIndex = 1
-          modelPert = col_getElem(columnAnlInc, verticalLevelIndex, headerIndex, varName_opt = varName)
+          modelPert = col_getElem(columnAnlInc, verticalLevelIndex, &
+                                  headerIndex, varName_opt = varName)
         else if (obsDepth > 0.0d0) then
           ! (3) Vertical profiles of ocean T/S - linear interpolation between k and k+1
-          vco => col_getVco(columnAnlInc)  ! use the increments column's vco
-          nlev = vco%nLev_depth
-          ! read layer index computed by oop_vobslyrs
+          ! layerIndex is computed within oop_vobslyrs
+          ! layerIndex is the upper level of the bracket such that:
+          ! depth(layerIndex) <= obsDepth <= depth(layerIndex+1)
           layerIndex = obs_bodyElem_i(obsSpaceData, obs_lyr, bodyIndex)
-
-          ! Ensure layerIndex is within 1..nlev-1
-          if (layerIndex < 1) layerIndex = 1
-          if (layerIndex > nlev - 1) layerIndex = nlev - 1
-
           ! compute interpolation weight
-          if (utl_isEqual((vco%depths(layerIndex + 1) - vco%depths(layerIndex)), 0.0d0)) then
-            weight = 0.0d0
-          else
-            weight = (obsDepth - vco%depths(layerIndex)) / &
-                     (vco%depths(layerIndex + 1) - vco%depths(layerIndex))
-          end if
+          weight = (obsDepth - col_getDepth(columnAnlInc, layerIndex, 'DP')) / &
+                   (col_getDepth(columnAnlInc, layerIndex + 1, 'DP') - &
+                    col_getDepth(columnAnlInc, layerIndex    , 'DP'))
           weight = max(0.0d0, min(1.0d0, weight))   ! safety clamp
 
           ! Tangent-linear operator: H(dx) = (1-w)*dx_k + w*dx_k+1
-          modelPert = (1.0d0 - weight) * col_getElem(columnAnlInc, layerIndex    , headerIndex, varName_opt = varName) + &
-                               weight  * col_getElem(columnAnlInc, layerIndex + 1, headerIndex, varName_opt = varName)
+          modelPert = (1.0d0 - weight) * col_getElem(columnAnlInc, layerIndex    , &
+                                                     headerIndex, varName_opt = varName) + &
+                               weight  * col_getElem(columnAnlInc, layerIndex + 1, &
+                                                     headerIndex, varName_opt = varName)
         else
           call utl_abort('oop_HoceanTS: undefined obs depth: '//str(obsDepth))
         end if
@@ -2850,8 +2846,7 @@ contains
 
     call oop_HTpp
 
-    call oop_HToceanTS('TM')
-    call oop_HToceanTS('SALW')
+    call oop_HToceanTS()
 
     call oop_HTice
 
@@ -3093,9 +3088,9 @@ contains
     !---------------------------------------------------------------
     ! oop_HToceanTS
     !---------------------------------------------------------------
-    subroutine oop_HToceanTS(familyName)
+    subroutine oop_HToceanTS()
       !
-      ! :Purpose: Adjoint of the observation operator for ocean temperature data.
+      ! :Purpose: Adjoint of the observation operator for ocean temperature/salinity data.
       !           It distributes residuals (from OBS_WORK) back to model increments.
       ! Handles:
       !    (1) Diurnal surface temperature     : model level 1
@@ -3103,9 +3098,6 @@ contains
       !    (3) Vertical profiles of temperature: linear interpolation between k and k+1
       !
       implicit none
-
-      ! Arguments:
-      character(len=*), intent(in) :: familyName 
 
       ! Locals:
       real(8)          :: residual
@@ -3116,11 +3108,10 @@ contains
       real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
       real(8)           :: obsDepth   ! double precision working copy
       integer           :: numberVerticalLevels
-      integer           :: nlev
       real(8)           :: weight
-      type(struct_vco), pointer :: vco
-
-      call obs_set_current_body_list(obsSpaceData, trim(familyName))
+      
+      ! Loop over all headers
+      call obs_set_current_body_list(obsSpaceData)
 
       ! get the number of vertical levels in the increments column
       numberVerticalLevels = col_getNumVarLev(columnAnlInc)
@@ -3137,20 +3128,22 @@ contains
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
         
-        if (trim(familyName) == 'TM') then
-          if (col_varExist(columnAnlInc,'TM')) then
+        if (bufrCode == bufr_sst .or. bufrCode == bufr_tprof) then
+          if (col_varExist(columnAnlInc, 'TM')) then
             varName = 'TM'
           else
             varName = 'TG'
           end if
+        else if (bufrCode == bufr_sprof) then
+          varName = 'SALW'
         end if
 
         headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
 
-        ! Read raw vcoord
+        ! Read raw obsDepth
         obsDepth_r = obs_bodyElem_r(obsSpaceData, obs_ppp, bodyIndex)
         if (utl_isEqual(obsDepth_r, obs_missingValue_R)) then
-          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present
+          obsDepth = obs_pppFoundationSST   ! default when vcoord is not present in obs files
         else
           obsDepth = real(obsDepth_r, 8)
         end if
@@ -3172,22 +3165,14 @@ contains
           columnTG(verticalLevelIndex) = columnTG(verticalLevelIndex) + residual
         else if (obsDepth > 0.0d0) then
           ! (3) Profile observation: distribute to layerIndex and layerIndex+1 using same weight as NL/TL
-          ! get model vertical coordinate
-          vco => col_getVco(columnAnlInc)
-          nlev = vco%nLev_depth
-          ! read lower bounding level from vobslyrs
+          ! layerIndex is computed within oop_vobslyrs
+          ! layerIndex is the upper level of the bracket such that:
+          ! depth(layerIndex) <= obsDepth <= depth(layerIndex+1)
           layerIndex = obs_bodyElem_i(obsSpaceData, obs_lyr, bodyIndex)
-
-          ! Ensure k in 1..nlev-1 
-          if (layerIndex < 1) layerIndex = 1
-          if (layerIndex > nlev-1) layerIndex = nlev - 1
-
-          if (utl_isEqual((vco%depths(layerIndex + 1) - vco%depths(layerIndex)), 0.0d0)) then
-            weight = 0.0d0
-          else
-            weight = (obsDepth - vco%depths(layerIndex)) / &
-                     (vco%depths(layerIndex + 1) - vco%depths(layerIndex))
-          end if
+          ! compute interpolation weight
+          weight = (obsDepth - col_getDepth(columnAnlInc, layerIndex, 'DP')) / &
+                   (col_getDepth(columnAnlInc, layerIndex + 1, 'DP') - &
+                    col_getDepth(columnAnlInc, layerIndex    , 'DP'))
           weight = max(0.0d0, min(1.0d0, weight))
 
           ! distribute residual to layerIndex and layerIndex + 1

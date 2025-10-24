@@ -30,7 +30,7 @@ module columnData_mod
   public :: col_varExist, col_getOffsetFromVarno, col_getOffsetFromVarName
   public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromVarLev
   public :: col_addHeightSfcOffset
-  public :: col_getPressure, col_getHeight, col_getHeightLS
+  public :: col_getPressure, col_getHeight, col_getHeightLS, col_getDepth
   public :: col_setHeightSfc, col_setHeightSfcLS, col_copyHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
   public :: col_getLat, col_setLat, col_getOltv, col_setOltv
@@ -640,6 +640,45 @@ contains
     end if
 
   end function col_getHeight
+  
+  !---------------------------------------------------------------------------
+  ! col_getDepth
+  !---------------------------------------------------------------------------
+  function col_getDepth(column, levelIndex, varLevel) result(depth)
+    !
+    ! :Purpose:
+    !   Return the ocean model depth (in meters, positive downward)
+    !   for a given vertical level index and level type.
+    !
+    ! :Notes:
+    !   Unlike col_getHeight, the depth does NOT depend on headerIndex,
+    !   since ocean levels are globally defined and fixed per column.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column     ! The columnData object
+    integer,                 intent(in) :: levelIndex ! The vertical level index
+    character(len=*),        intent(in) :: varLevel   ! The type of vertical level
+
+    ! Result:
+    real(8) :: depth
+    
+    ! Locals:
+    integer :: currentLevelIndex
+    
+    if (varLevel == 'DP') then
+      if (.not. col_varExist(column,'TM')) then
+        call utl_abort('col_getDepth: TM not found!')
+      end if
+      currentLevelIndex = 1 + column%varOffset(vnl_varListIndex('TM'))
+      ! Note: headerIndex = 1 since ocean depth is constant across all columns.
+      depth = column%all(currentLevelIndex + levelIndex - 1, 1)
+    else
+      call utl_abort('col_getDepth: unknown varLevel! ' // varLevel)
+    end if
+
+  end function col_getDepth
 
   !--------------------------------------------------------------------------
   ! col_getHeightLS

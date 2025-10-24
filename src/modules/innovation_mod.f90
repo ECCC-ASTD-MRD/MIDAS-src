@@ -536,7 +536,9 @@ contains
     end if
 
     ! Find interpolation layer in model profiles
-    if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    if (col_getNumLev(columnTrlOnTrlLev,'MM') > 1 .or. col_getNumLev(columnTrlOnTrlLev,'DP') > 1) then
+      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    end if
 
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
@@ -576,8 +578,7 @@ contains
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)
 
     ! Ocean temperature/salinity
-    call oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'TM', destObsColumn)
-    call oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SALW', destObsColumn)
+    call oop_oceanTS_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
 
     ! Sea ice concentration
     if ( filterObsAndInitOer ) then
