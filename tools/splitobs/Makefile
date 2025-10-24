@@ -31,7 +31,7 @@ ifeq (${ORDENV_PLAT},rhel-8-icelake-64)
     COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/all/lib
 else ifeq (${ORDENV_PLAT},rhel-9-graniterapids-64)
     COMPILER=inteloneapi-2025.1.0
-    COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/${ORDENV_PLAT}/lib
+    COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib
 else
     $(error This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT})
 endif
