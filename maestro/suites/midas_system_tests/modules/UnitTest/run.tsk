@@ -76,7 +76,7 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
     echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
 
-    ## We must load '/hdf5-netcdf4' on 'rhel-9-graniterapids-64'
+    ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
     ## because the programs are not compiled statically with this
     ## library.
     echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
