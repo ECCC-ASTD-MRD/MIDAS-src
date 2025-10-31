@@ -22,7 +22,6 @@ module stateToColumn_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use slantProfileLatLon_mod
-  use tovs_mod
   use codtyp_mod
   use getGridPosition_mod
   use kdTree2_mod
@@ -2083,23 +2082,7 @@ contains
 
         codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-        if (tvs_isIdBurpTovs(codeType) .and. SlantTO) then
-          if (firstHeaderSlantPathTO) then
-            write(*,*) 'getObsLatLon (s2c): start slant-path for TOVS. ', &
-                 'numHeader = ',numHeader
-            firstHeaderSlantPathTO = .false.
-          end if
-
-          ! calculate lat/lon along the line of sight
-          call utl_tmg_start(32,'------s2c_Slant')
-          call slp_calcLatLonTovs(obsSpaceData, stateVector%hco, headerIndex, & ! IN
-                                  height3D_T_r4, height3D_M_r4,               & ! IN
-                                  latLev_T, lonLev_T,                         & ! OUT
-                                  latLev_M, lonLev_M,                         & ! OUT
-                                  latLev_S, lonLev_S             )              ! OUT
-          call utl_tmg_stop(32)
-
-        else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
+        if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
           if (firstHeaderSlantPathRO) then
             write(*,*) 'getObsLatLon (s2c): start slant-path for RO. ', &
                  'numHeader = ',numHeader
@@ -4329,23 +4312,7 @@ contains
 
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
-          if (tvs_isIdBurpTovs(codeType) .and. SlantTO) then
-            if (firstHeaderSlantPathTO) then
-              write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for TOVS. stepIndex = ', &
-                   stepIndex,' and numHeaderUsed = ',numHeaderUsed
-              firstHeaderSlantPathTO = .false.
-            end if
-
-            ! calculate lat/lon along the line of sight
-            call utl_tmg_start(32,'------s2c_Slant')
-            call slp_calcLatLonTovs(obsSpaceData, stateVector%hco, headerIndex, & ! IN
-                                    height3D_T_r4, height3D_M_r4,               & ! IN
-                                    latLev_T, lonLev_T,                         & ! OUT
-                                    latLev_M, lonLev_M,                         & ! OUT
-                                    latLev_S, lonLev_S             )              ! OUT
-            call utl_tmg_stop(32)
-
-          else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
+          if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if (firstHeaderSlantPathRO) then
               write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for RO. stepIndex = ', &
                    stepIndex,' and numHeaderUsed = ',numHeaderUsed
@@ -4785,11 +4752,6 @@ contains
           footprintRadius_r4 = allFootprintRadius_r4(headerUsedIndex, stepIndex, procIndex)
           headerIndex = headerIndexVec(headerUsedIndex,stepIndex)
           codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-
-          if ( tvs_isIdBurpTovs(codeType) ) then
-            if ( footprintRadius_r4 > 0.0 ) numTovsUsingFootprint = numTovsUsingFootprint + 1
-            numAllTovs = numAllTovs + 1
-          end if
         end do
       end do
 
@@ -7527,7 +7489,7 @@ contains
     real(4)                       :: footPrintRadius_r4
 
     ! Locals:
-    integer :: codtyp, sensorIndex
+    integer :: codtyp
     real(8) :: fovAngularDiameter, satHeight, footPrintRadius
     character(len=codtyp_name_length) :: instrumName
     logical :: beSilent
@@ -7539,8 +7501,7 @@ contains
     end if
 
     ! get nominal satellite height
-    sensorIndex = tvs_lsensor(headerIndex)
-    satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
+    satHeight = 0.0d0
 
     ! FOV angular diameter
     codtyp = obs_headElem_i( obsSpaceData, OBS_ITY, headerIndex )
@@ -7574,12 +7535,6 @@ contains
       ! get foot print radius (meter) from angular diameter
       footPrintRadius = 0.5d0 * fovAngularDiameter * MPC_RADIANS_PER_DEGREE_R8 * satHeight * 1000
       footPrintRadius_r4 = real(footPrintRadius,4)
-    end if
-
-    if ( .not. beSilent ) then
-      write(*,*) 'getTovsFootprintRadius: sensorIndex=', sensorIndex, &
-                ',satHeight=', satHeight, ',fovAngularDiameter=', fovAngularDiameter, ',codtyp=', codtyp, &
-                ',footPrintRadius=', footPrintRadius_r4
     end if
 
   end function getTovsFootprintRadius
