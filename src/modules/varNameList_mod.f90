@@ -10,7 +10,6 @@ module varNameList_mod
   use midasMpi_mod
   use utilities_mod
   use MathPhysConstants_mod
-  use netcdf
 
   implicit none
   save
@@ -879,9 +878,8 @@ module varNameList_mod
       ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
-      integer :: unit, ncid, varID
+      integer :: unit
       character(len=2)   :: typvar
-      character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF
 
       unit = 0
       ! Set 'found' to '.false' first so we are sure it is set to a
@@ -909,27 +907,6 @@ module varNameList_mod
 
         ierr =  fstfrm(unit)
         ierr =  fclos (unit)
-
-      else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
-
-        varNameNetCDF = vnl_varNameNetCDF(varName, trim(fileName))
-
-        if (varNameNetCDF == 'notFound') then
-
-          found = .false.
-
-        else
-
-          call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
-          ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)
-          if (ierr == nf90_noerr) then
-            found = .true.
-          else
-            found = .false.
-          end if
-          call utl_checkNetCDFstatus(nf90_close(ncid))
-
-        end if
 
       else
 
