@@ -5,7 +5,6 @@ module utilities_mod
   !:Purpose: A place to collect numerous simple utility routines.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  use netcdf
   use clibInterfaces_mod
   use randomNumber_mod
   use mathPhysConstants_mod
@@ -3330,27 +3329,6 @@ contains
     character(len=*), optional, intent(in) :: ncCommand_opt
     character(len=*), optional, intent(in) :: addInfo_opt
 
-    ! Locals:
-    character(len=256) :: errorMessage
-
-    if(status /= nf90_noerr) then
-
-      errorMessage = 'netCDF error'
-      if (present(subroutineName_opt)) then
-        errorMessage = trim(subroutineName_opt)//': '//trim(errorMessage)
-      end if
-      if (present(ncCommand_opt)) then
-        errorMessage = trim(errorMessage)//' when calling: '//trim(ncCommand_opt)
-      end if
-      if (present(addInfo_opt)) then
-        errorMessage=trim(errorMessage)//' for '//trim(addInfo_opt)
-      end if
-
-      write(*,*) 'nf90 error status: ', trim(nf90_strerror(status))
-      call utl_abort(trim(errorMessage))
-
-    end if
-
   end subroutine utl_checkNetCDFstatus
 
   !--------------------------------------------------------------------------
@@ -3369,26 +3347,7 @@ contains
     ! Result:
     logical :: variableFound
 
-    ! Locals:
-    integer :: ncid, varID, ierr
-
-    ! Open the template file
-    call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
-
-    ! Inquire variable name
-    ierr = nf90_inq_varid(ncid, trim(varName), varID)
-    if (ierr == nf90_noerr) then
-      write(*,*) 'utl_varPresentInNetcdfFile: variable: ', &
-                 trim(varName), ' is found in file: ', trim(fileName)
-      variableFound = .true.
-    else
-      write(*,*) 'utl_varPresentInNetcdfFile: variable: ', &
-                   trim(varName), ' is missing from file: ', trim(fileName)
-      variableFound = .false.
-    end if
-
-    ! Close the file
-    call utl_checkNetCDFstatus(nf90_close(ncid))
+    variableFound = .false.
 
   end function utl_varPresentInNetcdfFile
 
