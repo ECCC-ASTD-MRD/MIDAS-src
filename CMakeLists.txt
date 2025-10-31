@@ -32,23 +32,6 @@ find_package(vgrid COMPONENTS static REQUIRED)
 find_package(rpncomm REQUIRED)
 find_package(random COMPONENTS REQUIRED)
 find_package(burp COMPONENTS static REQUIRED)
-find_package(HDF5 COMPONENTS C Fortran HL)
-
-# Define libraries bundle
-if(DEFINED ENV{RTTOV_VERSION})
-    set(rttov_VERSION $ENV{RTTOV_VERSION})
-else()
-    set(rttov_VERSION "unknown")
-endif()
-
-set(rttov_LIBRARY_PATH $ENV{rttov_INSTALLDIR}/lib)
-set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main)
-set(rttov_LIBRARIES "") # Initialize list as empty string/list
-foreach(component ${rttov_FIND_COMPONENTS})
-  find_library(${component} NAMES ${component} REQUIRED
-    HINTS PATHS ${rttov_LIBRARY_PATH})
-  list(APPEND rttov_LIBRARIES ${${component}})
-endforeach()
 
 find_library(hpcoperf NAMES hpcoperf HINTS PATHS ENV perftools_LIBRARY_PATH)
 if(NOT hpcoperf)
@@ -59,8 +42,6 @@ if(NOT hpcoperf)
     set(msg "${msg} Please set the environment variable perftools_LIBRARY_PATH to the directory containing libmhpcoperf.a")
     message(FATAL_ERROR "${msg}")
 endif()
-
-set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   # Necessary, as compiler presets sets it to -O2

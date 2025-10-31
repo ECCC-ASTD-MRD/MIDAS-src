@@ -1,10 +1,10 @@
 add_executable(energyNorm energyNorm.f90)
 target_link_libraries(energyNorm PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
-random::random ${HDF5_Libraries})
+random hpcoperf)
 
 add_executable(letkf letkf.f90)
 target_link_libraries(letkf PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
+${SQLITE_Libraries} burpmodule random hpcoperf)
 
 set(PROJECT_PROGRAMS energyNorm letkf)
 

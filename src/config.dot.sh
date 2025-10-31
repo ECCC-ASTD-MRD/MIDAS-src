@@ -213,23 +213,11 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/libs/20250604-beta"
     . r.load.dot eccc/mrd/rpn/libs/20250604-beta
 
-    echo "... loading hdf5"
-    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-
     echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
 
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
-
-    if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        rttovdebug=-debug
-    else
-        rttovdebug=
-    fi
-    export RTTOV_VERSION=2.0.2
-    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
