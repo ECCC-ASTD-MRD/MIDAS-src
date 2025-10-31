@@ -22,14 +22,11 @@ module innovation_mod
   use message_mod
   use obsFilter_mod
   use gps_mod
-  use tovs_mod
-  use multiIRbgck_mod
   use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod
   use bufr_mod
   use statetocolumn_mod
-  use rmatrix_mod
   use costFunction_mod
   use varqc_mod
   use humidityLimits_mod
@@ -110,11 +107,6 @@ contains
     call filt_setup(innovationMode) ! IN
 
     !
-    !- Initialize TOVS processing
-    !
-    call tvs_setup
-
-    !
     !- Read the observations from files
     !
     call utl_tmg_start(11,'----ReadObsFiles')
@@ -164,16 +156,6 @@ contains
     else
       ! complete set of obs on each MPI process, only keep subset according to OBS_IP
       call obs_reduceToMpiLocal(obsSpaceData)
-    end if
-
-    !
-    !- Initialization and memory allocation for TOVS processing
-    !
-    if (obs_famExist(obsSpaceData,'TO') .and. (trim(innovationMode) /= 'thinning')) then
-      call tvs_setupAlloc(obsSpaceData)
-      if (trim(innovationMode) == 'bgck' ) call irbg_setup()
-      ! Initialize non diagonal observation error matrices
-      if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
     call utl_tmg_stop(10)
@@ -585,15 +567,6 @@ contains
     ! Hydrology
     call oop_hydro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'HY', destObsColumn)
 
-    ! TOVS / Radiances
-    if (trim(innovationMode) == 'bgck'  ) then
-      call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn)
-    else
-      call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn)
-    end if
-
     ! Profilers
     call oop_zzz_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'PR', destObsColumn)
 
@@ -626,9 +599,6 @@ contains
     end if
 
     call utl_tmg_stop(17)
-
-    ! Save as OBS_WORK : R**-1/2 (d)
-    call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
 
     ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d)**2
     call cfn_calcJo(obsSpaceData)
