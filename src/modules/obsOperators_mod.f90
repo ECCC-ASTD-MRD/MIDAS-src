@@ -16,7 +16,6 @@ module obsOperators_mod
   use gps_mod
   use midasMpi_mod
   use timeCoord_mod
-  use tovs_mod
   use utilities_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -29,7 +28,7 @@ module obsOperators_mod
 
   ! Public procedures
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
-  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
+  public :: oop_gpsgb_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs, oop_iceScaling
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
@@ -1584,162 +1583,6 @@ contains
   end subroutine oop_gpsgb_nl
 
   !--------------------------------------------------------------------------
-  ! oop_tovs_nl
-  !--------------------------------------------------------------------------
-  subroutine oop_tovs_nl(columnTrl, obsSpaceData, datestamp, beSilent,  &
-                         bgckMode_opt, option_opt, sourceObs_opt, destObs_opt)
-    ! :Purpose: Computation of the residuals to the tovs observations
-    !           option_opt: defines input state:
-    !              - 'HR': High Resolution background state,
-    !              - 'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
-    !              - 'MO': Model state. (CURRENTLY NOT SUPPORTED)
-    implicit none
-
-    ! Arguments:
-    type(struct_columnData),    intent(in)    :: columnTrl
-    type(struct_obs),           intent(inout) :: obsSpaceData
-    integer,                    intent(in)    :: datestamp
-    logical,                    intent(in)    :: beSilent
-    logical,          optional, intent(in)    :: bgckMode_opt
-    character(len=*), optional, intent(in)    :: option_opt       ! only valid value is HR
-    integer,          optional, intent(in)    :: sourceObs_opt ! usually set to OBS_VAR
-    integer,          optional, intent(in)    :: destObs_opt   ! usually set to OBS_OMP
-
-    ! Locals:
-    integer :: jdata, sourceObs, destObs
-    logical :: llprint,bgckMode
-    character(len=2) :: option
-    integer :: channelIndex
-    real(pre_obsReal) :: zdtb, obsPRM
-    integer :: idatyp, channelNumber
-    integer :: headerIndex, bodyIndex
-    logical, save :: firstCall = .true.
-
-    if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
-
-    ! 0. set default values if bgckMode, option and source/dest columns not specified
-    !
-
-    if (.not.beSilent) write(*,*) "Entering subroutine oop_tovs_nl"
-
-    if (present(bgckMode_opt)) then
-       bgckMode = bgckMode_opt
-    else
-       bgckMode = .false.
-    end if
-
-    if (present(option_opt)) then
-       option = option_opt(1:2)
-    else
-       option = 'HR'
-    end if
-    if ( option /= 'HR' ) call utl_abort('oop_tovs_nl: Invalid option for input state')
-
-    if (present(sourceObs_opt)) then
-       sourceObs = sourceObs_opt
-    else
-       sourceObs = OBS_VAR
-    end if
-
-    if (present(destObs_opt)) then
-       destObs = destObs_opt
-    else
-       destObs = OBS_OMP
-    end if
-
-    if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
-      call tvs_allocateEmissivity(tvs_maxChannelNumber)
-    end if
-
-    ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
-    ! .    -----------------------------------------------------------------------------
-    call tvs_fillProfiles(columnTrl,obsSpaceData,datestamp,"nl",beSilent)
-
-    if ( .not.beSilent ) call msg_memUsage('oop_tovs_nl')
-
-    ! 2.   Compute radiance
-    ! .    ----------------
-    call tvs_rttov(obsSpaceData,bgckMode,beSilent)
-    if ( .not.beSilent ) call msg_memUsage('oop_tovs_nl')
-
-    ! 3.   Compute the residuals
-    ! .    ----------------------------
-    if ( option == 'HR' .or. option == 'LR' ) then
-       do jdata=1,obs_numbody(obsSpaceData)
-          call obs_bodySet_r(obsSpaceData,OBS_PRM,jdata, obs_bodyElem_r(obsSpaceData,sourceObs,jdata))
-       end do
-    end if
-
-    ! loop over all header indices of the 'TO' family
-    call obs_set_current_header_list(obsSpaceData,'TO')
-    HEADER: do
-      headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER
-
-      ! Extract general information for this observation point
-      !      ------------------------------------------------------
-
-      ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
-        write(*,*) 'oop_tovs_nl: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-        cycle HEADER
-      end if
-
-      ! Set the body list
-      ! (& start at the beginning of the list)
-      call obs_set_current_body_list(obsSpaceData, headerIndex)
-      BODY: do
-        bodyIndex = obs_getBodyIndex(obsSpaceData)
-        if ( bodyIndex < 0 ) exit BODY
-
-        ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(obsSpaceData,obs_ASS,bodyIndex) /= obs_assimilated ) cycle BODY
-
-        call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                                            channelNumber, channelIndex )
-
-        if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
-
-        zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
-             tvs_radiance (headerIndex) % bt(channelIndex)
-        if ( tvs_debug ) then
-          obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
-          write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
-               channelNumber,  tvs_radiance (headerIndex) % bt(channelIndex), &
-               obsPRM, -zdtb
-        end if
-        call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
-
-        if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM) .and. .not. tvs_useSfcEmissObsSpace) then
-          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, headerIndex))
-        end if
-
-        if (allocated(tvs_transmission) .and. obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then
-          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, tvs_transmission(headerIndex) % tau_total(channelIndex))
-        end if
-
-        ! inflate OBS_OER for all-sky assimilation
-        if (firstCall) then
-          call oer_inflateErrAllsky(obsSpaceData, bodyIndex, destObs, beSilent_opt=.true.)
-        end if
-
-      end do BODY
-
-    end do HEADER
-
-    if (option == 'HR') then
-      llprint = .true.
-    else
-      llprint = .false.
-    end if
-    if ( beSilent ) llprint = .false.
-    if ( llprint ) call tvs_printDetailledOmfStatistics(obsSpaceData)
-    firstCall = .false.
-
-  end subroutine oop_tovs_nl
-
-  !--------------------------------------------------------------------------
   ! oop_chm_nl
   !--------------------------------------------------------------------------
   subroutine oop_chm_nl( columnTrlOnTrlLev, obsSpaceData, destObsColumn )
@@ -1810,8 +1653,6 @@ contains
     call oop_Hpp()           ! fill in OBS_WORK : Hdx
 
     call oop_Hsf()           ! fill in OBS_WORK : Hdx
-
-    call oop_Hto()           ! fill in OBS_WORK : Hdx
 
     call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
 
@@ -2190,35 +2031,6 @@ contains
       end do BODY
 
     end subroutine oop_Hice
-
-    !--------------------------------------------------------------------------
-
-    subroutine oop_Hto()
-      ! :Purpose: Compute simulated radiances observations from profiled model
-      !          increments.
-      !          It returns Hdx in OBS_WORK
-      implicit none
-
-      ! Locals:
-      integer :: datestamp
-
-      if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
-
-      !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
-      !     .    -----------------------------------------------------------------------------
-      !
-      if (min_nsim == 1) then
-        datestamp = tim_getDatestamp()
-        call tvs_fillProfiles(columnTrlOnAnlIncLev, obsSpaceData, datestamp, "tlad", .false.)
-      end if
-
-      !     2.   Compute radiance
-      !     .    ----------------
-      !
-      call tvs_rttov_tl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
-
-
-    end subroutine oop_Hto
 
 
     subroutine oop_HheightCoordObs()
@@ -2960,25 +2772,6 @@ contains
       end do BODY
 
     end subroutine oop_HTice
-
-    !--------------------------------------------------------------------------
-
-    subroutine oop_HTto
-      ! :Purpose: Adjoint of computation of residuals to the tovs observations
-      implicit none
-
-      ! Locals:
-      integer :: datestamp
-
-      if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
-
-      ! Adjoint of computing radiance
-      datestamp = tim_getDatestamp()
-      call tvs_fillProfiles(columnTrlOnAnlIncLev,obsSpaceData,datestamp,"tlad",.false.)
-
-      call tvs_rttov_ad(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)
-
-    end subroutine oop_HTto
 
     !--------------------------------------------------------------------------
 
