@@ -3352,15 +3352,6 @@ CONTAINS
                              varLevIndexEnd_opt = varLevIndexEnd,                          &
                              doWriteTicTacToc_opt = (varLevIndexBeg == 1)) ! We do write the 'tic-tac-toc' only the first time we write that statevector
 
-        if (writeNetCDF) then
-          call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
-                                     dateStampList(ens%statevector_work%anltime), &
-                                     typvar, containsFullField_opt = containsFullField, &
-                                     varLevIndexBeg_opt = varLevIndexBeg,       &
-                                     varLevIndexEnd_opt = varLevIndexEnd,       &
-                                     timeCounter_opt = stepIndex)
-        end if
-
       end do batchLoop
 
       ! deallocate the needed statevector objects
