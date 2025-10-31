@@ -23,7 +23,6 @@ module obsFiles_mod
   use burpRead_mod
   use biasCorrectionConv_mod
   use clibInterfaces_mod
-  use tovs_mod
   use ensembleObservations_mod
 
   implicit none
@@ -1111,21 +1110,12 @@ contains
     character(len=fileTypeLen) :: obsFileType
     logical                    :: toDataPresent
     integer                    :: headerIndex
-    integer                    :: codtyp
 
     toDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
-    if (headerIndex < 0) exit HEADER
-      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( (tvs_isIdBurpInst(codtyp,'atms' )) .or. &
-           (tvs_isIdBurpInst(codtyp,'amsua')) .or. &
-           (tvs_isIdBurpInst(codtyp,'amsub')) .or. &
-           (tvs_isIdBurpInst(codtyp,'mhs'  )) .or. &
-           (tvs_isIdBurpInst(codtyp,'radianceclear'  )) ) then
-        toDataPresent = .true.
-      end if
+      if (headerIndex < 0) exit HEADER
     end do HEADER
 
     if ( .not. toDataPresent ) then
