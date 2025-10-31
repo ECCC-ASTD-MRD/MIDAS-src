@@ -3052,7 +3052,7 @@ contains
     type(struct_obs), target, intent(inout) :: obsSpaceData ! Observation space information
 
     ! Locals:
-    integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
+    integer           :: headerIndex, codeType
     real(pre_obsReal) :: lat_obs
 
     return

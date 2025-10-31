@@ -840,12 +840,6 @@ contains
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
 
-            if (writeNetCDFInc) then
-              call gio_writeToFileNetCDF(stateVectorMeanInc4D, outFileName, &
-                                         dateStampListInc(stateVectorMeanInc4D%anltime), &
-                                         'R', stepIndex_opt = stepIndex, &
-                                         containsFullField_opt = .false.)
-            end if
           end do
           if (writeNetCDFInc) then
             call utl_abort('epp_postProcess: output netCDF file requested but not required.')
@@ -863,12 +857,6 @@ contains
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
 
-            if (writeNetCDFInc) then
-              call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                         dateStampListInc(stateVectorMeanInc%anltime), &
-                                         'R', stepIndex_opt = stepIndex, &
-                                         containsFullField_opt = .false.)
-            end if
           end do
         end if
 
@@ -917,13 +905,6 @@ contains
                                typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
                                stepIndex_opt = stepIndex, containsFullField_opt = .true.)
         end do
-
-        if (writeNetCDFensAnalysis) then
-          call gio_writeToFileNetCDF(stateVectorMeanAnl, outFileName, &
-                                     stateVectorMeanAnl%dateStampList(1), &
-                                     'A', timeCounter_opt = 1, &
-                                     containsFullField_opt = .false.)
-        end if
       end if
       call utl_tmg_stop(5)
 
