@@ -918,7 +918,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         if (.not. beSilent) then
           ! Debugging info:
           debugOceanInterp = .true.
-          if (debugOceanInterp) then
+          if (debugOceanInterp .and. obsDepth >= 0.0d0) then
             write(*,'(a, i6, a, i6, a, f8.3, a, 2f8.3, a, f6.3, a, f8.3, a, f8.3)') &
             'DEBUG(oceanInterp): body index: ', bodyIndex, ' layer index: ',  layerIndex, &
             ' depth=', obsDepth, '  z1,z2= ', col_getDepth(columnTrlOnTrlLev, layerIndex    , 'DP'), &
@@ -3182,6 +3182,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         end if
 
         headerIndex = obs_bodyElem_i(obsSpaceData, obs_hind, bodyIndex)
+
 
         ! Read raw obsDepth
         obsDepth_r = obs_bodyElem_r(obsSpaceData, obs_ppp, bodyIndex)
