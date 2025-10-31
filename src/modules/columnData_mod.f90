@@ -664,16 +664,12 @@ contains
     ! Result:
     real(8) :: depth
     
-    ! Locals:
-    integer :: currentLevelIndex
-    
     if (varLevel == 'DP') then
-      if (.not. col_varExist(column,'TM')) then
-        call utl_abort('col_getDepth: TM not found!')
-      end if
-      currentLevelIndex = 1 + column%varOffset(vnl_varListIndex('TM'))
-      ! Note: headerIndex = 1 since ocean depth is constant across all columns.
-      depth = column%all(currentLevelIndex + levelIndex - 1, 1)
+      ! Check that at least one relevant ocean variable exists
+      if (.not. col_varExist(column, 'TM') .and. .not. col_varExist(column, 'SALW')) then
+        call utl_abort('col_getDepth: neither TM nor SALW found!')
+      end if    
+      depth = column%vco%depths(levelIndex)
     else
       call utl_abort('col_getDepth: unknown varLevel! ' // varLevel)
     end if

@@ -299,11 +299,13 @@ contains
     cnames(114 + ncodtyp) = 'mwhs2'
     icod(114 + ncodtyp) = 200
     cnames(115 + ncodtyp) = 'sarwinds'
-    icod(115 + ncodtyp) = 204 
+    icod(115 + ncodtyp) = 204
+    cnames(116 + ncodtyp) = 'oceanprofile'
+    icod(116 + ncodtyp) = 220
 
-    ncodtyp = ncodtyp + 115
+    ncodtyp = ncodtyp + 116
 
-    if (mmpi_myid == 0) write(*,nml=namcodtyp)
+    if (mmpi_myid == 0) write(*,nml = namcodtyp)
 
     initialized = .true.
 

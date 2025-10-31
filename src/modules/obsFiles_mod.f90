@@ -601,6 +601,9 @@ contains
     namePrefix(109) = 'obssst'
     namePrefix(110) = 'obsgl_rcm'
     namePrefix(111) = 'obssst_slstr'
+    namePrefix(112) = 'obstprof_argo' ! Argo vertical profile of ocean Temperature
+    namePrefix(113) = 'obssprof_argo' ! Argo vertical profile of ocean Salinity
+    
 
     familyName(:)   = ''
     familyName( 1)  = 'TO'
@@ -714,6 +717,8 @@ contains
     familyName(109) = 'TM'
     familyName(110) = 'GL'
     familyName(111) = 'TM'
+    familyName(112) = 'TM'
+    familyName(113) = 'SALW'
 
     obsDirectory = 'obs'
 

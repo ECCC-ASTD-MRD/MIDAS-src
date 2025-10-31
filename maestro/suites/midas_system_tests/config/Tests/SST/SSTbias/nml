@@ -34,7 +34,7 @@
    saveAuxFields = .True.
    bgTermZeroBias = 0.95
 /
- &NAMSQLsst
+ &NAMSQLocean
    listElem='22042'
    sqlNull=' and obsvalue is not null '
    sqlExtraDat_sat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '

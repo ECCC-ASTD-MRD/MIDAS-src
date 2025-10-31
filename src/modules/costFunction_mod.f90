@@ -78,7 +78,7 @@ contains
     integer :: sensorIndexInList, sensorIndexInListFound
     logical :: beSilent
 
-    real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
+    real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljoocean, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
     real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
@@ -86,9 +86,9 @@ contains
 
     logical :: printJoTovsPerChannelSensor
 
-    real(8), allocatable :: joSSTInstrument(:)
+    real(8), allocatable :: joOceanInstrument(:)
     integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
-    integer :: SSTdatasetIndex, codeType
+    integer :: oceanDatasetIndex, codeType
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -103,10 +103,10 @@ contains
       allocate(sensorNameList(tvs_nsensors))
     end if
 
-    if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
-      allocate(joSSTInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
-      allocate(nobsInstrument(oer_getSSTdataParam_int('numberSSTDatasets')))
-      allocate(nobsInstrumentGlob(oer_getSSTdataParam_int('numberSSTDatasets')))
+    if(oer_getOceanDataParam_int('numberOceanDatasets') > 0) then
+      allocate(joOceanInstrument(oer_getOceanDataParam_int('numberOceanDatasets')))
+      allocate(nobsInstrument(oer_getOceanDataParam_int('numberOceanDatasets')))
+      allocate(nobsInstrumentGlob(oer_getOceanDataParam_int('numberOceanDatasets')))
     end if
 
     call readNameList
@@ -125,15 +125,15 @@ contains
     dljogpsro = 0.d0
     dljoprof = 0.d0
     dljochm = 0.d0
-    dljosst = 0.0d0
+    dljoocean = 0.0d0
     dljoaladin = 0.d0
     dljoice = 0.0d0
     dljotov_sensors(:) = 0.d0
     joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
-    if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
-      joSSTInstrument(:) = 0.0d0
+    if(oer_getOceanDataParam_int('numberOceanDatasets') > 0) then
+      joOceanInstrument(:) = 0.0d0
       nobsInstrumentGlob(:) = 0
       nobsInstrument(:) = 0
     end if
@@ -170,7 +170,7 @@ contains
       case('CH')
         dljochm     = dljochm     + pjo_1
       case('TM')
-        dljosst     = dljosst     + pjo_1
+        dljoocean   = dljoocean     + pjo_1
       case('AL')
         dljoaladin  = dljoaladin  + pjo_1
       case('GL')
@@ -222,22 +222,22 @@ contains
       end do
     end do
 
-    if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
+    if(oer_getOceanDataParam_int('numberOceanDatasets') > 0) then
       do headerIndex = 1, obs_numheader(lobsSpaceData)
         codeType     = obs_headElem_i(lobsSpaceData, OBS_ITY, headerIndex)
         bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
-          dataset_loop: do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-            if (codeType == oer_getSSTdataParam_int('codeType', SSTdatasetIndex) .and. codeType /= codtyp_get_codtyp('satob')) then
-              joSSTInstrument(SSTdatasetIndex) = joSSTInstrument(SSTdatasetIndex) + pjo_1
-              nobsInstrument(SSTdatasetIndex) = nobsInstrument(SSTdatasetIndex) + 1
+          dataset_loop: do oceanDatasetIndex = 1, oer_getOceanDataParam_int('numberOceanDatasets')
+            if (codeType == oer_getOceanDataParam_int('codeType', oceanDatasetIndex) .and. codeType /= codtyp_get_codtyp('satob')) then
+              joOceanInstrument(oceanDatasetIndex) = joOceanInstrument(oceanDatasetIndex) + pjo_1
+              nobsInstrument(oceanDatasetIndex) = nobsInstrument(oceanDatasetIndex) + 1
               exit dataset_loop
             else
-              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == oer_getSSTdataParam_char('sensor', SSTdatasetIndex)) then
-                joSSTInstrument(SSTdatasetIndex) = joSSTInstrument(SSTdatasetIndex) + pjo_1
-                nobsInstrument(SSTdatasetIndex) = nobsInstrument(SSTdatasetIndex) + 1
+              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == oer_getOceanDataParam_char('sensor', oceanDatasetIndex)) then
+                joOceanInstrument(oceanDatasetIndex) = joOceanInstrument(oceanDatasetIndex) + pjo_1
+                nobsInstrument(oceanDatasetIndex) = nobsInstrument(oceanDatasetIndex) + 1
                 exit dataset_loop
               end if
             end if
@@ -257,7 +257,7 @@ contains
     call mmpi_allreduce_sumreal8scalar(dljoprof,    allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljogpsztd,  allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljochm,     allReduceForward_opt = allReduceForward)
-    call mmpi_allreduce_sumreal8scalar(dljosst,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoocean,     allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljoaladin,  allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljoice,     allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljohydro,   allReduceForward_opt = allReduceForward)
@@ -273,10 +273,10 @@ contains
       end do loopSensor2
     end if
 
-    ! SST data per instrument
-    do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), allReduceForward_opt = allReduceForward)
-      call mmpi_allReduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), mmpi_sum)
+    ! Ocean data per instrument
+    do oceanDatasetIndex = 1, oer_getOceanDataParam_int('numberOceanDatasets')
+      call mmpi_allreduce_sumreal8scalar(joOceanInstrument(oceanDatasetIndex), allReduceForward_opt = allReduceForward)
+      call mmpi_allReduce(nobsInstrument(oceanDatasetIndex), nobsInstrumentGlob(oceanDatasetIndex), mmpi_sum)
     end do
 
     if ( mmpi_myid == 0 .and. .not. beSilent ) then
@@ -290,7 +290,7 @@ contains
       write(*,'(a15,f30.17)') 'Jo(RO)   = ', dljogpsro
       write(*,'(a15,f30.17)') 'Jo(GP)   = ', dljogpsztd
       write(*,'(a15,f30.17)') 'Jo(CH)   = ', dljochm
-      write(*,'(a15,f30.17)') 'Jo(TM)   = ', dljosst
+      write(*,'(a15,f30.17)') 'Jo(TM)   = ', dljoocean
       write(*,'(a15,f30.17)') 'Jo(AL)   = ', dljoaladin
       write(*,'(a15,f30.17)') 'Jo(GL)   = ', dljoice
       write(*,'(a15,f30.17)') 'Jo(HY)   = ', dljohydro
@@ -328,27 +328,27 @@ contains
         write(*,*) ' '
       end if
 
-      ! print SST data per instrument
-      if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
-        write(*,*) 'cfn_sumJo: SST data by data type:'
+      ! print ocean data per instrument
+      if(oer_getOceanDataParam_int('numberOceanDatasets') > 0) then
+        write(*,*) 'cfn_sumJo: ocean data by data type:'
         write(*,'(a10, a15, a10, a30, a20, a20)') 'index', ' instrument', ' sensor', ' Jo', ' nobs', ' Jo/nobs'
-        do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-          if (nobsInstrumentGlob(SSTdatasetIndex) > 0) then
-            write(*,'(i10, a15, a10, f30.17,i20, f20.5)') SSTdatasetIndex, &
-                                                          '      '//oer_getSSTdataParam_char('instrument', SSTdatasetIndex),&
-                                                          '    '//oer_getSSTdataParam_char('sensor', SSTdatasetIndex), &
-                                                          joSSTInstrument(SSTdatasetIndex), &
-                                                          nobsInstrumentGlob(SSTdatasetIndex),&
-                                                          joSSTInstrument(SSTdatasetIndex) / &
-                                                          real(nobsInstrumentGlob(SSTdatasetIndex))
+        do oceanDatasetIndex = 1, oer_getOceanDataParam_int('numberOceanDatasets')
+          if (nobsInstrumentGlob(oceanDatasetIndex) > 0) then
+            write(*,'(i10, a15, a10, f30.17,i20, f20.5)') oceanDatasetIndex, &
+                                                          '      '//oer_getOceanDataParam_char('instrument', oceanDatasetIndex),&
+                                                          '    '//oer_getOceanDataParam_char('sensor', oceanDatasetIndex), &
+                                                          joOceanInstrument(oceanDatasetIndex), &
+                                                          nobsInstrumentGlob(oceanDatasetIndex),&
+                                                          joOceanInstrument(oceanDatasetIndex) / &
+                                                          real(nobsInstrumentGlob(oceanDatasetIndex))
           end if
         end do
       end if
 
     end if
 
-    if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
-      deallocate(joSSTInstrument)
+    if(oer_getOceanDataParam_int('numberOceanDatasets') > 0) then
+      deallocate(joOceanInstrument)
       deallocate(nobsInstrument)
       deallocate(nobsInstrumentGlob)
     end if

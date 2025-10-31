@@ -312,8 +312,12 @@ module varNameList_mod
           varName='TT'   ! temporarily associate refractivity and ZTD with temperature
         case ( BUFR_NEDW )
           varName='DW'
-        case ( BUFR_SST )
+        case (bufr_sst)
           varname='TG'
+        case (bufr_tprof)
+          varname='TM'
+        case (bufr_sprof)
+          varname='SALW'
         case ( BUFR_ICEC, BUFR_ICEP, BUFR_ICEV, BUFR_ICES )
           varname='GL'
         case ( bufr_vis )

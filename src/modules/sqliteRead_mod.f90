@@ -186,7 +186,7 @@ module sqliteRead_mod
          'CENTER_ELEVATION        ', 'RANGE_START             ', 'RANGE_END               ',       &
          'ID_PROF                 ', 'CHARTINDEX              ', 'TRACK_CELL_NO           ',       &
          'MOD_WIND_SPD            '/)
-    real(8),                   allocatable :: bodyValues(:,:), codtypInFileList(:,:)
+    real(8), allocatable :: bodyValues(:,:), codtypInFileList(:,:)
     logical :: beamRangeFound
     real(pre_obsReal)           :: missingValue
 
@@ -211,7 +211,7 @@ module sqliteRead_mod
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLsst/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull, &
+    namelist /NAMSQLocean/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull, &
                           sqlExtraDat_sat,sqlExtraHeader_sat,codtyp_sat
 
     missingValue = real(MPC_missingValue_R8,pre_obsReal)
@@ -223,7 +223,7 @@ module sqliteRead_mod
     call sqlu_getColumnValuesNum(codtypInFileList, fileName=trim(fileName), &
                                  tableName='header', sqlColumnNames=(/'codtyp'/), &
                                  extraQuery_opt='group by codtyp')
-    write(*,*) 'sqlr_readSqlite: codtyp array = ', codtypInFileList(:,:)
+    write(*,*) 'sqlr_readSqlite: codtyp array = ', nint(codtypInFileList(:,:))
 
     ! Default namelist variable values
     sqlExtraHeader     = ''
@@ -239,8 +239,10 @@ module sqliteRead_mod
     ! Set the type of vertical coordinate
     vertCoordType  = obs_vcoHeight
     select case(trim(familyType))
-      case('RA','PR','AL','RO','SF','TM','SC','GL','HY','GP')
+      case('RA','PR','AL','RO','SF','SC','GL','HY','GP')
         vertCoordType = obs_vcoHeight
+      case('TM', 'SALW')
+        vertCoordType = obs_vcoOceanDepth
       case('UA','AI','SW')
         vertCoordType = obs_vcoPressure
       case('TO')
@@ -304,12 +306,12 @@ module sqliteRead_mod
         read(utl_flnml, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
-      case ('TM')
-        read(utl_flnml, nml = NAMSQLsst, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsst')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLsst)
+      case ('TM', 'SALW')
+        read(utl_flnml, nml = NAMSQLocean, iostat = ierr)
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLocean')
+        if (mmpi_myid == 0) write(*, nml = NAMSQLocean)
         do rowIndex = 1, size(codtypInFileList,1)
-          if (any(nint(codtypInFileList(rowIndex,1)) == codtyp_sat(:))) then
+          if (any(nint(codtypInFileList(rowIndex, 1)) == codtyp_sat(:))) then
             write(*,*) 'sqlr_readSqlite: Found satellite SST observation in file:', &
                        nint(codtypInFileList(rowIndex,1))
             sqlExtraHeader = sqlExtraHeader_sat

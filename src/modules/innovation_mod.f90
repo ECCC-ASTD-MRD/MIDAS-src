@@ -536,8 +536,8 @@ contains
     end if
 
     ! Find interpolation layer in model profiles
-    if (col_getNumLev(columnTrlOnTrlLev,'MM') > 1 .or. col_getNumLev(columnTrlOnTrlLev,'DP') > 1) then
-      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+    if (col_getNumLev(columnTrlOnTrlLev, 'MM') > 1 .or. col_getNumLev(columnTrlOnTrlLev, 'DP') > 1) then
+      call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, .false.)
     end if
 
     !

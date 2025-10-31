@@ -1860,13 +1860,15 @@ CONTAINS
           ensObs%vertLocation(obsIndex) = log(500.0D2)
         end if
 
-      else if (varNumber(obsIndex) == BUFR_SST) then
+      else if (varNumber(obsIndex) == bufr_sst   .or. &
+               varNumber(obsIndex) == bufr_tprof .or. &
+               varNumber(obsIndex) == bufr_sprof) then
 
         if (ensObs%typeVertCoord /= 'depth') then
-          call utl_abort('eob_setVertLocation: SST obs only compatible with ocean depth coordinate')
+          call utl_abort('eob_setVertLocation: Ocean obs only compatible with ocean depth coordinate')
         end if
 
-        ! SST observations
+        ! Ocean observations
         vco_ptr => col_getVco(columnMeanTrl)
         ensObs%vertLocation(obsIndex) = minval(vco_ptr%depths(:))
 
