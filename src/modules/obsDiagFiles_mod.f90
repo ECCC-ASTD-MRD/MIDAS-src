@@ -11,8 +11,6 @@ module obsDiagFiles_mod
   use obsSpaceData_mod
   use utilities_mod
   use ramDisk_mod
-  use tovs_mod
-  use rttov_const, only : ninst
   use codtyp_mod
   use ensembleObservations_mod
 
@@ -42,71 +40,24 @@ module obsDiagFiles_mod
     type(struct_eob), optional, intent(in)    :: ensObs_opt     ! ensObs object
 
     ! Locals:
-    integer                :: familyIndex, codeTypeIndex, fileIndex
+    integer                :: familyIndex
     character(len=2)       :: obsFamilyList(50)
     integer                :: obsFamilyListSize
-    integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
-    integer                :: tovsCodeTypeListSize, tovsCodeTypeList(10)
-    integer                :: tovsFileNameListSize
-    character(len=codtyp_name_length) :: tovsFileNameList(30)
     character(len=codtyp_name_length) :: fileName
 
     ! ensure all mpi tasks have same list of common obs family names
     call diaf_getObsFamilyListMpiGlobal(obsdat, obsFamilyListSize, obsFamilyList)
 
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
-    call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
-    write(*,*) 'tovsAllCodeTypeListSize = ', tovsAllCodeTypeListSize
-    write(*,*) 'tovsAllCodeTypeList = ', tovsAllCodeTypeList(1:tovsAllCodeTypeListSize)
-
-    tovsFileNameListSize = 0
-    tovsFileNameList(:) = 'XXXXX'
-    do codeTypeIndex = 1, tovsAllCodeTypeListSize
-      fileName = diaf_getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))
-      if (all(tovsFileNameList(:) /= fileName)) then
-        tovsFileNameListSize = tovsFileNameListSize + 1
-        tovsFileNameList(tovsFileNameListSize) = fileName
-      end if
-    end do
-    write(*,*) 'tovsFileNameListSize = ', tovsFileNameListSize
-    write(*,*) 'tovsFileNameList = ', tovsFileNameList(1:tovsFileNameListSize)
 
     do familyIndex = 1, obsFamilyListSize
 
       write(*,*) 'diaf_writeAllSqlDiagFiles: Family = ', familyIndex, obsFamilyList(familyIndex)
 
-      if (obsFamilyList(familyIndex) == 'TO') then
-
-        do fileIndex = 1, tovsFileNameListSize
-          fileName = tovsFileNameList(fileIndex)
-          write(*,*) 'tovs filename = ', fileName
-
-          ! get list of codetypes associated with this filename
-          tovsCodeTypeListSize = 0
-          tovsCodeTypeList(:) = MPC_missingValue_INT
-          do codeTypeIndex = 1, tovsAllCodeTypeListSize
-            if (fileName == diaf_getObsFileName('TO', codeType_opt=tovsAllCodeTypeList(codeTypeIndex))) then
-              tovsCodeTypeListSize = tovsCodeTypeListSize + 1
-              tovsCodeTypeList(tovsCodeTypeListSize) = tovsAllCodeTypeList(codeTypeIndex)
-            end if
-          end do
-
-          write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
-          write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize)
-          call diaf_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, &
-                                     tovsFileNameList(fileIndex), &
-                                     tovsCodeTypeList(1:tovsCodeTypeListSize), &
-                                     ensObs_opt=ensObs_opt )
-        end do
-
-      else
-
-        fileName = diaf_getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
-        call diaf_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), &
-                                   onlyAssimObs, addFSOdiag, fileName, &
-                                   ensObs_opt=ensObs_opt )
-
-      end if
+      fileName = diaf_getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
+      call diaf_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), &
+                                 onlyAssimObs, addFSOdiag, fileName, &
+                                 ensObs_opt=ensObs_opt )
 
     end do
 
@@ -158,28 +109,15 @@ module obsDiagFiles_mod
       if (codtyp_get_name(codeType_opt) == 'radianceclear') then
         fileName  = 'csr'
       else if (codtyp_get_name(codeType_opt) == 'mhs' .or. codtyp_get_name(codeType_opt) == 'amsub') then
-        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
-          fileName = 'to_amsub_allsky'
-        else
-          fileName = 'to_amsub'
-        end if
+        fileName = 'to_amsub'
       else if (codtyp_get_name(codeType_opt) == 'amsua') then
-        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
-          fileName = 'to_amsua_allsky'
-        else
-          fileName = 'to_amsua'
-        end if
+        fileName = 'to_amsua'
       else if (codtyp_get_name(codeType_opt) == 'ssmi') then
         fileName = 'ssmis'
       else if (codtyp_get_name(codeType_opt) == 'crisfsr') then
         fileName = 'cris'
       else if (codtyp_get_name(codeType_opt) == 'atms') then
-        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt))) .or. &
-            tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
-          fileName = 'atms_allsky'
-        else
-          fileName = 'atms'
-        end if
+        fileName = 'atms'
       else
         fileName = codtyp_get_name(codeType_opt)
       end if
