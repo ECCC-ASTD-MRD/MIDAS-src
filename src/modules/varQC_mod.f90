@@ -13,7 +13,6 @@ module varQC_mod
   use utilities_mod
   use obsSpaceData_mod
   use columnData_mod
-  use rmatrix_mod ,only : rmat_lnondiagr
   use varNameList_mod
   use obsFamilyList_mod
   use obsFlags_mod
@@ -324,9 +323,6 @@ module varQC_mod
     BODY: do index_body = 1, obs_numbody(obsSpaceData)
       includeFlag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated).and.  &
                     (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body).ne.'RO')
-      ! pas de qcvar pour  les radiances en mode matrice R non diagonale
-      if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-        (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO')
 
       if (includeFlag) then
         index_header = obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body)
@@ -426,9 +422,6 @@ module varQC_mod
     do index_body=1,obs_numbody(obsSpaceData)
       includeFlag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.  &
                     (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'RO')
-      ! pas de qcvar pour les radiances en mode matrice R non diagonale
-      if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-         (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO')
 
       if (includeFlag) then
         call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body,  &
