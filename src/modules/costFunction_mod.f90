@@ -71,14 +71,11 @@ contains
     logical, optional,   intent(in) :: beSilent_opt
 
     ! Locals:
-    integer :: bodyIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
-    integer :: channelNumber, channelNumberIndexInListFound, channelIndex
-    integer :: sensorIndexInList, sensorIndexInListFound
+    integer :: bodyIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
     logical :: beSilent
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
-    character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
 
@@ -117,8 +114,6 @@ contains
     dljosst = 0.0d0
     dljoaladin = 0.d0
     dljoice = 0.0d0
-    dljotov_sensors(:) = 0.d0
-    joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
@@ -314,13 +309,6 @@ contains
     !          prescribed on different lines.
     !
     implicit none
-
-    ! Locals:
-    integer :: channelIndex
-    integer :: channelIndex1, channelIndex2
-    integer :: sensorIndexInList, sensorIndexInList1, sensorIndexInList2
-
-    character(len=15) :: sensorName1LowerCase, sensorName2LowerCase
 
     if ( mmpi_myid == 0 ) then
       write(*,*) 'costfunction_mod: sortChannelNumbersInNml START'
