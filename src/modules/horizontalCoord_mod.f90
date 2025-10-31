@@ -11,7 +11,6 @@ module horizontalCoord_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
-  use netcdf
   use message_mod
 
   implicit none

@@ -10,7 +10,6 @@ module verticalCoord_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod
-  use netcdf
 
   implicit none
   private
@@ -627,11 +626,7 @@ contains
     logical,                   intent(in)    :: beSilent
 
     ! locals:
-    integer :: ncid
-    integer :: levIndex, varID, xtype, nDims, dimIndex, nAtts, ip1Value
-    integer :: dimids(nf90_max_var_dims), dimLength(nf90_max_var_dims)
-    character(len=nf90_max_name) :: dimName
-    character(len=20) :: varName
+    integer :: levIndex, ip1Value
     character(len=10) :: blk_S, depthVariable
 
     if (.not. beSilent) &
@@ -695,23 +690,8 @@ contains
       ! Open the template file
       write(*,*) 'vco_setupOceanFromNetCdfFile: reading depth variable ', &
                  trim(depthVariable),' from file: ', trim(templateFile)
-      call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
 
-      ! Get the number of levels, i.e. length of depthVariable dimension
-      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(depthVariable), varID))
-      call utl_checkNetCDFstatus(nf90_inquire_variable(ncid, varID, varName, &
-                                                       xtype, nDims, dimids, nAtts))
       vco%nLev_depth = -1
-      do dimIndex = 1, nDims
-
-        call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimids(dimIndex), &
-                                                          dimName, dimLength(dimIndex)))
-
-        if (trim(dimName) == 'deptht' .or. trim(dimName) == 'z') then
-          vco%nLev_depth = dimLength(dimIndex)
-        end if
-
-      enddo
 
       if (vco%nLev_depth < 0) then
         call utl_abort('vco_setupOceanFromNetCdfFile: not able to find depth variable dimension in NetCDF file')
@@ -719,13 +699,6 @@ contains
 
       allocate(vco%depths(vco%nLev_depth))
       allocate(vco%ip1_depth(vco%nLev_depth))
-
-      ! Read 1D vector of depth values (in meters) and put it into vco%depths
-      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(depthVariable), varID))
-      call utl_checkNetCDFstatus(nf90_get_var(ncid, varID, vco%depths))
-
-      ! Close the file
-      call utl_checkNetCDFstatus(nf90_close(ncid))
 
       ! Set ip1 values from depths
       do levIndex = 1, vco%nLev_depth
