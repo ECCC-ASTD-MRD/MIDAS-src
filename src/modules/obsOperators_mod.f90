@@ -2412,8 +2412,6 @@ contains
 
     call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
 
-    call oop_HTto
-
     call oop_HTsf
 
     call oop_HTpp
