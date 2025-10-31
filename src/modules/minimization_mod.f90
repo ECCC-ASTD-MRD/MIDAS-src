@@ -18,10 +18,8 @@ module minimization_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
-  use bMatrix1DVar_mod
   use stateToColumn_mod
   use varqc_mod
-  use rmatrix_mod
   use costFunction_mod
   use residual_mod
   use obsOperators_mod
@@ -610,8 +608,7 @@ CONTAINS
        call mmpi_allreduce_sumreal8scalar(dl_Jb)
 
        if (oneDVarMode) then
-         call bmat1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
-         call cvt_transform(columnAnlInc_ptr, 'ZandP_tl', columnTrlOnAnlIncLev_ptr)
+         call utl_abort('simvar: 1D-Var mode not supported')
        else
          if (.not.gsv_isAllocated(statevector)) then
            write(*,*) 'min-simvar: allocating increment stateVector'
@@ -641,11 +638,6 @@ CONTAINS
 
        call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
-       ! Save as OBS_WORK : R**-1/2 (d-Hdx)
-       call utl_tmg_start(10,'--Observations')
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)
-       call utl_tmg_stop(10)
-
        ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
        call cfn_calcJo(obsSpaceData_ptr)
 
@@ -668,11 +660,6 @@ CONTAINS
        endif
        call utl_tmg_stop(92)
        call utl_tmg_stop(90)
-
-       ! Modify OBS_WORK : R**-1 (d-Hdx)
-       call utl_tmg_start(10,'--Observations')
-       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)
-       call utl_tmg_stop(10)
 
        IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
@@ -703,8 +690,7 @@ CONTAINS
        call bcs_calcbias_ad(da_gradJ,OBS_WORK,obsSpaceData_ptr)
 
        if (oneDVarMOde) then
-         call cvt_transform( columnAnlInc_ptr, 'ZandP_ad', columnTrlOnAnlIncLev_ptr)      ! IN
-         call bmat1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
+         call utl_abort('simvar: 1D-Var mode not supported')
        else
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
        end if
