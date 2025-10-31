@@ -24,7 +24,6 @@ module thinning_mod
   use kdTree2_mod
   use satWind_mod
   use obsFlags_mod
-  use tovs_mod
   use getGridPosition_mod
 
   implicit none
@@ -8484,23 +8483,6 @@ contains
     ! Only for radiance observations, determine list of channels
     if (elementID == bufr_nbt3) then
 
-      ! Get the list of channels for this codtyp/elementID
-      allocate(channels(tvs_maxNumberOfChannels))
-      call getChannels(obsdat, channels, numChannels, codtyp, elementID)
-      if (numChannels > 0) then
-        if (mmpi_myid == 0) then
-          write(*,*) 'thin_superObs: will compute superobs for codtyp, elementID = ', codtyp, elementID
-          write(*,*) 'thin_superObs: number of channels to be processed: ', numChannels
-          if (numChannels < 30) then
-            write(*,*) 'thin_superObs: channel list = ', channels(1:numChannels)
-          else
-            write(*,*) 'thin_superObs: channel list is very long, first 30 = ', channels(1:30)
-          end if
-        end if
-      else
-        deallocate(channels)
-        return
-      end if
       checkChannel = .true.
 
     else
