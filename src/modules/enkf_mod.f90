@@ -16,7 +16,6 @@ module enkf_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use obsSpaceData_mod
-  use tovs_mod
   use ensembleObservations_mod
   use gridVariableTransforms_mod
   use localizationFunction_mod
@@ -3056,23 +3055,13 @@ contains
     integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
     real(pre_obsReal) :: lat_obs
 
+    return
+
     ! reject all HIR radiance observation in arctic and antarctic (.i.e |lat|>60. )
     do headerIndex = 1, obs_numheader(obsSpaceData)
       lat_obs = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
       codeType = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
       lat_obs = lat_obs * MPC_DEGREES_PER_RADIAN_R8
-      if ( abs(lat_obs) > 60. .and. tvs_isIdBurpHyperSpectral(codeType) ) then
-        write(*,*) 'enkf_rejectHighLatIR: !!!!!!!!--------WARNING--------!!!!!!!!'
-        write(*,*) 'enkf_rejectHighLatIR: This HIR radiance profile was rejected because |lat|>60.'
-        write(*,*) 'enkf_rejectHighLatIR: latidude= ', lat_obs, 'codtyp= ', codeType
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          call obs_bodySet_i(obsSpaceData, obs_ass, bodyIndex, obs_notAssimilated)
-          ! also set the 'rejected by selection process' flag (bit 11)
-          call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
-        end do
-      end if
     end do
 
   end subroutine enkf_rejectHighLatIR

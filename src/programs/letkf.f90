@@ -165,7 +165,6 @@ program midas_letkf
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use columnData_mod
-  use tovs_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use oceanMask_mod
@@ -596,7 +595,6 @@ program midas_letkf
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
-  call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission for eob_setVertLocation
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))

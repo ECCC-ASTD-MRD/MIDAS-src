@@ -6,8 +6,6 @@ module costFunction_mod
   !
   use midasMpi_mod
   use obsSpaceData_mod
-  use rttov_const, only : inst_name, platform_name
-  use tovs_mod
   use utilities_mod
   use obserrors_mod
   use codtyp_mod
@@ -80,8 +78,6 @@ contains
 
     real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljosst, dljoice
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
-    real(8) :: dljotov_sensors( tvs_nsensors )
-    real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
     character(len=15) :: lowerCaseName
 
     logical :: printJoTovsPerChannelSensor
@@ -94,13 +90,6 @@ contains
       beSilent = beSilent_opt
     else
       beSilent = .false.
-    end if
-
-    if (.not. allocated(channelNumberList)) then
-      allocate(channelNumberList(tvs_maxNumberOfChannels,tvs_nsensors))
-    end if
-    if (.not. allocated(sensorNameList)) then
-      allocate(sensorNameList(tvs_nsensors))
     end if
 
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
@@ -182,46 +171,6 @@ contains
       end select
     end do
 
-    do headerIndex = 1, tvs_headerEnd
-      bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
-      bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
-      sensorIndex = tvs_lsensor (headerIndex)
-      if (sensorIndex == -1) cycle
-      sensorIndexInListFound = 0
-      if ( printJoTovsPerChannelSensor ) then
-        loopSensor1: do sensorIndexInList = 1, tvs_nsensors
-          call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
-
-          if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
-            sensorIndexInListFound = sensorIndexInList
-            exit loopSensor1
-          end if
-
-        end do loopSensor1
-      end if
-
-      do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
-        dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-
-        if ( printJoTovsPerChannelSensor .and. &
-            sensorIndexInListFound > 0 ) then
-          call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
-                                             channelNumber, channelIndex )
-          channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
-                                                      channelNumber)
-
-          if ( channelNumberIndexInListFound > 0 ) then
-            joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) = &
-                joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
-                pjo_1
-          end if
-
-        end if
-
-      end do
-    end do
-
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
       do headerIndex = 1, obs_numheader(lobsSpaceData)
         codeType     = obs_headElem_i(lobsSpaceData, OBS_ITY, headerIndex)
@@ -262,16 +211,6 @@ contains
     call mmpi_allreduce_sumreal8scalar(dljoice,     allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljohydro,   allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljoradar,   allReduceForward_opt = allReduceForward)
-    do sensorIndex = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), allReduceForward_opt = allReduceForward)
-    end do
-    if (printJoTovsPerChannelSensor) then
-      loopSensor2: do sensorIndex = 1, tvs_nsensors
-        if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
-
-        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), allReduceForward_opt = allReduceForward)
-      end do loopSensor2
-    end if
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
@@ -296,37 +235,6 @@ contains
       write(*,'(a15,f30.17)') 'Jo(HY)   = ', dljohydro
       write(*,'(a15,f30.17)') 'Jo(RA)   = ', dljoradar
       write(*,*) ' '
-      if ( tvs_nsensors > 0 ) then
-        write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
-        write(*,'(1x,a)') '#  plt sat ins    Jo'
-        do sensorIndex = 1, tvs_nsensors
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f30.17)') sensorIndex, inst_name(tvs_instruments(sensorIndex)), &
-                                                    platform_name(tvs_platforms(sensorIndex)), &
-                                                    tvs_satellites(sensorIndex), &
-                                                    dljotov_sensors(sensorIndex)
-        end do
-        write(*,*) ' '
-      end if
-
-      ! print per channel information
-      if ( tvs_nsensors > 0 .and. printJoTovsPerChannelSensor ) then
-        write(*,'(1x,a)') 'For TOVS decomposition by sensor/channel:'
-        write(*,'(1x,a)') 'index  sensorName  channel  Jo'
-        loopSensor3: do sensorIndex = 1, tvs_nsensors
-        if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor3
-
-          loopChannel: do channelIndex = 1, tvs_maxNumberOfChannels
-            if ( channelNumberList(channelIndex,sensorIndex) == 0 ) cycle loopChannel
-
-            write(*,'(i2,1x,a,1x,i4,1x,f30.17)') sensorIndex, &
-                                                 sensorNameList(sensorIndex), &
-                                                 channelNumberList(channelIndex,sensorIndex), &
-                                                 joTovsPerChannelSensor(channelIndex,sensorIndex)
-          end do loopChannel
-
-        end do loopSensor3
-        write(*,*) ' '
-      end if
 
       ! print SST data per instrument
       if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
@@ -417,70 +325,6 @@ contains
     if ( mmpi_myid == 0 ) then
       write(*,*) 'costfunction_mod: sortChannelNumbersInNml START'
     end if
-
-    ! set duplicate channelNumber for each sensor to zero
-    loopSensor3: do sensorIndexInList = 1, tvs_nsensors
-      if ( trim(sensorNameList(sensorIndexInList)) == '' ) cycle loopSensor3
-
-      loopChannel2: do channelIndex = tvs_maxNumberOfChannels, 2, -1
-        if ( channelNumberList(channelIndex,sensorIndexInList) == 0 ) cycle loopChannel2
-
-        if ( any(channelNumberList(1:channelIndex-1,sensorIndexInList) == &
-                 channelNumberList(channelIndex    ,sensorIndexInList)) ) then
-          channelNumberList(channelIndex,sensorIndexInList) = 0
-        end if
-      end do loopChannel2
-    end do loopSensor3
-
-    ! remove later duplicates of sensor/channel pairs
-    loopSensor4: do sensorIndexInList1 = 1, tvs_nsensors-1
-      if ( trim(sensorNameList(sensorIndexInList1)) == '' ) cycle loopSensor4
-
-      call up2low(sensorNameList(sensorIndexInList1),sensorName1LowerCase)
-
-      loopSensor5: do sensorIndexInList2 = sensorIndexInList1+1, tvs_nsensors
-        if ( trim(sensorNameList(sensorIndexInList2)) == '' ) cycle loopSensor5
-
-        call up2low(sensorNameList(sensorIndexInList2),sensorName2LowerCase)
-
-        if ( trim(sensorName2LowerCase) == trim(sensorName1LowerCase) ) then
-          loopChannel3: do channelIndex2 = 1, tvs_maxNumberOfChannels
-            if ( channelNumberList(channelIndex2,sensorIndexInList2) == 0 ) cycle loopChannel3
-
-            if ( any(channelNumberList(:           ,sensorIndexInList1) == &
-                     channelNumberList(channelIndex2,sensorIndexInList2)) ) then
-              ! set second occurance of channelNumber to zero
-              channelNumberList(channelIndex2,sensorIndexInList2) = 0
-            else
-
-              ! replace the first zero channelNumber of first sensor with new non-zero channelNumber
-              do channelIndex1 = 1, tvs_maxNumberOfChannels
-                if ( channelNumberList(channelIndex1,sensorIndexInList1) == 0 ) then
-                  channelNumberList(channelIndex1,sensorIndexInList1) = &
-                        channelNumberList(channelIndex2,sensorIndexInList2)
-                  channelNumberList(channelIndex2,sensorIndexInList2) = 0
-                  exit
-                end if
-              end do
-
-            end if
-
-          end do loopChannel3
-        end if
-      end do loopSensor5
-    end do loopSensor4
-
-    ! if all entries for a sensor are zero, remove the sensor from namelist.
-    ! otherwise sort in ascending order
-    loopSensor6: do sensorIndexInList = 1, tvs_nsensors
-      if ( trim(sensorNameList(sensorIndexInList)) == '' ) cycle loopSensor6
-
-      if ( all(channelNumberList(:,sensorIndexInList) == 0) ) then
-        sensorNameList(sensorIndexInList) = ''
-      else
-        call isort(channelNumberList(:,sensorIndexInList),tvs_maxNumberOfChannels)
-      end if
-    end do loopSensor6
 
     if ( mmpi_myid == 0 ) then
       write(*,*) 'costfunction_mod: sortChannelNumbersInNml END'

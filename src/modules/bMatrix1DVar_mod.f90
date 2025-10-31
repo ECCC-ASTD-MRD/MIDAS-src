@@ -17,7 +17,6 @@ module bMatrix1DVar_mod
   use timeCoord_mod
   use utilities_mod
   use verticalCoord_mod
-  use tovs_mod
   use var1D_mod
   use filenames_mod
   use localizationFunction_mod
