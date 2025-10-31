@@ -11,9 +11,6 @@ MODULE ensembleObservations_mod
   use kdTree2_mod
   use message_mod
   use columnData_mod
-  use tovs_mod
-  use rttov_types, only: rttov_transmission, rttov_profile
-  use parkind1, only: jpim, jprb
   use oceanMask_mod
   use verticalCoord_mod
   use obsSpaceData_mod
@@ -1346,11 +1343,7 @@ CONTAINS
     physVarMax = size(eobOut%physVar,2)
 
     ! Let's find physVar and its index in eobOut
-    if (tvs_isIdBurpTovs(codTyp)) then
-      physVar = ensObs%channel(bodyIndex)
-    else
-      physVar = ensObs%varNum(bodyIndex)
-    endif
+    physVar = ensObs%varNum(bodyIndex)
     MAXNUM_LOOP: do physVarIndex = 1, physVarMax
       if (eobOut%physVar(codTyp,physVarIndex) == physVar) then
         exit MAXNUM_LOOP
@@ -1734,14 +1727,12 @@ CONTAINS
     type(struct_columnData), intent(in)    :: columnMeanTrl ! column object to supply vertical level info
 
     ! Locals:
-    integer          :: obsIndex, headerIndex, channelIndex, numTovsLevels, sensorIndex
+    integer          :: obsIndex, headerIndex
     integer          :: levIndex, levIndexBelow, levIndexAbove, nLev_M
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
-    type(rttov_profile), pointer :: profiles(:)
     type(struct_vco),    pointer :: vco_ptr
-    logical          :: verbose = .false.
 
     call eob_setAssFlag(ensObs)
 
@@ -1756,8 +1747,6 @@ CONTAINS
       heightM_ptr => col_getAllColumns(columnMeanTrl,'Z_M')
       sfcPres_ptr => col_getAllColumns(columnMeanTrl,'P0')
       nLev_M = col_getNumLev(columnMeanTrl,'MM')
-
-      call tvs_getProfile(profiles,'nl')
 
     end if
 
@@ -1836,30 +1825,6 @@ CONTAINS
                                           (1.0D0 - interpFactor) * log(presM_ptr(levIndexBelow,headerIndex))
         end if
 
-      else if(tvs_isIdBurpTovs(codType(obsIndex))) then
-
-        if (ensObs%typeVertCoord /= 'logPressure') then
-          call utl_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
-        end if
-
-        sensorIndex = tvs_lsensor(headerIndex)
-        numTovsLevels   = size(tvs_transmission(headerIndex)%tau_levels,1)
-        channelIndex = nint(obsPPP(obsIndex))
-        channelIndex = max(0,min(channelIndex,tvs_maxChannelNumber+1))
-        channelIndex = channelIndex - tvs_channelOffset(sensorIndex)
-        channelIndex = utl_findloc(tvs_ichan(:,sensorIndex), channelIndex)
-        ensObs%channel(obsIndex) = channelIndex
-        if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
-          call max_transmission(tvs_transmission(headerIndex), numTovsLevels, &
-                                channelIndex, profiles(headerIndex)%p, ensObs%vertLocation(obsIndex))
-          if(mmpi_myid == 0 .and. verbose) then
-            write(*,*) 'eob_setVertLocation for tovs: ', codType(obsIndex), &
-                       obsPPP(obsIndex), 0.01*exp(ensObs%vertLocation(obsIndex))
-          end if
-        else
-          ensObs%vertLocation(obsIndex) = log(500.0D2)
-        end if
-
       else if (varNumber(obsIndex) == BUFR_SST) then
 
         if (ensObs%typeVertCoord /= 'depth') then
@@ -1885,8 +1850,6 @@ CONTAINS
       end if
 
     end do OBS_LOOP
-
-    nullify(profiles)
 
   end subroutine eob_setVertLocation
 
@@ -2509,57 +2472,6 @@ CONTAINS
     end if
 
   end subroutine getMemberIndexInFullEnsSet
-
-  !--------------------------------------------------------------------------
-  ! max_transmission (private routine)
-  !--------------------------------------------------------------------------
-  subroutine max_transmission(transmission, numLevels, transIndex, rttovPres, maxLnP)
-    !
-    ! :Purpose: Determine the height in log pressure where we find the maximum
-    !           value of the first derivative of transmission with respect to
-    !           log pressure
-    !
-    implicit none
-
-    ! Arguments:
-    type(rttov_transmission), intent(in)  :: transmission ! transmission (rttov type)
-    integer(kind=jpim)      , intent(in)  :: numLevels    ! number of RTTOV levels
-    integer                 , intent(in)  :: transIndex   ! index of transmission%tau_levels
-    real(kind=jprb), pointer, intent(in)  :: rttovPres(:) ! pressure of RTTOV levels
-    real(8)                 , intent(out) :: maxLnP       ! computed log pressure of maximum
-
-    ! Locals:
-    integer :: levIndex
-    real(8) :: lnPres(numLevels), avgPres(numLevels-1)
-    real(8) :: diffTau, derivTau(numLevels), maxDeriv
-    integer :: nAvgLev, maxIndex
-
-    nAvgLev = numLevels - 1
-    lnPres(:) = log(rttovPres(:)*MPC_PA_PER_MBAR_R8)
-    ! calculate the first derivative of transmission with respect to log pressure
-    ! and find the level index for its maximum
-    maxDeriv = -0.1d0
-    derivTau(1) = 0.0d0
-    maxIndex = numLevels
-    do levIndex = 2, numLevels
-      avgPres(levIndex-1) = 0.5d0*(lnPres(levIndex)+lnPres(levIndex-1))
-      diffTau = transmission%tau_levels(levIndex-1,transIndex) - transmission%tau_levels(levIndex,transIndex)
-      derivTau(levIndex) = diffTau / (lnPres(levIndex)-lnPres(levIndex-1))
-      if (derivTau(levIndex)>maxDeriv) then
-        maxDeriv = derivTau(levIndex)
-        maxIndex = levIndex
-      end if
-    end do
-
-    ! get the height in log pressure for the level index (maxIndex) found above
-    if (maxIndex==1) maxIndex = maxIndex + 1
-    if ((maxIndex==2).or.(maxIndex==numLevels)) then
-      maxLnP = avgPres(maxIndex-1)
-    else
-      call get_peak(maxIndex,nAvgLev,avgPres,derivTau,maxLnP)
-    end if
-
-  end subroutine max_transmission
 
   !--------------------------------------------------------------------------
   ! get_peak (private routine)
