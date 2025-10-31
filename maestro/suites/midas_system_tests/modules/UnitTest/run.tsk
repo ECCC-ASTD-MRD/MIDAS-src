@@ -248,7 +248,7 @@ elif [ -z "\${debugger_mode}" ]; then
 
 set -e
 
-\${run_pgm}
+/usr/bin/time --format "Total Memory: %M Kb" \${run_pgm}
 
 EOFLAUNCH
 else
