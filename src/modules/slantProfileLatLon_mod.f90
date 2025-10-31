@@ -12,7 +12,6 @@ module slantProfileLatLon_mod
   use utilities_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
-  use tovs_mod
   use codtyp_mod
   use getGridPosition_mod
   use radialVelocity_mod
@@ -85,7 +84,7 @@ contains
     lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
     if (lon <  0.0d0          ) lon = lon + 2.0d0*MPC_PI_R8
     if (lon >= 2.0d0*MPC_PI_R8) lon = lon - 2.0d0*MPC_PI_R8
-    azimuthAngle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
+    azimuthAngle = 0.0d0
 
     !SSMIS special case
     idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
