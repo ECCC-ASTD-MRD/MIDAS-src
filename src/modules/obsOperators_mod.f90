@@ -862,7 +862,8 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         obsDepth_r = obs_bodyElem_r(obsSpaceData, obs_ppp, bodyIndex)
         if (utl_isEqual(obsDepth_r, obs_missingValue_R)) then
           if (.not. beSilent) then
-            write(*,*)'oop_oceanTS_nl: WARNING: vcoord is missing in the file! ', bodyIndex, obsDepth_r, obsValue, bufrCode, varName
+            write(*,*) 'oop_oceanTS_nl: WARNING: vcoord is missing for: ', &
+                       bodyIndex, obsDepth_r, obsValue, bufrCode, varName
           end if 
           if (bufrCode == bufr_sst) then
             obsDepth = obs_pppFoundationSST   ! default when vcoord is not present in obs files

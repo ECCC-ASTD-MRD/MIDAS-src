@@ -1214,7 +1214,7 @@ module obsSpaceErrorStdDev_mod
     BODY: do bodyIndex = 1, obs_numbody( lobsSpaceData )
 
       cfam = obs_getFamily( lobsSpaceData, bodyIndex_opt = bodyIndex )
-      if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
+      if( cfam == 'SF' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
 
         ! Process all data within the domain of the model (excluding GB-GPS ZTD data)
         ok = .false.
@@ -1222,10 +1222,10 @@ module obsSpaceErrorStdDev_mod
         if ( obs_bodyElem_i(lobsSpaceData, OBS_VCO, bodyIndex) == obs_vcoHeight ) then
 
           ityp = obs_bodyElem_i( lobsSpaceData, OBS_VNM, bodyIndex )
-          if ( ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &
-             ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
-             ityp == bufr_sst  .or. ityp == BUFR_ICEC .or. ityp == bufr_logVis  .or. ityp == bufr_gust .or. &
-             ityp == bufr_riverFlow) then
+          if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or. ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or. &
+              ityp == BUFR_NEUS .or. ityp == BUFR_NEVS .or. ityp == BUFR_NEFS .or. ityp == BUFR_NEDS .or. &
+              ityp == BUFR_ICEC .or. ityp == bufr_logVis .or. ityp == bufr_gust .or. &
+              ityp == bufr_riverFlow) then
 
             ok = ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated )
 

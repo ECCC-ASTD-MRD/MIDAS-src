@@ -601,9 +601,7 @@ contains
     namePrefix(109) = 'obssst'
     namePrefix(110) = 'obsgl_rcm'
     namePrefix(111) = 'obssst_slstr'
-    namePrefix(112) = 'obstprof_argo' ! Argo vertical profile of ocean Temperature
-    namePrefix(113) = 'obssprof_argo' ! Argo vertical profile of ocean Salinity
-    
+    namePrefix(112) = 'obstsprof_argo' ! Argo vertical profile of ocean Temperature and Salinity
 
     familyName(:)   = ''
     familyName( 1)  = 'TO'
@@ -707,18 +705,17 @@ contains
     familyName(99)  = 'TM'
     familyName(100) = 'AL'
     familyName(101) = 'RA'
-    familyName(102) = 'TM'
+    familyName(102) = 'OS'
     familyName(103) = 'HY'
     familyName(104) = 'SF'
-    familyName(105) = 'TM'
-    familyName(106) = 'TM'
-    familyName(107) = 'TM'
-    familyName(108) = 'TM'
-    familyName(109) = 'TM'
+    familyName(105) = 'OS'
+    familyName(106) = 'OS'
+    familyName(107) = 'OS'
+    familyName(108) = 'OS'
+    familyName(109) = 'OS'
     familyName(110) = 'GL'
-    familyName(111) = 'TM'
-    familyName(112) = 'TM'
-    familyName(113) = 'SALW'
+    familyName(111) = 'OS'
+    familyName(112) = 'OS'
 
     obsDirectory = 'obs'
 

@@ -312,10 +312,10 @@ contains
     end if
 
     !- 2.5 Ocean data
-    if (obs_famexist(obsSpaceData,'TM')) then
+    if (obs_famexist(obsSpaceData,'OS')) then
       call oer_readObsErrorsOcean
     else
-      write(*,*) "oer_setObsErrors: No TM observations found."
+      write(*,*) "oer_setObsErrors: No ocean state observations found."
     end if
 
     !- 2.6 Hydrology
@@ -1125,10 +1125,11 @@ contains
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = namOceanObsErrors, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_readObsErrorsOcean: Error reading namelist')
-      if (mmpi_myid == 0) write(*,nml=namOceanObsErrors)
+      if (mmpi_myid == 0) write(*,nml = namOceanObsErrors)
       call utl_tmg_stop(181)
       if (numberOceanDatasets /= MPC_missingValue_INT) then
-        call utl_abort('oer_readObsErrorsOcean: check namOceanObsErrors namelist section: numberOceanDatasets should be removed')
+        call utl_abort('oer_readObsErrorsOcean: check namOceanObsErrors '// &
+                       'namelist section: numberOceanDatasets should be removed')
       end if
       numberOceanDatasets = 0
       do indexDataset = 1, maxnumberOceanDatasets
@@ -1571,7 +1572,7 @@ contains
                 !               Ocean Temperature and salinity
                 !***********************************************************************
 
-          else if (cfam == 'TM' .or. cfam == 'SALW') then
+          else if (cfam == 'OS') then
 
             if (obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex) /= bufr_sst   .and. &
                 obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex) /= bufr_tprof .and. &

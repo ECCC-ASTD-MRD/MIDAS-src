@@ -448,7 +448,7 @@ program midas_obsSelection
 
   ! Apply optional bias corrections
   if (doBiasCorr) then
-    if (obs_famExist(obsSpaceData, 'TM')) then
+    if (obs_famExist(obsSpaceData, 'OS')) then
       call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, &
                                                 vco_anl, columnTrlOnAnlIncLev)
     end if
@@ -543,7 +543,7 @@ program midas_obsSelection
     end if
 
     ! Do the ocean data background check
-    if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
+    if (obs_famExist(obsSpaceData, 'OS')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
                                                                 columnTrlOnTrlLev, hco_trl)
 
     ! Do the sea ice data gross background check
@@ -584,8 +584,8 @@ program midas_obsSelection
     call thn_thinSatWinds(obsSpaceData)
     call thn_thinAircraft(obsSpaceData)
     call thn_thinSurface(obsSpaceData, 'SF') ! surface data thinning
-    if (obs_famExist(obsSpaceData, 'TM')) then
-      call thn_thinSurface(obsSpaceData, 'TM') ! SST thinning
+    if (obs_famExist(obsSpaceData, 'OS')) then
+      call thn_thinSurface(obsSpaceData, 'OS') ! SST thinning
       call thn_thinSatSST(obsSpaceData)        ! satellite SST thinning
     end if      
     if (obs_famExist(obsSpaceData, 'GL')) then

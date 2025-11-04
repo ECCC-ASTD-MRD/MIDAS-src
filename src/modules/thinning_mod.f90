@@ -876,12 +876,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsdat             ! obsSpaceData object
-    character(len=*), intent(in)           :: obsFamily          ! obs family to process
-    real(8),          intent(in)           :: step               ! time step length in hours for thinning
-    integer,          intent(in)           :: deltmax            ! max time difference in minutes
-    logical,          intent(in)           :: useBlackList       ! choose to use black list file
-    logical,          intent(in)           :: considerSHIPstnID  ! choose to only compare obs with same stnID
+    type(struct_obs), intent(inout) :: obsdat            ! obsSpaceData object
+    character(len=*), intent(in)    :: obsFamily         ! obs family to process
+    real(8),          intent(in)    :: step              ! time step length in hours for thinning
+    integer,          intent(in)    :: deltmax           ! max time difference in minutes
+    logical,          intent(in)    :: useBlackList      ! choose to use black list file
+    logical,          intent(in)    :: considerSHIPstnID ! choose to only compare obs with same stnID
 
     ! Local paramters:
 

@@ -15,10 +15,11 @@ module obsFamilyList_mod
   ! Public procedures
   public :: ofl_isFamilyTypeInList
 
-  integer,          parameter :: ofl_numFamily = 15
+  integer,          parameter :: ofl_numFamily = 16
   character(len=2), parameter :: ofl_familyList(ofl_numFamily)= (/ &
-                                 'UA','AI','SF','SC','SW','PR','RO','GP','RA', &
-                                 'TO','CH','TM','AL','GL','HY'/)
+                                 'UA', 'AI', 'SF', 'SC', 'SW', 'PR', &
+                                 'RO', 'GP', 'RA', 'TO', 'CH', 'OS', &
+                                 'SH', 'AL', 'GL', 'HY'/)
 
   ! Description of obs family types
   ! -------------------------------
@@ -33,7 +34,8 @@ module obsFamilyList_mod
   ! RA - radar precipitation data
   ! TO - brightness temperatures (TT/HU/P0/constituents)
   ! CH - retrieved chemical constituent data
-  ! TM - Sea-surface temperature data (SST)
+  ! OS - Ocean State data: ocean T/S, SST
+  ! SH - Sea Surface Height 
   ! AL - Aladin lidar horizontal wind data
   ! GL - Sea-ice concentration data 
   ! HY - Hydrological data

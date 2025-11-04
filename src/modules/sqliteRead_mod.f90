@@ -241,7 +241,7 @@ module sqliteRead_mod
     select case(trim(familyType))
       case('RA','PR','AL','RO','SF','SC','GL','HY','GP')
         vertCoordType = obs_vcoHeight
-      case('TM', 'SALW')
+      case('OS', 'SH')
         vertCoordType = obs_vcoOceanDepth
       case('UA','AI','SW')
         vertCoordType = obs_vcoPressure
@@ -306,7 +306,7 @@ module sqliteRead_mod
         read(utl_flnml, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
-      case ('TM', 'SALW')
+      case ('OS', 'SH')
         read(utl_flnml, nml = NAMSQLocean, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLocean')
         if (mmpi_myid == 0) write(*, nml = NAMSQLocean)
@@ -666,7 +666,7 @@ module sqliteRead_mod
           case('VCOORD')
             vertCoord = bodyValues(rowIndex,columnIndex)
             if (trim(familyType) /= 'RA' .and. trim(familyType) /= 'TO' .and. &
-                trim(familyType) /= 'TM') then
+                trim(familyType) /= 'OS') then
               vertCoord = vertCoord * vertCoordFact + elev * elevFact
             end if
             call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord)

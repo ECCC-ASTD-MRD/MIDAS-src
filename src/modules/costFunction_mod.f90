@@ -60,7 +60,7 @@ contains
   !--------------------------------------------------------------------------
   ! cfn_sumJo
   !--------------------------------------------------------------------------
-  subroutine cfn_sumJo( lobsSpaceData, pjo, beSilent_opt )
+  subroutine cfn_sumJo(lobsSpaceData, pjo, beSilent_opt)
     !
     !:Purpose: To compute the sum of Jo contributions saved in OBS_JOBS. Also,
     !          to compute contribution of each family of observation (for
@@ -78,7 +78,8 @@ contains
     integer :: sensorIndexInList, sensorIndexInListFound
     logical :: beSilent
 
-    real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat, dljosurfc, dljotov, dljoocean, dljoice
+    real(8) :: dljoraob, dljoairep, dljosatwind, dljoscat
+    real(8) :: dljosurfc, dljotov, dljoocean, dljoice, dljossh
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
     real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
@@ -126,6 +127,7 @@ contains
     dljoprof = 0.d0
     dljochm = 0.d0
     dljoocean = 0.0d0
+    dljossh = 0.0d0
     dljoaladin = 0.d0
     dljoice = 0.0d0
     dljotov_sensors(:) = 0.d0
@@ -169,8 +171,10 @@ contains
         dljogpsztd  = dljogpsztd  + pjo_1
       case('CH')
         dljochm     = dljochm     + pjo_1
-      case('TM')
-        dljoocean   = dljoocean     + pjo_1
+      case('OS')
+        dljoocean   = dljoocean   + pjo_1
+      case('SH')
+        dljossh     = dljossh     + pjo_1
       case('AL')
         dljoaladin  = dljoaladin  + pjo_1
       case('GL')
@@ -257,7 +261,8 @@ contains
     call mmpi_allreduce_sumreal8scalar(dljoprof,    allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljogpsztd,  allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljochm,     allReduceForward_opt = allReduceForward)
-    call mmpi_allreduce_sumreal8scalar(dljoocean,     allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljoocean,   allReduceForward_opt = allReduceForward)
+    call mmpi_allreduce_sumreal8scalar(dljossh,     allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljoaladin,  allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljoice,     allReduceForward_opt = allReduceForward)
     call mmpi_allreduce_sumreal8scalar(dljohydro,   allReduceForward_opt = allReduceForward)
@@ -290,7 +295,8 @@ contains
       write(*,'(a15,f30.17)') 'Jo(RO)   = ', dljogpsro
       write(*,'(a15,f30.17)') 'Jo(GP)   = ', dljogpsztd
       write(*,'(a15,f30.17)') 'Jo(CH)   = ', dljochm
-      write(*,'(a15,f30.17)') 'Jo(TM)   = ', dljoocean
+      write(*,'(a15,f30.17)') 'Jo(OS)   = ', dljoocean
+      write(*,'(a15,f30.17)') 'Jo(SH)   = ', dljossh
       write(*,'(a15,f30.17)') 'Jo(AL)   = ', dljoaladin
       write(*,'(a15,f30.17)') 'Jo(GL)   = ', dljoice
       write(*,'(a15,f30.17)') 'Jo(HY)   = ', dljohydro
