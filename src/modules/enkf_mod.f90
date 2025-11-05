@@ -54,6 +54,7 @@ module enkf_mod
   ! for dfs calculation
   type struct_enkfDFS
     real(8), allocatable :: locFun(:,:)
+    integer, allocatable :: bodyIndex(:,:)
     real(8), allocatable :: lat(:)
     real(8), allocatable :: lon(:)
     real(8), allocatable :: lnp(:)
@@ -251,9 +252,11 @@ contains
 
     if (outputDFS) then
       numDFSIndex = nLev_weights * myNumLatLonCalcMax
-      write(*,*) 'enkf_LETKFanalyses: enkfDFS dimensions:', numDFSIndex, ensObs_mpiglobal%numObs
-      allocate(enkfDFS%locFun(numDFSIndex,ensObs_mpiglobal%numObs))
+      write(*,*) 'enkf_LETKFanalyses: enkfDFS dimensions:', numDFSIndex, maxNumLocalObs
+      allocate(enkfDFS%locFun(numDFSIndex,maxNumLocalObs))
       enkfDFS%locFun(:,:) = 0.0d0
+      allocate(enkfDFS%bodyIndex(numDFSIndex,maxNumLocalObs))
+      enkfDFS%bodyIndex(:,:) = 0
       allocate(enkfDFS%lat(numDFSIndex))
       enkfDFS%lat(:) = 0.0d0
       allocate(enkfDFS%lon(numDFSIndex))
@@ -1089,7 +1092,10 @@ contains
     ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      if (outputDFS) enkfDFS%locFun(dfsIndex,bodyIndex) = locFun(localObsIndex)
+      if (outputDFS) then
+        enkfDFS%locFun(dfsIndex,localObsIndex) = locFun(localObsIndex)
+        enkfDFS%bodyIndex(dfsIndex,localObsIndex) = bodyIndex
+      end if
 
       do memberIndex = 1, nEnsGain
         ! YbTinvR for updating ensemble perturbations

@@ -230,8 +230,9 @@ program midas_letkf
 
   character(len=50)    :: outfilename          ! filename for the dfs output
   integer              :: fclos, funit
-  integer              :: obsIndex, gridIndex
-  real(8)              :: Ya_anom, Ya_mean
+  integer              :: obsIndex, localBodyIndex, gridIndex
+  real(8)              :: Ya_anom, Ya_mean, tmp1
+  real(8)              :: Yb_anom, Yb_mean, tmp2
   type(struct_enkfDFS) :: enkfDFS
 
   ! namelist variables
@@ -911,6 +912,7 @@ program midas_letkf
   !- 5.3 calculate and output dfs
   if (outputDFS) then
     ! dfs is calculated using H(Xa_mean)-H(Xa_member) (Hotta2021)
+    ! that is to say we calculate trace(Ya^T R-1 Ya) = trace(R^-1/2 Ya Ya^T R^-T/2) ~ trace(R^-1/2 H Xa Xa^T H^T R^-T/2)
     ! Another option would be using Y-H(Xa_mean) and H(Xb_mean)-H(Xa_mean) (Lupu2011)
 
     call eob_allGather(ensObs,ensObs_mpiglobal_analysis)
@@ -924,27 +926,26 @@ program midas_letkf
           'lnp', &
           'dfs'
 
-    ! loop on all observations
-    do obsIndex = 1, size(ensObs_mpiglobal_analysis%Ya_r4,2)
-      Ya_mean = sum(ensObs_mpiglobal_analysis%Ya_r4(:,obsIndex),1)/Nens
-      Ya_anom = 0.0d0
-      ! ensemble loop
-      do memberIndex = 1, size(ensObs_mpiglobal_analysis%Ya_r4,1)
-        Ya_anom = Ya_anom + (ensObs_mpiglobal_analysis%Ya_r4(memberIndex,obsIndex) - Ya_mean) **2
-      end do
-      ! loop on this task's gridpoints
-      do gridIndex = 1, size(enkfDFS%lat)
-        enkfDFS%dfs(gridIndex) = enkfDFS%dfs(gridIndex) + &
-                                 enkfDFS%locFun(gridIndex,obsIndex) * &
-                                 Ya_anom * ensObs_mpiglobal_analysis%obsErrInv(obsIndex)
+    ! loop on this task's gridpoints
+    do gridIndex = 1, size(enkfDFS%lat)
+      ! loop on this gridpoint's local observations
+      do localBodyIndex = 1, size(enkfDFS%bodyIndex,2)
+        obsIndex = enkfDFS%bodyIndex(gridIndex,localBodyIndex)
+        if (obsIndex /= 0) then
+          Ya_mean = sum(ensObs_mpiglobal_analysis%Ya_r4(:,obsIndex),1)/Nens
+          Ya_anom = 0.0d0
+          ! ensemble loop
+          do memberIndex = 1, size(ensObs_mpiglobal_analysis%Ya_r4,1)
+            Ya_anom = Ya_anom + (ensObs_mpiglobal_analysis%Ya_r4(memberIndex,obsIndex) - Ya_mean) **2
+          end do
+          enkfDFS%dfs(gridIndex) = enkfDFS%dfs(gridIndex) + &
+                                   enkfDFS%locFun(gridIndex,localBodyIndex) * &
+                                   Ya_anom * ensObs_mpiglobal_analysis%obsErrInv(obsIndex)
+        end if
       end do
     end do
 
-    if (trim(algorithm) == 'CVLETKF') then
-      enkfDFS%dfs(:) = enkfDFS%dfs(:)*(numSubEns-1)/(Nens-1)
-    else
-      enkfDFS%dfs(:) = enkfDFS%dfs(:)/(Nens-1)
-    endif
+    enkfDFS%dfs(:) = enkfDFS%dfs(:)/(Nens-1)
 
     ! loop on this task's gridpoints
     do gridIndex = 1, size(enkfDFS%lat)
