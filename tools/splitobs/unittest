@@ -25,9 +25,18 @@ fi
 
 VERSION=${VERSION:-$(git describe --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
-INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
-REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
-GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
+if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
+    REFERENCE_MACHINE=ppp5
+elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
+    REFERENCE_MACHINE=ppp8
+else
+    echo "This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT}"
+    exit 1
+fi
+
+INPUTS=${INPUTS:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/grids}
 grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251021
