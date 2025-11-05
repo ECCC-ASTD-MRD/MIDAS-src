@@ -205,7 +205,7 @@ module oceanObservations_mod
     else 
     
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'SF', outputFileName)   
+      call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'OS', outputFileName)   
 
     end if
 
@@ -305,7 +305,7 @@ module oceanObservations_mod
         obsValue = real(phf_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0d0), pre_obsReal)
       end if
 
-      call obs_setFamily(obsData, 'SF'   , headerIndex)
+      call obs_setFamily(obsData, 'OS'   , headerIndex)
       call obs_headSet_i(obsData, OBS_ONM, headerIndex, headerIndex)
       call obs_headSet_i(obsData, OBS_ITY, headerIndex, codeType)
       call obs_headSet_r(obsData, OBS_LAT, headerIndex, obsLat)
@@ -320,7 +320,7 @@ module oceanObservations_mod
       headerIndex = headerIndex + 1
     end do 
     
-    call sqlr_writePseudoSSTobs(obsData, 'SF', outputFileName) 
+    call sqlr_writePseudoSSTobs(obsData, 'OS', outputFileName) 
  
     ! Deallocate obsSpaceData
     call obs_finalize(obsData)

@@ -25,7 +25,7 @@
    outputSST = 271.35
    outputFreshWaterST = 273.15
    seaiceThinning = 1
-   outputFileName = 'obssst_pseudo'
+   outputFileName = 'obsos_pseudo'
    seaWaterThreshold = 0.1
    useSalinity = .true.
 /      

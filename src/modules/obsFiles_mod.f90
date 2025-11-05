@@ -34,7 +34,7 @@ module obsFiles_mod
   private
 
   ! Private module parameters
-  integer, parameter :: maxNumObsfiles = 150
+  integer, parameter :: maxNumObsfiles = 126
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
@@ -588,21 +588,35 @@ contains
     namePrefix(96)  = 'obsgl_cisL'
     namePrefix(97)  = 'obsgl_cisR'
     namePrefix(98)  = 'cmaheader' ! file name for CMA format used by EnKF
-    namePrefix(99)  = 'brpsst'
-    namePrefix(100) = 'obsal'
-    namePrefix(101) = 'obsradar'
-    namePrefix(102) = 'obssst_insitu'
-    namePrefix(103) = 'obshydro'
-    namePrefix(104) = 'obssarwinds'
-    namePrefix(105) = 'obssst_avhrr'
-    namePrefix(106) = 'obssst_amsr2'
-    namePrefix(107) = 'obssst_viirs'
-    namePrefix(108) = 'obssst_pseudo'
-    namePrefix(109) = 'obssst'
-    namePrefix(110) = 'obsgl_rcm'
-    namePrefix(111) = 'obssst_slstr'
-    namePrefix(112) = 'obstsprof_argo' ! Argo vertical profile of ocean Temperature and Salinity
-
+    namePrefix(99)  = 'obsal'
+    namePrefix(100) = 'obsradar'
+    namePrefix(101) = 'obshydro'
+    namePrefix(102) = 'obssarwinds'
+    namePrefix(103) = 'obsgl_rcm'
+    namePrefix(104) = 'obsos_insitu'   ! All In-situ SST for G6 
+    namePrefix(105) = 'obsos_avhrr'    ! AVHRR SST
+    namePrefix(106) = 'obsos_amsr2'    ! AMSR2 SST
+    namePrefix(107) = 'obsos_viirs'    ! VIIRS SST
+    namePrefix(108) = 'obsos_pseudo'   ! Pseudo foundation SST 
+    namePrefix(109) = 'obsos_slstr'    ! Sea and Land Surface Temperature Radiometer (SLSTR) SST
+    namePrefix(110) = 'obsos_CO_PR_CT' ! Copernicus CORA 'PR': vertical profile, 'CT': CTD
+    namePrefix(111) = 'obsos_CO_PR_GL' ! Copernicus CORA 'PR': vertical profile, 'GL': Gliders
+    namePrefix(112) = 'obsos_CO_PR_ML' ! Copernicus CORA 'PR': vertical profile, 'ML': Mini loggers for fishery observations  
+    namePrefix(113) = 'obsos_CO_PR_PF' ! Copernicus CORA 'PR': vertical profile, 'PF': Argo profiles
+    namePrefix(114) = 'obsos_CO_PR_SM' ! Copernicus CORA 'PR': vertical profile, 'SM': Sea mammals
+    namePrefix(115) = 'obsos_CO_PR_TX' ! Copernicus CORA 'PR': vertical profile, 'TX': Thermistor chain data
+    namePrefix(116) = 'obsos_CO_PR_XB' ! Copernicus CORA 'PR': vertical profile, 'XB': XBT, XCTD or MBT profiles
+    namePrefix(117) = 'obsos_CO_TS_DB' ! Copernicus CORA 'TS': time series     , 'DB': Drifter buoys
+    namePrefix(118) = 'obsos_CO_TS_FB' ! Copernicus CORA 'TS': time series     , 'FB': Ferry boxes
+    namePrefix(119) = 'obsos_CO_TS_MO' ! Copernicus CORA 'TS': time series     , 'MO': Moorings 
+    namePrefix(120) = 'obsos_CO_TS_TG' ! Copernicus CORA 'TS': time series     , 'TG': Tide gauges
+    namePrefix(121) = 'obsos_CO_TS_TS' ! Copernicus CORA 'TS': time series     , 'TS': Ship underway data, thermosalinograph
+    namePrefix(122) = 'obssh_al_l3'    ! Altimetry Saral/AltiKa
+    namePrefix(123) = 'obssh_c2n_l3'   ! Altimetry Criosat-2
+    namePrefix(124) = 'obssh_j3_l3'    ! Altimetry Jason-3
+    namePrefix(125) = 'obssh_s3a_l3'   ! Altimetry Sentinel-3A
+    namePrefix(126) = 'obssh_s3b_l3'   ! Altimetry Sentinel-3B
+    
     familyName(:)   = ''
     familyName( 1)  = 'TO'
     familyName( 2)  = 'TO'
@@ -702,20 +716,34 @@ contains
     familyName(96)  = 'GL'
     familyName(97)  = 'GL'
     familyName(98)  = 'XX' ! dummy family type for CMA, since it contains all families
-    familyName(99)  = 'TM'
-    familyName(100) = 'AL'
-    familyName(101) = 'RA'
-    familyName(102) = 'OS'
-    familyName(103) = 'HY'
-    familyName(104) = 'SF'
+    familyName(99)  = 'AL'
+    familyName(100) = 'RA'
+    familyName(101) = 'HY'
+    familyName(102) = 'SF'
+    familyName(103) = 'GL'
+    familyName(104) = 'OS'
     familyName(105) = 'OS'
     familyName(106) = 'OS'
     familyName(107) = 'OS'
     familyName(108) = 'OS'
     familyName(109) = 'OS'
-    familyName(110) = 'GL'
+    familyName(110) = 'OS'
     familyName(111) = 'OS'
     familyName(112) = 'OS'
+    familyName(113) = 'OS'
+    familyName(114) = 'OS'
+    familyName(115) = 'OS'
+    familyName(116) = 'OS'
+    familyName(117) = 'OS'
+    familyName(118) = 'OS'
+    familyName(119) = 'OS'
+    familyName(120) = 'OS'
+    familyName(121) = 'OS'
+    familyName(122) = 'SH'
+    familyName(123) = 'SH'
+    familyName(124) = 'SH'
+    familyName(125) = 'SH'
+    familyName(126) = 'SH'
 
     obsDirectory = 'obs'
 
@@ -758,7 +786,7 @@ contains
     write(*,*)'Type  Name '
     write(*,*)'----  ---- '
     do fileIndex = 1, obsf_nfiles
-      write(*,'(1X,A2,1X,A120)' ) obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
+      write(*,'(1X,A2,1X,A120)') obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
     end do
 
   end subroutine obsf_setupFileNames
