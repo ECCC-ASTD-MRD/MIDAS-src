@@ -231,8 +231,7 @@ program midas_letkf
   character(len=50)    :: outfilename          ! filename for the dfs output
   integer              :: fclos, funit
   integer              :: obsIndex, localBodyIndex, gridIndex
-  real(8)              :: Ya_anom, Ya_mean, tmp1
-  real(8)              :: Yb_anom, Yb_mean, tmp2
+  real(8)              :: Ya_anom, Ya_mean
   type(struct_enkfDFS) :: enkfDFS
 
   ! namelist variables
