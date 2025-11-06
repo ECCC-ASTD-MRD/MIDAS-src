@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Adapt ocean-related components to deal with different types of ocean temperature and salinity observations (#1119 and !1036)
+   * Minor impact on results when running `letkf/ocean` assimilating foundation SST;
+   * SST analysis programs handle new names for observation files using the 'OS' code.
  * Sea ice data thinning (#1083 and !1009)
  * Added ability to use SLSTR observations for SST (#1080 and !1010)
  * Added initial support for forecasts on pressure levels (#668 and !1005)
