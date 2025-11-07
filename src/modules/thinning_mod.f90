@@ -876,12 +876,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsdat             ! obsSpaceData object
-    character(len=*), intent(in)           :: obsFamily          ! obs family to process
-    real(8),          intent(in)           :: step               ! time step length in hours for thinning
-    integer,          intent(in)           :: deltmax            ! max time difference in minutes
-    logical,          intent(in)           :: useBlackList       ! choose to use black list file
-    logical,          intent(in)           :: considerSHIPstnID  ! choose to only compare obs with same stnID
+    type(struct_obs), intent(inout) :: obsdat            ! obsSpaceData object
+    character(len=*), intent(in)    :: obsFamily         ! obs family to process
+    real(8),          intent(in)    :: step              ! time step length in hours for thinning
+    integer,          intent(in)    :: deltmax           ! max time difference in minutes
+    logical,          intent(in)    :: useBlackList      ! choose to use black list file
+    logical,          intent(in)    :: considerSHIPstnID ! choose to only compare obs with same stnID
 
     ! Local paramters:
 
@@ -7999,7 +7999,7 @@ contains
     namelist /thin_satSST/doThinning, numTimesteps, deltmax, fractionGridCell, dataSetSST
 
     ! Return if no SST obs
-    if (.not. obs_famExist(obsdat, 'TM')) return
+    if (.not. obs_famExist(obsdat, 'OS')) return
 
     ! Set default values for namelist variables
     doThinning        = .false.
@@ -8048,7 +8048,7 @@ contains
     call msg_memUsage('thn_thinSatSST')
 
     ! Do super-obing if it is activated through the namelist
-    call thn_superObs(obsdat, 'TM', codtyp_get_codtyp('satob'), bufr_sst)
+    call thn_superObs(obsdat, 'OS', codtyp_get_codtyp('satob'), bufr_sst)
     call msg_memUsage('thn_thinSatSST')
 
     call utl_tmg_stop(114)
@@ -8446,7 +8446,7 @@ contains
     namelist /thin_superObs/averagingRadius, maxDeltaHours, averageType, writeDiagnostics
 
     ! This first version is only designed to work to radiance observations
-    if (trim(obsFamily) /= 'TO' .and. trim(obsFamily) /= 'TM') then
+    if (trim(obsFamily) /= 'TO' .and. trim(obsFamily) /= 'OS') then
       call utl_abort('thn_superObs: Currently only radiance and SST observations are supported')
     end if
 

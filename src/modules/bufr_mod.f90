@@ -64,7 +64,11 @@ module bufr_mod
  integer, parameter :: BUFR_NEDW        = 11200 ! Doppler wind
  integer, parameter :: BUFR_radarPrecip = 21036 ! radar precipitation
  integer, parameter :: BUFR_logRadarPrecip = 51036 ! radar precipitation
- integer, parameter :: bufr_sst         = 22042 ! sea/water temperature
+ ! Oceanographic variables: 22
+ integer, parameter :: bufr_tprof       = 22041 ! ocean temperature profile
+ integer, parameter :: bufr_sst         = 22042 ! sea/water surface temperature
+ integer, parameter :: bufr_sprof       = 22043 ! salinity (PSU)
+ !
  integer, parameter :: bufr_soz         = 07025
  integer, parameter :: BUFR_ICEC        = 20237 ! concentration (%) from ice charts
  integer, parameter :: BUFR_ICEP        = 20222 ! concentration (%) from passive microwave retrievals

@@ -50,7 +50,7 @@ module obsErrors_mod
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
-  public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
+  public :: oer_getOceanDataParam_char, oer_getOceanDataParam_int, oer_getOceanDataParam_R8
 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -67,8 +67,8 @@ module obsErrors_mod
   character(len=15) :: instrumentNamesInflateErrAllskyTt(tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyHu(tvs_maxNumberOfSensors)
 
-  ! SST data
-  type SSTdataParamsType
+  ! Ocean data
+  type oceanDataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
     character(len=20) :: sensor     = '' ! sensor of satellite data: NOAA19, NOAA20,...
@@ -76,12 +76,12 @@ module obsErrors_mod
     integer           :: codeType   = MPC_missingValue_INT ! data codtype
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
-  end type SSTdataParamsType
-  integer, parameter :: maxNumberSSTDatasets = 15
+  end type oceanDataParamsType
+  integer, parameter :: maxNumberOceanDatasets = 15
 
-  ! SST namelist variables
-  integer :: numberSSTDatasets = MPC_missingValue_INT            ! MUST NOT BE INCLUDED IN NAMELIST!
-  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets) ! list of SSTdataParamsType defining SST obs errors
+  ! Ocean namelist variables
+  integer :: numberOceanDatasets = MPC_missingValue_INT            ! MUST NOT BE INCLUDED IN NAMELIST!
+  type(oceanDataParamsType) :: oceanDataParams(maxnumberOceanDatasets) ! list of oceanDataParamsType defining SST obs errors
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -311,11 +311,11 @@ contains
       write(*,*) "oer_setObsErrors: No GL observations found."
     end if
 
-    !- 2.5 SST
-    if (obs_famexist(obsSpaceData,'TM')) then
-      call oer_readObsErrorsSST
+    !- 2.5 Ocean data
+    if (obs_famexist(obsSpaceData,'OS')) then
+      call oer_readObsErrorsOcean
     else
-      write(*,*) "oer_setObsErrors: No TM observations found."
+      write(*,*) "oer_setObsErrors: No ocean state observations found."
     end if
 
     !- 2.6 Hydrology
@@ -1109,9 +1109,9 @@ contains
   end subroutine oer_readObsErrorsIce
 
   !--------------------------------------------------------------------------
-  ! oer_readObsErrorsSST
+  ! oer_readObsErrorsOcean
   !--------------------------------------------------------------------------
-  subroutine oer_readObsErrorsSST
+  subroutine oer_readObsErrorsOcean
     !
     ! :Purpose: read observation errors for SST data
     !
@@ -1119,33 +1119,34 @@ contains
 
     ! Locals:
     integer :: ierr, indexDataset
-    namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
+    namelist /namOceanObsErrors/ numberOceanDatasets, oceanDataParams
 
-    if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
+    if (utl_isNamelistPresent('namOceanObsErrors','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
-      read (utl_flnml, nml = namSSTObsErrors, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_readObsErrorsSST: Error reading namelist')
-      if (mmpi_myid == 0) write(*,nml=namSSTObsErrors)
+      read (utl_flnml, nml = namOceanObsErrors, iostat = ierr)
+      if (ierr /= 0) call utl_abort('oer_readObsErrorsOcean: Error reading namelist')
+      if (mmpi_myid == 0) write(*,nml = namOceanObsErrors)
       call utl_tmg_stop(181)
-      if (numberSSTDatasets /= MPC_missingValue_INT) then
-        call utl_abort('oer_readObsErrorsSST: check namSSTObsErrors namelist section: numberSSTDatasets should be removed')
+      if (numberOceanDatasets /= MPC_missingValue_INT) then
+        call utl_abort('oer_readObsErrorsOcean: check namOceanObsErrors '// &
+                       'namelist section: numberOceanDatasets should be removed')
       end if
-      numberSSTDatasets = 0
-      do indexDataset = 1, maxNumberSSTDatasets
-        if (trim(SSTdataParams(indexDataset)%dataType)   == ""                   .and. &
-            trim(SSTdataParams(indexDataset)%instrument) == ""                   .and. &
-            trim(SSTdataParams(indexDataset)%sensor)     == ""                   .and. &
-            trim(SSTdataParams(indexDataset)%sensorType) == ""                   .and. &
-                 SSTdataParams(indexDataset)%codeType    == MPC_missingValue_INT .and. &
-                 utl_isEqual(SSTdataParams(indexDataset)%dayError  , MPC_missingValue_R8)  .and. &
-                 utl_isEqual(SSTdataParams(indexDataset)%nightError, MPC_missingValue_R8) ) exit
-        numberSSTDatasets = numberSSTDatasets + 1
+      numberOceanDatasets = 0
+      do indexDataset = 1, maxnumberOceanDatasets
+        if (trim(oceanDataParams(indexDataset)%dataType)   == ""                   .and. &
+            trim(oceanDataParams(indexDataset)%instrument) == ""                   .and. &
+            trim(oceanDataParams(indexDataset)%sensor)     == ""                   .and. &
+            trim(oceanDataParams(indexDataset)%sensorType) == ""                   .and. &
+                 oceanDataParams(indexDataset)%codeType    == MPC_missingValue_INT .and. &
+                 utl_isEqual(oceanDataParams(indexDataset)%dayError  , MPC_missingValue_R8)  .and. &
+                 utl_isEqual(oceanDataParams(indexDataset)%nightError, MPC_missingValue_R8) ) exit
+        numberOceanDatasets = numberOceanDatasets + 1
       end do
     else
-       call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
+       call utl_abort('oer_readObsErrorsOcean: namOceanObsErrors is missing in the namelist.')
     end if
 
-  end subroutine oer_readObsErrorsSST
+  end subroutine oer_readObsErrorsOcean
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsHydro
@@ -1568,27 +1569,32 @@ contains
             end if
 
                 !***********************************************************************
-                !               Sea Surface Temperature
+                !               Ocean Temperature and salinity
                 !***********************************************************************
 
-          else if (cfam == 'TM') then
+          else if (cfam == 'OS') then
 
-            if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_sst) cycle BODY
+            if (obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex) /= bufr_sst   .and. &
+                obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex) /= bufr_tprof .and. &
+                obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex) /= bufr_sprof) cycle BODY
 
             if (codeType == codtyp_get_codtyp('drifter')   .or. codeType == codtyp_get_codtyp('shipnonauto') .or. &
-                codeType == codtyp_get_codtyp('ashipauto') .or. codeType == codtyp_get_codtyp('pseudosfc')        ) then
+                codeType == codtyp_get_codtyp('ashipauto') .or. codeType == codtyp_get_codtyp('pseudosfc')   .or. &
+                codeType == codtyp_get_codtyp('oceanprofile')) then
 
               unsupportedCodeType = .true.
-              dataset_loop: do indexDataset = 1, numberSSTDatasets
-                if(codeType == SSTdataParams(indexDataset)%codeType) then
+              dataset_loop: do indexDataset = 1, numberOceanDatasets
+                if(codeType == oceanDataParams(indexDataset)%codeType) then
                   unsupportedCodeType = .false.
-                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexDataset)%dayError)
+                  call obs_bodySet_r(obsSpaceData, obs_oer, bodyIndex, oceanDataParams(indexDataset)%dayError)
                   exit dataset_loop
                 end if
               end do dataset_loop
 
               if(unsupportedCodeType) then
-                write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found in dataset_loop!'
+                write(*,'(a,i5,3a,2i5)') 'oer_fillObsErrors: unsupported ocean data, codtype ', codeType,', cstnid ', &
+                                         cstnid,' found in ocean datasets, where oceanDataParams(indexDataset)%codeType: ', &
+                                         oceanDataParams(indexDataset)%codeType, indexDataset 
                 call utl_abort('oer_fillObsErrors: unsupported codeType!')
               end if
 
@@ -1602,13 +1608,13 @@ contains
               end if
 
               unsupportedSensor = .true.
-              sensor_loop: do indexSensor = 1, numberSSTDatasets
-                if (cstnid == trim(SSTdataParams(indexSensor)%sensor)) then
+              sensor_loop: do indexSensor = 1, numberOceanDatasets
+                if (cstnid == trim(oceanDataParams(indexSensor)%sensor)) then
                   unsupportedSensor = .false.
                   if (solarZenith <= 90.) then ! day
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexSensor)%dayError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, oceanDataParams(indexSensor)%dayError)
                   else ! night
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexSensor)%nightError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, oceanDataParams(indexSensor)%nightError)
                   end if
                   exit sensor_loop
                 end if
@@ -3663,11 +3669,11 @@ contains
   end subroutine chm_dealloc_obs_err_stddev
 
   !--------------------------------------------------------------------------
-  ! oer_getSSTdataParam_char
+  ! oer_getOceanDataParam_char
   !--------------------------------------------------------------------------
-  function oer_getSSTdataParam_char(item, itemIndex) result(value)
+  function oer_getOceanDataParam_char(item, itemIndex) result(value)
     !
-    !:Purpose: get character item value from SSTdataParams derived type
+    !:Purpose: get character item value from oceanDataParams derived type
     !
     implicit none
 
@@ -3680,25 +3686,25 @@ contains
 
     select case(trim(item))
       case('dataType')
-        value = SSTdataParams(itemIndex)%dataType
+        value = oceanDataParams(itemIndex)%dataType
       case('instrument')
-        value = SSTdataParams(itemIndex)%instrument
+        value = oceanDataParams(itemIndex)%instrument
       case('sensor')
-        value = SSTdataParams(itemIndex)%sensor
+        value = oceanDataParams(itemIndex)%sensor
       case('sensorType')
-        value = SSTdataParams(itemIndex)%sensorType
+        value = oceanDataParams(itemIndex)%sensorType
       case default
-        call utl_abort('oer_getSSTdataParam_char: invalid item '//(trim(item)))
+        call utl_abort('oer_getOceanDataParam_char: invalid item '//(trim(item)))
     end select
 
-  end function oer_getSSTdataParam_char
+  end function oer_getOceanDataParam_char
 
   !--------------------------------------------------------------------------
-  ! oer_getSSTdataParam_int
+  ! oer_getOceanDataParam_int
   !--------------------------------------------------------------------------
-  function oer_getSSTdataParam_int(item, itemIndex_opt) result(value)
+  function oer_getOceanDataParam_int(item, itemIndex_opt) result(value)
     !
-    !:Purpose: get integer item value from SSTdataParams derived type
+    !:Purpose: get integer item value from oceanDataParams derived type
     !
     implicit none
 
@@ -3711,30 +3717,30 @@ contains
     if (present(itemIndex_opt)) then
       select case(trim(item))
         case('codeType')
-          value = SSTdataParams(itemIndex_opt)%codeType
+          value = oceanDataParams(itemIndex_opt)%codeType
         case default
-          call utl_abort('oer_getSSTdataParam_int: invalid item '//(trim(item)))
+          call utl_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
       end select
     else
       select case(trim(item))
-        case('maxNumberSSTDatasets')
-          value = maxNumberSSTDatasets
-        case('numberSSTDatasets')
-          value = numberSSTDatasets
+        case('maxNumberOceanDatasets')
+          value = maxNumberOceanDatasets
+        case('numberOceanDatasets')
+          value = numberOceanDatasets
         case default
-          call utl_abort('oer_getSSTdataParam_int: invalid item '//(trim(item)))
+          call utl_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
       end select
 
     end if
 
-  end function oer_getSSTdataParam_int
+  end function oer_getOceanDataParam_int
 
   !--------------------------------------------------------------------------
-  ! oer_getSSTdataParam_R8
+  ! oer_getOceanDataParam_R8
   !--------------------------------------------------------------------------
-  function oer_getSSTdataParam_R8(item, itemIndex) result(value)
+  function oer_getOceanDataParam_R8(item, itemIndex) result(value)
     !
-    !:Purpose: get real(8) item value from SSTdataParams derived type
+    !:Purpose: get real(8) item value from oceanDataParams derived type
     !
     implicit none
 
@@ -3746,13 +3752,13 @@ contains
 
     select case(trim(item))
       case('dayError')
-        value = SSTdataParams(itemIndex)%dayError
+        value = oceanDataParams(itemIndex)%dayError
       case('nightError')
-        value = SSTdataParams(itemIndex)%nightError
+        value = oceanDataParams(itemIndex)%nightError
       case default
-        call utl_abort('oer_getSSTdataParam_R8: invalid item '//(trim(item)))
+        call utl_abort('oer_getOceanDataParam_R8: invalid item '//(trim(item)))
     end select
 
-  end function oer_getSSTdataParam_R8
+  end function oer_getOceanDataParam_R8
 
 end module obsErrors_mod

@@ -1,50 +1,47 @@
+ &NAMTIME
+  DSTEPOBS    = 48.0d0
+  DSTEPOBSINC = 48.0d0
+  DWINDOWSIZE = 48.0d0
+/
  &NAMOMF
-   ADDSIGMAO = .TRUE.
-   ADDHBHT   = .FALSE.
+   ADDSIGMAO = .true.
+   ADDHBHT   = .false.
 /
  &NAMDIMO
    NMXOBS=400000,
    NDATAMX=7000000,
 /
- &NAMTIME
-  DSTEPOBS = 1.0D0
-/
  &NAMFILT
   NLIST(1)=22042,
-  RLIMLVHU   = 70.D0
 /
  &NAMSTATE
-   RHUMIN  = 1.0D-07
-   ANLVAR(5)   ='P0'
-   ANLVAR(6)   ='TG'
+   ANLVAR(1)   ='TM'
 /
  &namSQLInsert
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
   itemInsertList(4)=11004
-
 /
  &namSQLUpdate
  itemUpdateBodyList(1)='OMP'
- itemUpdateBodyList(2)='OMA'
 /
- &namSSTObsErrors
+ &namOceanObsErrors
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
-   SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
-   SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
-   SSTdataParams(3)  =    'insitu' , 'moored buoy' ,       '' ,          '' ,      147 ,     0.49 ,       0.49
-   SSTdataParams(4)  = 'satellite' ,       'AVHRR' , 'NOAA18' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(5)  = 'satellite' ,       'AVHRR' , 'NOAA19' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(6)  = 'satellite' ,       'AVHRR' , 'METO-A' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(7)  = 'satellite' ,       'AVHRR' , 'METO-B' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(8)  = 'satellite' ,       'AVHRR' , 'METO-C' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(9)  = 'satellite' ,       'VIIRS' ,    'N20' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(10) = 'satellite' ,       'VIIRS' ,    'NPP' ,  'infrared' ,       88 ,     0.80 ,       0.49
-   SSTdataParams(11) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
-   SSTdataParams(12) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
+   oceanDataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
+   oceanDataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
+   oceanDataParams(3)  =    'insitu' , 'moored buoy' ,       '' ,          '' ,      147 ,     0.49 ,       0.49
+   oceanDataParams(4)  = 'satellite' ,       'AVHRR' , 'NOAA18' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(5)  = 'satellite' ,       'AVHRR' , 'NOAA19' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(6)  = 'satellite' ,       'AVHRR' , 'METO-A' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(7)  = 'satellite' ,       'AVHRR' , 'METO-B' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(8)  = 'satellite' ,       'AVHRR' , 'METO-C' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(9)  = 'satellite' ,       'VIIRS' ,    'N20' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(10) = 'satellite' ,       'VIIRS' ,    'NPP' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   oceanDataParams(11) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
+   oceanDataParams(12) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
 /
-&NAMSQLsst
+&NAMSQLocean
    listElem='22042'
    sqlNull=' and obsvalue is not null '
 /

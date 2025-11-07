@@ -683,7 +683,11 @@ contains
       call convip(ip1Value, real(vco%depths(1), 4), 0, 2, blk_s, .false.)
       vco%ip1_depth(1) = ip1Value
 
-      if (.not. beSilent) then
+      if (mmpi_myid == 0 .and..not. beSilent) then
+        write(*,*)''
+        write(*,*) 'vco_setupOceanFromNetCdfFile: number of vertical levels = ', &
+                    vco%nLev_depth
+        write(*,*)''
         do levIndex = 1, vco%nLev_depth
           write(*,*) 'vco_setupOceanFromNetCdfFile: index, depth, ip1: ',  &
                      levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
