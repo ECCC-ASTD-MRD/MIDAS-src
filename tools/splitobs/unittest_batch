@@ -49,7 +49,7 @@ fi
 [ -n "${SET_MX}" ] && export SET_MX='${SET_MX}'
 
 echo test2run=${test2run}
-./unittest ${test2run}
+/usr/bin/time ./unittest ${test2run}
 
 rm -r \${WORKDIR}
 rm ${statusfile}

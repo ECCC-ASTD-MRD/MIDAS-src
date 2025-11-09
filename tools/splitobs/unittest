@@ -48,7 +48,7 @@ DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
 check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
 
-WORKDIR=${WORKDIR:-${PWD}/work}
+WORKDIR=${WORKDIR:-${PWD}/work_${TESTS2RUN}}
 
 export AFSISIO=${AFSISIO:-/home/smco502}
 export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
