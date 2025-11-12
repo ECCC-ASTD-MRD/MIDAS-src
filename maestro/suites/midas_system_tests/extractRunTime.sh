@@ -90,7 +90,7 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         printf "${findRunTime_nodes%/*} "
-        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
+        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g' | sed 's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //')
 
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
@@ -103,7 +103,7 @@ BEGIN {
 }
 
 {
-   match($0, /The runtime was ([.0-9]+) seconds/, array_timing)
+   match($0, /([.0-9]+) seconds/, array_timing)
    timing=array_timing[1]
    sum+=timing
    sum2+=timing**2
@@ -122,21 +122,19 @@ END {
             printf "\t${__findRunTime_stats__}\n"
             unset __findRunTime_stats__
         fi
+
         if [ "${extractAll}" = yes ]; then
             printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
-        else
+        elif [ "${computeStats}" = no -a "${findOutliers}" = no ]; then
             if [ -n "${__findRunTime_runtime__}" ]; then
-                noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
-                if [ -n "${noOutlier}" ]; then
-                    echo -e "\t${noOutlier}"
-                fi
+                printf "${__findRunTime_runtime__}\n"
             else
                 echo -e "\tNo run time was available for that test"
             fi
         fi
-        unset __findRunTime_runtime__
+
         if [ "${findOutliers}" = yes ]; then
-            outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
+            outlier=$(printf "${__findRunTime_runtime__}" | grep '^[.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
             if [ -n "${outlier}" ]; then
                 printf "${outlier}\n" | sed 's/^/\t/'
                 line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
@@ -145,6 +143,8 @@ END {
                 echo "No outlier"
             fi
         fi
+
+        unset __findRunTime_runtime__
     else
         for __node__ in ${findRunTime_nodes}; do
             findRunTime ${__node__}
