@@ -90,7 +90,7 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         printf "${findRunTime_nodes%/*} "
-        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g' | sed 's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //')
+        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g' | sed 's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //' | sed 's/seconds[.]$/seconds/')
 
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
