@@ -37,6 +37,7 @@ monitor_build:
     - main
     - v_3.10
     - v_3.9
+    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u2
@@ -51,6 +52,7 @@ monitor_tests:
      - main
      - v_3.10
      - v_3.9
+     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
