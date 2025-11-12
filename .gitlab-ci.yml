@@ -25,7 +25,6 @@ midas_build:
     - v_3.9
     - tags
   tags:
-    - hpcr-u2
     - hpcr-u3
 
 monitor_build:
@@ -40,7 +39,6 @@ monitor_build:
     - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
-    - hpcr-u2
     - hpcr-u3
 
 monitor_tests:
@@ -55,17 +53,7 @@ monitor_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
-
-## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
-## splitobs_build:
-##    stage: build
-##    script:
-##      - cd tools/splitobs
-##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-##    tags:
-##      - hpcr-u2
 
 splitobs_burp_tests:
    stage: test
@@ -80,7 +68,6 @@ splitobs_burp_tests:
    only:
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 splitobs_rdb_tests:
@@ -96,7 +83,6 @@ splitobs_rdb_tests:
    only:
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 midas_tests:
@@ -122,7 +108,6 @@ midas_tests:
      - v_3.9
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 findTrials_tests:
@@ -136,7 +121,6 @@ findTrials_tests:
      - v_3.9
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 clean_midas_abs:
@@ -152,7 +136,6 @@ clean_midas_abs:
      - v_3.9
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 doc_sphinx:
@@ -171,7 +154,6 @@ doc_sphinx:
      - v_3.9
      - tags
    tags:
-     - hpcr-u2
      - hpcr-u3
 
 ssm:
@@ -191,5 +173,4 @@ ssm:
   only:
     - tags
   tags:
-    - hpcr-u2
     - hpcr-u3
