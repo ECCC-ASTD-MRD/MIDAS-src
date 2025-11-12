@@ -22,7 +22,7 @@ The programs compiled in the CI pipeline are copied into the directory:
 
 If everything goes as planned they should be moved automatically to
 ```
-/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
+/home/sanl888/data_maestro/midas/midas/gitlab-ci/abs
 ```
 
 But, if the files do not get moved automatically, they may fill the
@@ -37,10 +37,8 @@ You can use the script
 ```
 which moves the MIDAS programs to
 ```
-/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
+/home/sanl888/data_maestro/midas/midas/gitlab-ci/abs
 ```
-
-
 
 ## Install and Register the GitLab Runner
 
@@ -52,23 +50,22 @@ automatic task.
 
 First, one must download a program, called `gitlab-runner`, which
 listens to the GitLab server for triggers to CI.  This program must be
-comptatible with the GitLab API version where the code is hosted.  In our
-case, we must download the program with the command:
+comptatible with the GitLab API version where the code is hosted.  For
+the original CI install, we got the program with the command:
 ```bash
 wget https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/v1.11.5/binaries/gitlab-ci-multi-runner-linux-amd64
 chmod +x gitlab-ci-multi-runner-linux-amd64
 ```
-But, a copy has already been installed here:
-```
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
-```
+
+But since, RPN-SI has been developping a specialized version for our
+own HPC environment.
 
 ### The CMC-owned running
 
 @phc001 worked on a Gitlab runner which can submit jobs.  The path to
 that runner is:
 ```
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
+/home/sici000/bin/gitlab-runner-science-15.13.0
 ```
 It allows to specify resources for a ̀ord_soumet` job submission
 through variables `ORD_SOUMET_*`.
@@ -76,12 +73,12 @@ through variables `ORD_SOUMET_*`.
 Then a runner has to be registered to the GitLab server.  You must
 execute that command:
 ```bash
-/home/sici000/bin/gitlab-runner-science-9.5.2 register        \
+/home/sici000/bin/gitlab-runner-science-15.13.0 register      \
          --non-interactive                                    \
          --url https://gitlab.science.gc.ca                   \
          --registration-token ${GITLAB_CI_TOKEN}              \
          --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}' using 'ordsoumet' executor."    \
-         --tag-list  hpcr-u2                                  \
+         --tag-list  ${runner_tag}                            \
          --executor  ordsoumet                                \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
          --cache-dir    ${HOME}/data_maestro/ords/midas/gitlab-ci/cache
@@ -89,8 +86,9 @@ execute that command:
 
 where the `${GITLAB_CI_TOKEN}` is the token found in the [CI
 settings](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines/settings)
-of the project (put the `Runner token`) and the `description` is a
-phrase describing the runner.
+of the project (put the `Runner token`) and `${runner_tag}` is a tag
+to identify which runner to use.  Here `${runner_tag}` can be
+`hpcr-u2` or `hpcr-u3`.
 
 At the end, the `${HOME}/.gitlab-runner/config.toml` should contain
 the information above.
@@ -117,7 +115,7 @@ below.
 Then, one has to [register the
 runner](https://docs.gitlab.com/runner/register) with the command:
 ```bash
-/home/sici000/bin/gitlab-runner-science-9.5.2 register
+/home/sici000/bin/gitlab-runner-science-15.13.0 register
 ```
 The program will ask for the `gitlab-ci coordinator URL' which is in
 our case:
@@ -130,14 +128,14 @@ settings](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipel
 of the project (put the `Runner token`).  You also have to put a
 description.  I put this:
 ```
-Runner for 'erv000' connected to 'gitlab.science.gc.ca:atmospheric-data-assimilation/midas'
+Runner for '${USER}' connected to 'gitlab.science.gc.ca:atmospheric-data-assimilation/midas'
 ```
 
 It will ask for tags which you can ignore.  The next question is the
 `executor` for which we want a `ssh` and you put
-`ppp6.science.gc.ca` as the `SSH server address` when asked, then
+`ppp7.science.gc.ca` as the `SSH server address` when asked, then
 the script will be executed by doing a SSH connection to
-`ppp6.science.gc.ca`.
+`ppp7.science.gc.ca`.
 
 The last questions are the port of the SSH server which is `22` and DO
 NOT ENTER YOUR PASSWORD, just do return and it will ask you the path
@@ -153,7 +151,7 @@ cat > ~/bin/gitlab_runner.sh <<EOF
 
 set -ex
 
-runhost=\${1:-ppp6}
+runhost=\${1:-ppp7}
 qname=dev_daemon
 
 gitlabrunner_exists=true
@@ -165,7 +163,7 @@ if [ "\${gitlabrunner_exists}" != true ]; then
 
 set -ex
 
-/home/sici000/bin/gitlab-runner-science-9.5.2 --log-level debug run
+/home/sici000/bin/gitlab-runner-science-15.13.0 --log-level debug run
 ENDOFGITLABRUNNER
 
     ord_soumet \${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
@@ -177,16 +175,16 @@ chmod +x ~/bin/gitlab_runner.sh
 ~/bin/gitlab_runner.sh
 ```
 
-This script will launch a job on the queue `dev_daemon` (which has no time limit) on `ppp6`.
+This script will launch a job on the queue `dev_daemon` (which has no time limit) on `ppp7`.
 
 ### Maintain the runner with `hcron`
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6
-cat > ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6/gitlab-runner <<EOF
+mkdir -pv ~/.hcron/hcron-dev7.science.gc.ca/events/ppp7
+cat > ~/.hcron/hcron-dev7.science.gc.ca/events/ppp7/gitlab-runner <<EOF
 as_user=
-host=ppp6.science.gc.ca
+host=ppp7.science.gc.ca
 command=echo ~/bin/gitlab_runner.sh | bash --login
 notify_email=
 notify_message=
@@ -196,5 +194,5 @@ when_hour=*
 when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-ssh hcron-dev6 hcron reload
+ssh hcron-dev7 hcron reload
 ```
