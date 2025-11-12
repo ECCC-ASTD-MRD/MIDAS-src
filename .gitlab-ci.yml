@@ -26,6 +26,7 @@ midas_build:
     - tags
   tags:
     - hpcr-u2
+    - hpcr-u3
 
 monitor_build:
   stage: build
@@ -39,6 +40,7 @@ monitor_build:
     - tags
   tags:
     - hpcr-u2
+    - hpcr-u3
 
 monitor_tests:
    stage: test
@@ -52,6 +54,7 @@ monitor_tests:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 ## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
 ## splitobs_build:
@@ -76,6 +79,7 @@ splitobs_burp_tests:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 splitobs_rdb_tests:
    stage: test
@@ -91,6 +95,7 @@ splitobs_rdb_tests:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 midas_tests:
    stage: test
@@ -116,6 +121,7 @@ midas_tests:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 findTrials_tests:
    stage: test
@@ -129,6 +135,7 @@ findTrials_tests:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 clean_midas_abs:
    stage: clean
@@ -144,6 +151,7 @@ clean_midas_abs:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 doc_sphinx:
    stage: doc
@@ -162,6 +170,7 @@ doc_sphinx:
      - tags
    tags:
      - hpcr-u2
+     - hpcr-u3
 
 ssm:
   stage: deploy
@@ -181,3 +190,4 @@ ssm:
     - tags
   tags:
     - hpcr-u2
+    - hpcr-u3
