@@ -89,8 +89,9 @@ findRunTime () {
     findRunTime_node=$1
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
-        echo ${findRunTime_nodes%/*}
+        printf "${findRunTime_nodes%/*} "
         __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
+
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
 BEGIN {
@@ -140,6 +141,8 @@ END {
                 printf "${outlier}\n" | sed 's/^/\t/'
                 line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
                 outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
+            else
+                echo "No outlier"
             fi
         fi
     else
