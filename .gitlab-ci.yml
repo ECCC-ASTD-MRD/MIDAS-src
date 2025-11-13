@@ -5,7 +5,7 @@ variables:
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/midas/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"
-    ORD_SOUMET_ARGS: "-jn midas_ci -cpus 1 -m 10G -w 360 -mach ${ORDENV_TRUEHOST}"
+    ORD_SOUMET_ARGS: "-jn midas_ci -cpus 1 -m 10G -w 360"
 
 stages:
    - build
@@ -71,7 +71,7 @@ monitor_tests:
 splitobs_burp_tests:
    stage: test
    variables:
-       ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+       ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240"
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u2
@@ -91,7 +91,7 @@ splitobs_burp_tests:
 splitobs_rdb_tests:
    stage: test
    variables:
-       ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+       ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240"
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u2
@@ -112,7 +112,7 @@ midas_tests:
    stage: test
    variables:
        ## 2880 minutes is 48 hours
-       ORD_SOUMET_ARGS: "-jn midas_tests_ci -cpus 1 -w 2880 -q dev_daemon -mach ${ORDENV_TRUEHOST}"
+       ORD_SOUMET_ARGS: "-jn midas_tests_ci -cpus 1 -w 2880 -q dev_daemon"
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u2
