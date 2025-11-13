@@ -16,6 +16,10 @@ stages:
 
 midas_build:
   stage: build
+  parallel:
+    matrix:
+      - RUNNER_TAG: hpcr-u2
+      - RUNNER_TAG: hpcr-u3
   script:
     - cd src
     - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
@@ -26,10 +30,14 @@ midas_build:
     - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
-    - hpcr-u3
+    - ${RUNNER_TAG}
 
 monitor_build:
   stage: build
+  parallel:
+    matrix:
+      - RUNNER_TAG: hpcr-u2
+      - RUNNER_TAG: hpcr-u3
   script:
     - cd tools/monitor
     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
@@ -40,10 +48,14 @@ monitor_build:
     - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
-    - hpcr-u3
+    - ${RUNNER_TAG}
 
 monitor_tests:
    stage: test
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/monitor
      - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
@@ -54,12 +66,16 @@ monitor_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 splitobs_burp_tests:
    stage: test
    variables:
        ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/splitobs
      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
@@ -70,12 +86,16 @@ splitobs_burp_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 splitobs_rdb_tests:
    stage: test
    variables:
        ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/splitobs
      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
@@ -86,13 +106,17 @@ splitobs_rdb_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 midas_tests:
    stage: test
    variables:
        ## 2880 minutes is 48 hours
        ORD_SOUMET_ARGS: "-jn midas_tests_ci -cpus 1 -w 2880 -q dev_daemon -mach ${ORDENV_TRUEHOST}"
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
      - cd maestro/suites/midas_system_tests
@@ -112,10 +136,14 @@ midas_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 findTrials_tests:
    stage: test
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/findTrials
      - ./midas.findTrials --unittest
@@ -126,10 +154,14 @@ findTrials_tests:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 clean_midas_abs:
    stage: clean
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - version=$(./midas.version.sh)
      - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
@@ -142,18 +174,22 @@ clean_midas_abs:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 doc_sphinx:
    stage: doc
    variables:
      docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
      midasdoc: /home/sanl888/public_html/midas-sphinx-doc
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
-   - cd scripts/sphinx
-   - ./build_html.sh ../../src $midasdoc/$docname
-   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+     - cd scripts/sphinx
+     - ./build_html.sh ../../src $midasdoc/$docname
+     - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+     - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
    only:
      - main
      - v_3.10
@@ -161,10 +197,14 @@ doc_sphinx:
      - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
-     - hpcr-u3
+     - ${RUNNER_TAG}
 
 ssm:
   stage: deploy
+  parallel:
+    matrix:
+      - RUNNER_TAG: hpcr-u2
+      - RUNNER_TAG: hpcr-u3
   script:
     - version=$(./midas.version.sh) ## This version number contains the 'v_'
     - ./set_resources_def.sh
@@ -181,4 +221,4 @@ ssm:
     - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
-    - hpcr-u3
+    - ${RUNNER_TAG}
