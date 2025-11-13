@@ -155,7 +155,7 @@ runhost=\${1:-ppp7}
 qname=dev_daemon
 
 gitlabrunner_exists=true
-ssh \${runhost} \$(which qstat) -u \${USER} | awk "\\\$3 ~ /\${qname}/" | grep gitlab || gitlabrunner_exists=false
+jobst -c \${runhost} -u \${USER} -q \${qname} | grep gitlab || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
     cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
