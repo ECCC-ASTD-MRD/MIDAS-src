@@ -194,9 +194,12 @@ if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     rttov_version=rttov/13v1.3
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     rttov_version=rttov13/2.1.0
+    if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+        rttov_extension=-debug
+    fi
 fi
-echo "... loading eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}"
-. r.load.dot eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}${rttov_extension}"
+. r.load.dot eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}${rttov_extension}
 
 ## loading makedep90
 echo "... loading eccc/mrd/rpn/anl/makedepf90/2.8.9"
