@@ -23,7 +23,6 @@ midas_build:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u2
@@ -37,7 +36,6 @@ monitor_build:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u2
@@ -51,7 +49,6 @@ monitor_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
@@ -67,7 +64,6 @@ splitobs_burp_tests:
      - ./unittest burp
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
@@ -83,7 +79,6 @@ splitobs_rdb_tests:
      - ./unittest rdb
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
@@ -109,8 +104,7 @@ midas_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
-     - tags
+      - tags
    tags:
      - hpcr-u2
 
@@ -123,7 +117,6 @@ findTrials_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
@@ -139,7 +132,6 @@ clean_midas_abs:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u2
@@ -178,7 +170,6 @@ ssm:
     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
     - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u2
@@ -193,7 +184,6 @@ midas_build-u3:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u3
@@ -207,7 +197,6 @@ monitor_build-u3:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u3
@@ -221,7 +210,6 @@ monitor_tests-u3:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u3
@@ -237,8 +225,7 @@ splitobs_burp_tests-u3:
      - ./unittest burp
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
-     - tags
+      - tags
    tags:
      - hpcr-u3
 
@@ -253,8 +240,7 @@ splitobs_rdb_tests-u3:
      - ./unittest rdb
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
-     - tags
+      - tags
    tags:
      - hpcr-u3
 
@@ -279,7 +265,6 @@ midas_tests-u3:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - hpcr-u3
@@ -293,8 +278,7 @@ findTrials_tests-u3:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
-     - tags
+      - tags
    tags:
      - hpcr-u3
 
@@ -305,6 +289,24 @@ clean_midas_abs-u3:
      - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
      - echo Moving programs for version ${version} in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
      - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
+   only:
+     - main
+     - v_3.10
+     - v_3.9
+     - tags
+   tags:
+     - hpcr-u3
+
+doc_sphinx-u3:
+   stage: doc
+   variables:
+     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+     midasdoc: /home/sanl888/public_html/midas-sphinx-doc
+   script:
+   - cd scripts/sphinx
+   - ./build_html.sh ../../src $midasdoc/$docname
+   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
    only:
      - main
      - v_3.10
@@ -329,7 +331,6 @@ ssm-u3:
     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
     - rm -rf ${SSM_PACKAGES}/${VERSION}
   only:
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - hpcr-u3
