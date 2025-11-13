@@ -184,7 +184,6 @@ doc_sphinx:
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u2
-       - RUNNER_TAG: hpcr-u3
    script:
      - cd scripts/sphinx
      - ./build_html.sh ../../src $midasdoc/$docname
