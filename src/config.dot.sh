@@ -1,5 +1,10 @@
 #! /bin/sh
 
+if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
+    return 1
+fi
+
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version.sh)
 __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
@@ -22,7 +27,13 @@ fi
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
-MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
+if [ -z "${MIDAS_COMPILE_FRONTEND}" ]; then
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        MIDAS_COMPILE_FRONTEND=ppp5
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        MIDAS_COMPILE_FRONTEND=ppp7
+    fi
+fi
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
 MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND:-false}
@@ -32,7 +43,7 @@ MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
 
 ###########################################################
-##  SSM Packaging configuration 
+##  SSM Packaging configuration
 ##
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
@@ -74,14 +85,6 @@ if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
      echo "..."
      echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
      echo "..."
-fi
-
-# Set the optimization level
-if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-    FOPTMIZ=4
-else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    return 1
 fi
 
 ## https://stackoverflow.com/a/4025065
@@ -141,36 +144,66 @@ check_ec_atomic_profile_version () {
 
 
 #----------------------------------------------------------------
-#  Set up dependent librarys and tools. 
+#  Set up compiler, optimization level, libraries and tools
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    __compiler=inteloneapi-2022.1.2
+    FOPTMIZ=4
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    __compiler=inteloneapi-2025.1.0
+    FOPTMIZ=2
+    __compiler_supplementary_option=-strict
+fi
+echo "... loading rpn/code-tools/20250925/env/${__compiler}"
+. r.load.dot rpn/code-tools/20250925/env/${__compiler}
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20231219"
-. r.load.dot eccc/mrd/rpn/libs/20231219
-echo "... loading hdf5"
-. ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+echo "... loading eccc/mrd/rpn/libs/20251021"
+. r.load.dot eccc/mrd/rpn/libs/20251021
 
-echo "... loading eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20231219-3/${COMP_ARCH}
+echo "... loading hdf5-netcdf4"
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+fi
 
-echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
 
-echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
-. r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20251021/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH}
+
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    perftools_version=2.0
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    perftools_version=2.1
+fi
+
+echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
+. ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
+
+## We cannot use the same version because the library on
+## 'rhel-8-icelake-64' includes a subset of LAPACK routines which have
+## been removed in the library published for 'rhel-9-graniterapids-64'.
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    rttov_version=rttov/13v1.3
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    rttov_version=rttov13/2.1.0-rc2
+fi
+echo "... loading eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}
 
 ## loading makedep90
-echo "... loading makedepf90"
+echo "... loading eccc/mrd/rpn/anl/makedepf90/2.8.9"
 . ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
-OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="${__compiler_supplementary_option} -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 OPTF="-qmkl ${OPTF} -warn noexternal"
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
@@ -205,15 +238,10 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 
 ## check makedepf90 install
 if ! which makedepf90
-then 
+then
     echo "<!> makedepf90 unavailable on the system."
     __status=false
 fi
-
-## loading docopt for analyzeDep.py
-## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
-. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
-
 
 export COMPF
 export FOPTMIZ

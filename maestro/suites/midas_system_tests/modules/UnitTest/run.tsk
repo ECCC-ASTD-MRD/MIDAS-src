@@ -66,9 +66,75 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.sh
     echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20231219 >> load_env.sh
+    echo echo loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2 >> load_env.sh
+    echo . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    echo echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+
+    ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
+    ## because the programs are not compiled statically with this
+    ## library.
+    echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
+    echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
+
+    ## See https://gitlab.science.gc.ca/hpc/hpcr_upgrade_3/-/issues/443#note_1260967
+    ## This is a temporary solution for now
+    echo export I_MPI_HYDRA_BOOTSTRAP=ssh >> load_env.sh
+    echo unset I_MPI_HYDRA_BOOTSTRAP_EXEC >> load_env.sh
+
+    ## The following definitions ensure the 'allreduce' MPI collective
+    ## operation is giving the same results from run to run.  In
+    ## MIDAS, we may not need this since we do not use 'mpi_allreduce'
+    ## ot sum real values.
+    ## JPG:
+    ##         Since the change of configurations of moira's CPU to the SNC3
+    ##         mode (providing 3 numa per processor instead of one), we do see
+    ##         a performance improvement in GEM (15-20%) but this comes with
+    ##         the caveat that results of MPI collectives are not
+    ##         reproducible, unless you set the env variable I_MPI_CBWR=1 or
+    ##         I_MPI_CBWR=2
+    #echo export I_MPI_CBWR=1 >> load_env.sh
+    #echo export I_MPI_CBWR=2 >> load_env.sh
+    ##
+    ## Vivian:
+    ##         Since the change of configurations of moira's CPU to
+    ##         the SNC3 mode, a better and more efficient control is
+    ##         to export the environment variable export
+    ##         I_MPI_ADJUST_ALLREDUCE=5 - this gives a timing a lot
+    ##         closer a run that does not have this export. The
+    ##         I_MPI_CBWR is a lot less efficient.
+    ##
+    ##         Dans la documentation d'Intel pour la variable d'environnement I_MPI_ADJUST_ALLREDUCE,
+    ##             https://www.intel.com/content/www/us/en/docs/mpi-library/developer-reference-linux/2021-8/i-mpi-adjust-family-environment-variables.html
+    ##         on a ces choix
+    ##            - Recursive doubling
+    ##            - Rabenseifner's
+    ##            - Reduce + Bcast
+    ##            - Topology aware Reduce + Bcast
+    ##            - Binomial gather + scatter
+    ##            - Topology aware binominal gather + scatter
+    ##            - Shumilin's ring
+    ##            - Ring
+    ##            - Knomial
+    ##            - Topology aware SHM-based flat
+    ##            - Topology aware SHM-based Knomial
+    ##            - Topology aware SHM-based Knary
+    ##         ou 1 à 9 nous donne bit-réproducibilité pour chaque run
+    ##         tandis que 10 à 12 nous donne les résultats différentes
+    ##         pour chaque run. C'est probable que le défaut est un de
+    ##         10,11,12 mais c'est difficile à dire car les résulatats
+    ##         changeraient d'un run à l'autre. Vous pouvez essayer
+    ##         chaque option pour voir vos timings et aussi vos
+    ##         résultats qui sont différentes entre les algorithmes
+    ##         choisis. Je teste ces options encore avec mes grosses
+    ##         configurations (GDPS, HRDPS)
+
+    #echo export I_MPI_ADJUST_ALLREDUCE=5 >> load_env.sh
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
@@ -182,7 +248,7 @@ elif [ -z "\${debugger_mode}" ]; then
 
 set -e
 
-\${run_pgm}
+/usr/bin/time --format "Total Memory: %M Kb" \${run_pgm}
 
 EOFLAUNCH
 else
@@ -209,7 +275,7 @@ done
 echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -stack unlimited -args ${UnitTest_run_pgm_args}
 echo RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
