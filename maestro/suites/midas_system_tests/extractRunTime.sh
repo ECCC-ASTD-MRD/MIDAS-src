@@ -139,6 +139,7 @@ END {
             fi
         else
             printf "\tNo run time was available for that test\n"
+            return
         fi
 
         if [ "${findOutliers}" = yes ]; then
@@ -167,7 +168,16 @@ END {
 [ "${findOutliers}" = yes ] && outliers=
 
 export SEQ_EXP_HOME=${suite}
-findRunTime /Tests | sort
+
+## If all the timings are extracted or when finding outliers then, it
+## is not possible to sort the output of 'findRunTime' because it is
+## on several lines.
+if [ "${extractAll}" = yes -o "${findOutliers}" = yes ]; then
+    findRunTime /Tests
+else
+    ## In any other case, the output is on a single line then, it can be sorted.
+    findRunTime /Tests | sort
+fi
 
 if [ "${findOutliers}" = yes ]; then
     if [ -n "${outliers}" ]; then
@@ -176,7 +186,8 @@ if [ "${findOutliers}" = yes ]; then
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
-            printf "MIDAS version: ${MIDAS_version}\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+            sorted_outliers=$(printf "${outliers}\n" | sort)
+            printf "MIDAS version: ${MIDAS_version}\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${sorted_outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
         fi
     else
         echo "No timing outliers found"
