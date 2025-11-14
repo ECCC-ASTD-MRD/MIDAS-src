@@ -167,7 +167,7 @@ END {
 [ "${findOutliers}" = yes ] && outliers=
 
 export SEQ_EXP_HOME=${suite}
-findRunTime /Tests
+findRunTime /Tests | sort
 
 if [ "${findOutliers}" = yes ]; then
     if [ -n "${outliers}" ]; then
