@@ -193,7 +193,7 @@ echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     rttov_version=rttov/13v1.3
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    rttov_version=rttov13/2.1.0-rc6
+    rttov_version=rttov13/2.1.0
 fi
 echo "... loading eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}"
 . r.load.dot eccc/mrd/rpn/anl/${rttov_version}/${COMP_ARCH}
