@@ -5,13 +5,13 @@ set -e
 SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]" \
- -suite "" "" "[ suite to extract timings from (default to the same suite as this script is to) ]" \
- -all "no" "yes" "[ extract all the timings ]" \
- -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
- -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
- -emails "" "" "[ List of emails to send a message when we find outliers for the execution time ]" \
- -log    "latest" "latest" "[ log date to use to find timings (default: latest log file) ]" \
+eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]"                                                      \
+ -suite        "" ""  "[ suite to extract timings from (default to the same suite as this script is to) ]"                                   \
+ -all          no yes "[ extract all the timings ]"                                                                                          \
+ -computeStats no yes "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
+ -findOutliers no yes "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
+ -emails       "" ""  "[ List of emails to send a message when we find outliers for the execution time ]"                                    \
+ -log          latest latest "[ log date to use to find timings (default: latest log file) ]"                                                \
  ++ $*)
 
 ## Note on '-log' option:
@@ -77,9 +77,13 @@ logdate=$(basename ${logs} _nodelog)
 echo "Using the logdate ${logdate}"
 
 if [ "${computeStats}" = yes ]; then
+    if [ "${extractAll}" = yes ]; then
+        echo "The option '-computeStats' overrides '-all' to 'no'"
+        extractAll=no
+    fi
     echo
     echo "The statistics are given like this:"
-    echo -e "\tMean, Stddev, Stddev/Mean, Min, Max, Number of cases"
+    echo -e "Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases"
     echo
 fi
 
@@ -90,7 +94,11 @@ findRunTime () {
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
         printf "${findRunTime_nodes%/*} "
-        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g' | sed 's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //' | sed 's/seconds[.]$/seconds/')
+        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} |
+                                      grep 'The runtime was [.0-9][.0-9]* seconds'                     |
+                                      sed  's/%/%%/g'                                                  |
+                                      sed  's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //' |
+                                      sed ' s/seconds[.]$/seconds/')
 
         if [ "${computeStats}" = yes ]; then
             __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
@@ -123,14 +131,14 @@ END {
             unset __findRunTime_stats__
         fi
 
-        if [ "${extractAll}" = yes ]; then
-            printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
-        elif [ "${computeStats}" = no -a "${findOutliers}" = no ]; then
-            if [ -n "${__findRunTime_runtime__}" ]; then
-                printf "${__findRunTime_runtime__}\n"
-            else
-                echo -e "\tNo run time was available for that test"
+        if [ -n "${__findRunTime_runtime__}" ]; then
+            if [ "${extractAll}" = yes ]; then
+                printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
+            elif [ "${computeStats}" = no -a "${findOutliers}" = no ]; then
+                printf "${__findRunTime_runtime__}\n" | tail -1
             fi
+        else
+            printf "\tNo run time was available for that test\n"
         fi
 
         if [ "${findOutliers}" = yes ]; then
