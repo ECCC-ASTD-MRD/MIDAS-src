@@ -143,7 +143,7 @@ END {
         fi
 
         if [ "${findOutliers}" = yes ]; then
-            outlier=$(printf "${__findRunTime_runtime__}" | grep '^[.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
+            outlier=$(printf "${__findRunTime_runtime__}" | grep '^[.0-9][.0-9]* seconds which is greater' || true)
             if [ -n "${outlier}" ]; then
                 printf "${outlier}\n" | sed 's/^/\t/'
                 line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
