@@ -82,11 +82,6 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
     echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
 
-    ## See https://gitlab.science.gc.ca/hpc/hpcr_upgrade_3/-/issues/443#note_1260967
-    ## This is a temporary solution for now
-    echo export I_MPI_HYDRA_BOOTSTRAP=ssh >> load_env.sh
-    echo unset I_MPI_HYDRA_BOOTSTRAP_EXEC >> load_env.sh
-
     ## The following definitions ensure the 'allreduce' MPI collective
     ## operation is giving the same results from run to run.  In
     ## MIDAS, we may not need this since we do not use 'mpi_allreduce'
