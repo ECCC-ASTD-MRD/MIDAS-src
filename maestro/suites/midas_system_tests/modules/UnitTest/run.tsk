@@ -339,14 +339,15 @@ else
     ## Check runtime
 
     ## First, query the file to find the expected execution time and its standard deviation statistics
-    test_name=$(echo ${SEQ_CONTAINER%%/UnitTest} | sed 's|/|\\/|g')
-    mean_execution_time=$(awk "/^${test_name}/ {print \$2}" ${TASK_INPUT}/exec_times_dict)
+    test_name=$(echo ${SEQ_CONTAINER%%/UnitTest})
+    test_name_regex=$(echo ${test_name} | sed 's|/|\\/|g')
+    mean_execution_time=$(awk "/^${test_name_regex}[[:blank:]]/ {print \$2}" ${TASK_INPUT}/exec_times_dict)
     if [[ -n "${mean_execution_time}" ]]; then
         ## First check if the deviation from the mean is greater than 15 seconds
         ## We cannot expect timings that stable under 15 seconds
         deviation_from_mean=$(echo "${RUNTIME}-${mean_execution_time} > 15" | bc -l)
         if (( deviation_from_mean )); then
-            stddev_execution_time=$(awk "/^${test_name}/ {print \$3}" ${TASK_INPUT}/exec_times_dict)
+            stddev_execution_time=$(awk "/^${test_name_regex}[[:blank:]]/ {print \$3}" ${TASK_INPUT}/exec_times_dict)
 
             if [[ -n "${stddev_execution_time}" ]]; then
                 ## Check if the deviation from the mean is greater than 2

@@ -50,7 +50,7 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/obsSelection/BgckMwhs2 	40.5122 3.85921 0.0952604 38 197 2632
 /Tests/obsSelection/BgckRadvel 	43.1773 3.52782 0.0817054 38 86 3531
 /Tests/obsSelection/BgckSsmis 	52.5642 5.83064 0.110924 47 264 3006
-/Tests/obsSelection/conv 	
+/Tests/obsSelection/conv        106.435 12.6952 0.119277 96 324 2726
 /Tests/obsSelection/conv_ro_bending 	28.594 1.0344 0.0361756 26 61 5106
 /Tests/obsSelection/conv_RO_slant 	146.899 27.9576 0.190318 135 623 1113
 /Tests/obsSelection/convWBcor 	145.845 4.71096 0.0323012 134 180 1160
@@ -59,7 +59,7 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/obsSelection/select_AL 	20.3531 2.42485 0.119139 18 129 6771
 /Tests/obsSelection/SST 	275.534 2.45716 0.00891778 273 325 625
 /Tests/oMinusF/o-a 	160.316 24.3606 0.151954 137 397 1058
-/Tests/oMinusF/o-p 	
+/Tests/oMinusF/o-p      152.608 10.3784 0.068007 138 225 1968
 /Tests/oMinusF/o-p_chem 	30.6313 3.96556 0.129461 26 139 4906
 /Tests/oMinusF/o-p_diagsql 	35.5642 3.8845 0.109225 32 76 3635
 /Tests/oMinusF/o-p_ens 	12.1995 1.35228 0.110847 11 68 9763
