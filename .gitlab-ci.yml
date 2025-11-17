@@ -27,7 +27,6 @@ midas_build:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - ${RUNNER_TAG}
@@ -45,7 +44,6 @@ monitor_build:
     - main
     - v_3.10
     - v_3.9
-    - 1100-migration-to-hpcr-u3-3.10-next
     - tags
   tags:
     - ${RUNNER_TAG}
@@ -63,7 +61,6 @@ monitor_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -83,7 +80,6 @@ splitobs_burp_tests:
      - ./unittest burp
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -103,7 +99,6 @@ splitobs_rdb_tests:
      - ./unittest rdb
      - rm -rf ${WORKDIR}
    only:
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -133,7 +128,6 @@ midas_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -151,7 +145,6 @@ findTrials_tests:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -171,7 +164,6 @@ clean_midas_abs:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
@@ -194,7 +186,6 @@ doc_sphinx:
      - main
      - v_3.10
      - v_3.9
-     - 1100-migration-to-hpcr-u3-3.10-next
      - tags
    tags:
      - ${RUNNER_TAG}
