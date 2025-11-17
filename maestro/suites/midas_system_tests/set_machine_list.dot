@@ -1,11 +1,8 @@
 #!/bin/bash
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which getdef 1>/dev/null 2>&1 || {
     SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
-    echo Loading ${SEQ_MAESTRO_SHORTCUT} from set_machine_list.dot
     ${SEQ_MAESTRO_SHORTCUT}
-    echo Loaded ${SEQ_MAESTRO_SHORTCUT} from set_machine_list.dot
 }
 
 __set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests

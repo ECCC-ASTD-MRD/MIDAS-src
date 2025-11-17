@@ -13,16 +13,10 @@ ${__toplevel}/set_resources_def.sh
 
 which maestro 1>/dev/null 2>&1 || {
     SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
-    echo Loading ${SEQ_MAESTRO_SHORTCUT} from install_suite.sh
     ${SEQ_MAESTRO_SHORTCUT}
-    echo Loaded ${SEQ_MAESTRO_SHORTCUT} from install_suite.sh
 }
 
-which clone_suite 1>/dev/null 2>&1 || {
-    echo Loading eccc/cmd/cmdi/utils/2.9 from install_suite.sh
-    . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
-    echo Loaded eccc/cmd/cmdi/utils/2.9 from install_suite.sh
-}
+which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     __rmnlib_version__=20251021
@@ -32,11 +26,7 @@ else
     echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'ubuntu-18.04-skylake-64', 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are!" >&2
     exit 1
 fi
-which r.date 1>/dev/null 2>&1 || {
-    echo loading eccc/mrd/rpn/utils/${__rmnlib_version__} from install_suite.sh
-    . r.load.dot eccc/mrd/rpn/utils/${__rmnlib_version__}
-    echo loaded eccc/mrd/rpn/utils/${__rmnlib_version__} from install_suite.sh
-}
+which r.date 1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/${__rmnlib_version__}
 
 unset __rmnlib_version__
 
