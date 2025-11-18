@@ -9,12 +9,12 @@ __set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas
 
 if [ -n "${GITLAB_CI}" ]; then
     ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
-    frontend=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
-    backend=$(cd ${__set_machine_list_suite__};  getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
-    MAKE_LINKS_MACHINE_LIST="${frontend} ${backend}"
+    MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
+    MACHINE_SUPER=$(cd ${__set_machine_list_suite__};  getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
     ## if the user runs that script, 'install_suite.sh', on another host than 'FRONTEND' or 'BACKEND'
     ## then, we add this host to the hosts list.  This will be often the case with 'eccc-gpsc1'.
-    if [ "${TRUE_HOST}" != "${frontend}" -a "${TRUE_HOST}" != "${backend}" ]; then
+    if [ "${TRUE_HOST}" != "${MACHINE_PPP}" -a "${TRUE_HOST}" != "${MACHINE_SUPER}" ]; then
         MAKE_LINKS_MACHINE_LIST="${MAKE_LINKS_MACHINE_LIST} ${TRUE_HOST}"
     fi
     export MAKE_LINKS_MACHINE_LIST
