@@ -341,7 +341,7 @@ contains
       call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
            iptobs_cma_opt=sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (runObsOperatorWithHydrometeors_tl) then
-        call tvs_rttov_scatt_setupindex (   &
+        call rttov_scatt_setupindex (       &
               errorStatus,                  &
               profileCount,                 & ! number of profiles
               tvs_nchan(sensorIndex),       & ! number of channels 
@@ -352,7 +352,7 @@ contains
               frequencies,                  & ! array, frequency number for each channel
               lchannel_subset )               ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
-          write(*,*) 'tvslin_rttov_tl: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
+          write(*,*) 'tvslin_rttov_tl: fatal error in rttov_scatt_setupindex ', errorStatus
           call utl_abort('tvslin_rttov_tl')
         end if
       end if
@@ -694,7 +694,7 @@ contains
       call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
          iptobs_cma_opt = sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (runObsOperatorWithHydrometeors_ad) then
-        call tvs_rttov_scatt_setupindex (   &
+        call rttov_scatt_setupindex (       &
               errorStatus,                  &
               profileCount,                 &  ! number of profiles
               tvs_nchan(sensorIndex),       &  ! number of channels 
@@ -705,7 +705,7 @@ contains
               frequencies,                  &  ! array, frequency number for each channel
               lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
-          write(*,*) 'tvslin_rttov_ad: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
+          write(*,*) 'tvslin_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
           call utl_abort('tvslin_rttov_ad')
         end if
       end if

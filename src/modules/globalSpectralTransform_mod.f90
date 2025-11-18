@@ -852,6 +852,12 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
+    call utl_tmg_start(152,'low-level--gst_barr')
+    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call utl_tmg_stop(152)
+
+    call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
+
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -859,6 +865,8 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
+
+    call utl_tmg_stop(156)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -995,6 +1003,12 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
+    call utl_tmg_start(152,'low-level--gst_barr')
+    if(mmpi_doBarrier) call rpn_comm_barrier('NS',ierr)
+    call utl_tmg_stop(152)
+
+    call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
+
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mmpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -1002,6 +1016,8 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
+
+    call utl_tmg_stop(156)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)

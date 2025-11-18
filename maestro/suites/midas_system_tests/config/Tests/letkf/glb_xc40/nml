@@ -1,45 +1,41 @@
  &NAMLETKF
    algorithm                = 'CVLETKF'
-   ensPostProcessing        = .true.
-   NENS                     = 128
+   ensPostProcessing        = .false.
+   NENS                     = 256
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
-   WEIGHTLATLONSTEP         = 10
+   WEIGHTLATLONSTEP         = 9
    hLinearLoc               = .true.
    HLOCALIZE                = 2500.0D0, 2000.0D0, 1800.0D0, 1500.0D0
    VLOCALIZE                = 2.0D0
-   modifyAmsubObsError      = .false.
-   backgroundCheck          = .false.
-   huberize                 = .false.
-   rejectHighLatIR          = .false.
-   rejectRadNearSfc         = .false.
+   modifyAmsubObsError      = .true.
+   backgroundCheck          = .true.
+   huberize                 = .true.
+   rejectHighLatIR          = .true.
+   rejectRadNearSfc         = .true.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'MASTERWORKER'
-/
- &namEnsPostProcModule
-   alphaRTPP                = 0.00D0
-   alphaRTPS                = 0.00D0
-   alphaRandomPert          = 0.33D0
-   alphaRandomPertSubSample = 0.66D0
-   imposeSaturationLimit    = .true.
-   imposeRttovHuLimits      = .true.
+   randomShuffleSubEns      = .true.
+   etiket_anl               = '${EXP_ETIKET}' ! for files 'analdate_000_member' the member number will be appended to this string
 /
  &NAMWRITEDIAG
-   lWriteDiagSql   = .false.
+   lWriteDiagSql = .true.
+   onlyAssimObs  = .true.
 /
  &NAMBHI
    NTRUNC  =          42,
-   SCALEFACTOR     = 200*1.00000000000000        ,
+   SCALEFACTOR     = 200*1.0D0
+   SCALEFACTORLQ   = 200*0.25D0
 /
  &NAMBEN
 /
  &NAMDIMO
-   NMXOBS=10000
-   NDATAMX=100000
+   NMXOBS=50000
+   NDATAMX=500000
 /
  &NAMTIME
-   DSTEPOBS    = 3.0d0
-   DSTEPOBSINC = 3.0d0
+   DSTEPOBS    = 1.0d0
+   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
   NLIST(1)=10004,
@@ -58,17 +54,26 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NLIST(17)=21036,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
+  NLISTFLG(4)=-5,
   RLIMLVHU=70.D0,
+  list_altDiffMax(1)  = 12004
+  list_altDiffMax(2)  = 10004
+  list_altDiffMax(3)  = 10051
+  list_altDiffMax(4)  = 12203
+  value_altDiffMax(1) = 200.0d0
+  value_altDiffMax(2) = 200.0d0
+  value_altDiffMax(3) = 200.0d0
+  value_altDiffMax(4) = 10000.0d0
+  useEnkfTopoFilt = .true.
 /
  &NAMRMAT
 /
  &NAMSTATE
-   abortOnMpiImbalance = .false.
    RHUMIN  = 1.0D-07
+   abortOnMpiImbalance = .false.
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
    ANLVAR(3)   ='TT'
@@ -76,72 +81,106 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
- &NAMTOV   
-   CSATID(1)        = 'AQUA',
-   CINSTRUMENTID(1) = 'AIRS',
-   CSATID(2)        = 'METOP-2',
-   CINSTRUMENTID(2) = 'IASI',
-   CSATID(3)        = 'NOAA15',
-   CINSTRUMENTID(3) = 'AMSUA',
-   CSATID(4)        = 'NOAA16',
-   CINSTRUMENTID(4) = 'AMSUA',
-   CSATID(5)        = 'AQUA',
-   CINSTRUMENTID(5) = 'AMSUA',
-   CSATID(6)        = 'NOAA18',
-   CINSTRUMENTID(6) = 'AMSUA',
-   CSATID(7)        = 'NOAA15',
-   CINSTRUMENTID(7) = 'AMSUB',
-   CSATID(8)        = 'NOAA16',
-   CINSTRUMENTID(8) = 'AMSUB',
-   CSATID(9)        = 'NOAA17',
-   CINSTRUMENTID(9) = 'AMSUB',
-   CSATID(10)        = 'NOAA18',
-   CINSTRUMENTID(10) = 'MHS',
-   CSATID(11)        = 'DMSP16',
-   CINSTRUMENTID(11) = 'SSMIS',
-   CSATID(12)        = 'GOES13',
-   CINSTRUMENTID(12) = 'GOESIMAGER',
-   CSATID(13)        = 'MSG2',
-   CINSTRUMENTID(13) = 'SEVIRI',
-   CSATID(14)        = 'METEOSAT7',
-   CINSTRUMENTID(14) = 'MVIRI',
+ &NAMTOV
+   CSATID(1)         = 'METOP-2',
+   CINSTRUMENTID(1)  = 'IASI',
+   CSATID(2)         = 'NOAA15',
+   CINSTRUMENTID(2)  = 'AMSUA',
+   CSATID(3)         = 'NOAA16',
+   CINSTRUMENTID(3)  = 'AMSUA',
+   CSATID(4)         = 'AQUA',
+   CINSTRUMENTID(4)  = 'AMSUA',
+   CSATID(5)         = 'NOAA18',
+   CINSTRUMENTID(5)  = 'AMSUA',
+   CSATID(6)         = 'NOAA15',
+   CINSTRUMENTID(6)  = 'AMSUB',
+   CSATID(7)         = 'NOAA16',
+   CINSTRUMENTID(7)  = 'AMSUB',
+   CSATID(8)         = 'NOAA17',
+   CINSTRUMENTID(8)  = 'AMSUB',
+   CSATID(9)        = 'NOAA18',
+   CINSTRUMENTID(9) = 'MHS',
+   CSATID(10)        = 'DMSP16',
+   CINSTRUMENTID(10) = 'SSMIS',
+   CSATID(11)        = 'GOES13',
+   CINSTRUMENTID(11) = 'GOESIMAGER',
+   CSATID(12)        = 'MSG2',
+   CINSTRUMENTID(12) = 'SEVIRI',
+   CSATID(13)        = 'METEOSAT7',
+   CINSTRUMENTID(13) = 'MVIRI',
+   CSATID(14)        = 'METOP-2',
+   CINSTRUMENTID(14) = 'AMSUA',
    CSATID(15)        = 'METOP-2',
-   CINSTRUMENTID(15) = 'AMSUA',
-   CSATID(16)        = 'METOP-2',
-   CINSTRUMENTID(16) = 'MHS',
+   CINSTRUMENTID(15) = 'MHS',
+   CSATID(16)        = 'NOAA19',
+   CINSTRUMENTID(16) = 'AMSUA',
    CSATID(17)        = 'NOAA19',
-   CINSTRUMENTID(17) = 'AMSUA',
-   CSATID(18)        = 'NOAA19',
-   CINSTRUMENTID(18) = 'MHS',
-   CSATID(19)        = 'METOP-1',
-   CINSTRUMENTID(19) = 'IASI',
-   CSATID(20)        = 'DMSP17',
+   CINSTRUMENTID(17) = 'MHS',
+   CSATID(18)        = 'METOP-1',
+   CINSTRUMENTID(18) = 'IASI',
+   CSATID(19)        = 'DMSP17',
+   CINSTRUMENTID(19) = 'SSMIS',
+   CSATID(20)        = 'DMSP18',
    CINSTRUMENTID(20) = 'SSMIS',
-   CSATID(21)        = 'DMSP18',
-   CINSTRUMENTID(21) = 'SSMIS',
-   CSATID(22)        = 'GOES15',
-   CINSTRUMENTID(22) = 'GOESIMAGER',
-   CSATID(23)        = 'MSG3',
-   CINSTRUMENTID(23) = 'SEVIRI',
-   CSATID(24)        = 'MTSAT1',
+   CSATID(21)        = 'GOES15',
+   CINSTRUMENTID(21) = 'GOESIMAGER',
+   CSATID(22)        = 'MSG3',
+   CINSTRUMENTID(22) = 'SEVIRI',
+   CSATID(23)        = 'MTSAT1',
+   CINSTRUMENTID(23) = 'GMSMTSAT',
+   CSATID(24)        = 'MTSAT2',
    CINSTRUMENTID(24) = 'GMSMTSAT',
-   CSATID(25)        = 'MTSAT2',
-   CINSTRUMENTID(25) = 'GMSMTSAT',
+   CSATID(25)        = 'METOP-1',
+   CINSTRUMENTID(25) = 'AMSUA',
    CSATID(26)        = 'METOP-1',
-   CINSTRUMENTID(26) = 'AMSUA',
-   CSATID(27)        = 'METOP-1',
-   CINSTRUMENTID(27) = 'MHS',
+   CINSTRUMENTID(26) = 'MHS',
+   CSATID(27)        = 'NPP',
+   CINSTRUMENTID(27) = 'ATMS',
    CSATID(28)        = 'NPP',
-   CINSTRUMENTID(28) = 'ATMS',
-   CSATID(29)        = 'NPP',
-   CINSTRUMENTID(29) = 'CRIS',
-   CSATID(30)        = 'HMWARI-8',
-   CINSTRUMENTID(30) = 'AHI',
+   CINSTRUMENTID(28) = 'CRIS',
+   CSATID(29)        = 'HMWARI-8',
+   CINSTRUMENTID(29) = 'AHI',
+   CSATID(30)        = 'MSG1',
+   CINSTRUMENTID(30) = 'SEVIRI',
+   CSATID(31)        = 'MSG4',
+   CINSTRUMENTID(31) = 'SEVIRI',
+   CSATID(32)        = 'HMWARI-9',
+   CINSTRUMENTID(32) = 'AHI',
+   CSATID(33)        = 'GOES16',
+   CINSTRUMENTID(33) = 'ABI',
+   CSATID(34)        = 'NOAA20',
+   CINSTRUMENTID(34) = 'ATMS',
+   CSATID(35)        = 'NPP',
+   CINSTRUMENTID(35) = 'CRISFSR',
+   CSATID(36)        = 'NOAA20',
+   CINSTRUMENTID(36) = 'CRISFSR',
+   CSATID(37)        = 'METOP-3',
+   CINSTRUMENTID(37) = 'AMSUA',
+   CSATID(38)        = 'METOP-3',
+   CINSTRUMENTID(38) = 'MHS',
+   CSATID(39)        = 'GOES17',
+   CINSTRUMENTID(39) = 'ABI',
+   CSATID(40)        = 'FY3-3',
+   CINSTRUMENTID(40) = 'MWHS2',
+   CSATID(41)        = 'METOP-3',
+   CINSTRUMENTID(41) = 'IASI',
+   CSATID(42)        = 'GOES18',
+   CINSTRUMENTID(42) = 'ABI',
+   CSATID(43)        = 'NOAA21',
+   CINSTRUMENTID(43) = 'ATMS',
+   CSATID(44)        = 'NOAA21',
+   CINSTRUMENTID(44) = 'CRISFSR',
+   CSATID(45)        = 'FY3-4',
+   CINSTRUMENTID(45) = 'MWHS2',
+   CSATID(46)        = 'FY3-5',
+   CINSTRUMENTID(46) = 'MWHS2',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   regLimitExtrap=.false.
+   regLimitExtrap = .true.
 /
  &NAMCODTYP
+   cnames(1)='crisfsr',
+   icod(1)=202,
 /
  &NAMGPSRO
   LEVELGPSRO=2,
@@ -165,20 +204,6 @@
    LTESTOP     = .FALSE.,
    IZTDOP      = 1,
 /
- &NAMSQLradar
-  listElem="21036"
-  sqlNull=" and obsvalue is not null "  
-/
- &namSQLInsert
-  itemInsertList(1)=11215
-  itemInsertList(2)=11216
-  itemInsertList(3)=11003
-  itemInsertList(4)=11004
-/
- &NAMSQLUpdate
-  itemUpdateList(1)='OMP'
-  itemUpdateList(2)='OMA'
-/
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
 /
@@ -191,10 +216,10 @@
   BLISTELEMENTS=12163
 /
  &NAMPHY
-  saturationCurve='Tetens_2018a'
+  saturationCurve='Tetens_2018'
 /
  &NAMOER
-  NEW_OER_SW=.true.
+  OBSFILE_OER_SW=.true.
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.

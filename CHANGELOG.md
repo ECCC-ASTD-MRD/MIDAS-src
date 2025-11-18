@@ -25,9 +25,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Increase hard-coded value of `Nmax` in routine `filt_topoChemistry` (#1118 and !1033)
- * Warning message related to the fix to the RttovScatt bug is only printed once (#1112 and !1030)
- * Create links for all machines when doing the tests suite setup (#1110 and !1024)
  * Improve `midas.version` to find the highest reachable semantic version tag in the history line (#1087 and !997)
  * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
  * Read namelists from strings instead of files for improved efficiency (#886 and !794)
@@ -35,6 +32,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.10.0]
+
+### Added
+
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
+ * Revert the changes made with issues #1049 (!973) and #1112 (!1030) (#1112 and !1037)
+   * major impact on results comparing with `v_3.9.7` but no impact
+     with respect to operational version `v_3.9.6`.
+
+### Changed
+
+ * Increase hard-coded value of `Nmax` in routine `filt_topoChemistry` (#1118 and !1033)
+ * Warning message related to the fix to the RttovScatt bug is only printed once (#1112 and !1030)
+ * Create links for all machines when doing the tests suite setup (#1110 and !1024)
+
+### Fixed
+
  * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
 
 ### Removed
@@ -1220,7 +1239,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...HEAD
+[3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
 [3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
