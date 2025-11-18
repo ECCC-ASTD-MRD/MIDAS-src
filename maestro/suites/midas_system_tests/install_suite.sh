@@ -11,11 +11,15 @@ ${__toplevel}/set_resources_def.sh
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
-which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
+which maestro 1>/dev/null 2>&1 || {
+    SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
+    ${SEQ_MAESTRO_SHORTCUT}
+}
+
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        __rmnlib_version__=20251021
+    __rmnlib_version__=20251021
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     __rmnlib_version__=19.6.0
 else
@@ -23,6 +27,7 @@ else
     exit 1
 fi
 which r.date 1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/${__rmnlib_version__}
+
 unset __rmnlib_version__
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)

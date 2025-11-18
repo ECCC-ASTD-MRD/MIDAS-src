@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add the support of the platform `rhel-9-graniterapids-64` (#1100 and !1038)
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
  * Revert the changes made with issues #1049 (!973) and #1112 (!1030) (#1112 and !1037)
    * major impact on results comparing with `v_3.9.7` but no impact
      with respect to operational version `v_3.9.6`.

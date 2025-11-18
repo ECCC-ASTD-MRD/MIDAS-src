@@ -1,7 +1,9 @@
 #!/bin/bash
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
-which getdef 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+which getdef 1>/dev/null 2>&1 || {
+    SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
+    ${SEQ_MAESTRO_SHORTCUT}
+}
 
 __set_machine_list_suite__=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests
 
@@ -17,9 +19,9 @@ if [ -n "${GITLAB_CI}" ]; then
     fi
     export MAKE_LINKS_MACHINE_LIST
 elif [ "${TRUE_HOST}" = ppp5 -o "${TRUE_HOST}" = ppp6 -o "${TRUE_HOST}" = robert -o "${TRUE_HOST}" = underhill ]; then
-    export MAKE_LINKS_MACHINE_LIST="ppp6 ppp5:ppp6 robert:ppp6 underhill:ppp6"
+    export MAKE_LINKS_MACHINE_LIST="ppp6 ppp5:ppp6 robert:ppp6 underhill:ppp5"
 elif [ "${TRUE_HOST}" = ppp7 -o "${TRUE_HOST}" = ppp8 -o "${TRUE_HOST}" = moira -o "${TRUE_HOST}" = conrad ]; then
-    export MAKE_LINKS_MACHINE_LIST="ppp8 ppp7:ppp8 conrad:ppp8 moira:ppp8"
+    export MAKE_LINKS_MACHINE_LIST="ppp8 ppp7:ppp8 conrad:ppp8 moira:ppp7"
 else
     MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
     MACHINE_SUPER=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
