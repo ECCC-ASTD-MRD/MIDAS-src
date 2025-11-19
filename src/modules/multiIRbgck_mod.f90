@@ -999,23 +999,24 @@ contains
                  minpavhrr(3) < etop                     .and. &
                  abs(minpavhrr(2)- minpavhrr(3)) < 25.d0 .and. &
                  cldFlagOk) then
-
-              if ( utl_isEqual(ecf,0.d0) .and. cldflag == 1) then
-                ! cas predetermine nuageux mais ramene a clair
-                ecf = ecfNew
-                ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
-                etop = etopNew
-              end if
-              if (ecf > 0.d0 .and. cldflag == 1) then
-                !cas predetermine nuageux pas ramene clair (==normal)
-                etop = etopnew
-              end if
-              if (cldflag == 0) then
+              
+              if (cldflag == 1) then
+                if (utl_isEqual(ecf,0.d0)) then
+                  ! cas predetermine nuageux mais ramene a clair
+                  ecf = ecfNew
+                  ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
+                  etop = etopNew
+                else if (ecf > 0.0d0) then
+                  !cas predetermine nuageux pas ramene clair (==normal)
+                  etop = etopnew
+                end if
+              else if (cldflag == 0) then
                 !cas predetermine clair
                 cldflag = 1
                 etop = etopNew
                 ecf = ecfNew
               end if
+              
             end if
           end if
         end if
