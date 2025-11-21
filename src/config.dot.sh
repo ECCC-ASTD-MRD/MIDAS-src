@@ -56,30 +56,25 @@ while [[ $# > 0 ]]; do
     shift
 done ## End of 'while [[ $# > 0 ]]'
 
-if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
-    echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
-    __run_cmake=stop
-fi
-typeset -r __run_cmake
-
 if [ "${__show_instructions}" != true -a "${__show_instructions}" != false ]; then
     echo "config.dot.sh: The variable '__show_instructions' can only be 'true' or 'false' and not '${__show_instructions}'." >&2
     __run_cmake=stop
 fi
-typeset -r __show_instructions
 
 if [ "${__cd_to_build_directory}" != true -a "${__cd_to_build_directory}" != false ]; then
     echo "config.dot.sh: The variable '__cd_to_build_directory' can only be 'true' or 'false' and not '${__cd_to_build_directory}'." >&2
     __run_cmake=stop
 fi
-typeset -r __cd_to_build_directory
 
 if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != false ]; then
     echo "config.dot.sh: The variable '__fresh_build_directory' can only be 'true' or 'false' and not '${__fresh_build_directory}'." >&2
     __run_cmake=stop
 fi
-typeset -r __fresh_build_directory
 
+if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
+    echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
+    __run_cmake=stop
+fi
 
 cmake_options() {
     typeset __cmake_options_options__=
@@ -207,20 +202,20 @@ if [ "${__run_cmake}" != stop ]; then
     #----------------------------------------------------------------
     #  Set up dependent librarys and tools.
     #---------------------------------------------------------------
-    echo "... loading rpn/code-tools/20250826/env/inteloneapi-2022.1.2"
-    . r.load.dot rpn/code-tools/20250826/env/inteloneapi-2022.1.2
+    echo "... loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2"
+    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
 
-    echo "... loading eccc/mrd/rpn/libs/20250604-beta"
-    . r.load.dot eccc/mrd/rpn/libs/20250604-beta
+    echo "... loading eccc/mrd/rpn/libs/20251009-beta"
+    . r.load.dot eccc/mrd/rpn/libs/20251009-beta
+
+    echo "... loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
+    . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+
+    echo "... loading eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}"
+    . ssmuse-sh -x eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}
 
     echo "... loading hdf5"
     . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-
-    echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
-    . r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
-
-    echo "... loading eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}"
-    . ssmuse-sh -x eccc/cmd/cmda/libs/20250604-beta/${COMP_ARCH}
 
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
@@ -230,7 +225,7 @@ if [ "${__run_cmake}" != stop ]; then
     else
         rttovdebug=
     fi
-    export RTTOV_VERSION=2.0.2
+    export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
     echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
     . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
 

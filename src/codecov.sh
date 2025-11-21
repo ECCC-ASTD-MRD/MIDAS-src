@@ -27,7 +27,7 @@ eval `cclargs_lite                                                  \
  ++ $*`
 
 ## load Intel compiler so gain access to 'codecov' and 'profmerge':
-. r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
+. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
 ## Or, we could just source the 'config.dot.sh'
 
 ## On met 'set -u' apres le 'cclargs' et le 'r.load.dot' parce que

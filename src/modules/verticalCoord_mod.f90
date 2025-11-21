@@ -266,7 +266,7 @@ contains
     if (ierr == 0) then
       ierr = fstouv(nultemplate,'RND+OLD')
     else
-      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
+      write(*,*) 'vco_setupAtmFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
@@ -523,7 +523,7 @@ contains
     if (ierr == 0) then
       ierr = fstouv(nultemplate, 'RND+OLD')
     else
-      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
+      write(*,*) 'vco_setupOceanFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupOceanFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 

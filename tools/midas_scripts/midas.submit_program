@@ -22,7 +22,7 @@ eval $(cclargs -D    ""     $0   "[${description}]"                             
                -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
                -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
                -interactive     false   true  "[launch an interactive job (default: false)]"           \
-               -env             main    main  "[version of the environment to load (any of '3.9*', '4.0*' or 'main']"  \
+               -env             main    main  "[version of the environment to load (any of '3.9*', '4.*' or 'main') or a list of SSM domains to load]" \
                ++ $arguments)
 
 scriptName=${0##*/}
@@ -109,8 +109,12 @@ elif [[ "${env}" = 4.0.* ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20240612-alpha eccc/mrd/rpn/utils/20240612-alpha"
 elif [[ "${env}" = 4.1.0 || "${env}" = 4.1.1 ]]; then
     ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250129-alpha eccc/mrd/rpn/utils/20250129-alpha"
-elif [[ "${env}" = main || "${env}" = 4* ]]; then
+elif [[ "${env}" = 4.1.2 || "${env}" = 4.1.3 ]]; then
     ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250604-beta eccc/mrd/rpn/utils/20250604-beta"
+elif [[ "${env}" = main || "${env}" = 4* ]]; then
+    ssm_to_load="rpn/code-tools/20250925/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20251009-beta eccc/mrd/rpn/utils/20251009-beta"
+elif [[ -n "${env}" ]]; then
+    ssm_to_load=${env}
 else
     die "The argument '-env' accepts only '3.9.5, '3.9*', '4.0.*' or 'main' as values but received '${env}'"
 fi

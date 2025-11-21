@@ -46,7 +46,7 @@ foreach(component ${rttov_FIND_COMPONENTS})
     set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
 endforeach()
 
-set(SQLITE_Libraries SQLite::SQLite3 f90sqlite udfsqlite)
+set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
@@ -86,11 +86,12 @@ endif()
 if(DEFINED ENV{MIDAS_COMPILE_DIR_MAIN})
   set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_MAIN}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
 else()
-  message(FATAL_ERROR "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config.dot.sh file")
+  message(STATUS "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Set 'CMAKE_INSTALL_PREFIX' to '${CMAKE_SOURCE_DIR}/compiledir/midas_abs'")
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/compiledir/midas_abs" CACHE FILEPATH "Install directory prefix" FORCE)
 endif()
 
 message(STATUS "(EC) Sources directory is: ${CMAKE_SOURCE_DIR}")
-message(STATUS "(EC) Build directory is: $ENV{MIDAS_COMPILE_DIR_BUILD}")
+message(STATUS "(EC) Build directory is: ${CMAKE_BINARY_DIR}")
 message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
