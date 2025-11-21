@@ -115,7 +115,7 @@ midas_tests:
    script:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
      - cd maestro/suites/midas_system_tests
-     - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
+     - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh -findOutliers -emails ervig.lapalme@ec.gc.ca mark.buehner@ec.gc.ca
@@ -171,7 +171,7 @@ clean_midas_abs:
 doc_sphinx:
    stage: doc
    variables:
-     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+     docname: ${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}
      midasdoc: /home/sanl888/public_html/midas-sphinx-doc
    parallel:
      matrix:
@@ -180,8 +180,8 @@ doc_sphinx:
    script:
      - cd scripts/sphinx
      - ./build_html.sh ../../src $midasdoc/$docname
-     - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-     - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+     - rm -fv $midasdoc/latest-${CI_COMMIT_REF_NAME}
+     - ln -sv $midasdoc/$docname $midasdoc/latest-${CI_COMMIT_REF_NAME}
    only:
      - main
      - v_3.10
