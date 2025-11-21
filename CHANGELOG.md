@@ -37,11 +37,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.10.1]
+
+### Added
+
+ * Fix library loading and SSM publishing for the platform `rhel-8-icelake-64` (#1100 and !1043)
+
 ## [3.10.0]
 
 ### Added
 
- * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
  * Revert the changes made with issues #1049 (!973) and #1112 (!1030) (#1112 and !1037)
    * major impact on results comparing with `v_3.9.7` but no impact
      with respect to operational version `v_3.9.6`.
@@ -1239,7 +1245,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...HEAD
+[3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
 [3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
 [3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
