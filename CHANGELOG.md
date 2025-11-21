@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added `cloudAboveDesertFix` to `NAMBGCKIR` to activate fix in IASI quality control (#1104 and !1040)
  * Adapt ocean-related components to deal with different types of ocean temperature and salinity observations (#1119 and !1036)
    * Minor impact on results when running `letkf/ocean` assimilating foundation SST;
    * SST analysis programs handle new names for observation files using the 'OS' code.
