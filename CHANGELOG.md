@@ -32,7 +32,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Updating `rpn/libs` and `rpn/utils` to `20251008-beta` (#1111 and !1031)
  * The MIDAS build system is now based on `cmake` (#695 and !1015)
 
 ### Fixed
