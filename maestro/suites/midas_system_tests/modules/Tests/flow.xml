@@ -112,6 +112,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="2D_nat"/>
+      <FAMILY  name="2D_nat">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="2D_ch"/>
       <FAMILY  name="2D_ch">
         <SUBMITS sub_name="UnitTest"/>
