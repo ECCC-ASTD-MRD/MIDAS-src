@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SSM package to add latex math:
-. ssmuse-sh -p /fs/ssm/eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
+. r.load.dot eccc/cmd/cmds/env/python/py39_2022.07.06_all
 
 # ARGUMENTS SPECIFY DIRECTORIES OF MIDAS SOURCE CODE AND DESTINATION
 

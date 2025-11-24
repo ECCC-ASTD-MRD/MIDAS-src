@@ -45,10 +45,23 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
-    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
-    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
-    echo loading eccc/mrd/rpn/libs/20231219
-    . r.load.dot eccc/mrd/rpn/libs/20231219
+    echo loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+    echo loading eccc/mrd/rpn/libs/20251021
+    . r.load.dot eccc/mrd/rpn/libs/20251021
+    echo loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    . r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    set -x
+elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
+    set +x
+    echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0
+    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
+    echo loading eccc/mrd/rpn/libs/20251021
+    . r.load.dot eccc/mrd/rpn/libs/20251021
+    echo loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    . r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    echo loading hdf5-netcdf4
+    . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
@@ -114,7 +127,7 @@ chmod u+x midas.mpi_script.sh
 status=0
 
 SECONDS=0
-${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
+${__midas_mpirun_call_program__} -stack unlimited -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
 echo "The whole MPI execution took ${SECONDS} seconds"
 
 unset __midas_mpirun_call_program__ __midas_mpirun_pgm__
