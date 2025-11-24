@@ -224,7 +224,7 @@ int    VERBOSE = 0;
 /*          main                */
 /********************************/
 int main(int argc, char** argv) {
-  int iun = UNIT_NUMBER, ier, status, EXIT_STATUS = 0, IS_INPUT_BURP_FILE;
+  int iun = UNIT_NUMBER, status, EXIT_STATUS = 0;
   int filetype;
   char *ErrMsg, requete_sql[MAXSTR];
   gridtype grid, grid_gz;
@@ -1616,8 +1616,8 @@ int main(int argc, char** argv) {
 	}
       } /* Fin du else if (strncmp("^",RPT_STNID(rptin),1)==0) */
       else if (is_ua4d==1) { /* Si c'est un 'ua4d' */
-	int obs_in_domain=0, i_blk, i_btyp_data, i_btyp, btyp_data, btypnum;
-	int *bknos_data, *btyps_data, *nts_for_this_blk, *nvals_in_domain, *val_in_domain;
+	int obs_in_domain=0, i_btyp, btyp_data, btypnum;
+	int *bknos_data, *btyps_data, *nvals_in_domain, *val_in_domain;
 
 	bknos_data = (int*) NULL;
 	btyps_data = (int*) NULL;
@@ -3293,7 +3293,6 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  else if (x>=ni)
 	    *ilonband = npex;
 	  else {
-	    float ilonband_float = (x-1)/(ni/npex)+1;
 	    /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	    int ilonband_int = (((int) x) - 1)/(ni/npex)+1;
 
@@ -3309,7 +3308,6 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  else if (y>=nj)
 	    *jlatband = npey;
 	  else {
-	    float jlatband_float;
 	    int jlatband_int;
 
 	    /* On doit traiter le cas d'une grille gaussienne
@@ -3317,12 +3315,10 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	     * soit <1 ou >nj
 	     */
 	    if (input_grid.grtyp[0]=='G') {
-	      jlatband_float = y/(nj/npey)+1;
 	      /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	      jlatband_int = ((int) y)/(nj/npey)+1;
 	    }
 	    else {
-	      jlatband_float = (y-1)/(nj/npey)+1;
 	      /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	      jlatband_int = (((int) y)-1)/(nj/npey)+1;
 	    }
@@ -3538,7 +3534,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
   BLK_SetBKNO(blk, 0);
   while ( brp_findblk( blk, rptin ) >= 0 ) {
-    int is_data = 0, is_marqueur = 0, btyp, btypalt, btypsfc;
+    int is_data = 0, is_marqueur = 0, btyp, btypalt;
 
     blkout = brp_newblk();
     status = brp_readblk(BLK_BKNO(blk), blkout, rptin,0);
@@ -3551,7 +3547,6 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
     btyp = BLK_BTYP(blkout);
     btypalt = btyp>>4 & 31;
-    btypsfc = btyp>>1 & 1;
 
     /* On verifie si c'est un derivate en altitude */
     if ( btypalt == 2 || btypalt == 3 ) {
@@ -3803,7 +3798,7 @@ int check_ua4d(BURP_RPT *rptin) {
    ***************************************************************************/
 int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 			 int** bknos_data_ptr, int** btyps_data_ptr, int* nblks) {
-  int i, e, btyp, status, nblkstmp, trouve_lat, trouve_lon;
+  int i, e, status, nblkstmp, trouve_lat, trouve_lon;
   int trouve_au_moins_un_bloc_avec_lat_lon;
   BURP_BLK *blktmp, *blk;
 
@@ -4383,15 +4378,13 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
 int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
 				       int elem_lat, int elem_lon, BURP_BLK *blk_data,
 				       int* nvals_in_domain, int* val_in_domain) {
-  int status, i, id, e, v, btyp_data, colonne_lat, colonne_lon, EXIT_STATUS;
+  int status, id, e, v, colonne_lat, colonne_lon, EXIT_STATUS;
   int ilonband=1, jlatband=1;
   float lat, lon;
   char errmsg[MAXSTR];
   BURP_BLK *blk_data_converted = (BURP_BLK*) NULL;
 
   EXIT_STATUS = 0;
-
-  btyp_data = BLK_BTYP(blk_data);
 
   blk_data_converted = brp_newblk();
   status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
