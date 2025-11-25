@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added output RMSD of OMP per swath in ascii files (#1128 and !1046)
  * Added `cloudAboveDesertFix` to `NAMBGCKIR` to activate fix in IASI quality control (#1104 and !1040)
  * Adapt ocean-related components to deal with different types of ocean temperature and salinity observations (#1119 and !1036)
    * Minor impact on results when running `letkf/ocean` assimilating foundation SST;
