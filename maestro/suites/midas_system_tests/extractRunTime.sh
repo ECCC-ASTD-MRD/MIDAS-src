@@ -2,17 +2,17 @@
 
 set -e
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
-eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]" \
- -suite "" "" "[ suite to extract timings from (default to the same suite as this script is to) ]" \
- -findAborts "no" "yes" "[ find tests that aborted ]" \
- -all "no" "yes" "[ extract all the timings ]" \
- -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
- -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
- -emails "" "" "[ List of emails to send a message when we find outliers for the execution time ]" \
- -log    "latest" "latest" "[ log date to use to find timings (default: latest log file) ]" \
+eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]"                                                      \
+ -suite        "" ""  "[ suite to extract timings from (default to the same suite as this script is to) ]"                                   \
+ -findAborts   no yes "[ find tests that aborted ]"                                                                                          \
+ -all          no yes "[ extract all the timings ]"                                                                                          \
+ -computeStats no yes "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
+ -findOutliers no yes "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
+ -emails       "" ""  "[ List of emails to send a message when we find outliers for the execution time ]"                                    \
+ -log          latest latest "[ log date to use to find timings (default: latest log file) ]"                                                \
  ++ $*)
 
 ## Note on '-log' option:
@@ -92,9 +92,13 @@ logdate=$(basename ${logs} _nodelog)
 echo "Using the logdate ${logdate}"
 
 if [ "${computeStats}" = yes ]; then
+    if [ "${extractAll}" = yes ]; then
+        echo "The option '-computeStats' overrides '-all' to 'no'"
+        extractAll=no
+    fi
     echo
     echo "The statistics are given like this:"
-    echo -e "\tMean, Stddev, Stddev/Mean, Min, Max, Number of cases"
+    echo -e "Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases"
     echo
 fi
 
@@ -111,8 +115,13 @@ findRunTime () {
                 echo ${findRunTime_nodes%/*} aborted
             fi
         else
-            echo ${findRunTime_nodes%/*}
-            __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
+            printf "${findRunTime_nodes%/*} "
+            __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} |
+                                          grep 'The runtime was [.0-9][.0-9]* seconds'                     |
+                                          sed  's/%/%%/g'                                                  |
+                                          sed  's/ *TIMESTAMP=[0-9.: ]*MESSAGE=infox\? The runtime was //' |
+                                          sed ' s/seconds[.]$/seconds/')
+
             if [ "${computeStats}" = yes ]; then
                 __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
 BEGIN {
@@ -124,7 +133,7 @@ BEGIN {
 }
 
 {
-   match($0, /The runtime was ([.0-9]+) seconds/, array_timing)
+   match($0, /([.0-9]+) seconds/, array_timing)
    timing=array_timing[1]
    sum+=timing
    sum2+=timing**2
@@ -140,31 +149,34 @@ END {
         print mean, sqrt(var), sqrt(var)/mean, min, max, number
     }
 }')
-                printf "\t${__findRunTime_stats__}\n"
-                unset __findRunTime_stats__
-            fi
+            printf "\t${__findRunTime_stats__}\n"
+            unset __findRunTime_stats__
+            fi ## End of 'if [ "${computeStats}" = yes ]; then'
+        fi ## End of 'else' associated to 'if [ "${findAborts}" = yes ]'
+
+        if [ -n "${__findRunTime_runtime__}" ]; then
             if [ "${extractAll}" = yes ]; then
                 printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
+            elif [ "${computeStats}" = no -a "${findOutliers}" = no ]; then
+                printf "${__findRunTime_runtime__}\n" | tail -1
+            fi
+        else
+            printf "\tNo run time was available for that test\n"
+            return
+        fi
+
+        if [ "${findOutliers}" = yes ]; then
+            outlier=$(printf "${__findRunTime_runtime__}" | grep '^[.0-9][.0-9]* seconds which is greater' || true)
+            if [ -n "${outlier}" ]; then
+                printf "${outlier}\n" | sed 's/^/\t/'
+                line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
+                outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
             else
-                if [ -n "${__findRunTime_runtime__}" ]; then
-                    noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
-                    if [ -n "${noOutlier}" ]; then
-                        echo -e "\t${noOutlier}"
-                    fi
-                else
-                    echo -e "\tNo run time was available for that test"
-                fi
+                echo "No outlier"
             fi
-            unset __findRunTime_runtime__
-            if [ "${findOutliers}" = yes ]; then
-                outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
-                if [ -n "${outlier}" ]; then
-                    printf "${outlier}\n" | sed 's/^/\t/'
-                    line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
-                    outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
-                fi
-            fi
-        fi ## End of 'else' associated to 'if [ "${findAborts}" = yes ]'
+        fi
+
+        unset __findRunTime_runtime__
     else ## End of 'if [[ "${findRunTime_nodes}" = /*/UnitTest ]]'
         for __node__ in ${findRunTime_nodes}; do
             findRunTime ${__node__}
@@ -179,7 +191,16 @@ END {
 [ "${findOutliers}" = yes ] && outliers=
 
 export SEQ_EXP_HOME=${suite}
-findRunTime /Tests
+
+## If all the timings are extracted or when finding outliers then, it
+## is not possible to sort the output of 'findRunTime' because it is
+## on several lines.
+if [ "${extractAll}" = yes -o "${findOutliers}" = yes ]; then
+    findRunTime /Tests
+else
+    ## In any other case, the output is on a single line then, it can be sorted.
+    findRunTime /Tests | sort
+fi
 
 if [ "${findOutliers}" = yes ]; then
     if [ -n "${outliers}" ]; then
@@ -188,7 +209,8 @@ if [ "${findOutliers}" = yes ]; then
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version)
-            printf "MIDAS version: ${MIDAS_version}\n\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+            sorted_outliers=$(printf "${outliers}\n" | sort)
+            printf "MIDAS version: ${MIDAS_version}\n\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${sorted_outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
         fi
     else
         echo "No timing outliers found"

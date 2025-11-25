@@ -1,0 +1,111 @@
+#!/bin/bash
+
+set -euo pipefail
+
+configs=$(find config -name "*.cfg")
+
+destination=/home/erv000/data/midas/UnitTests/midas
+
+extractPath() {
+    typeset -r config=${1:?"extractPath: You must provide a test configuration"}
+    if [[ $# -gt 1 ]]; then
+        echo "extractPath: Only one argument is needed.  You called with 'extractPath ${*}'" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${config}" ]]; then
+        echo "extractPath: The file '${config}' does not exist" >&2
+        exit 1
+    fi
+
+    typeset unittest_reference
+    typeset grep_status=0
+    unittest_reference=$(grep '^UnitTest_reference=' ${config} || grep_status=1)
+    if [[ "${grep_status}" -ne 0 ]]; then
+        echo "extractPath: The file '${config}' does not contain any definition for the variable 'reference'" >&2
+        exit 1
+    fi
+
+    typeset eval_status=0
+    eval ${unittest_reference} || eval_status=1
+    if [[ "${eval_status}" -ne 0 ]]; then
+        echo "extractPath: The variable 'UnitTest_reference' in the file '${config}' could not be interpreted" >&2
+        exit 1
+    fi
+
+    echo ${UnitTest_reference}
+    unset UnitTest_reference
+} ## End of function 'extractPath'
+
+xf_hostname() {
+    typeset -r namehost=${1:?"xf_hostname: You must provide host name"}
+    if [[ $# -gt 1 ]]; then
+        echo "xf_hostname: Only one argument is needed.  You called with 'xf_hostname ${*}'" >&2
+        exit 1
+    fi
+
+    if [[ "${namehost}" = ppp5 ]]; then
+        echo ss5dtnx
+    elif [[ "${namehost}" = ppp6 ]]; then
+        echo ss6dtnx
+    else
+        echo "xf_hostname: '${namehost}' is not supported" >&2
+        exit 1
+    fi
+} ## End of function 'xf_hostname'
+
+load_resources_variables() {
+    typeset -r resourcesFile=${1:?"load_resources_variables: You must provide a resources file"}
+    if [[ $# -gt 1 ]]; then
+        echo "load_resources_variables: Only one argument is needed.  You called with 'load_resources_variables ${*}'" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${resourcesFile}" ]]; then
+        echo "load_resources_variables: The file '${resourcesFile}' does not exist" >&2
+        exit 1
+    fi
+
+    typeset variableName
+    typeset variable_definition
+    typeset grep_status
+    typeset eval_status
+
+    for variableName in REFERENCE_MACHINE LETKF_GLB10KM_MPITOPOLOGY; do
+        grep_status=0
+        variable_definition=$(grep "^${variableName}=" ${resourcesFile} || grep_status=1)
+        if [[ "${grep_status}" -ne 0 ]]; then
+            echo "load_resources_variables: The file '${resourcesFile}' does not contain any definition for the variable '${variableName}'" >&2
+            exit 1
+        fi
+
+        eval_status=0
+        eval ${variable_definition} || eval_status=1
+        if [[ "${eval_status}" -ne 0 ]]; then
+            echo "load_resources_variables: The variable 'variableName' in the file '${resourcesFile}' could not be interpreted" >&2
+            exit 1
+        fi
+    done
+} ## End of function 'load_resources_variables'
+
+load_resources_variables resources/resources.def_hpcr-u2
+
+xf_host=$(xf_hostname ${REFERENCE_MACHINE})
+
+for config in ${configs}; do
+    sourceUnittestPath=$(extractPath ${config})
+    leafPart=${sourceUnittestPath##*/UnitTests/midas/}
+
+    unittestPath=${destination}/${leafPart}
+    if [[ ! -d "$(dirname ${unittestPath})" ]]; then
+        mkdir -p $(dirname ${unittestPath})
+    fi
+    if [[ -e "${unittestPath}" ]]; then
+        echo "transfer_test_data: The destination ${unittestPath} already exists!  Continue..." >&2
+        continue
+    fi
+
+    SECONDS=0
+    rsync --archive --copy-unsafe-links --progress ${xf_host}:${sourceUnittestPath}/ ${unittestPath}
+    echo "Transferring ${leafPart} took ${SECONDS} seconds"
+done

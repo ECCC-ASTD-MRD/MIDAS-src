@@ -38,6 +38,7 @@ public
 #include "rttov_alloc_scatt_prof.interface"
 #include "rttov_read_scattcoeffs.interface"
 #include "rttov_dealloc_scattcoeffs.interface"
+#include "rttov_scatt_setupindex.interface"
 
 #include "rttov_init_prof.interface"
 #include "rttov_init_transmission.interface"

@@ -2362,8 +2362,8 @@ CONTAINS
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
-           memberIndex,ensAmplitude_oneLev, ensAmplitude_oneLevM1, &
-           ensAmplitude_oneLevP1, ensAmplitude_MT)
+      !$OMP     memberIndex,ensAmplitude_oneLev, ensAmplitude_oneLevM1, &
+      !$OMP     ensAmplitude_oneLevP1, ensAmplitude_MT)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 

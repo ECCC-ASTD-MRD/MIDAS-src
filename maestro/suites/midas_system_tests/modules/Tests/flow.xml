@@ -188,6 +188,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckCris"/>
+    <FAMILY  name="BgckCris">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="BgckAtms"/>
     <FAMILY  name="BgckAtms">
       <SUBMITS sub_name="UnitTest"/>
@@ -731,17 +736,17 @@
    </FAMILY>
  </FAMILY>
 
-  <FAMILY  name="energyNorm">
-    <SUBMITS sub_name="analmean"/>
-    <FAMILY  name="analmean">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="analrms"/>
-    <FAMILY  name="analrms">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
+ <FAMILY  name="energyNorm">
+   <SUBMITS sub_name="analmean"/>
+   <FAMILY  name="analmean">
+     <SUBMITS sub_name="UnitTest"/>
+     <MODULE  name="UnitTest"/>
+   </FAMILY>
+   <SUBMITS sub_name="analrms"/>
+   <FAMILY  name="analrms">
+     <SUBMITS sub_name="UnitTest"/>
+     <MODULE  name="UnitTest"/>
+   </FAMILY>
+ </FAMILY>
 
 </MODULE>
