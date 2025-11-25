@@ -596,7 +596,7 @@ contains
   end subroutine tim_getStepObsIndex
 
   !----------------------------------------------------------------------------------------
-  ! tim_dateStampToDDMMYYYY
+  ! tim_dateStampToYYYYMMDDHH
   !----------------------------------------------------------------------------------------
   subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
     !
