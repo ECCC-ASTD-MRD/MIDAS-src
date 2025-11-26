@@ -26,6 +26,7 @@ MODULE ensembleObservations_mod
   use obsfamilylist_mod
   use varnamelist_mod
   use localizationFunction_mod
+  use verticalCoord_mod
   use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
   use mpi   ! This is the standard mpi library
 
@@ -1794,9 +1795,10 @@ CONTAINS
     integer          :: obsIndex, headerIndex, channelIndex, numTovsLevels, sensorIndex
     integer          :: levIndex, levIndexBelow, levIndexAbove, nLev_M
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
-    real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
+    real(8)          :: obsHeight, interpFactor, minDepthColumnMeanTrl, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
     type(rttov_profile), pointer :: profiles(:)
+    type(struct_vco),    pointer :: vco_ptr
     logical          :: verbose = .false.
 
     call eob_setAssFlag(ensObs)
@@ -1805,6 +1807,11 @@ CONTAINS
     call obs_extractObsIntBodyColumn(varNumber, ensObs%obsSpaceData, OBS_VNM)
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntHeaderColumn(codType, ensObs%obsSpaceData, OBS_ITY)
+
+    if (ensObs%typeVertCoord == 'depth') then
+      vco_ptr => col_getVco(columnMeanTrl)
+      minDepthColumnMeanTrl = minval(vco_ptr%depths(:))
+    end if
 
     if (ensObs%typeVertCoord == 'logPressure') then
 
@@ -1923,7 +1930,8 @@ CONTAINS
         end if
 
         ! SST observations
-        ensObs%vertLocation(obsIndex) = minval(col_getVco(columnMeanTrl)%depths(:))
+        ! The variable 'minDepthColumnMeanTrl' is only initialized if ensObs%typeVertCoord == 'depth'
+        ensObs%vertLocation(obsIndex) = minDepthColumnMeanTrl
 
       else if(ensObs%assFlag(obsIndex)==1) then
 
