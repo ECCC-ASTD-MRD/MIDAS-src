@@ -10,7 +10,7 @@ module calcHeightAndPressure_mod
   !           pressure or height values are either computed or retrieved using
   !           the vgrid (https://gitlab.science.gc.ca/RPN-SI/vgrid) library.
   !           When computation is required (for instance to compute height on a
-  !           GEM-P, represented on pressure coordinates), thermodynamical 
+  !           GEM-P, represented on pressure coordinates), thermodynamical
   !           variables are required, typically `P0`, `TT` and `HU`.
   !           Height and pressure values are obtained for both thermodynamical
   !           and momentum levels and labeled `Z_T` (`P_T`) and `Z_M` (`P_M`).
@@ -339,7 +339,7 @@ contains
       end if
 
     else if (Vcode == 21001) then
-      ! Development notes (@mad001) 
+      ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
@@ -371,7 +371,7 @@ contains
     call msg('calcHeight_gsv_nl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(172)
   end subroutine calcHeight_gsv_nl
-  
+
   !---------------------------------------------------------
   ! czp_calcReturnHeight_gsv_nl
   !---------------------------------------------------------
@@ -413,8 +413,8 @@ contains
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         call calcHeight_gsv_nl_vcode5xxx( statevector, &
-                                          PTin_r4_opt=PTin_r4_opt, & 
-                                          PMin_r4_opt=PMin_r4_opt, & 
+                                          PTin_r4_opt=PTin_r4_opt, &
+                                          PMin_r4_opt=PMin_r4_opt, &
                                           ZTout_r4_opt=ZTout_r4_opt, &
                                           ZMout_r4_opt=ZMout_r4_opt)
       else ! datakind = 8
@@ -446,7 +446,7 @@ contains
     end if
 
     call msg('czp_calcReturnHeight_gsv_nl', 'END', verb_opt=2)
-    call utl_tmg_stop(172) 
+    call utl_tmg_stop(172)
   end subroutine czp_calcReturnHeight_gsv_nl
 
   !---------------------------------------------------------
@@ -454,7 +454,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
     !
-    ! :Purpose: Retrieve heights for GEM-H statevector, return height values 
+    ! :Purpose: Retrieve heights for GEM-H statevector, return height values
     !           in pointer arguments.
     !           real(4) version
     !
@@ -556,7 +556,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
     !
-    ! :Purpose: Retrieve heights for GEM-H statevector, return height values 
+    ! :Purpose: Retrieve heights for GEM-H statevector, return height values
     !           in pointer arguments.
     !           real(8) version
     !
@@ -650,7 +650,7 @@ contains
                                           ZTout_r4_opt, ZMout_r4_opt, &
                                           ZTout_r8_opt, ZMout_r8_opt)
     !
-    ! :Purpose: Compute heights for GEM-P statevector, return height values 
+    ! :Purpose: Compute heights for GEM-P statevector, return height values
     !           in pointer arguments.
     !           Assumptions:
     !           1) nlev_T = nlev_M+1 (for vcode=5002)
@@ -744,7 +744,7 @@ contains
       if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
         call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: Z{T,M}out_r4_opt expected')
       end if
-      height_M_ptr_r4 => ZMout_r4_opt 
+      height_M_ptr_r4 => ZMout_r4_opt
       height_T_ptr_r4 => ZTout_r4_opt
 
       ! initialize the height pointer to zero
@@ -765,7 +765,7 @@ contains
       if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
         call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: Z{T,M}out_r8_opt expected')
       end if
-      height_M_ptr_r8 => ZMout_r8_opt 
+      height_M_ptr_r8 => ZMout_r8_opt
       height_T_ptr_r8 => ZTout_r8_opt
 
       ! initialize the height pointer to zero
@@ -1709,7 +1709,7 @@ contains
   subroutine czp_calcReturnPressure_gsv_nl( statevector, &
                                             ZTin_r4_opt, ZMin_r4_opt, &
                                             ZTin_r8_opt, ZMin_r8_opt, &
-                                            PTout_r4_opt, PMout_r4_opt, & 
+                                            PTout_r4_opt, PMout_r4_opt, &
                                             PTout_r8_opt, PMout_r8_opt, &
                                             Ps_in_hPa_opt)
     !
@@ -1782,7 +1782,7 @@ contains
     call msg('czp_calcReturnPressure_gsv_nl', 'END', verb_opt=2)
     call utl_tmg_stop(177)
   end subroutine czp_calcReturnPressure_gsv_nl
-  
+
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode2100x
   !---------------------------------------------------------
@@ -1830,7 +1830,7 @@ contains
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
     call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'START', verb_opt=4)
-    
+
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
     numStep = statevector%numStep
@@ -1904,7 +1904,7 @@ contains
     HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
     ! Development notes (@mad001)
-    !   if feasible, consider reusing the same code for both 
+    !   if feasible, consider reusing the same code for both
     !   `calcPressure_{gsv,col}_nl_vcode2100x`
     do_computePressure_gsv_nl: do stepIndex = 1, numStep
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -1943,7 +1943,7 @@ contains
           else
             Z_T = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
           end if
-          cmp = gpscompressibility(P0,tt,hu) 
+          cmp = gpscompressibility(P0,tt,hu)
           tv(nlev_T) = tv0*cmp
           dh = Z_T - rMT
           Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
@@ -1959,7 +1959,7 @@ contains
           Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
           pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
-          ! compute pressure on all levels above except the last 
+          ! compute pressure on all levels above except the last
           do lev_M = nlev_M-1, 1, -1
             lev_T = lev_M ! thermo level just below
             if ( statevector%dataKind == 4 ) then
@@ -1980,7 +1980,7 @@ contains
             Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
 
             ! approximation of tv from pressure on previous momentum level
-            cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu) 
+            cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu)
             tv(lev_T) = tv0*cmp
             pressure_M(lev_M) = pressure_M(lev_M+1) * &
                                 exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
@@ -2146,7 +2146,7 @@ contains
           if ( Ps_in_hPa_opt ) PsfcLS = PsfcLS * mpc_pa_per_mbar_r4
         end if
 
-        call fetch3DLevels_r4(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, & 
+        call fetch3DLevels_r4(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, &
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       else
         call fetch3DLevels_r4(statevector%vco, Psfc, &
@@ -2571,7 +2571,7 @@ contains
         end if
       end if
     end if
-  
+
     call msg('calcZandP_col_nl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_col_nl
 
@@ -2771,7 +2771,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     !
-    ! :Purpose: Compute heights for GEM-P columns, return height values 
+    ! :Purpose: Compute heights for GEM-P columns, return height values
     !           in pointer arguments.
     !
     implicit none
@@ -2784,7 +2784,7 @@ contains
     ! Developement notes (@mad001)
     !   Null subroutine, no computation needed at time of writing.
     !   The code is traversed because of `calcZandP_nl` call in `cvt` (agnostic if
-    !   dealing with GEM-P or GEM-H), but the results for heights are not used 
+    !   dealing with GEM-P or GEM-H), but the results for heights are not used
     !   at this time.
     !   We keep that stub however for future functionalities.
     call msg('calcHeight_col_nl_vcode5xxx (czp)', 'END (nothing done)', verb_opt=4)
@@ -2880,6 +2880,11 @@ contains
         nlev_M = col_getNumLev(columnIncRef,'MM')
 
         numColumns = col_getNumCol(columnInc)
+        if (numColumns <= 0) then
+          call msg('calcHeight_col_tl_vcode5xxx (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         allocate(delThick(nlev_T,numColumns))
         delThick(:,:) = 0.0d0
@@ -3090,6 +3095,11 @@ contains
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
         numColumns = col_getNumCol(columnIncRef)
+        if (numColumns <= 0) then
+          call msg('calcHeight_col_ad_vcode5xxx (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         allocate(delHeight_M(nlev_M,numColumns))
         allocate(delThick(0:nlev_T,numColumns))
@@ -3359,7 +3369,7 @@ contains
     !
     implicit none
     ! Development notes (@mad001)
-    !   if feasible, consider reusing the same code for both 
+    !   if feasible, consider reusing the same code for both
     !   `calcPressure_{gsv,col}_nl_vcode2100x`
     !   (@mab001) Also should remove need for `Z_T/M` to be allocated in column
     !   and use local array instead.
@@ -3958,7 +3968,7 @@ contains
   subroutine fetch1DdPdPs_r8(vco, sfcValue, profM_opt, profT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for iderivative profile query. Return vertical
-    !           coordinate profile for both momentum and thermodynamic levels; 
+    !           coordinate profile for both momentum and thermodynamic levels;
     !           real(8) flavor.
     !
     implicit none
