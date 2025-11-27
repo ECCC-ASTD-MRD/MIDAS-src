@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Move MPI topology check earlier in execution in `advection_mod` (#1129 and !1047)
 
 ### Removed
 
