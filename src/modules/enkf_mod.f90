@@ -138,7 +138,7 @@ contains
     integer :: memberIndexInModEns
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     integer :: requestIdSignal
-    integer :: numDFSIndex, dfsIndex
+    integer :: dfsIndex
 
     integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -250,23 +250,7 @@ contains
     allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
-    if (outputDFS) then
-      numDFSIndex = nLev_weights * myNumLatLonCalcMax
-      write(*,*) 'enkf_LETKFanalyses: enkfDFS dimensions:', numDFSIndex, maxNumLocalObs
-      allocate(enkfDFS%locFun(numDFSIndex,maxNumLocalObs))
-      enkfDFS%locFun(:,:) = 0.0d0
-      allocate(enkfDFS%bodyIndex(numDFSIndex,maxNumLocalObs))
-      enkfDFS%bodyIndex(:,:) = 0
-      allocate(enkfDFS%lat(numDFSIndex))
-      enkfDFS%lat(:) = 0.0d0
-      allocate(enkfDFS%lon(numDFSIndex))
-      enkfDFS%lon(:) = 0.0d0
-      allocate(enkfDFS%lnp(numDFSIndex))
-      enkfDFS%lnp(:) = 0.0d0
-      allocate(enkfDFS%dfs(numDFSIndex))
-      enkfDFS%dfs(:) = 0.0d0
-      write(*,*) 'enkf_LETKFanalyses: enkfDFS allocated'
-    end if
+    if (outputDFS) call enkf_allocateDFS(enkfDFS, nLev_weights, myNumLatLonCalcMax, maxNumLocalObs)
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -508,8 +492,6 @@ contains
 
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
           lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
-
-          dfsIndex = latLonIndex * levIndex
 
           numGridPointWeights = numGridPointWeights + 1
 
@@ -3029,5 +3011,43 @@ contains
     ierr = fclos(funit)
 
   end subroutine enkf_writeEdim
+
+  !--------------------------------------------------------------------------
+  ! enkf_writeEdim
+  !--------------------------------------------------------------------------
+  subroutine enkf_allocateDFS(enkfDFS, numLev, numLatLon, maxNumLocalObs)
+    !
+    !:Purpose: allocate and initialize a DFS output structure
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_enkfDFS), intent(inout) :: enkfDFS        ! DFS structure
+    integer,              intent(in)    :: numLev         ! number of vertical levels
+    integer,              intent(in)    :: numLatLon      ! number of grid points
+    integer,              intent(in)    :: maxNumLocalObs ! maximum number of obs in local volume
+
+    ! Locals:
+    integer :: numDFSIndex ! grid index
+
+    numDFSIndex = numLev * numLatLon
+
+    write(*,*) 'enkf_allocateDFS: enkfDFS dimensions:', numDFSIndex, maxNumLocalObs
+    allocate(enkfDFS%locFun(numDFSIndex,maxNumLocalObs))
+    allocate(enkfDFS%bodyIndex(numDFSIndex,maxNumLocalObs))
+    allocate(enkfDFS%lat(numDFSIndex))
+    allocate(enkfDFS%lon(numDFSIndex))
+    allocate(enkfDFS%lnp(numDFSIndex))
+    allocate(enkfDFS%dfs(numDFSIndex))
+    write(*,*) 'enkf_allocateDFS: enkfDFS allocated'
+
+    enkfDFS%locFun(:,:) = 0.0d0
+    enkfDFS%bodyIndex(:,:) = 0
+    enkfDFS%lat(:) = 0.0d0
+    enkfDFS%lon(:) = 0.0d0
+    enkfDFS%lnp(:) = 0.0d0
+    enkfDFS%dfs(:) = 0.0d0
+
+  end subroutine enkf_allocateDFS
 
 end module enkf_mod
