@@ -138,7 +138,6 @@ contains
     integer :: memberIndexInModEns
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     integer :: requestIdSignal
-    integer :: dfsIndex
 
     integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
