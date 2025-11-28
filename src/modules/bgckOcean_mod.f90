@@ -346,14 +346,18 @@ module bgckOcean_mod
     integer, external    :: newdate
     integer              :: imode, prntdate, prnttime
     integer, parameter   :: numStationMax = 20              ! maximum number of 'idStation' values
+    integer              :: numStation, unitRMSD
+    character(len=22)    :: fileName
+    integer              :: hour, day, monthNumber
+    integer              :: yyyy, ndays, minute
+    integer, external    :: fclos
 
     ! Namelist variables: (local)
-    integer           :: numStation = MPC_missingValue_INT  ! MUST NOT BE INCLUDED IN NAMELIST!
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
     integer           :: maxSwath = 10                      ! maximum number of swaths
     integer           :: maxPerSwath = 200000               ! maximum number of data per swath
     character(len=obs_stnidLength) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
-    namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
+    namelist /namIceBGcheck/ idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
 
@@ -369,9 +373,6 @@ module bgckOcean_mod
       read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
       call utl_tmg_stop(181)
-      if (numStation /= MPC_missingValue_INT) then
-        call utl_abort('ocebg_bgCheckSeaIce: check namIceBGcheck namelist section: numStation should be removed')
-      end if
       numStation = 0
       do stationIndex = 1, numStationMax
         if (trim(idStation(stationIndex)) == 'null') exit
@@ -493,6 +494,20 @@ module bgckOcean_mod
                                     ' '//idStation(stationIndex)//' data'
 
         end if
+
+        write(fileName,'(a)') trim(idStation(stationIndex))//'_swath.dat'
+
+        call tim_dateStampToYYYYMMDDHH(minDateStamp(swathIndex), prnttime, day, monthNumber, &
+                                       ndays, yyyy, verbose_opt = .False.)
+        hour = prnttime/1000000
+        minute = (prnttime - hour*1000000)/10000
+
+        call utl_open_asciifile(fileName, unitRMSD)
+
+        write(unitRMSD,'(i4.4,2("-",i2.2),"T",i2.2,":",i2.2,E13.5,1x,i7)') yyyy, monthNumber, &
+             day, hour, minute, rmsDiff(swathIndex), numberObs(swathIndex)
+
+        ierr = fclos(unitRMSD)
 
       end do SWATH
 
