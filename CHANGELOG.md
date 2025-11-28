@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix the email sent to report the outliers in `maestro/suites/midas_system_tests/extractRunTime.sh` (#1130 and !1051)
  * Move MPI topology check earlier in execution in `advection_mod` (#1129 and !1047)
 
 ### Removed
