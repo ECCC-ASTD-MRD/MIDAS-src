@@ -164,6 +164,22 @@ END {
     unset findRunTime_node findRunTime_nodes
 }  ## End of function 'findRunTime'
 
+function formatOutliers {
+    set -e
+
+    formatOutliers_outliers=${*}
+
+    longest_testname_length=$(printf "${formatOutliers_outliers}\n" | awk '/\/Tests/ {print $1}' | wc -L)
+
+    printf "${formatOutliers_outliers}\n" | while read line; do
+        testname=$(echo ${line} | awk '{print $1}')
+        outlier_message=$(echo ${line} | cut -d' ' -f2-)
+        printf "%-${longest_testname_length}s  %s\n" ${testname} "${outlier_message}"
+    done
+
+    unset formatOutliers_outliers longest_testname_length testname outlier_message
+}  ## End of function 'formatOutliers'
+
 ## Initialize 'outliers' variable used in 'findRunTime'
 [ "${findOutliers}" = yes ] && outliers=
 
@@ -187,7 +203,12 @@ if [ "${findOutliers}" = yes ]; then
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
-            printf "MIDAS version: ${MIDAS_version}\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+            formatted_outliers=$(formatOutliers ${outliers})
+            printf "MIDAS version: ${MIDAS_version}
+We found some timing outliers in the timing in MIDAS test suite '${suite}':
+
+${formatted_outliers}
+" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
         fi
     else
         echo "No timing outliers found"
