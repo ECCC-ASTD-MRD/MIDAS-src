@@ -204,11 +204,18 @@ if [ "${findOutliers}" = yes ]; then
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
             formatted_outliers=$(formatOutliers ${outliers})
-            printf "MIDAS version: ${MIDAS_version}
+            printf "<html><body>
+<pre style=\"font-family: Courier New, Courier, monospace; font-size: 16px;\">
+
+MIDAS version: ${MIDAS_version}
+
 We found some timing outliers in the timing in MIDAS test suite '${suite}':
 
 ${formatted_outliers}
-" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+</pre>
+</body></html>" | mail -a "Content-Type: text/html; charset=UTF-8"               \
+                       -s "Timing outliers found in MIDAS test suite '${suite}'" \
+                       ${emails}
         fi
     else
         echo "No timing outliers found"
