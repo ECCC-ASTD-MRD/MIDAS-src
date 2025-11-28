@@ -33,6 +33,7 @@ module enkf_mod
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
+  public :: enkf_deallocateDFS
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -3012,7 +3013,7 @@ contains
   end subroutine enkf_writeEdim
 
   !--------------------------------------------------------------------------
-  ! enkf_writeEdim
+  ! enkf_allocateDFS
   !--------------------------------------------------------------------------
   subroutine enkf_allocateDFS(enkfDFS, numLev, numLatLon, maxNumLocalObs)
     !
@@ -3048,5 +3049,26 @@ contains
     enkfDFS%dfs(:) = 0.0d0
 
   end subroutine enkf_allocateDFS
+
+  !--------------------------------------------------------------------------
+  ! enkf_deallocateDFS
+  !--------------------------------------------------------------------------
+  subroutine enkf_deallocateDFS(enkfDFS)
+    !
+    !:Purpose: deallocate a DFS output structure
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_enkfDFS), intent(inout) :: enkfDFS ! DFS structure
+
+    deallocate(enkfDFS%dfs)
+    deallocate(enkfDFS%lnp)
+    deallocate(enkfDFS%lon)
+    deallocate(enkfDFS%lat)
+    deallocate(enkfDFS%bodyIndex)
+    deallocate(enkfDFS%locFun)
+
+  end subroutine enkf_deallocateDFS
 
 end module enkf_mod

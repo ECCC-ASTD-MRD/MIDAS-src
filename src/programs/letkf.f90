@@ -961,6 +961,8 @@ program midas_letkf
     end do
     ierr = fclos(funit)
 
+    call enkf_deallocateDFS(enkfDFS)
+
   end if
 
   !- 6. Output obs files with mean OMP and (unrecentered) OMA
