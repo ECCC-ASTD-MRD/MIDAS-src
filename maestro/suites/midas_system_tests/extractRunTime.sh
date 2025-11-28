@@ -181,13 +181,13 @@ fi
 
 if [ "${findOutliers}" = yes ]; then
     if [ -n "${outliers}" ]; then
+        echo
         echo "Some timing outliers were found"
         if [ -n "${emails}" ]; then
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
-            sorted_outliers=$(printf "${outliers}\n" | sort)
-            printf "MIDAS version: ${MIDAS_version}\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${sorted_outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+            printf "MIDAS version: ${MIDAS_version}\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
         fi
     else
         echo "No timing outliers found"
