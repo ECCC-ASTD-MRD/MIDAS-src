@@ -145,12 +145,9 @@ END {
         if [ "${findOutliers}" = yes ]; then
             outlier=$(printf "${__findRunTime_runtime__}" | grep '^[.0-9][.0-9]* seconds which is greater' || true)
             if [ -n "${outlier}" ]; then
-                printf "${outlier}\n" | sed 's/^/     /'
-                line=$(printf "${outlier}" | sed 's/^/     /' | sed 's/%/%%/g')
-                outliers="${outliers}
-${findRunTime_nodes%/*}
-${line}
-"
+                printf "${outlier}\n" | sed 's/^/\t/'
+                line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
+                outliers="${outliers}${findRunTime_nodes%/*} ${line}\n"
             else
                 echo "No outlier"
             fi
