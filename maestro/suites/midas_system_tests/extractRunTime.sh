@@ -200,7 +200,6 @@ if [ "${findOutliers}" = yes ]; then
         echo
         echo "Some timing outliers were found"
         if [ -n "${emails}" ]; then
-            set -x
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
