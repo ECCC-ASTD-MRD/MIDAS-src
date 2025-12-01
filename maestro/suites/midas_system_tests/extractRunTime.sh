@@ -213,7 +213,7 @@ Content-Type: text/html; charset=UTF-8
 <html><body>
 <pre style=\"font-family: Courier New, Courier, monospace; font-size: 16px;\">
 
-MIDAS version: ${MIDAS_version}
+MIDAS version: ${MIDAS_version} on ${ORDENV_PLAT}
 
 We found some timing outliers in the timing in MIDAS test suite '${suite}':
 
