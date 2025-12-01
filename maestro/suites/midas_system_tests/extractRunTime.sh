@@ -200,11 +200,17 @@ if [ "${findOutliers}" = yes ]; then
         echo
         echo "Some timing outliers were found"
         if [ -n "${emails}" ]; then
+            set -x
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version.sh)
             formatted_outliers=$(formatOutliers ${outliers})
-            printf "<html><body>
+            /usr/sbin/sendmail -t <<EOF
+To: ${emails}
+Subject: Timing outliers found in MIDAS test suite '${suite}'
+Content-Type: text/html; charset=UTF-8
+
+<html><body>
 <pre style=\"font-family: Courier New, Courier, monospace; font-size: 16px;\">
 
 MIDAS version: ${MIDAS_version}
@@ -213,9 +219,8 @@ We found some timing outliers in the timing in MIDAS test suite '${suite}':
 
 ${formatted_outliers}
 </pre>
-</body></html>" | mail -a "Content-Type: text/html; charset=UTF-8"               \
-                       -s "Timing outliers found in MIDAS test suite '${suite}'" \
-                       ${emails}
+</body></html>
+EOF
         fi
     else
         echo "No timing outliers found"
