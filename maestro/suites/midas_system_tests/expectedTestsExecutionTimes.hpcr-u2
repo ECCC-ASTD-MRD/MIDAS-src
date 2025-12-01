@@ -100,6 +100,9 @@ Test Name, Mean
 /Tests/var/EnVar/radarPrecip	528
 /Tests/var/EnVar/rdps	564
 /Tests/var/Var3D/2D_ch	44
+/Tests/var/Var3D/2D_g0	20
+/Tests/var/Var3D/2D_g1	20
+/Tests/var/Var3D/2D_nat	30
 /Tests/var/Var3D/chem_only	120
 /Tests/var/Var3D/gbc	396
 /Tests/var/Var3D/gem-h/vcode21001	200

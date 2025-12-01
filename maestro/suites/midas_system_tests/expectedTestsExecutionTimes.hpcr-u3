@@ -100,6 +100,9 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/var/EnVar/radarPrecip 	200.528 12.4833 0.0622524 162 335 847
 /Tests/var/EnVar/rdps 	348.096 10.8228 0.0310913 320 437 375
 /Tests/var/Var3D/2D_ch 	10.4677 1.42015 0.13567 8 39 11700
+/Tests/var/Var3D/2D_g0	20
+/Tests/var/Var3D/2D_g1	20
+/Tests/var/Var3D/2D_nat	30
 /Tests/var/Var3D/chem_only 	64.215 4.63519 0.0721823 60 99 2530
 /Tests/var/Var3D/gbc 	89.2421 4.78846 0.053657 85 125 1751
 /Tests/var/Var3D/gem-h/vcode21001 	152.024 3.29587 0.0216799 148 191 1032
