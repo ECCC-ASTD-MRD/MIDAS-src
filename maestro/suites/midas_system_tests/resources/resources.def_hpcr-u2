@@ -39,10 +39,6 @@ VAR_NITERMAX=70
 ## task '/Tests/letkf/glb_15km/UnitTest/run'
 LETKF_GLB15KM_NUM_THREADS=2
 
-## Set this variable to the memory needed in the task
-## '/Tests/letkf/glb_15km/UnitTest/run'
-LETKF_GLB15KM_MEMORY=11G
-
 ## Set this variable to the MPI topology needed in the task
 ## '/Tests/letkf/glb_10km/UnitTest/run'
 ## The two current options are "11x52" and "48x52" for which the appropriate
