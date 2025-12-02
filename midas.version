@@ -67,7 +67,7 @@ fi
 status=0
 most_recent_tag_reachable=$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1) || status=1
 if [ "${status}" -eq 0 ]; then
-    git describe ${git_describe_options} --match ${most_recent_tag_reachable} ${gitobject} || status=1
+    git describe --always ${git_describe_options} --match ${most_recent_tag_reachable} ${gitobject} || status=1
 fi
 
 ## If one of the above two command fails, we try on one of the PPPs.
