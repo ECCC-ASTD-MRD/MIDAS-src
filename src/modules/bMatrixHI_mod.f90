@@ -1536,12 +1536,14 @@ CONTAINS
     do jk = 1, numVarLev
       dsummed = 0.d0
       do jn = 0, ntrunc
-        dsummed = dsummed+ dble(rstddev(jk,jn)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
+        dsummed = dsummed + dble(rstddev(jk,jn)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
       enddo
       dsummed = sqrt(dsummed)
-      do jn = 0, ntrunc
-        if(dsummed.gt.1.d-30) rstddev(jk,jn) = rstddev(jk,jn)/dsummed
-      enddo
+      if(dsummed>1.d-30) then
+        do jn = 0, ntrunc
+          rstddev(jk,jn) = rstddev(jk,jn)/dsummed
+        enddo
+      end if
     enddo
 
     !     CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION

@@ -7,22 +7,15 @@
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
 #include "fstdlib.h"
 
-extern void f77name(newdate)();  /* rmnlib.a */
-extern void f77name(exfin)();  /* rmnlib.a */
-extern int c_fnom();
-extern int c_fclos();
-extern int c_fstouv();
-extern int c_fstfrm();
-extern int c_fstinf();
-extern int c_fstprm();
-extern int c_ezqkdef();
+/* Include pour les librairies RPN */
+#include "rmn.h"
 
 /*****************************************************/
 /*******        Variables globales        ************/
 /*****************************************************/
 
 /* Ce compteur global est utilise dans la fonction stats_field() pour
- * compter le nombre de champs qui sera affiche.  
+ * compter le nombre de champs qui sera affiche.
  */
 static int compteur_stats = 0;
 
@@ -32,7 +25,7 @@ static int compteur_stats = 0;
 int open_stdfile(int iun, char* filename, char* mode) {
   int ier;
 
-  ier = c_fnom(iun,filename,mode,0);
+  ier = c_fnom(&iun,filename,mode,0);
   if (ier<0) {
     fprintf(stderr,"fonction open_stdfile: Erreur %d avec le fichier %s dans la fonction c_fnom\n",ier,filename);
     return NOT_OK;
@@ -46,7 +39,7 @@ int open_stdfile(int iun, char* filename, char* mode) {
 
     return NOT_OK;
   }
-  
+
   return OK;
 } /* Fin de la fonction open_stdfile */
 
@@ -56,7 +49,7 @@ int open_stdfile(int iun, char* filename, char* mode) {
  ***************************************************************************/
 int close_stdfile(int iun, char* filename) {
   int ier;
-  
+
   /* On ferme le fichier standard ouvert par open_stdfile */
   ier = c_fstfrm(iun);
   if (ier<0) {
@@ -78,11 +71,11 @@ int close_stdfile(int iun, char* filename) {
  ***************************************************************************/
 int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
   int key, ier;
-  
+
   /**********************************************************
    * Dans cette partie, on va lire le champ desire dans le fichier
    * opt.glb tel qu'identifie par les elements dans la structure
-   * (options) opt .  
+   * (options) opt .
    **********************************************************/
 
   key = c_fstinf(iun,&fst->ni,&fst->nj,&fst->nk,fst->dateo,fst->etiket,
@@ -123,11 +116,11 @@ int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
   gridptr->gridid = c_ezqkdef(gridptr->ni,gridptr->nj,gridptr->grtyp,gridptr->ig1,gridptr->ig2,gridptr->ig3,gridptr->ig4,iun);
   if ( gridptr->gridid < 0 ) {
     fprintf(stderr,"Fonction getgrid: Probleme %d avec la fonction c_ezqkdef "
-	    "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n", 
+	    "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n",
 	    gridptr->gridid, fst->nomvar,fst->etiket,fst->ip1,fst->ip2,fst->ip3,fst->dateo,fst->typvar);
     return NOT_OK;
   }
-  
+
   return OK;
 } /* Fin de la fonction getgrid */
 
@@ -159,7 +152,7 @@ int stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr) {
   statsptr[compteur_stats].variance = var;
 
   compteur_stats++;
-  
+
   return OK;
 
 } /* Fin de la fonction stats_field */
@@ -182,26 +175,6 @@ int print_stats_field(statstype* stats, int dim) {
 
 
 /***************************************************************************
- * fonction: exit_program
- ***************************************************************************/
-void exit_program(int status, char* program_name, char* problem, char* version) {
-
-  F2Cl l_program_name = (F2Cl) strlen(program_name);
-  F2Cl l_problem      = (F2Cl) strlen(problem);
-  F2Cl l_version      = (F2Cl) strlen(version);
-
-  if ( status == 1 ) {
-    F2Cl l_fin = (F2Cl) strlen("FIN");
-    f77name(exfin)(program_name,problem,"FIN",l_program_name,l_problem,l_fin);
-    exit(1);
-  }
-  else {
-    F2Cl l_ok = (F2Cl) strlen("O.K.");
-    f77name(exfin)(program_name,version,"O.K.",l_program_name,l_version,l_ok);
-  }
-}  /* Fin de la fonction exit_program */
-
-/***************************************************************************
  * fonction: padtime
  ***************************************************************************/
 int padtime(char* argv) {
@@ -212,13 +185,13 @@ int padtime(char* argv) {
   /* On padde avec des zeros a droite pour completer l'adresse */
   for(j=0;j<MAXSTR_DATETIME-strlen(argv);j++)
     strcat(dattimstr,"0");
-  
+
   strncpy(datstr,dattimstr,MAXSTR_DATE);
   strncpy(timstr,&dattimstr[MAXSTR_DATE],MAXSTR_TIME);
-  
+
   dat = atoi(datstr);
   tim = atoi(timstr);
-  
+
   mode = 3;
   f77name(newdate)(&datev,&dat,&tim,&mode);  /* printable to CMCstamp */
 

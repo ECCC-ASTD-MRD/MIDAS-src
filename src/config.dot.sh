@@ -1,4 +1,10 @@
 #! /bin/sh
+
+if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
+    return 1
+fi
+
 ##
 ## DO NOT MODIFY THIS FILE
 ##
@@ -117,7 +123,13 @@ if [ "${__run_cmake}" != stop ]; then
     MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
     MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR:-true}
     MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
-    MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
+    if [ -z "${MIDAS_COMPILE_FRONTEND}" ]; then
+        if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+            MIDAS_COMPILE_FRONTEND=ppp5
+        elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+            MIDAS_COMPILE_FRONTEND=ppp7
+        fi
+    fi
     MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
     MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
     MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND:-false}
@@ -202,8 +214,13 @@ if [ "${__run_cmake}" != stop ]; then
     #----------------------------------------------------------------
     #  Set up dependent librarys and tools.
     #---------------------------------------------------------------
-    echo "... loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2"
-    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        __compiler=inteloneapi-2022.1.2
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        __compiler=inteloneapi-2025.1.0
+    fi
+    echo "... loading rpn/code-tools/20250925/env/${__compiler}"
+    . r.load.dot rpn/code-tools/20250925/env/${__compiler}
 
     echo "... loading eccc/mrd/rpn/libs/20251009-beta"
     . r.load.dot eccc/mrd/rpn/libs/20251009-beta
@@ -211,14 +228,29 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
 
-    echo "... loading eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}"
-    . ssmuse-sh -x eccc/cmd/cmda/libs/20250909-beta/${COMP_ARCH}
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        cmda_libs_version=20250909-beta
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        cmda_libs_version=20251021
+    fi
+    echo "... loading eccc/cmd/cmda/libs/${cmda_libs_version}/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/${cmda_libs_version}/${COMP_ARCH}
 
-    echo "... loading hdf5"
-    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+    echo "... loading hdf5-netcdf4"
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+    fi
 
-    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        perftools_version=2.0
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        perftools_version=2.1
+    fi
+
+    echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
+    . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
         rttovdebug=-debug

@@ -17,6 +17,11 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+## This variable must be set before loading 'ec_compiler_presets'
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "IntelLLVM")
+  set(STRICT TRUE)
+endif()
+
 ec_build_info()              # Generate build include file
 include(ec_compiler_presets) # Include compiler presets
 
@@ -50,8 +55,13 @@ set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-  # Necessary, as compiler presets sets it to -O2
-  set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
+  ## If code codecoverage is activated, we use '-O0'
+  if( DEFINED ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH} )
+    set(CMAKE_Fortran_FLAGS "-O0 -prof-gen=srcpos -prof-dir=$ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH}")
+  else()
+    # Necessary, as compiler sets it to '-O2' by default
+    set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt")
+  endif()
 
   set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all -fp-speculation=safe -init=snan,arrays")
 
@@ -60,10 +70,21 @@ if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qopt-report=5")
   endif()
-
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "IntelLLVM")
+  ## If code codecoverage is activated, we use '-O0' because the compiler sets it to '-O2' by default
   if( DEFINED ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH} )
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -prof-gen=srcpos -prof-dir=$ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH}")
+    set(CMAKE_Fortran_FLAGS "-O0 -prof-gen=srcpos -prof-dir=$ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH}")
   endif()
+
+  set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all -fp-speculation=safe -init=snan,arrays")
+
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qmkl -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal")
+
+  if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qopt-report=5")
+  endif()
+else()
+  message(FATAL_ERROR "Compiler is not supported: ${CMAKE_Fortran_COMPILER_ID}")
 endif()
 
 link_libraries("-Wl,--disable-new-dtags")

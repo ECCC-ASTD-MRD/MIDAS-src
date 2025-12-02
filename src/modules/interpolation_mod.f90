@@ -1203,6 +1203,7 @@ contains
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
     type(struct_columnData), pointer :: columnInRef_ptr, columnOutRef_ptr
+    type(struct_vco), pointer :: vcoIn_ptr, vcoOut_ptr
 
     call msg('int_vInterp_col', 'START', verb_opt=2)
     varLevel = vnl_varLevelFromVarname(varName)
@@ -1212,6 +1213,11 @@ contains
     else
       useSfcPressureRef = .false.
     end if
+
+    vcoIn_ptr => col_getVco(column_in)
+    vcode_in  = vcoIn_ptr%vcode
+    vcoOut_ptr => col_getVco(column_out)
+    vcode_out = vcoOut_ptr%vcode
 
     vInterp = .true.
     if( useSfcPressureRef ) then
@@ -1225,8 +1231,6 @@ contains
       call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
     end if
 
-    vcode_in  = col_getVco(column_in)%vcode
-    vcode_out = col_getVco(column_out)%vcode
     nLevIn_T  = col_getNumLev(column_in,  'TH')
     nLevIn_M  = col_getNumLev(column_in,  'MM')
     nLevOut_T = col_getNumLev(column_out, 'TH')
@@ -1237,11 +1241,11 @@ contains
         call msg('int_vInterp_col', 'Use Reference Surface Pressure to compute the pressure level')
 
         allocate(columnInRef_ptr)
-        call col_setVco(columnInRef_ptr, col_getVco(column_in))
+        call col_setVco(columnInRef_ptr, vcoIn_ptr)
         call col_allocate(columnInRef_ptr, col_getNumCol(column_in))
 
         allocate(columnOutRef_ptr)
-        call col_setVco(columnOutRef_ptr, col_getVco(column_out))
+        call col_setVco(columnOutRef_ptr, vcoOut_ptr)
         call col_allocate(columnOutRef_ptr, col_getNumCol(column_out))
 
         pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, 'P0')
@@ -1332,7 +1336,7 @@ contains
         allocate(MMlevelWanted(col_getNumLev(column_out, 'MM')))
 
         call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
-                                    col_getVco(column_out), col_getVco(column_in) ) ! IN
+                                    vcoOut_ptr, vcoIn_ptr ) ! IN
 
         if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
           call utl_abort('int_vInterp_col: column_out is not a subsets of column_in!')
@@ -1357,7 +1361,7 @@ contains
 
       else if (col_getNumLev(column_out, 'DP') > 0) then
         call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
-        if (any(col_getVco(column_out)%depths(:) /= col_getVco(column_in)%depths(:))) then
+        if (any(vcoOut_ptr%depths(:) /= vcoIn_ptr%depths(:))) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels

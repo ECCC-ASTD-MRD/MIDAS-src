@@ -282,8 +282,18 @@ module calcStatsGlb_mod
                        conversionVarKindCHtoMicrograms, minValVarKindCH, &
                        abortOnMpiImbalance
 
+    ! Read namelist NAMSTATE to find which fields are needed
     ! Namelist read to obtain list of variable names following order of input
-    ! Needed for consistency of input ordering from NAMCOMPUTEBHILATBANDS    
+    ! Needed for consistency of input ordering from NAMCOMPUTEBHILATBANDS
+
+    anlvar(:) = '    '
+    rhumin = mpc_minimum_hu_r8
+    anltime_bin = 'MIDDLE'
+    addHeightSfcOffset = .false.
+    conversionVarKindCHtoMicrograms = .false.
+    minValVarKindCH(:) = mpc_missingValue_r8
+    abortOnMpiImbalance = .true.
+
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namstate, iostat = ierr)
     call utl_tmg_stop(181)

@@ -13,6 +13,8 @@
 #include "rmn.h"
 #include "App.h"
 #include "rmn/rpnmacros.h"
+extern int c_mrfbfl(int);
+
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
 
@@ -24,10 +26,6 @@
  * (ce fichier est genere on-the-fly par le Makefile puis efface)
  */
 #include "midas_build_info.h"
-
-/* variables pour les fonction exdb et exfin */
-#define PROGRAM_NAME      "splitobs"
-#define PROBLEM           "Problem"
 
 /* define pour les differentes longueurs de chaine de caracteres utilisees dans le programme */
 #define MAXSTR            1024
@@ -202,7 +200,7 @@ int    check_ua4d(BURP_RPT *rptin);
 int    find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 			    int** bknos_data_ptr, int** btyps_data_ptr, int* nblks);
 int    find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int bkno_data,
-				 BURP_BLK **blk_data_ptr, BURP_BLK **blk_flags_ptr, 
+				 BURP_BLK **blk_data_ptr, BURP_BLK **blk_flags_ptr,
 				 int* colonne_lat_ptr, int* colonne_lon_ptr);
 int    fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_domain,
                        int n, int cherrypick_x, int cherrypick_y, int npey);
@@ -211,18 +209,14 @@ int    parseOptions(int argc, char** argv, optionsptr optptr);
 void   aide(void);
 void   help(void);
 
-/* rmnlib.a */
-extern void f77name(exdb)();
-extern int c_mrfbfl();
-
 /* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
  * pour estimer la hauteur de la pression donnee
  */
 float* VALEURS_GZ_MIN = (float*) NULL;
 float* VALEURS_GZ_MAX = (float*) NULL;
 
-/* Variable globale utilisee pour identifier le niveau de detail 
- * que l'on veut dans le listing 
+/* Variable globale utilisee pour identifier le niveau de detail
+ * que l'on veut dans le listing
  */
 int    VERBOSE = 0;
 
@@ -230,7 +224,7 @@ int    VERBOSE = 0;
 /*          main                */
 /********************************/
 int main(int argc, char** argv) {
-  int iun = UNIT_NUMBER, ier, status, EXIT_STATUS = 0, IS_INPUT_BURP_FILE;
+  int iun = UNIT_NUMBER, status, EXIT_STATUS = 0;
   int filetype;
   char *ErrMsg, requete_sql[MAXSTR];
   gridtype grid, grid_gz;
@@ -241,11 +235,9 @@ int main(int argc, char** argv) {
   /* Impression de la boite indiquant le demarrage du programme */
   /**************************************************************/
 
-  
+
   App_Init(APP_MAIN,PROJECT_NAME_STRING,VERSION,PROJECT_DESCRIPTION_STRING,BUILD_TIMESTAMP);
   App_Start();
-
-  //printf("\n%s version: %s (SHA-1 %s)\n\n", PROGRAM_NAME, VERSION, VERSION_SHA1);
 
   /***************************************/
   /* on va lire les options au programme */
@@ -258,12 +250,12 @@ int main(int argc, char** argv) {
 
   status = access(opt.obsin,F_OK);
   if ( status != 0 ) { /* Le fichier existe deja */
-      App_Log(APP_ERROR,"The file '%s' does not exist and should.\n",opt.obsin);
-      App_End(-1);exit(1);
+    App_Log(APP_ERROR,"The file '%s' does not exist and should.\n",opt.obsin);
+    App_End(-1);exit(1);
   }
 
   filetype = c_wkoffit(opt.obsin,strlen(opt.obsin));
- 
+
   /* Si on n'est pas en mode round-robin, alors on a besoin du fichier 'opt.fstin'. */
   if ( opt.roundrobin == 0 ) {
     /**********************************************************
@@ -293,7 +285,7 @@ int main(int argc, char** argv) {
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     status = close_stdfile(iun,opt.fstin);
     if (status == NOT_OK) {
-      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",ier,opt.fstin);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",status,opt.fstin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
@@ -397,7 +389,7 @@ int main(int argc, char** argv) {
 	      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	  }
 
-      App_End(-1);exit(1);
+          App_End(-1);exit(1);
   	}
       }
       if (opt.niveau_max != IP1_VIDE) {
@@ -412,7 +404,7 @@ int main(int argc, char** argv) {
 
 	  if (VALEURS_GZ_MIN != (float*) NULL)
 	    free(VALEURS_GZ_MIN);
-      App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
       }
     } /* Fin du if (strlen(opt.gz)!=0) */
@@ -430,7 +422,7 @@ int main(int argc, char** argv) {
     /**********************************************************
      * Cette partie a pour but de manipuler la base de donnees SQL
      * et d'en creer une nouvelle qui ne contient que les observations a
-     * l'interieur du domaine defini par la grille donnee plus haut.  
+     * l'interieur du domaine defini par la grille donnee plus haut.
      **********************************************************/
 
     strcpy(table_list_with_split_key,"");
@@ -503,7 +495,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-           App_End(-1);exit(1);
+          App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         /* Execution de la requete SQL sur la base de donnees */
@@ -537,7 +529,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-           App_End(-1);exit(1);
+          App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         status = sqlite3_close(sqldbin);
@@ -559,7 +551,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-           App_End(-1);exit(1);
+          App_End(-1);exit(1);
         }
 
         status = sqlite3_open(opt.obsout,&sqldb);
@@ -586,7 +578,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-           App_End(-1);exit(1);
+          App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
@@ -614,7 +606,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-           App_End(-1);exit(1);
+          App_End(-1);exit(1);
         }
       } /* Fin du 'else' relie au 'if ( status == 0 )' */
 
@@ -645,7 +637,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-         App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
 
       /* On cree la fonction checkvertical qui verifie si l'observation est a l'interieur
@@ -675,7 +667,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-         App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
 
       /* On cree la fonction checkvertical_gz qui verifie si l'observation est a l'interieur
@@ -705,7 +697,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-         App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
 
       /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
@@ -793,7 +785,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-         App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
 
       // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
@@ -855,7 +847,7 @@ int main(int argc, char** argv) {
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-               App_End(-1);exit(1);
+              App_End(-1);exit(1);
             } /* Fin du 'if ( status != SQLITE_OK )' */
           } /* Fin du 'if ( status == 0 )' */
           else {
@@ -872,7 +864,7 @@ int main(int argc, char** argv) {
                 if( status != SQLITE_OK )
                   App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-                 App_End(-1);exit(1);
+                App_End(-1);exit(1);
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               /* Execution de la requete SQL sur la base de donnees */
@@ -884,12 +876,12 @@ int main(int argc, char** argv) {
               if( status != SQLITE_OK ) {
                 App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
                 sqlite3_free(ErrMsg);
-              
+
                 status = sqlite3_close(sqldbin);
                 if( status != SQLITE_OK )
                   App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                 App_End(-1);exit(1);
+                App_End(-1);exit(1);
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
@@ -898,14 +890,14 @@ int main(int argc, char** argv) {
               if( status != SQLITE_OK ) {
                 App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                 App_End(-1);exit(1);
+                App_End(-1);exit(1);
               }
             } /* Fin du 'if (strlen(sqlschema)==0)' */
 
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-               App_End(-1);exit(1);
+              App_End(-1);exit(1);
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
             status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
@@ -987,7 +979,7 @@ int main(int argc, char** argv) {
 	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     /* Ouverture du fichier burp en entree */
@@ -1002,7 +994,7 @@ int main(int argc, char** argv) {
 	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
     else if (status == 0) {
       /* Si le fichier BURP est vide alors on doit sortir */
@@ -1019,7 +1011,7 @@ int main(int argc, char** argv) {
 	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     /* Si aucun probleme alors 'status' est le nombre d'enregistrements du fichier BURP */
@@ -1039,8 +1031,7 @@ int main(int argc, char** argv) {
 	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-       App_End(-1);exit(1);
-
+      App_End(-1);exit(1);
     }
 
     nts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
@@ -1050,7 +1041,7 @@ int main(int argc, char** argv) {
       status = brp_close(iun);
       if (status<0)
 	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-	
+
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
@@ -1059,8 +1050,8 @@ int main(int argc, char** argv) {
       }
 
       free(adresses);
-	
-       App_End(-1);exit(1);
+
+      App_End(-1);exit(1);
     } /* Fin du if ( nts == (int*) NULL) */
 
     num_obs_per_tile = (int*) malloc(opt.npex*opt.npey*sizeof(int));
@@ -1081,7 +1072,7 @@ int main(int argc, char** argv) {
       free(adresses);
       free(nts);
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     } /* Fin du if ( nts == (int*) NULL) */
 
     iouts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
@@ -1091,7 +1082,7 @@ int main(int argc, char** argv) {
       status = brp_close(iun);
       if (status<0)
 	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-	
+
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
@@ -1102,8 +1093,8 @@ int main(int argc, char** argv) {
       free(adresses);
       free(nts);
       free(num_obs_per_tile);
-	
-       App_End(-1);exit(1);
+
+      App_End(-1);exit(1);
     } /* Fin du if ( iouts == (int*) NULL) */
 
       /* Ouverture du fichier burp en sortie */
@@ -1130,7 +1121,7 @@ int main(int argc, char** argv) {
 	free(num_obs_per_tile);
 	free(iouts);
 
-	 App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
 
 
@@ -1138,7 +1129,7 @@ int main(int argc, char** argv) {
       status = brp_open(iout,opt.obsout,"a");
       if ( status<0 ) {
 	App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
-	
+
 	status = brp_close(iun);
 	if (status<0)
 	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
@@ -1146,7 +1137,7 @@ int main(int argc, char** argv) {
 	status = brp_close(iout);
 	if (status<0)
 	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsout);
-	
+
 	/* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
 	if ( opt.roundrobin == 0 ) {
 	  status = c_gdrls(grid.gridid);
@@ -1159,14 +1150,14 @@ int main(int argc, char** argv) {
 	free(nts);
 	free(iouts);
 
-	 App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
     }
     else { /* Il faut ouvrir npex*npey fichiers */
       char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR];
 
       sprintf(format_digits,"%%.%dd",opt.ndigits);
-      
+
       for (ilonband=0;ilonband<opt.npex;ilonband++) {
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
 	  int id=ilonband*opt.npey+jlatband;
@@ -1221,7 +1212,7 @@ int main(int argc, char** argv) {
 	    free(iouts);
 	    free(nts);
 
-	     App_End(-1);exit(1);
+            App_End(-1);exit(1);
 	  } /* Fin du if ( status==0 ) pour l'acces au fichier */
 
 	  status = brp_open(iouts[id],burpout,"a");
@@ -1255,7 +1246,7 @@ int main(int argc, char** argv) {
 	    free(nts);
 	    free(num_obs_per_tile);
 
-	     App_End(-1);exit(1);
+            App_End(-1);exit(1);
 	  } /* Fin du if ( status<0 ) */
 	} /* Fin du for (jlatband=0;jlatband<opt.npey;jlatband++) */
       } /* Fin du for (ilonband=0;ilonband<opt.npex;ilonband++) */
@@ -1290,7 +1281,7 @@ int main(int argc, char** argv) {
       free(nts);
       free(num_obs_per_tile);
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     rptin  = brp_newrpt();
@@ -1321,7 +1312,7 @@ int main(int argc, char** argv) {
       free(num_obs_per_tile);
       free(rptout);
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     i_enrgs=0;
@@ -1446,7 +1437,7 @@ int main(int argc, char** argv) {
       if (strncmp(">>",RPT_STNID(rptin),2)==0) { /* C'est un enregistrement resume */
 	engrs_resume = 1;
 	if (VERBOSE>0)
-	  printf("Fonction main: C'est un enregistrement resume '%s' (i_enrgs=%d)\n", 
+	  printf("Fonction main: C'est un enregistrement resume '%s' (i_enrgs=%d)\n",
 		 RPT_STNID(rptin),i_enrgs);
       }
 
@@ -1455,7 +1446,7 @@ int main(int argc, char** argv) {
 
 	rptin_clip_vert = brp_newrpt();
 	brp_allocrpt(rptin_clip_vert, longueur_max_enregistrement);
-	
+
 	status = clipping_vertical(rptin,&opt,&grid_gz,rptin_clip_vert);
 	if (status<0) {
 	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction clipping_vertical\n", status);
@@ -1508,7 +1499,7 @@ int main(int argc, char** argv) {
 	/* Si c'est un enregistrement resume, */
 	/*  on veut alors copier cet enregistrement dans le fichier output */
 	if (VERBOSE>0)
-	  printf("Fonction main: On copie cet enregistrement resume '%s' (i_enrgs=%d)\n", 
+	  printf("Fonction main: On copie cet enregistrement resume '%s' (i_enrgs=%d)\n",
 		 RPT_STNID(rptin),i_enrgs);
 	status = fill_rptout_blk(rptin,rptout,(int*) NULL,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey);
 	if (status<0) {
@@ -1559,9 +1550,9 @@ int main(int argc, char** argv) {
 	  EXIT_STATUS = 1;
 	  break;
 	}
-	
+
 	/* Si aucune observation n'est dans le domaine alors on passe au
-	 * prochain enregistrement 
+	 * prochain enregistrement
 	 */
 	for (i=0;i<opt.npex*opt.npey;i++)
 	  if (nts[i]!=0) {
@@ -1612,7 +1603,7 @@ int main(int argc, char** argv) {
 	    printf("Fonction main: On n'a pas pas besoin de mettre a jour le header (RPT_ELEV(rptout[%d])=%d)\n", i, RPT_ELEV(rptout[i]));
 	  }
 	} /* Fin du for (i=0;i<opt.npex*opt.npey;i++) */
-	
+
 	if (EXIT_STATUS)
 	  break;
 
@@ -1625,8 +1616,8 @@ int main(int argc, char** argv) {
 	}
       } /* Fin du else if (strncmp("^",RPT_STNID(rptin),1)==0) */
       else if (is_ua4d==1) { /* Si c'est un 'ua4d' */
-	int obs_in_domain=0, i_blk, i_btyp_data, i_btyp, btyp_data, btypnum;
-	int *bknos_data, *btyps_data, *nts_for_this_blk, *nvals_in_domain, *val_in_domain;
+	int obs_in_domain=0, i_btyp, btyp_data, btypnum;
+	int *bknos_data, *btyps_data, *nvals_in_domain, *val_in_domain;
 
 	bknos_data = (int*) NULL;
 	btyps_data = (int*) NULL;
@@ -1718,7 +1709,7 @@ int main(int argc, char** argv) {
 	      continue;
 	    }
 
-	    if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout)) == 1 )
+	    if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout)) == 1 ) {
 	      if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
 		for (i=0;i<opt.npex*opt.npey;i++) {
                   /* Si on est en mode 'cherrypick', alors on ne
@@ -1752,6 +1743,7 @@ int main(int argc, char** argv) {
 			adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout),
 			BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
 	      }
+            }
 
 	    brp_freeblk(blkout);
 	  } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
@@ -1849,7 +1841,7 @@ int main(int argc, char** argv) {
       else { /* Si ce n'est pas un 'ua4d', ni un enregistrement regroupe ni un enregistrement resume */
 	int id;
 	/* Dans le cas d'un rapport non-regroupe alors on peut se fier aux valeurs de
-	 * latitude et de longitude dans l'entete du rapport.  
+	 * latitude et de longitude dans l'entete du rapport.
 	 */
 	lat = RPT_LATI(rptin)/100. - 90.;
 	lon = RPT_LONG(rptin)/100.;
@@ -1870,7 +1862,7 @@ int main(int argc, char** argv) {
 	   *
 	   * ou bien qui si opt.inout == 0 alors status == 1 et donc le
 	   * point est a l'interieur de la grille ce qui n'est pas voulu.
-	   */	
+	   */
 	  if (opt.inout != status)
 	    continue;
 	  id=0;
@@ -2055,7 +2047,7 @@ int main(int argc, char** argv) {
 	char burpout_num_headers[MAXSTR];
 
 	sprintf(burpout_num_headers,"%s.num_headers", opt.obsout);
-	
+
 	status = access(burpout_num_headers,F_OK);
 	if (status==0)
 	  App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
@@ -2173,7 +2165,7 @@ int main(int argc, char** argv) {
       App_Log(APP_ERROR,"Fonction main: Le mode 'round-robin' n'a pas encore ete "
               "implementee pour des fichiers d'input de type ASCII!\n");
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     filein=fopen(opt.obsin,"r");
@@ -2184,7 +2176,7 @@ int main(int argc, char** argv) {
       if (status<0)
 	App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     fileout=fopen(opt.obsout,"w");
@@ -2208,7 +2200,7 @@ int main(int argc, char** argv) {
 	  free(VALEURS_GZ_MAX);
       }
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
 #define REGEX_DEFINITION  "^[[:blank:]]*([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*).*$"
@@ -2236,7 +2228,7 @@ int main(int argc, char** argv) {
 	  free(VALEURS_GZ_MAX);
       }
 
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
 
     while( fgets(ligne,sizeof(ligne),filein) != (char*) NULL ) {
@@ -2265,7 +2257,7 @@ int main(int argc, char** argv) {
       }
 
       if (opt.inout == status) {
-	if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE) 
+	if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
 	  /* Aucun filtrage vertical n'est fait */
 	  fputs(ligne,fileout);
 	else if (strlen(opt.channels)==0 && strlen(opt.gz)==0 && checkvertical(alt,opt.niveau_min,opt.niveau_max))
@@ -2615,7 +2607,7 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
   int ier, key, status, datev;
   fstparam fst = fstparam_DEFAUT;
   double forecast;
-  
+
   fst.ip1=niveau;
   strcpy(fst.nomvar,"GZ  ");
 
@@ -2625,7 +2617,7 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
 
     return NOT_OK;
   }
-  
+
   status = getgrid(iun,gridptr,&fst,fichier);
   if (status == NOT_OK) {
     App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction getgrid pour les parametres "
@@ -2634,7 +2626,7 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
 
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     close_stdfile(iun,fichier);
-    
+
     return NOT_OK;
   }
 
@@ -2682,7 +2674,7 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
     App_Log(APP_ERROR, "Fonction getGZ: Erreur %d avec le fichier %s pour les parametres "
 	    "(%s,%s,%s,%d,%d,%d,%d) dans la fonction fstluk\n",
 	    ier,fichier,fst.nomvar,fst.typvar,fst.etiket,fst.dateo,fst.ip1,fst.ip2,fst.ip3);
-    
+
     status = c_gdrls(gridptr->gridid);
     if (status<0)
       App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
@@ -2691,8 +2683,8 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
     close_stdfile(iun,fichier);
 
     free(*valeurs);
-    
-    return NOT_OK;    
+
+    return NOT_OK;
   }
 
   /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
@@ -2705,10 +2697,10 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
       App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
 
     free(*valeurs);
-    
+
     return NOT_OK;
   }
-    
+
   return OK;
 } /* Fin de la fonction getGZ() */
 
@@ -2787,9 +2779,9 @@ void checkgrid_sql(sqlite3_context *context, int argc, sqlite3_value **argv) {
 int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char errmsg[MAXSTR]) {
   int status, criteria;
   float x, y;
-  
+
   /* appel a la fonction EZSCINT qui permet d'obtenir la coordonnee dans la grille
-   * du point (lat,lon) donne en entree 
+   * du point (lat,lon) donne en entree
    */
   if (VERBOSE>3)
     printf("Fonction checkgrid: lat=%f  lon=%f\n", lat, lon);
@@ -2799,7 +2791,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
   status = c_gdxyfll(gridid, &x, &y, &lat, &lon, 1);
   if (status<0) {
     sprintf(errmsg, "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
-	    "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
+	    "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 	    status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
     return -1;
@@ -2867,7 +2859,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
 void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv) {
   int   id_obs, niveau_min, niveau_max, status;
   float vcoord;
-  
+
   /* On s'assure que le nombre d'arguments est bien de 4 */
   assert( argc==NUMBER_OF_ARGS_FOR_CHECK_VERTICAL );
 
@@ -2878,7 +2870,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
   /* Definition de la grille */
   niveau_min = sqlite3_value_int(argv[2]);
   niveau_max = sqlite3_value_int(argv[3]);
-  
+
   if ( sqlite3_value_type(argv[1]) == SQLITE_NULL && niveau_min == IP1_VIDE) {
     if (VERBOSE>1) {
       printf("debug: id_obs=%d vcoord=NULL niveau_max=%d niveau_min=%d -> ",id_obs,niveau_max,niveau_min);
@@ -2891,7 +2883,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
   if (VERBOSE>1) {
     printf("debug: id_obs=%d vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,vcoord,niveau_max,niveau_min);
   }
-  
+
   status = checkvertical(vcoord,niveau_min,niveau_max);
 
   if (status<0) {
@@ -2919,9 +2911,9 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
    *
    ***************************************************************************/
 int checkvertical(float vcoord, int niveau_min, int niveau_max) {
-  
-  if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE) { 
-    /* Si aucun niveau n'a ete donne (==-1) alors on ne filtre pas verticalement 
+
+  if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE) {
+    /* Si aucun niveau n'a ete donne (==-1) alors on ne filtre pas verticalement
      * donc on retourne vrai (1)
      */
     if (VERBOSE>2) {
@@ -2954,7 +2946,7 @@ int checkvertical(float vcoord, int niveau_min, int niveau_max) {
 	  printf("Obs acceptee parce que niveau_min=%d >= vcoord = %f\n", niveau_min, vcoord);
 	}
 	return 1;
-      } 
+      }
       else {
 	if (VERBOSE>2) {
 	  printf("Obs refusee parce que niveau_min=%d < vcoord = %f\n", niveau_min, vcoord);
@@ -3004,7 +2996,7 @@ int checkvertical(float vcoord, int niveau_min, int niveau_max) {
 void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **argv) {
   int   id_obs, gridid, ni, nj, niveau_min, niveau_max, status;
   float lat, lon, vcoord;
-  
+
   /* On s'assure que le nombre d'arguments est bien de 9 */
   assert( argc==NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ );
 
@@ -3022,7 +3014,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
   /* niveaux seuil */
   niveau_min = sqlite3_value_int(argv[7]);
   niveau_max = sqlite3_value_int(argv[8]);
-  
+
   if ( sqlite3_value_type(argv[3]) == SQLITE_NULL && niveau_min == IP1_VIDE) {
     if (VERBOSE>2) {
       printf("debug: id_obs=%d vcoord=NULL niveau_max=%d niveau_min=%d -> ",id_obs,niveau_max,niveau_min);
@@ -3035,7 +3027,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
   if (VERBOSE>2) {
     printf("debug: id_obs=%d lat=%f lon=%f vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,lat,lon,vcoord,niveau_max,niveau_min);
   }
-  
+
   status = checkvertical_gz(lat,lon,vcoord,gridid,ni,nj,niveau_min,niveau_max);
 
   if (status<0) {
@@ -3049,7 +3041,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
 
   sqlite3_result_int(context, status);
   return;
-  
+
 } /* Fin de la fonction checkvertical_gz_sql */
 
 
@@ -3070,9 +3062,9 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
    ***************************************************************************/
 int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int nj, int niveau_min, int niveau_max) {
   int status;
-  
-  if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE) { 
-    /* Si aucun niveau n'a ete donne (==-1) alors on ne filtre pas verticalement 
+
+  if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE) {
+    /* Si aucun niveau n'a ete donne (==-1) alors on ne filtre pas verticalement
      * donc on retourne vrai (1)
      */
     if (VERBOSE>3) {
@@ -3087,15 +3079,15 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 
     if (niveau_min != IP1_VIDE && niveau_max != IP1_VIDE) { /* On doit filtrer en haut et en bas */
       float hauteur_min, hauteur_max;
-	
+
       /* appel a la fonction EZSCINT qui permet d'obtenir la valeur dans la grille
-       * du point (lat,lon) donne en entree 
+       * du point (lat,lon) donne en entree
        */
       status = c_gdllsval(gridid, &hauteur_min, VALEURS_GZ_MIN, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
-		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
+		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
@@ -3105,16 +3097,16 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       if (status<0) {
 	char errmsg[MAXSTR];
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
-		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
+		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
-	
+
       /* On convertit le decametre du GZ en metres */
       hauteur_max *= 10;
       hauteur_min *= 10;
-	
+
       /* Si le point est effectivement sous le niveau donne, on retourne 1 sinon 0 */
       if ( hauteur_min <= vcoord && vcoord <= hauteur_max ) {
 	if (VERBOSE>2) {
@@ -3131,15 +3123,15 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
     } /* Fin du if (niveau_min != IP1_VIDE && niveau_max != IP1_VIDE) */
     else if (niveau_min != IP1_VIDE) {
       float hauteur_min;
-	
+
       /* appel a la fonction EZSCINT qui permet d'obtenir la valeur dans la grille
-       * du point (lat,lon) donne en entree 
+       * du point (lat,lon) donne en entree
        */
       status = c_gdllsval(gridid, &hauteur_min, VALEURS_GZ_MIN, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
-		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
+		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
@@ -3147,14 +3139,14 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 
       /* On convertit le decametre du GZ en metres */
       hauteur_min *= 10;
-	
+
       /* Si le point est effectivement sous le niveau donne, on retourne 1 sinon 0 */
       if ( hauteur_min <= vcoord ) {
 	if (VERBOSE>2) {
 	  printf("Obs acceptee parce que hauteur_min=%f <= vcoord=%f\n", hauteur_min, vcoord);
 	}
 	return 1;
-      } 
+      }
       else {
 	if (VERBOSE>2) {
 	  printf("Obs refusee parce que hauteur_min=%f > vcoord=%f\n", hauteur_min, vcoord);
@@ -3166,22 +3158,22 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       float hauteur_max;
 
       /* appel a la fonction EZSCINT qui permet d'obtenir la valeur dans la grille
-       * du point (lat,lon) donne en entree 
+       * du point (lat,lon) donne en entree
        */
 
       status = c_gdllsval(gridid, &hauteur_max, VALEURS_GZ_MAX, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
-		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
+		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
-	
+
       /* On convertit le decametre du GZ en metres */
       hauteur_max *= 10;
-	
+
       /* Si le point est effectivement sous le niveau donne, on retourne 1 sinon 0 */
       if (vcoord <= hauteur_max ) {
 	if (VERBOSE>2) {
@@ -3301,7 +3293,6 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  else if (x>=ni)
 	    *ilonband = npex;
 	  else {
-	    float ilonband_float = (x-1)/(ni/npex)+1;
 	    /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	    int ilonband_int = (((int) x) - 1)/(ni/npex)+1;
 
@@ -3317,7 +3308,6 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  else if (y>=nj)
 	    *jlatband = npey;
 	  else {
-	    float jlatband_float;
 	    int jlatband_int;
 
 	    /* On doit traiter le cas d'une grille gaussienne
@@ -3325,12 +3315,10 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	     * soit <1 ou >nj
 	     */
 	    if (input_grid.grtyp[0]=='G') {
-	      jlatband_float = y/(nj/npey)+1;
 	      /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	      jlatband_int = ((int) y)/(nj/npey)+1;
 	    }
 	    else {
-	      jlatband_float = (y-1)/(nj/npey)+1;
 	      /* reproduce the logic in the OAVAR code routine 'setObsMpiStrategy' */
 	      jlatband_int = (((int) y)-1)/(nj/npey)+1;
 	    }
@@ -3546,7 +3534,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
   BLK_SetBKNO(blk, 0);
   while ( brp_findblk( blk, rptin ) >= 0 ) {
-    int is_data = 0, is_marqueur = 0, btyp, btypalt, btypsfc;
+    int is_data = 0, is_marqueur = 0, btyp, btypalt;
 
     blkout = brp_newblk();
     status = brp_readblk(BLK_BKNO(blk), blkout, rptin,0);
@@ -3559,7 +3547,6 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
     btyp = BLK_BTYP(blkout);
     btypalt = btyp>>4 & 31;
-    btypsfc = btyp>>1 & 1;
 
     /* On verifie si c'est un derivate en altitude */
     if ( btypalt == 2 || btypalt == 3 ) {
@@ -3587,12 +3574,12 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
     if (is_data==0 || is_marqueur==0) {
       status = putblk_nt(rptout,blkout,(int*) NULL,0);
       if (status!=0) {
-	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n", 
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
 		status, btyp);
 	brp_freeblk(blkout);
 	EXIT_STATUS = 1;
 	break;
-      }	      
+      }
     }
     else if (trouve_data && trouve_marqueur) {
       /* On alloue de nouveaux blocs de la meme grandeur */
@@ -3811,7 +3798,7 @@ int check_ua4d(BURP_RPT *rptin) {
    ***************************************************************************/
 int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 			 int** bknos_data_ptr, int** btyps_data_ptr, int* nblks) {
-  int i, e, btyp, status, nblkstmp, trouve_lat, trouve_lon;
+  int i, e, status, nblkstmp, trouve_lat, trouve_lon;
   int trouve_au_moins_un_bloc_avec_lat_lon;
   BURP_BLK *blktmp, *blk;
 
@@ -4096,7 +4083,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
 	/* L'element 6001 indique la valeur de longitude de l'observation */
 	else if (BLK_DLSTELE(*blk_data_ptr,e)==elem_lon)
 	  *colonne_lon_ptr=e;
-	
+
 	if (*colonne_lat_ptr>=0 && *colonne_lon_ptr>=0)
 	  break;
       }
@@ -4391,15 +4378,13 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
 int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
 				       int elem_lat, int elem_lon, BURP_BLK *blk_data,
 				       int* nvals_in_domain, int* val_in_domain) {
-  int status, i, id, e, v, btyp_data, colonne_lat, colonne_lon, EXIT_STATUS;
+  int status, id, e, v, colonne_lat, colonne_lon, EXIT_STATUS;
   int ilonband=1, jlatband=1;
   float lat, lon;
   char errmsg[MAXSTR];
   BURP_BLK *blk_data_converted = (BURP_BLK*) NULL;
 
   EXIT_STATUS = 0;
-
-  btyp_data = BLK_BTYP(blk_data);
 
   blk_data_converted = brp_newblk();
   status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
@@ -4460,7 +4445,7 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
 	EXIT_STATUS = 1;
 	break;
       }
-	
+
       /* Ceci signifie que si opt.inout == 1 alors status == 0 et donc
        * le point est hors de la grille ce qui n'est pas voulu
        *
@@ -4566,12 +4551,12 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
     }
     printf("\nFonction putblk_nt: Impression du 'blk' terminee\n");
   }
-  
-  if (nt==0) 
+
+  if (nt==0)
     brp_allocblk(newblk,BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk));
   else
     brp_allocblk(newblk,BLK_NELE(blk),BLK_NVAL(blk),nt);
-  
+
   BLK_SetBKNO (newblk, BLK_BKNO(blk) );
   BLK_SetBDESC(newblk, BLK_BDESC(blk));
   BLK_SetBTYP (newblk, BLK_BTYP(blk) );
@@ -4649,7 +4634,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
   if (VERBOSE>2)
     printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p return=0\n",
 	   BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),t_in_domain);
-  
+
   return 0;
 } /* Fin de la fonction putblk_nt */
 
@@ -4699,12 +4684,12 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
     }
     printf("\nFonction putblk_nval: Impression du 'blk' terminee\n");
   }
-  
-  if (nval==0) 
+
+  if (nval==0)
     brp_allocblk(newblk,BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk));
   else
     brp_allocblk(newblk,BLK_NELE(blk),nval,BLK_NT(blk));
-  
+
   BLK_SetBKNO (newblk, BLK_BKNO(blk) );
   BLK_SetBDESC(newblk, BLK_BDESC(blk));
   BLK_SetBTYP (newblk, BLK_BTYP(blk) );
@@ -4792,7 +4777,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
    ***************************************************************************/
 int parseOptions(int argc, char** argv, optionsptr optptr) {
   int i;
-  
+
   if (argc==1) { /* Alors, on veut la documentation */
     help();
     exit(0);
@@ -4823,21 +4808,21 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],FSTIN_OPTION)) { /* Alors, on donne le nom du fichier standard input */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->fstin,argv[++i]);
       }
       else if (!strcmp(argv[i],OBSIN_OPTION)) { /* Alors, on donne le nom du fichier d'observations input */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],OBSOUT_OPTION)) { /* Alors, on donne le nom du fichier d'observations output */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
@@ -4845,7 +4830,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
@@ -4853,7 +4838,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
@@ -4861,7 +4846,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
@@ -4869,7 +4854,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
@@ -4877,7 +4862,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
@@ -4885,16 +4870,16 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
         App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
       else if (!strcmp(argv[i],INOUT_OPTION)) { /* On decide si on prend les observations a l'interieur (valeur = 1)
-						 * ou a l'exterieur (valeur = 0) du domaine.   
+						 * ou a l'exterieur (valeur = 0) du domaine.
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->inout = atoi(argv[++i]);
       }
@@ -4902,7 +4887,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->pilot = atoi(argv[++i]);
       }
@@ -4910,7 +4895,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.min_i = atof(&(argv[++i][1]));
@@ -4923,7 +4908,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.max_i = atof(&(argv[++i][1]));
@@ -4936,7 +4921,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.min_j = atof(&(argv[++i][1]));
@@ -4949,7 +4934,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.max_j = atof(&(argv[++i][1]));
@@ -4962,7 +4947,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						*/
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->npex = atoi(argv[++i]);
       }
@@ -4970,21 +4955,21 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						*/
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->npey = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],CHERRYPICK_X_OPTION)) { /* On donne la bande voulue en 'i' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->cherrypick_x = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],CHERRYPICK_Y_OPTION)) { /* On donne la bande voulue en 'j' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->cherrypick_y = atoi(argv[++i]);
       }
@@ -4993,7 +4978,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						   */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->ndigits = atoi(argv[++i]);
       }
@@ -5004,7 +4989,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      */
 	if (i+1<argc && argv[i+1][0]!='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->check_ua4d = 1;
       }
@@ -5013,7 +4998,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      */
 	if (i+1<argc && argv[i+1][0]!='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->roundrobin = 1;
       }
@@ -5022,28 +5007,28 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						            */
 	if (i+1<argc && argv[i+1][0]!='-') {
 	  fprintf(stderr,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+          App_End(-1);exit(1);
 	}
 	optptr->numheaders_files = 1;
       }
       else if (!strcmp(argv[i],RDB_HEADER_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'header' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_header_table,argv[++i]);
       }
       else if (!strcmp(argv[i],RDB_DATA_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'data' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_data_table,argv[++i]);
       }
       else if (!strcmp(argv[i],RDB_SPLITONKEY_OPTION)) { /* Cette option enregistrera le nom de la cle qui sera utilisee pour faire le split des fichiers */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_split_on_key,argv[++i]);
       }
@@ -5054,7 +5039,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	strcpy(optptr->gz,argv[++i]);
       }
-      else if (!strcmp(argv[i],NIVEAU_MIN_OPTION)) { /* On donne le niveau en hPa voulu pour accepter 
+      else if (!strcmp(argv[i],NIVEAU_MIN_OPTION)) { /* On donne le niveau en hPa voulu pour accepter
 						      * les observations au dessus
 						      */
 	if (i+1>=argc || argv[i+1][0]=='-') {
@@ -5063,7 +5048,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	optptr->niveau_min = atoi(argv[++i]);
       }
-      else if (!strcmp(argv[i],NIVEAU_MAX_OPTION)) { /* On donne le niveau en hPa voulu pour accepter 
+      else if (!strcmp(argv[i],NIVEAU_MAX_OPTION)) { /* On donne le niveau en hPa voulu pour accepter
 						      * les observations en dessous
 						      */
 	if (i+1>=argc || argv[i+1][0]=='-') {
@@ -5072,7 +5057,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	optptr->niveau_max = atoi(argv[++i]);
       }
-      else if (!strcmp(argv[i],CHANNELS_OPTION) || !strcmp(argv[i],NOCHANNELS_OPTION))  { 
+      else if (!strcmp(argv[i],CHANNELS_OPTION) || !strcmp(argv[i],NOCHANNELS_OPTION))  {
 	/* On specifie les canaux voulus ou que l'on ne veut pas */
 	int indice_option = i;
 
@@ -5100,60 +5085,60 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],NOMVAR_OPTION)) { /* On a besoin du nomvar du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.nomvar,argv[++i]);
       }
       else if (!strcmp(argv[i],TYPVAR_OPTION)) { /* On a besoin du typvar du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.typvar,argv[++i]);
       }
       else if (!strcmp(argv[i],ETIKET_OPTION)) { /* On a besoin de l'etiquette du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.etiket,argv[++i]);
       }
       else if (!strcmp(argv[i],DATEV_OPTION)) { /* On a besoin de la date du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->fst.dateo = padtime(argv[++i]);
       }
       else if (!strcmp(argv[i],IP1_OPTION)) { /* On a besoin du ip1 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->fst.ip1 = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],IP2_OPTION)) { /* On a besoin du ip2 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->fst.ip2 = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],IP3_OPTION)) { /* On a besoin du ip3 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	   App_End(-1);exit(1);
+          App_End(-1);exit(1);
 	}
 	optptr->fst.ip3 = atoi(argv[++i]);
       }
       else {
 	App_Log(APP_ERROR,"Fonction parseOptions: Je ne reconnais pas cette option: %s\n", argv[i]);
-	 App_End(-1);exit(1);
+        App_End(-1);exit(1);
       }
     } /* Fin du if (argv[i][0] ...) */
     else {
       App_Log(APP_ERROR,"Fonction parseOptions: Erreur dans les arguments d'entree: (%d)\n\n", i);
-       App_End(-1);exit(1);
+      App_End(-1);exit(1);
     }
   } /* Fin du for (i=1; ...) */
 
@@ -5161,7 +5146,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   if ( strlen(optptr->fstin)==0 && optptr->roundrobin == 0 ) {
     App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier un fichier standard "
 	    "en entree avec l'option %s\n", FSTIN_OPTION);
-     App_End(-1);exit(1);
+    App_End(-1);exit(1);
   }
 
   printf("On imprime les differentes options choisies pour cette execution\n");
@@ -5179,7 +5164,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier soit un fichier de base de "
               "donnees SQL, un fichier BURP ou ASCII en sortie avec l'option %s\n", OBSOUT_OPTION);
     }
-     App_End(-1);exit(1);
+    App_End(-1);exit(1);
   }
 
   printf("\n");
@@ -5210,7 +5195,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   }
   else if (!(optptr->cherrypick_x<0 && optptr->cherrypick_y<0)) {
     App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier les deux arguments %s et %s en meme temps.\n", CHERRYPICK_X_OPTION, CHERRYPICK_Y_OPTION);
-     App_End(-1);exit(1);
+    App_End(-1);exit(1);
   }
 
   if ( optptr->numheaders_files == 1 ) {
@@ -5269,7 +5254,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       printf("Si -1 alors on prendra la grandeur de la grille\n");
     }
     printf("\n");
-  
+
     printf("Fichier standard en entree qui contient la grille qui definit le domaine:  %s\n", optptr->fstin);
     printf("Parametres du fichier standard qui definissent le champ voulu\n");
     printf("     nomvar = '%s'\n", optptr->fst.nomvar);
@@ -5289,7 +5274,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 /***************************************************************************
  * fonction: aide
  *
- * Cette fonction imprime une documentation sommaire de l'utilisation de ce programme.   
+ * Cette fonction imprime une documentation sommaire de l'utilisation de ce programme.
  ***************************************************************************/
 void aide(void) {
 
