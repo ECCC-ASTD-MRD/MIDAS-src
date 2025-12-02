@@ -19,7 +19,7 @@ function print_usage {
 } ## End of 'function print_usage'
 
 gitobject=
-git_describe_options=
+git_describe_options=--always
 
 add_git_describe_options() {
     if [[ -n "${git_describe_options}" ]]; then
