@@ -37,6 +37,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [3.10.2]
+
+### Added
+
+ * Three tests has been added to cover MIDAS configurations in WEonG (#1127 and !1052)
+
+### Fixed
+
+ * Fix the email sent to report the outliers in `maestro/suites/midas_system_tests/extractRunTime.sh` (#1130 and !1051)
+ * Move MPI topology check earlier in execution in `advection_mod` (#1129 and !1047)
+
 ## [3.10.1]
 
 ### Added
@@ -1245,7 +1256,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...HEAD
+[3.10.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...v_3.10.2
 [3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
 [3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
