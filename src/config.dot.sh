@@ -219,8 +219,8 @@ if [ "${__run_cmake}" != stop ]; then
     elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         __compiler=inteloneapi-2025.1.0
     fi
-    echo "... loading rpn/code-tools/20250925/env/${__compiler}"
-    . r.load.dot rpn/code-tools/20250925/env/${__compiler}
+    echo "... loading rpn/code-tools/20251202/env/${__compiler}"
+    . r.load.dot rpn/code-tools/20251202/env/${__compiler}
 
     echo "... loading eccc/mrd/rpn/libs/20251009-beta"
     . r.load.dot eccc/mrd/rpn/libs/20251009-beta

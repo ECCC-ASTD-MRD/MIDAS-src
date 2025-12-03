@@ -43,25 +43,19 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     done
     unset __midas_mpirun_ssmdomain__
     set -x
-elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
+elif [ "${EC_ARCH}" = rhel-8-icelake-64 -o "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     set +x
-    echo loading rpn/code-tools/20250925/env/inteloneapi-2022.1.2
-    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2022.1.2
+    echo loading rpn/code-tools/20251202/env/inteloneapi-2022.1.2
+    . r.load.dot rpn/code-tools/20251202/env/inteloneapi-2022.1.2
     echo loading eccc/mrd/rpn/libs/20251009-beta
     . r.load.dot eccc/mrd/rpn/libs/20251009-beta
     echo loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
     . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    set -x
-elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
-    set +x
-    echo loading rpn/code-tools/20250925/env/inteloneapi-2025.1.0
-    . r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
-    echo loading eccc/mrd/rpn/libs/20251009-beta
-    . r.load.dot eccc/mrd/rpn/libs/20251009-beta
-    echo loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    echo loading hdf5-netcdf4
-    . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+    ## On HPCR-U3, the HDF5-NetCDF4 library must be loaded.
+    if [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
+        echo loading hdf5-netcdf4
+        . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+    fi
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!

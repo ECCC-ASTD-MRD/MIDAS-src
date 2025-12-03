@@ -129,9 +129,9 @@ elif [[ "${env}" = main || "${env}" = 4* ]]; then
     elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
         _compiler_=inteloneapi-2025.1.0
     fi
-    ssm_to_load="rpn/code-tools/20250925/env/${_compiler_} eccc/mrd/rpn/libs/20251009-beta eccc/mrd/rpn/utils/20251009-beta"
+    ssm_to_load="rpn/code-tools/20251202/env/${_compiler_} eccc/mrd/rpn/libs/20251009-beta eccc/mrd/rpn/utils/20251009-beta"
 
-    ## On HPCR-U3, the HDF5-NretCDF4 library must be loaded
+    ## On HPCR-U3, the HDF5-NetCDF4 library must be loaded
     if [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
         ssm_to_load="${ssm_to_load} main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/inteloneapi-2025.1.0/01"
     fi
