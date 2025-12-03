@@ -66,7 +66,6 @@ echo "Working directory is ${WORKDIR}"
 liburp=${liburp:-$(which liburp 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 reflex=${reflex:-$(which reflex 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
-burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
 sqlite3=${sqlite3:-$(. ssmuse-sh -d ${SQLITE3_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
@@ -1001,7 +1000,8 @@ test_burp_subdomains () {
 	    done
 	    check_status=0
 	    if [[ "${fam}" = ua4d* ]]; then
-		echo ${burpdiff} ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
+                echo . ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}
+		echo burpdiff ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
 		tty -s && read
 	    else
 		check_result ${INPUTS}/burp/${filein} ${filein} burp-SQL 1>> check_result.listing 2>&1 || check_status=$?
