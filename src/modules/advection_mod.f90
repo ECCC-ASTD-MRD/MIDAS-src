@@ -2,7 +2,7 @@
 MODULE advection_mod
   ! MODULE advection_mod (prefix='adv' category='4. Data Object transformations')
   !
-  !:Purpose:  To perform forward and/or backward advection (based on 
+  !:Purpose:  To perform forward and/or backward advection (based on
   !           semi-lagrangian trajectories) for both gridStateVector and
   !           ensemble of gridStateVectors
   !
@@ -42,7 +42,7 @@ MODULE advection_mod
   end type struct_adv_LevType
 
   type :: struct_adv_timeStep
-    type(struct_adv_LevType), allocatable :: levType(:) 
+    type(struct_adv_LevType), allocatable :: levType(:)
   end type struct_adv_timeStep
 
   type :: struct_adv
@@ -129,13 +129,13 @@ CONTAINS
     real(8), allocatable :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
     real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
     real(4) :: xpos_r4, ypos_r4, xposTH_r4, yposTH_r4
-    real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4 
+    real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
     character(len=1024) :: filename
 
     type(struct_gsv) :: statevector_steeringFlow
     logical :: AdvectFileExists
-    integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end 
+    integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
 
@@ -167,7 +167,7 @@ CONTAINS
       write(*,*) 'Unsupported levTypeList: ', trim(levTypeList)
       call utl_abort('adv_setup')
     end select
-    
+
     !- 1.1 Mode
     select case(trim(mode))
     case ('fromFirstTimeIndex')
@@ -176,7 +176,7 @@ CONTAINS
       adv%singleTimeStepIndexSource= .true.
     case ('fromMiddleTimeIndex')
       if (mod(numStepAdvectedField,2) == 0) then
-        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=fromMiddleTimeIndex') 
+        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=fromMiddleTimeIndex')
       end if
       adv%timeStepIndexMainSource  = (numStepAdvectedField+1)/2
       adv%timeStepIndexSource(:)   = adv%timeStepIndexMainSource
@@ -193,7 +193,7 @@ CONTAINS
       adv%singleTimeStepIndexSource = .false.
     case('towardMiddleTimeIndex','towardMiddleTimeIndexInverse')
       if (mod(numStepAdvectedField,2) == 0) then
-        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=towardMiddleTimeIndex') 
+        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=towardMiddleTimeIndex')
       end if
       adv%timeStepIndexMainSource = (numStepAdvectedField+1)/2
       do stepIndexAF = 1, numStepAdvectedField
@@ -217,10 +217,20 @@ CONTAINS
     adv%nLev_M = vco%nLev_M
     adv%nLev_T = vco%nLev_T
 
-    call mmpi_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
+    call mmpi_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, &
          divisible_opt=nlat_equalAcrossMpiTasks)
     call mmpi_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
          divisible_opt=nlon_equalAcrossMpiTasks)
+
+    ! Abort if the grid is not perfectly divisible across all MPI tasks
+    if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
+      write(*,*)
+      write(*,*) 'adv_setup: The grid is not divisible across all MPI tasks!'
+      write(*,*) 'adv_setup: latitudes divisible  = ', nlat_equalAcrossMpiTasks
+      write(*,*) 'adv_setup: longitudes divisible = ', nlon_equalAcrossMpiTasks
+      if (mmpi_myid == 0) call utl_abort('adv_setup: MPI topology not compatible with grid')
+    end if
+
     allocate(adv%allLonBeg(mmpi_npex))
     call rpn_comm_allgather(adv%myLonBeg,1,"mpi_integer",       &
          adv%allLonBeg,1,"mpi_integer","EW",ierr)
@@ -228,7 +238,7 @@ CONTAINS
     call rpn_comm_allgather(adv%myLatBeg,1,"mpi_integer",       &
          adv%allLatBeg,1,"mpi_integer","NS",ierr)
 
-    lonPerPE = adv%lonPerPE 
+    lonPerPE = adv%lonPerPE
     latPerPE = adv%latPerPE
     allocate(allLonBeg(mmpi_npex))
     allocate(allLatBeg(mmpi_npey))
@@ -280,7 +290,7 @@ CONTAINS
 
       if (mmpi_myid == 0)  then
         write(*,*)
-        write(*,*) 'steeringFlow source taken from input file = ', trim(steeringFlowFilename_opt) 
+        write(*,*) 'steeringFlow source taken from input file = ', trim(steeringFlowFilename_opt)
       end if
 
       do stepIndexSF = 1, numStepSteeringFlow
@@ -292,7 +302,7 @@ CONTAINS
                         dateStampList_opt=dateStampListSteeringFlow, &
                         varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true., &
                         hInterpolateDegree_opt='LINEAR')
-      
+
       fileName = ram_fullWorkingPath(trim(steeringFlowFilename_opt))
       inquire(file=trim(fileName),exist=AdvectFileExists)
       write(*,*) 'AdvectFileExists', AdvectFileExists
@@ -337,7 +347,7 @@ CONTAINS
             write(*,*)
             write(*,*) 'stepIndex Match', stepIndexAF, stepIndexSF
           end if
-          exit 
+          exit
         end if
       end do
       if ( advectedFieldAssociatedStepIndexSF(stepIndexAF) == -1 ) then
@@ -368,7 +378,7 @@ CONTAINS
     end select
 
     !
-    !- 4.  Perform the advection (backward and/or forward) 
+    !- 4.  Perform the advection (backward and/or forward)
     !
     if (mmpi_myid == 0) write(*,*) 'adv_setup: starting'
     call msg_memUsage('adv_setup')
@@ -391,7 +401,7 @@ CONTAINS
     nLev         = adv%nLev_M
 
     do levIndex = 1, nLev ! loop over levels
-      
+
       if (mmpi_myid == 0) write(*,*) 'adv_setup: levIndex = ', levIndex
 
       call processSteeringFlow(levTypeIndex, levIndex,                                         & ! IN
@@ -402,7 +412,7 @@ CONTAINS
         if (stepIndexAF == adv%timeStepIndexMainSource) cycle ! no interpolation needed for this time step
 
         stepIndexSF_start = advectionSteeringFlowStartingStepIndex(stepIndexAF)
-        stepIndexSF_end   = advectionSteeringFlowEndingStepIndex  (stepIndexAF) 
+        stepIndexSF_end   = advectionSteeringFlowEndingStepIndex  (stepIndexAF)
 
         ! loop over all initial grid points within tile for determining trajectories
         do latIndex0 = adv%myLatBeg, adv%myLatEnd
@@ -415,7 +425,7 @@ CONTAINS
               xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex) = xpos_r4
               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndex) = ypos_r4
             end if
-            
+
             call calcWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR,   & ! OUT
                              interpWeight_TL, interpWeight_TR,                       & ! OUT
                              xpos_r4, ypos_r4)                                         ! IN
@@ -467,7 +477,7 @@ CONTAINS
 
                 ierr = gdllfxy(hco%EZscintID, latMMbelow_deg_r4, lonMMbelow_deg_r4, &
                                xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexBelow), &
-                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexBelow), 1) 
+                               yposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexBelow), 1)
 
                 ierr = gdllfxy(hco%EZscintID, latMMabove_deg_r4, lonMMabove_deg_r4, &
                                xposMM_r4(stepIndexAF,lonIndex0,latIndex0,levIndexAbove), &
@@ -567,7 +577,7 @@ CONTAINS
     real(8), intent(out) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     ! Locals:
-    integer :: stepIndexSF, nsize, ierr 
+    integer :: stepIndexSF, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
     integer :: lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levIndexBelow, levIndexAbove
@@ -770,7 +780,7 @@ CONTAINS
           Scoef = ( sin(hco%lat(latIndex0))*sin(lonAdvect-hco%lon(lonIndex0)) ) / &
                cos(latAdvect_p)
           uu_p = Gcoef * uu - Scoef * vv ! in m/s
-          vv_p = Scoef * uu + Gcoef * vv 
+          vv_p = Scoef * uu + Gcoef * vv
 
           ! apply user-specified scale factor to advecting winds
           uu_p = steeringFlowFactor(levIndex) * uu_p ! in m/s
@@ -854,13 +864,13 @@ CONTAINS
         end if
 
         ! longitude is still outside grid - should not happen!
-        if (floor(xpos_r4) > ni) then 
+        if (floor(xpos_r4) > ni) then
           write(*,*) '***still outside lonIndex > ni: stepIndexSF,subStepIndex,lonIndex0,latIndex0,x,y,uu=', &
                stepIndexSF,subStepIndex,lonIndex0,latIndex0,xpos_r4,ypos_r4,uu
           xpos_r4 = real(ni)
           lonAdvect = hco%lon(ni)
         end if
-        if (floor(xpos_r4) <  1) then 
+        if (floor(xpos_r4) <  1) then
           write(*,*) '***still outside lonIndex < 1 : stepIndexSF,subStepIndex,lonIndex0,latIndex0,x,y,uu=', &
                stepIndexSF,subStepIndex,lonIndex0,latIndex0,xpos_r4,ypos_r4,uu
           xpos_r4 = 1.0
@@ -900,7 +910,7 @@ CONTAINS
     if (verbose) write(*,*) 'final, initial xpos,ypos', lonIndex0,latIndex0,xpos_r4, ypos_r4
 
   end SUBROUTINE calcTrajectory
-  
+
   !--------------------------------------------------------------------------
   ! calcWeights
   !--------------------------------------------------------------------------
@@ -1080,7 +1090,7 @@ CONTAINS
         !$OMP END PARALLEL DO
 
       end do ! stepIndexAF
-      
+
     end do ! varLevIndex
 
     deallocate(ens1_mpiglobal_tiles)
@@ -1160,7 +1170,7 @@ CONTAINS
           end do ! procIDy
           !$OMP END PARALLEL DO
 
-          if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
+          if (adv%singleTimeStepIndexSource) gatheringDone = .true.
 
         end if
 
@@ -1187,7 +1197,7 @@ CONTAINS
         !$OMP END PARALLEL DO
 
       end do ! stepIndexAF
-      
+
     end do ! varLevIndex
 
     deallocate(ens1_mpiglobal_tiles)
@@ -1221,13 +1231,13 @@ CONTAINS
       call utl_abort('adv_ensemble_ad cannot deal with multiple timeStep index source')
     end if
     if ( ens_getDataKind(ens) /= 8 ) then
-      call utl_abort('adv_ensemble_ad can only deal with double precision (real8) ensembleStateVector')
+      call utl_abort('adv_ensemble_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
+      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
@@ -1235,7 +1245,7 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
     do varLevIndex = 1, ens_getNumVarLev(ens)
-            
+
       levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
       varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
@@ -1355,7 +1365,7 @@ CONTAINS
     character(len=4) :: varName
 
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_tl can only deal with double precision (real8) gridStateVector')
+      call utl_abort('adv_statevector_tl: can only deal with double precision (real8) gridStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
       call utl_abort('adv_statevector_tl: vertical levels are not compatible')
@@ -1416,7 +1426,7 @@ CONTAINS
           !$OMP END PARALLEL DO
           call utl_tmg_stop(102)
 
-          if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
+          if (adv%singleTimeStepIndexSource) gatheringDone = .true.
 
         end if
 
@@ -1480,13 +1490,13 @@ CONTAINS
       call utl_abort('adv_statevector_ad cannot work for singleTimeStepIndexSource')
     end if
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_ad can only deal with double precision (real8) ensembleStateVector')
+      call utl_abort('adv_statevector_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
       call utl_abort('adv_statevector_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
+      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
@@ -1494,7 +1504,7 @@ CONTAINS
     allocate(field2D_mpiglobal_tiles2(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
     do varLevIndex = 1, gsv_getNumVarLev(statevector)
-            
+
       levIndex = gsv_getLevFromVarLev    (statevector,varLevIndex)
       varName  = gsv_getVarNameFromVarLev(statevector,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then

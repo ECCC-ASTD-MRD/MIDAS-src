@@ -123,6 +123,9 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/var/EnVar/hrdps 	926.483 57.2101 0.0617497 853 1315 234
 /Tests/var/EnVar/hydrology 	22.6868 5.76147 0.253956 15 138 7680
 /Tests/var/EnVar/radarPrecip 	235.081 44.7686 0.190439 174 556 1104
+/Tests/var/Var3D/2D_g0	20
+/Tests/var/Var3D/2D_g1	20
+/Tests/var/Var3D/2D_nat	30
 /Tests/var/Var3D/2D_ch 	12.6809 3.05308 0.240762 8 129 10139
 /Tests/var/Var3D/chem_only 	80.2173 12.9142 0.160991 63 200 3176
 /Tests/var/Var3D/chem_only-incH 	117.209 13.233 0.112901 97 202 2309

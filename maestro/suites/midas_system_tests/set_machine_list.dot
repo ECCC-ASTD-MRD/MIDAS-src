@@ -11,9 +11,9 @@ MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_lis
 MACHINE_SUPER=$( cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
 
 if [ "${MACHINE_PPP}" = "${TRUE_HOST}" -o "${MACHINE_SUPER}" = "${TRUE_HOST}" ]; then
-    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
 else
-    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST} ${MACHINE_SUPER}"
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST}:${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
 fi
 
 if [[ -z "${GITLAB_CI}" ]]; then
