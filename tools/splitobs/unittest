@@ -41,12 +41,7 @@ grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
 
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251009-beta
 RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20251009-beta
-# When 'eccc/cmd/cmda/utils/20250909-beta' will exist on U3, we will be able to unify with 'rhel-8-icelake-64'
-if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
-    CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20250909-beta
-elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
-    CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251021
-fi
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251009-beta
 SQLITE3_SSM_DOMAIN=eccc/cmd/cmds/ext/20250808
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
