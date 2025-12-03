@@ -11,7 +11,7 @@ if [ -n "${GITLAB_CI}" ]; then
     ## if not, then build one using 'FRONTEND' and 'BACKEND' values in 'resources.def'
     MACHINE_PPP=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
     MACHINE_SUPER=$(cd ${__set_machine_list_suite__};  getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
-    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+    MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
     ## if the user runs that script, 'install_suite.sh', on another host than 'FRONTEND' or 'BACKEND'
     ## then, we add this host to the hosts list.  This will be often the case with 'eccc-gpsc1'.
     if [ "${TRUE_HOST}" != "${MACHINE_PPP}" -a "${TRUE_HOST}" != "${MACHINE_SUPER}" ]; then
@@ -25,12 +25,12 @@ elif [ "${TRUE_HOST}" = ppp7 -o "${TRUE_HOST}" = ppp8 -o "${TRUE_HOST}" = moira 
 else
     MACHINE_PPP=$(cd ${__set_machine_list_suite__};   getdef --exp ${__set_machine_list_suite__} resources/resources.def FRONTEND)
     MACHINE_SUPER=$(cd ${__set_machine_list_suite__}; getdef --exp ${__set_machine_list_suite__} resources/resources.def BACKEND)
-    echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}"
+    echo "set_machine_list: ${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
 
     if [ "${MACHINE_PPP}" = "${TRUE_HOST}" -o "${MACHINE_SUPER}" = "${TRUE_HOST}" ]; then
-        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}"
+        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
     else
-        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST} ${MACHINE_SUPER}"
+        export MAKE_LINKS_MACHINE_LIST="${MACHINE_PPP} ${TRUE_HOST}:${MACHINE_PPP} ${MACHINE_SUPER}:${MACHINE_PPP}"
     fi
 fi
 
