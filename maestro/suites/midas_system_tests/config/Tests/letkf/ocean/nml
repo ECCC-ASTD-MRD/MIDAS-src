@@ -27,7 +27,7 @@
 / 
  &namTime
   dstepobs      =  3.0d0
-  dstepobsinc   = 24.0d0
+  dstepobsinc   =  3.0d0
   dwindowsize   = 24.0d0
   referenceTime = 'end'
 /

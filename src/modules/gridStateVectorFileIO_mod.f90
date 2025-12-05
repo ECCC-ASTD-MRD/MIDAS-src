@@ -2803,10 +2803,12 @@ module gridStateVectorFileIO_mod
       varLevIndexEnd = varLevIndexEnd_opt
     else
       if (present(varLevIndexBeg_opt)) then
-        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
+        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexEnd_opt'' must be given'// &
+                       ' when ''varLevIndexBeg_opt_opt'' is given.')
       end if
       if (present(varLevIndexEnd_opt)) then
-        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
+        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexBeg_opt'' must be given'// &
+                       ' when ''varLevIndexEnd_opt_opt'' is given.')
       end if
       varLevIndexBeg = 1
       varLevIndexEnd = gsv_getNumVarLev(stateVector)
@@ -2854,6 +2856,19 @@ module gridStateVectorFileIO_mod
       currentDateStamp = stateVector%dateStampList(stepIndex)
       call msg('gio_writeToFileNetCDF', 'Current datestamp: ' // str(currentDateStamp))
 
+      ! - convert valid dateStamp into printable
+      imode = -3
+      ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
+      netCDFtime = real(printableValidDate, 8)
+
+      if (typvar == 'A') then
+        localVariableName(:) = NEMOvarNameAnl(:)
+      else if (typvar == 'R') then
+        localVariableName(:) = NEMOvarNameInc(:)
+      else
+        call utl_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
+      end if
+	
       fileName = trim(fileNameTemplate)//'.nc'
 
       ! check if the file already exists
@@ -2862,20 +2877,6 @@ module gridStateVectorFileIO_mod
 
         !- create increment file and close it
         call gio_createOceanNetCDFfile(trim(fileName), ni, nj, numLev, typvar)
-
-        ! - convert valid dateStamp into printable
-        imode = -3
-        ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
-        netCDFtime = real(printableValidDate, 8)
-
-        if (typvar == 'A') then
-          localVariableName(:) = NEMOvarNameAnl(:)
-        else if (typvar == 'R') then
-          localVariableName(:) = NEMOvarNameInc(:)
-        else
-          call utl_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
-        end if
-
 
         ! reopen the file for writing analysis increments and dates
         call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
@@ -2993,7 +2994,8 @@ module gridStateVectorFileIO_mod
         end if
 
         ! inquire current varid
-        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(varIndexNEMO), NEMOvarid(varIndexNEMO)))
+        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(varIndexNEMO), &
+                                                  NEMOvarid(varIndexNEMO)))
 
         !- Writing to file
         if (NEMOvartype(varIndexNEMO) == '3D') then
