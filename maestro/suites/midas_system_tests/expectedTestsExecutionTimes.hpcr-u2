@@ -132,6 +132,9 @@ Test Name, Mean
 /Tests/var/EnVar/hydrology	58
 /Tests/var/EnVar/radarPrecip	528
 /Tests/var/Var3D/2D_ch	44
+/Tests/var/Var3D/2D_g0	20
+/Tests/var/Var3D/2D_g1	20
+/Tests/var/Var3D/2D_nat	30
 /Tests/var/Var3D/SST	220
 /Tests/var/Var3D/chem_only	120
 /Tests/var/Var3D/chem_only-incH	160

@@ -79,8 +79,8 @@ if ! which editfst >/dev/null 2>&1; then
 fi
 
 if ! which liburp >/dev/null 2>&1; then
-    say  "loading eccc/cmd/cmda/utils/20250909-beta"
-   . ssmuse-sh -d eccc/cmd/cmda/utils/20250909-beta
+    say  "loading eccc/cmd/cmda/utils/20251009-beta"
+   . ssmuse-sh -d eccc/cmd/cmda/utils/20251009-beta
 fi
 
 set -u

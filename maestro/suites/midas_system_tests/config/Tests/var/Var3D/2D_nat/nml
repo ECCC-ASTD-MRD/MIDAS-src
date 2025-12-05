@@ -1,0 +1,51 @@
+ &NAMBHI
+   NTRUNC  = 1000,
+   SCALEFACTOR   = 100*1.0D0
+/
+ &NAMBEN
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 50,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC=.FALSE.,
+   NWOQCV=5,
+/
+ &NAMDIMO
+   NMXOBS=3000,
+   NDATAMX=30000,
+/
+ &NAMTIME
+  DSTEPOBS = 6.0D0
+  DSTEPOBSINC = 1.0D0
+  DWINDOWSIZE = 1.0D0
+/
+ &NAMFILT
+  NLIST(1)=12004,
+/
+ &NAMSTATE
+  ANLVAR(1)   ='TT'
+  ANLVAR(2)   ='HU'
+  ANLVAR(3)   ='P0'
+/
+ &NAMSQLsfc
+   listElem="12004"
+   sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+  itemUpdateBodyList(1)='OMP'
+  itemUpdateBodyList(2)='OMA'
+  itemUpdateBodyList(3)='OER'
+/
+ &namSQLInsert
+/
+ &NAMOER
+  NEW_OER_SW=.true.,
+  visAndGustAdded = .true.
+/
+ &namSurfaceObs
+  adjustTemperature = .true.
+/

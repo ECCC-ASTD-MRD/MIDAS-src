@@ -170,7 +170,7 @@ END {
             if [ -n "${outlier}" ]; then
                 printf "${outlier}\n" | sed 's/^/\t/'
                 line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
-                outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
+                outliers="${outliers}${findRunTime_nodes%/*} ${line}\n"
             else
                 echo "No outlier"
             fi
@@ -186,6 +186,22 @@ END {
 
     unset findRunTime_node findRunTime_nodes
 }  ## End of function 'findRunTime'
+
+function formatOutliers {
+    set -e
+
+    formatOutliers_outliers=${*}
+
+    longest_testname_length=$(printf "${formatOutliers_outliers}\n" | awk '/\/Tests/ {print $1}' | wc -L)
+
+    printf "${formatOutliers_outliers}\n" | while read line; do
+        testname=$(echo ${line} | awk '{print $1}')
+        outlier_message=$(echo ${line} | cut -d' ' -f2-)
+        printf "%-${longest_testname_length}s  %s\n" ${testname} "${outlier_message}"
+    done
+
+    unset formatOutliers_outliers longest_testname_length testname outlier_message
+}  ## End of function 'formatOutliers'
 
 ## Initialize 'outliers' variable used in 'findRunTime'
 [ "${findOutliers}" = yes ] && outliers=
@@ -204,13 +220,29 @@ fi
 
 if [ "${findOutliers}" = yes ]; then
     if [ -n "${outliers}" ]; then
+        echo
         echo "Some timing outliers were found"
         if [ -n "${emails}" ]; then
             echo "Sending a notification to '${emails}'"
             toplevel=$(git rev-parse --show-toplevel)
             MIDAS_version=$(cd ${toplevel}; ./midas.version)
-            sorted_outliers=$(printf "${outliers}\n" | sort)
-            printf "MIDAS version: ${MIDAS_version}\n\nWe found some timing outliers in the timing in MIDAS test suite '${suite}':\n\n${sorted_outliers}\n" | mail -s "Timing outliers found in MIDAS test suite '${suite}'" ${emails}
+            formatted_outliers=$(formatOutliers ${outliers})
+            /usr/sbin/sendmail -t <<EOF
+To: ${emails}
+Subject: Timing outliers found in MIDAS test suite '${suite}'
+Content-Type: text/html; charset=UTF-8
+
+<html><body>
+<pre style=\"font-family: Courier New, Courier, monospace; font-size: 16px;\">
+
+MIDAS version: ${MIDAS_version} on ${ORDENV_PLAT}
+
+We found some timing outliers in the timing in MIDAS test suite '${suite}':
+
+${formatted_outliers}
+</pre>
+</body></html>
+EOF
         fi
     else
         echo "No timing outliers found"
