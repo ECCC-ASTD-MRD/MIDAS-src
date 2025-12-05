@@ -54,6 +54,7 @@ module enkf_mod
 
   ! for dfs calculation
   type struct_enkfDFS
+    logical              :: allocated = .false.
     real(8), allocatable :: locFun(:,:)
     integer, allocatable :: bodyIndex(:,:)
     real(8), allocatable :: lat(:)
@@ -508,7 +509,7 @@ contains
                                         countMaxExceeded, maxCountMaxExceeded, &
                                         ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                         localSelectionOutput,localObsSorting, &
-                                        enkfDFS, outputDFS)
+                                        enkfDFS)
 
           !
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -788,7 +789,7 @@ contains
                                       countMaxExceeded, maxCountMaxExceeded, &
                                       ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                       localSelectionOutput, localObsSorting, &
-                                      enkfDFS, outputDFS)
+                                      enkfDFS)
     !
     !:Purpose:
     !
@@ -820,7 +821,6 @@ contains
     integer,                  intent(in)    :: localSelectionOutput
     character(len=*),         intent(in)    :: localObsSorting
     type(struct_enkfDFS),     intent(inout) :: enkfDFS
-    logical,                  intent(in)    :: outputDFS
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -1050,7 +1050,7 @@ contains
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
 
-    if (outputDFS) then
+    if (enkfDFS%allocated) then
       enkfDFS%lat(dfsIndex) = anlLat
       enkfDFS%lon(dfsIndex) = anlLon
       enkfDFS%lnp(dfsIndex) = anlVertLocation
@@ -1074,7 +1074,7 @@ contains
     ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      if (outputDFS) then
+      if (enkfDFS%allocated) then
         enkfDFS%locFun(dfsIndex,localObsIndex) = locFun(localObsIndex)
         enkfDFS%bodyIndex(dfsIndex,localObsIndex) = bodyIndex
       end if
@@ -3041,6 +3041,7 @@ contains
     allocate(enkfDFS%dfs(numDFSIndex))
     write(*,*) 'enkf_allocateDFS: enkfDFS allocated'
 
+    enkfDFS%allocated = .true.
     enkfDFS%locFun(:,:) = 0.0d0
     enkfDFS%bodyIndex(:,:) = 0
     enkfDFS%lat(:) = 0.0d0
@@ -3068,6 +3069,7 @@ contains
     deallocate(enkfDFS%lat)
     deallocate(enkfDFS%bodyIndex)
     deallocate(enkfDFS%locFun)
+    enkfDFS%allocated = .false.
 
   end subroutine enkf_deallocateDFS
 
