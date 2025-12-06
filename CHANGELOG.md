@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1045 and !1054)
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1045, !1054 and !1056)
   * Note that the fix associated to RttovScatt (#1049) that was
     removed in `v_3.10.0` is still present in this version.
   * The results are not guaranteed to be reproducible on HPCR-U3.
