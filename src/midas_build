@@ -436,6 +436,16 @@ if [ -n "${__err_front}" ]; then
     exit 1
 fi
 
+typeset __make_stop=1
+typeset __make_stop=$(grep -i "^make:.*stop" ${__listing_frontend})
+if [ -n "${__make_stop}" ]; then
+    echo
+    echo "<!> some error found in ${__listing_frontend}"
+    echo "${__make_stop}"
+    __err_comp=1
+    exit 1
+fi
+
 ##========================================================
 
 if [ -n "${__abs_exist_list}" ]; then
