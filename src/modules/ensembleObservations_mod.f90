@@ -1530,6 +1530,7 @@ CONTAINS
           vertTop      = maxval(eobOut%vertTop(codTyp,:))
           distMean     = sum(eobOut%distMean(codTyp,:))  / real(max(1,numSelected))
           locFun       = sum(eobOut%locFun(codTyp,:))    / real(max(1,numSelected))
+          trace        = sum(eobOut%trace(codTyp,:))
           obsErr       = sum(eobOut%obsErr(codTyp,:))    / real(max(1,numSelected))
           ensSpread    = sum(eobOut%ensSpread(codTyp,:)) / real(max(1,numSelected))
           write(funit,'(*(A3,1X,I3,1X,I5,2(1X,I7),1X,F12.2,2(1X,F7.2),1X,F12.2,4(1X,ES9.2)))') 'typ', &
