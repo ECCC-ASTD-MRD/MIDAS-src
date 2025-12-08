@@ -138,12 +138,24 @@ if [ $# -gt 0 ]; then
             echo
             print_usage
             exit 1
-        elif [[ "${__target}" = all ]]; then
+        elif [[ "${arg}" = all ]]; then
             __target=${arg}
         elif [[ -n "${__target}" ]]; then
-            __target="${__target} ${arg}"
+            if [[ "${arg}" = *.Abs ]]; then
+                __new_target=$(basename ${arg} .Abs)
+                echo "midas_build: changing target ${arg} to ${__new_target}"
+                __target="${__target} ${__new_target}"
+            else
+                __target="${__target} ${arg}"
+            fi
         else
-            __target=${arg}
+            if [[ "${arg}" = *.Abs ]]; then
+                __new_target=$(basename ${arg} .Abs)
+                echo "midas_build: changing target ${__target} to ${__new_target}"
+                __target=${__new_target}
+            else
+                __target=${arg}
+            fi
         fi
 
         shift
@@ -420,6 +432,16 @@ if [ -n "${__err_front}" ]; then
     echo
     echo "<!> some error found in ${__listing_frontend}"
     echo "${__err_front}"
+    __err_comp=1
+    exit 1
+fi
+
+typeset __make_stop=1
+typeset __make_stop=$(grep -i "^make:.*stop" ${__listing_frontend})
+if [ -n "${__make_stop}" ]; then
+    echo
+    echo "<!> some error found in ${__listing_frontend}"
+    echo "${__make_stop}"
     __err_comp=1
     exit 1
 fi

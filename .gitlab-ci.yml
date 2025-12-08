@@ -146,6 +146,10 @@ findTrials_tests:
 
 topoFinder_tests:
    stage: test
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/midas_scripts
      - ./midas.mpiTopoFinder --unittest
@@ -154,10 +158,14 @@ topoFinder_tests:
      - v_4.1
      - tags
    tags:
-     - hpcr-u2
+     - ${RUNNER_TAG}
 
 isFileInList_tests:
    stage: test
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u2
+       - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/midas_scripts
      - ./midas.isFileInList --unittest
@@ -166,10 +174,14 @@ isFileInList_tests:
      - v_4.1
      - tags
    tags:
-     - hpcr-u2
+     - ${RUNNER_TAG}
 
 timingTool_tests:
     stage: test
+    parallel:
+      matrix:
+        - RUNNER_TAG: hpcr-u2
+        - RUNNER_TAG: hpcr-u3
     script:
       - cd tools/timingTool
       - ./midas.timingTool --unittest
@@ -178,7 +190,7 @@ timingTool_tests:
       - v_4.1
       - tags
     tags:
-      - hpcr-u2
+      - ${RUNNER_TAG}
 
 clean_midas_abs:
    stage: clean
