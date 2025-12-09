@@ -79,7 +79,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       hasOceanObs = .true.
       if (.not. beSilent) write(*,*) 'oop_vobslyrs: ocean vertical coordinate detected'
     end if
-    
+
     ! 2D mode patch (atmospheric height/pressure coordinates only)
     ! If this is an atmospheric-only column (no MM levels and no ocean obs),
     ! set OBS_LYR = 0 for surface-height obs and return.
@@ -155,7 +155,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           call utl_abort('oop_vobslyrs: zlev cannot be set, bufr_nedz not supported!')
         end if
 
-        varLevel = vnl_varLevelFromVarnum(bufrCode)        
+        varLevel = vnl_varLevelFromVarnum(bufrCode)
 
         if (varLevel == 'SF') then
           zpt = col_getHeight(columnTrl, 1, headerIndex, 'TH')
@@ -283,7 +283,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         ! Ensure layerIndex in valid range 1..(numberOceanLevels-1) for interpolation purposes
         if (layerIndex < 1) layerIndex = 1
         if (layerIndex > max(1, numberOceanLevels - 1)) layerIndex = max(1, numberOceanLevels - 1)
- 
+
         ! Store result
         ! layerIndex is the upper level of the bracket such that:
         ! vco%depths(layerIndex) <= obsDepth <= vco%depths(layerIndex+1)
@@ -782,7 +782,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     !     (2) Foundation SST (non-diurnal)    : NEMO model level 2  (~1.5 m) or level 1 if only one level (SST programs)
     !     (3) Vertical profiles of T/S: linear interpolation using layer index and weight from oop_vobslyrs
     !
-    !  :Algorithm: It uses col_getVco(column)%depths(:) to locate the layer bracket [k, k+1] 
+    !  :Algorithm: It uses col_getVco(column)%depths(:) to locate the layer bracket [k, k+1]
     !              that contains the observation depth and then computes
     !              :math:`(T,S)_{obs}(model) = (1 - w) (T,S)_{k} + w (T,S)_{k+1}`,
     !              where :math:`w = (z_{obs} - z_{k}) / (z_{k+1} - z_{k})`
@@ -844,7 +844,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
-        
+
         if (bufrCode == bufr_sst .or. bufrCode == bufr_tprof) then
           if (col_varExist(columnTrlOnTrlLev, 'TM')) then
             varName = 'TM'
@@ -864,7 +864,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           if (.not. beSilent) then
             write(*,*) 'oop_oceanTS_nl: WARNING: vcoord is missing for: ', &
                        bodyIndex, obsDepth_r, obsValue, bufrCode, varName
-          end if 
+          end if
           if (bufrCode == bufr_sst) then
             obsDepth = obs_pppFoundationSST   ! default when vcoord is not present in obs files
           else if (bufrCode == bufr_tprof .or. bufrCode == bufr_sprof) then
@@ -873,10 +873,10 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           end if
         else
           obsDepth = real(obsDepth_r,8)
-        end if        
+        end if
 
 
-        ! Define vertical level index from obs depth to compute the corresponding model value 
+        ! Define vertical level index from obs depth to compute the corresponding model value
         if (utl_isEqual(obsDepth, obs_pppDiurnalSST)) then
           ! (1) Diurnal SST: use model level 1 (~0.5m)
           verticalLevelIndex = 1
@@ -884,9 +884,9 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                                    headerIndex, varName_opt = varName)
         else if(utl_isEqual(obsDepth, obs_pppFoundationSST)) then
           ! (2) Foundation SST: model level 2 (~1.5m)
-          verticalLevelIndex = 2          
+          verticalLevelIndex = 2
           ! In 2D background configurations, only one vertical level is available,
-          ! so the vertical level index must always be set to 1.        
+          ! so the vertical level index must always be set to 1.
           if (numberVerticalLevels == 1) verticalLevelIndex = 1
           modelValue = col_getElem(columnTrlOnTrlLev, verticalLevelIndex, &
                                    headerIndex, varName_opt = varName)
@@ -926,17 +926,17 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                                               col_getDepth(columnTrlOnTrlLev, layerIndex + 1, 'DP'), &
             '  w= ', weight, '  model: ', modelValue, '  obs: ', obsValue
           end if
-        
+
           ! Collect distinct observation depths and vertical level index values
           found = .false.
           do indexObsDepth = 1, nDepths
-            if (abs(allDepths(indexObsDepth) - obsDepth) < 1.0d-6) then          
+            if (abs(allDepths(indexObsDepth) - obsDepth) < 1.0d-6) then
               found = .true.
               exit
             end if
           end do
           if (.not. found) then
-            ! resize array by 1: tmpDepths -> new array, copy, replace allVerticalLevelIndexes 
+            ! resize array by 1: tmpDepths -> new array, copy, replace allVerticalLevelIndexes
             nDepths = nDepths + 1
             call utl_resize(allDepths, nDepths)
             call utl_resize(allVerticalLevelIndexes, nDepths)
@@ -944,7 +944,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
             allVerticalLevelIndexes(nDepths) = verticalLevelIndex
           end if
         end if
-  
+
       end do BODY
     end do HEADER
 
@@ -2328,10 +2328,10 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
 
-        
+
         ! Process only assimilated obs
         if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) cycle BODY
-        
+
         bufrCode = obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex)
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
@@ -2359,9 +2359,9 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           end if
         else
           obsDepth = real(obsDepth_r,8)
-        end if        
+        end if
 
-        ! Define vertical level index from obs depth to compute the corresponding model value 
+        ! Define vertical level index from obs depth to compute the corresponding model value
         if (utl_isEqual(obsDepth, obs_pppDiurnalSST)) then
           ! (1) Diurnal SST: use model level 1 (~0.5m)
           verticalLevelIndex = 1
@@ -3153,7 +3153,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       real(8)           :: obsDepth   ! double precision working copy
       integer           :: numberVerticalLevels
       real(8)           :: weight
-      
+
       ! Loop over all headers
       call obs_set_current_body_list(obsSpaceData)
 
@@ -3171,7 +3171,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         bufrCode = obs_bodyElem_i(obsSpaceData, obs_vnm, bodyIndex)
         if (bufrCode /= bufr_sst .and. bufrCode /= bufr_tprof &
                                  .and. bufrCode /= bufr_sprof) cycle BODY
-        
+
         if (bufrCode == bufr_sst .or. bufrCode == bufr_tprof) then
           if (col_varExist(columnAnlInc, 'TM')) then
             varName = 'TM'
@@ -3196,7 +3196,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           end if
         else
           obsDepth = real(obsDepth_r,8)
-        end if        
+        end if
 
         ! read residual
         residual = obs_bodyElem_r(obsSpaceData, obs_work, bodyIndex)
