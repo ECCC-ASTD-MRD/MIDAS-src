@@ -2180,6 +2180,10 @@ contains
       end if
 
       call gsv_deallocate(stateVector3dHeights_mpiGlb)
+      deallocate(latLev_T)
+      deallocate(lonLev_T)
+      deallocate(latLev_M)
+      deallocate(lonLev_M)
 
     else ! doSlantPath
 
