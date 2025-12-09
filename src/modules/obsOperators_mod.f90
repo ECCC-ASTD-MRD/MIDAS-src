@@ -1968,7 +1968,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     type(struct_obs)       , intent(inout) :: obsSpaceData
     integer                , intent(in)    :: destObsColumn
 
-    if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
+    if (.not.obs_famExist(obsSpaceData,'CH')) return
 
     if ( destObsColumn /= obs_omp ) then
       write(*,*) 'oop_chm_nl: WARNING: Storing results in an obs column other than OBS_OMP. Not fully implemented.'
