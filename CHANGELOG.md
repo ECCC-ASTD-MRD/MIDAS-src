@@ -26,15 +26,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added `outputDFS` to `&NAMLETKF` (#1105 and !1050)
  * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1045, !1054 and !1056)
-  * Note that the fix associated to RttovScatt (#1049) that was
-    removed in `v_3.10.0` is still present in this version.
-  * The results are not guaranteed to be reproducible on HPCR-U3.
-    Some differences have been observed between runs only for the
-    programs `midas-var`, `midas-letkf` and `midas-obsImpact`.  This
-    needs to be investigated further.  The tests should validate most
-    of the time.  No differences have been detected between runs for
-    other programs.  This problem has not been observed on HPCR-U2.
+ * Note that the fix associated to RttovScatt (#1049) that was
+   removed in `v_3.10.0` is still present in this version.
+ * The results are not guaranteed to be reproducible on HPCR-U3.
+   Some differences have been observed between runs only for the
+   programs `midas-var`, `midas-letkf` and `midas-obsImpact`.  This
+   needs to be investigated further.  The tests should validate most
+   of the time.  No differences have been detected between runs for
+   other programs.  This problem has not been observed on HPCR-U2.
 
 ### Changed
 
@@ -1576,7 +1577,7 @@ Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1
-[4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
+[4.1.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
 [4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
 [4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
 [4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1

@@ -30,13 +30,16 @@ module enkf_mod
   save
   private
 
-  ! Public types
-  public :: struct_enkfInterpInfo, struct_enkfNML
+  ! public types
+  public :: struct_enkfInterpInfo
+  public :: struct_enkfNML
+  public :: struct_enkfDFS
 
   ! Public procedures
   public :: enkf_readNML
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
+  public :: enkf_deallocateDFS
 
   ! Constants (private)(
   integer, parameter :: maxNumLocalize = 10 ! hLocalize size
@@ -83,6 +86,7 @@ module enkf_mod
     logical  :: outputOnlyEnsMean
     logical  :: outputEnsObs
     integer  :: localSelectionOutput
+    logical  :: outputDFS
     logical  :: debug
     logical  :: readEnsObsFromFile
     real(8)  :: hLocalize(maxNumLocalize)
@@ -98,6 +102,19 @@ module enkf_mod
     logical  :: readEnsMeanFromFile    = .false.
     integer  :: numFullEns             = 0
   end type struct_enkfNML
+
+  ! for dfs calculation
+  type struct_enkfDFS
+    logical              :: allocated = .false.
+    real(8), allocatable :: locFun(:,:)
+    integer, allocatable :: bodyIndex(:,:)
+    real(8), allocatable :: lat(:)
+    real(8), allocatable :: lon(:)
+    real(8), allocatable :: lnp(:)
+    real(8), allocatable :: dfs(:)
+  end type struct_enkfDFS
+
+  integer, external :: get_max_rss
 
 contains
 
@@ -142,6 +159,7 @@ contains
     logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
     logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite
     integer  :: localSelectionOutput ! write output about the local selection of observations
+    logical  :: outputDFS            ! write output about the DFS
     logical  :: debug                ! debug option to print values to the listings.
     logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
     real(8)  :: hLocalize(maxNumLocalize)         ! horizontal localization radius (in km)
@@ -162,7 +180,7 @@ contains
                        hLocalize, hLocalizePressure, hLinearLoc, vLocalize, minDistanceToLand,  &
                        maxNumLocalObs, maxNumLocalObsPerType, weightLatLonStep, alphaRandomPertPrior,  &
                        modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                       ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
+                       ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, outputDFS, &
                        obsTimeInterpType, mpiDistribution, etiket_anl, localObsSorting, &
                        readEnsObsFromFile, writeLocalEnsObsToFile, &
                        numRetainedEigen, myNumLatLonSendFactor, debug, &
@@ -189,6 +207,7 @@ contains
     outputOnlyEnsMean        = .false.
     outputEnsObs             = .false.
     localSelectionOutput     = 0
+    outputDFS                = .false.
     hLocalize(:)             = -1.0D0
     hLocalizePressure(:)     = -1.0D0
     hLinearLoc               = .false.
@@ -316,6 +335,7 @@ contains
     enkfNML%outputOnlyEnsMean      = outputOnlyEnsMean
     enkfNML%outputEnsObs           = outputEnsObs
     enkfNML%localSelectionOutput   = localSelectionOutput
+    enkfNML%outputDFS              = outputDFS
     enkfNML%hLocalize(:)           = hLocalize(:)
     enkfNML%hLocalizePressure(:)   = hLocalizePressure(:)
     enkfNML%vLocalize              = vLocalize
@@ -342,7 +362,7 @@ contains
                                 ensembleAnl, ensembleTrl, &
                                 ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
-                                wInterpInfo)
+                                wInterpInfo, enkfDFS)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -371,6 +391,7 @@ contains
     type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal ! Ensemble observations for computing gain matrix
     type(struct_gsv),            intent(inout) :: stateVectorMeanAnl   ! Ensemble mean state vector
     type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo          ! Derived type variable weight interpolation info
+    type(struct_enkfDFS),        intent(inout) :: enkfDFS
 
     ! Locals:
     character :: readySignal
@@ -473,6 +494,8 @@ contains
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEnsGain,enkfNML%nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
+
+    if (enkfNML%outputDFS) call enkf_allocateDFS(enkfDFS, nLev_weights, myNumLatLonCalcMax, enkfNML%maxNumLocalObs)
 
     ! Allocate and initialize state vectors for mean trial and increment
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -716,9 +739,9 @@ contains
           ! Call main subroutine for computing the LETKF analysis weights for this lev/lat/lon
           call enkf_LETKFcomputeWeights(enkfNML, weightsMeanLatLon(:,:,latLonIndex), &
                                         weightsMembersLatLon(:,:,latLonIndex), &
-                                        ensembleAnl, levIndex, latIndex, lonIndex, &
+                                        ensembleAnl, levIndex, latIndex, lonIndex, numGridPointWeights, &
                                         vertLocation_r4, countMaxExceeded, maxCountMaxExceeded, &
-                                        ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                        ensObs_mpiglobal, ensObsGain_mpiglobal, enkfDFS)
 
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
           call utl_tmg_start(132,'----CommWeights')
@@ -837,9 +860,9 @@ contains
   ! enkf_LETKFcomputeWeights (private subroutine)
   !----------------------------------------------------------------------
   subroutine enkf_LETKFcomputeWeights(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
-                                      ensembleAnl, levIndex, latIndex, lonIndex, &
+                                      ensembleAnl, levIndex, latIndex, lonIndex, dfsIndex, &
                                       vertLocation_r4, countMaxExceeded, maxCountMaxExceeded, &
-                                      ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                      ensObs_mpiglobal, ensObsGain_mpiglobal, enkfDFS)
     !
     !:Purpose: Main routine for computing the LETKF weights for 1 lat/lon/lev. The
     !          first part of the calculation is done in this routine with the rest
@@ -855,11 +878,13 @@ contains
     integer,                  intent(in)    :: levIndex                  ! Level index
     integer,                  intent(in)    :: latIndex                  ! Latitude index
     integer,                  intent(in)    :: lonIndex                  ! Longitude index
+    integer,                  intent(in)    :: dfsIndex                  ! Grid index
     real(4),                  intent(in)    :: vertLocation_r4(:,:,:)    ! Vertical location for each grid point location
     integer,                  intent(inout) :: countMaxExceeded          ! Number of gridpts maxNumLocalObs exceeded
     integer,                  intent(inout) :: maxCountMaxExceeded       ! Maximum number of local obs found
     type(struct_eob), target, intent(in)    :: ensObs_mpiglobal          ! Ens observations for original ensemble
     type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal      ! Ens observations for computing gain matrix
+    type(struct_enkfDFS),     intent(inout) :: enkfDFS
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -977,6 +1002,12 @@ contains
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
 
+    if (enkfDFS%allocated) then
+      enkfDFS%lat(dfsIndex) = anlLat
+      enkfDFS%lon(dfsIndex) = anlLon
+      enkfDFS%lnp(dfsIndex) = anlVertLocation
+    end if
+
     ! Find horizontal localization value for this vertical level
     call enkf_getLocalizationRadius(enkfNML%hLocalize, enkfNML%hLocalizePressure, anlVertLocation, enkfNML%hLinearLoc, hLoc)
 
@@ -996,6 +1027,10 @@ contains
     ! Compute YbTinvR (assumes R is diagonal)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
+      if (enkfDFS%allocated) then
+        enkfDFS%locFun(dfsIndex,localObsIndex) = locFun(localObsIndex)
+        enkfDFS%bodyIndex(dfsIndex,localObsIndex) = bodyIndex
+      end if
 
       do memberIndex = 1, nEnsGain
         YbTinvR_pert(memberIndex,localObsIndex) =  &
@@ -3428,5 +3463,66 @@ contains
     ierr = fclos(funit)
 
   end subroutine enkf_writeEdim
+
+  !--------------------------------------------------------------------------
+  ! enkf_allocateDFS
+  !--------------------------------------------------------------------------
+  subroutine enkf_allocateDFS(enkfDFS, numLev, numLatLon, maxNumLocalObs)
+    !
+    !:Purpose: allocate and initialize a DFS output structure
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_enkfDFS), intent(inout) :: enkfDFS        ! DFS structure
+    integer,              intent(in)    :: numLev         ! number of vertical levels
+    integer,              intent(in)    :: numLatLon      ! number of grid points
+    integer,              intent(in)    :: maxNumLocalObs ! maximum number of obs in local volume
+
+    ! Locals:
+    integer :: numDFSIndex ! grid index
+
+    numDFSIndex = numLev * numLatLon
+
+    write(*,*) 'enkf_allocateDFS: enkfDFS dimensions:', numDFSIndex, maxNumLocalObs
+    allocate(enkfDFS%locFun(numDFSIndex,maxNumLocalObs))
+    allocate(enkfDFS%bodyIndex(numDFSIndex,maxNumLocalObs))
+    allocate(enkfDFS%lat(numDFSIndex))
+    allocate(enkfDFS%lon(numDFSIndex))
+    allocate(enkfDFS%lnp(numDFSIndex))
+    allocate(enkfDFS%dfs(numDFSIndex))
+    write(*,*) 'enkf_allocateDFS: enkfDFS allocated'
+
+    enkfDFS%allocated = .true.
+    enkfDFS%locFun(:,:) = 0.0d0
+    enkfDFS%bodyIndex(:,:) = 0
+    enkfDFS%lat(:) = 0.0d0
+    enkfDFS%lon(:) = 0.0d0
+    enkfDFS%lnp(:) = 0.0d0
+    enkfDFS%dfs(:) = 0.0d0
+
+  end subroutine enkf_allocateDFS
+
+  !--------------------------------------------------------------------------
+  ! enkf_deallocateDFS
+  !--------------------------------------------------------------------------
+  subroutine enkf_deallocateDFS(enkfDFS)
+    !
+    !:Purpose: deallocate a DFS output structure
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_enkfDFS), intent(inout) :: enkfDFS ! DFS structure
+
+    deallocate(enkfDFS%dfs)
+    deallocate(enkfDFS%lnp)
+    deallocate(enkfDFS%lon)
+    deallocate(enkfDFS%lat)
+    deallocate(enkfDFS%bodyIndex)
+    deallocate(enkfDFS%locFun)
+    enkfDFS%allocated = .false.
+
+  end subroutine enkf_deallocateDFS
 
 end module enkf_mod
