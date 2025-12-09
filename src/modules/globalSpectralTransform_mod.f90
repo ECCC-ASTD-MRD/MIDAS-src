@@ -1004,7 +1004,8 @@ contains
     call mmpi_barrier(mmpi_comm_NS)
     call utl_tmg_stop(152)
 
-    nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
+    call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
+
     if(mmpi_npey.gt.1) then
       call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
     else
