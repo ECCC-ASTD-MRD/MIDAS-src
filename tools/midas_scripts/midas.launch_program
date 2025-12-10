@@ -174,7 +174,8 @@ else
     echo Using r.run_in_parallel from $(which r.run_in_parallel)
 
     SECONDS=0
-    r.run_in_parallel -pgm ${LAUNCH_CMD:-${RUN_PGM}} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir -args ${run_pgm_args}
+    r.run_in_parallel -pgm ${LAUNCH_CMD:-${RUN_PGM}} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup \
+                      -tmpdir ${PWD}/mpitmpdir -stack unlimited -args ${run_pgm_args}
     echo RUNTIME=${SECONDS}
 fi
 

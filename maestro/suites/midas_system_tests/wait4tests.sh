@@ -2,7 +2,7 @@
 
 set -e
 
-SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
 which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 ## This scrits looks in the logs of the maestro suite:
@@ -117,4 +117,3 @@ if [ "${abort}" -ne 0 ]; then
 fi
 
 echo "The tests has run normally according to ${logdate}"
-

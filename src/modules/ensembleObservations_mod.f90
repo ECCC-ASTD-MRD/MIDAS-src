@@ -28,6 +28,7 @@ MODULE ensembleObservations_mod
   use varnamelist_mod
   use localizationFunction_mod
   use obsFlags_mod
+  use verticalCoord_mod
   use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
 
   implicit none
@@ -1474,6 +1475,7 @@ CONTAINS
           vertTop      = maxval(eobOut%vertTop(codTyp,:))
           distMean     = sum(eobOut%distMean(codTyp,:))  / real(max(1,numSelected))
           locFun       = sum(eobOut%locFun(codTyp,:))    / real(max(1,numSelected))
+          trace        = sum(eobOut%trace(codTyp,:))
           obsErr       = sum(eobOut%obsErr(codTyp,:))    / real(max(1,numSelected))
           ensSpread    = sum(eobOut%ensSpread(codTyp,:)) / real(max(1,numSelected))
           write(funit,'(*(A3,1X,I3,1X,I5,2(1X,I7),1X,F12.2,2(1X,F7.2),1X,F12.2,4(1X,ES9.2)))') 'typ', &
@@ -1737,7 +1739,7 @@ CONTAINS
     integer          :: obsIndex, headerIndex, channelIndex, numTovsLevels, sensorIndex
     integer          :: levIndex, levIndexBelow, levIndexAbove, nLev_M
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
-    real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
+    real(8)          :: obsHeight, interpFactor, minDepthColumnMeanTrl, obsPPP(ensObs%numObs)
     real(8), pointer :: sfcPres_ptr(:,:), presM_ptr(:,:), heightM_ptr(:,:)
     type(rttov_profile), pointer :: profiles(:)
     type(struct_vco),    pointer :: vco_ptr
@@ -1749,6 +1751,11 @@ CONTAINS
     call obs_extractObsIntBodyColumn(varNumber, ensObs%obsSpaceData, OBS_VNM)
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntHeaderColumn(codType, ensObs%obsSpaceData, OBS_ITY)
+
+    if (ensObs%typeVertCoord == 'depth') then
+      vco_ptr => col_getVco(columnMeanTrl)
+      minDepthColumnMeanTrl = minval(vco_ptr%depths(:))
+    end if
 
     if (ensObs%typeVertCoord == 'logPressure') then
 
@@ -1869,8 +1876,8 @@ CONTAINS
         end if
 
         ! Ocean observations
-        vco_ptr => col_getVco(columnMeanTrl)
-        ensObs%vertLocation(obsIndex) = minval(vco_ptr%depths(:))
+        ! The variable 'minDepthColumnMeanTrl' is only initialized if ensObs%typeVertCoord == 'depth'
+        ensObs%vertLocation(obsIndex) = minDepthColumnMeanTrl
 
       else if(ensObs%assFlag(obsIndex)==1) then
 

@@ -14,13 +14,15 @@ fi
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
-which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
-which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+which maestro 1>/dev/null 2>&1 || {
+    SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/20250808"}
+    ${SEQ_MAESTRO_SHORTCUT}
+}
 
 ## If 'r.date' does not exist in the environment, try to find it
 if ! which r.date 1>/dev/null 2>&1; then
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        __rmnlib_version__=20250129-alpha
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        __rmnlib_version__=20251009-beta
     elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
         __rmnlib_version__=19.6.0
     else

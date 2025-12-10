@@ -1243,11 +1243,11 @@ contains
         call msg('int_vInterp_col', 'Use Reference Surface Pressure to compute the pressure level')
 
         allocate(columnInRef_ptr)
-        call col_setVco(columnInRef_ptr, col_getVco(column_in))
+        call col_setVco(columnInRef_ptr, vcoIn_ptr)
         call col_allocate(columnInRef_ptr, col_getNumCol(column_in))
 
         allocate(columnOutRef_ptr)
-        call col_setVco(columnOutRef_ptr, col_getVco(column_out))
+        call col_setVco(columnOutRef_ptr, vcoOut_ptr)
         call col_allocate(columnOutRef_ptr, col_getNumCol(column_out))
 
         pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, 'P0')
@@ -1338,7 +1338,7 @@ contains
         allocate(MMlevelWanted(col_getNumLev(column_out, 'MM')))
 
         call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
-                                    col_getVco(column_out), col_getVco(column_in) ) ! IN
+                                    vcoOut_ptr, vcoIn_ptr ) ! IN
 
         if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
           call utl_abort('int_vInterp_col: column_out is not a subsets of column_in!')

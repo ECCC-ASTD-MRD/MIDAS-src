@@ -2169,7 +2169,7 @@ CONTAINS
           ! Pressure levels are not staggered
           ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
           ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
-          
+
         else
           call utl_abort('ben_addEnsMember: incompatible vcode')
         end if
@@ -2372,7 +2372,9 @@ CONTAINS
       !$OMP END PARALLEL DO
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),levIndex)
-      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex,ensAmplitude_oneLev,ensAmplitude_oneLevM1,ensAmplitude_oneLevP1,ensAmplitude_MT)
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
+      !$OMP     memberIndex,ensAmplitude_oneLev, ensAmplitude_oneLevM1, &
+      !$OMP     ensAmplitude_oneLevP1, ensAmplitude_MT)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 
@@ -2452,7 +2454,7 @@ CONTAINS
               ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
               ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) = &
                    ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
-              
+
             else
               call utl_abort('ben_addEnsMemberAd: incompatible vcode')
             end if

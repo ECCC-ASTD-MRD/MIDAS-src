@@ -2159,7 +2159,7 @@ module gridStateVectorFileIO_mod
     integer,                     intent(in) :: levIndex    ! index of the level in the structure 'statevector'
     type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be writtent
     logical,                     intent(in) :: interpolationToPhysicsGrid ! indicate if we should interpolate to the physics grid before writing
-    real(4), target,             intent(in) :: data(:,:)   ! 2D array which will be written to the file
+    real(4),          target,    intent(in) :: data(:,:)   ! 2D array which will be written to the file
 
     ! Locals:
     type(fst_record) :: fstRecordTmp

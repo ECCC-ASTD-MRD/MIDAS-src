@@ -1,11 +1,12 @@
 # Machine stuff
 FRONTEND=ppp6
-BACKEND=robert
+BACKEND=underhill
 
 REFERENCE_MACHINE=ppp5
 REFERENCE_UPDATE_MACHINE=ppp5
 
 BACKEND_DEFAULT_Q=development
+BACKEND_LARGEMEMORY_Q=development
 FRONTEND_DEFAULT_Q=development
 
 BACKEND_XFER_Q=xfer
@@ -15,6 +16,11 @@ SEQ_DEFAULT_MACHINE=ppp6
 SEQ_CONTAINER_METHOD=immediate
 
 SEQ_JOBNAME_PREFIX=midas-
+
+## Resources for the test '/Tests/var/Envar/gdps'
+VAR_GDPS_CPUS=20x45x4
+## Resources for the test '/Tests/letkf/glb_xc40'
+LETKF_GLBXC40_CPUS=24x49x2
 
 ## Set this variable to '9' if you want to avoid running the 'check'
 ## task for each test

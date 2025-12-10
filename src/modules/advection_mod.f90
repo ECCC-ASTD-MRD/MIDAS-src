@@ -220,6 +220,16 @@ CONTAINS
          divisible_opt=nlat_equalAcrossMpiTasks)
     call mmpi_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
          divisible_opt=nlon_equalAcrossMpiTasks)
+
+    ! Abort if the grid is not perfectly divisible across all MPI tasks
+    if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
+      write(*,*)
+      write(*,*) 'adv_setup: The grid is not divisible across all MPI tasks!'
+      write(*,*) 'adv_setup: latitudes divisible  = ', nlat_equalAcrossMpiTasks
+      write(*,*) 'adv_setup: longitudes divisible = ', nlon_equalAcrossMpiTasks
+      if (mmpi_myid == 0) call utl_abort('adv_setup: MPI topology not compatible with grid')
+    end if
+
     allocate(adv%allLonBeg(mmpi_npex))
     call mmpi_allGather(adv%myLonBeg,  adv%allLonBeg, communicator_opt = mmpi_comm_EW)
     allocate(adv%allLatBeg(mmpi_npey))
@@ -1209,13 +1219,13 @@ CONTAINS
       call utl_abort('adv_ensemble_ad cannot deal with multiple timeStep index source')
     end if
     if ( ens_getDataKind(ens) /= 8 ) then
-      call utl_abort('adv_ensemble_ad can only deal with double precision (real8) ensembleStateVector')
+      call utl_abort('adv_ensemble_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
+      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
@@ -1341,7 +1351,7 @@ CONTAINS
     character(len=4) :: varName
 
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_tl can only deal with double precision (real8) gridStateVector')
+      call utl_abort('adv_statevector_tl: can only deal with double precision (real8) gridStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
       call utl_abort('adv_statevector_tl: vertical levels are not compatible')
@@ -1465,13 +1475,13 @@ CONTAINS
       call utl_abort('adv_statevector_ad cannot work for singleTimeStepIndexSource')
     end if
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_ad can only deal with double precision (real8) ensembleStateVector')
+      call utl_abort('adv_statevector_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
       call utl_abort('adv_statevector_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad can only deal with even nlon and nlat across all MPI tasks')
+      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))

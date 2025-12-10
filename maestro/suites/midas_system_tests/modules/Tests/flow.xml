@@ -139,6 +139,26 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="2D_nat"/>
+      <FAMILY  name="2D_nat">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="2D_g0"/>
+      <FAMILY  name="2D_g0">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="2D_g1"/>
+      <FAMILY  name="2D_g1">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="2D_ch"/>
+      <FAMILY  name="2D_ch">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="sea_ice"/>
       <FAMILY  name="sea_ice">
         <SUBMITS sub_name="UnitTest"/>
@@ -180,6 +200,11 @@
     </FAMILY>
     <SUBMITS sub_name="BgckIasi"/>
     <FAMILY  name="BgckIasi">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="BgckCris"/>
+    <FAMILY  name="BgckCris">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -377,14 +402,13 @@
       <FAMILY  name="thin_CH">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
-      </FAMILY>    
+      </FAMILY>
       <SUBMITS sub_name="sea_ice"/>
       <FAMILY  name="sea_ice">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
     </FAMILY>
-
   </FAMILY>
 
   <FAMILY  name="oMinusF">
@@ -404,7 +428,7 @@
       <FAMILY  name="o-p_2001">
 	<SUBMITS sub_name="UnitTest"/>
 	<MODULE  name="UnitTest"/>
-      </FAMILY>   
+      </FAMILY>
     </FAMILY>
     <SUBMITS sub_name="o-p_scatt"/>
     <FAMILY  name="o-p_scatt">
@@ -767,17 +791,17 @@
    </FAMILY>
  </FAMILY>
 
-  <FAMILY  name="energyNorm">
-    <SUBMITS sub_name="analmean"/>
-    <FAMILY  name="analmean">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="analrms"/>
-    <FAMILY  name="analrms">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
+ <FAMILY  name="energyNorm">
+   <SUBMITS sub_name="analmean"/>
+   <FAMILY  name="analmean">
+     <SUBMITS sub_name="UnitTest"/>
+     <MODULE  name="UnitTest"/>
+   </FAMILY>
+   <SUBMITS sub_name="analrms"/>
+   <FAMILY  name="analrms">
+     <SUBMITS sub_name="UnitTest"/>
+     <MODULE  name="UnitTest"/>
+   </FAMILY>
+ </FAMILY>
 
 </MODULE>

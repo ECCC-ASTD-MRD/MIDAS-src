@@ -43,14 +43,26 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     done
     unset __midas_mpirun_ssmdomain__
     set -x
-elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
+elif [ "${EC_ARCH}" = rhel-8-icelake-64 -o "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     set +x
-    echo loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2
-    . r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
-    echo loading eccc/mrd/rpn/libs/20250604-beta
-    . r.load.dot eccc/mrd/rpn/libs/20250604-beta
-    echo "... loading eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}"
-    . r.load.dot eccc/mrd/rpn/utils/20250604-beta/burp-tools_20.0.8.2-${COMP_ARCH}_${ORDENV_PLAT}
+    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+        __compiler=inteloneapi-2022.1.2
+    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        __compiler=inteloneapi-2025.1.0
+    fi
+    echo loading rpn/code-tools/20251202/env/${__compiler}
+    . r.load.dot rpn/code-tools/20251202/env/${__compiler}
+    unset __compiler
+
+    echo loading eccc/mrd/rpn/libs/20251009-beta
+    . r.load.dot eccc/mrd/rpn/libs/20251009-beta
+    echo loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    ## On HPCR-U3, the HDF5-NetCDF4 library must be loaded.
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        echo loading hdf5-netcdf4
+        . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+    fi
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
@@ -116,7 +128,7 @@ chmod u+x midas.mpi_script.sh
 status=0
 
 SECONDS=0
-${__midas_mpirun_call_program__} -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
+${__midas_mpirun_call_program__} -stack unlimited -processorder -tag -nocleanup -verbose -pgm ${PWD}/midas.mpi_script.sh || status=1
 echo "The whole MPI execution took ${SECONDS} seconds"
 
 unset __midas_mpirun_call_program__ __midas_mpirun_pgm__
