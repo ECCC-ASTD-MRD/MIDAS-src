@@ -199,6 +199,7 @@ program midas_letkf
   type(struct_columnData)   :: column
 
   type(struct_eob), target  :: ensObs, ensObs_mpiglobal
+  type(struct_eob), target  :: ensObs_mpiglobal_analysis
   type(struct_eob), pointer :: ensObsGain, ensObsGain_mpiglobal
 
   type(struct_vco), pointer :: vco_ens => null()
@@ -227,6 +228,12 @@ program midas_letkf
 
   real(4), pointer :: field_Psfc(:,:,:,:)
 
+  character(len=50)    :: outfilename          ! filename for the dfs output
+  integer              :: fclos, funit
+  integer              :: obsIndex, localBodyIndex, gridIndex
+  real(8)              :: Ya_anom, Ya_mean
+  type(struct_enkfDFS) :: enkfDFS
+
   ! namelist variables
   character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
   logical            :: ensPostProcessing ! do all post-processing of analysis ensemble
@@ -251,6 +258,7 @@ program midas_letkf
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
   integer  :: localSelectionOutput ! write output about the local selection of observations
+  logical  :: outputDFS            ! write output about the DFS
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   real(8)  :: hLocalize(maxNumLocalize)         ! horizontal localization radius (in km)
@@ -268,7 +276,7 @@ program midas_letkf
                      hLocalize, hLocalizePressure, hLinearLoc, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, maxNumLocalObsPerType, weightLatLonStep, alphaRandomPertPrior, &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
+                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, outputDFS, &
                      obsTimeInterpType, mpiDistribution, etiket_anl, localObsSorting, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
                      numRetainedEigen, myNumLatLonSendFactor, debug
@@ -324,6 +332,7 @@ program midas_letkf
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
   localSelectionOutput     = 0
+  outputDFS                = .false.
   hLocalize(:)             = -1.0d0
   hLocalizePressure(:)     = -1.0d0
   hLinearLoc               = .false.
@@ -440,6 +449,12 @@ program midas_letkf
   if ( .not. all(hLocalize(:) == hLocalize(1)) .and. useModulatedEns ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
+  end if
+
+  if ( outputDFS .and. ( .not. outputEnsObs ) ) then
+    write(*,*) 'midas-letkf: outputDFS requires outputEnsObs.'
+    write(*,*) 'midas-letkf: outputDFS set to false.'
+    outputDFS = .false.
   end if
 
   !
@@ -850,7 +865,7 @@ program midas_letkf
                           wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
                           hLocalize, hLocalizePressure, hLinearLoc, vLocalize, &
                           mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
-                          localSelectionOutput, localObsSorting)
+                          localSelectionOutput, localObsSorting, enkfDFS, outputDFS)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
@@ -893,6 +908,63 @@ program midas_letkf
   
   end if
   
+  !- 5.3 calculate and output dfs
+  if (outputDFS) then
+    ! dfs is calculated locally with (cf. Hotta 2021):
+    ! trace(Ya^T R-1 Ya) = trace(R^-1/2 Ya Ya^T R^-T/2) ~ trace(R^-1/2 H Xa Xa^T H^T R^-T/2)
+
+    call eob_allGather(ensObs,ensObs_mpiglobal_analysis)
+
+    write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+    outfilename = './dfs_'//trim(adjustl(outfilename))
+    call utl_open_asciifile(outfilename,funit)
+    write(funit,'(5(A,X))') 'gdp', &
+          'lat', &
+          'lon', &
+          'lnp', &
+          'dfs'
+
+    ! loop on this task's gridpoints
+    do gridIndex = 1, size(enkfDFS%lat)
+      ! only process gridpoints effectively processed by this task
+      if (enkfDFS%lnp(gridIndex) /= 0.0d0) then
+        ! loop on this gridpoint's local observations
+        do localBodyIndex = 1, size(enkfDFS%bodyIndex,2)
+          obsIndex = enkfDFS%bodyIndex(gridIndex,localBodyIndex)
+          if (obsIndex /= 0) then
+            Ya_mean = sum(ensObs_mpiglobal_analysis%Ya_r4(:,obsIndex),1)/Nens
+            Ya_anom = 0.0d0
+            ! ensemble loop
+            do memberIndex = 1, size(ensObs_mpiglobal_analysis%Ya_r4,1)
+              Ya_anom = Ya_anom + (ensObs_mpiglobal_analysis%Ya_r4(memberIndex,obsIndex) - Ya_mean) **2
+            end do
+            enkfDFS%dfs(gridIndex) = enkfDFS%dfs(gridIndex) + &
+                                     enkfDFS%locFun(gridIndex,localBodyIndex) * &
+                                     Ya_anom * ensObs_mpiglobal_analysis%obsErrInv(obsIndex)
+          end if
+        end do
+      end if
+    end do
+
+    enkfDFS%dfs(:) = enkfDFS%dfs(:)/(Nens-1)
+
+    ! loop on this task's gridpoints
+    do gridIndex = 1, size(enkfDFS%lat)
+      ! only output gridpoints effectively processed by this task
+      if (enkfDFS%lnp(gridIndex) /= 0.0d0) then
+        write(funit,'(A3,1X,2(F7.3,X),F12.4,1X,ES12.5)') 'gdp', &
+              enkfDFS%lat(gridIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+              enkfDFS%lon(gridIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+              enkfDFS%lnp(gridIndex), &
+              enkfDFS%dfs(gridIndex)
+      end if
+    end do
+    ierr = fclos(funit)
+
+    call enkf_deallocateDFS(enkfDFS)
+
+  end if
+
   !- 6. Output obs files with mean OMP and (unrecentered) OMA
 
   ! Compute Y-H(Xa_mean) in OBS_OMA
@@ -973,6 +1045,7 @@ program midas_letkf
   !- Deallocate ensObs objects
   call eob_deallocate(ensObs)
   call eob_deallocate(ensObs_mpiglobal)
+  call eob_deallocate(ensObs_mpiglobal_analysis)
   if (useModulatedEns) then
     call eob_deallocate(ensObsGain)
     call eob_deallocate(ensObsGain_mpiglobal)
