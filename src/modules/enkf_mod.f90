@@ -532,6 +532,14 @@ contains
       write(*,*) 'Computing ensemble updates for vertical level = ', levIndex
       call utl_printTime(reset_opt = (levIndex==1))
 
+      ! For extra safety at the cost of possibly some performance we add
+      ! a barrier here to avoid an MPI task getting 2 levels ahead of others
+      ! which then causes an indefinite freeze of the code with every task
+      ! stuck in an mpi "wait" call
+      call utl_tmg_start(141,'----Barr')
+      call mmpi_barrier
+      call utl_tmg_stop(141)
+
       ! First post all recv instructions for communication of weights
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(148,'----CommWeights-irecv')
