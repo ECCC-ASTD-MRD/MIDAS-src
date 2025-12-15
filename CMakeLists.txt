@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 #----- Append EC specific module path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../rpn/cmake_rpn/modules $ENV{EC_CMAKE_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
 include(ec_init)           # Include EC specific cmake utils
@@ -30,6 +31,7 @@ find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
 find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
+find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
 
 # Define libraries bundle
@@ -39,11 +41,17 @@ else()
     set(rttov_VERSION "unknown")
 endif()
 
+set(rttov_LIBRARY_PATH $ENV{rttov_INSTALLDIR}/lib)
 set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main)
+set(rttov_LIBRARIES "") # Initialize list as empty string/list
 foreach(component ${rttov_FIND_COMPONENTS})
-    find_library(${component}_lib NAME ${component} HINTS ENV LIBRARY_PATH)
-    set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
+  find_library(${component} NAMES ${component} REQUIRED
+    HINTS PATHS ${rttov_LIBRARY_PATH})
+  list(APPEND rttov_LIBRARIES ${${component}})
 endforeach()
+
+find_library(hpcoperf NAMES hpcoperf REQUIRED
+  HINTS PATHS ENV perftools_LIBRARY_PATH)
 
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
@@ -84,15 +92,13 @@ if (${CMAKE_BUILD_TYPE} MATCHES Debug)
   message(STATUS "(EC) CMAKE_Fortran_FLAGS_DEBUG=${CMAKE_Fortran_FLAGS_DEBUG}")
 endif()
 
-if(DEFINED ENV{MIDAS_COMPILE_DIR_MAIN})
-  set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_MAIN}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
-else()
-  message(FATAL_ERROR "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config.dot.sh file")
+if(DEFINED ENV{EC_ARCH})
+  if(DEFINED ENV{MIDAS_COMPILE_DIR_MAIN})
+    set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_MAIN}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
+  else()
+    message(status "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config.dot.sh file")
+  endif()
 endif()
-
-message(STATUS "(EC) Sources directory is: ${CMAKE_SOURCE_DIR}")
-message(STATUS "(EC) Build directory is: $ENV{MIDAS_COMPILE_DIR_BUILD}")
-message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
 if(DEFINED ENV{ORDENV_PLAT})
