@@ -12,10 +12,5 @@ if (DEFINED CMAKE_INSTALL_RPATH)
   )
 endif()
 
-add_custom_command(
-    TARGET splitobs
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy 'splitobs' to ${CMAKE_INSTALL_PREFIX}/midas.splitobs${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs"
-    COMMAND cp splitobs ${CMAKE_INSTALL_PREFIX}/midas.splitobs${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
+set_target_properties(splitobs PROPERTIES OUTPUT_NAME "midas.splitobs.Abs")
+install(TARGETS splitobs RUNTIME DESTINATION bin)

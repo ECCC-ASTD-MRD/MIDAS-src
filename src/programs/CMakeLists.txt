@@ -33,16 +33,7 @@ foreach(prog ${PROJECT_PROGRAMS})
     POSITION_INDEPENDENT_CODE ON
     COMPILE_FLAGS "${FFLAGS}"
     LINK_FLAGS "${MPI_LINK_FLAGS}"
-  )
-
-  add_custom_command(
-      TARGET ${prog}
-      POST_BUILD
-
-      COMMAND ${CMAKE_COMMAND} -E echo Move '${prog}' to ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
-      COMMAND mv ${prog} ${CMAKE_INSTALL_PREFIX}/midas-${prog}${AddToProgName}-`${CMAKE_SOURCE_DIR}/midas.version`.Abs
-
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    OUTPUT_NAME "midas-${prog}.Abs"
   )
 endforeach()
 
