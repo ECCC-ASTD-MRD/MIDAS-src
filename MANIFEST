@@ -16,4 +16,4 @@ rpncomm      >= 4.6.3
 random 	     >= 1.1.0
 sqlite3      >= 3.26.0
 hdf5         >= 1.12.0
-burpc        >= 20.0.5
+burp         >= 20.0.5
