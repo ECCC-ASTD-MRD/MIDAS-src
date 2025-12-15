@@ -85,19 +85,37 @@ function check_result {
         fi
 
         if [ "${method}" = fstcomp ]; then
-	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
-	    cat fstcomp.list | grep -vE '^\-' | grep -vE '^Start' | grep -vE '^Application' | grep -vE '^Libraries' | grep -vE '^Finish' | grep -vE '^Execution' | grep -vE '^Status' | grep -vE '^ *rmn' | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | grep -v "No comparison possible:" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn -n 2>&1 | tee fstcomp.list
+            cat fstcomp.list | grep -vE '^[*] [*] [*] |^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | grep -v "No comparison possible:" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating=yes
-                maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	    else
-	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
-	        cat fstcomp.list | grep -vE '^\-' | grep -vE '^Start' | grep -vE '^Application' | grep -vE '^Libraries' | grep -vE '^Finish' | grep -vE '^Execution' | grep -vE '^Status' | grep -vE '^ *rmn' | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | grep -v "No comparison possible:" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
-	        if [ -s fstcomp.list.grep ]; then
-		    not_validating=yes
-                    maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
-	        fi
-	    fi
+                grep -v '^(WARNING)  Not found ' fstcomp.list.grep > fstcomp.list.grep.diff
+                if [ -s fstcomp.list.grep.diff ]; then
+                    maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep.diff)
+                fi
+                grep '^(WARNING)  Not found ' fstcomp.list.grep > fstcomp.list.grep.not_found
+                if [ -s fstcomp.list.grep.not_found ]; then
+                    ## Each line should be of the form
+                    ##   (WARNING)  Not found GZ   A  IP123=  93423264         0         0 485237600 in live
+                    field_not_found=$(sed 's/^(WARNING)  Not found //' fstcomp.list.grep.not_found | head -1)
+                fi
+	    else ## End of 'if [ -s fstcomp.list.grep ]; then'
+	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn -n 2>&1 | tee fstcomp.list
+                cat fstcomp.list | grep -vE '^[*] [*] [*] |^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | grep -v "No comparison possible:" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+                if [ -s fstcomp.list.grep ]; then
+	            not_validating=yes
+                    grep -v '^(WARNING)  Not found ' fstcomp.list.grep > fstcomp.list.grep.diff
+                    if [ -s fstcomp.list.grep.diff ]; then
+                        maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep.diff)
+                    fi
+                    grep '^(WARNING)  Not found ' fstcomp.list.grep > fstcomp.list.grep.not_found
+                    if [ -s fstcomp.list.grep.not_found ]; then
+                        ## Each line should be of the form
+                        ##   (WARNING)  Not found GZ   A  IP123=  93423264         0         0 485237600 in live
+                        field_not_found=$(sed 's/^(WARNING)  Not found //' fstcomp.list.grep.not_found | head -1)
+                    fi
+                fi ## End of 'if [ -s fstcomp.list.grep ]; then'
+	    fi ## End of 'else' associated to 'if [ -s fstcomp.list.grep ]; then'
         elif [ "${method}" = cmp ]; then
 	    cmp live rfrn || not_validating=yes
         elif [ "${method}" = diff ]; then
@@ -230,6 +248,8 @@ EOF
     if [ -n "${not_validating}" ]; then
         if [ "${method}" = fstcomp -a -n "${maxerror}" ]; then
             message="The file ${file} does not validate with method '${method}'!  (with a maximum absolute error of ${maxerror})"
+        elif [ "${method}" = fstcomp -a -n "${field_not_found}" ]; then
+            message="The file ${file} does not validate with method '${method}'!  (At least one field is missing: ${field_not_found})"
         else
 	    message="The file ${file} does not validate with method '${method}'!"
         fi

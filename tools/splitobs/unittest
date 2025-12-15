@@ -25,20 +25,30 @@ fi
 
 VERSION=${VERSION:-$(git describe --first-parent --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
-INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
-REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
-GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
+if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
+    REFERENCE_MACHINE=ppp5
+elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
+    REFERENCE_MACHINE=ppp8
+else
+    echo "This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT}"
+    exit 1
+fi
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20250604-beta
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20250604-beta
-RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20250129-alpha
-PY39_SSM_DOMAIN=eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
+INPUTS=${INPUTS:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/v001/inputs}
+REFERENCE=${REFERENCE:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/v001/results}
+GRIDS=${GRIDS:-/home/sanl000/data/${REFERENCE_MACHINE}/UnitTests/midas/splitobs/grids}
+grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
+
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20251009-beta
+RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20251009-beta
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251009-beta
+SQLITE3_SSM_DOMAIN=eccc/cmd/cmds/ext/20250808
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
 check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
 
-WORKDIR=${WORKDIR:-${PWD}/work}
+WORKDIR=${WORKDIR:-${PWD}/work_${TESTS2RUN}}
 
 export AFSISIO=${AFSISIO:-/home/smco502}
 export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
@@ -56,10 +66,9 @@ echo "Working directory is ${WORKDIR}"
 liburp=${liburp:-$(which liburp 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 reflex=${reflex:-$(which reflex 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
-burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite3=${sqlite3:-$(. ssmuse-sh -p ${PY39_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
+sqlite3=${sqlite3:-$(. ssmuse-sh -d ${SQLITE3_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
@@ -991,7 +1000,8 @@ test_burp_subdomains () {
 	    done
 	    check_status=0
 	    if [[ "${fam}" = ua4d* ]]; then
-		echo ${burpdiff} ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
+                echo . ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}
+		echo burpdiff ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
 		tty -s && read
 	    else
 		check_result ${INPUTS}/burp/${filein} ${filein} burp-SQL 1>> check_result.listing 2>&1 || check_status=$?
@@ -1076,7 +1086,7 @@ test_burp_latbands () {
 
 	status=0
 	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin /home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.8/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north \
+	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin ${grid_800x400} \
 	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
 	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
@@ -2057,22 +2067,22 @@ function rdbsplit_resume {
             procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
             procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
 
-            echo .schema | ${sqlite3} ${rdbin} | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
+            ## The command-line 'sqlite3' does not accept that we
+            ## create the table 'sqlite_stat1' since it is reserved
+            ## for internal usage.
+            echo .schema | ${sqlite3} ${rdbin} | grep -v '^CREATE TABLE sqlite_stat1(tbl,idx,stat);$' | ${sqlite3} ${rdbout}_${procx_str}_${procy_str}
             ${sqlite3} ${rdbout}_${procx_str}_${procy_str} <<EOF
 drop index idx1;
 
-PRAGMA journal_mode = OFF;
-PRAGMA  synchronous = OFF;
+PRAGMA synchronous = OFF;
 
 attach '${rdbin}' as db1;
 
 insert into header select * from db1.header where id_obs % ${nprocs} = $id;
 insert into data   select * from db1.data   where id_obs % ${nprocs} = $id;
 
-CREATE TABLE rdb4_schema( schema  varchar(9) );
 insert into rdb4_schema values('${TYPE}');
-create table resume(date integer , time integer , run varchar(9)) ;
-insert into resume values("$DATE","$HEURE","$RUN") ;
+insert into resume values('$DATE','$HEURE','$RUN') ;
 EOF
             let id=id+1
             let procy=procy+1

@@ -67,7 +67,7 @@ many sub-`FAMILY` element:
 
 ### Test Case Configuration
 
-In `maestro/suites/midas_system_tests/config/Tests/`, create a directory for your
+In `maestro/suites/midas_system_tests/config/Tests`, create a directory for your
 test configuration.
 If it is a single test, create the test configuration at that same level, for instance
 ```
@@ -91,9 +91,11 @@ UnitTest_reference=${pathToReference}
 UnitTest_reference_update=${pathForUpdate}
 # the path where the _updated_ inputs and expected 
 # results would be placed if the task `update` was launched.
-
-UnitTest_maximum_execution_time=${expectedTime}
 ```
+
+You must also add an entry in the files
+`maestro/suites/midas_system_tests/expectedTestsExecutionTimes.*` with
+the timing statistics expected.
 
 ### Preparing Inputs
 

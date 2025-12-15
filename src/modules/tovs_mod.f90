@@ -3641,6 +3641,8 @@ contains
     logical(kind=jplm) :: luse(nprofiles, n_chan)
     logical(kind=jplm) :: polarisedScattering
 
+    logical, save      :: first=.true.
+
     errorstatus = errorstatus_success
 
     luse(:,:) = .true.
@@ -3698,13 +3700,18 @@ contains
           chanprof   (channelIndex2)%prof  = profileIndex
           freq1 = speedl * coef_rttov % coef % ff_cwn(channelIndex1) / 1000000000.d0 ! conversion from cm-1 to GHz
           freq2 = coef_scatt % freq(frequencyIndex)
-          if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: warning found inconsistent frequencies before adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+          if (abs(freq1-freq2) > 0.05d0 .and. first) then
+            write(*,*) "tvs_rttov_scatt_setupindex: warning application of RttovScatt bugfix ", freq1, freq2, channelIndex1, frequencyIndex
+            first = .false.
           end if
           frequencies(channelIndex2) = coef_rttov % coef % ff_ori_chn( frequencyIndex ) ! the bug fix
           freq2 = coef_scatt % freq( frequencies(channelIndex2) )
           if (abs(freq1-freq2) > 0.05d0) then
-            write(*,*) "tvs_rttov_scatt_setupindex: found inconsistent frequencies after adjustment ...", freq1, freq2, channelIndex1, frequencyIndex
+            !This should never happen. It never happened in any test
+            !meaning that the proposed bug fix is working for the
+            !instrument we currently assimilate as discussed with
+            !James Hocking.
+            write(*,*) "tvs_rttov_scatt_setupindex: fatal error: found inconsistent frequencies after application of RttovScatt bugfix  ...", freq1, freq2, channelIndex1, frequencyIndex
             call utl_abort('tvs_rttov_scatt_setupindex')
           end if
         end if
@@ -3874,7 +3881,7 @@ contains
          0.9828819693848310d0,-7.4086701870172759D-07, -6.2949258820534062D-07,  &
          0.9329616683158125d0,-1.0728027288012200D-03, 2.7209071863380586D-05,   &
          0.9767410313266288d0,-9.1750038410238915D-07, -7.9177921107781349D-07,  &
-         0.9192775350344998d0,-1.0369254272157462D-03, 2.8000594542037504D-05 ], (/Nparm,2,MaxWn/))
+         0.9192775350344998d0,-1.0369254272157462D-03, 2.8000594542037504D-05 ], (/Nparm, 2, MaxWn/))
 
     real(8) :: a(MaxChan), b(MaxChan), cc(MaxChan)
     real(8) :: ww
@@ -4539,7 +4546,7 @@ contains
          890.d0,  735.d0,  605.d0,  470.d0,  340.d0,  140.d0 /)
 
     ! CERES emissivity per wavenumber and surface types
-    real(8), parameter ::  emi_tab(nb,20) = reshape((/                                      &
+    real(8), parameter ::  emi_tab(nb,20) = reshape((/                            &
          0.951d0, 0.989d0, 0.989d0, 0.989d0, 0.990d0, 0.991d0, 0.991d0, 0.990d0,  &
          0.990d0, 0.995d0, 1.000d0, 1.000d0, 1.000d0, 1.000d0,                    &
          0.956d0, 0.989d0, 0.989d0, 0.989d0, 0.990d0, 0.991d0, 0.991d0, 0.990d0,  &
@@ -4579,7 +4586,7 @@ contains
          0.984d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0,  &
          0.988d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0, 0.988d0,                    &
          0.964d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0,  &
-         0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0  /), (/nb,20/))
+         0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0  /), (/nb, 20/))
 
     do typeIndex = 1, 20
       do channelIndex = 1, nchn

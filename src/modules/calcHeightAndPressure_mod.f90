@@ -155,6 +155,8 @@ contains
       call utl_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
     end if
 
+    Vcode = vco_getVcode(gsv_getVco(statevector))
+
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 2001) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_*')) then
@@ -2330,7 +2332,7 @@ contains
       call gsv_getField(statevector,tt_ptr_r8,'TT')
       call gsv_getField(statevector,P0_ptr_r8,'P0')
 
-      ! initialize the pressure pointer to zero
+      ! Initialize the pressure pointer to zero
       P_M_ptr_r8(:,:,:,:) = 0.0d0
       P_T_ptr_r8(:,:,:,:) = 0.0d0
     end if
@@ -4136,6 +4138,11 @@ contains
         nlev_M = col_getNumLev(columnIncRef,'MM')
 
         numColumns = col_getNumCol(columnInc)
+        if (numColumns <= 0) then
+          call msg('calcHeight_col_tl_vcode5xxx (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         allocate(delThick(nlev_T,numColumns))
         delThick(:,:) = 0.0d0
@@ -4355,6 +4362,11 @@ contains
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
         numColumns = col_getNumCol(columnIncRef)
+        if (numColumns <= 0) then
+          call msg('calcHeight_col_ad_vcode5xxx (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         allocate(delHeight_M(nlev_M,numColumns))
         allocate(delThick(0:nlev_T,numColumns))

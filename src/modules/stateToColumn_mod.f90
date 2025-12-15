@@ -2049,10 +2049,13 @@ contains
     numHeader = obs_numHeader(obsSpaceData)
     allocate(intInfo%allNumHeader(mmpi_nprocs))
     call mmpi_allGather(numHeader, intInfo%allNumHeader)
-    allocate(intInfo%yourObsLat(numVarLev,numHeader))
-    allocate(intInfo%yourObsLon(numVarLev,numHeader))
-    intInfo%yourObsLat(:,:) =0.0d0
-    intInfo%yourObsLon(:,:) =0.0d0
+
+    if (numHeader /= 0) then
+      allocate(intInfo%yourObsLat(numVarLev,numHeader))
+      allocate(intInfo%yourObsLon(numVarLev,numHeader))
+      intInfo%yourObsLat(:,:) =0.0d0
+      intInfo%yourObsLon(:,:) =0.0d0
+    endif
 
     if (doSlantPath .and. &
         gsv_varExist(stateVector,'Z_T') .and. &
@@ -2167,14 +2170,20 @@ contains
 
       end do header_loop
 
-      write(*,*) 'getObsLatLon (s2c): min/max(yourObsLat) = ',  &
-           minval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8,  &
-           maxval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8
-      write(*,*) 'getObsLatLon (s2c): min/max(yourObsLon) = ',  &
-           minval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8,  &
-           maxval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8
+      if (numHeader /= 0) then
+        write(*,*) 'getObsLatLon (s2c): min/max(yourObsLat) = ',  &
+             minval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8,  &
+             maxval(intInfo%yourObsLat)*MPC_DEGREES_PER_RADIAN_R8
+        write(*,*) 'getObsLatLon (s2c): min/max(yourObsLon) = ',  &
+             minval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8,  &
+             maxval(intInfo%yourObsLon)*MPC_DEGREES_PER_RADIAN_R8
+      end if
 
       call gsv_deallocate(stateVector3dHeights_mpiGlb)
+      deallocate(latLev_T)
+      deallocate(lonLev_T)
+      deallocate(latLev_M)
+      deallocate(lonLev_M)
 
     else ! doSlantPath
 
@@ -7725,8 +7734,8 @@ contains
       deallocate(intInfoTiles%allNumHeader)
       deallocate(intInfoTiles%yourObsTileMpiId)
       deallocate(intInfoTiles%yourObsSubGridIndex)
-      deallocate(intInfoTiles%yourObsLat)
-      deallocate(intInfoTiles%yourObsLon)
+      if (allocated(intInfoTiles%yourObsLat)) deallocate(intInfoTiles%yourObsLat)
+      if (allocated(intInfoTiles%yourObsLon)) deallocate(intInfoTiles%yourObsLon)
 
       deallocate(intInfoTiles%myInterpObsLat)
       deallocate(intInfoTiles%myInterpObsLon)

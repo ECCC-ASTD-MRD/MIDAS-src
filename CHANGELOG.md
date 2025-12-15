@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100 and !1059)
  * Added output RMSD of OMP per swath in ascii files for sea ice observations (#1128 and !1046)
  * Added `cloudAboveDesertFix` to `NAMBGCKIR` to activate fix in IASI quality control (#1104 and !1040)
  * Adapt ocean-related components to deal with different types of ocean temperature and salinity observations (#1119 and !1036)
@@ -66,6 +67,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [4.1.4]
+
+### Added
+
+ * Added `outputDFS` to `&NAMLETKF` (#1105 and !1050)
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1045, !1054 and !1056)
+ * Note that the fix associated to RttovScatt (#1049) that was
+   removed in `v_3.10.0` is still present in this version.
+ * The results are not guaranteed to be reproducible on HPCR-U3.
+   Some differences have been observed between runs only for the
+   programs `midas-var`, `midas-letkf` and `midas-obsImpact`.  This
+   needs to be investigated further.  The tests should validate most
+   of the time.  No differences have been detected between runs for
+   other programs.  This problem has not been observed on HPCR-U2.
+
+### Changed
+
+ * Updating `rpn/libs` and `rpn/utils` to `20251009-beta` (#1111 and !1044)
+
+### Fixed
+
+ * The CI is publishing again automatically the SSM domains (#1115 and !1028)
+
 ## [4.1.3]
 
 ### Added
@@ -79,15 +103,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix a small bug in `src/midas_build` when some targets are specified at the command line (#1113 and !1026)
- * Create links for all machines when doing the tests suite setup (#1110 and !1024)
- * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
  * Fix the computation of pressure and heights in GEM-H to make the results similar to GEM-P (#1097 and !1011)
  * Fix for `stateToColumn_mod` to correctly handle `real(4)` argument (#1095 and !1004).
- * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
-
-### Removed
-
- * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
+ * Correct handling of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
 ## [4.1.2]
 
@@ -383,6 +401,46 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
+
+## [3.10.2]
+
+### Added
+
+ * Three tests has been added to cover MIDAS configurations in WEonG (#1127 and !1052)
+
+### Fixed
+
+ * Fix the email sent to report the outliers in `maestro/suites/midas_system_tests/extractRunTime.sh` (#1130 and !1051)
+ * Move MPI topology check earlier in execution in `advection_mod` (#1129 and !1047)
+
+## [3.10.1]
+
+### Added
+
+ * Fix library loading and SSM publishing for the platform `rhel-8-icelake-64` (#1100 and !1043)
+
+## [3.10.0]
+
+### Added
+
+ * Add the support of the platform `rhel-9-graniterapids-64` (#1100, !1038 and !1041)
+ * Revert the changes made with issues #1049 (!973) and #1112 (!1030) (#1121 and !1037)
+   * major impact on results comparing with `v_3.9.7` but no impact
+     with respect to operational version `v_3.9.6`.
+
+### Changed
+
+ * Increase hard-coded value of `Nmax` in routine `filt_topoChemistry` (#1118 and !1033)
+ * Warning message related to the fix to the RttovScatt bug is only printed once (#1112 and !1030)
+ * Create links for all machines when doing the tests suite setup (#1110 and !1024)
+
+### Fixed
+
+ * Fixed bug in function `phf_calcDistance` causing the code to abort due to a rare floating point issue (#1096 and !1008)
+
+### Removed
+
+ * Remove use of MPI derived datatypes for communication in spectral transforms (#1107 and !1017)
 
 ## [3.9.7]
 
@@ -1563,7 +1621,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1
+[4.1.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
 [4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
 [4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
 [4.1.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0...v_4.1.1
@@ -1572,7 +1631,10 @@ are not documenting them here.
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
-[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...v_4.0.0
+[3.10.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...v_3.10.2
+[3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
+[3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
 [3.9.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.6...v_3.9.7
 [3.9.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.5...v_3.9.6
 [3.9.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_3.9.5
