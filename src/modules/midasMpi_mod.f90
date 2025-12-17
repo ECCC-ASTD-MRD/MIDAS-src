@@ -47,12 +47,16 @@ module midasMpi_mod
 
     ! Locals:
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
-    integer :: ierr
+    integer :: ierr, nulnam, fnom, fclos
     integer :: rpn_comm_comm, rpn_comm_datyp
 
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
     integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
+    integer :: numThreadsMKL
+    logical :: dynamicMKL
+
+    namelist /nammkl/ numThreadsMKL, dynamicMKL
 
     ! Initilize MPI
     npex=0
@@ -82,7 +86,7 @@ module midasMpi_mod
     end if
     !$OMP END PARALLEL
 
-    ! create standard mpi handles to rpn_comm mpi communicators to facilitate 
+    ! create standard mpi handles to rpn_comm mpi communicators to facilitate
     ! use of standard mpi routines
     mmpi_comm_EW = rpn_comm_comm('EW')
     mmpi_comm_NS = rpn_comm_comm('NS')
@@ -99,6 +103,51 @@ module midasMpi_mod
       write(*,*) 'mmpi_initialize: no MPI_BARRIERs will be done'
     endif
     write(*,*) ' '
+
+    ! default values for MKL namelist
+    numThreadsMKL = -1
+    dynamicMKL = .false.
+
+    ! read the MKL namelist
+    if (.not. utl_isNamelistPresent('namMKL','./flnml')) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: namMKL is missing in the namelist.'
+        write(*,*) '                 the default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml = namMKL, iostat = ierr)
+      if (ierr /= 0) call utl_abort('mmpi_initialize:: Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    if (mmpi_myid == 0) write(*, nml = namMKL)
+
+    ! Modify the MKL thread configuration based on namelist variables
+
+    if (dynamicMKL) then
+      call mkl_set_dynamic(1)
+    else
+      call mkl_set_dynamic(0)
+    end if
+
+    if (numThreadsMKL == -1) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: default number of threads used for MKL'
+      end if
+    else if (numThreadsMKL >= 1) then
+      if (numThreadsMKL > mmpi_numThread) then
+        if (mmpi_myid == 0) then
+          write(*,*) 'mmpi_initialize: numThreadsMKL reduced from', &
+                     numThreadsMKL, 'to', mmpi_numThread
+        end if
+        numThreadsMKL = mmpi_numThread
+      end if
+      call mkl_set_num_threads(numThreadsMKL)
+    else
+      call utl_abort('mmpi_initialize: invalid value for numThreadsMKL')
+    end if
 
   end subroutine mmpi_initialize
 
@@ -127,7 +176,7 @@ module midasMpi_mod
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
 
-  end subroutine mmpi_getptopo 
+  end subroutine mmpi_getptopo
 
 
   subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm )
@@ -263,8 +312,8 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_2d
- 
-  
+
+
   subroutine mmpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks.
@@ -313,8 +362,8 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_1d
- 
-  
+
+
   subroutine mmpi_reduce_sumR8_2d( sendVector, recvVector, root, comm )
     !
     ! :Purpose: Perform sum of 2d array over all MPI tasks.
@@ -436,7 +485,7 @@ module midasMpi_mod
     ! Locals:
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
     integer :: ilist,ichar,iproc
-              
+
     ! Convert strings to integer sequences
 
     do ilist=1,nlist
@@ -448,9 +497,9 @@ module midasMpi_mod
     ! Perform allgather with converted integer sequences
 
     call rpn_comm_allgather(num_list,nlist*nchar,"MPI_INTEGER",num_list_all,nlist*nchar,"MPI_INTEGER",comm,ierr)
-       
+
     ! Convert integer sequences to stnid character strings
-          
+
     do iproc=1,nproc
        do ilist=1,nlist
           do ichar=1,nchar
@@ -620,7 +669,7 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_m
 
- 
+
   subroutine mmpi_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
     ! :Purpose: compute parameters that define the mpi distribution of
     !          wavenumber n over tasks in X direction (npex)
