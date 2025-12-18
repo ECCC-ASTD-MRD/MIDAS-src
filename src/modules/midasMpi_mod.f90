@@ -105,8 +105,8 @@ module midasMpi_mod
     write(*,*) ' '
 
     ! default values for MKL namelist
-    numThreadsMKL = -1
-    dynamicMKL = .false.
+    numThreadsMKL = 1
+    dynamicMKL = .true.
 
     ! read the MKL namelist
     if (.not. utl_isNamelistPresent('namMKL','./flnml')) then
