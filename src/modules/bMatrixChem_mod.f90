@@ -1,11 +1,11 @@
 
-module bMatrixChem_mod 
+module bMatrixChem_mod
   ! MODULE bMatrixChem_mod (prefix='bchm' category='2. B and R matrices')
   !
   !:Purpose:  Contains routines involving the application of
   !           background-error covariance matrix(ces). Matrix based on
   !           horizontally homogeneous/isotropic correlations. This module
-  !           includes the transform from control vector (spectral space) to 
+  !           includes the transform from control vector (spectral space) to
   !           analysis increments, related utilites, and the transform's adjoint.
   !
   !           Based on elements of bmatrixHI_mod.ftn90
@@ -21,10 +21,10 @@ module bMatrixChem_mod
 
   ! Public Subroutines:
   !
-  !    bchm_setupCH:  Must be called first. 
-  !                   Acquire constituents backgound error standard 
-  !                   deviations and spectral space correlations which are 
-  !                   read and prepared by bcsc_setupCH. 
+  !    bchm_setupCH:  Must be called first.
+  !                   Acquire constituents backgound error standard
+  !                   deviations and spectral space correlations which are
+  !                   read and prepared by bcsc_setupCH.
   !    bchm_finalize: Deallocate internal module arrays.
   !    bchm_BSqrt:    Transformations from control vector to analysis
   !                   increments in the minimization process.
@@ -32,7 +32,7 @@ module bMatrixChem_mod
   !    bchm_expand*   MPI manipulations of contol vector(s)
   !    bchm_reduce*   MPI manipulations related to contol vector(s)
   !
-  
+
   use midasMpi_mod
   use gridStateVector_mod
   use gridVariableTransforms_mod
@@ -42,7 +42,8 @@ module bMatrixChem_mod
   use varNameList_mod
   use utilities_mod
   use bCovarSetupChem_mod
-  
+  use mkl_service
+
   implicit none
   save
   private
@@ -50,11 +51,11 @@ module bMatrixChem_mod
   ! public procedures
   public :: bchm_setupCH,bchm_finalize,bchm_BSqrt,bchm_BSqrtAd
   public :: bchm_expandToMPIglobal,bchm_expandToMPIglobal_r4,bchm_reduceToMPIlocal,bchm_reduceToMPIlocal_r4
-  
-  logical             :: initialized = .false.                    
-  integer             :: nla_mpiglobal,nla_mpilocal           
-  integer             :: cvDim_mpilocal,cvDim_mpiglobal           
-  integer             :: gstID, gstID2          
+
+  logical             :: initialized = .false.
+  integer             :: nla_mpiglobal,nla_mpilocal
+  integer             :: cvDim_mpilocal,cvDim_mpiglobal
+  integer             :: gstID, gstID2
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
@@ -63,11 +64,11 @@ module bMatrixChem_mod
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
-                            
+
   integer, external   :: get_max_rss
 
   ! Bacgkround error covariance matrix elements.
-  ! One could add an additional dimension to corns  
+  ! One could add an additional dimension to corns
   ! for separate block-univariate correlation matrices.
   ! This would also permit merging of bmatrixhi_mod and bmatrixchem_mod
   ! into one module.
@@ -79,7 +80,7 @@ module bMatrixChem_mod
                                        ! and related elements
 
   !*************************************************************************
-    
+
   contains
 
   !--------------------------------------------------------------------------
@@ -105,30 +106,30 @@ module bMatrixChem_mod
     logical :: covarNeeded
 
     ! Read and prepare covariances and related elements
-    
+
     call bcsc_setupCH(hco_in,vco_in,covarNeeded,'Analysis')
     if (.not.covarNeeded) then
       ! Assumes CH covariances not needed.
       cvDim_out=0
       return
     end if
-    
+
     ! Get covariances and related elements required for assimilation
-        
+
     call bcsc_getCovarCH(bgStats,transformVarKind_opt=transformVarKindCH)
-        
+
     ! Set vertical dimension
     ! Need an even number of levels for spectral transform
-    
+
     if (mod(bgStats%nlev,2) /= 0) then
       nLev_T_even = bgStats%nlev+1
     else
       nLev_T_even = bgStats%nlev
     end if
-     
+
     ! Spectral transform and MPI setup parameters.
 
-    nla_mpiglobal = (bgStats%ntrunc+1)*(bgStats%ntrunc+2)/2    
+    nla_mpiglobal = (bgStats%ntrunc+1)*(bgStats%ntrunc+2)/2
     gstID  = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc,bgStats%nkgdim)
     gstID2 = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc,nlev_T_even)
     if (mmpi_myid == 0) write(*,*) 'bchm_setupCH: returned value of gstID =',gstID
@@ -168,7 +169,7 @@ module bMatrixChem_mod
                             "mpi_integer", "mpi_sum", "GRID", ierr)
 
     initialized = .true.
-   
+
   end subroutine bchm_setupCH
 
   !--------------------------------------------------------------------------
@@ -186,13 +187,13 @@ module bMatrixChem_mod
     real(8),                    intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_gsv),           intent(inout) :: statevector
     type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
-    
+
     ! Locals:
     real(8), allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
     character(len=30) :: transform
     integer :: varIndex
-    
+
     if (.not.initialized) return
 
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrt: starting'
@@ -203,16 +204,16 @@ module bMatrixChem_mod
     call bchm_cain(controlVector_in,hiControlVector)
 
     call bchm_spa2gd(hiControlVector,gd_out)
-    
+
     call bchm_copyToStatevector(statevector,gd_out)
 
-    if ( trim(transformVarKindCH) /= '' ) then  
-     
+    if ( trim(transformVarKindCH) /= '' ) then
+
       transform = trim(transformVarKindCH)//'CH_tlm'
       do varIndex= 1, bgStats%numvar3d+bgStats%numvar2d
-   
+
         if (vnl_varKindFromVarname(vnl_varNameList(varIndex)) /= 'CH') cycle
-    
+
         if ( present(stateVectorRef_opt) ) then
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
@@ -226,7 +227,7 @@ module bMatrixChem_mod
 
       end do
     end if
-    
+
     deallocate(gd_out)
 
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -249,12 +250,12 @@ module bMatrixChem_mod
     real(8),                    intent(inout) :: controlVector_out(cvDim_mpilocal)
     type(struct_gsv),           intent(inout) :: statevector
     type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
-    
+
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
     character(len=30) :: transform
-    integer :: varIndex  
+    integer :: varIndex
 
     if ( .not.initialized ) then
       if (mmpi_myid == 0) write(*,*) 'bMatrixChem not initialized'
@@ -266,13 +267,13 @@ module bMatrixChem_mod
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim))
 
-    if ( trim(transformVarKindCH) /= '' ) then  
-          
-      transform = trim(transformVarKindCH)//'CH_ad'            
+    if ( trim(transformVarKindCH) /= '' ) then
+
+      transform = trim(transformVarKindCH)//'CH_ad'
       do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
-   
+
         if (vnl_varKindFromVarname(vnl_varNameList(varIndex)) /= 'CH') cycle
-    
+
         if ( present(stateVectorRef_opt) ) then
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
@@ -390,7 +391,7 @@ module bMatrixChem_mod
 
     ! Locals:
     real(8) :: sp(nla_mpilocal,2,bgStats%nkgdim)
-    integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
+    integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount, numThreadLocal
     real(8) :: sq2
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: levelIndex, lonIndex, latIndex
@@ -404,7 +405,7 @@ module bMatrixChem_mod
     allocate(zsp2(bgStats%nkgdim,2,mymCount))
 
     !$OMP PARALLEL DO PRIVATE(jn,jm,levelIndex,ila_mpiglobal,ila_mpilocal, &
-    !$OMP  zsp2,zsp,icount)
+    !$OMP  zsp2,zsp,icount,numThreadLocal)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -423,9 +424,15 @@ module bMatrixChem_mod
       end do
       if (icount > 0) then
 
+        ! Force the number of threads to 1
+        numThreadLocal = mkl_set_num_threads_local(1)
+
         CALL DGEMM('N','N',bgStats%nkgdim,2*icount,bgStats%nkgdim,1.0d0, &
 	  bgStats%corns(1,1,jn),bgStats%nkgdim,zsp(1,1,1), &
 	  bgStats%nkgdim,0.0d0,zsp2(1,1,1),bgStats%nkgdim)
+
+        ! Restore number of threads to what it was originally
+        numThreadLocal = mkl_set_num_threads_local(numThreadLocal)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -485,7 +492,7 @@ module bMatrixChem_mod
       end do
     end do
     !$OMP END PARALLEL DO
-    
+
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
     do levelIndex = 1, bgStats%nkgdim
       do latIndex = myLatBeg, myLatEnd
@@ -519,7 +526,7 @@ module bMatrixChem_mod
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
     do levelIndex = 1, bgStats%nkgdim
       do latIndex = myLatBeg, myLatEnd
-        do lonIndex = myLonBeg, myLonEnd                                                      
+        do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = gd_in(lonIndex,latIndex,levelIndex)
         end do
       end do
@@ -609,11 +616,11 @@ module bMatrixChem_mod
   !--------------------------------------------------------------------------
   subroutine bchm_copyToStatevector(statevector,gd)
     implicit none
-    
+
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
-    
+
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
@@ -621,8 +628,8 @@ module bMatrixChem_mod
     do varIndex = 1,bgStats%numvar3d+bgStats%numvar2d
       call gsv_getField(statevector,field,bgStats%varNameList(varIndex))
       ilev1 = bgStats%nsposit(varIndex)
-      ilev2 = bgStats%nsposit(varIndex+1)-1 
-        
+      ilev2 = bgStats%nsposit(varIndex+1)-1
+
       !!!$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,levelIndex2,lonIndex)
       do levelIndex = ilev1, ilev2
         levelIndex2 = levelIndex-ilev1+1
@@ -645,7 +652,7 @@ module bMatrixChem_mod
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
-    
+
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
@@ -654,7 +661,7 @@ module bMatrixChem_mod
       call gsv_getField(statevector,field,bgStats%varNameList(varIndex))
 
       ilev1 = bgStats%nsposit(varIndex)
-      ilev2 = bgStats%nsposit(varIndex+1)-1 
+      ilev2 = bgStats%nsposit(varIndex+1)-1
 
       !!!$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,levelIndex2,lonIndex)
       do levelIndex = ilev1, ilev2
@@ -747,9 +754,9 @@ module bMatrixChem_mod
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
               if (jm <= jn) then
-                      
+
                 ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                      
+
                 ! figure out index into global control vector
                 if (jm == 0) then
                   ! for jm=0 only real part
@@ -761,7 +768,7 @@ module bMatrixChem_mod
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
 		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
-                      
+
                 ! index into local control vector computer as in cain
                 if (jm == 0) then
                   ! only real component for jm=0
@@ -774,7 +781,7 @@ module bMatrixChem_mod
                   jdim_mpilocal = jdim_mpilocal + 1
                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                 end if
-                      
+
                 if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
@@ -792,7 +799,7 @@ module bMatrixChem_mod
             end do
           end do
         end do
- 
+
       end do ! jproc
       !$OMP END PARALLEL DO
 
@@ -901,9 +908,9 @@ module bMatrixChem_mod
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
               if (jm <= jn) then
-                      
+
                 ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                      
+
                 ! figure out index into global control vector
                 if  (jm == 0) then
                   ! for jm=0 only real part
@@ -915,7 +922,7 @@ module bMatrixChem_mod
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
 		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
-                      
+
                 ! index into local control vector computer as in cain
                 if (jm == 0) then
                   ! only real component for jm=0
@@ -928,7 +935,7 @@ module bMatrixChem_mod
                   jdim_mpilocal = jdim_mpilocal + 1
                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                 end if
-                      
+
                 if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
@@ -946,7 +953,7 @@ module bMatrixChem_mod
             end do
           end do
         end do
- 
+
       end do ! jproc
       !$OMP END PARALLEL DO
 
@@ -1103,7 +1110,7 @@ module bMatrixChem_mod
       end do ! jproc
       !$OMP END PARALLEL DO
 
-    end if ! myid == 0 
+    end if ! myid == 0
 
     deallocate(allnBeg)
     deallocate(allnEnd)
@@ -1231,7 +1238,7 @@ module bMatrixChem_mod
                 if (jdim_mpiglobal > cvDim_mpiglobal) then
                   write(*,*) 'ERROR: jdim,cvDim,mpiglobal=', &
 		             jdim_mpiglobal,cvDim_mpiglobal,levelIndex,jn,jm
-                end if 
+                end if
               end if
             end do
           end do
@@ -1239,7 +1246,7 @@ module bMatrixChem_mod
       end do ! jproc
       !$OMP END PARALLEL DO
 
-    end if ! myid == 0 
+    end if ! myid == 0
 
     deallocate(allnBeg)
     deallocate(allnEnd)
