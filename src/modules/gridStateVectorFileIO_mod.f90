@@ -2593,13 +2593,15 @@ module gridStateVectorFileIO_mod
 
         if (trim(varName) == 'TM' .and. containsFullField) then
           if (statevector%dataKind == 4) then
-            where (field_r4_ptr(:,:, varLevIndex, stepIndex) < 100.0)
+            where (field_r4_ptr(:,:, varLevIndex, stepIndex) < 100.0 .and. &
+                   field_r4_ptr(:,:, varLevIndex, stepIndex) > MPC_missingValue_R4)
               field_r4_ptr(:,:, varLevIndex, stepIndex) = &
                    real(field_r4_ptr(:,:, varLevIndex, stepIndex) + &
                    mpc_k_c_degree_offset_r8, 4)
             end where
           else
-            where (field_r8_ptr(:,:, varLevIndex, stepIndex) < 100.0)
+            where (field_r8_ptr(:,:, varLevIndex, stepIndex) < 100.0 .and. &
+                   field_r8_ptr(:,:, varLevIndex, stepIndex) > MPC_missingValue_R8)
               field_r8_ptr(:,:, varLevIndex, stepIndex) = &
                    real(field_r8_ptr(:,:, varLevIndex, stepIndex) + &
                    mpc_k_c_degree_offset_r8, 8)
@@ -2868,7 +2870,7 @@ module gridStateVectorFileIO_mod
       else
         call utl_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
       end if
-	
+
       fileName = trim(fileNameTemplate)//'.nc'
 
       ! check if the file already exists

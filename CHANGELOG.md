@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * No more Kelvin-Celcius conversion for TM missing values (#1136 and !1061)
  * Bugfix in netCDF writes (#1134 and !1055)
  * Fix use of Bit 19 to reject land-/sea-ice-affected microwave radiances (#1021 and !931)
  * Fix bugs reported when running the programs with `gfortran` (#1073 and !1013)
