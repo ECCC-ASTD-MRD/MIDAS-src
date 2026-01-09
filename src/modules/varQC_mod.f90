@@ -15,6 +15,8 @@ module varQC_mod
   use rmatrix_mod ,only : rmat_lnondiagr
   use varNameList_mod
   use obsFamilyList_mod
+  use utilities_mod
+  use midasMpi_mod
   
   implicit none
   save
@@ -23,8 +25,14 @@ module varQC_mod
   ! Public procedures
   public :: vqc_setup, vqc_NlTl, vqc_ad, vqc_listrej
 
-  contains
+  logical :: dropSondeWind  ! do varQC or not for dropsonde wind obs
+  logical :: dropSondePsurf ! do varQC or not for dropsonde surface pressure obs
 
+contains
+
+  !--------------------------------------------------------------------------
+  ! vqc_setup
+  !--------------------------------------------------------------------------
   subroutine vqc_setup(obsSpaceData)
     !
     ! :Purpose: To set certain parameters for the asymmetric check
@@ -36,7 +44,7 @@ module varQC_mod
     type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
 
     ! Locals:
-    integer jdata, jjo, idata, idatend, idburp
+    integer bodyIndex, headerIndex, idata, idatend, idburp, ierr
     integer ityp, iass, iother, jj, istyp, ilev
     real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice, zapr
     real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice, zdpr
@@ -45,66 +53,86 @@ module varQC_mod
     real(8) zfcst, zlat, zlon, zprior
     logical llok
 
+    namelist /namvarqc/ dropSondeWind, dropSondePsurf
+
     !
-    !_____prior probabilities for winds:ZAUV
-    !     prior probabilities for scalar variables: zagz and zahu
-    !     standard deviation multiple for background check for winds: zduv
-    !     standard deviation multiple for background check for heights: zdgz
-    !     standard deviation multiple for background check for humidity: zdhu
+    !- Read namelist namvarqc
     !
-    zagz  = 1.0d-12
-!    zahu  = 1.0d-2
-    zahu  = 5.0d-2
-    zatt  = 5.0d-2
-!    zauv  = 1.0d-2
-    zauv  = 2.0d-2
+    dropSondeWind  = .true.
+    dropSondePsurf = .true.
+    if (utl_isNamelistPresent('namvarqc','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read (utl_flnml, nml = NAMVARQC, iostat = ierr)
+      if (ierr /= 0) call utl_abort('vqc_setup: Error reading namelist')
+      if (mmpi_myid == 0) write(*,nml=namvarqc)
+      call utl_tmg_stop(181)
+    else
+      write(*,*)
+      write(*,*) 'vqc_setup: namvarqc is missing in the namelist. The default value will be taken.'
+    end if
+
+    !
+    !- Set values
+    !
+
+    !  Prior probabilities
+    zagz  = 1.0d-12 
+    zahu  = 5.0d-2 ! humidity
+    zatt  = 5.0d-2 ! temperature
+    zauv  = 2.0d-2 ! winds
     zabt  = 1.0d-1
     zabtb = 1.0d-1
-    zapn  = 1.0d-4
-    zaps  = 1.0d-4
+    zapn  = 1.0d-4 ! mean sea level pressure
+    zaps  = 1.0d-4 ! surface pressure
     zazd  = 2.0d-2
     zach  = 1.0d-3
     zatm  = 1.0d-12
     zaice = 0.0d0
     zapr  = 0.0d0
-
     zattra = 0.005d0
     zattsym = 1.d-1
     zauvra = 1.d-5
-    zavis= 1.0d-3
+    zavis = 1.0d-3
 
+    !  Standard deviation multiple for background check
     zdgz  = 5.d0
-    zdhu  = 5.d0
-    zdtt  = 5.d0
-    zduv  = 5.d0
+    zdhu  = 5.d0 ! humidity
+    zdtt  = 5.d0 ! temperature
+    zduv  = 5.d0 ! winds
     zdbt  = 3.d0
     zdbtb = 3.d0
-    zdpn  = 5.d0
-    zdps  = 5.d0
+    zdpn  = 5.d0 ! mean sea level pressure
+    zdps  = 5.d0 ! surface pressure
     zdzd  = 3.d0
     zdch  = 1.d1
     zdtm  = 5.d0
     zdice = 5.d2
     zdpr  = 5.d2
-    zdvis= 5.d0
+    zdvis = 5.d0
 
-    do jjo = 1, obs_numheader(obsSpaceData)
+    !
+    !- Set initial value of gamma
+    !
 
-       IDATA   = obs_headElem_i( obsSpaceData, OBS_RLN, jjo )
-       IDATEND = obs_headElem_i( obsSpaceData, OBS_NLV, jjo ) + IDATA - 1
-       IDBURP  = obs_headElem_i( obsSpaceData, OBS_ITY, jjo )
-       ZLAT    = obs_headElem_r( obsSpaceData, OBS_LAT, jjo ) * MPC_DEGREES_PER_RADIAN_R8
-       ZLON    = obs_headElem_r( obsSpaceData, OBS_LON, jjo ) * MPC_DEGREES_PER_RADIAN_R8
+    ! Loop on header
+    do headerIndex = 1, obs_numheader(obsSpaceData)
 
-       do JDATA = IDATA, IDATEND
+       IDATA   = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+       IDATEND = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + IDATA - 1
+       IDBURP  = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+       ZLAT    = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+       ZLON    = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
-          ityp  = obs_bodyElem_i( obsSpaceData, OBS_VNM, JDATA )
-          IASS  = obs_bodyElem_i( obsSpaceData, OBS_ASS, JDATA )
-          ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, JDATA ) * MPC_MBAR_PER_PA_R8
-          ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
-          ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
+       ! Loop on body
+       do bodyIndex = IDATA, IDATEND
 
-          ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
+          ityp  = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+          IASS  = obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex )
+          ZLEV  = obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
+          ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, bodyIndex )
+          ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+
+          ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,bodyIndex)
 
           if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
@@ -112,194 +140,234 @@ module varQC_mod
               ityp == BUFR_NEZD .or. ityp == bufr_vis  .or.  &
               ityp == bufr_logVis .or. ityp == bufr_gust .or. &
               ityp == bufr_radarPrecip .or. ityp == bufr_logRadarPrecip ) then
-             LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated)
+             LLOK = (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated)
           else
-             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) ==0) &
-                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,JDATA) == 2) .and. &
-                      (obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA) == BUFR_NEGZ)))
+             LLOK = (IASS == obs_assimilated) .and. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ==0) &
+                .or. ((obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 2) .and. &
+                      (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEGZ)))
           end if
 
           if (LLOK) then
-             if (ityp == BUFR_NEUU .or. ityp == BUFR_NEVV .or.  &
-                 ityp == BUFR_NEUS .or. ityp == BUFR_NEVS) then
-                ZAASYM = 1.0d0
-                IOTHER = -1
-                if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
-                  do JJ = IDATA, JDATA
-                    ISTYP = obs_bodyElem_i( obsSpaceData, OBS_VNM, JJ )
-                    ZSLEV = obs_bodyElem_r( obsSpaceData, OBS_PPP, JJ ) * MPC_MBAR_PER_PA_R8
-                    if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS)  &
-                         .and. ZLEV == ZSLEV) then
-                      IOTHER = JJ
-                    end if
-                  end do
-                else
-                  do JJ=IDATA,JDATA
-                    ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
-                    ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)*MPC_MBAR_PER_PA_R8
-                    if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS)  &
-                         .and. ZLEV == ZSLEV) then
-                      IOTHER = JJ
-                    end if
-                  end do
-                end if
-                if (IOTHER /= -1) then
-                  ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,JDATA)
-                  ZOVAL = obs_bodyElem_r(obsSpaceData,OBS_VAR,IOTHER)
-                  ZOFCST = ZOVAL-obs_bodyElem_r(obsSpaceData,OBS_OMP,IOTHER)
-                  ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
-                  ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
-                  ZDIFF = ZSPDO - ZSPDF
-                  ILEV = NINT(ZLEV)
-                  !
-                  !___tighten rejection criterion for satob winds
-                  !
-                  if (IDBURP == 88 .or. IDBURP == 188) then
-                    if (ZDIFF < 0.0d0 .and. ABS(ZLAT) > 20.d0 .and.  &
-                         ILEV < 550) then
-                       ZAASYM = 0.7d0*MAX(ZSPDF,1.0d0)
-                       ZPRIOR = ZAASYM*ZAUV
-                       if (ZPRIOR > 0.99d0) ZAASYM = 0.99d0/ZAUV
-                    else
-                       !
-                       !___zaasym used to specify new criterion for satwinds
-                       !   than are not included in the asymmetric test
-                       !
-                       ZAASYM = 10.d0
-                    end if
-                  end if
 
+            ! Winds
+            if (ityp == BUFR_NEUU .or. ityp == BUFR_NEVV .or.  &
+                 ityp == BUFR_NEUS .or. ityp == BUFR_NEVS) then
+              
+              ZAASYM = 1.0d0
+              IOTHER = -1
+              if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) then
+                do JJ = IDATA, bodyIndex
+                  ISTYP = obs_bodyElem_i( obsSpaceData, OBS_VNM, JJ )
+                  ZSLEV = obs_bodyElem_r( obsSpaceData, OBS_PPP, JJ ) * MPC_MBAR_PER_PA_R8
+                  if ((ISTYP == BUFR_NEVV .or. ISTYP == BUFR_NEVS)  &
+                       .and. ZLEV == ZSLEV) then
+                    IOTHER = JJ
+                  end if
+                end do
+              else
+                do JJ=IDATA,bodyIndex
+                  ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
+                  ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)*MPC_MBAR_PER_PA_R8
+                  if ((ISTYP == BUFR_NEUU .or. ISTYP == BUFR_NEUS) .and. ZLEV == ZSLEV) then
+                    IOTHER = JJ
+                  end if
+                end do
+              end if
+              if (IOTHER /= -1) then
+                ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                ZOVAL = obs_bodyElem_r(obsSpaceData,OBS_VAR,IOTHER)
+                ZOFCST = ZOVAL-obs_bodyElem_r(obsSpaceData,OBS_OMP,IOTHER)
+                ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
+                ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
+                ZDIFF = ZSPDO - ZSPDF
+                ILEV = NINT(ZLEV)
+
+                ! Tighten rejection criterion for satob winds
+                if (IDBURP == 88 .or. IDBURP == 188) then
+                  if (ZDIFF < 0.0d0 .and. ABS(ZLAT) > 20.d0 .and. ILEV < 550) then
+                    ZAASYM = 0.7d0*MAX(ZSPDF,1.0d0)
+                    ZPRIOR = ZAASYM*ZAUV
+                    if (ZPRIOR > 0.99d0) ZAASYM = 0.99d0/ZAUV
+                  else
+                    ! zaasym used to specify new criterion for satwinds
+                    ! than are not included in the asymmetric test
+                    ZAASYM = 10.d0
+                  end if
                 end if
-                !
-                !__INITIAL VALUE OF GAMMA FOR QCVAR (WINDS)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(1.d0 -  &
+
+              end if
+                
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(1.d0 -  &
                    (1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM)))*(2.d0*MPC_PI_r8)/  &
                   ((1.d0-(ZAUV*ZAASYM))*(1.d0-(ZAUV*ZAASYM))*  &
                                     (2.d0*ZDUV)*(2.d0*ZDUV)))
-                if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
+              if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
                    (IDBURP >= 135 .and. IDBURP <= 142) .or.  &
                    (IDBURP == 132) )  &
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,  &
+                   call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,  &
                        (1.d0 - (1.d0-ZAUVRA)*(1.d0-ZAUVRA))  &
                        *(2.d0*MPC_PI_R8)/((1.d0-ZAUVRA)*(1.d0-ZAUVRA)*  &
-                                   (2.d0*ZDUV)*(2.d0*ZDUV)))
-             else if (ityp == BUFR_NEGZ) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (HEIGHTS)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAGZ*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAGZ)*(2.d0*ZDGZ)))
-             else if (ityp == BUFR_NETT) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (TEMPERATURES)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATT*  &
+                       (2.d0*ZDUV)*(2.d0*ZDUV)))
+              
+            ! Heights
+            else if (ityp == BUFR_NEGZ) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZAGZ*  &
+                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAGZ)*(2.d0*ZDGZ)))
+              
+            ! Upper-air temperature
+            else if (ityp == BUFR_NETT) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZATT*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
-                if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
-                    (IDBURP >= 135 .and. IDBURP <= 142) .or.  &
-                    (IDBURP == 132) )  &
-                  call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATTRA*  &
+              if ((IDBURP >= 32  .and. IDBURP <= 38) .or.  &
+                  (IDBURP >= 135 .and. IDBURP <= 142) .or.  &
+                  (IDBURP == 132) )  &
+                  call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZATTRA*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTRA)*(2.d0*ZDTT)))
-             else if (ityp == BUFR_NETS) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (SCREEN-LEVEL TEMPERATURES)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATT*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
-                !
-                ! ASYMMETRIC TEST FOR SHIP TEMPERATURES
-                !
-                if ((IDBURP == 13) .and. (ZVAL > ZFCST)) then
-                  call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZATTSYM*  &
-                      SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTSYM)*(2.d0*ZDTT)))
-                end if
-             else if (ityp == BUFR_NEPN) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (MSL PRESSURE)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAPN*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPN)*(2.d0*ZDPN)))
-             else if (ityp == BUFR_NEPS) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (STATION PRESSURE)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAPS*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPS)*(2.d0*ZDPS)))
-             else if ( ityp == 12062 .or. ityp == 12063 .or.  &
-                      ityp == 12163) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR BRIGHTNESS TEMPERATURES
-                ! TOVS AMSU-A + AIRS + IASI + GEORAD !!!!! 
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABT*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
-                if (IDBURP == 181 .or. IDBURP == 182 .or. &
-                    IDBURP == 200) then
-                  !
-                  ! INITIAL VALUE OF GAMMA FOR TOVS AMSU-B (181) AND MHS (182)
-                  ! AND MWHS2(200)
-                  !
-                  call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZABTB*  &
-                        SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
-                end if
-             else if (ityp == BUFR_NEZD) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (GPS ZENITH DELAY)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAZD*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
-             else if (bufr_isAtmosConstituent(ityp)) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
-                !
-                  call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZACH* &
-                       SQRT(2.d0*MPC_PI_R8))/((1.d0-ZACH)*(2.d0*ZDCH)))
-             else if (ityp == bufr_sst ) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR SST
-                !
-                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zatm *  &
-                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zatm ) * ( 2.d0 * zdtm )))
-             else if (ityp == BUFR_ICEC ) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR SEA ICE
-                !
-                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zaice *  &
-                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
-             else if (ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR RADAR PRECIPITATION
-                !
-                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zapr *  &
-                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zapr ) * ( 2.d0 * zdpr )))
-             else if (ityp == bufr_gust ) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR WIND GUST
-                !
-                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zauv *  &
-                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zauv ) * ( 2.d0 * zduv )))
-              else if (ityp == bufr_vis .or. ityp == bufr_logVis) then
-                !
-                ! INITIAL VALUE OF GAMMA FOR VISIBILITY
-                !
-                call obs_bodySet_r( obsSpaceData, OBS_POB, JDATA, ( zavis *  &
-                    sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zavis ) * ( 2.d0 * zdvis )))
-             else
-                !
-                ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAHU*  &
-                    SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDHU)))
-             end if
-          end if
-       end do
 
-    end do
+            ! Screen-level temperature    
+            else if (ityp == BUFR_NETS) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZATT*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATT)*(2.d0*ZDTT)))
+
+              ! ASYMMETRIC TEST FOR SHIP TEMPERATURES
+              if ((IDBURP == 13) .and. (ZVAL > ZFCST)) then
+                call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZATTSYM*  &
+                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZATTSYM)*(2.d0*ZDTT)))
+              end if
+
+            ! Mean sea level pressure
+            else if (ityp == BUFR_NEPN) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZAPN*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPN)*(2.d0*ZDPN)))
+
+            ! Surface pressure
+            else if (ityp == BUFR_NEPS) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZAPS*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAPS)*(2.d0*ZDPS)))
+
+            ! Radiances (AMSU-A + AIRS + IASI + GEORAD)
+            else if (ityp == 12062 .or. ityp == 12063 .or.  &
+                     ityp == 12163) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZABT*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABT)*(2.d0*ZDBT)))
+              if (IDBURP == 181 .or. IDBURP == 182 .or. &
+                  IDBURP == 200) then
+                ! AMSU-B (181), MHS (182) and MWHS2(200)
+                call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZABTB*  &
+                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZABTB)*(2.d0*ZDBTB)))
+              end if
+
+            ! GB-GPS zenith delay
+            else if (ityp == BUFR_NEZD) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZAZD*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
+
+            ! Constituents
+            else if (bufr_isAtmosConstituent(ityp)) then
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZACH* &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZACH)*(2.d0*ZDCH)))
+
+            ! SST
+            else if (ityp == bufr_sst ) then
+              call obs_bodySet_r( obsSpaceData, OBS_POB, bodyIndex, ( zatm *  &
+                   sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zatm ) * ( 2.d0 * zdtm )))
+
+            ! Sea ice
+            else if (ityp == BUFR_ICEC ) then
+              call obs_bodySet_r( obsSpaceData, OBS_POB, bodyIndex, ( zaice *  &
+                   sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zaice ) * ( 2.d0 * zdice )))
+
+            ! Radar precip
+            else if (ityp == BUFR_radarPrecip .or. ityp == BUFR_logRadarPrecip ) then
+              call obs_bodySet_r( obsSpaceData, OBS_POB, bodyIndex, ( zapr *  &
+                   sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zapr ) * ( 2.d0 * zdpr )))
+
+            ! Wind gust
+            else if (ityp == bufr_gust ) then
+              call obs_bodySet_r( obsSpaceData, OBS_POB, bodyIndex, ( zauv *  &
+                   sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zauv ) * ( 2.d0 * zduv )))
+
+            ! Visibility
+            else if (ityp == bufr_vis .or. ityp == bufr_logVis) then
+              call obs_bodySet_r( obsSpaceData, OBS_POB, bodyIndex, ( zavis *  &
+                   sqrt( 2.d0 * MPC_PI_R8 )) / (( 1.d0 - zavis ) * ( 2.d0 * zdvis )))
+
+            ! Others
+            else
+              call obs_bodySet_r(obsSpaceData,OBS_POB,bodyIndex,(ZAHU*  &
+                   SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDHU)))
+            end if
+
+          end if ! llok
+           
+        end do ! body loop
+ 
+      end do ! header loop
 
   end subroutine vqc_setup
 
+  !--------------------------------------------------------------------------
+  ! isActive
+  !--------------------------------------------------------------------------
+  function isActive(obsSpaceData, bodyIndex) result(doVarQC)
+    !
+    ! :Purpose: Determine is QCvar is active or not
+    !
+    implicit none
 
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
+    integer                         :: bodyIndex    ! obs body index
+    ! Result:
+    logical ::  doVarQC                             ! do varQC or not
+
+    ! Locals:
+    integer :: headerIndex
+    integer :: codeType
+    integer :: bufrCode
+
+    ! default is ON
+    doVarQC = .true.
+
+    ! Turn OFF for...
+    ! non-assimilated observations
+    if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) then
+      doVarQC = .false.
+      return
+    end if
+    ! radio-occultations
+    if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == 'RO') then
+      doVarQC = .false.
+      return
+    end if
+    ! radiances when R is not diagonal
+    if (rmat_lnondiagr .and. obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == 'TO') then
+      doVarQC = .false.
+      return
+    end if
+    ! specific cases for dropsondes
+    if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == 'UA') then
+      headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+      codeType    = obs_headElem_i(obsSpaceData, OBS_ITY,  headerIndex)
+      bufrCode    = obs_bodyElem_i(obsSpaceData, OBS_VNM,  bodyIndex)
+      if (.not. dropSondeWind .and. codeType == 37 .and. &
+          (bufrCode == bufr_neuu .or. bufrCode == bufr_nevv .or. &
+           bufrCode == bufr_neus .or. bufrCode == bufr_nevs)) then
+        doVarQC = .false.
+        return
+      end if
+      if (.not. dropSondePsurf .and. codeType == 37 .and. &
+          (bufrCode == bufr_neps .or. bufrCode == bufr_nepn)) then
+        doVarQC = .false.
+        return
+      end if
+    end if
+
+  end function isActive
+  
+  !--------------------------------------------------------------------------
+  ! vqc_NlTl
+  !--------------------------------------------------------------------------
   subroutine vqc_NlTl(obsSpaceData)
     !
     ! :Purpose: 1) Modify Jo [OBS_JOBS] according to
@@ -317,85 +385,80 @@ module varQC_mod
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
     real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev
     logical :: lluv
-    logical :: includeFlag
 
     BODY: do index_body = 1, obs_numbody(obsSpaceData)
-      includeFlag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated).and.  &
-                    (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body).ne.'RO')
-      ! pas de qcvar pour  les radiances en mode matrice R non diagonale
-      if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-        (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO') 
 
-      if (includeFlag) then
-        index_header = obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body)
-        index_body_start = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
-        ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-        zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,index_body)
-        ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
-        LLUV = ((ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
-               col_varExist(varName='UU')) .or. ((ityp == BUFR_NEVV .or.  &
-               ityp == BUFR_NEVS).and.col_varExist(varName='VV'))
-        if (LLUV) then
-          if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS)then
-            !
-            ! In order to calculate the contribution to Jo from a wind, the o-a
-            ! must be available for both u and v components. Hence, loop over only
-            ! data for which o-a has already been calculated
-            !
-            do JJ=INDEX_BODY_START, INDEX_BODY
-              ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
-              ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
-              if ((ISTYP == BUFR_NEVV .or.  &
-                   ISTYP == BUFR_NEVS) .and.  &
-                   ZSLEV == ZLEV) then
-                ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
-                     obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
-                ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
-                ZPPOST = ZGAMI/ZQCARG
-                !
-                ! Store the value of o-a multiplied by one minus the posterior
-                ! probability of gross error (needed for the adjoint calculations)
-                !
-                call obs_bodySet_r(obsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
-                call obs_bodySet_r(obsSpaceData,OBS_QCV,JJ, ZPPOST)
+      if (.not. isActive(obsSpaceData, index_body)) cycle
 
-                call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-                call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-              end if
-            end do
-          else ! ityp
-            do JJ=INDEX_BODY_START, INDEX_BODY
-              ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
-              ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
-              if ((ISTYP == BUFR_NEUU .or.  &
-                   ISTYP == BUFR_NEUS) .and.  &
-                   ZSLEV == ZLEV) then
-                ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
-                     obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
-                ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
-                ZPPOST = ZGAMI/ZQCARG
-                call obs_bodySet_r(obsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
-                call obs_bodySet_r(obsSpaceData,OBS_QCV,JJ, ZPPOST)
-                call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-                call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
-              end if
-            enddo
-          endif !ityp
-        else ! LLUV
-          zjon = obs_bodyElem_r(obsSpaceData,OBS_JOBS,index_body)
-          zqcarg = zgami + exp(-1.0D0*zjon)
-          zppost = zgami/zqcarg
-          call obs_bodySet_r(obsSpaceData,OBS_QCV,index_body, zppost)
-          call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.D0)))
-        endif ! LLUV
+      index_header = obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body)
+      index_body_start = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
+      ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+      zgami = obs_bodyElem_r(obsSpaceData,OBS_POB,index_body)
+      ityp = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+      LLUV = ((ityp == BUFR_NEUU .or. ityp == BUFR_NEUS) .and.  &
+           col_varExist(varName='UU')) .or. ((ityp == BUFR_NEVV .or.  &
+           ityp == BUFR_NEVS).and.col_varExist(varName='VV'))
+      if (LLUV) then
+        if (ityp == BUFR_NEUU .or. ityp == BUFR_NEUS)then
+          !
+          ! In order to calculate the contribution to Jo from a wind, the o-a
+          ! must be available for both u and v components. Hence, loop over only
+          ! data for which o-a has already been calculated
+          !
+          do JJ=INDEX_BODY_START, INDEX_BODY
+            ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
+            ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
+            if ((ISTYP == BUFR_NEVV .or.  &
+                 ISTYP == BUFR_NEVS) .and.  &
+                 ZSLEV == ZLEV) then
+              ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
+                   obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
+              ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
+              ZPPOST = ZGAMI/ZQCARG
+              !
+              ! Store the value of o-a multiplied by one minus the posterior
+              ! probability of gross error (needed for the adjoint calculations)
+              !
+              call obs_bodySet_r(obsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
+              call obs_bodySet_r(obsSpaceData,OBS_QCV,JJ, ZPPOST)
 
-      endif ! includeFlag
+              call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
+              call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
+            end if
+          end do
+        else ! ityp
+          do JJ=INDEX_BODY_START, INDEX_BODY
+            ISTYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JJ)
+            ZSLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JJ)
+            if ((ISTYP == BUFR_NEUU .or.  &
+                 ISTYP == BUFR_NEUS) .and.  &
+                 ZSLEV == ZLEV) then
+              ZJON=obs_bodyElem_r(obsSpaceData,OBS_JOBS,INDEX_BODY)+  &
+                   obs_bodyElem_r(obsSpaceData,OBS_JOBS,JJ)
+              ZQCARG = ZGAMI + EXP(-1.0D0*ZJON)
+              ZPPOST = ZGAMI/ZQCARG
+              call obs_bodySet_r(obsSpaceData,OBS_QCV,INDEX_BODY, ZPPOST)
+              call obs_bodySet_r(obsSpaceData,OBS_QCV,JJ, ZPPOST)
+              call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY,-LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
+              call obs_bodySet_r(obsSpaceData,OBS_JOBS,JJ, -LOG(ZQCARG/(ZGAMI+1.D0))/2.D0)
+            end if
+          end do
+        end if !ityp
+      else ! LLUV
+        zjon = obs_bodyElem_r(obsSpaceData,OBS_JOBS,index_body)
+        zqcarg = zgami + exp(-1.0D0*zjon)
+        zppost = zgami/zqcarg
+        call obs_bodySet_r(obsSpaceData,OBS_QCV,index_body, zppost)
+        call obs_bodySet_r(obsSpaceData,OBS_JOBS,INDEX_BODY, - log(zqcarg/(zgami+1.D0)))
+      end if ! LLUV
 
-    enddo BODY
+    end do BODY
 
   end subroutine vqc_NlTl
 
-
+  !--------------------------------------------------------------------------
+  ! vqc_ad
+  !--------------------------------------------------------------------------
   subroutine vqc_ad(obsSpaceData)
     !
     ! :Purpose: Factorizes Grad(Jo) according to Andersson and Jarvinen
@@ -409,25 +472,22 @@ module varQC_mod
 
     ! Locals:
     integer :: index_body
-    logical :: includeFlag
 
     do index_body=1,obs_numbody(obsSpaceData)
-      includeFlag = (obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.  &
-                    (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'RO')
-      ! pas de qcvar pour les radiances en mode matrice R non diagonale
-      if (rmat_lnondiagr) includeFlag = includeFlag .and.  &
-         (obs_getFamily(obsSpaceData,bodyIndex_opt=index_body) /= 'TO')
 
-      if (includeFlag) then
-        call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body,  &
-               obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)  &
-               *(1.d0 - obs_bodyElem_r(obsSpaceData,OBS_QCV,index_body)))
-      endif
-    enddo
+      if (.not. isActive(obsSpaceData, index_body)) cycle
+      
+      call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body,  &
+                         obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)  &
+                         *(1.d0 - obs_bodyElem_r(obsSpaceData,OBS_QCV,index_body)))
+      
+    end do
 
   end subroutine vqc_ad
 
-
+  !--------------------------------------------------------------------------
+  ! vqc_listrej
+  !--------------------------------------------------------------------------
   subroutine vqc_listrej(lobsSpaceData)
     !
     ! :Purpose: List all observations rejected by the variational QC
@@ -806,7 +866,6 @@ module varQC_mod
       end do HEADER
     end do FAMILY
 
-
     write(*,640)
  640  FORMAT(//)
     write(*,*) ' REJECTED DATA ACCORDING TO FAMILY OF REPORT.'
@@ -821,6 +880,5 @@ module varQC_mod
     write(*,640)
 
   end subroutine vqc_listrej
-
 
 end module varQC_mod

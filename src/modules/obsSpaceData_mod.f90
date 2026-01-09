@@ -361,15 +361,14 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_HDT = OBS_HDD+1  ! time in burp header
    integer, parameter, public :: OBS_TFLG= OBS_HDT+1  ! flag for hi-res time element
    integer, parameter, public :: OBS_LFLG= OBS_TFLG+1 ! flag for hi-res lat element
-   integer, parameter, public :: OBS_ORBI= OBS_LFLG+1! satellite orbit index
-   integer, parameter, public :: OBS_AQF1= OBS_ORBI+1! ATMS Geolocalisation Quality Control Flag
-   integer, parameter, public :: OBS_AQF2= OBS_AQF1+1! ATMS Granule Level Quality Control Flag
-   integer, parameter, public :: OBS_AQF3= OBS_AQF2+1! ATMS Scan Level Quality Control Flag
-   integer, parameter, public :: OBS_TTYP= OBS_AQF3+1! TERRAIN TYP INDICE for TOVS QC
-   integer, parameter, public :: OBS_INFG= OBS_TTYP+1! SATPLOT INFO FLAG for TOVS
-   integer, parameter, public :: OBS_RAIN= OBS_INFG+1! UKMO rain flag for ssmis obs
-   integer, parameter, public :: OBS_CHID= OBS_RAIN+1! id. no. of ice chart
-
+   integer, parameter, public :: OBS_ORBI= OBS_LFLG+1 ! satellite orbit index
+   integer, parameter, public :: OBS_AQF1= OBS_ORBI+1 ! ATMS Geolocalisation Quality Control Flag 
+   integer, parameter, public :: OBS_AQF2= OBS_AQF1+1 ! ATMS Granule Level Quality Control Flag 
+   integer, parameter, public :: OBS_AQF3= OBS_AQF2+1 ! ATMS Scan Level Quality Control Flag 
+   integer, parameter, public :: OBS_TTYP= OBS_AQF3+1 ! TERRAIN TYP INDICE for TOVS QC
+   integer, parameter, public :: OBS_INFG= OBS_TTYP+1 ! SATPLOT INFO FLAG for TOVS
+   integer, parameter, public :: OBS_RAIN= OBS_INFG+1 ! UKMO rain flag for ssmis obs
+   integer, parameter, public :: OBS_CHID= OBS_RAIN+1 ! id. no. of ice chart
 
    ! the last column index for integer header variables defined just above
    integer, parameter :: NHDR_INT_END = OBS_CHID

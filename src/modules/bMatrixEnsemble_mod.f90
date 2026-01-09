@@ -864,6 +864,10 @@ CONTAINS
       cvDim = bEns(instanceIndex)%cvDim_mpilocal
       deallocate(vertLocationEns)
 
+    else ! trim(ben_mode) == 'Analysis'
+      bEns(instanceIndex)%nVertWaveBand = 1
+      bEns(instanceIndex)%nHorizWaveBand = 1
+      cvDim = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble)
     end if
 
     !- 1.7 Control variables
@@ -932,7 +936,7 @@ CONTAINS
     call setupEnsemble(instanceIndex)
 
     if ( trim(ben_mode) /= 'Analysis' ) then
-      cvDim = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble)
+      ! We only needed to read the ensemble. Job done so terminate at this point.
       return
     end if
 

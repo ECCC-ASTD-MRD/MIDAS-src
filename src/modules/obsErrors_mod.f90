@@ -25,7 +25,8 @@ module obsErrors_mod
   use burp_module
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
-
+  use codePrecision_mod
+  
   implicit none
   save
   private
@@ -45,10 +46,11 @@ module obsErrors_mod
   logical, public, protected :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! Public procedures
-  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
+  public :: oer_setObsErrors, oer_setObsErrorsFlowDependent
+  public :: oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
-
+  
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
@@ -174,6 +176,10 @@ module obsErrors_mod
   real(8) :: minRetrievableSiValue      ! min threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
   real(8) :: maxRetrievableSiValue      ! max threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
   logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
+  logical :: dropSondeWindDynamic       ! choose to inflate dropsonde wind errors based on O-B, sigmaO and sigmaB
+  logical :: dropSondePsurfDynamic      ! choose to inflate dropsonde surface pressure errors based on O-B, sigmaO and sigmaB
+  real(8) :: dropSondeWindSlope         ! slope used in the dynamic approach to inflate the dropsonde wind errors
+  real(8) :: dropSondePsurfSlope        ! slope used in the dynamic approach to inflate the droopsonde surface pressure errors
 
 contains
 
@@ -195,7 +201,7 @@ contains
       return
     end if
 
-! Initialization of the correlation matrices
+    ! Initialization of the correlation matrices
     call rmat_init(tvs_nsensors, tvs_headerEnd)
     if (rmat_lnondiagr) then
       do isens = 1, tvs_nsensors
@@ -210,7 +216,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine oer_setObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt)
     !
-    ! :Purpose: read and set observation errors (from former sucovo subroutine).
+    ! :Purpose: read and set (static) observation errors
     !
     type(struct_obs)             :: obsSpaceData
     character(len=*), intent(in) :: obserrorMode_in
@@ -223,7 +229,8 @@ contains
     namelist /namoer/ minRetrievableClwValue, maxRetrievableClwValue
     namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ instrumentNamesInflateErrAllskyTt, instrumentNamesInflateErrAllskyHu
-    namelist /namoer/ readOldSymmetricObsErrFile
+    namelist /namoer/ readOldSymmetricObsErrFile, dropSondeWindDynamic, dropSondePsurfDynamic
+    namelist /namoer/ dropSondeWindSlope, dropSondePsurfSlope
     integer :: ierr
 
     !
@@ -257,7 +264,11 @@ contains
     instrumentNamesInflateErrAllskyTt(:) = '***UNDEFINED***'
     instrumentNamesInflateErrAllskyHu(:) = '***UNDEFINED***'
     readOldSymmetricObsErrFile = .true.
-
+    dropSondeWindDynamic  = .false.
+    dropSondePsurfDynamic = .false.
+    dropSondeWindSlope    = 1.0d0
+    dropSondePsurfSlope   = 1.0d0
+    
     if (utl_isNamelistPresent('namoer','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = NAMOER, iostat = ierr)
@@ -266,7 +277,7 @@ contains
       call utl_tmg_stop(181)
     else
       write(*,*)
-      write(*,*) 'oer_setObsErrors: namoer is missing in the namelist. The default value will be taken.'
+      write(*,*) 'oer_setObsErrorsStatic: namoer is missing in the namelist. The default value will be taken.'
     end if
 
     !
@@ -285,13 +296,9 @@ contains
     if (obs_famExist(obsSpaceData, 'UA') .or. obs_famExist(obsSpaceData, 'AI') .or. obs_famExist(obsSpaceData, 'SW') .or. &
         obs_famExist(obsSpaceData, 'SF') .or. obs_famExist(obsSpaceData, 'GP') .or. obs_famExist(obsSpaceData, 'SC') .or. &
         obs_famExist(obsSpaceData, 'PR')) then
-
       call oer_readObsErrorsCONV()
-
     else
-
       write(*,*) "oer_setObsErrors: No conventional weather observations found."
-
     end if
 
     !- 2.3 Constituent data
@@ -571,7 +578,7 @@ contains
     !
     if (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') THEN
       obsErrorColumnIndex = analysisColumnIndex
-    ELSE
+    else
       obsErrorColumnIndex = bgckColumnIndex
     end if
 
@@ -1240,10 +1247,9 @@ contains
 
         if (iass == obs_assimilated) then
 
-             !***********************************************************************
-             !                           TOVS DATA
-             !***********************************************************************
-
+          !***********************************************************************
+          !                           TOVS DATA
+          !***********************************************************************
           if (cfam == 'TO') then
 
             if (ityp == BUFR_NBT1 .or. &
@@ -1295,26 +1301,29 @@ contains
 
             end if
 
-                !***********************************************************************
-                !                      RADIOSONDE DATA
-                !***********************************************************************
-
+          !***********************************************************************
+          !                      RADIOSONDE DATA
+          !***********************************************************************
           else if (cfam == 'UA') then
 
             zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
             if ((ityp == BUFR_NEUS) .or. (ityp == BUFR_NEVS)) then
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,4))
+              sigmaObsErrUsed = xstd_sf(1,4)
+              
             else if (ityp == BUFR_NETS) then
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,2))
+              sigmaObsErrUsed = xstd_sf(1,2)
+              
             else if (ityp == BUFR_NESS) then
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,3))
+              sigmaObsErrUsed = xstd_sf(1,3)
+              
             else if (ityp == BUFR_NEPS) then
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,1))
+              sigmaObsErrUsed = xstd_sf(1,1)
+              
             else if (ityp == BUFR_NEPN) then
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(1,1))
+              sigmaObsErrUsed = xstd_sf(1,1)
+              
             else
-
               if ((ityp == BUFR_NEUU) .or. (ityp == BUFR_NEVV)) then
                 ielem = 4
               else if (ityp == BUFR_NETT) then
@@ -1326,34 +1335,33 @@ contains
               end if
 
               if ((zlev * MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(1,1)) then
-
-                call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw(1, ielem))
-
+                sigmaObsErrUsed = xstd_ua_ai_sw(1, ielem)
               else if ((zlev * MPC_MBAR_PER_PA_R8) <= xstd_ua_ai_sw(19, 1)) then
-
-                call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_ua_ai_sw(19, ielem))
-
+                sigmaObsErrUsed = xstd_ua_ai_sw(19, ielem)
               else
-
                 do jn = 1, 18
                   if ((zlev * MPC_MBAR_PER_PA_R8) >= xstd_ua_ai_sw(jn + 1, 1)) exit
                 end do
-
                 zwb = log((zlev * MPC_MBAR_PER_PA_R8) / xstd_ua_ai_sw(jn, 1)) / log(xstd_ua_ai_sw(jn + 1, 1) / xstd_ua_ai_sw(jn, 1))
                 zwt = 1.0D0 - zwb
-                
-                call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex,  &
-                                    zwt * xstd_ua_ai_sw(jn, ielem) +  &
-                                    zwb * xstd_ua_ai_sw(jn + 1, ielem))
-
+                sigmaObsErrUsed = zwt * xstd_ua_ai_sw(jn, ielem) + zwb * xstd_ua_ai_sw(jn + 1, ielem)
               end if
-                   
+
+              !if (ielem == 4 .and. codeType == 37 .and. dropSondeWindDynamic) then
+              !  omp  = obs_bodyElem_r(obsSpaceData, OBS_OMP , bodyIndex)
+              !  fge  = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
+              !  sigmaObsErr = sigmaObsErrUsed
+              !  sigmaObsErrUsed = calcDynamicObsErr(omp, sigmaObsErr, fge, dropSondeWindSlope)
+              !  write(*,*) 'calcDynamicObsErr ', headerIndex, bodyIndex, ityp, sigmaObsErrUsed, sigmaObsErr, omp**2/(sigmaObsErr**2+fge**2), omp, fge, dropSondeWindSlope
+              !end if
+
             end if
 
-                !***********************************************************************
-                !                          AMV, AIREP, AMDAR DATA
-                !***********************************************************************
-
+            call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsErrUsed)
+            
+          !***********************************************************************
+          !                          AMV, AIREP, AMDAR DATA
+          !***********************************************************************
           else if (cfam == 'AI' .or. cfam == 'SW') then
 
             zlev=obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
@@ -1399,10 +1407,9 @@ contains
 
             end if
 
-                !***********************************************************************
-                !                         SURFACE DATA
-                !***********************************************************************
-
+          !***********************************************************************
+          !                         SURFACE DATA
+          !***********************************************************************
           else if (cfam == 'SF') then
             icodtyp = 1   ! Default values
             if (codeType == codtyp_get_codtyp('synopnonauto')) icodtyp = 2 ! SYNOP
@@ -1452,10 +1459,9 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 2.0d0)
             end if
 
-                !***********************************************************************
-                !                             GPS RO DATA
-                !***********************************************************************
-
+          !***********************************************************************
+          !                             GPS RO DATA
+          !***********************************************************************
           else if (cfam == 'RO') then
             ! Process only refractivity data (codtyp 169)
             if (codeType == codtyp_get_codtyp('ro')) then
@@ -1476,10 +1482,9 @@ contains
           !***********************************************************************
           !                   GB-GPS SFC MET DATA
           !***********************************************************************
-
-          !              ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
-          !              AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
-          !              OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING) 
+          ! ERRORS ARE SET TO SYNO SFC OBS ERRORS FROM S/R SUCOVO
+          ! AND WEIGHTED BY FACTOR YSFERRWGT FOR 3D-VAR FGAT OR 4D-VAR ASSIM.
+          ! OF TIME-SERIES (YSFERRWGT = 1.0 FOR 3D THINNING) 
           !
           else if (cfam == 'GP') then
 
@@ -1500,10 +1505,9 @@ contains
               end if
             end if
 
-                !***********************************************************************
-                !        SCATTEROMETER, WIND PROFILER DATA
-                !***********************************************************************
-
+          !***********************************************************************
+          !        SCATTEROMETER, WIND PROFILER DATA
+          !***********************************************************************
           else if (cfam == 'SC') then
 
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sc(1))
@@ -1518,19 +1522,17 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_pr(1))
             end if
 
-                !***********************************************************************
-                !        ALADIN HORIZONTAL LINE-OF-SIGHT WIND DATA
-                !***********************************************************************
-
+          !***********************************************************************
+          !        ALADIN HORIZONTAL LINE-OF-SIGHT WIND DATA
+          !***********************************************************************
           else if (cfam == 'AL') then
 
             ! TEMPORARILY, hard-code the observation error of AL winds to 2 m/s
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 2.0d0)
               
-                !***********************************************************************
-                !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
-                !***********************************************************************
-
+          !***********************************************************************
+          !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
+          !***********************************************************************
           else if (cfam == 'CH') then
 
                 !        Process only retrieved constituent data
@@ -1561,10 +1563,9 @@ contains
 
             end if     
 
-                !***********************************************************************
-                !               Sea Surface Temperature
-                !***********************************************************************
-
+          !***********************************************************************
+          !               Sea Surface Temperature
+          !***********************************************************************
           else if (cfam == 'TM') then
 
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_sst) cycle BODY
@@ -1620,10 +1621,9 @@ contains
 
             end if
 
-                !***********************************************************************
-                !               Sea Ice Concentration
-                !***********************************************************************
-
+          !***********************************************************************
+          !               Sea Ice Concentration
+          !***********************************************************************
           else if (cfam == 'GL') then
 
             if (index(cstnid,'DMSP') == 1) then
@@ -1664,9 +1664,9 @@ contains
               call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if
             
-            !***********************************************************************
-            !               Hydrology
-            !***********************************************************************
+          !***********************************************************************
+          !               Hydrology
+          !***********************************************************************
           else if (cfam == 'HY') then
 
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_riverFlow) cycle BODY
@@ -2123,6 +2123,443 @@ contains
   end subroutine oer_chanIsAllsky
 
   !--------------------------------------------------------------------------
+  ! oer_setObsErrorsFlowDependent
+  !--------------------------------------------------------------------------
+  subroutine oer_setObsErrorsFlowDependent(obsSpaceData, obsOMPcolumn)
+    !
+    ! :Purpose: set flow-dependent observation errors
+    !
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in)             :: obsOMPcolumn
+
+    if (obs_famExist(obsSpaceData, 'UA') .and. (dropSondeWindDynamic .or. dropSondePsurfDynamic) ) then
+      call setObsErrorsFlowDependentUA(obsSpaceData, obsOMPcolumn)
+    end if
+
+    !call abort('JFC fin forcee in setObsErrorsFlowDependent')
+    
+  end subroutine oer_setObsErrorsFlowDependent
+  
+  !--------------------------------------------------------------------------
+  ! setObsErrorsFlowDependentUA
+  !--------------------------------------------------------------------------
+  subroutine setObsErrorsFlowDependentUA(obsSpaceData, obsOMPcolumn)
+    !
+    ! :Purpose: set flow-dependent observation errors for conventional data
+    !
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in)             :: obsOMPcolumn
+    
+    if (dropSondeWindDynamic) then
+      call readHBHTFromObsFileForUA(obsSpaceData, 'winds', 'ua')
+      call readHBHTFromObsFileForUA(obsSpaceData, 'winds', 'sf')
+      call setDynamicObsErrors(obsSpaceData, obsOMPcolumn, 'winds')
+    end if
+    if (dropSondePsurfDynamic) then
+      call readHBHTFromObsFileForUA(obsSpaceData, 'psurf', 'sf')
+      call setDynamicObsErrors(obsSpaceData, obsOMPcolumn, 'psurf')
+    end if
+
+  end subroutine setObsErrorsFlowDependentUA
+  
+  !--------------------------------------------------------------------------
+  ! readHBHTFromObsFileForUA
+  !--------------------------------------------------------------------------
+  subroutine readHBHTFromObsFileForUA(obsSpaceData, obsType, obsLevel)
+    !
+    ! :Purpose: Read HBHT from the UA obsFiles so as to use
+    !           the values computed during background check
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    character(len=*), intent(in) :: obsType
+    character(len=*), intent(in) :: obsLevel
+
+    ! Locals:
+    character(len=1060) :: filename
+    type(BURP_FILE)  :: fileIn
+    type(BURP_BLOCK) :: blkobs
+    type(BURP_RPT)   :: report
+    character(len=9) :: stnid
+    real(4), allocatable :: fge(:), fge2(:)
+    real(4), allocatable :: obsVal(:), obsVal2(:)
+    integer(kind=int_def) :: error, ref_rpt
+    integer  :: numLevels, numReports, numReportsWithObs, obsCount, obsValidCount
+    integer  :: levelIndex, reportIndex, obsFgeIndex, obsValIndex
+    integer  :: varIndex, varIndex2, headerIndex, bodyIndex, blockIndex
+    integer  :: btyp_fge, btyp_obsval, bfam_fge, bfam_obsval
+    integer  :: bodyIndexBeg, bodyIndexEnd
+    integer  :: varType, varType2
+    logical  :: fileFound, doUpperAir, winds
+
+    !
+    !- Setup
+    !
+    select case (obsLevel)
+    case('ua')
+      doUpperAir= .true.
+      btyp_fge    = 9327
+      bfam_fge    =   10
+      btyp_obsval = 9312
+      bfam_obsval =    0
+    case('sf')
+      doUpperAir= .false.
+      btyp_fge    =  111
+      bfam_fge    =   10
+      btyp_obsval =   98
+      bfam_obsval =    0
+    case default
+      call utl_abort('readHBHTFromObsFileForUA: Invalid obsLevel '//obsLevel)
+    end select
+
+    select case (obsType)
+    case('winds')
+      winds=.true.
+      if (doUpperAir) then
+        varType  = bufr_neuu
+        varType2 = bufr_nevv
+      else
+        varType  = bufr_neus
+        varType2 = bufr_nevs
+      end if
+    case('psurf')
+      winds=.false.
+      varType = bufr_neps
+    case default
+      call utl_abort('readHBHTFromObsFileForUA: Invalid obsType '//obsType)
+    end select
+    
+    filename = obsf_getFileName('UA',fileFound)
+    if (fileFound) then
+      write(*,*) 'readHBHTFromObsFileForUA: reading FGE (HBHT) from the file: ', trim(filename)
+      write(*,*) '                          for '//trim(obsType)//' and '//trim(obsLevel)
+    else
+      write(*,*) 'readHBHTFromObsFileForUA: no obsfile with UA family, returning'
+      return
+    end if
+
+    call burp_init(report)
+    call burp_init(blkobs)
+    call burp_init(fileIn)
+    call burp_new(fileIn, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
+
+    !
+    !- Process UA file
+    !
+    call burp_get_property(fileIn, NRPTS=numReports, FILENAME=filename, IOSTAT=error)
+    ref_rpt  = 0
+    obsCount = 0
+
+    !- Scan reports
+    numReportsWithObs = 0
+    do reportIndex = 1, numReports
+      ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
+
+      call burp_get_Property(report, STNID=stnid)
+      if (stnid(1:2)==">>") cycle
+
+      blockIndex = 0
+      blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_fge, bfam=bfam_fge, convert=.false., iostat=error)    
+
+      call burp_get_property(blkobs, NVAL=numLevels, IOSTAT=error)
+      write(*,*) ' JFC for obsCount ', reportIndex, trim(stnid), numLevels
+      obsCount = obsCount + numLevels
+      numReportsWithObs = numReportsWithObs + 1
+    end do
+
+    write(*,*) 'readHBHTFromObsFileForUA: numReportsWithObs, obsCount  = ',numReportsWithObs, obsCount
+    if (obsCount == 0) then
+      write(*,*) 'readHBHTFromObsFileForUA: no obs found in file, returning'
+      return
+    end if
+    
+    !- Read obsValue from file
+    allocate(obsVal(obsCount))
+    if (winds) then
+      allocate(obsVal2(obsCount))
+    end if
+
+    ref_rpt  = 0
+    obsValIndex = 0
+    
+    obsval_records_in: do
+      ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
+      if (ref_rpt <0) exit
+      
+      call burp_get_property(report, STNID=stnid, IOSTAT=error)
+      if (stnid(1:2) == ">>") cycle obsval_records_in
+      
+      blockIndex = 0
+      blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_obsval, bfam=bfam_obsval, convert=.true., iostat=error)    
+      
+      call BURP_Get_Property(blkobs, NVAL=numLevels, IOSTAT=error)
+      
+      varIndex = burp_find_element(blkobs, ELEMENT=varType, IOSTAT=error)
+      if (varIndex == -1) then
+        write(*,*) 'readHBHTFromObsFileForUA: Element not found, ABORT!', varIndex, varType
+        call abort('readHBHTFromObsFileForUA')
+      end if
+      if (winds) then
+        varIndex2 = burp_find_element(blkobs, ELEMENT=varType2, IOSTAT=error)
+        if (varIndex2 == -1) then
+          write(*,*) 'readHBHTFromObsFileForUA: SECOND element not found, ABORT!', varIndex2, varType2
+          call abort('readHBHTFromObsFileForUA')
+        end if
+      end if
+      
+      do levelIndex = 1, numLevels
+        obsValIndex = obsValIndex + 1
+        if (obsValIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
+        obsVal(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
+        if (winds) then
+          obsVal2(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
+        end if
+        if (winds) then
+          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,I4,2x,f12.6,2x,f12.6)') 'JFC winds obsv', levelIndex, obsValIndex, varIndex, varIndex2, obsVal(obsValIndex), obsVal2(obsValIndex)
+        else
+          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,f12.6)') 'JFC scalar obsv', levelIndex, obsValIndex, varIndex, obsVal(obsValIndex)
+        end if
+      end do
+      
+    end do obsval_records_in
+    if (obsValIndex /= obsCount) then
+      write(*,*) 'Number of obs, FGE vs obsVal ', obsCount, obsValIndex
+      call abort('readHBHTFromObsFileForUA: number of obs value in file is not consistent with the number of fge values')
+    end if
+    
+    !- Read HBHT from file
+    allocate(fge(obsCount))
+    fge(:) = MPC_missingValue_R4
+    if (winds) then
+      allocate(fge2(obsCount))
+      fge2(:) = MPC_missingValue_R4
+    end if
+    
+    ref_rpt  = 0
+    obsFgeIndex = 0
+    obsValIndex = 0
+    
+    records_in: do
+      ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
+      if (ref_rpt <0) exit
+      
+      call burp_get_property(report, STNID=stnid, IOSTAT=error)
+      if (stnid(1:2) == ">>") cycle records_in
+      
+      blockIndex = 0
+      blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_fge, bfam=bfam_fge, convert=.true., iostat=error)    
+      
+      call BURP_Get_Property(blkobs, NVAL=numLevels, IOSTAT=error)
+      
+      varIndex = burp_find_element(blkobs, ELEMENT=varType, IOSTAT=error)
+      if (varIndex == -1) then
+        write(*,*) 'readHBHTFromObsFileForUA: Element not found, ABORT!', varIndex, varType
+        call abort('readHBHTFromObsFileForUA')
+      end if
+      if (winds) then
+        varIndex2 = burp_find_element(blkobs, ELEMENT=varType2, IOSTAT=error)
+        if (varIndex2 == -1) then
+          write(*,*) 'readHBHTFromObsFileForUA: SECOND element not found, ABORT!', varIndex2, varType2
+          call abort('readHBHTFromObsFileForUA')
+        end if
+      end if
+      
+      do levelIndex = 1, numLevels
+        obsValIndex = obsValIndex + 1
+        if (obsVal(obsValIndex) == MPC_missingValue_R4) cycle ! skip missing values
+        if (winds) then
+          if (obsVal(obsValIndex) == MPC_missingValue_R4) cycle ! skip missing values
+        end if
+        obsFgeIndex = obsFgeIndex + 1
+        if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
+        fge(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
+        if (winds) then
+          fge2(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
+        end if
+        if (winds) then
+          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,I4,2x,f12.6,2x,f12.6)') 'JFC winds fge', levelIndex, obsFgeIndex, varIndex, varIndex2, fge(obsFgeIndex), fge2(obsFgeIndex)
+        else
+          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,f12.6)') 'JFC scalar fge', levelIndex, obsFgeIndex, varIndex, fge(obsFgeIndex)
+        end if
+      end do
+      
+    end do records_in
+    obsValidCount = obsFgeIndex
+    write(*,*) 'readHBHTFromObsFileForUA: number of valid obs', obsValidCount
+
+    !
+    !- Fill obsSpaceData with HBHT
+    !
+    obsFgeIndex = 0
+    HEADER: do headerIndex = 1, obs_numheader(obsSpaceData)
+      if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'UA') cycle HEADER
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      !write(*,*) 'OBS_HPHT-1 Header', headerIndex, obs_elem_c(obsSpaceData,'STID',headerIndex), obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        !write(*,*) '          Body ', obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == varType) then
+          obsFgeIndex = obsFgeIndex + 1
+          if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when filling obsSpaceData')
+          !write(*,*) '              u-wind Body', obsFgeIndex, headerIndex, bodyIndex, fge(obsFgeIndex)
+          write(*,*) 'OBS_HPHT-1 ', obsFgeIndex, headerIndex, bodyIndex, fge(obsFgeIndex)
+          call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,fge(obsFgeIndex))
+        end if
+      end do
+    end do HEADER
+    if (obsFgeIndex /= obsValidCount) then
+      write(*,*) 'Nobs File vs ObsSpaceData ', obsValidCount, obsFgeIndex
+      call abort('readHBHTFromObsFileForUA: number of valid obs in file and obsSpacaData differs')
+    end if
+    deallocate (fge)
+    
+    if (winds) then
+      obsFgeIndex = 0
+      HEADER_2: do headerIndex = 1, obs_numheader(obsSpaceData)
+        if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'UA') cycle HEADER_2
+        bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == varType2) then
+            obsFgeIndex = obsFgeIndex + 1
+            if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: (2) Something went wrong when filling obsSpaceData')
+            write(*,*) 'OBS_HPHT-2 ', obsFgeIndex, headerIndex, bodyIndex, fge2(obsFgeIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,fge2(obsFgeIndex))
+          end if
+        end do
+      end do HEADER_2
+      if (obsFgeIndex /= obsValidCount) then
+        write(*,*) '(2) Nobs File vs ObsSpaceData ', obsValidCount, obsFgeIndex
+        call abort('readHBHTFromObsFileForUA: (2) number of valid obs in file and obsSpacaData differs')
+      end if
+      deallocate (fge2)
+    end if
+
+    !
+    !- Clean-up
+    !
+    call burp_free(report)
+    call burp_free(blkobs)
+    call burp_free(fileIn)
+
+  end subroutine readHBHTFromObsFileForUA
+
+  !--------------------------------------------------------------------------
+  ! setDynamicObsErrors
+  !--------------------------------------------------------------------------
+  subroutine setDynamicObsErrors(obsSpaceData, obsOMPcolumn, obsType)
+    !
+    ! :Purpose: Set observation errors based on omp, sigmaO and sigmaP
+    !
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in)             :: obsOMPcolumn
+    character(len=*), intent(in)    :: obsType
+    
+    ! Locals
+    integer :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd
+    integer :: codeType, varType, assimFlag, nVar
+    integer, allocatable :: varTypeList(:)
+    real(8) :: omp, fge, sigmaObsStatic, sigmaObsDynamic, slope
+    !character(len=2)  :: obsFamily
+
+    select case (obsType)
+    case('winds')
+      nVar=4
+      allocate(varTypeList(nVar))
+      varTypeList=(/bufr_neuu,bufr_nevv,bufr_neus,bufr_nevs/)
+      slope = dropSondeWindSlope
+    case('psurf')
+      nVar=1
+      allocate(varTypeList(nVar))
+      varTypeList=(/bufr_neps/)
+      slope = dropSondePsurfSlope
+    case default
+      call utl_abort('setDynamicObsErrors: Invalid obsType '//obsType)
+    end select
+    
+    HEADER: do headerIndex = 1, obs_numheader(obsSpaceData)
+
+      codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
+
+      !obsFamily = obs_getFamily (obsSpaceData, headerIndex_opt=headerIndex)
+
+      if (codeType /= 37) cycle
+
+      BODY: do bodyIndex  = bodyIndexStart, bodyIndexEnd
+
+        varType  = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+        assimFlag = obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex)
+
+        if (assimFlag /= obs_assimilated) cycle
+
+        if (any(varTypeList == varType)) then
+          omp             = obs_bodyElem_r(obsSpaceData, obsOMPcolumn, bodyIndex)
+          fge             = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
+          sigmaObsStatic  = obs_bodyElem_r(obsSpaceData, OBS_OER , bodyIndex)
+          !write(*,*) 'setDynamicObsErrors BEFORE ', headerIndex, bodyIndex, varType, assimFlag, omp, fge, sigmaObsStatic, obs_bodyElem_r(obsSpaceData, OBS_VAR , bodyIndex), obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+          sigmaObsDynamic = calcDynamicObsErr(omp, sigmaObsStatic, fge, slope)
+          !write(*,*) 'setDynamicObsErrors AFTER  ', sigmaObsDynamic, sigmaObsStatic, omp**2/(sigmaObsStatic**2+fge**2),omp, fge, dropSondeWindSlope
+          write(*,*) 'setDynamicObsErrors', headerIndex, bodyIndex, varType, obs_bodyElem_r(obsSpaceData, OBS_VAR , bodyIndex), assimFlag, omp, fge, sigmaObsStatic, sigmaObsDynamic
+          if (sigmaObsDynamic /= sigmaObsStatic) then
+            call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsDynamic)
+          end if
+        end if
+
+      end do BODY
+    end do HEADER
+
+  end subroutine setDynamicObsErrors
+
+  !--------------------------------------------------------------------------
+  ! calcDynamicObsErr
+  !--------------------------------------------------------------------------
+  function calcDynamicObsErr(omp, sigmaObsErrStatic, fge, slope) result(sigmaObsErrDynamic)
+    !
+    ! :Purpose: Calculate observation error based on omp, sigmaO and sigmaP
+    !           Inspired by Bonavita et al. (2017; ECMWF tech memo)
+    !
+    implicit none
+    
+    ! Arguments:
+    real(8), intent(in) :: omp                 ! y - Hx
+    real(8), intent(in) :: sigmaObsErrStatic   ! static/default observation error std dev
+    real(8), intent(in) :: fge                 ! HBHT
+    real(8), intent(in) :: slope               ! slope controlling the error adjustment
+    ! Result:
+    real(8) ::  sigmaObsErrDynamic             ! adjusted observation error std dev
+    
+    ! Locals
+    real(pre_obsReal)  :: missingValue
+    
+    missingValue = real(MPC_missingValue_R8,pre_obsReal)
+    
+    if (sigmaObsErrStatic <= 0) then
+      write(*,*) 'calcDynamicObsErr: sigmaObsErrStatic <= 0 ', sigmaObsErrStatic
+      call utl_abort ('calcDynamicObsErr')
+    end if
+    if (fge <= 0) then
+      write(*,*) 'calcDynamicObsErr: fge <= 0 ', fge
+      call utl_abort ('calcDynamicObsErr')
+    end if
+    if (omp == missingValue) then
+      write(*,*) 'calcDynamicObsErr: omp is missing ', omp
+      call utl_abort ('calcDynamicObsErr')
+    end if
+    
+    if (omp**2 <= (sigmaObsErrStatic**2 + fge**2)) then
+      sigmaObsErrDynamic = sigmaObsErrStatic ! don't modify the error
+    else
+      sigmaObsErrDynamic = sigmaObsErrStatic + &
+           slope*(abs(omp)-sqrt(sigmaObsErrStatic**2 + fge**2))
+    end if
+    
+  end function calcDynamicObsErr
+  
+  !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
   !--------------------------------------------------------------------------
   subroutine readOerFromObsFileForSW(obsSpaceData)
@@ -2234,7 +2671,7 @@ contains
     obsIndex = 0
     HEADER_UU: do headerIndex = 1, obs_numheader(obsSpaceData)
       if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'SW') cycle HEADER_UU
-      bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEUU) then
@@ -2244,11 +2681,15 @@ contains
         end if
       end do
     end do HEADER_UU
-
+    if (obsIndex /= obsCount) then
+      write(*,*) 'u-wind Nobs File vs ObsSpaceData ', obsIndex, obsCount
+      call abort('readHBHTFromObsFile: number of UU obs in file and obsSpacaData differs')
+    end if
+    
     obsIndex = 0
     HEADER_VV: do headerIndex = 1, obs_numheader(obsSpaceData)
       if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'SW') cycle HEADER_VV
-      bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEVV) then
@@ -2258,6 +2699,10 @@ contains
         end if
       end do
     end do HEADER_VV
+    if (obsIndex /= obsCount) then
+      write(*,*) 'v-wind Nobs File vs ObsSpaceData ', obsIndex, obsCount
+      call abort('readHBHTFromObsFile: number of VV obs in file and obsSpacaData differs')
+    end if
 
     deallocate (uu_oer)
     deallocate (vv_oer)

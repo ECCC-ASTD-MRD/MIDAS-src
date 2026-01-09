@@ -634,6 +634,11 @@ contains
 
     call utl_tmg_stop(17)
 
+    ! Set flow-dependent obs errors
+    if (analysisMode) then
+      call oer_setObsErrorsFlowDependent(obsSpaceData, destObsColumn)
+    end if
+
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
 

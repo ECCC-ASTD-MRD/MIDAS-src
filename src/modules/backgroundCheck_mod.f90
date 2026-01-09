@@ -28,12 +28,14 @@ module backgroundCheck_mod
                                  'UA','AI','SF','SC','SW','PR','RO','GP','RA', &
                                  'CH','AL' /)
 
+  real(8) :: uvCritDropSonde(3), swCritDropSonde(3), psCritDropSonde(3)
+  
   contains
 
   !--------------------------------------------------------------------------
   ! bgck_bgcheck_conv
   !--------------------------------------------------------------------------
-  subroutine bgck_bgcheck_conv( columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData )
+  subroutine bgck_bgcheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
     !
     !:Purpose: Do background check on all conventional observations
     !
@@ -53,11 +55,11 @@ module backgroundCheck_mod
 
     ! namelist variables
     logical                     :: new_bgck_sw ! choose to use the 'new' background check for SW obs
-    namelist /NAMBGCKCONV/ new_bgck_sw
+    namelist /NAMBGCKCONV/ new_bgck_sw, uvCritDropSonde, swCritDropSonde, psCritDropSonde
 
     write(*,*) myName//' begin conventional data background check'
 
-    ! Check if any observations are present for conventional background check
+    !- Check if any observations are present for conventional background check
     noObsToProcess = .true.
     do familyIndex = 1, numFamilyToProcess
       if (obs_famExist(obsSpaceData,familyListToProcess(familyIndex))) then
@@ -71,36 +73,42 @@ module backgroundCheck_mod
      
     call utl_tmg_start(117,'--BgckConventional')
 
+    !- Read namelist variables
     new_bgck_sw = .false.
-
+    uvCritDropSonde(1) = 10.D0
+    uvCritDropSonde(2) = 25.D0
+    uvCritDropSonde(3) = 30.D0
+    swCritDropSonde(1) = 10.D0
+    swCritDropSonde(2) = 20.D0
+    swCritDropSonde(3) = 30.D0
+    psCritDropSonde(1) =  9.D0
+    psCritDropSonde(2) = 16.D0
+    psCritDropSonde(3) = 25.D0
+    
     call utl_tmg_start(181,'low-level--readNML')
-    read( utl_flnml, nml = NAMBGCKCONV, IOSTAT = ier )
-    if ( ier /= 0 ) write(*,*) myName//': no valid namelist NAMBGCKCONV found, default values will be taken:'
+    read(utl_flnml, nml = NAMBGCKCONV, IOSTAT = ier)
+    if (ier /= 0) write(*,*) myName//': no valid namelist NAMBGCKCONV found, default values will be taken:'
     write(*,*) myName//': new_bgck_sw = ',new_bgck_sw
     call utl_tmg_stop(181)
- 
-    ! Obtain or calc OmP-error std dev when requested and possible.
-    ! Otherwise calc HBHT contribution (sigma_B in observation space)  
-    ! -------------------------------------------------------------------- 
-    call ose_computeStddev( columnTrlOnAnlIncLev, hco_anl, & ! IN
-                            obsSpaceData )                   ! INOUT
 
-    ! DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
-    ! ----------------------------------------------
+    !- Obtain or calc OmP-error std dev when requested and possible.
+    !  Otherwise calc HBHT contribution (sigma_B in observation space)  
+    call ose_computeStddev(columnTrlOnAnlIncLev, hco_anl, & ! IN
+                           obsSpaceData)                    ! INOUT
 
+    !- Do a background check of all the observations
     do familyIndex = 1, ofl_numFamily
       ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
-      if ( obs_famExist( obsSpaceData, ofl_familyList( familyIndex )) ) then
-        call bgck_data( ofl_familyList(familyIndex), obsSpaceData, new_bgck_sw )
+      if (obs_famExist(obsSpaceData, ofl_familyList(familyIndex))) then
+        call bgck_data(ofl_familyList(familyIndex), obsSpaceData, new_bgck_sw)
       end if
     end do
 
-    if (obs_famExist( obsSpaceData, 'RO' )) call bgck_gpsro( columnTrlOnTrlLev , obsSpaceData )
+    if (obs_famExist(obsSpaceData,'RO')) call bgck_gpsro(columnTrlOnTrlLev, obsSpaceData)
 
-    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
-    ! computations controlled by NAMOSD namelist in flnml)
-
-    call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt = .false. )
+    ! Conduct obs-space post-processing diagnostic tasks
+    ! (some diagnostic computations controlled by NAMOSD namelist in flnml)
+    call osd_ObsSpaceDiag(obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt=.false.)
 
     call utl_tmg_stop(117)
 
@@ -109,16 +117,11 @@ module backgroundCheck_mod
   !--------------------------------------------------------------------------
   ! bgck_data
   !--------------------------------------------------------------------------
-  subroutine bgck_data( obsFamily, obsData, new_bgck_sw )
+  subroutine bgck_data(obsFamily, obsData, new_bgck_sw)
     !
     !:Purpose:  Calculate a background check for a data family and set the
     !           appropriate quality-control flags in obsSpaceData
     implicit none
-
-    ! NOTE 1: gps_gb_YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
-    !         OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
-    !         (ALONG WITH gps_gb_YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
-    !         gps_gb_YZDERRWGT AND gps_gb_YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
 
     ! Arguments:
     character(len=2), intent(in)    :: obsFamily   ! current observation family
@@ -127,10 +130,10 @@ module backgroundCheck_mod
 
     ! Locals:
     real(8) :: averageFGE, averageOER
-    integer :: obsFlag, obsVarno, headerIndex, codeType, bodyIndex, obsCount
+    integer :: obsFlag, burfCode, headerIndex, codeType, bodyIndex, obsCount
     integer :: numberObs, numberObsRejected, INZOBS, INZREJ
     integer :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
-    real(8) :: ZOER,ZOMP,ZFGE,ZOMPER,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
+    real(8) :: oer,omp,fge,omper,bgchk,var,lev,lat,lon,sop
     logical :: LLOK, LLZD
     character(len=12) :: stnid
     integer :: i_ass, i_vco, i_oth, bodyIndex_u, bodyIndex_v, bodyIndex_start
@@ -150,14 +153,13 @@ module backgroundCheck_mod
 
     obsCount = 0
     averageFGE = 0.d0
-    averageOER=0.d0
+    averageOER = 0.d0
 
     numberObs = 0
     numberObsRejected = 0
 
     ! Initialize counters for GP family observations
-
-    if ( obsFamily == 'GP' ) then
+    if (obsFamily == 'GP') then
       INZOBS=0
       INPOBS=0
       INTOBS=0
@@ -168,198 +170,197 @@ module backgroundCheck_mod
       INDREJ=0
     end if
 
-    if ( .not. new_bgck_sw .or. obsFamily /= 'SW' ) then
+    if (.not. new_bgck_sw .or. obsFamily /= 'SW') then
 
       ! loop over all header indices of the current observation family
-      call obs_set_current_header_list( obsData, obsFamily )
+      call obs_set_current_header_list(obsData, obsFamily)
       HEADER: do
-        headerIndex = obs_getHeaderIndex( obsData )
-        if ( headerIndex < 0 ) exit HEADER
+        headerIndex = obs_getHeaderIndex(obsData)
+        if (headerIndex < 0) exit HEADER
 
-        stnid = obs_elem_c( obsData, 'STID', headerIndex )
+        stnid = obs_elem_c(obsData, 'STID', headerIndex)
 
-        ! 1. Computation of (HX - Z)**2/(SIGMAo**2 +SIGMAp**2)
-        ! ----------------------------------------------------
+        !- Computation of (y-Hx)**2/(sigmaO**2+sigmaB**2)
           
         ! loop over all body indices for the current headerIndex
-        call obs_set_current_body_list( obsData, headerIndex )
+        call obs_set_current_body_list(obsData, headerIndex)
         BODY: do 
-          bodyIndex = obs_getBodyIndex( obsData )
-          if (bodyIndex < 0 ) exit BODY
+          bodyIndex = obs_getBodyIndex(obsData)
+          if (bodyIndex < 0) exit BODY
 
-          obsVarno = obs_bodyElem_i( obsData, OBS_VNM, bodyIndex )
-          LLOK = ( obs_bodyElem_i( obsData, OBS_ASS, bodyIndex ) == obs_assimilated )
-          if ( LLOK ) then
+          burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+          LLOK = (obs_bodyElem_i(obsData, OBS_ASS, bodyIndex) == obs_assimilated)
+          if (LLOK) then
             numberObs = numberObs + 1
-            if ( obsFamily == 'GP' ) then
-              if ( obsVarno == BUFR_NEZD ) INZOBS = INZOBS+1
-              if ( obsVarno == BUFR_NEPS ) INPOBS = INPOBS+1
-              if ( obsVarno == BUFR_NETS ) INTOBS = INTOBS+1
-              if ( obsVarno == BUFR_NESS ) INDOBS = INDOBS+1
+            if (obsFamily == 'GP') then
+              if (burfCode == BUFR_NEZD) INZOBS = INZOBS+1
+              if (burfCode == BUFR_NEPS) INPOBS = INPOBS+1
+              if (burfCode == BUFR_NETS) INTOBS = INTOBS+1
+              if (burfCode == BUFR_NESS) INDOBS = INDOBS+1
             end if
-            ZVAR = obs_bodyElem_r( obsData, OBS_VAR, bodyIndex )
-            ZLEV = obs_bodyElem_r( obsData, OBS_PPP, bodyIndex )              
-            ZLAT  = obs_headElem_r( obsData, OBS_LAT, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
-            ZLON  = obs_headElem_r( obsData, OBS_LON, headerIndex ) * MPC_DEGREES_PER_RADIAN_R8
+            var = obs_bodyElem_r(obsData, OBS_VAR, bodyIndex)
+            lev = obs_bodyElem_r(obsData, OBS_PPP, bodyIndex)              
+            lat = obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+            lon = obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
             ! BACKGROUND CHECK
-
-            ZOMP  = obs_bodyElem_r( obsData, OBS_OMP, bodyIndex )
+            omp  = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
 
             ! Get error std dev
               
             ! std(O-P) (valid/available if > 0.0)
-            zomper = obs_bodyElem_r( obsData, OBS_OMPE, bodyIndex )
+            omper = obs_bodyElem_r(obsData, OBS_OMPE, bodyIndex)
                                          
             ! std(O)
-            zoer = obs_bodyElem_r( obsData, OBS_OER, bodyIndex )
+            oer = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
             ! std(P)
-            zfge  = obs_bodyElem_r( obsData, OBS_HPHT, bodyIndex )
-            ! NOTE: For GB-GPS ZTD observations (GP family), ZFGE is not the FGE but
+            fge = obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex)
+            ! NOTE: For GB-GPS ZTD observations (GP family), fge is not the FGE but
             !       rather Std(O-P) set in s/r SETERRGPSGB.
-            if ( obsFamily == 'GP' .and. obsVarno == BUFR_NEZD ) then
-              if ( zomper <= 0.0d0 .and. zfge > 0.0d0 ) zomper = zfge
+            if (obsFamily == 'GP' .and. burfCode == BUFR_NEZD) then
+              if (omper <= 0.0d0 .and. fge > 0.0d0) omper = fge
             end if
               
-            ! Protect against error std dev values that are too small
-            if ( obsFamily == 'GP' ) then
-              if ( obsVarno == BUFR_NEZD ) then
-                ZOER = ZOER / gps_gb_YZDERRWGT
+            ! Observation and background error adjustments
+            if (obsFamily == 'GP') then
+              ! Protect against error std dev values that are too small
+              if (burfCode == BUFR_NEZD) then
+                oer = oer / gps_gb_YZDERRWGT
               else
-                ZOER = ZOER / gps_gb_YSFERRWGT
+                oer = oer / gps_gb_YSFERRWGT
               end if
-              if ( ZOER < 1.0d-3 .and. obsVarno /= BUFR_NEZD ) then
-                write(*,*)' Problem for GP STNID ZOER= ' , stnid, ZOER
-                call utl_abort( myName//': PROBLEM WITH OER.')
+              if (oer < 1.0d-3 .and. burfCode /= BUFR_NEZD) then
+                write(*,*)' Problem for GP STNID oer= ' , stnid, oer
+                call utl_abort(myName//': PROBLEM WITH OER.')
               end if
-              IF ( ZFGE < 1.0d-3 ) then
-                write(*,*)' Problem for GP STNID FGE= ', stnid, ZFGE
-                ZFGE=1.0d-3
+              IF (fge < 1.0d-3) then
+                write(*,*)' Problem for GP STNID FGE= ', stnid, fge
+                fge=1.0d-3
               end if
-              if ( zomper > 0.0d0 .and. zomper < 1.0d-3 ) zomper = 1.0d-3
-            else if ( obsFamily == 'CH' ) then
-              if ( ZFGE**2 + ZOER**2 < 1.0d-60) then
-                write(*,*) ' Problem for STNID FGE ZOER=',  stnid, ZFGE, ZOER
-                ZFGE=1.0d30
-                ZOER=1.0d-30
+              if (omper > 0.0d0 .and. omper < 1.0d-3) omper = 1.0d-3
+            else if (obsFamily == 'CH') then
+              if (fge**2 + oer**2 < 1.0d-60) then
+                write(*,*) ' Problem for STNID FGE oer=',  stnid, fge, oer
+                fge=1.0d30
+                oer=1.0d-30
               end if
-              if ( zomper > 0.0 .and. zomper < 1.0d-30 ) zomper = 1.0d-30
-            else
-              if ( zfge < 0.0d0 ) zfge = 0.0d0
-              if ( ZFGE**2 + ZOER**2 < 1.0d-5)then
-                write(*,*) ' Problem for STNID FGE ZOER=', stnid, ZFGE, ZOER
-                ZFGE=1.0d-5
-                ZOER=1.0d-5
+              if (omper > 0.0 .and. omper < 1.0d-30) omper = 1.0d-30
+            else ! default
+              if (fge < 0.0d0) fge = 0.0d0
+              if (fge**2 + oer**2 < 1.0d-5)then
+                write(*,*) ' Problem for STNID FGE oer=', stnid, fge, oer
+                fge=1.0d-5
+                oer=1.0d-5
               end if
-              if ( zomper > 0.0 .and. zomper < 1.0D-5 ) zomper = 1.0d-5
+              if (omper > 0.0 .and. omper < 1.0D-5) omper = 1.0d-5
             end if
-              
-            ! Calculate zbgchk
-              
-            if ( zomper > 0.0d0 ) then
-              zbgchk = (zomp**2)/(zomper**2) 
-              zsop = zomper
+
+            ! Calculate bgchk
+            if (omper > 0.0d0) then
+              bgchk = omp**2 / omper**2 
+              sop   = omper
             else
-              ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
-              ZSOP = SQRT(ZFGE**2 + ZOER**2)
+              bgchk = omp**2 / (fge**2+oer**2)
+              sop   = sqrt(fge**2+oer**2)
             end if
-              
-            ! UPDATE QUALITY CONTROL FLAGS, based on zbgchk
-            ! ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)
-            obsVarno = obs_bodyElem_i( obsData, OBS_VNM, bodyIndex )
-            if( obsVarno == bufr_nees .and. obs_bodyElem_i( obsData, OBS_XTR, bodyIndex ) == 0 ) then
-              averageFGE = averageFGE + zfge * zfge
-              averageOER = averageOER + zoer * zoer
+
+            !- UPDATE QUALITY CONTROL FLAGS, based on zbgchk
+            ! (ELEMENT FLAGS + GLOBAL HEADER FLAGS)
+            burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+            if(burfCode == bufr_nees .and. obs_bodyElem_i(obsData, OBS_XTR, bodyIndex) == 0) then
+              averageFGE = averageFGE + fge * fge
+              averageOER = averageOER + oer * oer
               obsCount   = obsCount + 1
             end if
-            codeType = obs_headElem_i( obsData, OBS_ITY, headerIndex )
-            obsFlag = ISETFLAG( obsFamily, codeType, obsVarno, ZBGCHK )
+
+            ! Set flag level
+            codeType = obs_headElem_i(obsData, OBS_ITY, headerIndex)
+            obsFlag = setFlag(obsFamily,codeType,burfCode,bgchk)
 
             ! CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
-
             LLZD = .FALSE.
-            if ( obsFamily == 'GP' .and. obsVarno == BUFR_NEZD ) then
-              ZVAR = ZVAR * 1000.0D0
-              ZOER = ZOER * 1000.0D0
-              ZFGE = ZFGE * 1000.0D0
-              ZOMP = ZOMP * 1000.0D0
-              ZSOP = ZSOP * 1000.0D0
+            if (obsFamily == 'GP' .and. burfCode == BUFR_NEZD) then
+              var = var * 1000.0D0
+              oer = oer * 1000.0D0
+              fge = fge * 1000.0D0
+              omp = omp * 1000.0D0
+              sop = sop * 1000.0D0
               LLZD = .TRUE.
             end if
 
-            stnid = obs_elem_c( obsData, 'STID', headerIndex )
-            if ( obsFlag >= 2 .or. ( LLZD .and. gps_gb_LTESTOP )) then
-              if ( obsFamily /= 'CH' ) then 
+            stnid = obs_elem_c(obsData, 'STID', headerIndex)
+            if (obsFlag >= 2 .or. (LLZD .and. gps_gb_LTESTOP)) then
+              if (obsFamily /= 'CH') then 
                 write(*,122)  &
-                   stnid, zlat, zlon, codeType, obsVarno, ZLEV, ZVAR, ZOER,  &
-                   ZFGE, ZOMP, ZSOP, ZBGCHK, obsFlag
+                   stnid, lat, lon, codeType, burfCode, lev, var, oer,  &
+                   fge, omp, sop, bgchk, obsFlag
               else 
                 write(*,124)  &
-                   stnid, zlat, zlon, codeType, obsVarno, ZLEV, ZVAR, ZOER,  &
-                   ZFGE, ZOMP, ZSOP, ZBGCHK, obsFlag
+                   stnid, lat, lon, codeType, burfCode, lev, var, oer,  &
+                   fge, omp, sop, bgchk, obsFlag
               end if
-              if ( obsFlag >= 2 ) numberObsRejected = numberObsRejected + 1
-              if ( obsFlag >= 2 .and. obsFamily == 'GP' ) then
-              if ( obsVarno == BUFR_NEZD ) INZREJ = INZREJ+1
-              if ( obsVarno == BUFR_NEPS ) INPREJ = INPREJ+1
-              if ( obsVarno == BUFR_NETS ) INTREJ = INTREJ+1
-              if ( obsVarno == BUFR_NESS ) INDREJ = INDREJ+1
+              if (obsFlag >= 2) numberObsRejected = numberObsRejected + 1
+              if (obsFlag >= 2 .and. obsFamily == 'GP') then
+                if (burfCode == BUFR_NEZD) INZREJ = INZREJ+1
+                if (burfCode == BUFR_NEPS) INPREJ = INPREJ+1
+                if (burfCode == BUFR_NETS) INTREJ = INTREJ+1
+                if (burfCode == BUFR_NESS) INDREJ = INDREJ+1
+              end if
+            end if
+
+            if (obsFlag == 1) then
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 13))
+            else if (obsFlag == 2) then
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 14))
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 16))
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 09))
+              call obs_headSet_i(obsData, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsData, OBS_ST1, headerIndex), 06))
+              
+            else if (obsFlag == 3) then
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 15))
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 16))
+              call obs_bodySet_i(obsData, OBS_FLG, bodyIndex, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex), 09))
+              call obs_headSet_i(obsData, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsData, OBS_ST1, headerIndex), 06))
             end if
           end if
+        end do BODY
 
-          if ( obsFlag == 1 ) then
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex ), 13 ))
-          else if ( obsFlag == 2 ) then
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex ), 14 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex ), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex ), 09 ))
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
+124     FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,G11.2),I3)
+122     FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3)
 
-          else if ( obsFlag == 3 ) then
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex), 15 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex), 09 ))
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex), 06 ))
-          end if
-        end if
-      end do BODY
+      end do HEADER
 
-124       FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,G11.2),I3 )
-122       FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
+    else ! if (.not. new_bgck_sw .or. obsFamily .ne. 'SW') then
 
-    end do HEADER
-
-    else !IF (.not. new_bgck_sw .or. obsFamily .ne. 'SW') then
-
-      call obs_set_current_body_list( obsData, 'SW' )
+      call obs_set_current_body_list(obsData, 'SW')
       bodyuv: do
         bodyIndex = obs_getBodyIndex(obsData)
-        if ( bodyIndex < 0 ) exit bodyuv
+        if (bodyIndex < 0) exit bodyuv
 
         ! Only process pressure level observations flagged to be assimilated
-        i_ass = obs_bodyElem_i ( obsData, OBS_ASS, bodyIndex )
-        i_vco = obs_bodyElem_i ( obsData, OBS_VCO, bodyIndex )
+        i_ass = obs_bodyElem_i (obsData, OBS_ASS, bodyIndex)
+        i_vco = obs_bodyElem_i (obsData, OBS_VCO, bodyIndex)
 
-        if( i_ass /= obs_assimilated .or. i_vco /= 2 ) cycle bodyuv
+        if(i_ass /= obs_assimilated .or. i_vco /= 2) cycle bodyuv
  
-        headerIndex     = obs_bodyElem_i( obsData, OBS_HIND, bodyIndex )
-        bodyIndex_start = obs_headElem_i( obsData, OBS_RLN, headerIndex )
+        headerIndex     = obs_bodyElem_i(obsData, OBS_HIND, bodyIndex)
+        bodyIndex_start = obs_headElem_i(obsData, OBS_RLN, headerIndex)
 
-        obsVarno = obs_bodyElem_i( obsData, OBS_VNM, bodyIndex )
-        zlev  = obs_bodyElem_r( obsData, OBS_PPP, bodyIndex )
+        burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+        lev  = obs_bodyElem_r(obsData, OBS_PPP, bodyIndex)
 
         found_u = .false.
         found_v = .false.
 
-        if ( obsVarno == BUFR_NEUU ) then
+        if (burfCode == BUFR_NEUU) then
       
           bodyIndex_u = bodyIndex
           found_u = .true.
 
           do i_oth = bodyIndex_start, bodyIndex
-            obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
-            zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEVV .and. zslev == zlev ) then
+            burfCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
+            zslev = obs_bodyElem_r(obsData, OBS_PPP, i_oth)
+            if (burfCode == BUFR_NEVV .and. zslev == lev) then
               bodyIndex_v = i_oth
               found_v = .true.
             end if
@@ -371,9 +372,9 @@ module backgroundCheck_mod
           found_v = .true.
  
           do i_oth = bodyIndex_start, bodyIndex
-            obsVarno = obs_bodyElem_i( obsData, OBS_VNM, i_oth )
-            zslev = obs_bodyElem_r( obsData, OBS_PPP, i_oth )
-            if ( obsVarno == BUFR_NEUU .and. zslev == zlev ) then
+            burfCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
+            zslev = obs_bodyElem_r(obsData, OBS_PPP, i_oth)
+            if (burfCode == BUFR_NEUU .and. zslev == lev) then
               bodyIndex_u = i_oth
               found_u = .true.
             end if
@@ -381,14 +382,14 @@ module backgroundCheck_mod
 
         end if
 
-        if ( found_u .and. found_v ) then
+        if (found_u .and. found_v) then
 
-          uu_d = obs_bodyElem_r( obsData, OBS_OMP, bodyIndex_u )
-          vv_d = obs_bodyElem_r( obsData, OBS_OMP, bodyIndex_v )
-          uu_r = obs_bodyElem_r( obsData, OBS_OER, bodyIndex_u )
-          vv_r = obs_bodyElem_r( obsData, OBS_OER, bodyIndex_v )
-          uu_f = obs_bodyElem_r( obsData, OBS_HPHT, bodyIndex_u )
-          vv_f = obs_bodyElem_r( obsData, OBS_HPHT, bodyIndex_v )
+          uu_d = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex_u)
+          vv_d = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex_v)
+          uu_r = obs_bodyElem_r(obsData, OBS_OER, bodyIndex_u)
+          vv_r = obs_bodyElem_r(obsData, OBS_OER, bodyIndex_v)
+          uu_f = obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex_u)
+          vv_f = obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex_v)
 
           duv2 = uu_d**2 + vv_d**2
 
@@ -407,45 +408,45 @@ module backgroundCheck_mod
           end if
 
           numberObs = numberObs + 2
-          if ( obsFlag >= 2 ) numberObsRejected = numberObsRejected + 2
+          if (obsFlag >= 2) numberObsRejected = numberObsRejected + 2
 
-          if ( obsFlag == 1 ) then
-            call obs_bodySet_i( obsData,OBS_FLG,bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 13 ))
-            call obs_bodySet_i( obsData,OBS_FLG,bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 13 ))
+          if (obsFlag == 1) then
+            call obs_bodySet_i(obsData,OBS_FLG,bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 13))
+            call obs_bodySet_i(obsData,OBS_FLG,bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 13))
 
-          else if ( obsFlag == 2 ) then
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 14 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 09 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 14 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 09 ))
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
+          else if (obsFlag == 2) then
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 14))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 16))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 09))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 14))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 16))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 09))
+            call obs_headSet_i(obsData, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsData, OBS_ST1, headerIndex), 06))
 
-          else if ( obsFlag == 3 ) then
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 15 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_u, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_u ), 09 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 15 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 16 ))
-            call obs_bodySet_i( obsData, OBS_FLG, bodyIndex_v, ibset( obs_bodyElem_i( obsData, OBS_FLG, bodyIndex_v ), 09 ))
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
+          else if (obsFlag == 3) then
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 15))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 16))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_u, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_u), 09))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 15))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 16))
+            call obs_bodySet_i(obsData, OBS_FLG, bodyIndex_v, ibset(obs_bodyElem_i(obsData, OBS_FLG, bodyIndex_v), 09))
+            call obs_headSet_i(obsData, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsData, OBS_ST1, headerIndex), 06))
           end if
 
-        end if !if(found_u .and. found_v) 
+        end if !if (found_u .and. found_v) 
 
       end do bodyuv
 
-    end if !IF (.not. new_bgck_sw .or. obsFamily .ne. 'SW')
+    end if !if (.not. new_bgck_sw .or. obsFamily .ne. 'SW')
 
-    if ( numberObs > 0 ) then
+    if (numberObs > 0) then
       write(*,*)' '
       write(*,*)   myName//': FINISHED BGCHECK OF ', obsFamily, ' DATA'
       write(*,123) myName//':   ', numberObsRejected, ' OBSERVATIONS REJECTED OUT OF ', numberObs
       write(*,*)' '
     end if
 
-    if ( numberObs > 0 .and. obsFamily == 'GP' ) then
+    if (numberObs > 0 .and. obsFamily == 'GP') then
       write(*,*)' '
       write(*,*) '  BGCDATA:    REPORT FOR GP FAMILY OF OBSERVATIONS'
       write(*,123) 'BGCDATA:   ',INZREJ, ' ZTD  OBSERVATIONS REJECTED OUT OF ', INZOBS
@@ -463,7 +464,7 @@ module backgroundCheck_mod
     write(*,*)' ---------------------------'
     write(*,*)' '
 
-    if ( obsCount > 0) then
+    if (obsCount > 0) then
       write(*,*) myName//': obsCount: ', obsCount,'; mean(FGE): ', averageFGE / obsCount
       write(*,*) myName//': obsCount: ', obsCount,'; mean(OER): ', averageOER / obsCount
     end if
@@ -486,7 +487,7 @@ module backgroundCheck_mod
 
       ! Locals:
       type(struct_vco), pointer :: vco_trl
-      real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
+      real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, oer, Rad
       integer :: headerIndex
       integer :: IDATYP, iProfile, varNum
       integer :: IDATA   , IDATEND, bodyIndex
@@ -506,50 +507,43 @@ module backgroundCheck_mod
       ! Loop over all files
 
       ! loop over all header indices of the 'RO' family
-      call obs_set_current_header_list( obsData, 'RO' )
+      call obs_set_current_header_list(obsData, 'RO')
       HEADER: do
          headerIndex = obs_getHeaderIndex(obsData)
          if (headerIndex < 0) exit HEADER
      
          ! Process only refractivity data (codtyp 169)
-
          IDATYP = obs_headElem_i(obsData,OBS_ITY,headerIndex)
-         IF ( IDATYP == 169 ) THEN
+         IF (IDATYP == 169) THEN
             iProfile = gps_iprofile_from_index(headerIndex)
             varNum = gps_vRO_IndexPrf(iProfile, 2)
 
             ! Basic geometric variables of the profile
-            
             Rad  = obs_headElem_r(obsData,OBS_TRAD,headerIndex)
 
             ! Loops over data in the observation
-            
             IDATA   = obs_headElem_i(obsData,OBS_RLN,headerIndex)
             IDATEND = obs_headElem_i(obsData,OBS_NLV,headerIndex) + IDATA - 1
 
             ! Scan for requested assimilations, and count them
-
             do bodyIndex= IDATA, IDATEND
-               if ( obs_bodyElem_i( obsData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
-                  HNH1 = obs_bodyElem_r( obsData, OBS_PPP, bodyIndex )
-                  if ( varNum == bufr_nebd ) HNH1 = HNH1-Rad
+               if (obs_bodyElem_i(obsData, OBS_ASS, bodyIndex) == obs_assimilated) then
+                  HNH1 = obs_bodyElem_r(obsData, OBS_PPP, bodyIndex)
+                  if (varNum == bufr_nebd) HNH1 = HNH1-Rad
 
                   ! Increment OMF = Y - H(x)
-
-                  ZOMF = obs_bodyElem_r( obsData, OBS_OMP, bodyIndex )
+                  ZOMF = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
 
                   ! Observation value    Y
-
-                  ZOBS = obs_bodyElem_r( obsData, OBS_VAR, bodyIndex )
-                  ZOER = obs_bodyElem_r( obsData, OBS_OER, bodyIndex )
+                  ZOBS = obs_bodyElem_r(obsData, OBS_VAR, bodyIndex)
+                  oer = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
                   ZMHX = ZOBS-ZOMF
 
                   ! Reference order of magnitude value:
-
-                  if ( varNum == bufr_nebd ) then
+                  if (varNum == bufr_nebd) then
                      ZREF = 0.025d0*exp(-HNH1/6500.d0)
                   else
-                     if ( .not. gps_roBNorm ) then
+                     if (.not. gps_roBNorm) then
                        ZREF = 300.d0*exp(-HNH1/6500.d0)
                      else
                        ZREF = ZMHX
@@ -559,7 +553,7 @@ module backgroundCheck_mod
                   ! OMF Tested criteria:
 
                   ! Reject bending whose OMB is too large (>0.1 rad)
-                  if ( varNum == bufr_nebd ) then
+                  if (varNum == bufr_nebd) then
                     if (DABS(ZOMF) > 0.1d0) then
                       call obs_bodySet_r(obsData,OBS_OMP,bodyIndex,0.d0)
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
@@ -569,14 +563,14 @@ module backgroundCheck_mod
                   end if
 
                   ! Reject data outside a given absolute band, or a given relative band (n sigma)
-                  if ( .not. gps_roBNorm ) then
-                    if (DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > 3.d0) then
+                  if (.not. gps_roBNorm) then
+                    if (DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/oer > 3.d0) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                       write(*,'(A40,F10.0,3F12.4)') '1 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if
                   else
-                    if ( DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > gps_roNsigma) then
+                    if (DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/oer > gps_roNsigma) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                       write(*,'(A40,F10.0,3F12.4)') '2 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
@@ -595,258 +589,131 @@ module backgroundCheck_mod
   end subroutine bgck_gpsro
 
   !--------------------------------------------------------------------------
-  ! isetflag
+  ! setFlag
   !--------------------------------------------------------------------------
-  function isetflag( obsFamily, kodtyp, kvnam, zbgchk )
+  function setFlag(obsFamily, codeType, bufrCode, normDeparture) result(flag)
     !
-    !:Purpose: Set BACKGROUND-CHECK FLAGS According to values set in a table.
-    !          Original values in table come from ecmwf.
+    !:Purpose: Set background-check flags according to values set in a table.
+    !          Original values in table come from ECMWF.
     !
     implicit none
 
     ! Arguments:
-    character(len=2), intent(in) :: obsFamily ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-    integer,          intent(in) :: kodtyp ! BURP CODE TYPE
-    integer,          intent(in) :: kvnam  ! VARIABLE NAME ( BURP )
-    real(8),          intent(in) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+    character(len=2), intent(in) :: obsFamily     ! obs family name (UA,AI,...)
+    integer,          intent(in) :: codeType      ! burp code type
+    integer,          intent(in) :: bufrCode      ! burp variable name
+    real(8),          intent(in) :: normDeparture ! normalized background departure ((y-Hx)**2/(sigmaO**2 +sigmaB**2))
     ! Result:
-    integer :: isetflag
+    integer :: flag
 
-    ! Locals:      
-    real(8), parameter :: zsacrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8), parameter :: zttcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
-    real(8), parameter :: zalcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8), parameter :: zescrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8), parameter :: zpscrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
-    real(8), parameter :: zpncrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8), parameter :: zswcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8), parameter :: ztscrit(3) = (/  5.00D0, 25.00D0, 30.00D0 /)
-    real(8), parameter :: zdzcrit(3) = (/  2.25D0,  5.06D0,  7.56D0 /)
-    real(8), parameter :: zgzcrit(3) = (/ 12.25D0, 25.00D0, 36.00D0 /)
-    real(8), parameter :: zzdcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
-    real(8), parameter :: zchcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
-    real(8), parameter :: zLogViscrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    ! Temporary hardcoded values for radar Doppler velocity
-    real(8), parameter :: radvelcrit(3) = (/ 8.00D0, 20.00D0, 30.00D0 /)
-    !real(8) :: zuvcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
-    real(8) :: zuvcrit(3)
-      
-    zuvcrit(1) = 10.00D0
-    zuvcrit(3) = 30.00D0
-    if ( kodtyp == 37 ) then
-      zuvcrit(2)=25.00D0
+    ! Locals:
+    real(8), target :: saCrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: ttCrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+    real(8), target :: alCrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: esCrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: pnCrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: tsCrit(3) = (/  5.00D0, 25.00D0, 30.00D0 /)
+    real(8), target :: dzCrit(3) = (/  2.25D0,  5.06D0,  7.56D0 /)
+    real(8), target :: gzCrit(3) = (/ 12.25D0, 25.00D0, 36.00D0 /)
+    real(8), target :: zdCrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+    real(8), target :: chCrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
+    real(8), target :: logVisCrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: radvelCrit(3) = (/ 8.00D0, 20.00D0, 30.00D0 /)
+    real(8), target :: uvCrit(3), swCrit(3), psCrit(3)
+    real(8), pointer :: threshold_ptr(:)
+
+    !- Dropsonde-dependent thresholds
+    if (codeType == 37) then
+      ! dropsondes
+      uvCrit(1) = uvCritDropSonde(1)
+      uvCrit(2) = uvCritDropSonde(2)
+      uvCrit(3) = uvCritDropSonde(3)
+      swCrit(1) = swCritDropSonde(1)
+      swCrit(2) = swCritDropSonde(2)
+      swCrit(3) = swCritDropSonde(3)
+      psCrit(1) = psCritDropSonde(1)
+      psCrit(2) = psCritDropSonde(2)
+      psCrit(3) = psCritDropSonde(3)
     else
-      zuvcrit(2)=20.00D0
+      uvCrit(1) = 10.00D0
+      uvCrit(2) = 20.00D0
+      uvCrit(3) = 30.00D0
+      swCrit(1) = 10.00D0
+      swCrit(2) = 20.00D0
+      swCrit(3) = 30.00D0
+      psCrit(1) =  9.00D0
+      psCrit(2) = 16.00D0
+      psCrit(3) = 25.00D0
     end if
-      
-    isetflag=0
 
-    if ( kvnam == BUFR_NEGZ ) then
-      
-      ! SET FLAG FOR HEIGHTS
-         
-      if ( zbgchk >= zgzcrit(1) .and. zbgchk < zgzcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zgzcrit(2) .and. zbgchk < zgzcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zgzcrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == BUFR_NETT ) then
-      
-      ! SET FLAG FOR TEMPERATURE
-
-      if ( zbgchk >= zttcrit(1) .and. zbgchk < zttcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zttcrit(2) .and. zbgchk < zttcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zttcrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == BUFR_NEDZ ) then
-     
-      ! SET FLAG FOR SATEMS
-         
-      if ( zbgchk >= zdzcrit(1) .and. zbgchk < zdzcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zdzcrit(2) .and. zbgchk < zdzcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zdzcrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == BUFR_NEFS ) then
-
-      ! SET FLAG FOR WIND SPEED
-
-      if ( zbgchk >= zsacrit(1) .and. zbgchk < zsacrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zsacrit(2) .and. zbgchk < zsacrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zsacrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == BUFR_NEUU .or. kvnam == BUFR_NEVV ) then
-
-      ! SET FLAG FOR WIND COMPONENTS
-
-      if ( zbgchk >= zuvcrit(1) .and. zbgchk < zuvcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zuvcrit(2) .and. zbgchk < zuvcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zuvcrit(3) )then
-        isetflag =3
-      end if
-         
-    else if ( kvnam == BUFR_NEAL ) then
-
-      ! SET FLAG FOR ALADIN HLOS WIND OBSERVATIONS
- 
-      if ( zbgchk >= zalcrit(1) .and. zbgchk < zalcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zalcrit(2) .and. zbgchk < zalcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zalcrit(3) )then
-        isetflag=3
-      end if
-
-    else if ( kvnam == BUFR_NEUS .or. kvnam == BUFR_NEVS ) then
-
-      ! SET FLAG FOR SURFACE WIND COMPONENTS
-
-      if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zswcrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_gust ) then
-      
-      ! SET FLAG FOR SURFACE WIND GUST
-
-      if ( zbgchk >= zswcrit(1) .and. zbgchk < zswcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zswcrit(2) .and. zbgchk < zswcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zswcrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_nees ) then
-
-      ! SET FLAG FOR DEW POINT DEPRESSION
-
-      if ( zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zescrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_neps ) then
-
-      ! SET FLAG FOR SURFACE PRESSURE
-         
-      if ( zbgchk >= zpscrit(1) .and. zbgchk < zpscrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zpscrit(2) .and. zbgchk < zpscrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zpscrit(3) )then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_nepn ) then
-
-      ! SET FLAG FOR MEAN SEA LEVEL PRESSURE
-
-      if ( zbgchk >= zpncrit(1) .and. zbgchk < zpncrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zpncrit(2) .and. zbgchk < zpncrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zpncrit(3) ) then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_nets ) then
-
-      ! SET FLAG FOR SURFACE TEMPERATURE
-
-      if ( zbgchk >= ztscrit(1) .and. zbgchk < ztscrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= ztscrit(2) .and. zbgchk < ztscrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= ztscrit(3) ) then
-        isetflag =3
-      end if
-
-   else if ( kvnam == BUFR_NESS ) then
-      
-      ! SET FLAG FOR SURFACE DEW POINT DEPRESSION
-
-      if ( zbgchk >= zescrit(1) .and. zbgchk < zescrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zescrit(2) .and. zbgchk < zescrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zescrit(3) ) then
-        isetflag =3
-      end if
-
-   else if ( kvnam == bufr_vis ) then
-
-      ! SET FLAG FOR VISIBILITY
-
-      if ( zbgchk >= zLogViscrit(1) .and. zbgchk < zLogViscrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zLogViscrit(2) .and. zbgchk < zLogViscrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zLogViscrit(3) ) then
-        isetflag =3
-      end if
-
-   else if ( kvnam == bufr_nezd ) then
-
-      ! SET FLAG FOR GB-GPS ZENITH DELAY
-
-      if ( zbgchk >= zzdcrit(1) .and. zbgchk < zzdcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zzdcrit(2) .and. zbgchk < zzdcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zzdcrit(3) ) then
-        isetflag =3
-      end if
-
-    else if ( kvnam == bufr_radvel ) then
-    
-      ! Set flag for  Doppler Velocity (Radvel)
-      if ( zbgchk >= radvelcrit(1) .and. zbgchk < radvelcrit(2) ) then
-        isetflag = 1
-      else if ( zbgchk >= radvelcrit(2) .and. zbgchk < radvelcrit(3) ) then
-        isetflag = 2
-      else if ( zbgchk >= radvelcrit(3) ) then
-        isetflag = 3
-      end if
-
-    else if ( obsFamily == 'CH' ) then
-    
-      ! SET FLAG FOR CHEMICAL CONSTITUENTS
-      if ( zbgchk >= zchcrit(1) .and. zbgchk < zchcrit(2) ) then
-        isetflag=1
-      else if ( zbgchk >= zchcrit(2) .and. zbgchk < zchcrit(3) ) then
-        isetflag=2
-      else if ( zbgchk >= zchcrit(3) ) then
-        isetflag =3
-      end if
-
+    !- Associate thresholds
+    if (bufrCode == bufr_negz) then     
+      ! height
+      threshold_ptr => gzCrit
+    else if (bufrCode == bufr_nett) then
+      ! temperature
+      threshold_ptr => ttCrit
+    else if (bufrCode == bufr_nedz) then     
+      ! satems
+      threshold_ptr => dzCrit
+    else if (bufrCode == bufr_nefs) then
+      ! wind speed
+      threshold_ptr => saCrit
+    else if (bufrCode == bufr_neuu .or. bufrCode == bufr_nevv) then
+      ! wind components
+      threshold_ptr => uvCrit
+    else if (bufrCode == bufr_neal) then
+      ! aladin hlos wind observations
+      threshold_ptr => alCrit
+    else if (bufrCode == bufr_neus .or. bufrCode == bufr_nevs) then
+      ! 10m wind components
+      threshold_ptr => swCrit
+    else if (bufrCode == bufr_gust) then
+      ! 10m wind gust
+      threshold_ptr => swCrit
+    else if (bufrCode == bufr_nees) then
+      ! dewpoint depression
+      threshold_ptr => esCrit
+    else if (bufrCode == bufr_neps) then
+      ! surface pressure
+      threshold_ptr => psCrit
+    else if (bufrCode == bufr_nepn) then
+      ! mean sea level pressures
+      threshold_ptr => pnCrit
+    else if (bufrCode == bufr_nets) then
+      ! 1.5m temperature
+      threshold_ptr => tsCrit
+    else if (bufrCode == bufr_ness) then
+      ! 1.5m dew point depression
+      threshold_ptr => esCrit
+    else if (bufrCode == bufr_vis) then
+      ! visibility
+      threshold_ptr => logVisCrit
+    else if (bufrCode == bufr_nezd) then
+      ! gb-gps zenith delay
+      threshold_ptr => zdCrit
+    else if (bufrCode == bufr_radvel) then    
+      ! doppler velocity
+      threshold_ptr => radvelCrit
+    else if (obsFamily == 'CH') then
+      ! chemical constituents
+      threshold_ptr => chCrit
+    else
+      write(*,*) 'setFlag: non-defined obs = ',obsFamily, codeType, bufrCode
+      flag=0
+      return
     end if 
 
-    return
-  
-  end function isetflag
-      
+    !- Set flag
+    flag=0
+    if      (normDeparture >= threshold_ptr(1) .and. normDeparture < threshold_ptr(2)) then
+      flag=1
+    else if (normDeparture >= threshold_ptr(2) .and. normDeparture < threshold_ptr(3)) then
+      flag=2
+    else if (normDeparture >= threshold_ptr(3)) then
+      flag=3
+    end if
+
+  end function setFlag
+
 end module backgroundCheck_mod
