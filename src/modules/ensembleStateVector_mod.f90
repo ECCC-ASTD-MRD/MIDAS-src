@@ -1097,7 +1097,7 @@ CONTAINS
 
     sameVariables = .false.
     if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
-      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+      if (all(ens%statevector_work%varExistlist .eqv. statevector%varExistlist)) then
         sameVariables = .true.
       end if
     end if
@@ -1217,7 +1217,7 @@ CONTAINS
 
     sameVariables = .false.
     if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
-      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+      if (all(ens%statevector_work%varExistlist .eqv. statevector%varExistlist)) then
         sameVariables = .true.
       end if
     end if
