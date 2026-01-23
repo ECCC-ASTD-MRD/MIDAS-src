@@ -723,7 +723,7 @@ module sqliteRead_mod
           
         ! Add an extra row to the obsSpaceData body table
         ! to contain quantity later calculated by ovt_transformObsValue
-        call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
+        call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
         call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                   ovt_getDestinationBufrCode(obsVarno), &
                                   vertCoordType, bodyIndex+1)
@@ -731,7 +731,7 @@ module sqliteRead_mod
         obsNlv = obsNlv + 1
         if (ovt_isWindObs(obsVarno)) then
           ! Add an extra row for the other wind component
-          call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
+          call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
           call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                     ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
                                     vertCoordType, bodyIndex+1)
