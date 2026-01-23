@@ -126,7 +126,7 @@ CONTAINS
                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                           hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=&
-                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+                              (/'Z_T','Z_M','P_T','P_M','TT ','HU ','P0 '/) )
         call gsv_zero(stateVectorRefHeight)
       end if
 
@@ -610,7 +610,7 @@ CONTAINS
                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt='LINEAR', &
                            varNames_opt=&
-                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0','P0LS'/) )
+                              (/'Z_T ','Z_M ','P_T ' ,'P_M ','TT  ','HU  ','P0  ','P0LS'/) )
       else
         call gsv_zero( stateVectorRefHeight )
       end if
