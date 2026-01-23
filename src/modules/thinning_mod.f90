@@ -1475,10 +1475,10 @@ contains
     integer :: fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
     integer :: ierr, nulnam, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
-    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex, obsStepIndex
     integer :: levStnIndex, levStnIndexMpi, obsFlag
     integer :: ig1obs, ig2obs, ig3obs, ig4obs, obsGridID
-    real(4) :: obsValue, obsOmp, obsStepIndex
+    real(4) :: obsValue, obsOmp
     real(4) :: zig1, zig2, zig3, zig4, zpresa, zpresb
     real(8) :: obsStepIndex_r8
     integer, allocatable :: obsLevOffset(:), obsType(:), obsHeadDate(:), obsHeadTime(:)
