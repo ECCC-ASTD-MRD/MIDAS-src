@@ -775,12 +775,13 @@ contains
     integer, parameter :: numListCodtyp = 9 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
     character(len=13), parameter :: listCodtypName(numListCodtyp) = &
-                                    (/'synopnonauto', 'asynopauto', 'shipnonauto', 'ashipauto', &
-                                      'drifter', 'saswobnonauto', 'saswobauto', 'metar', 'satob'/)
+                                    (/'synopnonauto ', 'asynopauto   ', 'shipnonauto  ', 'ashipauto    ', &
+                                      'drifter      ', 'saswobnonauto', 'saswobauto   ', 'metar        ', &
+                                      'satob        '/)
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: numListCodtypSelect = 3
     character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
-                                    (/'metar', 'saswobnonauto', 'saswobauto'/)
+                                    (/'metar        ', 'saswobnonauto', 'saswobauto   '/)
     ! Elements to select (flags for all other elements will have bit 11 set)
     integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
                                                 bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
@@ -1715,7 +1716,7 @@ contains
     call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -4577,7 +4578,7 @@ contains
     call vco_setupFromFile(vco_sfc, trlmFileName)
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
