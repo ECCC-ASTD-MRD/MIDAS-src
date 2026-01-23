@@ -561,7 +561,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
+    type(struct_lsp), pointer, intent(in)    :: lsp
     integer,                   intent(in)    :: stepIndex
     real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
     type(struct_ens),          intent(inout) :: ensAmplitude
@@ -583,11 +583,11 @@ CONTAINS
     !- 1.  Horizontal Localization
     !
     if (lsp%global) then
-       call globalSpectralHLoc( lsp,           & ! IN
+       call globalSpectralHLoc( lsp,          & ! IN
                                 sp_hLoc,      & ! OUT
                                 controlVector ) ! IN
     else
-       call lamSpectralHLoc( lsp,           & ! IN
+       call lamSpectralHLoc( lsp,          & ! IN
                              sp_hLoc,      & ! OUT
                              controlVector ) ! IN
     end if
@@ -633,10 +633,10 @@ CONTAINS
           call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
        else
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform(lsp%lst,                          & ! IN
+          call lst_VarTransform(lsp%lst,                              & ! IN
                                 sp_vhLoc(:,:,levIndex,:),             & ! IN
                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
-                                kind, lsp%nEnsOverDimension)        ! IN
+                                kind, lsp%nEnsOverDimension)            ! IN
        end if
 
     end do ! Loop on levels
@@ -653,9 +653,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
-    real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
@@ -708,9 +708,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
-    real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex,jla, dimIndex, memberIndex, p 
@@ -751,10 +751,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    integer,                   intent(in)    :: stepIndex
-    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    type(struct_ens),          intent(in)    :: ensAmplitude
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    integer,                   intent(in)  :: stepIndex
+    real(8),                   intent(out) :: controlVector(lsp%cvDim_mpilocal)
+    type(struct_ens),          intent(in)  :: ensAmplitude
 
     ! Locals:
     integer :: levIndex1,levIndex2,jla,memberIndex,p
@@ -833,9 +833,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8),                   intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(out) :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)  :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
@@ -890,9 +890,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8),                   intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(out) :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)  :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: jla, levIndex, dimIndex, memberIndex, p
@@ -951,9 +951,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(out)   :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8),                   intent(in)    :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)  :: cv_mpiglobal(:)
 
     ! Locals:
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
@@ -1181,9 +1181,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(4),                   intent(out)   :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4),                   intent(in)    :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(4),                   intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),                   intent(in)  :: cv_mpiglobal(:)
 
     ! Locals:
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
@@ -1411,9 +1411,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(8),                   intent(in)    :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8),                   intent(out)   :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(8),                   intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),                   intent(out) :: cv_mpiglobal(:)
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
@@ -1648,9 +1648,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer, intent(inout) :: lsp
-    real(4),                   intent(in)    :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4),                   intent(out)   :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(in)  :: lsp
+    real(4),                   intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),                   intent(out) :: cv_mpiglobal(:)
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
