@@ -857,13 +857,12 @@ contains
     integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
-    integer :: testIndex, GROSSERROR, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    integer :: testIndex, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags 
     real(8) :: obsTb
     character(len=9) :: stnId
 
     testIndex = 11
-    GROSSERROR = .FALSE.
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
@@ -883,7 +882,6 @@ contains
         if (obsTb /= mwbg_realMissing .and. &
             (obsTb < GROSSMIN(obsChanNumWithOffset) .or. &
              obsTb > GROSSMAX(obsChanNumWithOffset))) then
-          GROSSERROR = .TRUE.
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
           obsFlags = OR(obsFlags,2**7)
