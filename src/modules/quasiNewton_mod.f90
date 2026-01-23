@@ -529,8 +529,8 @@ module quasiNewton_mod
 !
 !         variables locales
 !
-      logical sscale,cold,warm,ntotal
-      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
+      logical sscale,cold,warm
+      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax,ntotal
       real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
