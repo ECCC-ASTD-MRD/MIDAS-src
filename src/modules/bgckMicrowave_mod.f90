@@ -3114,11 +3114,11 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, IBIT
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged 
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT 
+    logical :: SFCREJCT, CH2OMPREJCT
     character(len=9) :: stnId
 
     testIndex = 4
@@ -3282,11 +3282,11 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, IBIT
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: CH2OMPREJCT, IBIT
+    logical :: CH2OMPREJCT
     character(len=9) :: stnId
 
     testIndex = 4
