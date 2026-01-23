@@ -52,7 +52,7 @@ module burpRead_mod
 
 contains
 
-  character(len=7) function brpr_getTypeResume
+  character(len=7) function brpr_getTypeResume()
     brpr_getTypeResume=TYPE_RESUME
   end function brpr_getTypeResume
 
