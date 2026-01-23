@@ -642,6 +642,7 @@ contains
     real(4), allocatable :: new_vals(:,:,:)
     logical, allocatable :: modify(:)
     
+    nrep_modified = 0
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
       write(*,*) 'brpf_obsSub_update: Skipped due to absence of data to update.'

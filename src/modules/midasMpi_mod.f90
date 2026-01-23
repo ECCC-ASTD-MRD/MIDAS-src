@@ -426,9 +426,9 @@ module midasMpi_mod
 
     ! Arguments:
     integer             , intent(in) :: nchar
+    integer             , intent(in) :: nlist
     character(len=nchar), intent(in) :: str_list(nlist)
     character(len=*)    , intent(in) :: comm
-    integer             , intent(in) :: nlist
     integer             , intent(in) :: nproc
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
     integer             , intent(out) :: ierr
