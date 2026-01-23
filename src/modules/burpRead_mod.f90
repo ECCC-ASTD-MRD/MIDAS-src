@@ -4116,7 +4116,8 @@ contains
     integer                :: btyp10, btyp, bfam, error
     integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
     integer                :: nb_rpts, ref_rpt, ref_blk, count
-    integer, allocatable   :: address(:), goodprof(:), reportsToUpdate(:)
+    integer, allocatable   :: address(:), goodprof(:)
+    logical, allocatable   :: reportsToUpdate(:)
     real(8), allocatable   :: btobs(:,:)
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
