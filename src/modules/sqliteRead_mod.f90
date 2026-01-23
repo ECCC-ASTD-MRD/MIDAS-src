@@ -174,12 +174,18 @@ module sqliteRead_mod
     integer                  :: columnIndex
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
-    character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN','LAT','LON','CODTYP', &
-         'DATE','TIME','STATUS','ELEV','ANTENNA_ALTITUDE','LAND_SEA','ID_SAT','INSTRUMENT','SENSOR', &
-         'ZENITH','SOLAR_ZENITH','AZIMUTH','SOLAR_AZIMUTH','TERRAIN_TYPE','CLOUD_COVER', &
-         'FANION_QUAL_IASI_SYS_IND','INDIC_NDX_QUAL_GEOM','RO_QC_FLAG','GEOID_UNDULATION', &
-         'EARTH_LOCAL_RAD_CURV','CENTER_AZIMUTH','CENTER_ELEVATION','RANGE_START','RANGE_END', &
-         'ID_PROF','CHARTINDEX','TRACK_CELL_NO','MOD_WIND_SPD'/)
+    character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN                  ', &
+         'LAT                     ', 'LON                     ', 'CODTYP                  ',       &
+         'DATE                    ', 'TIME                    ', 'STATUS                  ',       &
+         'ELEV                    ', 'ANTENNA_ALTITUDE        ', 'LAND_SEA                ',       &
+         'ID_SAT                  ', 'INSTRUMENT              ', 'SENSOR                  ',       &
+         'ZENITH                  ', 'SOLAR_ZENITH            ', 'AZIMUTH                 ',       &
+         'SOLAR_AZIMUTH           ', 'TERRAIN_TYPE            ', 'CLOUD_COVER             ',       &
+         'FANION_QUAL_IASI_SYS_IND', 'INDIC_NDX_QUAL_GEOM     ', 'RO_QC_FLAG              ',       &
+         'GEOID_UNDULATION        ', 'EARTH_LOCAL_RAD_CURV    ', 'CENTER_AZIMUTH          ',       &
+         'CENTER_ELEVATION        ', 'RANGE_START             ', 'RANGE_END               ',       &
+         'ID_PROF                 ', 'CHARTINDEX              ', 'TRACK_CELL_NO           ',       &
+         'MOD_WIND_SPD            '/)
     real(8),                   allocatable :: bodyValues(:,:), codtypInFileList(:,:)
     logical :: beamRangeFound
     real(pre_obsReal)           :: missingValue
