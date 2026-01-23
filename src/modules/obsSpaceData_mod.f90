@@ -1488,7 +1488,7 @@ module ObsSpaceData_mod
    ! CLASS-CONSTANT:
    ! CLASS-CONSTANT:
 
-   logical, save :: obs_class_initialized = .false.
+   logical :: obs_class_initialized = .false.
 
    ! end of CLASS-CONSTANT variables.
    ! end of CLASS-CONSTANT variables
