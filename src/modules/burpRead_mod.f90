@@ -2301,7 +2301,7 @@ contains
           call handle_error(error, "brpr_readBurp: BURP_Get_Property")
 
           ! Read slant latlon if type is RO
-          if (trim(familytype) == 'RO' .and. bfam == 0 .and. LROK == .FALSE.) then
+          if (trim(familytype) == 'RO' .and. bfam == 0 .and. .not. LROK ) then
             ROLAT0 = 0.01*lati- 90.
             ROLON0 = 0.01*long
             if (ROLON0 > 180.) ROLON0 = ROLON0-360.
