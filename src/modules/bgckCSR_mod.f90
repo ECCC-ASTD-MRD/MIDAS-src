@@ -350,7 +350,7 @@ contains
       jour  = (obsDate(dataIndex)/100) -  (obsDate(dataIndex)/100)*100
       heure = obsHour(dataIndex)/100 
       if (burpFileSatId == '^METSAT7') then
-        if ( heure == 21 ) straylight(dataIndex) = 1
+        if ( heure == 21 ) straylight(dataIndex) = .true.
         if ( (heure == 20) .or. (heure == 22) ) then
           if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(dataIndex) = .true.
           if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(dataIndex) = .true.
