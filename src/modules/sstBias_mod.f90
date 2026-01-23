@@ -80,7 +80,7 @@ module sstBias_mod
     type(struct_gsv)            :: stateVector_ice
     real(4), pointer            :: seaice_ptr(:,:,:)
     integer         , parameter :: numberProducts = 2  ! day and night
-    character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/)
+    character(len=*), parameter :: listProducts(numberProducts)= (/'day  ', 'night'/)
 
     write(*,*) 'sstb_computeBias: Starting...'
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
@@ -698,7 +698,7 @@ module sstBias_mod
     ! Locals:
     type(struct_gsv)            :: stateVector
     integer         , parameter :: numberProducts = 2            ! day and night
-    character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/) ! day and night biases
+    character(len=*), parameter :: listProducts(numberProducts)= (/'day  ', 'night'/) ! day and night biases
     integer                     :: sensorIndex, productIndex
     character(len=1)            :: extension
     character(len=*), parameter :: biasFileName = './satellite_bias.fst'
