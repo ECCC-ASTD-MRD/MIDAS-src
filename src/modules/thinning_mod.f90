@@ -6576,7 +6576,7 @@ contains
     numChannelMpi(:)     = 0
     obsAngleMpi(:)       = 0.0
     obsDistanceMpi(:)    = 0.0
-    channelAssimMpi(:,:) = 0
+    channelAssimMpi(:,:) = .false.
     obsCloudMpi(:,:)     = 0.0
     stnIdInt(:,:)        = 0
     stnIdIntMpi(:,:)     = 0
