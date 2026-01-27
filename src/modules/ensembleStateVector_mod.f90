@@ -2287,7 +2287,7 @@ CONTAINS
     integer, parameter :: numLevelsToSend = 10
 
     write(*,*) 'ens_readEnsemble: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_readEnsemble')
 
     if ( .not. ens%allocated ) then
       call utl_abort('ens_readEnsemble: ensemble object not allocated!')
@@ -2492,7 +2492,8 @@ CONTAINS
                               varNames_opt = varNames, dataKind_opt = 4, &
                               hInterpolateDegree_opt = ens%hInterpolateDegree)
           end if
-          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+          call msg_memUsage('ens_readEnsemble')
 
           !  Read the file
           call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex, &
@@ -2508,6 +2509,7 @@ CONTAINS
             call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           end if
+          call msg_memUsage('ens_readEnsemble')
 
           ! Remove file from ram disk if no longer needed
           if ( all(readFilePE(memberStepIndex+1:numMembers*numStep) /= mmpi_myid) .or. &
@@ -2700,7 +2702,7 @@ CONTAINS
     deallocate(stepIndexFromMemberStep)
     deallocate(memberIndexFromMemberStep)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_readEnsemble')
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
 
   end subroutine ens_readEnsemble
