@@ -5,7 +5,10 @@ module message_mod
   !           Also provides string representation for some intrinsic types.
   !
   use midasMpi_mod
+  use clibInterfaces_mod
   use utilities_mod
+  use ramDisk_mod
+
   implicit none
   save
   private
@@ -26,6 +29,7 @@ module message_mod
     module procedure msg_str2str
     module procedure msg_log2str
     module procedure msg_int2str
+    module procedure msg_int82str
     module procedure msg_real42str
     module procedure msg_real82str
     module procedure msg_charArray2str
@@ -124,11 +128,59 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer :: usageMb
-    integer, external :: get_max_rss
+    integer            :: pgmUsageMb
+    integer(8)         :: fasttmpUsageMb
+    integer, external  :: get_max_rss
 
-    usageMb = get_max_rss()/1024
-    call msg( origin, 'Memory Used: '//str(usageMb)//' Mb', verb_opt, mpiAll_opt)
+    pgmUsageMb = get_max_rss()/1024
+    fasttmpUsageMb = 0
+
+    if (ram_getRamDiskDir() /= ' ') then
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*')
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*/*')
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*/*/*')
+    end if
+
+    if (fasttmpUsageMb == 0) then
+      call msg(origin, 'Memory Used: '//str(pgmUsageMb)//' Mb', verb_opt, mpiAll_opt)
+    else
+      call msg(origin, 'Memory Used: '//str(pgmUsageMb + fasttmpUsageMb)//' Mb ' // &
+               '(including '//str(fasttmpUsageMb)//' Mb from fasttmp)', &
+               verb_opt, mpiAll_opt)
+    end if
+
+  contains
+
+    function sizeOfFiles(path) result(usageMb)
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: path
+      ! Result:
+      integer(8)                   :: usageMb
+
+      ! Locals
+      integer            :: returnCode, fileIndex, numFiles
+      integer(8)         :: fileSize
+      integer, parameter :: maxNumFiles = 100
+      character(len=256) :: fileList(maxNumFiles)
+      logical, parameter :: verbose = .false.
+
+      usageMb = 0
+      returnCode = clib_glob(fileList,numFiles,trim(path),maxNumFiles)
+      if (returnCode == clib_ok) then
+        do fileIndex = 1, numFiles
+          if (clib_isFile(trim(fileList(fileIndex))) == clib_ok) then
+            fileSize = clib_size(fileList(fileIndex))/1024/1024
+            usageMb = usageMb + fileSize
+            if(verbose) write(*,*) 'msg_memUsage: ', trim(fileList(fileIndex)), usageMb
+          end if
+        end do
+      else if(verbose) then
+        write(*,*) 'msg_memUsage: WARNING: Error returned by clib_glob!'
+      end if
+
+    end function sizeOfFiles
 
   end subroutine msg_memUsage
 
@@ -439,6 +491,25 @@ module message_mod
     string = trim(adjustl(buffer))
 
   end function msg_int2str
+
+  function msg_int82str(num) result(string)
+    !
+    ! :Purpose: Returns string representation of `integer`
+    !
+    implicit none
+
+    ! Arguments:
+    integer(8),                   intent(in)  :: num    ! input integer(8) variable to be interpreted
+    ! Result:
+    character(len=:), allocatable             :: string ! resulting string with integer value
+
+    ! Locals:
+    character(len=msg_num2strBufferLen) :: buffer
+
+    write(buffer,*) num
+    string = trim(adjustl(buffer))
+
+  end function msg_int82str
 
   !--------------------------------------------------------------------------
   ! msg_real42str (private)
