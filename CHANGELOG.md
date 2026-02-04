@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Add changes to the code needed to compile with `gfortran` (#1141 and !1064)
+   * This change is fixing some occasional non-validation observed on HPCR-U3.
 
 ### Removed
 
