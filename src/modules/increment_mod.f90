@@ -130,7 +130,6 @@ CONTAINS
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
 
     integer              :: stepIndex, numStep_inc, numStep_trl
-    integer, allocatable :: dateStampList(:)
 
     character(len=4), allocatable :: varNamesRef(:), varNamesPsfc(:)
     logical  :: allocHeightSfc, refStateNeeded
@@ -155,8 +154,6 @@ CONTAINS
     ! Setup timeCoord module (date read from trial file)
     numStep_inc = tim_nstepobsinc ! low-res time
     numStep_trl = tim_nstepobs    ! high-res time
-    allocate(dateStampList(numStep_inc))
-    call tim_getstamplist(dateStampList,numStep_inc,tim_getDatestamp())
 
     hco_trl => gsv_getHco(stateVectorUpdateHighRes)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
@@ -377,7 +374,7 @@ CONTAINS
 
     allocate(varNamesPsfc(1))
     varNamesPsfc = (/'P0'/)
- 
+
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
@@ -478,7 +475,6 @@ CONTAINS
 
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
     integer              :: dateStamp, numBatch, batchIndex, procToWrite
-    integer, allocatable :: dateStampList(:)
 
     character(len=256)  :: incFileName, anlFileName
     character(len=4)    :: coffset
@@ -495,11 +491,7 @@ CONTAINS
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(83,'----WriteIncAndAnalHighRes')
 
-    ! Setup timeCoord module (date read from trial file)
     numStep = tim_nstepobsinc
-    allocate(dateStampList(numStep))
-    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
     hco_trl => gsv_getHco(stateVectorTrial)
     vco_trl => gsv_getVco(stateVectorTrial)
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
@@ -564,13 +556,13 @@ CONTAINS
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
       if ( stepIndexToWrite /= -1 ) then
 
-        dateStamp = stateVectorAnal%dateStampList(stepIndexToWrite)
+        dateStamp = gsv_getDateStamp(stateVectorAnal,stepIndexToWrite)
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
         else
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-        endif
+        end if
 
         call gsv_allocate( stateVector_1step_r4, 1, stateVectorAnal%hco, stateVectorAnal%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
@@ -699,7 +691,9 @@ CONTAINS
     integer,         optional, intent(in) :: ip3ForWriteToFile_opt
 
     ! Locals:
-    integer              :: stepIndex, dateStamp
+    type(struct_gsv) :: stateVector_1step_r4
+    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
+    integer              :: dateStamp, numBatch, batchIndex, procToWrite
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=30)    :: fileName
@@ -709,32 +703,68 @@ CONTAINS
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(85,'----WriteIncrement')
 
-    ! loop over times for which increment is computed
-    do stepIndex = 1, tim_nstepobsinc
-      if (gsv_isAllocated(statevector_incr)) then
-        dateStamp = gsv_getDateStamp(stateVector_incr,stepIndex)
-        call msg('inc_writeIncrement', 'writing increment for time step: ' &
-             //str(stepIndex)//', dateStamp = '//str(dateStamp), mpiAll_opt=.false.)
+    numStep = tim_nstepobsinc
 
-        ! write the increment file for this time step
+    ! figure out number of batches of time steps for writing
+    numBatch = ceiling(real(stateVector_incr%numStep) / real(mmpi_nprocs))
+    call msg('inc_writeIncrement', &
+         'writing will be done by number of batches = '//str(numBatch))
+
+    batch_loop: do batchIndex = 1, numBatch
+
+      stepIndexBeg = 1 + (batchIndex - 1) * mmpi_nprocs
+      stepIndexEnd = min(stateVector_incr%numStep, stepIndexBeg + mmpi_nprocs - 1)
+      call msg('inc_writeIncrement', 'batchIndex = '//str(batchIndex) &
+           //', stepIndexBeg = '//str(stepIndexBeg) &
+           //', stepIndexEnd = '//str(stepIndexEnd))
+
+      ! figure out which time step I will write, if any (-1 if none)
+      stepIndexToWrite = -1
+      do stepIndex = stepIndexBeg, stepIndexEnd
+        procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
+        if ( procToWrite == mmpi_myid ) stepIndexToWrite = stepIndex
+        call msg('inc_writeIncrement', ' stepIndex = '//str(stepIndex) &
+             //', procToWrite = '//str(procToWrite), mpiAll_opt=.false.)
+      end do
+
+      ! determine date and allocate stateVector for storing just 1 time step, if I do writing
+      if ( stepIndexToWrite /= -1 ) then
+
+        dateStamp = gsv_getDateStamp(stateVector_incr,stepIndexToWrite)
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
         if(nint(deltaHours*60.0d0).lt.0) then
           write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
         else
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         end if
+
+        call gsv_allocate( stateVector_1step_r4, 1, stateVector_incr%hco, stateVector_incr%vco, &
+                           dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,      &
+                           allocHeight_opt=.false., allocPressure_opt=.false. )
+      end if
+
+      ! transpose INCREMENT data from Tiles to Steps
+      call gsv_transposeTilesToStep(stateVector_1step_r4, stateVector_incr, stepIndexBeg)
+
+      ! write the INCREMENT file for one timestep on all tasks with data
+      if ( stepIndexToWrite /= -1 ) then
+        call msg_memUsage('inc_writeIncrement')
         fileName = './rebm_' // trim(coffset) // 'm'
-        call gio_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
-                              ip3_opt=ip3ForWriteToFile_opt, stepIndex_opt=stepIndex, &
+        call gio_writeToFile( stateVector_1step_r4, fileName, etiket_rebm,  &
+                              ip3_opt=ip3ForWriteToFile_opt, &
                               containsFullField_opt=.false. )
       end if
-    end do
+
+      if ( stepIndexToWrite /= -1 ) then
+        call gsv_deallocate(stateVector_1step_r4)
+      end if
+
+    end do batch_loop
 
     call utl_tmg_stop(85)
     call utl_tmg_stop(80)
 
     call msg('inc_writeIncrement', 'END', verb_opt=2)
-
 
   end subroutine inc_writeIncrement
 
