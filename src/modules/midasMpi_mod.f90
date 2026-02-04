@@ -16,7 +16,7 @@ module midasMpi_mod
   private
 
   ! Public variables
-  logical, public, protected :: mmpi_doBarrier = .true.
+  logical, public, protected :: mmpi_doBarrier
   integer, public, protected :: mmpi_myid      = 0
   integer, public, protected :: mmpi_myidHost  = 0
   integer, public, protected :: mmpi_nprocs    = 0
@@ -195,6 +195,9 @@ contains
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 
+    ! read main namelist if there is a namelist block NAMMMPI
+    call readNml()
+
     ! read MPI topology in namelist 'ptopo_nml'
     ! will initialize 'mmpi_npex', 'mmpi_npey' and 'mmpi_nprocs'
     !call mmpi_getptopo
@@ -296,6 +299,48 @@ contains
     write(*,*) ' '
 
   end subroutine mmpi_initialize
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMMMPI
+    !
+    implicit none
+
+    ! Locals:
+    integer       :: ierr
+    logical       :: doBarrier
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMMMPI/ doBarrier
+
+    if (firstCall) then
+
+      ! set the default values
+      doBarrier = .false.
+
+      ! read the namelist block if it exists
+      if (.not. utl_isNamelistPresent('NAMMMPI','./flnml')) then
+        if (mmpi_myid == 0) then
+          call msg('readNml (ens)', 'nammmpi is missing in the namelist. The default values will be taken.')
+        end if
+      else
+        ! Read namelist NAMMMPI
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=nammmpi, iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        call utl_tmg_stop(181)
+      end if
+      if (mmpi_myid == 0) write(*,nml=nammmpi)
+
+      mmpi_doBarrier = doBarrier
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
   !--------------------------------------------------------------------------
   ! mmpi_finalize
