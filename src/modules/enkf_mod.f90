@@ -1547,7 +1547,7 @@ contains
       call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
                          stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0 ','P_M','P_T'/) )
       call gsv_zero(stateVectorMeanTrlPressure)
       call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
       call gvt_transform(stateVectorMeanTrlPressure,'ZandP_nl')
@@ -1555,7 +1555,7 @@ contains
         call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
                            stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.false., &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0 ','P_M','P_T'/) )
       end if
       call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
       call gsv_deallocate(stateVectorMeanTrlPressure)

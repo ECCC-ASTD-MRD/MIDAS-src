@@ -775,12 +775,13 @@ contains
     integer, parameter :: numListCodtyp = 9 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
     character(len=13), parameter :: listCodtypName(numListCodtyp) = &
-                                    (/'synopnonauto', 'asynopauto', 'shipnonauto', 'ashipauto', &
-                                      'drifter', 'saswobnonauto', 'saswobauto', 'metar', 'satob'/)
+                                    (/'synopnonauto ', 'asynopauto   ', 'shipnonauto  ', 'ashipauto    ', &
+                                      'drifter      ', 'saswobnonauto', 'saswobauto   ', 'metar        ', &
+                                      'satob        '/)
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: numListCodtypSelect = 3
     character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
-                                    (/'metar', 'saswobnonauto', 'saswobauto'/)
+                                    (/'metar        ', 'saswobnonauto', 'saswobauto   '/)
     ! Elements to select (flags for all other elements will have bit 11 set)
     integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
                                                 bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
@@ -1475,10 +1476,10 @@ contains
     integer :: fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
     integer :: ierr, nulnam, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
-    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex, obsStepIndex
     integer :: levStnIndex, levStnIndexMpi, obsFlag
     integer :: ig1obs, ig2obs, ig3obs, ig4obs, obsGridID
-    real(4) :: obsValue, obsOmp, obsStepIndex
+    real(4) :: obsValue, obsOmp
     real(4) :: zig1, zig2, zig3, zig4, zpresa, zpresb
     real(8) :: obsStepIndex_r8
     integer, allocatable :: obsLevOffset(:), obsType(:), obsHeadDate(:), obsHeadTime(:)
@@ -1715,7 +1716,7 @@ contains
     call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -4577,7 +4578,7 @@ contains
     call vco_setupFromFile(vco_sfc, trlmFileName)
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -6575,7 +6576,7 @@ contains
     numChannelMpi(:)     = 0
     obsAngleMpi(:)       = 0.0
     obsDistanceMpi(:)    = 0.0
-    channelAssimMpi(:,:) = 0
+    channelAssimMpi(:,:) = .false.
     obsCloudMpi(:,:)     = 0.0
     stnIdInt(:,:)        = 0
     stnIdIntMpi(:,:)     = 0

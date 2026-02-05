@@ -871,10 +871,10 @@ contains
                      (0.158+0.0163*satZenithAngle(obsIndex))
         end if
       else if ( (ier(obsIndex) /= 0  ) .and. (obsIndex <= 100 ) .and. (ssbg_debug)) then
-        write(*,*), 'bennartz: Input Parameters are not all valid: '
-        write(*,*), ' obsIndex,tb89(obsIndex),tb150(obsIndex),satZenithAngle(obsIndex),landSeaQualifier(obsIndex) = ',     &
+        write(*,*) 'bennartz: Input Parameters are not all valid: '
+        write(*,*) ' obsIndex,tb89(obsIndex),tb150(obsIndex),satZenithAngle(obsIndex),landSeaQualifier(obsIndex) = ',     &
                    obsIndex,tb89(obsIndex),tb150(obsIndex),satZenithAngle(obsIndex),landSeaQualifier(obsIndex)
-        write(*,*), ' ier(obsIndex),scatL(obsIndex),scatW(obsIndex)=',     &
+        write(*,*) ' ier(obsIndex),scatL(obsIndex),scatW(obsIndex)=',     &
                    ier(obsIndex),scatL(obsIndex),scatW(obsIndex)
       end if
     end do
@@ -1034,24 +1034,24 @@ contains
     modelInterpTer(:) = 0.0
     do dataIndex = 1, dataNum
       if (ssbg_debug) then
-        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: infos'
-        write(*,*), '   '
-        write(*,*), ' dataIndex = ', dataIndex
-        write(*,*), '   '
-        write(*,*), ' obsLatitude, obsLongitude = ', obsLatitude(dataIndex), obsLongitude(dataIndex)
-        write(*,*), '   '
-        write(*,*), ' obsLatBox = '
-        write(*,*),  (obsLatBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        write(*,*), ' obsLonBox = '
-        write(*,*),  (obsLonBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
-        write(*,*), ' GZIntBox = '
-        write(*,*),  (GZIntBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        write(*,*) 'ssbg_readGeophysicFieldsAndInterpolate: infos'
+        write(*,*) '   '
+        write(*,*) ' dataIndex = ', dataIndex
+        write(*,*) '   '
+        write(*,*) ' obsLatitude, obsLongitude = ', obsLatitude(dataIndex), obsLongitude(dataIndex)
+        write(*,*) '   '
+        write(*,*) ' obsLatBox = '
+        write(*,*)  (obsLatBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        write(*,*) ' obsLonBox = '
+        write(*,*)  (obsLonBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
+        write(*,*) ' GZIntBox = '
+        write(*,*)  (GZIntBox(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
       end if
       do boxPointIndex=1, boxPointNum
         modelInterpTer(dataIndex) = max(modelInterpTer(dataIndex),GZIntBox(boxPointIndex,dataIndex))
       end do
       if (ssbg_debug) then
-        write(*,*), 'ssbg_readGeophysicFieldsAndInterpolate: modelInterpTer = ', modelInterpTer(dataIndex)
+        write(*,*) 'ssbg_readGeophysicFieldsAndInterpolate: modelInterpTer = ', modelInterpTer(dataIndex)
       end if
     end do
 

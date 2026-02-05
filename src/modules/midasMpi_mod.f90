@@ -417,18 +417,18 @@ module midasMpi_mod
 
   end subroutine mmpi_reduce_sumR8_3d
 
-  
+
   subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
-    ! 
+    !
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
     !
     implicit none
 
     ! Arguments:
+    integer             , intent(in) :: nchar
+    integer             , intent(in) :: nlist
     character(len=nchar), intent(in) :: str_list(nlist)
     character(len=*)    , intent(in) :: comm
-    integer             , intent(in) :: nlist
-    integer             , intent(in) :: nchar
     integer             , intent(in) :: nproc
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
     integer             , intent(out) :: ierr

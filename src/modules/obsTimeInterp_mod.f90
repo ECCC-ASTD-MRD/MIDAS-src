@@ -226,7 +226,7 @@ contains
       else if (tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1)) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
-          write(*,'(a,2i,2a,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
+          write(*,'(a,i2,a2,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
                                       obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
                                       obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
                                       obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &

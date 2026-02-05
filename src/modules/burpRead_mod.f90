@@ -52,7 +52,7 @@ module burpRead_mod
 
 contains
 
-  character(len=7) function brpr_getTypeResume
+  character(len=7) function brpr_getTypeResume()
     brpr_getTypeResume=TYPE_RESUME
   end function brpr_getTypeResume
 
@@ -2301,7 +2301,7 @@ contains
           call handle_error(error, "brpr_readBurp: BURP_Get_Property")
 
           ! Read slant latlon if type is RO
-          if (trim(familytype) == 'RO' .and. bfam == 0 .and. LROK == .FALSE.) then
+          if (trim(familytype) == 'RO' .and. bfam == 0 .and. .not. LROK ) then
             ROLAT0 = 0.01*lati- 90.
             ROLON0 = 0.01*long
             if (ROLON0 > 180.) ROLON0 = ROLON0-360.
@@ -4116,7 +4116,8 @@ contains
     integer                :: btyp10, btyp, bfam, error
     integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
     integer                :: nb_rpts, ref_rpt, ref_blk, count
-    integer, allocatable   :: address(:), goodprof(:), reportsToUpdate(:)
+    integer, allocatable   :: address(:), goodprof(:)
+    logical, allocatable   :: reportsToUpdate(:)
     real(8), allocatable   :: btobs(:,:)
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
