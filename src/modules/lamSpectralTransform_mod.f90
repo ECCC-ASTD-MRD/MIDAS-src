@@ -1374,7 +1374,7 @@ contains
     integer :: yourid, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1426,7 +1426,7 @@ contains
     integer :: yourid, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1489,7 +1489,7 @@ contains
     integer :: yourid, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1541,7 +1541,7 @@ contains
     integer :: yourid, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
@@ -1603,7 +1603,7 @@ contains
     integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1675,7 +1675,7 @@ contains
     integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1747,7 +1747,7 @@ contains
     integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1819,7 +1819,7 @@ contains
     integer :: yourid, mIndex, icount, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
@@ -1892,7 +1892,7 @@ contains
     integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -1954,7 +1954,7 @@ contains
     integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -2016,7 +2016,7 @@ contains
     integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
@@ -2083,7 +2083,7 @@ contains
     integer :: yourid, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
 
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 

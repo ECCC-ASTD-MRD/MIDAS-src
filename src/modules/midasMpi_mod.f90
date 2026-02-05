@@ -292,9 +292,9 @@ contains
 
     write(*,*) ' '
     if(mmpi_doBarrier) then
-      write(*,*) 'mmpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
+      write(*,*) 'mmpi_initialize: optional MPI_BARRIERs will be done to help with interpretation of timings'
     else
-      write(*,*) 'mmpi_initialize: no MPI_BARRIERs will be done'
+      write(*,*) 'mmpi_initialize: no optional MPI_BARRIERs will be done'
     endif
     write(*,*) ' '
 
@@ -366,7 +366,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_barrier
   !--------------------------------------------------------------------------
-  subroutine mmpi_barrier(communicator_opt)
+  subroutine mmpi_barrier(communicator_opt, doAlways_opt)
     !
     !:Purpose: Execute 'mpi_barrier' while catching any error that may be raised.
     !
@@ -374,13 +374,21 @@ contains
 
     ! Arguments:
     type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the MPI communicator
+    logical,        optional, intent(in)  :: doAlways_opt     ! indicate that the barrier is always needed
 
     ! Locals:
     integer :: ierr, nameLength
     type(mpi_comm) :: communicator
     character(len=MPI_MAX_OBJECT_NAME) :: commName
+    logical :: doAlways
 
-    if (mmpi_doBarrier) then
+    if (present(doAlways_opt)) then
+      doAlways = doAlways_opt
+    else
+      doAlways = .true.
+    end if
+
+    if (mmpi_doBarrier .or. doAlways) then
       communicator = handleCommunicator(communicator_opt)
 
       call mpi_barrier(communicator, ierr)
@@ -493,7 +501,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -548,7 +556,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -597,7 +605,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -642,7 +650,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -686,7 +694,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -731,7 +739,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')

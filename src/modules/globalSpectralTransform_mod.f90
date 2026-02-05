@@ -643,7 +643,7 @@ contains
     integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -700,7 +700,7 @@ contains
     integer :: yourid,ila,icount,jlev,jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
@@ -759,7 +759,7 @@ contains
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -830,7 +830,7 @@ contains
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -854,7 +854,7 @@ contains
     !$OMP END PARALLEL DO
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
@@ -906,7 +906,7 @@ contains
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -977,7 +977,7 @@ contains
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
@@ -1001,7 +1001,7 @@ contains
     !$OMP END PARALLEL DO
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_NS)
+    call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
@@ -1053,7 +1053,7 @@ contains
     integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1105,7 +1105,7 @@ contains
     integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1154,7 +1154,7 @@ contains
     integer :: youridP1, jlev, jlev2
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -1207,7 +1207,7 @@ contains
     integer :: youridP1, yourNumLev
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier(mmpi_comm_EW)
+    call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
@@ -2117,7 +2117,7 @@ contains
     integer :: jlat, jk, jlon
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
@@ -2160,7 +2160,7 @@ contains
     deallocate(pgd3)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
   end subroutine gst_speree_kij
@@ -2232,7 +2232,7 @@ contains
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
@@ -2262,7 +2262,7 @@ contains
     deallocate(psp2)
 
     call utl_tmg_start(152,'low-level--gst_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(152)
 
   end subroutine gst_reespe_kij
