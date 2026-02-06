@@ -349,7 +349,7 @@ contains
     logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
-    integer :: index1, index2, info, sizework, numThreadLocal
+    integer :: index1, index2, info, sizework
     real(8) :: sizework_r8
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
