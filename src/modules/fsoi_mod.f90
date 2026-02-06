@@ -159,7 +159,7 @@ module fsoi_mod
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    real(8)                         :: fso_ori, fso_fin
+    real(8)                         :: fso_ori, fso_fin, fsr_gradient
 
     if (mmpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
@@ -251,9 +251,8 @@ module fsoi_mod
       elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSR,bodyIndex)
-            fso_fin = -2.0d0 * fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
-            call obs_bodySet_r(obsSpaceData,OBS_FSR,bodyIndex, fso_fin)
+            fsr_gradient = obs_bodyElem_r(obsSpaceData,OBS_FSR,bodyIndex)
+            call obs_bodySet_r(obsSpaceData,OBS_FSR,bodyIndex, fsr_gradient)
           end if
         end do
       end if
@@ -490,12 +489,13 @@ module fsoi_mod
     if ( fsoMode(4:4) == 'O' ) then
       OBS_FSX = OBS_FSO
       strFSX  = 'FSO'
+      if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
     else
       OBS_FSX = OBS_FSR
       strFSX  = 'FSR'
+      if (mmpi_myid == 0) write(*,*)  &
+        'sumFSO: Starting. With FSR mode, listings in this section are meaningless. Degugging purpose only.'
     end if
-
-    if (mmpi_myid == 0) write(*,*) 'sum' // strFSX //': Starting'
 
     ! initialize
     do familyIndex = 1, numFamily

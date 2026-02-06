@@ -30,7 +30,7 @@ module obsDiagFiles_mod
   !--------------------------------------------------------------------------
   ! diaf_writeAllSqlDiagFiles
   !--------------------------------------------------------------------------
-  subroutine diaf_writeAllSqlDiagFiles(obsdat, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
+  subroutine diaf_writeAllSqlDiagFiles(obsdat, sfFileName, onlyAssimObs, addFSOdiag, addFSRdiag, ensObs_opt)
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !
@@ -41,6 +41,7 @@ module obsDiagFiles_mod
     character(len=*),           intent(in)    :: sfFileName     ! fileName acronym used for surface obs file
     logical         ,           intent(in)    :: onlyAssimObs   ! only write assimilated obs
     logical         ,           intent(in)    :: addFSOdiag     ! include FSO column in body table
+    logical         ,           intent(in)    :: addFSRdiag     ! include FSR column in body table
     type(struct_eob), optional, intent(in)    :: ensObs_opt     ! ensObs object
 
     ! Locals:
@@ -95,7 +96,7 @@ module obsDiagFiles_mod
 
           write(*,*) 'tovsCodeTypeListSize = ', tovsCodeTypeListSize
           write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize)
-          call diaf_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, &
+          call diaf_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, addFSRdiag, &
                                      tovsFileNameList(fileIndex), &
                                      tovsCodeTypeList(1:tovsCodeTypeListSize), &
                                      ensObs_opt=ensObs_opt )
@@ -105,7 +106,7 @@ module obsDiagFiles_mod
 
         fileName = diaf_getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
         call diaf_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), &
-                                   onlyAssimObs, addFSOdiag, fileName, &
+                                   onlyAssimObs, addFSOdiag, addFSRdiag, fileName, &
                                    ensObs_opt=ensObs_opt )
 
       end if
@@ -117,7 +118,8 @@ module obsDiagFiles_mod
   !--------------------------------------------------------------------------
   ! diaf_writeSqlDiagFile
   !--------------------------------------------------------------------------
-  subroutine diaf_writeSqlDiagFile(obsdat, obsFamily, onlyAssimObs, addFSOdiag, instrumentFileName, codeTypeList_opt, ensObs_opt)
+  subroutine diaf_writeSqlDiagFile(obsdat, obsFamily, onlyAssimObs, addFSOdiag, addFSRdiag, &
+                  instrumentFileName, codeTypeList_opt, ensObs_opt)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
@@ -128,6 +130,7 @@ module obsDiagFiles_mod
     character(len=*)           , intent(in)    :: obsFamily
     logical                    , intent(in)    :: onlyAssimObs
     logical                    , intent(in)    :: addFSOdiag
+    logical                    , intent(in)    :: addFSRdiag
     character(len=*)           , intent(in)    :: instrumentFileName
     integer          , optional, intent(in)    :: codeTypeList_opt(:)
     type(struct_eob) , optional, intent(in)    :: ensObs_opt
@@ -139,7 +142,7 @@ module obsDiagFiles_mod
     integer              :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData, memberIndex
     real                 :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, ENSOBSTRL, ENSOBSANL
     real                 :: latData, lonData
-    real                 :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
+    real                 :: ensInnovStdDev, ensObsErrStdDev, zhad, fso, fsr
     integer              :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len=512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs
     character(len=30)    :: fileNameExtention
@@ -196,6 +199,13 @@ module obsDiagFiles_mod
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                     &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, latd real, lond real, &
                     &fso real);'
+    else if (addFSRdiag) then
+      queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
+                    &codtyp integer, date integer, time integer, elev real); &
+                    &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
+                    &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
+                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, latd real, lond real, &
+                    &fsr real);'
     else
       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                     &codtyp integer, date integer, time integer, elev real); &
@@ -218,6 +228,9 @@ module obsDiagFiles_mod
     if (addFSOdiag) then
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                    &obs_error, sigi, sigo, zhad, latd, lond, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+    else if (addFSRdiag) then
+      queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
+                   &obs_error, sigi, sigo, zhad, latd, lond, fsr) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     else
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                   &obs_error, sigi, sigo, zhad, latd, lond) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -335,6 +348,13 @@ module obsDiagFiles_mod
             fso = obs_missingValue_R
           end if
         end if
+        if (addFSRdiag) then
+          if (obs_columnActive_RB(obsdat, OBS_FSR)) then
+            fsr = real(obs_bodyElem_r(obsdat, OBS_FSR, bodyIndex), 4)
+          else
+            fsr = obs_missingValue_R
+          end if
+        end if
 
         select case(obsFamily)
           case ('UA', 'AI', 'SW')
@@ -426,6 +446,13 @@ module obsDiagFiles_mod
             call fSQL_bind_param(stmtData, param_index = 18)
           else
             call fSQL_bind_param(stmtData, param_index = 18, real_var = fso)
+          end if
+        end if
+        if (addFSRdiag) then
+          if (utl_isEqual(real(fsr, pre_obsReal), obs_missingValue_R)) then
+            call fSQL_bind_param(stmtData, param_index = 18)
+          else
+            call fSQL_bind_param(stmtData, param_index = 18, real_var = fsr)
           end if
         end if
 

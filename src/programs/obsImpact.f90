@@ -31,18 +31,20 @@ program midas_obsImpact
   !            the variational approach for the adjoint of the assimilation procedure. The ensemble approach is
   !            appropriate for computing the impact of observations assimilated with the LETKF. It relies purely on
   !            analysis and forecast ensemble for the calculation.
-  !            This program also supports FSR diagnostics. Similarly, both hybrid and ensemble approaches are supported.
+  !            This program also supports FSR diagnostics by computing :math:`\partial{e^f}/\partial{y^o}` (Equation 4 in [3]),
+  !            which is then to be combined with O-A residual in a separate post-processing program.
+  !            As in FSO mode, both hybrid and ensemble approaches are supported.
   !
   !
   !
   !
-  !            More details on HFSOI can be found in the paper: `HFSOI approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
+  !            More details on HFSOI can be found in the paper: `[1] HFSOI approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
   !
   !
-  !            More details on EFSOI can be found in the paper:`EFSOI approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
+  !            More details on EFSOI can be found in the paper:`[2] EFSOI approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
   !
   !
-  !            More details on FSR can be found in the paper:`FSR diagnostics <https://doi.org/10.1175/MWR-D-17-0122.1>`_
+  !            More details on FSR can be found in the paper:`[3] FSR diagnostics <https://doi.org/10.1175/MWR-D-17-0122.1>`_
   !            --
   !
   !:File I/O: The required input files and produced output files are listed as follows.
@@ -114,29 +116,38 @@ program midas_obsImpact
   !                                  :math:`(C*(e_{t}^{fa}+e_{t}^{fb}))` (for FSOI) or
   !                                  :math:`(C*e_{t}^{fa})` (for FSR).
   !
-  !             - ``bmat_sqrtBT``: Compute the variable :math:`\hat{v}` for minimization
+  !             - ``bmat_sqrtBT``: Compute the variable :math:`\hat{v}` for minimization in HFSO or HFSR mode.
   !                                       :math:`\hat{v}=B_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` (in HFSO mode), or
-  !                                       :math:`\hat{v}=B_{t}^{T/2}*C*e_{t}^{fa}` (in HFSO mode).
+  !                                       :math:`\hat{v}=B_{t}^{T/2}*C*e_{t}^{fa}` (in HFSR mode).
+  !                                In the purely ensemble mode (EFSO or EFSR), it computes
+  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` (in EFSO mode), or
+  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*e_{t}^{fa}` (in EFSR mode) 
+  !                                where :math:`A_{t}^{1/2}` is the forecast ensemble perturbations valid at time :math:`t`
+  !                                (with model-space localization applied) initialized from the analysis ensemble valid at time 0,
+  !                                and the minimization is skipped.
   !
   !             - ``minimize``: Do the minimization to apply the adjoint of the 4D-EnVar assimilation
   !                             to :math:`\hat{v}` with the result being :math:`\hat{a}`.
   !
-  !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*\hat{a}` .
+  !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*\hat{a}` (in HFSO or HFSR) or :math:`A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
-  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` .
+  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !                                                                     or :math:`H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``rmat_RsqrtInverseAllObs``: Multiply by the inverse of the observation error variances
-  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}`
+  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !                                                 or :math:`R^{-1}*H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``obs_bodySet_r``: Multiply the resulting sensitivity value by the innovation and put
-  !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` or ``OBS_FSR``
-  !                                  so it can be stored in the observation files.
+  !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` so it can be stored in
+  !                                  the observation files. In FSR modes, :math:`\partial{e^f}/\partial{y^o}` 
+  !                                  is stored in column ``OBS_FSR``, which are to be multiplied with OmA residual in post-process to yield FSR. 
   !
-  !             - ``sumFSO``: Print out the FSOI or FSR value, including total and the one from each obs family.
+  !             - ``sumFSO``: Print out the FSOI value, including total and the one from each obs family.
   !
   !           - **Final steps:**
   !
-  !             - ``obsf_writeFiles``: Write the final FSOI or FSR value in SQLite file.
+  !             - ``obsf_writeFiles``: Write the final FSOI (or FSR gradient) values in SQLite file.
   !
   !           --
   !
