@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Parallelize writing of `rebm` files and make some `mpi_barrier` calls optional (#1144 and !1066)
  * Avoid unnecessary vertical interpolation of `columnData_mod` data (#1101 and !1032)
   * Very small impact on increment and/or analysis files for `var` program
  * Removed support of SLEVE with GEM-P (Vcode = 5100) (#1106 and !1016)
