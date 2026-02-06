@@ -1,6 +1,6 @@
  &NAMMKL
-   numThreadsMKL = -1
-   dynamicMKL    = .true.
+   oneThreadMKL = .false.
+   dynamicMKL   = .true.
 /
  &NAMBHI
    NTRUNC  = 270,

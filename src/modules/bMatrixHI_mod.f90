@@ -2,7 +2,7 @@
 MODULE bMatrixHI_mod
   ! MODULE bMatrixHI_mod (prefix='bhi' category='2. B and R matrices')
   !
-  !:Purpose:  Performs transformation from control vector to analysis increment
+  !:Purpose:  Performs transformation from control vector to analysis increment 
   !           (and adjoint transformation) using the background-error covariance
   !           matrix based on homogeneous and isotropic correlations. This is
   !           the Global version. A separate module exists for limited-area applications.
@@ -19,8 +19,6 @@ MODULE bMatrixHI_mod
   use gridVariableTransforms_mod
   use interpolation_mod
   use calcHeightAndPressure_mod
-  use mkl_service
-
   implicit none
   save
   private
@@ -80,11 +78,11 @@ MODULE bMatrixHI_mod
   ! this should come from state vector object
   integer             :: numvar3d
   integer             :: numvar2d
-  integer             :: nspositVO
-  integer             :: nspositDI
-  integer             :: nspositTT
+  integer             :: nspositVO 
+  integer             :: nspositDI 
+  integer             :: nspositTT 
   integer             :: nspositQ
-  integer             :: nspositPS
+  integer             :: nspositPS 
   integer             :: nspositTG
 
   real(8), pointer    :: pressureProfile_M(:),pressureProfile_T(:)
@@ -161,7 +159,7 @@ CONTAINS
     ierr = fclos( nulnam )
 
     do jlev = 1, vco_maxNumLevels
-      if( scaleFactor(jlev) > 0.0d0 ) then
+      if( scaleFactor(jlev) > 0.0d0 ) then 
         scaleFactor(jlev) = sqrt(scaleFactor(jlev))
       else
         scaleFactor(jlev) = 0.0d0
@@ -211,7 +209,7 @@ CONTAINS
     end if
 
     do jlev = 1, max(nLev_M,nLev_T)
-      if(scaleFactorLQ(jlev).gt.0.0d0) then
+      if(scaleFactorLQ(jlev).gt.0.0d0) then 
         scaleFactorLQ(jlev) = sqrt(scaleFactorLQ(jlev))
       else
         scaleFactorLQ(jlev) = 0.0d0
@@ -219,7 +217,7 @@ CONTAINS
     enddo
 
     do jlev = 1, max(nLev_M,nLev_T)
-      if(scaleFactorCC(jlev).gt.0.0d0) then
+      if(scaleFactorCC(jlev).gt.0.0d0) then 
         scaleFactorCC(jlev) = sqrt(scaleFactorCC(jlev))
       else
         scaleFactorCC(jlev) = 0.0d0
@@ -227,7 +225,7 @@ CONTAINS
     enddo
 
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
-       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble)
+       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                         ! that Bhi is used
        return
     end if
@@ -250,7 +248,7 @@ CONTAINS
       nkgdimSqrt = nkgdim
     endif
     nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
-
+    
     ni_l = hco_in%ni
     nj_l = hco_in%nj
     AnalGridID = hco_in%EZscintID
@@ -434,7 +432,7 @@ CONTAINS
     real(8),allocatable :: corns_temp(:,:,:)
     logical :: lldebug, lfound_sqrt
     ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet 
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
     integer :: iubc,iextr1,iextr2,iextr3,ierr
     integer :: idateo
@@ -563,7 +561,7 @@ CONTAINS
       enddo
     endif
 
-    ! streamfunction
+    ! streamfunction 
     ztlen = rvlocpsi    ! specify length scale (in units of ln(Pressure))
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
@@ -700,7 +698,7 @@ CONTAINS
           zcoriolis = abs(2.d0*ec_Omega*gst_getrmu(jlat,gstID))
           if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
             zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
-          else
+          else 
             zfact2 = 0.0d0
           endif
           zfacttb(jlat,jk1) = zfacttb(jlat,jk1)+zfact2
@@ -722,7 +720,7 @@ CONTAINS
         zcoriolis = abs(2.d0*ec_Omega*gst_getrmu(jlat,gstID))
         if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
           zfact2 = 1.0d0/(zfact*zcoriolis*zcoriolis)
-        else
+        else 
           zfact2 = 0.0d0
         endif
         zfactpsb(jlat) = zfactpsb(jlat)+zfact2
@@ -735,7 +733,7 @@ CONTAINS
         rgsigpsb(jlat) = rgsigpsb(jlat)*sqrt(zfactpsb(jlat))
       else
         rgsigpsb(jlat) = 0.0d0
-      endif
+      endif          
       do jk1 = 1, nlev_T
         if(zfacttb(jlat,jk1).gt.0.0d0) then
           rgsigtb(jlat,jk1) = rgsigtb(jlat,jk1)*sqrt(zfacttb(jlat,jk1))
@@ -781,7 +779,7 @@ CONTAINS
           eigenvalsqrt(jk1) = sqrt(eigenval(jk1))
         endif
       enddo
-
+ 
       ! Reverse the order of E-Values if old formulation (for compatibility)
       if(.not.squareSqrt) then
         do jk1 = 1, nkgdim2
@@ -878,7 +876,7 @@ CONTAINS
                        ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
       enddo
 
-      ierr = fstfrm(nulcorns_sqrt)
+      ierr = fstfrm(nulcorns_sqrt)  
       ierr = fclos(nulcorns_sqrt)
     endif
 
@@ -1096,7 +1094,7 @@ CONTAINS
     !- 1.2 Rearrange the data according to the analysis grid (if necessary)
     if(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 == 0  &
           .and. ig2 ==0 .and. ig3 == 0 .and.ig4 == 0) then
-      !- 1.2.1 The std. dev. on the analysis grid
+      !- 1.2.1 The std. dev. on the analysis grid 
       do jlat = 1, nj_l
         do jlon = 1,ni_l
           tgstdbg(jlon,jlat) = dltg(jlon,jlat)
@@ -1211,7 +1209,7 @@ CONTAINS
           write(*,*) 'nomvar      =', trim(clnomvar)
           write(*,*) 'etiket      =', trim(cletiket)
           write(*,*) 'ip1         =', ip1
-          write(*,*) 'Found ni,nj =', ini, inj
+          write(*,*) 'Found ni,nj =', ini, inj 
           write(*,*) 'Should be   =', ni_trial, nj_trial
           call utl_abort('bMatrixHI')
         end if
@@ -1231,14 +1229,14 @@ CONTAINS
           write(*,*) 'nomvar      =', trim(clnomvar)
           write(*,*) 'etiket      =', trim(cletiket)
           write(*,*) 'ip1         =', ip1
-          write(*,*) 'Found ni,nj =', ini, inj
+          write(*,*) 'Found ni,nj =', ini, inj 
           write(*,*) 'Should be   =', ni_trial, nj_trial
           call utl_abort('bMatrixHI')
       end if
 
       TrialGridID  = ezqkdef( ni_trial, nj_trial, clgrtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
-
-      ierr = fstfrm(nultrl)
+ 
+      ierr = fstfrm(nultrl)  
       ierr = fclos(nultrl)
 
       !- Interpolate to the Analysis Grid
@@ -1329,7 +1327,7 @@ CONTAINS
           do jlon = 1,ni_l
              tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,jlat)
           end do
-        end do
+        end do       
         cltypvar = 'P'
         clnomvar = 'GL'
         cletiket = 'TRIAL2ANAL'
@@ -1354,7 +1352,7 @@ CONTAINS
     !
     zgd(:,:,:) = 0.0d0
     zsp_mpilocal(:,:,:) = 0.0d0
-    allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1))
+    allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1)) 
     my_zsp_mpiglobal(:,:,:) = 0.0d0
 
     do jla = 1, nla_mpiglobal
@@ -1382,7 +1380,7 @@ CONTAINS
     enddo
     nsize = 2*nla_mpiglobal
     call rpn_comm_allreduce(my_zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-    deallocate(my_zsp_mpiglobal)
+    deallocate(my_zsp_mpiglobal) 
     ! 2.4.4  Check positiveness
     llpb = .false.
     do jla = 1, ntrunc+1
@@ -1514,7 +1512,7 @@ CONTAINS
          rstddev(jk,jn) = zsp(jn,jk)
       enddo
     enddo
-
+ 
     ! Re-normalize to ensure correlations
     do jk = 1, nkgdim
       dsummed = 0.d0
@@ -1685,7 +1683,7 @@ CONTAINS
 
     ! Apply convolution to RSTDDEV correlations
 
-    call BHI_convol
+    call BHI_convol 
 
     do jn = 0, ntrunc
 
@@ -1865,7 +1863,7 @@ CONTAINS
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
     ! standard file variables
-    integer :: ini,inj,ink
+    integer :: ini,inj,ink  
     integer :: ip1,ip2,ip3
     integer :: idate(100),nlev_MT
     character(len=2)  :: cltypvar
@@ -1904,7 +1902,7 @@ CONTAINS
         ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
-        call utl_abort('RDSTD')
+        call utl_abort('RDSTD') 
       endif
 
       if (ink .ne. nlev_MT) then
@@ -1936,7 +1934,7 @@ CONTAINS
         ikey = utl_fstlir(zgr,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
-        call utl_abort('RDSTD')
+        call utl_abort('RDSTD') 
       endif
 
       if(clnomvar == 'UP') then
@@ -2119,7 +2117,7 @@ CONTAINS
     real(8) :: zPtoTsrc(nlev_T+1,nlev_M)
     real(8) :: zspPtoT(0:ntrunc,nlev_T+1,nlev_M)
     real(8) :: zgrPtoT(nj_l,nlev_T+1,nlev_M)
-    real(8) :: ztheta(nlev_M)
+    real(8) :: ztheta(nlev_M)    
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -2128,7 +2126,7 @@ CONTAINS
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: fstinf
-
+    
     ip1 = -1
     ip3 = -1
     idateo = -1
@@ -2352,7 +2350,7 @@ CONTAINS
     real(8), pointer :: field_r8(:,:,:)
     real(4), pointer :: field_r4(:,:,:)
 
-    do jvar = 1, vnl_numvarmax
+    do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         if (gsv_getDataKind(statevector) == 8) then
           call gsv_getField(statevector,field_r8,vnl_varNameList(jvar))
@@ -2414,7 +2412,7 @@ CONTAINS
     real(8), pointer :: field_r8(:,:,:)
     real(4), pointer :: field_r4(:,:,:)
 
-    do jvar = 1, vnl_numvarmax
+    do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         if (gsv_getDataKind(statevector) == 8) then
           call gsv_getField(statevector,field_r8,vnl_varNameList(jvar))
@@ -2535,9 +2533,9 @@ CONTAINS
                 do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
                    if(jm.le.jn) then
-
+                      
                       ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-
+                      
                       ! figure out index into global control vector
                       if(jm == 0) then
                          ! for jm=0 only real part
@@ -2548,7 +2546,7 @@ CONTAINS
                       endif
                       ! add offset for level
                       jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-
+                      
                       ! index into local control vector computer as in cain
                       if(jm == 0) then
                          ! only real component for jm=0
@@ -2561,7 +2559,7 @@ CONTAINS
                          jdim_mpilocal = jdim_mpilocal + 1
                          cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                       endif
-
+                      
                       if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
@@ -2579,7 +2577,7 @@ CONTAINS
                 enddo
              enddo
           enddo
-
+ 
        end do ! jproc
        !$OMP END PARALLEL DO
 
@@ -2684,9 +2682,9 @@ CONTAINS
                 do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
                    if(jm.le.jn) then
-
+                      
                       ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-
+                      
                       ! figure out index into global control vector
                       if(jm == 0) then
                          ! for jm=0 only real part
@@ -2697,7 +2695,7 @@ CONTAINS
                       endif
                       ! add offset for level
                       jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-
+                      
                       ! index into local control vector computer as in cain
                       if(jm == 0) then
                          ! only real component for jm=0
@@ -2710,7 +2708,7 @@ CONTAINS
                          jdim_mpilocal = jdim_mpilocal + 1
                          cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                       endif
-
+                      
                       if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
@@ -2728,7 +2726,7 @@ CONTAINS
                 enddo
              enddo
           enddo
-
+ 
        end do ! jproc
        !$OMP END PARALLEL DO
 
@@ -2878,7 +2876,7 @@ CONTAINS
       enddo ! jproc
       !$OMP END PARALLEL DO
 
-    endif ! myid == 0
+    endif ! myid == 0 
 
     deallocate(allnBeg)
     deallocate(allnEnd)
@@ -3008,7 +3006,7 @@ CONTAINS
       enddo ! jproc
       !$OMP END PARALLEL DO
 
-    endif ! myid == 0
+    endif ! myid == 0 
 
     deallocate(allnBeg)
     deallocate(allnEnd)
@@ -3104,7 +3102,7 @@ CONTAINS
     ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-    integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount, numThreadLocal
+    integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
@@ -3121,7 +3119,7 @@ CONTAINS
     sq2 = sqrt(2.0d0)
     allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
-    !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount,numThreadLocal)
+    !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -3139,13 +3137,7 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        ! Force the number of threads to 1
-        numThreadLocal = mkl_set_num_threads_local(1)
-
         CALL DGEMM('N','N',nkgdim2,2*icount,nkgdimSqrt,1.0d0,corns(1,1,jn),nkgdim2,zsp(1,1,1),nkgdimSqrt,0.0d0,zsp2(1,1,1),nkgdim2)
-
-        ! Restore number of threads to what it was originally
-        numThreadLocal = mkl_set_num_threads_local(numThreadLocal)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -3321,7 +3313,7 @@ CONTAINS
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even)
     real(8) :: sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount, numThreadLocal
+    integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2, zp
     real(8) ,allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
@@ -3411,7 +3403,7 @@ CONTAINS
         enddo
       enddo
     enddo
-    !$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO 
 
     call gst_setID(gstID)
     call gst_reespe(sp,gd)
@@ -3422,7 +3414,7 @@ CONTAINS
     sq2 = sqrt(2.0d0)
     allocate(zsp(nkgdimSqrt,2,mymCount))
     allocate(zsp2(nkgdim2,2,mymCount))
-    !$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount,numThreadLocal)
+    !$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
       icount = 0
@@ -3444,13 +3436,7 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        ! Force the number of threads to 1
-        numThreadLocal = mkl_set_num_threads_local(1)
-
         CALL DGEMM('T','N',nkgdimSqrt,2*icount,nkgdim2,1.0d0,corns(1,1,jn),nkgdim2,zsp2(1,1,1),nkgdim2,0.0d0,zsp(1,1,1),nkgdimSqrt)
-
-        ! Restore number of threads to what it was originally
-        numThreadLocal = mkl_set_num_threads_local(numThreadLocal)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip

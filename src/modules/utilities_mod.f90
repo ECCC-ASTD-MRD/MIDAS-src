@@ -6,7 +6,6 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
-  use mkl_service
   use omp_lib
 
   implicit none
@@ -369,12 +368,6 @@ contains
 
     !     1. Computation of eigenvalues and eigenvectors
 
-    ! Check if this routine has been called within a parallel region
-    if (omp_in_parallel()) then
-      ! Force the number of threads to 1
-      numThreadLocal = mkl_set_num_threads_local(1)
-    end if
-
     allocate(eigenVectors(rank,rank))
     allocate(eigenValues(rank))
 
@@ -452,12 +445,6 @@ contains
 
     !     5. Deallocate local arrays
     deallocate(eigenVectors,eigenValues)
-
-    ! Check if this routine has been called within a parallel region
-    if (omp_in_parallel()) then
-      ! Restore number of threads to what it was originally
-      numThreadLocal = mkl_set_num_threads_local(numThreadLocal)
-    end if
 
     if (printInformation) then
       write(*,*) 'utl_matInverse: done'
@@ -2545,7 +2532,7 @@ contains
     character(len=*), intent(in) :: blockLabel
 
     ! Locals:
-    integer            :: labelLength, omp_get_thread_num
+    integer            :: labelLength
     integer, parameter :: labelPaddedLength = 40
     character(len=labelPaddedLength) :: blockLabelPadded
 
@@ -2571,9 +2558,6 @@ contains
 
     ! Arguments:
     integer,          intent(in) :: blockIndex
-
-    ! Locals:
-    integer            :: omp_get_thread_num
 
     ! only the first thread does the timing
     if (omp_get_thread_num() > 0) return

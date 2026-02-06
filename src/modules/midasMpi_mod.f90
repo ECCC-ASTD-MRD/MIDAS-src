@@ -8,6 +8,7 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use utilities_mod
+  use mkl_service
   implicit none
   save
   private
@@ -53,10 +54,10 @@ module midasMpi_mod
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
     integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
-    integer :: numThreadsMKL
-    logical :: dynamicMKL
+    logical :: oneThreadMKL ! choose to use only 1 thread for MKL subroutines
+    logical :: dynamicMKL   ! choose to use dynamic assignment of threads for MKL subroutines
 
-    namelist /nammkl/ numThreadsMKL, dynamicMKL
+    namelist /nammkl/ oneThreadMKL, dynamicMKL
 
     ! Initilize MPI
     npex=0
@@ -105,7 +106,7 @@ module midasMpi_mod
     write(*,*) ' '
 
     ! default values for MKL namelist
-    numThreadsMKL = 1
+    oneThreadMKL = .true.
     dynamicMKL = .true.
 
     ! read the MKL namelist
@@ -132,21 +133,15 @@ module midasMpi_mod
       call mkl_set_dynamic(0)
     end if
 
-    if (numThreadsMKL == -1) then
+    if (oneThreadMKL) then
+      call mkl_set_num_threads(1)
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: number of threads used for MKL set to one'
+      end if
+    else
       if (mmpi_myid == 0) then
         write(*,*) 'mmpi_initialize: default number of threads used for MKL'
       end if
-    else if (numThreadsMKL >= 1) then
-      if (numThreadsMKL > mmpi_numThread) then
-        if (mmpi_myid == 0) then
-          write(*,*) 'mmpi_initialize: numThreadsMKL reduced from', &
-                     numThreadsMKL, 'to', mmpi_numThread
-        end if
-        numThreadsMKL = mmpi_numThread
-      end if
-      call mkl_set_num_threads(numThreadsMKL)
-    else
-      call utl_abort('mmpi_initialize: invalid value for numThreadsMKL')
     end if
 
   end subroutine mmpi_initialize
