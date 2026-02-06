@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Add ability to control number of threads used by math library (#1139 and !1065)
 
 ### Fixed
 

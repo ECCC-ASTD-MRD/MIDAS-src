@@ -154,8 +154,8 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     FOPTMIZ=2
     __compiler_supplementary_option=-strict
 fi
-echo "... loading rpn/code-tools/20250925/env/${__compiler}"
-. r.load.dot rpn/code-tools/20250925/env/${__compiler}
+echo "... loading rpn/code-tools/20251202/env/${__compiler}"
+. r.load.dot rpn/code-tools/20251202/env/${__compiler}
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"

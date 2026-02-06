@@ -39,7 +39,7 @@ endif
 install : # defining default target
 
 splitobs_pgm: version.h $(SRC)
-	. r.load.dot rpn/code-tools/20250925/env/${COMPILER}; \
+	. r.load.dot rpn/code-tools/20251202/env/${COMPILER}; \
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
