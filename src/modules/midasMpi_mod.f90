@@ -16,7 +16,6 @@ module midasMpi_mod
   private
 
   ! Public variables
-  logical, public, protected :: mmpi_doBarrier
   integer, public, protected :: mmpi_myid      = 0
   integer, public, protected :: mmpi_myidHost  = 0
   integer, public, protected :: mmpi_nprocs    = 0
@@ -62,6 +61,9 @@ module midasMpi_mod
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
   public :: mmpi_xch_halo, mmpi_adj_halo
+
+  ! Private module variables
+  logical :: mmpi_doBarrier
 
   ! module interfaces
   ! -----------------
