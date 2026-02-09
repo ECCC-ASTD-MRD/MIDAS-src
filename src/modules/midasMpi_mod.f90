@@ -16,7 +16,6 @@ module midasMpi_mod
   private
 
   ! Public variables
-  logical, public, protected :: mmpi_doBarrier = .true.
   integer, public, protected :: mmpi_myid      = 0
   integer, public, protected :: mmpi_myidHost  = 0
   integer, public, protected :: mmpi_nprocs    = 0
@@ -62,6 +61,9 @@ module midasMpi_mod
   public :: mmpi_send, mmpi_recv, mmpi_sendrecv, mmpi_finalize, mmpi_barrier
   public :: mmpi_stopAndWait4Debug, mmpi_gathervDisplacements
   public :: mmpi_xch_halo, mmpi_adj_halo
+
+  ! Private module variables
+  logical :: mmpi_doBarrier
 
   ! module interfaces
   ! -----------------
@@ -195,6 +197,9 @@ contains
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 
+    ! read main namelist if there is a namelist block NAMMMPI
+    call readNml()
+
     ! read MPI topology in namelist 'ptopo_nml'
     ! will initialize 'mmpi_npex', 'mmpi_npey' and 'mmpi_nprocs'
     !call mmpi_getptopo
@@ -289,13 +294,55 @@ contains
 
     write(*,*) ' '
     if(mmpi_doBarrier) then
-      write(*,*) 'mmpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
+      write(*,*) 'mmpi_initialize: optional MPI_BARRIERs will be done to help with interpretation of timings'
     else
-      write(*,*) 'mmpi_initialize: no MPI_BARRIERs will be done'
+      write(*,*) 'mmpi_initialize: no optional MPI_BARRIERs will be done'
     endif
     write(*,*) ' '
 
   end subroutine mmpi_initialize
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMMMPI
+    !
+    implicit none
+
+    ! Locals:
+    integer       :: ierr
+    logical       :: doBarrier
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMMMPI/ doBarrier
+
+    if (firstCall) then
+
+      ! set the default values
+      doBarrier = .false.
+
+      ! read the namelist block if it exists
+      if (.not. utl_isNamelistPresent('NAMMMPI','./flnml')) then
+        if (mmpi_myid == 0) then
+          call msg('readNml (ens)', 'nammmpi is missing in the namelist. The default values will be taken.')
+        end if
+      else
+        ! Read namelist NAMMMPI
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=nammmpi, iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        call utl_tmg_stop(181)
+      end if
+      if (mmpi_myid == 0) write(*,nml=nammmpi)
+
+      mmpi_doBarrier = doBarrier
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
   !--------------------------------------------------------------------------
   ! mmpi_finalize
@@ -321,7 +368,7 @@ contains
   !--------------------------------------------------------------------------
   ! mmpi_barrier
   !--------------------------------------------------------------------------
-  subroutine mmpi_barrier(communicator_opt)
+  subroutine mmpi_barrier(communicator_opt, doAlways_opt)
     !
     !:Purpose: Execute 'mpi_barrier' while catching any error that may be raised.
     !
@@ -329,13 +376,21 @@ contains
 
     ! Arguments:
     type(mpi_comm), optional, intent(in)  :: communicator_opt ! string identifying the MPI communicator
+    logical,        optional, intent(in)  :: doAlways_opt     ! indicate that the barrier is always needed
 
     ! Locals:
     integer :: ierr, nameLength
     type(mpi_comm) :: communicator
     character(len=MPI_MAX_OBJECT_NAME) :: commName
+    logical :: doAlways
 
-    if (mmpi_doBarrier) then
+    if (present(doAlways_opt)) then
+      doAlways = doAlways_opt
+    else
+      doAlways = .true.
+    end if
+
+    if (mmpi_doBarrier .or. doAlways) then
       communicator = handleCommunicator(communicator_opt)
 
       call mpi_barrier(communicator, ierr)
@@ -448,7 +503,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -503,7 +558,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -552,7 +607,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -597,7 +652,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -641,7 +696,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -686,7 +741,7 @@ contains
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    call mmpi_barrier
+    call mmpi_barrier(doAlways_opt=.false.)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
