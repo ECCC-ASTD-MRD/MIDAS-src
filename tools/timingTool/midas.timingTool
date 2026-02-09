@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import stat
 import sys
 import argparse
 import unittest
@@ -22,61 +24,22 @@ parser.add_argument("-u", "--unittest", help="Run the unit tests",action="store_
 args = parser.parse_args()
 
 
-#==== Input processing =======================================================
 minimumTimingLimit=args.limit
 exptOrder=args.order
 showCount=args.nocount
 
-# Define the magic number for gzip files
-GZIP_MAGIC = b'\x1f\x8b'
-
-def is_gzipped(file):
-    """ Check if the input stream is gzipped by reading the first two bytes. """
-    first_two_bytes = file.read(2)  # Read the first two bytes
-    file.seek(0)  # Reset file pointer to the beginning
-    return first_two_bytes == GZIP_MAGIC
-
-
-input_source = args.listing # a binary file
-# argparse will either open the file passed or feed in stdin
-# note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
-
-# Determine if the input is gzipped
-if is_gzipped(input_source):
-    if input_source is sys.stdin.buffer:
-        inputUnit = gzip.open(sys.stdin.buffer, 'rt')  # Open stdin as a gzipped stream
-    else:
-        inputUnit = gzip.open(input_source.name, 'rt')  # Open file as a gzipped stream
-else:
-    # If the input is not gzipped, read it as plain text
-    if input_source is sys.stdin.buffer:
-        inputUnit = sys.stdin  # Use stdin directly if not gzipped
-    else:
-        inputUnit = open(input_source.name, 'r')  # Open as a plain text file
-
-
-
-# this allows the user to specify a reference listing - timing information
-# will not be generated from this file, but it will be used to ensure a
-# common list (and order) of the labels to facilitate an xxdiff of files
-# from running the script twice, once for each listing file
-refUnit = None
-if args.reference:
-    try:
-        with gzip.open(args.reference, 'rb') as file:
-            file.read(1)    #  Reading one byte forces a header check
-            ref_gzipped = True
-    except (OSError, gzip.BadGzipFile):
-        ref_gzipped = False
-
-    if ref_gzipped:
-        refUnit = gzip.open(args.reference, 'rb')
-    else:
-        refUnit = open(args.reference, 'r')
-
-
+input_source = args.listing
+## argparse will either open the file passed or feed in stdin
+## note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
 
 #==== Top-level functions ====================================================
+
+GZIP_MAGIC = b'\x1f\x8b' # gzipped files have these two header bytes
+def is_gzipped(file):
+    first_two_bytes = file.read(2)  # Read the first two bytes
+    file.seek(0)
+    return first_two_bytes == GZIP_MAGIC
+
 
 def printTMG(fileObj, fileObjRef = None):
     '''Top-level function for printing timings'''
@@ -199,7 +162,7 @@ def outputDiffTMG(labelList, diff, timings, showCount=False):
 def extractLines(fileObj):
     lines = list()
     for line in fileObj:
-        line=str(line)
+        line=str(line.strip())
         strIndex = line.find(" TMG:")
         if line.find(" TMG:") == -1 or line.find("oe-") == -1:
             continue
@@ -587,6 +550,48 @@ if __name__ == "__main__":
     if args.unittest:
         unittest.main(argv=[parser.prog], verbosity=2)
     else:
+        ##-- Input processing
+        ## Check if the input source is a regular file or a pipe
+        is_pipe = False
+        try:
+            # Use os.fstat on the file descriptor to check its file type
+            stat_info = os.fstat(input_source.fileno())  # Fetch the status using the file descriptor
+
+            # Determine if the file descriptor refers to a pipe (FIFO)
+            is_pipe = stat.S_ISFIFO(stat_info.st_mode)
+
+        except Exception as e:
+            print(f"Error checking input source: {e}")
+            sys.exit(1)
+
+        if is_pipe:
+            # Use stdin directly if it's coming from a pipe
+            inputUnit = input_source
+        else:
+            # Regular file handling
+            if is_gzipped(input_source):
+                inputUnit = gzip.open(input_source.name, 'rt')
+            else:
+                inputUnit = open(input_source.name, 'r')
+
+        # this allows the user to specify a reference listing - timing information
+        # will not be generated from this file, but it will be used to ensure a
+        # common list (and order) of the labels to facilitate an xxdiff of files
+        # from running the script twice, once for each listing file
+        refUnit = None
+        if args.reference:
+            try:
+                with gzip.open(args.reference, 'rb') as file:
+                    file.read(1)    #  Reading one byte forces a header check
+                    ref_gzipped = True
+            except (OSError, gzip.BadGzipFile):
+                ref_gzipped = False
+
+            if ref_gzipped:
+                refUnit = gzip.open(args.reference, 'rb')
+            else:
+                refUnit = open(args.reference, 'r')
+
         if args.title != None:
             print(f"{args.title}")
         else:
@@ -602,6 +607,7 @@ if __name__ == "__main__":
             else:
                 print("  - Main file used first for constructing label list")
 
+        ##-- actual main top-level functions
         if args.diff:
             if refUnit == None:
                 raise ValueError(f"Reference listing must be provided with `-r|--diff`")
