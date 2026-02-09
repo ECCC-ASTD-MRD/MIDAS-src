@@ -704,33 +704,7 @@ CONTAINS
 
     numStep = tim_nstepobsinc
 
-    notLocal: if (.not. stateVector_incr%mpi_local) then
-
-      ! For var1D program the stateVector is only on MPI process 0
-      if (mmpi_myid == 0) then
-
-        do stepIndexToWrite = 1, numStep
-
-          call msg('inc_writeIncrement', 'stepIndex = '//str(stepIndexToWrite))
-          dateStamp = gsv_getDateStamp(stateVector_incr,stepIndexToWrite)
-          call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-          if(nint(deltaHours*60.0d0).lt.0) then
-            write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-          else
-            write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-          end if
-
-          call msg_memUsage('inc_writeIncrement')
-          fileName = './rebm_' // trim(coffset) // 'm'
-          call gio_writeToFile( stateVector_incr, fileName, etiket_rebm,  &
-                                stepIndex_opt = stepIndexToWrite, &
-                                ip3_opt=ip3ForWriteToFile_opt, &
-                                containsFullField_opt=.false. )
-        end do
-
-      end if
-
-    else notLocal
+    local: if (stateVector_incr%mpi_local) then
 
       ! For var program the stateVector is distributed as Tiles across all MPI processes
 
@@ -791,7 +765,33 @@ CONTAINS
 
       end do batch_loop
 
-    end if notLocal
+    else local
+
+      ! For var1D program the stateVector is only on MPI process 0
+      if (mmpi_myid == 0) then
+
+        do stepIndexToWrite = 1, numStep
+
+          call msg('inc_writeIncrement', 'stepIndex = '//str(stepIndexToWrite))
+          dateStamp = gsv_getDateStamp(stateVector_incr,stepIndexToWrite)
+          call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+          if(nint(deltaHours*60.0d0).lt.0) then
+            write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+          else
+            write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+          end if
+
+          call msg_memUsage('inc_writeIncrement')
+          fileName = './rebm_' // trim(coffset) // 'm'
+          call gio_writeToFile( stateVector_incr, fileName, etiket_rebm,  &
+                                stepIndex_opt = stepIndexToWrite, &
+                                ip3_opt=ip3ForWriteToFile_opt, &
+                                containsFullField_opt=.false. )
+        end do
+
+      end if
+
+    end if local
 
     call utl_tmg_stop(85)
     call utl_tmg_stop(80)
