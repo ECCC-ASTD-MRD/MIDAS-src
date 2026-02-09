@@ -649,9 +649,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8),          intent(in)    :: incr_cv(:)
-    type(struct_gsv), intent(inout) :: statevector_incr
-    integer,          intent(in)    :: nvadim_mpilocal
+    real(8),          intent(in)    :: incr_cv(:)       ! control vector for computing increment
+    type(struct_gsv), intent(inout) :: statevector_incr ! stateVector object with resulting increment
+    integer,          intent(in)    :: nvadim_mpilocal  ! mpi local dimension of control vector
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(84,'----GetIncrement')
@@ -661,14 +661,14 @@ CONTAINS
 
     ! Compute new diagnotics based on NAMSTATE
     if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
-       call msg('inc_getIncrement', 'User is asking for Vort-Div analysis increment')
-       call gvt_transform( statevector_incr, & ! INOUT
-                           'UVtoVortDiv' )     ! IN
-       if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
-          call msg('inc_getIncrement', 'User is asking for Psi-Chi analysis increment')
-          call gvt_transform( statevector_incr, & ! INOUT
-                              'VortDivToPsiChi')  ! IN
-       end if
+      call msg('inc_getIncrement', 'User is asking for Vort-Div analysis increment')
+      call gvt_transform( statevector_incr, & ! INOUT
+                          'UVtoVortDiv' )     ! IN
+      if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
+        call msg('inc_getIncrement', 'User is asking for Psi-Chi analysis increment')
+        call gvt_transform( statevector_incr, & ! INOUT
+                            'VortDivToPsiChi')  ! IN
+      end if
     end if
 
     call utl_tmg_stop(84)
@@ -679,24 +679,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_writeIncrement
   !--------------------------------------------------------------------------
-  subroutine inc_writeIncrement( stateVector_incr, &
-                                 ip3ForWriteToFile_opt )
+  subroutine inc_writeIncrement(stateVector_incr, ip3ForWriteToFile_opt)
     !
     ! :Purpose: Write the low-resolution analysis increments to the rebm file.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),          intent(in) :: stateVector_incr
-    integer,         optional, intent(in) :: ip3ForWriteToFile_opt
+    type(struct_gsv),          intent(in) :: stateVector_incr      ! stateVector object with increment
+    integer,         optional, intent(in) :: ip3ForWriteToFile_opt ! ip3 value for writing RPN file
 
     ! Locals:
-    type(struct_gsv) :: stateVector_1step_r4
-    integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
-    integer              :: dateStamp, numBatch, batchIndex, procToWrite
-    real(8)              :: deltaHours
-    character(len=4)     :: coffset
-    character(len=30)    :: fileName
+    type(struct_gsv)  :: stateVector_1step_r4
+    integer           :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
+    integer           :: dateStamp, numBatch, batchIndex, procToWrite
+    real(8)           :: deltaHours
+    character(len=4)  :: coffset
+    character(len=30) :: fileName
 
     call msg('inc_writeIncrement', 'START', verb_opt=2)
 
