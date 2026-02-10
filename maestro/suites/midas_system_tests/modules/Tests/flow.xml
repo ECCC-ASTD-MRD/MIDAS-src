@@ -625,13 +625,8 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="HFSO_sqlite"/>
-    <FAMILY  name="HFSO_sqlite">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-    <SUBMITS sub_name="HFSR_dryNorm"/>
-    <FAMILY  name="HFSR_dryNorm">
+    <SUBMITS sub_name="HFSR_wetNorm"/>
+    <FAMILY  name="HFSR_wetNorm">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

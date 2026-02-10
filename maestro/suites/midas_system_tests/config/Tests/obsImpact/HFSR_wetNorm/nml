@@ -24,7 +24,7 @@
    REPSG    = 1D-5,
    FORECASTPATH='./forecasts/',
    includeHUnorm=.true.
-   FSOMODE='HFSO'
+   FSOMODE='HFSR'
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
@@ -242,5 +242,18 @@
 /
 &NAMWRITEDIAG
   lwritediagsql=.TRUE.
-  addFSOdiag=.TRUE.
+  addFSOdiag=.FALSE.
+  addFSRdiag=.TRUE.
 /
+ &namSQLUpdate
+ itemUpdateBodyList(1)='OER'
+ itemUpdateBodyList(2)='OMP'
+ itemUpdateBodyList(3)='OMA'
+/
+ &namSQLInsert
+  itemInsertList(1)=11215
+  itemInsertList(2)=11216
+  itemInsertList(3)=11003
+  itemInsertList(4)=11004
+/
+
