@@ -5,7 +5,7 @@
 /
  &NAMBEN
    NTRUNC  = 108,
-   NENS = 12 
+   NENS = 12
    SCALEFACTOR=3*0.00D0,0.10D0,0.10D0,0.20D0,0.30D0,0.45D0,0.60D0,0.70D0,0.80D0,0.90D0,100*1.0D0
    advectFactorFSOFcst = 100*0.75
    huMinValue = 1.0D-7
@@ -44,7 +44,7 @@
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
   list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
+  list_topoFilt(2) = 'UA'
   list_topoFilt(3) = 'AI'
   list_topoFilt(4) = 'SW'
   list_topoFilt(5) = 'PR'
@@ -63,7 +63,7 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
- &NAMTOV   
+ &NAMTOV
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',
@@ -179,5 +179,17 @@
 /
 &NAMWRITEDIAG
   lwritediagsql=.TRUE.
-  addFSOdiag=.TRUE.
+  addFSOdiag=.FALSE.
+  addFSRdiag=.TRUE.
+/
+ &namSQLUpdate
+ itemUpdateBodyList(1)='OER'
+ itemUpdateBodyList(2)='OMP'
+ itemUpdateBodyList(3)='OMA'
+/
+ &namSQLInsert
+  itemInsertList(1)=11215
+  itemInsertList(2)=11216
+  itemInsertList(3)=11003
+  itemInsertList(4)=11004
 /
