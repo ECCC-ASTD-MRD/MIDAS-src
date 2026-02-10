@@ -14,7 +14,8 @@ eval $(cclargs  -D  "" $0 "[${description}]"                                    
   -npey             "" "" "[number of MPI ranks along the Y axis]"                 \
   -workdir          "" "" "[output working directory]"                             \
   -splitobs         "" "" "[path to the 'midas.splitobs.Abs' program (mandatory)]" \
-  -splitobs_ndigits 4  4  "[number of digits for the extension when splitting observations files (default: 4) ]" \
+  -splitobs_ndigits 4  4  "[number of digits for the extension when splitting observations files (default: 4)]" \
+  -dosplit        yes yes "[do the splitting of the observations, if no then assume the observations already split (default: yes)]" \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -39,21 +40,27 @@ function die {
 for launch_arg in ensemble nml observations constants npex npey workdir splitobs; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [ -z "${launch_tmp_var}" ]; then
-        die "the argument '-${launch_arg}' must be defined"
+        die "The argument '-${launch_arg}' must be defined"
     fi
     unset launch_tmp_var
 done
 unset launch_arg
 
+if [ "${dosplit}" = yes ]; then
+    if [ -z "${splitobs}" ]; then
+        die "The argument '-${splitobs}' must be defined if '-dosplit' is 'yes'."
+    fi
+fi
 
 function copyOrUnzip {
-    if [[ $# -ne 2 ]]; then
-        die "copyOrUnzip: Cannot accept other than 2 arguments.  Here: 'copyOrUnzip ${*}'"
+    if [[ $# -ne 2 && $# -ne 3 ]]; then
+        die "Cannot accept other than 2 or 3 arguments.  Here: 'copyOrUnzip ${*}'"
     fi
 
-    local copyOrUnzip_input copyOrUnzip_outputDirectory copyOrUnzip_orginalDirectory
+    local copyOrUnzip_input copyOrUnzip_outputDirectory copyOrUnzip_copyCommand copyOrUnzip_orginalDirectory
     copyOrUnzip_input=${1}
     copyOrUnzip_outputDirectory=${2}
+    copyOrUnzip_copyCommand=${3:-cp}
     copyOrUnzip_originalDirectory=${PWD}
 
     if [[ ${copyOrUnzip_outputDirectory} != . ]]; then
@@ -62,15 +69,24 @@ function copyOrUnzip {
     fi
 
     if [[ -d "${copyOrUnzip_input}" ]]; then
-        say "Copying files from ${copyOrUnzip_input}"
-        cp -rL ${copyOrUnzip_input}/* .
+        if [[ "${copyOrUnzip_copyCommand}" = cp ]]; then
+            say "copyOrUnzip: Copying files from ${copyOrUnzip_input}"
+            cp -rL ${copyOrUnzip_input}/* .
+        elif [[ "${copyOrUnzip_copyCommand}" = ln ]]; then
+            say "copyOrUnzip: Linking files from ${copyOrUnzip_input}"
+            ln -s ${copyOrUnzip_input}/* .
+        else
+            die "The copy command '${copyOrUnzip_copyCommand}' is not allowed.  Only 'cp' and 'ln' are."
+        fi
     elif [[ -f "${copyOrUnzip_input}" ]]; then
         if [[ "${copyOrUnzip_input}" = *.ca ]]; then
-            say "Extracting files from ${copyOrUnzip_input}"
+            say "copyOrUnzip: Extracting files from ${copyOrUnzip_input}"
             cmcarc -f ${copyOrUnzip_input} -x
         else
             die "copyOrUnzip: If the first argument is a file, it must be a '.ca' file (cmcarc format)\n\tGot ${copyOrUnzip_input}"
         fi
+    else
+        die "copyOrUnzip: The input argument '${copyOrUnzip_input}' does not exist!"
     fi
 
     if [[ ${copyOrUnzip_outputDirectory} != . ]]; then
@@ -82,14 +98,15 @@ if [[ -d "${workdir}" ]]; then
     die "The working directory ${workdir} already exist!"
 fi
 
+say "Preparing the working directory ${workdir}"
 mkdir -p ${workdir}
 cd ${workdir}
 
-copyOrUnzip ${observations} obsfiles
-
 copyOrUnzip ${constants} .
 
-copyOrUnzip ${ensemble} .
+copyOrUnzip ${ensemble} ensemble ln
+
+copyOrUnzip ${observations} obsfiles
 
 cp ${nml} flnml
 
@@ -101,40 +118,45 @@ cat > ptopo_nml <<EOF
 /
 EOF
 
-## Splitting the observations files according to the MPI topology ${npex}x${npey}
-split_error_detected=false
-observations_files=$(ls -SLr obsfiles/*)
-mkdir obsfiles_split
+if [ "${dosplit}" = yes ]; then
+    ## Splitting the observations files according to the MPI topology ${npex}x${npey}
+    split_error_detected=false
+    observations_files=$(ls -SLr obsfiles/*)
+    mkdir obsfiles_split
 
-say "Split the observations files into ${npex}x${npey} parts"
-[[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
+    say "Split the observations files into ${npex}x${npey} parts"
+    [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
 
-for obsfile in ${observations_files}; do
-    obsFileName=${obsfile##*/}
-    say "Processing the file ${obsFileName}"
-    if [[ "$((npex*npey))" -lt 800 ]]; then
-        ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin  \
-                    -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}              \
-                    > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
-        if [[ "${split_error_detected}" = true ]]; then
-            die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
-        fi
-    else
-        ## Due to a limitation of the number of XDF files that can be opened simultaneously
-        ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
-        ## number of MPI ranks.
-        for procX in $(seq 1 ${npex}); do
-            for procY in $(seq 1 ${npey}); do
-                ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin             \
-                            -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
-                            >> splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
-                if [[ "${split_error_detected}" = true ]]; then
-                    die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
-                fi
-            done ## End of 'for procY in $(seq 1 ${npey})'
-        done ## End of 'for procX in $(seq 1 ${npex})'
-    fi ## End of 'else' associated to 'if [[ "$((npex*npey))" -le 800 ]]; then'
-done ## End of 'for obsfile in ${observations_files}'
+    for obsfile in ${observations_files}; do
+        obsFileName=${obsfile##*/}
+        say "Processing the file ${obsFileName}"
+        if [[ "$((npex*npey))" -lt 800 ]]; then
+            ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin  \
+                        -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}              \
+                        > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+            if [[ "${split_error_detected}" = true ]]; then
+                die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+            fi
+        else
+            ## Due to a limitation of the number of XDF files that can be opened simultaneously
+            ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
+            ## number of MPI ranks.
+            for procX in $(seq 1 ${npex}); do
+                for procY in $(seq 1 ${npey}); do
+                    ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin             \
+                                -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
+                                >> splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+                    if [[ "${split_error_detected}" = true ]]; then
+                        die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+                    fi
+                done ## End of 'for procY in $(seq 1 ${npey})'
+            done ## End of 'for procX in $(seq 1 ${npex})'
+        fi ## End of 'else' associated to 'if [[ "$((npex*npey))" -le 800 ]]; then'
+    done ## End of 'for obsfile in ${observations_files}'
+else ## End of 'if [ "${dosplit}" = yes ]'
+    mv obsfiles obsfiles_split
+fi ## End of 'else' associated to 'if [ "${dosplit}" = yes ]'
+
 
 midas_program=${splitobs%/*}/midas-letkf.Abs
 if [[ ! -f "${midas_program}" ]]; then
