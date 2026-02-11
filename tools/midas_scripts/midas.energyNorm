@@ -4,12 +4,7 @@ set -euo pipefail
 
 typeset -r description="This script launches the program 'midas-energyNorm.Abs'"
 
-## This is the memory, in GB, that each core, on the supercomputer can
-## request.  There is 180 GB available on each node for 80 cores.
-## There is similar code in 'midas.submit_program'
-typeset -r memory_in_gigs_per_openmp_num_thread=2.25
-
-typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
+typeset -r memory_description="memory request per MPI rank (default: use the default memory from the submit script)"
 
 arguments=$*
 eval $(cclargs -D "" $0 "[${description}]"                                               \
@@ -19,8 +14,9 @@ eval $(cclargs -D "" $0 "[${description}]"                                      
   -reference   "" "" "[path to reference file]"                                          \
   -states      "" "" "[path to several files on which the energy norm will be computed]" \
   -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
-  -supercomputer  ppp6  ppp6 "[supercomputer to launch the job (default: 'ppp6')]"  \
-  -jobname        energyNorm energyNorm "[name of the job (default: 'letkf')]"           \
+  -supercomputer  ppp6  ppp6 "[supercomputer to launch the job (default: 'ppp6')]"       \
+  -queue             ""     ""   "[queue to submit to (default: default queue)]"         \
+  -jobname        energyNorm energyNorm "[name of the job (default: 'energyNorm')]"      \
   -memory           ""     ""   "[${memory_description}]"                                \
   -npex      1      1    "[Number of mpi components in the 'x' direction (default: 1)]"  \
   -npey      1      1    "[Number of mpi components in the 'y' direction (default: 1)]"  \
@@ -142,17 +138,30 @@ r.run_in_parallel -pgm ${pgm} -npex ${npex} -npey ${npey} -processorder -verbose
 echo "End of ${pgm} in \${SECONDS} seconds at \$(date +%Y%m%d:%H:%M:%S.%N)"
 EOF
 
-## Compute the memory to request at 'ord_soumet' call
-if [[ -z "${memory}" ]]; then
-    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
-    memory=${computed_memory}G
+if [[ -n "${queue}" ]]; then
+    queue_args="-queue ${queue}"
+else
+    queue_args=
+fi
+
+if [[ -n "${memory}" ]]; then
+    memory_args="-m ${memory}"
+else
+    memory_args=
 fi
 
 cpus=${npex}x${npey}x${omp_num_threads}
 
-say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" "cpus=${cpus}" "memory=${memory}"
+if [[ -n "${memory}" ]]; then
+    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" \
+        "cpus=${cpus}"                                                                \
+        "memory=${memory}"
+else
+    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" \
+        "cpus=${cpus}"
+fi
 
-ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
-                       -listing ${PWD} -w ${wallclocktime} -m ${memory}
+ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} ${queue_args} -cpus ${cpus} \
+                       -listing ${PWD} -w ${wallclocktime} ${memory_args}
 
 say "Once the job will be over, you can get the result in the file" "${workdir}/energyNorm_ascii"
