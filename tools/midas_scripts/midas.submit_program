@@ -4,12 +4,7 @@ set -euo pipefail
 
 typeset -r description="This script submits a MIDAS program in the working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir'."
 
-## This is the memory, in GB, that each core, on the supercomputer can
-## request.  There is 440 GB available on each node for 80 cores.
-## There is similar code in 'midas.energyNorm'.
-typeset -r memory_in_gigs_per_openmp_num_thread=5.5
-
-typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
+typeset -r memory_description="memory request per MPI rank (default: use the default memory from the submit script)"
 
 arguments=$*
 eval $(cclargs -D    ""     $0   "[${description}]"                                                    \
@@ -17,6 +12,7 @@ eval $(cclargs -D    ""     $0   "[${description}]"                             
                -nml               ""     ""   "[path to namelist file]"                                \
                -workdir           ""     ""   "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']" \
                -supercomputer   robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+               -queue             ""     ""   "[queue to submit to (default: default queue)]"          \
                -jobname         midas   midas "[name of the job (default: 'midas')]"                   \
                -memory            ""     ""   "[${memory_description}]"                                \
                -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
@@ -63,7 +59,7 @@ find_resources () {
 
     __find_resources_lajobtar__=lajob.tar
 
-    __find_resources_ord_soumet_cmd__="ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -listing ${PWD} -w 10 -cpus ${cpus} -m ${memory} -nosubmit"
+    __find_resources_ord_soumet_cmd__="ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} ${queue_args} -listing ${PWD} -w 10 -cpus ${cpus} ${memory_args} -nosubmit"
     echo ord_soumet command: >&2
     echo ${__find_resources_ord_soumet_cmd__} >&2
 
@@ -88,7 +84,7 @@ find_resources () {
 } ## End of function 'find_resources'
 
 ## Check if all mandatory arguments have been given
-## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
+## We avoid checking for 'memory' since it can be set by the submit command.
 ## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
 for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; do
     eval launch_tmp_var="\${${launch_arg}}"
@@ -253,21 +249,32 @@ set -x
 ${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}
 EOF
 
-## Compute the memory to request at 'ord_soumet' call
-if [[ -z "${memory}" ]]; then
-    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
-    memory=${computed_memory}G
+if [[ -n "${queue}" ]]; then
+    queue_args="-queue ${queue}"
+else
+    queue_args=
+fi
+
+if [[ -n "${memory}" ]]; then
+    memory_args="-m ${memory}"
+else
+    memory_args=
 fi
 
 cpus=${npex}x${npey}x${omp_num_threads}
 
 if [[ "${interactive}" = false ]]; then
-    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" \
-        "cpus=${cpus}"                                                                \
-        "memory=${memory}"
+    if [[ -n "${memory}" ]]; then
+        say "Submit the program '${pgm}' in the job '${jobname}' to '${supercomputer}'" \
+            "cpus=${cpus}"                                                              \
+            "memory=${memory}"
+    else
+        say "Submit the program '${pgm}' in the job '${jobname}' to '${supercomputer}'" \
+            "cpus=${cpus}"
+    fi
 
-    ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
-                           -listing ${PWD} -w ${wallclocktime} -m ${memory}
+    ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} ${queue_args} -cpus ${cpus} \
+                           -listing ${PWD} -w ${wallclocktime} ${memory_args}
 
     say "You can follow the execution in the working directory ${workdir}"
 else
