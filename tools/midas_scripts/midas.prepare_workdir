@@ -82,8 +82,14 @@ function copyOrUnzip {
         if [[ "${copyOrUnzip_input}" = *.ca ]]; then
             say "copyOrUnzip: Extracting files from ${copyOrUnzip_input}"
             cmcarc -f ${copyOrUnzip_input} -x
+        elif [[ "${copyOrUnzip_input}" = *.tar ]]; then
+            say "copyOrUnzip: Extracting files from ${copyOrUnzip_input}"
+            tar xf ${copyOrUnzip_input}
+        elif [[ "${copyOrUnzip_input}" = *.tar.gz || "${copyOrUnzip_input}" = *.tgz ]]; then
+            say "copyOrUnzip: Extracting files from ${copyOrUnzip_input}"
+            tar zxf ${copyOrUnzip_input}
         else
-            die "copyOrUnzip: If the first argument is a file, it must be a '.ca' file (cmcarc format)\n\tGot ${copyOrUnzip_input}"
+            die "copyOrUnzip: If the first argument is a file, it must be a '.ca' file (cmcarc format), '.tar', '.tar.gz' or '.tgz' archive.\n\tGot ${copyOrUnzip_input}"
         fi
     else
         die "copyOrUnzip: The input argument '${copyOrUnzip_input}' does not exist!"
