@@ -50,8 +50,15 @@ foreach(component ${rttov_FIND_COMPONENTS})
   list(APPEND rttov_LIBRARIES ${${component}})
 endforeach()
 
-find_library(hpcoperf NAMES hpcoperf REQUIRED
-  HINTS PATHS ENV perftools_LIBRARY_PATH)
+find_library(hpcoperf NAMES hpcoperf HINTS PATHS ENV perftools_LIBRARY_PATH)
+if(NOT hpcoperf)
+    set(msg "${msg} hpcoperf has the value ${hpcoperf}.")
+    if(DEFINED ENV{perftools_LIBRARY_PATH})
+        set(msg "${msg} ENV{perftools_LIBRARY_PATH} is defined but it does not appear to contain libhpcoperf.a.")
+    endif()
+    set(msg "${msg} Please set the environment variable perftools_LIBRARY_PATH to the directory containing libmhpcoperf.a")
+    message(FATAL_ERROR "${msg}")
+endif()
 
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
