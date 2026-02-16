@@ -175,8 +175,14 @@ fi
 echo "... loading eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}"
 . r.load.dot eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}
 
-echo "... loading eccc/cmd/cmda/libs/20251021/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH}
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    cmdalibs_version=20251021
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    ## The version '20250202-1' only exists on HPCR-U3
+    cmdalibs_version=20260202-1
+fi
+echo "... loading eccc/cmd/cmda/libs/${cmdalibs_version}/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/${cmdalibs_version}/${COMP_ARCH}
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     perftools_version=2.0

@@ -29,9 +29,12 @@ CFLAGS = -strict -lburpc -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -
 ifeq (${ORDENV_PLAT},rhel-8-icelake-64)
     COMPILER=inteloneapi-2022.1.2
     COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/all/lib
+    CMDALIBS_VERSION=20251021
 else ifeq (${ORDENV_PLAT},rhel-9-graniterapids-64)
     COMPILER=inteloneapi-2025.1.0
     COMPILER_DYNLIBS=/fs/ssm/main/opt/intelcomp/${COMPILER}/intelcomp+mpi+mkl/rhel-9-amd64-64/lib
+    ## The version '20250202-1' only exists on HPCR-U3
+    CMDALIBS_VERSION=20260202-1
 else
     $(error This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT})
 endif
@@ -45,7 +48,7 @@ splitobs_pgm: version.h $(SRC)
 splitobs_libs: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/libs/20260202;                                                 \
 	. r.load.dot eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}; \
-        . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH};                                 \
+        . ssmuse-sh -d eccc/cmd/cmda/libs/${CMDALIBS_VERSION}/${COMP_ARCH};                      \
 	make splitobs
 
 splitobs: version.h $(SRC)
