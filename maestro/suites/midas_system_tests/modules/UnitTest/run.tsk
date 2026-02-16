@@ -68,13 +68,13 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     echo echo loading rpn/code-tools/20251217/env/inteloneapi-2022.1.2 >> load_env.sh
     echo . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20260202 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20260202 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.sh
     echo . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20260202 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20260202 >> load_env.sh
 
     ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
     ## because the programs are not compiled statically with this

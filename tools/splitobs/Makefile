@@ -43,13 +43,13 @@ splitobs_pgm: version.h $(SRC)
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20251021;                                                 \
-	. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}; \
+	. r.load.dot eccc/mrd/rpn/libs/20260202;                                                 \
+	. r.load.dot eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}; \
         . ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH};                                 \
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) $(CFLAGS) $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20251021/${ORDENV_PLAT}/${COMP_ARCH}/lib:$(COMPILER_DYNLIBS)" $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) $(CFLAGS) $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath="/fs/ssm/eccc/mrd/rpn/libs/20260202/${ORDENV_PLAT}/${COMP_ARCH}/lib:/fs/ssm/eccc/mrd/rpn/utils/20260202/${ORDENV_PLAT}/${COMP_ARCH}/lib:$(COMPILER_DYNLIBS)" $(SRC); rm version.h
 
 
 version.h:
