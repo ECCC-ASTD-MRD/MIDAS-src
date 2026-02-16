@@ -185,10 +185,16 @@ timingTool_tests:
     script:
       - cd tools/timingTool
       - ./midas.timingTool --unittest
+      - REF_LISTING=/home/sanl888/data/midas/UnitTests/midas/listings/var/EnVar/gdps/listings_v_4.1.4.ca
+      - cmcarc -f ${REF_LISTING} -x Tests.var.EnVar.gdps.UnitTest.run -O > ${TMPDIR}/listing
+      - gzip -c ${TMPDIR}/listing > ${TMPDIR}/listing.gz
+      - set -o pipefail
+      - cat ${TMPDIR}/listing | ./midas.timingTool -r ${TMPDIR}/listing.gz | tail -n+2 | diff <(./midas.timingTool ${TMPDIR}/listing.gz -r ${TMPDIR}/listing.gz | tail -n+2) -
     only:
       - main
       - v_4.1
       - tags
+      - 1137-add-ability-to-midas-timingtool-to-read-a-compressed-listing
     tags:
       - ${RUNNER_TAG}
 
