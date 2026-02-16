@@ -45,8 +45,8 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
-    echo loading rpn/code-tools/20251202/env/inteloneapi-2022.1.2
-    . r.load.dot rpn/code-tools/20251202/env/inteloneapi-2022.1.2
+    echo loading rpn/code-tools/20251217/env/inteloneapi-2022.1.2
+    . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2022.1.2
     echo loading eccc/mrd/rpn/libs/20251021
     . r.load.dot eccc/mrd/rpn/libs/20251021
     echo loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
@@ -54,8 +54,8 @@ elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     set +x
-    echo loading rpn/code-tools/20251202/env/inteloneapi-2025.1.0
-    . r.load.dot rpn/code-tools/20251202/env/inteloneapi-2025.1.0
+    echo loading rpn/code-tools/20251217/env/inteloneapi-2025.1.0
+    . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0
     echo loading eccc/mrd/rpn/libs/20251021
     . r.load.dot eccc/mrd/rpn/libs/20251021
     echo loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
