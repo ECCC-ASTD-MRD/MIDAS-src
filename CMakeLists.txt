@@ -27,12 +27,12 @@ find_package(MPI REQUIRED)
 set(WITH_OPENMP TRUE CACHE BOOL "Control whether to use OpenMP")
 include(ec_openmp)
 
-find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
-find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
-find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
+find_package(rmn COMPONENTS static REQUIRED)
+find_package(vgrid COMPONENTS static REQUIRED)
+find_package(rpncomm REQUIRED)
+find_package(random COMPONENTS REQUIRED)
+find_package(burp COMPONENTS static REQUIRED)
+find_package(HDF5 COMPONENTS C Fortran HL)
 
 # Define libraries bundle
 if(DEFINED ENV{RTTOV_VERSION})
