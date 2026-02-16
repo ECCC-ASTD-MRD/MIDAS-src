@@ -82,6 +82,19 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
     echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
 
+    echo 'set -x'                                                        >> load_env.sh
+    echo '[[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10      ' >> load_env.sh
+    echo '[[ -z "${I_MPI_PIN}"        ]] && export I_MPI_PIN=1         ' >> load_env.sh
+    echo '[[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp' >> load_env.sh
+    echo
+    echo 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]; then'       >> load_env.sh
+    echo '    if (( 42 % OMP_NUM_THREADS == 0 )); then'                  >> load_env.sh
+    echo '        export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213,256-511' >> load_env.sh
+    echo '        echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly, exclude some cores from processor list: ${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"' >> load_env.sh
+    echo '    fi'                                                        >> load_env.sh
+    echo 'fi'                                                            >> load_env.sh
+    echo 'set +x'                                                        >> load_env.sh
+
     ## The following definitions ensure the 'allreduce' MPI collective
     ## operation is giving the same results from run to run.  In
     ## MIDAS, we may not need this since we do not use 'mpi_allreduce'

@@ -63,6 +63,17 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     echo loading hdf5-netcdf4
     . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
     set -x
+
+    [[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10
+    [[ -z "${I_MPI_PIN}"        ]] && export I_MPI_PIN=1
+    [[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp
+
+    if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]; then
+        if (( 42 % OMP_NUM_THREADS == 0 )); then
+            export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213,256-511
+            echo "Since OMP_NUM_THREADS=\${OMP_NUM_THREADS} divides 42 exactly, exclude some cores from processor list: \${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"
+        fi ## End of 'if (( 42 % OMP_NUM_THREADS == 0 ))'
+    fi ## End of 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]'
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
     ## export TBB_MALLOC_USE_HUGE_PAGES=1
