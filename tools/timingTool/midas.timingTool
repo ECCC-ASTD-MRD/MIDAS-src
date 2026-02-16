@@ -12,15 +12,15 @@ import gzip
 
 parser = argparse.ArgumentParser()
 parser.add_argument("listing", nargs='?', type=argparse.FileType('rb'), default=sys.stdin,
-                    help="input listing to be parsed for timings, omitting this argument, the script will read directly from stdin")
-parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
-parser.add_argument("-1", "--title", help="Replacement title for input")
-parser.add_argument("-2", "--title-reference", help="Replacement title for reference")
-parser.add_argument("-d", "--diff", help="compare input listing with the reference",action="store_true", default=False)
-parser.add_argument("-n", "--nocount", help="Do not show call count",action="store_false", default=True)
-parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
-parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)
-parser.add_argument("-u", "--unittest", help="Run the unit tests",action="store_true", default=False)
+                    help="Input listing to be parsed for timings, omitting this argument, the script will read directly from stdin. The input listing can be gzipped if passed as argument.")
+parser.add_argument("-r", "--reference", help="Reference listing to ensure common list of labels.  Can also be gzipped.")
+parser.add_argument("-1", "--title", help="Replacement title for input.")
+parser.add_argument("-2", "--title-reference", help="Replacement title for reference.")
+parser.add_argument("-d", "--diff", help="Compare input listing with the reference.",action="store_true", default=False)
+parser.add_argument("-n", "--nocount", help="Do not show call count.",action="store_false", default=True)
+parser.add_argument("-o", "--order", help="Order to construct the list of labels.", type=int, choices=[1, 2], default=1)
+parser.add_argument("-l", "--limit", help="Minimum timing threshold.", type=float, default=3.0)
+parser.add_argument("-u", "--unittest", help="Run the unit tests.",action="store_true", default=False)
 args = parser.parse_args()
 
 

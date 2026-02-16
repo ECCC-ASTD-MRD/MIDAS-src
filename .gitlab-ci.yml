@@ -194,7 +194,6 @@ timingTool_tests:
       - main
       - v_4.1
       - tags
-      - 1137-add-ability-to-midas-timingtool-to-read-a-compressed-listing
     tags:
       - ${RUNNER_TAG}
 
