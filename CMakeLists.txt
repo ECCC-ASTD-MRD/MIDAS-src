@@ -63,7 +63,7 @@ if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   endif()
 endif()
 
-link_libraries("-Wl,--disable-new-dtags")
+#link_libraries("-Wl,--disable-new-dtags")
 
 # 'MIDAS_COMPILE_COMPF_GLOBAL' is set in 'src/config.dot.sh'
 if(DEFINED ENV{MIDAS_COMPILE_COMPF_GLOBAL})
