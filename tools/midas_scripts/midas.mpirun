@@ -68,7 +68,10 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     [[ -z "${I_MPI_PIN}"        ]] && export I_MPI_PIN=1
     [[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp
 
-    if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]; then
+    ## If the variable 'I_MPI_PIN_PROCESSOR_EXCLUDE_LIST' is not set,
+    ## this formulation respects if the variable
+    ## 'I_MPI_PIN_PROCESSOR_EXCLUDE_LIST' is set to empty.
+    if [[ ! -v I_MPI_PIN_PROCESSOR_EXCLUDE_LIST ]]; then
         if (( OMP_NUM_THREADS > 3 && 42%OMP_NUM_THREADS == 0 )); then
             export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213
             echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly and greater than 3,"
