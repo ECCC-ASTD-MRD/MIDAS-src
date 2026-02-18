@@ -69,9 +69,10 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     [[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp
 
     if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]; then
-        if (( 42 % OMP_NUM_THREADS == 0 )); then
-            export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213,256-511
-            echo "Since OMP_NUM_THREADS=\${OMP_NUM_THREADS} divides 42 exactly, exclude some cores from processor list: \${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"
+        if (( OMP_NUM_THREADS > 3 && 42%OMP_NUM_THREADS == 0 )); then
+            export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213
+            echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly and greater than 3,"
+            echo "exclude some cores from processor list: I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"
         fi ## End of 'if (( 42 % OMP_NUM_THREADS == 0 ))'
     fi ## End of 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]'
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then

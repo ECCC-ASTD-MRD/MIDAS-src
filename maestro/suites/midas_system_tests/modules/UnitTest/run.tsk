@@ -88,9 +88,10 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo '[[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp' >> load_env.sh
     echo
     echo 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]; then'       >> load_env.sh
-    echo '    if (( 42 % OMP_NUM_THREADS == 0 )); then'                  >> load_env.sh
-    echo '        export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213,256-511' >> load_env.sh
-    echo '        echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly, exclude some cores from processor list: ${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"' >> load_env.sh
+    echo '    if (( OMP_NUM_THREADS > 3 && 42 % OMP_NUM_THREADS == 0 )); then'                  >> load_env.sh
+    echo '        export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213' >> load_env.sh
+    echo '        echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly and greater than 3,"' >> load_env.sh
+    echo '        echo "exclude some cores from processor list: I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"' >> load_env.sh
     echo '    fi'                                                        >> load_env.sh
     echo 'fi'                                                            >> load_env.sh
     echo 'set +x'                                                        >> load_env.sh
