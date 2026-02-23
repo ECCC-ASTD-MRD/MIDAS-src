@@ -346,6 +346,15 @@ echo "======================================== ============= ===================
 
 # GENERATE LIST OF NAMELISTS USED FOR EACH PROGRAM
 
+
+## Load `makedepf90` in order to produce dep.obj.inc needed below to track dependencies
+## this strategy is a temporary fix (see issue #1135)
+. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
+
+cd ${SRCDIR}
+makedepf90 modules/*.f90 programs/*.f90 | tr ' ' '\n' | xargs -I {} basename {} | tr '\n' ' ' | sed 's/\([^ ]* :\)/\n\1/g' > dep.obj.inc
+echo >> dep.obj.inc
+
 cat > ${ORIG_PWD}/namelists_in_each_program.rst << 'EOF'
 
 Namelists used in each MIDAS program
@@ -361,6 +370,8 @@ PGM_DIR=$PWD
 cd ../modules
 MOD_DIR=$PWD
 cd ${OBJBLD_PATH}
+mv ${SRCDIR}/dep.obj.inc ./
+
 echo "programList = ${programList}"
 for programName in ${programList}; do
     echo
