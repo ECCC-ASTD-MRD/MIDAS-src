@@ -688,8 +688,7 @@ contains
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
         else
-          write(*,*) ' cld_filter_fweng: Invalid algorithm option !! '
-          call abort()
+           call utl_abort('cld_filter_fweng: Invalid algorithm option !')
         end if
 
         ! Call CLW retrieval algorithm subroutine.

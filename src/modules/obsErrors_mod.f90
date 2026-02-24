@@ -2136,7 +2136,7 @@ contains
       call setObsErrorsFlowDependentUA(obsSpaceData, obsOMPcolumn)
     end if
 
-    !call abort('JFC fin forcee in setObsErrorsFlowDependent')
+    !call utl_abort('JFC fin forcee in setObsErrorsFlowDependent')
     
   end subroutine oer_setObsErrorsFlowDependent
   
@@ -2299,19 +2299,19 @@ contains
       varIndex = burp_find_element(blkobs, ELEMENT=varType, IOSTAT=error)
       if (varIndex == -1) then
         write(*,*) 'readHBHTFromObsFileForUA: Element not found, ABORT!', varIndex, varType
-        call abort('readHBHTFromObsFileForUA')
+        call utl_abort('readHBHTFromObsFileForUA')
       end if
       if (winds) then
         varIndex2 = burp_find_element(blkobs, ELEMENT=varType2, IOSTAT=error)
         if (varIndex2 == -1) then
           write(*,*) 'readHBHTFromObsFileForUA: SECOND element not found, ABORT!', varIndex2, varType2
-          call abort('readHBHTFromObsFileForUA')
+          call utl_abort('readHBHTFromObsFileForUA')
         end if
       end if
       
       do levelIndex = 1, numLevels
         obsValIndex = obsValIndex + 1
-        if (obsValIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
+        if (obsValIndex > obsCount) call utl_abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
         obsVal(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
         if (winds) then
           obsVal2(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
@@ -2326,7 +2326,7 @@ contains
     end do obsval_records_in
     if (obsValIndex /= obsCount) then
       write(*,*) 'Number of obs, FGE vs obsVal ', obsCount, obsValIndex
-      call abort('readHBHTFromObsFileForUA: number of obs value in file is not consistent with the number of fge values')
+      call utl_abort('readHBHTFromObsFileForUA: number of obs value in file is not consistent with the number of fge values')
     end if
     
     !- Read HBHT from file
@@ -2356,13 +2356,13 @@ contains
       varIndex = burp_find_element(blkobs, ELEMENT=varType, IOSTAT=error)
       if (varIndex == -1) then
         write(*,*) 'readHBHTFromObsFileForUA: Element not found, ABORT!', varIndex, varType
-        call abort('readHBHTFromObsFileForUA')
+        call utl_abort('readHBHTFromObsFileForUA')
       end if
       if (winds) then
         varIndex2 = burp_find_element(blkobs, ELEMENT=varType2, IOSTAT=error)
         if (varIndex2 == -1) then
           write(*,*) 'readHBHTFromObsFileForUA: SECOND element not found, ABORT!', varIndex2, varType2
-          call abort('readHBHTFromObsFileForUA')
+          call utl_abort('readHBHTFromObsFileForUA')
         end if
       end if
       
@@ -2373,7 +2373,7 @@ contains
           if (obsVal(obsValIndex) == MPC_missingValue_R4) cycle ! skip missing values
         end if
         obsFgeIndex = obsFgeIndex + 1
-        if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
+        if (obsFgeIndex > obsCount) call utl_abort('readHBHTFromObsFileForUA: Something went wrong when reading obs file')
         fge(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
         if (winds) then
           fge2(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
@@ -2402,7 +2402,7 @@ contains
         !write(*,*) '          Body ', obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == varType) then
           obsFgeIndex = obsFgeIndex + 1
-          if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: Something went wrong when filling obsSpaceData')
+          if (obsFgeIndex > obsCount) call utl_abort('readHBHTFromObsFileForUA: Something went wrong when filling obsSpaceData')
           !write(*,*) '              u-wind Body', obsFgeIndex, headerIndex, bodyIndex, fge(obsFgeIndex)
           write(*,*) 'OBS_HPHT-1 ', obsFgeIndex, headerIndex, bodyIndex, fge(obsFgeIndex)
           call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,fge(obsFgeIndex))
@@ -2411,7 +2411,7 @@ contains
     end do HEADER
     if (obsFgeIndex /= obsValidCount) then
       write(*,*) 'Nobs File vs ObsSpaceData ', obsValidCount, obsFgeIndex
-      call abort('readHBHTFromObsFileForUA: number of valid obs in file and obsSpacaData differs')
+      call utl_abort('readHBHTFromObsFileForUA: number of valid obs in file and obsSpacaData differs')
     end if
     deallocate (fge)
     
@@ -2424,7 +2424,7 @@ contains
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == varType2) then
             obsFgeIndex = obsFgeIndex + 1
-            if (obsFgeIndex > obsCount) call abort('readHBHTFromObsFileForUA: (2) Something went wrong when filling obsSpaceData')
+            if (obsFgeIndex > obsCount) call utl_abort('readHBHTFromObsFileForUA: (2) Something went wrong when filling obsSpaceData')
             write(*,*) 'OBS_HPHT-2 ', obsFgeIndex, headerIndex, bodyIndex, fge2(obsFgeIndex)
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,fge2(obsFgeIndex))
           end if
@@ -2432,7 +2432,7 @@ contains
       end do HEADER_2
       if (obsFgeIndex /= obsValidCount) then
         write(*,*) '(2) Nobs File vs ObsSpaceData ', obsValidCount, obsFgeIndex
-        call abort('readHBHTFromObsFileForUA: (2) number of valid obs in file and obsSpacaData differs')
+        call utl_abort('readHBHTFromObsFileForUA: (2) number of valid obs in file and obsSpacaData differs')
       end if
       deallocate (fge2)
     end if
@@ -2683,7 +2683,7 @@ contains
     end do HEADER_UU
     if (obsIndex /= obsCount) then
       write(*,*) 'u-wind Nobs File vs ObsSpaceData ', obsIndex, obsCount
-      call abort('readHBHTFromObsFile: number of UU obs in file and obsSpacaData differs')
+      call utl_abort('readHBHTFromObsFile: number of UU obs in file and obsSpacaData differs')
     end if
     
     obsIndex = 0
@@ -2701,7 +2701,7 @@ contains
     end do HEADER_VV
     if (obsIndex /= obsCount) then
       write(*,*) 'v-wind Nobs File vs ObsSpaceData ', obsIndex, obsCount
-      call abort('readHBHTFromObsFile: number of VV obs in file and obsSpacaData differs')
+      call utl_abort('readHBHTFromObsFile: number of VV obs in file and obsSpacaData differs')
     end if
 
     deallocate (uu_oer)
