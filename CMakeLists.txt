@@ -144,6 +144,8 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   if( DEFINED ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH} )
     message(WARNING "(EC) The option 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH' is not supported for this compiler")
   endif()
+
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wno-unused-function")
 else()
   if(DEFINED ENV{EC_ARCH})
     message(FATAL_ERROR "This compiler is not supported: ${CMAKE_Fortran_COMPILER_ID}")
