@@ -80,7 +80,7 @@ mkdir -p ${web_dir}
 rsync -a CodeCoverage CODE_COVERAGE.HTML ${web_dir}
 
 if [[ "${web_dir}" = ${HOME}/public_html/* ]]; then
-    typeset -r url=${web_dir/${HOME}\/public_html/http:\/\/goc-dx.science.gc.ca\/~${USER}}
+    typeset -r url=${web_dir/${HOME}\/public_html/http:\/\/goc-dx-u3.science.gc.ca\/~${USER}}
     echo "You can look at the code coverage report at this URL:"
     echo "    ${url}/CODE_COVERAGE.HTML"
 else
