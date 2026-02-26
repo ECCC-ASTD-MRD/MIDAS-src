@@ -8,13 +8,10 @@
 The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
 * `v_3.10` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
-* `v_3.9` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
+  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
 
 # Contributing
 
@@ -27,7 +24,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the `main` branch
@@ -35,17 +32,10 @@ or if one is interested in the latest version of the `main` branch
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
 
-## Getting code related to IC-4 implementation on HPCR-U2
-
-```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.9
-```
-
 ## Getting code related to IC-4 implementation on HPCR-U3
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
 clone_projet --no-central -c v_3.10 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10
 ```
 
