@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove support for HPCR-U2 platform in the CI (#1047 and !1072)
 
 ## [3.10.2]
 
