@@ -43,7 +43,7 @@ if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
     CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251021
 elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
     ## The version '20250202-1' only exists on HPCR-U3
-    CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20250202-1
+    CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20260202-1
 else
     echo "This platform is not supported: ORDENV_PLAT=${ORDENV_PLAT}"
     exit 1
