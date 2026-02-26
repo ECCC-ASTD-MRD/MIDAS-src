@@ -27,6 +27,7 @@ midas_build:
     - v_3.10
     - v_3.9
     - tags
+    - 1147-remove-support-of-hpcr-u2-in-the-ci
   tags:
     - ${RUNNER_TAG}
 
@@ -43,6 +44,7 @@ monitor_build:
     - v_3.10
     - v_3.9
     - tags
+    - 1147-remove-support-of-hpcr-u2-in-the-ci
   tags:
     - ${RUNNER_TAG}
 
@@ -59,6 +61,7 @@ monitor_tests:
      - v_3.10
      - v_3.9
      - tags
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    tags:
      - ${RUNNER_TAG}
 
@@ -75,6 +78,7 @@ splitobs_burp_tests:
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_burp_${CI_BUILD_ID}
      - ./unittest burp
      - rm -rf ${WORKDIR}
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    only:
      - tags
    tags:
@@ -93,6 +97,7 @@ splitobs_rdb_tests:
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_rdb_${CI_BUILD_ID}
      - ./unittest rdb
      - rm -rf ${WORKDIR}
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    only:
      - tags
    tags:
@@ -123,6 +128,7 @@ midas_tests:
      - v_3.10
      - v_3.9
      - tags
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    tags:
      - ${RUNNER_TAG}
 
@@ -139,6 +145,7 @@ findTrials_tests:
      - v_3.10
      - v_3.9
      - tags
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    tags:
      - ${RUNNER_TAG}
 
@@ -157,6 +164,7 @@ clean_midas_abs:
      - v_3.10
      - v_3.9
      - tags
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    tags:
      - ${RUNNER_TAG}
 
@@ -178,6 +186,7 @@ doc_sphinx:
      - v_3.10
      - v_3.9
      - tags
+     - 1147-remove-support-of-hpcr-u2-in-the-ci
    tags:
      - ${RUNNER_TAG}
 
