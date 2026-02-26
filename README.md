@@ -24,7 +24,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the `main` branch
@@ -35,7 +35,7 @@ clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assi
 ## Getting code related to IC-4 implementation on HPCR-U3
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
 clone_projet --no-central -c v_3.10 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.10
 ```
 

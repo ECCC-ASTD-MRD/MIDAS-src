@@ -107,7 +107,7 @@ midas_tests:
      matrix:
        - RUNNER_TAG: hpcr-u3
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS

@@ -38,7 +38,7 @@ That button will create automatically a new branch at the same point as the `mai
 **Get a local copy of that branch**  
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6 ## needed only if it is not already loaded in your interactive profile
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.12 ## needed only if it is not already loaded in your interactive profile
 . setcentraldepot.dot unset  ## needed only if 'setcentraldepot.dot' has already been called
 clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
