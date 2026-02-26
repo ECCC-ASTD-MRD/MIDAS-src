@@ -9,7 +9,7 @@ The general contribution workflow described in this guide can be summarized in t
 
 ## Create an issue
 
-Anyone can open an issue, even if they don't intend to actually address it 
+Anyone can open an issue, even if they don't intend to actually address it
 themself; the author of an issue does not have to be the assignee.
 Opening an issue to signify and document a bug or a feature request is an
 important part of the workflow.
@@ -30,12 +30,12 @@ it locally on their workstation to start working on it.
 
 ### Get a local copy of the code
 
-**Create a branch**  
+**Create a branch**
 In the issue page, just under the issue description there is green drop down green menu
-choose `Create a branch`. 
+choose `Create a branch`.
 That button will create automatically a new branch at the same point as the `main` branch
 
-**Get a local copy of that branch**  
+**Get a local copy of that branch**
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12 ## needed only if it is not already loaded in your interactive profile
@@ -115,7 +115,7 @@ of the latest commit in the `main` branch in the **GitLab** project.
 
 [Note: Because *rebase* will replace existing commits with new
 versions of these commits, you should not *rebase* a branch if it has
-been pushed to the central repository and someone else is already using 
+been pushed to the central repository and someone else is already using
 it in their work. However, this is not a common situation.]
 
 If the branch has not yet been pushed to the central repository, then it
@@ -228,7 +228,7 @@ Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progr
 You will see instructions about this feature in the **GitLab** merge
 request page.
 
-Once the `Merge Request` is accepted with the `main` branch as target (as 
+Once the `Merge Request` is accepted with the `main` branch as target (as
 is generally the case), the modifications are pushed and the system tests are
 automatically launched to guarantee that all the tests pass for the `main` branch.  The [instructions for automatic
 testing using **GitLab-CI** are available in a separate file](docs/CI.md).
@@ -238,8 +238,8 @@ testing using **GitLab-CI** are available in a separate file](docs/CI.md).
 
 * [Activating the code coverage report](docs/unitTests.md#activating-the-code-coverage-report)
 * [Creating SSM packages](docs/ssm.md)
-* [Managing Continuous Integration](docs/CI.md) 
-* [Advanced Unit Testing Topics](docs/unitTests.md) 
+* [Managing Continuous Integration](docs/CI.md)
+* [Advanced Unit Testing Topics](docs/unitTests.md)
     * [Updating Test Results](docs/unitTests.md#updating-test-results)
     * [Interactive debugging](docs/unitTests.md#interactive-debugging)
 * [Adding New Observations](docs/newObs.md)
