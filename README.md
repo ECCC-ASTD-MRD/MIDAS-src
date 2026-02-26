@@ -12,9 +12,6 @@ The documentation for officially supported branches is available:
 * `v_3.10` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
   * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
-* `v_3.9` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 
 # Contributing
 
@@ -33,13 +30,6 @@ clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheri
 or if one is interested in the latest version of the `main` branch
 ```bash
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
-```
-
-## Getting code related to IC-4 implementation on HPCR-U2
-
-```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.9
 ```
 
 ## Getting code related to IC-4 implementation on HPCR-U3
