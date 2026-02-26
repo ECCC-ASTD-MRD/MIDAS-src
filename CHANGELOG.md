@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Update the RPN and CMDA libraries and utilities to 20260202 (#1145 and !1070)
+   * Set Intel MPI environment variable `I_MPI_PIN_PROCESSOR_EXCLUDE_LIST`
+     to ignore some cores when the OpenMP configuration allows MPI ranks
+     to be spread over several NUMA nodes on `rhel-9-graniterapids-64`.
  * Add ability to control number of threads used by math library (#1139 and !1065)
 
 ### Fixed

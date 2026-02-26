@@ -66,21 +66,38 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.sh
     echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo echo loading rpn/code-tools/20251202/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot rpn/code-tools/20251202/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo echo loading rpn/code-tools/20251217/env/inteloneapi-2022.1.2 >> load_env.sh
+    echo . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2022.1.2 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20260202 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20260202 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    echo echo loading rpn/code-tools/20251202/env/inteloneapi-2025.1.0 >> load_env.sh
-    echo . r.load.dot rpn/code-tools/20251202/env/inteloneapi-2025.1.0 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20251021 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20251021 >> load_env.sh
+    echo echo loading rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/libs/20260202 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20260202 >> load_env.sh
 
     ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
     ## because the programs are not compiled statically with this
     ## library.
     echo echo ... loading hdf5-netcdf4                                                           >> load_env.sh
     echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.sh
+
+    echo 'set -x'                                                        >> load_env.sh
+    echo '[[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10      ' >> load_env.sh
+    echo '[[ -z "${I_MPI_PIN}"        ]] && export I_MPI_PIN=1         ' >> load_env.sh
+    echo '[[ -z "${I_MPI_PIN_DOMAIN}" ]] && export I_MPI_PIN_DOMAIN=omp' >> load_env.sh
+    echo
+    ## If the variable 'I_MPI_PIN_PROCESSOR_EXCLUDE_LIST' is not set,
+    ## this formulation respects if the variable
+    ## 'I_MPI_PIN_PROCESSOR_EXCLUDE_LIST' is set to empty.
+    echo 'if [[ ! -v I_MPI_PIN_PROCESSOR_EXCLUDE_LIST ]]; then'                >> load_env.sh
+    echo '    if (( OMP_NUM_THREADS > 3 && 42 % OMP_NUM_THREADS == 0 )); then' >> load_env.sh
+    echo '        export I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=42,85,170,213'       >> load_env.sh
+    echo '        echo "Since OMP_NUM_THREADS=${OMP_NUM_THREADS} divides 42 exactly and greater than 3,"'                              >> load_env.sh
+    echo '        echo "exclude some cores from processor list: I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"' >> load_env.sh
+    echo '    fi'                                                              >> load_env.sh
+    echo 'fi'                                                                  >> load_env.sh
+    echo 'set +x'                                                              >> load_env.sh
 
     ## The following definitions ensure the 'allreduce' MPI collective
     ## operation is giving the same results from run to run.  In
