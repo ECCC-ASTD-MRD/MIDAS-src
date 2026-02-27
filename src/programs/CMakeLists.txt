@@ -60,9 +60,9 @@ add_executable(prepcma prepcma.f90)
 target_link_libraries(prepcma PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
 ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
-add_executable(pseudoSSTobs pseudoSSTobs.f90)
-target_link_libraries(pseudoSSTobs PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
+add_executable(pseudoOceanIceObs pseudoOceanIceObs.f90)
+target_link_libraries(pseudoOceanIceObs PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
+${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burpmodule random hpcoperf)
 
 add_executable(randomPert randomPert.f90)
 target_link_libraries(randomPert PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas random::random)
@@ -84,7 +84,7 @@ target_link_libraries(var1D PRIVATE MPI::MPI_Fortran  rmn::rmn-ompi rpncomm::rpn
 ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
 set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats dfs diagBmatrix diagHBHt energyNorm ensembleH
-ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF prepcma pseudoSSTobs
+ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF prepcma pseudoOceanIceObs
 randomPert sstBias sstTrial var var1D)
 
 foreach(prog ${PROJECT_PROGRAMS})

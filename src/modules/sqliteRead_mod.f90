@@ -28,7 +28,7 @@ module sqliteRead_mod
   ! Public procedures
   public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
   public :: sqlr_cleanSqlite, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
-  public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
+  public :: sqlr_writePseudoOceanIceObs, sqlr_writeEmptyPseudoOceanIceObsFile
   public :: sqlr_getColumnValuesDate
 
   contains
@@ -1607,9 +1607,9 @@ module sqliteRead_mod
   end subroutine sqlr_cleanSqlite
 
   !--------------------------------------------------------------------------
-  ! sqlr_writePseudoSSTobs
+  ! sqlr_writePseudoOceanIceObs
   !--------------------------------------------------------------------------
-  subroutine sqlr_writePseudoSSTobs(obsData, obsFamily, instrumentFileName)
+  subroutine sqlr_writePseudoOceanIceObs(obsData, obsFamily, instrumentFileName)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
@@ -1633,7 +1633,7 @@ module sqliteRead_mod
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
 
-    write(*,*) 'sqlr_writePseudoSSTobs: starting...'
+    write(*,*) 'sqlr_writePseudoOceanIceObs: starting...'
 
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsData, obsFamily, idObs, idData)
@@ -1653,8 +1653,8 @@ module sqliteRead_mod
 
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') then
-      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! The program may be slow creating many sqlite files in the same directory.'
-      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! Please, use the ram disk option prior to MIDAS run!'
+      write(*,*) 'sqlr_writePseudoOceanIceObs: WARNING! The program may be slow creating many sqlite files in the same directory.'
+      write(*,*) 'sqlr_writePseudoOceanIceObs: WARNING! Please, use the ram disk option prior to MIDAS run!'
     end if
 
     if (obs_mpiLocal(obsData)) then
@@ -1667,9 +1667,9 @@ module sqliteRead_mod
     end if
 
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writePseudoSSTobs: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writePseudoOceanIceObs: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
@@ -1679,20 +1679,20 @@ module sqliteRead_mod
                   &an_error real, fg_error real, obs_error real);'
 
     call fSQL_do_many(db, queryCreate, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_do_many with query: '//trim(queryCreate))
 
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Data   = ', trim(queryData)
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_prepare:')
 
     numberInsertions = 0
 
@@ -1778,20 +1778,20 @@ module sqliteRead_mod
 
     call fSQL_finalize(stmtData)
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily, &
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Observation Family: ', obsFamily, &
                ', number of insertions: ', numberInsertions
 
     call fSQL_commit(db)
     call fSQL_close(db, stat)
 
-  end subroutine sqlr_writePseudoSSTobs
+  end subroutine sqlr_writePseudoOceanIceObs
 
   !--------------------------------------------------------------------------
-  ! sqlr_writeEmptyPseudoSSTobsFile
+  ! sqlr_writeEmptyPseudoOceanIceObsFile
   !--------------------------------------------------------------------------
-  subroutine sqlr_writeEmptyPseudoSSTobsFile(obsData, obsFamily, instrumentFileName)
+  subroutine sqlr_writeEmptyPseudoOceanIceObsFile(obsData, obsFamily, instrumentFileName)
     !
-    ! :Purpose: to generate an empty SQLite SST pseudo obs file for mpi tasks,
+    ! :Purpose: to generate an empty SQLite SST/SIC obs file for mpi tasks,
     !           with no sea-ice on them.
     !
     implicit none
@@ -1817,8 +1817,8 @@ module sqliteRead_mod
 
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') &
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
+    write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
+    write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
 
     if (obs_mpiLocal(obsData)) then
       write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
@@ -1831,9 +1831,9 @@ module sqliteRead_mod
 
     fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
@@ -1843,25 +1843,25 @@ module sqliteRead_mod
                   &an_error real, fg_error real, obs_error real);'
 
     call fSQL_do_many(db, queryCreate, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoOceanIceObsFile: fSQL_do_many with query: '//trim(queryCreate))
 
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Data   = ', trim(queryData)
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writeEmptyPseudoOceanIceObsFile: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoOceanIceObsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoOceanIceObsFile: fSQL_prepare:')
 
     call fSQL_commit(db)
     call fSQL_close(db, stat)
 
-  end subroutine sqlr_writeEmptyPseudoSSTobsFile
+  end subroutine sqlr_writeEmptyPseudoOceanIceObsFile
 
   !--------------------------------------------------------------------------
   ! sqlr_getColumnValuesDate

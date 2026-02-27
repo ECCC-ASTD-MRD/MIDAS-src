@@ -1,9 +1,13 @@
-program midas_pseudoSSTobs
+program midas_pseudoOceanIceObs
   !
   !:Purpose: Main program to produce pseudo SST observations
-  !          in ice-covered areas. Pseudo SST observations are needed
+  !          in ice-covered areas and pseudo SIC observations
+  !          around the ice edges and in the polynias/gaps in the ice.  
+  !          Pseudo SST observations are needed
   !          to prevent the propagation of analysis increments to
   !          the ice-covered areas, that may result in undesirable sea-ice melting.
+  !          Pseudo SIC observations are needed to preserve a proper ice edge
+  !          in coupled ocean-sea-ice data assimilation experiments.
   !
   !          ---
   !
@@ -128,21 +132,28 @@ program midas_pseudoSSTobs
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
 
-  ! namelist variables
-  real(8)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
+  ! SST namelist variables
+  logical                     :: computeSSTobs           ! a flag to switch the computation of SST pseudo obs on and off
+  real(8)                     :: iceFractionThresholdSST ! consider no ice condition below this threshold
   real(8)                     :: outputSST               ! output SST value for pseudo observations
   real(8)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points
-  character(len=100)          :: outputFileName          ! name of the file containing the generated observations
+  character(len=100)          :: outputFileNameSST       ! name of the file containing the generated SST observations
   real(8)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
   logical                     :: useSalinity             ! to use or not NEMO salinity field to compute freezing point temperature
+  ! SIC namelist variables
+  logical                     :: computeSICobs           ! a flag to switch the computation of SIC pseudo obs on and off
+  character(len=100)          :: outputFileNameSIC       ! name of the file containing the generated SIC observations
+  real(8)                     :: iceFractionThresholdSIC ! consider no ice condition below this threshold
+  real(8)                     :: seaIceBand              ! band in km around the ice edge where to put pseudo SIC observations
 
-  namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
-                          outputFileName, seaWaterThreshold, useSalinity
+  namelist /pseudoSSTobs/ iceFractionThresholdSST, outputSST, outputFreshWaterST, seaiceThinning, &
+                          outputFileNameSST, seaWaterThreshold, useSalinity, computeSSTobs
+  namelist /pseudoSICobs/ outputFileNameSIC, computeSICobs, iceFractionThresholdSIC, seaIceBand
 
-  istamp = exdb('pseudoSSTobs','DEBUT','NON')
+  istamp = exdb('pseudoOceanIceObs','DEBUT','NON')
 
-  call ver_printNameAndVersion('pseudoSSTobs','Generation of pseudo SST observations')
+  call ver_printNameAndVersion('pseudoOceanIceObs','Generation of pseudo SST observations')
 
   ! MPI initialization
   call mmpi_initialize
@@ -164,14 +175,20 @@ program midas_pseudoSSTobs
   call gio_setup
 
   ! Do initial set up
-  call pseudoSSTobs_setup()
+  call pseudoOceanIceObs_setup()
 
-  call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                      seaiceThinning, outputFileName, seaWaterThreshold, useSalinity)
+  if (computeSSTobs) then
+    call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThresholdSST, outputSST, outputFreshWaterST, &
+                        seaiceThinning, outputFileNameSST, seaWaterThreshold, useSalinity)
+  end if
+
+  if (computeSICobs) then
+    call oobs_pseudoSIC(hco_anl, vco_anl, iceFractionThresholdSIC, outputFileNameSIC, seaIceBand)
+  end if
 
   ! 3. Job termination
 
-  istamp = exfin('pseudoSSTobs','FIN','NON')
+  istamp = exfin('pseudoOceanIceObs','FIN','NON')
 
   call utl_printTime()
   call utl_tmg_stop(0)
@@ -182,9 +199,9 @@ program midas_pseudoSSTobs
 
   contains
 
-  subroutine pseudoSSTobs_setup()
+  subroutine pseudoOceanIceObs_setup()
     !
-    ! :Purpose:  Control of the preprocessing of pseudo SST obs
+    ! :Purpose:  Control of the preprocessing of pseudo SST and SIC obs
     !
     implicit none
 
@@ -193,44 +210,70 @@ program midas_pseudoSSTobs
 
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
-    write(*,*) '-- Starting subroutine pseudoSSTobs_setup --'
+    write(*,*) '-- Starting subroutine pseudoOceanIceObs_setup --'
     write(*,*) '-------------------------------------------------'
 
-    ! Setting default namelist variable values
-    iceFractionThreshold   = 0.05d0
-    outputSST              = 271.4d0
-    outputFreshWaterST     = 271.4d0
-    outputFileName         = ''
-    seaiceThinning         = 5
-    seaWaterThreshold      = 0.0d0
-    useSalinity            = .false.
+    ! Setting default pseudoSSTobs namelist variable values
+    computeSSTobs           = .true.
+    iceFractionThresholdSST = 0.05d0
+    outputSST               = 271.4d0
+    outputFreshWaterST      = 271.4d0
+    outputFileNameSST       = ''
+    seaiceThinning          = 5
+    seaWaterThreshold       = 0.0d0
+    useSalinity             = .false.
 
-    ! Read the namelist
+    ! Setting default pseudoSICobs namelist variable values
+    computeSICobs           = .false.
+    outputFileNameSIC       = ''
+    iceFractionThresholdSIC = 0.05d0
+    seaIceBand              = 25.0d0
+
+    ! Read the SST namelist
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSSTobs, iostat = ierr)
-    if (ierr /= 0) call utl_abort('pseudoSSTobs_setup: Error reading namelist')
+    if (ierr /= 0) call utl_abort('pseudoOceanIceObs_setup: Error reading SST namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
     call utl_tmg_stop(181)
 
-    write(*,*)''
-    write(*,*) 'pseudoSSTobs_setup: output SST globally: ', outputSST
-    write(*,*) 'pseudoSSTobs_setup: output fresh water surface temperature  globally: ', outputFreshWaterST
-    write(*,*) 'pseudoSSTobs_setup: sea-ice fraction threshold: ', iceFractionThreshold
-    write(*,*) 'pseudoSSTobs_setup: sea water fraction threshold: ', seaWaterThreshold
-    if (useSalinity) then
-      write(*,*) 'pseudoSSTobs_setup: Surface salinity field will be used to compute ocean temperature freezing point.'
-      write(*,*) 'pseudoSSTobs_setup: WARNING: pseudo SST obs will be generatated in every grid point!'
-      write(*,*) 'pseudoSSTobs_setup:          seaiceThinning value is put to 1.'
-      seaiceThinning = 1
-    else
-      write(*,*) 'pseudoSSTobs_setup: pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'
+    ! Read the SIC namelist
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = pseudoSICobs, iostat = ierr)
+    if (ierr /= 0) call utl_abort('pseudoOceanIceObs_setup: Error reading SIC namelist')
+    if (mmpi_myid == 0) write(*, nml = pseudoSICobs)
+    call utl_tmg_stop(181)
+
+    if (computeSSTobs) then
+      write(*,*) ''
+      write(*,*) 'pseudoOceanIceObs_setup: computing SST pseudo observations is demanded.'
+      write(*,*) 'pseudoOceanIceObs_setup: output SST globally: ', outputSST
+      write(*,*) 'pseudoOceanIceObs_setup: output fresh water surface temperature  globally: ', outputFreshWaterST
+      write(*,*) 'pseudoOceanIceObs_setup: sea-ice fraction threshold: ', iceFractionThresholdSST
+      write(*,*) 'pseudoOceanIceObs_setup: sea water fraction threshold: ', seaWaterThreshold
+      if (useSalinity) then
+        write(*,*) 'pseudoOceanIceObs_setup: Surface salinity field will be used to compute ocean temperature freezing point.'
+        write(*,*) 'pseudoOceanIceObs_setup: WARNING: pseudo SST obs will be generatated in every grid point!'
+        write(*,*) 'pseudoOceanIceObs_setup:          seaiceThinning value is put to 1.'
+        seaiceThinning = 1
+      else
+        write(*,*) 'pseudoOceanIceObs_setup: pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'
+      end if
+      write(*,*) 'pseudoOceanIceObs_setup: SST output file name: ', outputFileNameSST
     end if
-    write(*,*) 'pseudoSSTobs_setup: output file name: ', outputFileName
+
+    if (computeSICobs) then
+      write(*,*) ''
+      write(*,*) 'pseudoOceanIceObs_setup: computing SIC pseudo observations is demanded.'
+      write(*,*) 'pseudoOceanIceObs_setup: SIC output file name: ', outputFileNameSIC
+      write(*,*) 'pseudoOceanIceObs_setup: sea-ice fraction threshold: ', iceFractionThresholdSIC
+      write(*,*) 'pseudoOceanIceObs_setup: sea-ice band where to put pseudo SIC obs: ', seaIceBand
+    end if
+    
     !
     !- Initialize the Analysis grid
     !
     if(mmpi_myid == 0) write(*,*)''
-    if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*) 'pseudoOceanIceObs_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
 
     !
@@ -245,8 +288,8 @@ program midas_pseudoSSTobs
 
     call obs_class_initialize('VAR')
 
-    if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: done.'
+    if(mmpi_myid == 0) write(*,*) 'pseudoOceanIceObs_setup: done.'
 
-  end subroutine pseudoSSTobs_setup
+  end subroutine pseudoOceanIceObs_setup
 
-end program midas_pseudoSSTobs
+end program midas_pseudoOceanIceObs
