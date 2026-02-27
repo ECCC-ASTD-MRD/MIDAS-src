@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * The script `tools/midas_scripts/midas.mpirun` now works fine on both
-   HPCR-U2 and HPCR-U3 (#1149 and !1076)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.10.4]
+
+### Fixed
+
+ * The script `tools/midas_scripts/midas.mpirun` now works fine on both
+   HPCR-U2 and HPCR-U3 (#1149 and !1076)
 
 ## [3.10.3]
 
@@ -1261,7 +1267,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.4...HEAD
+[3.10.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.3...v_3.10.4
 [3.10.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...v_3.10.3
 [3.10.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...v_3.10.2
 [3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
