@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.10.3]
+
+### Changed
+
  * Update the RPN and CMDA libraries and utilities to 20260202 (#1145 and !1070)
    * Set Intel MPI environment variable `I_MPI_PIN_PROCESSOR_EXCLUDE_LIST`
      to ignore some cores when the OpenMP configuration allows MPI ranks
@@ -1246,7 +1260,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.3...HEAD
+[3.10.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...v_3.10.3
 [3.10.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...v_3.10.2
 [3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
 [3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0
