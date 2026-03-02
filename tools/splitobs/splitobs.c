@@ -581,7 +581,7 @@ int main(int argc, char** argv) {
           App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
-        status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
+        status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
         if( status != SQLITE_OK ){
           App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
           if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
@@ -614,7 +614,7 @@ int main(int argc, char** argv) {
        * du domaine defini par la grille donnee plus haut.
        */
       status = sqlite3_create_function(sqldb, SQLFUNCTION_NAME, NUMBER_OF_ARGS_FOR_CHECK_GRID, SQLITE_UTF8,
-                                       (void*) NULL, &checkgrid_sql, (void*) NULL, (void*) NULL);
+                                       NULL, &checkgrid_sql, NULL, NULL);
       if( status != SQLITE_OK ) {
         App_Log(APP_ERROR,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
 
@@ -644,7 +644,7 @@ int main(int argc, char** argv) {
        * du domaine defini par la grille donnee plus haut.
        */
       status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
-                                       (void*) NULL, &checkvertical_sql, (void*) NULL, (void*) NULL);
+                                       NULL, &checkvertical_sql, NULL, NULL);
       if( status != SQLITE_OK ) {
         App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
@@ -674,7 +674,7 @@ int main(int argc, char** argv) {
        * du domaine defini par la grille donnee plus haut.
        */
       status = sqlite3_create_function(sqldb, SQL_VERTICAL_GZ_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ, SQLITE_UTF8,
-                                       (void*) NULL, &checkvertical_gz_sql, (void*) NULL, (void*) NULL);
+                                       NULL, &checkvertical_gz_sql, NULL, NULL);
       if( status != SQLITE_OK ) {
         App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
@@ -799,7 +799,7 @@ int main(int argc, char** argv) {
       printf("%s\n\n", requete_sql);
 
       /* Execution de la requete SQL sur la base de donnees finale */
-      status = sqlite3_exec(sqldb, requete_sql, (void*) NULL, (void*) NULL, &ErrMsg);
+      status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
       if( status != SQLITE_OK ){
         App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
         if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
@@ -900,7 +900,7 @@ int main(int argc, char** argv) {
               App_End(-1);exit(1);
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
-            status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
+            status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
             if( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
               if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
@@ -930,7 +930,7 @@ int main(int argc, char** argv) {
           printf("%s\n", requete_sql);
 
           /* Execution de la requete SQL sur la base de donnees finale */
-          status = sqlite3_exec(sqldb, requete_sql, (void*) NULL, (void*) NULL, &ErrMsg);
+          status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
           if( status != SQLITE_OK ) {
             App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
             if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
