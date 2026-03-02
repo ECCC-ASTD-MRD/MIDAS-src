@@ -143,7 +143,7 @@ module midasMpi_mod
     write(*,*) ' '
 
     ! default values for MKL namelist
-    oneThreadMKL = .true.
+    oneThreadMKL = .false.
     dynamicMKL = .true.
 
     ! read the MKL namelist
