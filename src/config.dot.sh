@@ -155,16 +155,16 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     FOPTMIZ=2
     __compiler_supplementary_option=-strict
 fi
-echo "... loading rpn/code-tools/20250925/env/${__compiler}"
-. r.load.dot rpn/code-tools/20250925/env/${__compiler}
+echo "... loading rpn/code-tools/20251217/env/${__compiler}"
+. r.load.dot rpn/code-tools/20251217/env/${__compiler}
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20251021"
-. r.load.dot eccc/mrd/rpn/libs/20251021
+echo "... loading eccc/mrd/rpn/libs/20260202"
+. r.load.dot eccc/mrd/rpn/libs/20260202
 
 echo "... loading hdf5-netcdf4"
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
@@ -173,11 +173,17 @@ elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
 fi
 
-echo "... loading eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}"
-. r.load.dot eccc/mrd/rpn/utils/20251021/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+echo "... loading eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20260202/burp-tools_20.0.15-${COMP_ARCH}_${ORDENV_PLAT}
 
-echo "... loading eccc/cmd/cmda/libs/20251021/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20251021/${COMP_ARCH}
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    cmdalibs_version=20251021
+elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    ## The version '20250202-1' only exists on HPCR-U3
+    cmdalibs_version=20260202-1
+fi
+echo "... loading eccc/cmd/cmda/libs/${cmdalibs_version}/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/${cmdalibs_version}/${COMP_ARCH}
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     perftools_version=2.0

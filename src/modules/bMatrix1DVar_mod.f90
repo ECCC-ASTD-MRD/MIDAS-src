@@ -50,8 +50,8 @@ module bMatrix1DVar_mod
   integer              :: nLonLatPosLand, nLonLatPosSea
   integer, external    :: get_max_rss
   integer,          parameter :: numMasterBmat = 2
-  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI', 'ENS' /)
-  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_ENS' /)
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI ', 'ENS' /)
+  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI ', 'B_ENS' /)
   logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true. /) 
   integer            :: numBmat
   integer, parameter :: numBmatMax = 10

@@ -591,8 +591,8 @@ module ObsColumnNames_mod
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL ', &
-          'CLA '/)  
+      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
+          'CLA '/)
 
    !
    ! REAL-BODY COLUMN NUMBERS
@@ -1489,7 +1489,7 @@ module ObsSpaceData_mod
    ! CLASS-CONSTANT:
    ! CLASS-CONSTANT:
 
-   logical, save :: obs_class_initialized = .false.
+   logical :: obs_class_initialized = .false.
 
    ! end of CLASS-CONSTANT variables.
    ! end of CLASS-CONSTANT variables

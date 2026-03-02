@@ -855,13 +855,12 @@ contains
     integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
-    integer :: testIndex, GROSSERROR, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    integer :: testIndex, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags 
     real(8) :: obsTb
     character(len=9) :: stnId
 
     testIndex = 11
-    GROSSERROR = .FALSE.
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
@@ -881,7 +880,6 @@ contains
         if (obsTb /= mwbg_realMissing .and. &
             (obsTb < GROSSMIN(obsChanNumWithOffset) .or. &
              obsTb > GROSSMAX(obsChanNumWithOffset))) then
-          GROSSERROR = .TRUE.
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
           obsFlags = OR(obsFlags,2**7)
@@ -3114,11 +3112,11 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, IBIT
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged 
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT 
+    logical :: SFCREJCT, CH2OMPREJCT
     character(len=9) :: stnId
 
     testIndex = 4
@@ -3282,11 +3280,11 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, IBIT
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: CH2OMPREJCT, IBIT
+    logical :: CH2OMPREJCT
     character(len=9) :: stnId
 
     testIndex = 4

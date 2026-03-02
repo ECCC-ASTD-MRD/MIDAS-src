@@ -579,9 +579,9 @@ contains
     imode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, prnttime, imode)
     write(yyyymmdd,'(i8)') prntdate
-    read (yyyymmdd(7:8), '(i)') dd
-    read (yyyymmdd(5:6), '(i)') mm
-    read (yyyymmdd(1:4), '(i)') yyyy
+    read (yyyymmdd(7:8), '(i2)') dd
+    read (yyyymmdd(5:6), '(i2)') mm
+    read (yyyymmdd(1:4), '(i4)') yyyy
 
     ! leap year    
     if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29

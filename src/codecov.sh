@@ -27,7 +27,7 @@ eval `cclargs_lite                                                  \
  ++ $*`
 
 ## load Intel compiler so gain access to 'codecov' and 'profmerge':
-. r.load.dot rpn/code-tools/20250925/env/inteloneapi-2025.1.0
+. r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0
 ## Or, we could just source the 'config.dot.sh'
 
 ## On met 'set -u' apres le 'cclargs' et le 'r.load.dot' parce que
@@ -80,7 +80,7 @@ mkdir -p ${web_dir}
 rsync -a CodeCoverage CODE_COVERAGE.HTML ${web_dir}
 
 if [[ "${web_dir}" = ${HOME}/public_html/* ]]; then
-    typeset -r url=${web_dir/${HOME}\/public_html/http:\/\/goc-dx.science.gc.ca\/~${USER}}
+    typeset -r url=${web_dir/${HOME}\/public_html/http:\/\/goc-dx-u3.science.gc.ca\/~${USER}}
     echo "You can look at the code coverage report at this URL:"
     echo "    ${url}/CODE_COVERAGE.HTML"
 else
