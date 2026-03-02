@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * The script `tools/midas_scripts/midas.mpirun` now works fine on both
+   HPCR-U2 and HPCR-U3 (#1049 and !1076)
 
 ### Removed
 
