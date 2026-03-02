@@ -34,8 +34,6 @@ module fsoi_mod
 
   ! Public subroutines and functions
   public :: fso_setup, fso_ensemble
-  ! public module variable
-  public :: fsoMode
 
   ! module private variables
   type(struct_obs),        pointer :: obsSpaceData_ptr

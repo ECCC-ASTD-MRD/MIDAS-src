@@ -197,8 +197,8 @@ program midas_obsImpact
   integer :: istamp,exdb,exfin,dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: columnTrlOnAnlIncLev, columnAnlOnAnlIncLev
-  type(struct_columnData),target :: columnTrlOnTrlLev, columnAnlOnAnlLev
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
+  type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_gsv)               :: stateVectorTrialHighRes
 
   character(len=48) :: obsMpiStrategy
@@ -293,7 +293,6 @@ program midas_obsImpact
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') call col_setVco(columnAnlOnAnlIncLev,vco_anl)
   call msg_memUsage('midas-obsImpact')
 
   !
@@ -312,7 +311,6 @@ program midas_obsImpact
   !- Memory allocation for background column data
   !
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
-  if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') call col_allocate(columnAnlOnAnlIncLev,obs_numheader(obsSpaceData))
 
   !
   !- Initialize the observation error covariances
