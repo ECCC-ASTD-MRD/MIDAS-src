@@ -3803,6 +3803,8 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   int trouve_au_moins_un_bloc_avec_lat_lon;
   BURP_BLK *blktmp, *blk;
 
+  *nblks = 0; // initialisation par defaut
+
   if (VERBOSE>5) {
     printf("Fonction find_blk_data_in_rpt: On travaille avec le rapport: \n");
     printf("Fonction find_blk_data_in_rpt: ");
