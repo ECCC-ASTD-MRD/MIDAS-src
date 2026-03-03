@@ -1373,7 +1373,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_readTrials
   !--------------------------------------------------------------------------
-  subroutine gio_readTrials(stateVectorTrialIn,trialFileNamePrefix_opt)
+  subroutine gio_readTrials(stateVectorTrialIn)
     !
     ! :Purpose: Reading trials
     !
@@ -1381,7 +1381,6 @@ module gridStateVectorFileIO_mod
 
     ! Arguments:
     type(struct_gsv), target, intent(inout) :: stateVectorTrialIn
-    character(len=4),optional,intent(in)    :: trialFileNamePrefix_opt
 
     ! Locals:
     logical             :: fileExists, allocHeightSfc
@@ -1393,7 +1392,6 @@ module gridStateVectorFileIO_mod
     integer             :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
     character(len=2)          :: fileNumber
     character(len=512)        :: fileName
-    character(len=4)          :: trialFileNamePrefix
     character(len=4)          :: varNameForDateStampSearch
     character(len=4), pointer :: varNamesToRead(:)
     type(struct_gsv), target  :: stateVectorTrial
@@ -1413,16 +1411,11 @@ module gridStateVectorFileIO_mod
     !
     !- Check if trial fields are stored in separate files for each time step or not.
     !
-    if (present(trialFileNamePrefix_opt)) then
-       trialFileNamePrefix=trialFileNamePrefix_opt
-    else
-       trialFileNamePrefix='trlm'
-    end if
-    inquire(file = './' // trialFileNamePrefix, exist = allTrialTimeStepsInOneFile)
+    inquire(file = './trlm', exist = allTrialTimeStepsInOneFile)
     if (allTrialTimeStepsInOneFile) then
-      trialFileName = './' // trialFileNamePrefix
+      trialFileName = './trlm'
     else
-      trialFileName = './' // trialFileNamePrefix // '_01'
+      trialFileName = './trlm_01'
     end if
 
     if (gsv_varExist(stateVectorTrialIn,'Z_T') .or. &

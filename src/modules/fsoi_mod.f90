@@ -41,6 +41,8 @@ module fsoi_mod
   type(struct_columnData), pointer :: column_ptr
   real(8),allocatable :: vhat(:)
   integer             :: fso_nsim, nvadim_mpilocal
+  integer             :: obsFSOorR ! either OBS_FSO or OBS_FSR
+  character(len=3)    :: strFSOorR ! either 'FSO' or 'FSR'
 
   type(struct_hco), pointer :: hco_anl => null()
 
@@ -117,8 +119,12 @@ module fsoi_mod
 
     if (trim(fsoMode) == 'HFSO' .or. trim(fsoMode) == 'EFSO') then
       if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSO mode'
+      obsFSOorR = OBS_FSO
+      strFSOorR = 'FSO'
     else if (trim(fsoMode) == 'HFSR' .or. trim(fsoMode) == 'EFSR') then
       if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSR mode'
+      obsFSOorR = OBS_FSR
+      strFSOorR = 'FSR'
     else
       call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO, EFSO, HFSR or EFSR')
     end if
@@ -135,6 +141,7 @@ module fsoi_mod
     hco_anl => hco_anl_in
 
   end subroutine fso_setup
+
 
   !--------------------------------------------------------------------------
   ! fso_ensemble
@@ -157,7 +164,7 @@ module fsoi_mod
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    real(8)                         :: fso_ori, fso_fin, fsr_gradient
+    real(8)                         :: fso_ori, fso_fin
 
     if (mmpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
@@ -225,13 +232,8 @@ module fsoi_mod
     ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
     call s2c_tl(statevector_fso,column,columnTrlOnAnlIncLev,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
     call oop_Htl(column,columnTrlOnAnlIncLev,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 ahat = H B^1/2 ahat
-    if ( fsoMode(4:4) == 'O' ) then    ! HFSO or EFSO
-      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
-      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat
-    elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
-      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSR,OBS_WORK) ! Save as OBS_FSR : R**-1/2 H B^1/2 ahat
-      call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_FSR,OBS_FSR)  ! Save as OBS_FSR : R**-1 H B^1/2 ahat
-    end if
+    call rmat_RsqrtInverseAllObs(obsSpaceData,obsFSOorR,OBS_WORK)  ! Save as OBS_FSO or OBS_FSR : R**-1/2 H B^1/2 ahat
+    call rmat_RsqrtInverseAllObs(obsSpaceData,obsFSOorR,obsFSOorR) ! Save as OBS_FSO or OBS_FSR : R**-1 H B^1/2 ahat
 
     do headerIndex = 1, obs_numHeader(obsSpaceData)
 
@@ -244,13 +246,6 @@ module fsoi_mod
             fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
             fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
             call obs_bodySet_r(obsSpaceData,OBS_FSO,bodyIndex, fso_fin)
-          end if
-        end do
-      elseif( fsoMode(4:4) == 'R' ) then ! HFSR or EFSR
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            fsr_gradient = obs_bodyElem_r(obsSpaceData,OBS_FSR,bodyIndex)
-            call obs_bodySet_r(obsSpaceData,OBS_FSR,bodyIndex, fsr_gradient)
           end if
         end do
       end if
@@ -481,16 +476,10 @@ module fsoi_mod
     integer            :: numAss_local(numFamily), numAss_global(numFamily)
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
     integer            :: familyIndex
-    integer            :: OBS_FSX ! either OBS_FSO or OBS_FSR
-    character(len=3)   :: strFSX  ! either 'FSO' or 'FSR'
 
     if ( fsoMode(4:4) == 'O' ) then
-      OBS_FSX = OBS_FSO
-      strFSX  = 'FSO'
       if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
     else
-      OBS_FSX = OBS_FSR
-      strFSX  = 'FSR'
       if (mmpi_myid == 0) write(*,*)  &
         'sumFSO: Starting. With FSR mode, listings in this section are meaningless. Degugging purpose only.'
     end if
@@ -510,7 +499,7 @@ module fsoi_mod
     do familyIndex = 1, numFamily
       do bodyIndex = 1, obs_numbody(obsSpaceData)
 
-        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSX,bodyIndex)
+        pfso_1 = obs_bodyElem_r(obsSpaceData,obsFSOorR,bodyIndex)
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
           ! FSO for each family
           if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == familyList(familyIndex) ) then
@@ -529,7 +518,7 @@ module fsoi_mod
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle
-        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSX,bodyIndex)
+        pfso_1 = obs_bodyElem_r(obsSpaceData,obsFSOorR,bodyIndex)
         tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
         numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
       end do
@@ -549,18 +538,18 @@ module fsoi_mod
     if (mmpi_myid == 0) then
 
       write(*,*) ' '
-      write(*,'(a15,f15.8)') 'Total ' // strFSX // '=', totFSO
+      write(*,'(a15,f15.8)') 'Total ' // strFSOorR // '=', totFSO
       write(*,*) ' '
 
       do familyIndex = 1, numFamily
-        write(*,'(a4,a2,a2,f15.8,a16,i10)') strFSX //'-', familyList(familyIndex), '=', tfso(familyIndex), &
+        write(*,'(a4,a2,a2,f15.8,a16,i10)') strFSOorR //'-', familyList(familyIndex), '=', tfso(familyIndex), &
                 '  Count Number=', numAss_global(familyIndex)
       end do
       write(*,*) ' '
 
       if (tvs_nsensors > 0) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
-        write(*,'(1x,a)') '#  plt sat ins    ' // strFSX
+        write(*,'(1x,a)') '#  plt sat ins    ' // strFSOorR
         do sensorIndex = 1, tvs_nsensors
           write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') sensorIndex,inst_name(tvs_instruments(sensorIndex)), &
                 platform_name(tvs_platforms(sensorIndex)),tvs_satellites(sensorIndex),tfsotov_sensors(sensorIndex), &
