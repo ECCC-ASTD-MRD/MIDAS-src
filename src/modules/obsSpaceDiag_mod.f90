@@ -240,8 +240,13 @@ contains
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
     character(len=6)   :: elementStr
     character(len=10)  :: dateStr
-    
-    write(*,*) 'osd_calcInflation: Starting'
+
+    if (numFamily == 0) then
+      write(*,*) 'osd_calcInflation: No families configured in ''NAMOSD'': No inflation computed'
+      return
+    else
+      write(*,*) 'osd_calcInflation: Starting'
+    end if
 
     if( nrandseed == 999 ) nrandseed=dateprnt ! if seed not set by namelist, use valid date/time
     write(*,*) 'osd_calcInflation: random seed set to ',nrandseed
