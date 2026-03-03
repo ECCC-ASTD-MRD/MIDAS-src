@@ -8,19 +8,19 @@
 The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+  * [Fortran code documentation](https://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
 * `v_3.10` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
+  * [Fortran code documentation](https://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10)
 * `v_3.10-RandD` branch: The code in this branch validates with `v_3.10` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.10-RandD/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10-RandD)
+  * [Fortran code documentation](https://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.10-RandD)
 * `v_3.9` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
+  * [Fortran code documentation](https://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 * `v_3.9-RandD` branch: The code in this branch validates with `v_3.9` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9-RandD/README.md)
-  * [Fortran code documentation](http://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
+  * [Fortran code documentation](https://goc-dx-u3.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
 
 # Contributing
 
