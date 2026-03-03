@@ -70,6 +70,7 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
             echo "exclude some cores from processor list: I_MPI_PIN_PROCESSOR_EXCLUDE_LIST=${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}"
         fi ## End of 'if (( 42 % OMP_NUM_THREADS == 0 ))'
     fi ## End of 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]'
+else
     echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are)"
     exit 1
 fi

@@ -31,7 +31,7 @@ if [ -z "${MIDAS_COMPILE_FRONTEND}" ]; then
     if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
         MIDAS_COMPILE_FRONTEND=ppp5
     elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        MIDAS_COMPILE_FRONTEND=ppp7
+        MIDAS_COMPILE_FRONTEND=ppp8
     fi
 fi
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}

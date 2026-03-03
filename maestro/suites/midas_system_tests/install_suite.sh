@@ -18,7 +18,7 @@ which maestro 1>/dev/null 2>&1 || {
 
 __rmnlib_version__=20260202
 if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
-    __cmdiutils_version=__2.9
+    __cmdiutils_version__=2.9
 elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
     __cmdiutils_version__=2.12
 else
@@ -55,7 +55,7 @@ else
 	        echo "Do you want to use that suite? (Y,y,yes,YES,...)"
 	        read REPONSE_YES_OR_NO
 	        if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
-		    "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
+		      "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
 
                     echo "Do you want to erase everything and reinstall the suite? (Y,y,yes,YES,...)"
 	            read REPONSE_YES_OR_NO
