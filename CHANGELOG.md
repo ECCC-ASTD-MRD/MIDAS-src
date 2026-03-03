@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix gcc compiler warnings in splitobs (#1092 and !1078)
  * No more Kelvin-Celcius conversion for TM missing values (#1136 and !1061)
  * Bugfix in netCDF writes (#1134 and !1055)
  * Fix use of Bit 19 to reject land-/sea-ice-affected microwave radiances (#1021 and !931)
