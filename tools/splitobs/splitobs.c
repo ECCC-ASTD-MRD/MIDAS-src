@@ -703,7 +703,7 @@ int main(int argc, char** argv) {
       /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
       if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
         /* Aucun filtrage vertical n'est fait */
-        sprintf(requete_sql,"attach '%s' as dbin; \n"
+        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
@@ -714,7 +714,7 @@ int main(int argc, char** argv) {
                 opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table);
       else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
-        sprintf(requete_sql,"attach '%s' as dbin; \n"
+        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                 "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
@@ -727,7 +727,7 @@ int main(int argc, char** argv) {
                 SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
       else if (strlen(opt.channels)==0)
         /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
-        sprintf(requete_sql,"attach '%s' as dbin; \n"
+        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
                 "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
@@ -740,7 +740,7 @@ int main(int argc, char** argv) {
                 SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
                 grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
       else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
-        sprintf(requete_sql,"attach '%s' as dbin; \n"
+        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                 "  dbin.%s.vcoord in (%s);\n",
@@ -752,7 +752,7 @@ int main(int argc, char** argv) {
                 opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                 opt.rdb_data_table, opt.channels);
       else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
-        sprintf(requete_sql,"attach '%s' as dbin; \n"
+        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                 "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                 "  dbin.%s.vcoord not in (%s);\n",
@@ -826,7 +826,7 @@ int main(int argc, char** argv) {
       int ilonband, jlatband;
 
       strcpy(sqlschema,"");
-      sprintf(format_digits,"%%.%dd",opt.ndigits);
+      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
 
       for (ilonband=0;ilonband<opt.npex;ilonband++) {
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -837,9 +837,9 @@ int main(int argc, char** argv) {
             if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
               continue;
 
-	  sprintf(npex_str,format_digits,ilonband+1);
-	  sprintf(npey_str,format_digits,jlatband+1);
-	  sprintf(rdbout,"%s_%s_%s",opt.obsout,npex_str,npey_str);
+	  snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
+	  snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
+	  snprintf(rdbout, sizeof(rdbout), "%s_%s_%s",opt.obsout,npex_str,npey_str);
 
           status = access(rdbout,F_OK);
           if ( status == 0 ) { /* Le fichier existe deja */
@@ -913,7 +913,7 @@ int main(int argc, char** argv) {
           } /* Fin du 'else' relie au 'if ( status == 0 )' */
 
           /* On doit fabriquer la requete sql pour faire le splitting */
-          sprintf(requete_sql,"drop index if exists idx1;\n"
+          snprintf(requete_sql, sizeof(requete_sql), "drop index if exists idx1;\n"
                               "PRAGMA journal_mode = OFF;\n"
                               "PRAGMA  synchronous = OFF;\n"
                               "attach '%s' as dbin; \n"
@@ -1154,9 +1154,9 @@ int main(int argc, char** argv) {
       }
     }
     else { /* Il faut ouvrir npex*npey fichiers */
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR];
+      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
 
-      sprintf(format_digits,"%%.%dd",opt.ndigits);
+      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
 
       for (ilonband=0;ilonband<opt.npex;ilonband++) {
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -1169,9 +1169,9 @@ int main(int argc, char** argv) {
 
 	  iouts[id] = iout++;
 
-	  sprintf(npex_str,format_digits,ilonband+1);
-	  sprintf(npey_str,format_digits,jlatband+1);
-	  sprintf(burpout,"%s_%s_%s", opt.obsout,npex_str,npey_str);
+	  snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
+	  snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
+	  snprintf(burpout, sizeof(burpout),"%s_%s_%s", opt.obsout,npex_str,npey_str);
 
 	  if (VERBOSE>5)
 	    printf("Fonction main: appel de 'brp_open' sur le fichier '%s' pour id=%d\n", burpout, id);
@@ -2046,7 +2046,7 @@ int main(int argc, char** argv) {
 	FILE* file;
 	char burpout_num_headers[MAXSTR];
 
-	sprintf(burpout_num_headers,"%s.num_headers", opt.obsout);
+	snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", opt.obsout);
 
 	status = access(burpout_num_headers,F_OK);
 	if (status==0)
@@ -2061,7 +2061,7 @@ int main(int argc, char** argv) {
       char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR];
       int max_num_headers=0;
 
-      sprintf(format_digits,"%%.%dd",opt.ndigits);
+      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
 
       for (ilonband=0;ilonband<opt.npex;ilonband++)
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -2071,9 +2071,9 @@ int main(int argc, char** argv) {
             if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
               continue;
 
-	  sprintf(npex_str,format_digits,ilonband+1);
-	  sprintf(npey_str,format_digits,jlatband+1);
-	  sprintf(burpout,"%s_%s_%s", opt.obsout,npex_str,npey_str);
+	  snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
+	  snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
+	  snprintf(burpout, sizeof(burpout), "%s_%s_%s", opt.obsout,npex_str,npey_str);
 
 	  if (VERBOSE>2)
 	    printf("\nClosing correctly BURP file %s iouts[%d] = %d", burpout, id, iouts[id]);
@@ -2100,7 +2100,7 @@ int main(int argc, char** argv) {
 	    FILE* file;
 	    char burpout_num_headers[MAXSTR];
 
-	    sprintf(burpout_num_headers,"%s.num_headers", burpout);
+	    snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
 
 	    status = access(burpout_num_headers,F_OK);
 	    if (status==0)
@@ -2118,7 +2118,7 @@ int main(int argc, char** argv) {
           FILE* file;
           char burpout_max_num_headers[MAXSTR];
 
-          sprintf(burpout_max_num_headers,"%s.max_num_headers", opt.obsout);
+          snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
 
           status = access(burpout_max_num_headers,F_OK);
           if (status==0)
@@ -2529,7 +2529,7 @@ void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attach
   token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
-    sprintf(sqlreqtmp,"insert into %s select * from %s.%s where abs(%s) %% %d = %d;\n",
+    snprintf(sqlreqtmp, sizeof(sqlreqtmp), "insert into %s select * from %s.%s where abs(%s) %% %d = %d;\n",
             token,attached_db_name,token,split_on_key,nsplit,id);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
@@ -2558,7 +2558,7 @@ void append_table_list_split_key_requests_using_header(char* requete_sql, char* 
   while( token != (char*) NULL ) {
     // If the table is 'header' or 'data', then ignore it since they already have been considered in the request
     if ( strcasecmp(token,header_table) != 0 && strcasecmp(token,data_table) != 0) {
-      sprintf(sqlreqtmp,"insert into %s select * from %s.%s where %s.%s.%s in (select %s from %s);\n",
+      snprintf(sqlreqtmp, sizeof(sqlreqtmp), "insert into %s select * from %s.%s where %s.%s.%s in (select %s from %s);\n",
               token,attached_db_name,token,attached_db_name,token,split_on_key,split_on_key,header_table);
       strcat(requete_sql,sqlreqtmp);
     }
@@ -2585,7 +2585,7 @@ void append_table_list_without_split_key_requests(char* requete_sql, char* attac
   token = strtok(table_list_tmp, separator_char);
   /* walk through other tokens */
   while( token != (char*) NULL ) {
-    sprintf(sqlreqtmp,"insert into %s select * from %s.%s;\n",token,attached_db_name,token);
+    snprintf(sqlreqtmp, sizeof(sqlreqtmp), "insert into %s select * from %s.%s;\n",token,attached_db_name,token);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
@@ -2790,7 +2790,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
 
   status = c_gdxyfll(gridid, &x, &y, &lat, &lon, 1);
   if (status<0) {
-    sprintf(errmsg, "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
+    snprintf(errmsg, MAXSTR,  "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
 	    "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 	    status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
@@ -2888,7 +2888,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
 
   if (status<0) {
     char errmsg[MAXSTR];
-    sprintf(errmsg, "Fonction checkvertical_sql: Erreur avec checkvertical pour "
+    snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_sql: Erreur avec checkvertical pour "
 	    "id_obs=%d vcoord=%f niveau_min=%d et niveau_max=%d\n", id_obs, vcoord, niveau_min, niveau_max);
     App_Log(APP_ERROR,"%s",errmsg);
     sqlite3_result_error(context, errmsg, -1);
@@ -3032,7 +3032,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
 
   if (status<0) {
     char errmsg[MAXSTR];
-    sprintf(errmsg, "Fonction checkvertical_gz_sql: Erreur avec checkvertical_gz pour "
+    snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz_sql: Erreur avec checkvertical_gz pour "
 	    "id_obs=%d lat=%f lon=%f vcoord=%f niveau_min=%d niveau_max=%d\n",id_obs,lat,lon,vcoord,niveau_min,niveau_max);
     App_Log(APP_ERROR,"%s",errmsg);
     sqlite3_result_error(context, errmsg, -1);
@@ -3086,7 +3086,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       status = c_gdllsval(gridid, &hauteur_min, VALEURS_GZ_MIN, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
-	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
+	snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
@@ -3096,7 +3096,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       status = c_gdllsval(gridid, &hauteur_max, VALEURS_GZ_MAX, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
-	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
+	snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
@@ -3130,7 +3130,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       status = c_gdllsval(gridid, &hauteur_min, VALEURS_GZ_MIN, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
-	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
+	snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
@@ -3164,7 +3164,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       status = c_gdllsval(gridid, &hauteur_max, VALEURS_GZ_MAX, &lat, &lon, 1);
       if (status<0) {
 	char errmsg[MAXSTR];
-	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
+	snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
 		status, lat, lon, gridid, ni, nj);
 	App_Log(APP_ERROR,"%s",errmsg);
@@ -3190,7 +3190,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
     } /* Fin du if (niveau_max != IP1_VIDE) */
     else {
       char errmsg[MAXSTR];
-      sprintf(errmsg, "Fonction checkvertical_gz: niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
+      snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
       App_Log(APP_ERROR,"%s",errmsg);
       return -1;
     }
@@ -3210,7 +3210,7 @@ int checkcanal(float canal, char* channels) {
   char* result;
   char  canalstr[MAXSTR];
 
-  sprintf(canalstr,"%d", (int) canal);
+  snprintf(canalstr, sizeof(canalstr), "%d", (int) canal);
 
   result = strstr(channels,canalstr);
   if (result != (char*) NULL) {
@@ -3261,7 +3261,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 
   status = c_gdxyfll(gridid, &x, &y, &lat, &lon, 1);
   if (status<0) {
-    sprintf(errmsg, "Fonction find_subdomain: Erreur avec c_gdxyfll qui retourne %d "
+    snprintf(errmsg, MAXSTR,  "Fonction find_subdomain: Erreur avec c_gdxyfll qui retourne %d "
 	    "pour lat = %f, lon = %f, gridid = %d, ni = %d, nj = %d\n",
 	    status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
@@ -3282,7 +3282,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  status = c_ezgprm(gridid, input_grid.grtyp, &input_grid.ni, &input_grid.nj,
 			    &input_grid.ig1, &input_grid.ig2, &input_grid.ig3, &input_grid.ig4);
 	  if (status<0) {
-	    sprintf(errmsg, "Fonction find_subdomain: Erreur avec c_ezgprm qui retourne %d "
+	    snprintf(errmsg, MAXSTR,  "Fonction find_subdomain: Erreur avec c_ezgprm qui retourne %d "
 		    "pour gridid = %d, ni = %d, nj = %d\n", status, gridid, ni, nj);
 	    App_Log(APP_ERROR,"%s",errmsg);
 	    return -1;
@@ -4526,7 +4526,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
   newblk = brp_newblk();
 
   if (VERBOSE>2)
-    printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p\n", BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),t_in_domain);
+    printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p\n", BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)t_in_domain);
   if (VERBOSE>3 && nt!=0) {
     printf("Fonction putblk_nt: t_in_domain = [%d", t_in_domain[0]);
     for (t=1;t<nt;t++)
@@ -4633,7 +4633,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
   brp_freeblk(newblk);
   if (VERBOSE>2)
     printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p return=0\n",
-	   BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),t_in_domain);
+	   BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)t_in_domain);
 
   return 0;
 } /* Fin de la fonction putblk_nt */
@@ -4659,7 +4659,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
   newblk = brp_newblk();
 
   if (VERBOSE>2)
-    printf("Fonction putblk_nval: btyp=%d nval=%d blk_nele=%d blk_nval=%d blk_nt=%d vals_in_domain=%p\n", BLK_BTYP(blk), nval, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),vals_in_domain);
+    printf("Fonction putblk_nval: btyp=%d nval=%d blk_nele=%d blk_nval=%d blk_nt=%d vals_in_domain=%p\n", BLK_BTYP(blk), nval, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)vals_in_domain);
   if (VERBOSE>3 && nval!=0) {
     printf("Fonction putblk_nval: vals_in_domain = [%d", vals_in_domain[0]);
     for (v=1;v<nval;v++)
@@ -4758,7 +4758,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
 
   if (VERBOSE>2)
     printf("Fonction putblk_nval: btyp=%d nval=%d blk_nele=%d blk_nval=%d blk_nt=%d vals_in_domain=%p return=0\n",
-	   BLK_BTYP(blk), nval, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),vals_in_domain);
+	   BLK_BTYP(blk), nval, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)vals_in_domain);
 
   return 0;
 } /* Fin de la fonction putblk_nval */
@@ -5180,17 +5180,17 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
     char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR];
 
     printf("Le domaine sera separe en %d par %d parties egales grace aux options (%s et %s)\n", optptr->npex, optptr->npey, NPEX_OPTION, NPEY_OPTION);
-    sprintf(format_digits,"%%.%dd",optptr->ndigits);
-    sprintf(npex_str,format_digits,optptr->npex);
-    sprintf(npey_str,format_digits,optptr->npey);
+    snprintf(format_digits, sizeof(format_digits), "%%.%dd",optptr->ndigits);
+    snprintf(npex_str, sizeof(npex_str), format_digits,optptr->npex);
+    snprintf(npey_str, sizeof(npey_str), format_digits,optptr->npey);
     printf("Les extensions auront %d caracteres par exemple %s_%s_%s\n\n", optptr->ndigits, optptr->obsout, npex_str, npey_str);
   }
 
   if (optptr->cherrypick_x>0 && optptr->cherrypick_y>0) {
     char x_str[MAXSTR], y_str[MAXSTR], format_digits[MAXSTR];
-    sprintf(format_digits,"%%.%dd",optptr->ndigits);
-    sprintf(x_str,format_digits,optptr->cherrypick_x);
-    sprintf(y_str,format_digits,optptr->cherrypick_y);
+    snprintf(format_digits, sizeof(format_digits), "%%.%dd",optptr->ndigits);
+    snprintf(x_str, sizeof(x_str), format_digits,optptr->cherrypick_x);
+    snprintf(y_str, sizeof(y_str), format_digits,optptr->cherrypick_y);
     printf("On ne va extraire que les observations pour la tuile '%s_%s'\n\n",x_str,y_str);
   }
   else if (!(optptr->cherrypick_x<0 && optptr->cherrypick_y<0)) {
