@@ -29,6 +29,7 @@ extern int c_mrfbfl(int);
 
 /* define pour les differentes longueurs de chaine de caracteres utilisees dans le programme */
 #define MAXSTR            1024
+#define SQL_BUFFER_SIZE   19865
 
 /* nom des fonctions SQL qui seront creees pour rechercher les observations
  * dans la base de donnees
@@ -226,7 +227,7 @@ int    VERBOSE = 0;
 int main(int argc, char** argv) {
   int iun = UNIT_NUMBER, status, EXIT_STATUS = 0;
   int filetype;
-  char *ErrMsg, requete_sql[MAXSTR];
+  char *ErrMsg, requete_sql[SQL_BUFFER_SIZE];
   gridtype grid, grid_gz;
   options  opt = optionsDEFAUT;
   sqlite3  *sqldb;
@@ -820,7 +821,7 @@ int main(int argc, char** argv) {
     }
     else { /* Ici, opt.roundrobin == 1 */
       /* Il faut travailler les 'npex*npey' fichiers */
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], rdbout[MAXSTR];
+      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], rdbout[MAXSTR*4];
       char sqlschema[MAXSTR*32];
       int nsplit = opt.npex*opt.npey;
       int ilonband, jlatband;
@@ -2044,7 +2045,7 @@ int main(int argc, char** argv) {
       }
       else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans le domaine */
 	FILE* file;
-	char burpout_num_headers[MAXSTR];
+	char burpout_num_headers[MAXSTR*2];
 
 	snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", opt.obsout);
 
@@ -2058,7 +2059,7 @@ int main(int argc, char** argv) {
       }
     }
     else {
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR];
+      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
       int max_num_headers=0;
 
       snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
@@ -2098,7 +2099,7 @@ int main(int argc, char** argv) {
 	  }
 	  else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
 	    FILE* file;
-	    char burpout_num_headers[MAXSTR];
+	    char burpout_num_headers[MAXSTR*6];
 
 	    snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
 
@@ -2116,7 +2117,7 @@ int main(int argc, char** argv) {
       if (max_num_headers>0) {
         if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
           FILE* file;
-          char burpout_max_num_headers[MAXSTR];
+          char burpout_max_num_headers[MAXSTR*2];
 
           snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
 
