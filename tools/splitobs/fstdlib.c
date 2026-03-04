@@ -178,7 +178,8 @@ int print_stats_field(statstype* stats, int dim) {
  * fonction: padtime
  ***************************************************************************/
 int padtime(char* argv) {
-  int j,dat,tim,mode,datev;
+  int dat,tim,mode,datev;
+  size_t j; // consistency with strlen()
   char dattimstr[MAXSTR], datstr[MAXSTR], timstr[MAXSTR];
 
   strcpy(dattimstr,argv);
