@@ -110,7 +110,7 @@ contains
 
     ! Locals:
     integer :: fileSize, ierr, nulnam, positionBeg, positionEnd
-    integer :: myid, myidx, myidy, rpn_comm_mype
+    integer :: myid, myidx, myidy
     logical :: fileExists
 
     write(*,*)
@@ -1316,7 +1316,7 @@ contains
     character(len=*), intent(in) :: message
 
     ! Locals:
-    integer :: comm, ierr, rpn_comm_comm
+    integer :: comm, ierr
 
     write(6,9000) message
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
@@ -1346,7 +1346,7 @@ contains
     character(len=*), intent(in) :: message
 
     ! Locals:
-    integer :: comm, ierr, rpn_comm_comm
+    integer :: comm, ierr
 
     write(6,9000) message
 9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)

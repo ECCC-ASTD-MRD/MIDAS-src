@@ -46,10 +46,11 @@ contains
     integer :: ialt, idelay, idate, irs, irunn, inblk, isup, ixaux
     integer :: insup, inxaux
     integer, allocatable :: ibuf(:)
-    integer :: inrecs, mrfcls, mrfopn, mrfopc, mrbhdr, mrfloc, mrfget, mrfmxl
+    integer :: inrecs !, mrfcls, mrfopn, mrfopc, mrbhdr, mrfloc, mrfget, mrfmxl
     integer :: istampobs, inewhh, newdate, nresume, ivals
     real(8) :: delhh
     character(len=9) :: clstnid
+    integer, parameter :: sup(1) = (/0/)
 
     !
     !- Get the date from the burp files
@@ -74,9 +75,9 @@ contains
           ilong = mrfmxl(nulburp)
           allocate(ibuf(ilong + 20))
           ibuf(1) = ilong + 20
-          ihandl  = mrfloc(nulburp,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+          ihandl  = mrfloc(nulburp,0,'>>*******',-1,-1,-1,-1,-1,sup,0)
           if ( ihandl < 0 ) then
-            ihandl=mrfloc(nulburp,0,'*********',-1,-1,-1,-1,-1,-1,0)
+            ihandl=mrfloc(nulburp,0,'*********',-1,-1,-1,-1,-1,sup,0)
           else
             nresume=nresume+1
           end if

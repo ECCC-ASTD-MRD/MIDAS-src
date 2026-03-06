@@ -43,7 +43,7 @@ module gridStateVectorFileIO_mod
   character(len=3) :: outputFormat ! output format written by 'gio_writeToFile' can only be 'XDF' or 'RSF'
 
   ! NEMO increment variables:
-  integer  , parameter :: dimNemovar = 13
+  integer, parameter :: dimNemovar = 13
   character(len=20) :: NEMOvarNameInc(dimNemovar) = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', &
                                                       'time_counter', 'z_inc_dateb ', 'z_inc_datef ', &
                                                       'time        ', 'bckint      ', 'bckins      ', &
@@ -987,8 +987,8 @@ module gridStateVectorFileIO_mod
             call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
           end if
           heightSfcLS_ptr => gsv_getHeightSfcLS(statevector)
-          heightSfcLS_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
-               1:gsv_getHco(statevector)%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
+          heightSfcLS_ptr = real(gd2d_file_r4(1:statevector%hco%ni, &
+                                              1:statevector%hco%nj), 8) * utl_unitConvMultFactor_r8(varName, 'fromFSTfile')
 
           deallocate(gd2d_file_r4)
         end if

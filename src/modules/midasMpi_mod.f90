@@ -55,9 +55,8 @@ module midasMpi_mod
     implicit none
 
     ! Locals:
-    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
+    integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads
     integer :: ierr, nulnam, fnom, fclos, numNodeMasters
-    integer :: rpn_comm_comm, rpn_comm_datyp
     integer, allocatable :: allMyidHost(:)
     logical :: flag
 

@@ -368,10 +368,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer, intent(inout) :: oti
-    integer,                   intent(in)    :: headerIndex
-    integer,                   intent(in)    :: stepObs
-    integer,                   intent(in)    :: procIndex
+    type(struct_oti), pointer, intent(in) :: oti
+    integer,                   intent(in) :: headerIndex
+    integer,                   intent(in) :: stepObs
+    integer,                   intent(in) :: procIndex
     ! Result:
     real(8)                   :: weight_out
 

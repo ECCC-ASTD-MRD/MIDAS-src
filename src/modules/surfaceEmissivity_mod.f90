@@ -377,11 +377,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),         intent(in)      :: column                   ! column structure
-    real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
-    integer,                         intent(in)      :: profileCount             ! Profile count
-    integer,                         intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
-    integer,                         intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
+    type(struct_columnData), intent(in)      :: column                   ! column structure
+    real(8), allocatable,    intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
+    integer,                 intent(in)      :: profileCount             ! Profile count
+    integer,                 intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
+    integer,                 intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
     
     ! Locals:
     integer :: emissTrlNumChan

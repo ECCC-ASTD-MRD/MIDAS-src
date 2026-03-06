@@ -396,7 +396,7 @@ contains
     ! Locals:
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
-    integer :: mpiStatus, mpiStatuses(MPI_STATUS_SIZE)
+    integer :: mpiStatuses(MPI_STATUS_SIZE)
     integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
