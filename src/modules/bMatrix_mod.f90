@@ -2,7 +2,7 @@
 module bMatrix_mod
   ! MODULE bMatrix_mod (prefix='bmat' category='2. B and R matrices')
   !
-  !:Purpose:  A higher-level module that takes care of calling subroutines 
+  !:Purpose:  A higher-level module that takes care of calling subroutines
   !           in the lower-level modules for each specific type of B matrix:
   !            * bMatrixHI/lamBmatrixHI
   !            * bMatrixEnsemble
@@ -37,7 +37,7 @@ module bMatrix_mod
   logical :: globalGrid = .true.
 
   integer,          parameter :: numMasterBmat = 4
-  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI  ', 'ENS ' , 'CHM ' , 'DIFF'  /)
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI  ', 'ENS ', 'CHM ', 'DIFF'/)
   character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI  ', 'B_ENS ', 'B_CHM ', 'B_DIFF'/)
   logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .false., .true. , .true.  /)
 
@@ -166,7 +166,7 @@ contains
         if (nBmatInstance == 1) then
           bMatExtraLabel= ""
         else
-          write(bMatInstanceIndexString,'(I2.2)') bMatInstanceIndex 
+          write(bMatInstanceIndexString,'(I2.2)') bMatInstanceIndex
           bMatExtraLabel="_"//trim(bMatInstanceIndexString)
         end if
         bmatLabelList (numBmat) = trim(masterbmatLabelList(masterBmatIndex))//trim(bMatExtraLabel)
@@ -218,13 +218,13 @@ contains
 
   !--------------------------------------------------------------------------
   ! bmat_sqrtB
-  !-------------------------------------------------------------------------- 
+  !--------------------------------------------------------------------------
   subroutine bmat_sqrtB(controlVector, cvdim, statevector,  &
                         useFSOFcst_opt, stateVectorRef_opt)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
     !          space.
-    !          
+    !
     !
     implicit none
 
@@ -389,7 +389,7 @@ contains
         call bdiff_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
         call utl_tmg_stop(67)
- 
+
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
@@ -429,11 +429,11 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_finalize
   !--------------------------------------------------------------------------
-  subroutine bmat_finalize()   
+  subroutine bmat_finalize()
     !
     !:Purpose: To release memory used by B matrices.
     !
-    implicit none 
+    implicit none
 
     call bhi_finalize()
     call ben_finalize()
@@ -446,7 +446,7 @@ contains
   !--------------------------------------------------------------------------
   ! bmat_reduceToMPILocal
   !--------------------------------------------------------------------------
-  subroutine bmat_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)    
+  subroutine bmat_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     !
     !:Purpose: To distribute MPI_global control vector from task 0 to all tasks
     !          where the arguments are real(8)'s

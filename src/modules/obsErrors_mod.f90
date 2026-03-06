@@ -2213,7 +2213,7 @@ contains
       do levelIndex = 1, numLevels
 
         obsIndex = obsIndex + 1
-        if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+        if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
         uu_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=uuIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
         vv_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=vvIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
 
@@ -2239,7 +2239,7 @@ contains
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEUU) then
           obsIndex = obsIndex + 1
-          if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+          if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
           call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,uu_oer(obsIndex))
         end if
       end do
@@ -2253,7 +2253,7 @@ contains
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEVV) then
           obsIndex = obsIndex + 1
-          if (obsIndex > obsCount) call abort('readOerFromObsFileForSW: Something went wrong')
+          if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
           call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,vv_oer(obsIndex))
         end if
       end do

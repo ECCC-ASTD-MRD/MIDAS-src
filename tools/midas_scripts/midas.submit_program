@@ -106,10 +106,12 @@ elif [[ "${env}" = 3.9.5 || "${env}" = 3.9.6 ]]; then
 elif [[ "${env}" = 3.10.* ]]; then
     if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
         _compiler_=inteloneapi-2022.1.2
+        _cmda_utils_version_=20251021
     elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
         _compiler_=inteloneapi-2025.1.0
+        _cmda_utils_version_=20260202
     fi
-    ssm_to_load="rpn/code-tools/20250925/env/${_compiler_} eccc/mrd/rpn/libs/20251021 eccc/mrd/rpn/utils/20251021"
+    ssm_to_load="rpn/code-tools/20251217/env/${_compiler_} eccc/mrd/rpn/libs/20260202 eccc/mrd/rpn/utils/${_cmda_utils_version_}"
 
     ## On HPCR-U3, the HDF5-NretCDF4 library must be loaded
     if [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then

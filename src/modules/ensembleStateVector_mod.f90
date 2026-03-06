@@ -40,12 +40,12 @@ module ensembleStateVector_mod
   public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
   public :: ens_getMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
-  public :: ens_getOffsetFromVarName, ens_getLevFromVarLev, ens_getVarNameFromVarLev 
+  public :: ens_getOffsetFromVarName, ens_getLevFromVarLev, ens_getVarNameFromVarLev
   public :: ens_getNumVarLev, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
   public :: ens_copyHeightSfc, ens_copyHeightSfcToGsv
-  
+
   ! Namelist variables
   integer            :: maxVarLevGroups ! Maximum number of groups for parallel writing of ensemble
 
@@ -135,7 +135,7 @@ CONTAINS
 
     isAllocated = ens%allocated
   end function ens_isAllocated
-  
+
   !--------------------------------------------------------------------------
   ! ens_allocate
   !--------------------------------------------------------------------------
@@ -226,6 +226,7 @@ CONTAINS
 
     ens%allocated = .true.
     ens%numMembers = numMembers
+    ens%numSubEns = 1
     if (present(hco_core_opt)) then
       ens%hco_core => hco_core_opt
     else
@@ -357,21 +358,21 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_modifyVarName
   !--------------------------------------------------------------------------
-  subroutine ens_modifyVarName(ens, oldVarName, newVarName) 
+  subroutine ens_modifyVarName(ens, oldVarName, newVarName)
     !
     !:Purpose: Change an existing variable name within the ensemble.
     !          This is only used when the contents of a variable are
     !          transformed into another variable **in place**.
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
     character(len=*), intent(in)    :: oldVarName
     character(len=*), intent(in)    :: newVarName
-    
+
     call gsv_modifyVarName(ens%statevector_work,oldVarName, newVarName)
-    
+
   end subroutine ens_modifyVarName
 
   !--------------------------------------------------------------------------
@@ -406,10 +407,10 @@ CONTAINS
     lat2 = ens_out%statevector_work%myLatEnd
     k1   = ens_out%statevector_work%myVarLevBeg
     k2   = ens_out%statevector_work%myVarLevEnd
- 
+
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -426,7 +427,7 @@ CONTAINS
 
     else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -492,7 +493,7 @@ CONTAINS
 
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -507,7 +508,7 @@ CONTAINS
 
     else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -560,7 +561,7 @@ CONTAINS
     lat2 = ens_inOut%statevector_work%myLatEnd
     k1   = ens_inOut%statevector_work%myVarLevBeg
     k2   = ens_inOut%statevector_work%myVarLevEnd
- 
+
     if ( ens_inOut%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
       if (present(scaleFactorIn_opt)) then
@@ -574,7 +575,7 @@ CONTAINS
         scaleFactorInOut = 1.0d0
       end if
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -605,7 +606,7 @@ CONTAINS
         scaleFactorInOut_r4 = 1.0
       end if
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -655,10 +656,10 @@ CONTAINS
     lat2 = ens%statevector_work%myLatEnd
     k1   = ens%statevector_work%myVarLevBeg
     k2   = ens%statevector_work%myVarLevEnd
- 
+
     if ( ens%dataKind == 8 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -674,7 +675,7 @@ CONTAINS
 
     else if ( ens%dataKind == 4 ) then
 
-      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (varLevIndex,stepIndex,latIndex,lonIndex,memberIndex)
       do varLevIndex = k1, k2
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -1321,7 +1322,7 @@ CONTAINS
       write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
       call utl_abort('ens_insertMember: mpi distibution not compatible')
     end if
-    
+
     numStep = ens%statevector_work%numStep
 
     nullify(varNamesInEns)
@@ -1476,7 +1477,7 @@ CONTAINS
   subroutine ens_copyHeightSfcToGsv(ens,statevector)
     !
     !:Purpose: Copy the instance of sfc height from the stateVector into the
-    !          ens object to the stateVector 
+    !          ens object to the stateVector
     !
     implicit none
 
@@ -1487,7 +1488,7 @@ CONTAINS
     call gsv_copyHeightSfc(ens%statevector_work,statevector)
 
   end subroutine ens_copyHeightSfcToGsv
-  
+
   !--------------------------------------------------------------------------
   ! ens_varExist
   !--------------------------------------------------------------------------
@@ -1501,7 +1502,7 @@ CONTAINS
     type(struct_ens), intent(in) :: ens
     character(len=*), intent(in) :: varName
     ! Result:
-    logical                      :: varExist 
+    logical                      :: varExist
 
     varExist = gsv_varExist(ens%statevector_work, varName)
 
@@ -1547,7 +1548,7 @@ CONTAINS
     nlev = vco_getNumLev(ens%statevector_work%vco,varLevel,varName_opt)
 
   end function ens_getNumLev
-  
+
   !--------------------------------------------------------------------------
   ! ens_getNumMembers
   !--------------------------------------------------------------------------
@@ -1958,7 +1959,7 @@ CONTAINS
         call utl_abort('ens_computeStdDev: sub-ensemble approach not compatible with scale perturbations')
       end if
 
-      ! Compute the ensemble StdDev from previously scale ensemble perturbations 
+      ! Compute the ensemble StdDev from previously scale ensemble perturbations
       !  (i.e. pert = (fcst-mean)/(nEns-1) )
 
       !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex)
@@ -1966,7 +1967,7 @@ CONTAINS
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do stepIndex = 1, ens%statevector_work%numStep
-              
+
               ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) = 0.d0
 
               do memberIndex = 1, ens%numMembers
@@ -2020,12 +2021,12 @@ CONTAINS
                 ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) =      &
                      ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) + &
                      ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
-                     
+
               end do
 
               ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) =        &
                    sqrt( ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(1,stepIndex,lonIndex,latIndex) / dble(ens%numMembers) )
-              
+
             end do
           end do
         end do
@@ -2168,7 +2169,7 @@ CONTAINS
     do varLevIndex = k1, k2
       do memberIndex = 1, ens%numMembers
         do stepIndex = 1, numStep
-          
+
           ! Compute the domain mean
           globalMean = 0.d0
           do latIndex = lat1, lat2
@@ -2177,7 +2178,7 @@ CONTAINS
                    real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
             end do
           end do
-          
+
           call rpn_comm_allreduce(globalMean, globalMean_mpiglobal,1,&
                                   "mpi_double_precision","mpi_sum","GRID",ierr)
           globalMean_mpiglobal = globalMean_mpiglobal / &
@@ -2191,13 +2192,13 @@ CONTAINS
                    real(globalMean_mpiglobal,4)
             end do
           end do
-          
+
         end do
       end do
     end do
 
   end subroutine ens_removeGlobalMean
-  
+
   !--------------------------------------------------------------------------
   ! ens_recenter
   !--------------------------------------------------------------------------
@@ -2463,7 +2464,7 @@ CONTAINS
     allocate(readFilePE(numMembers*numStep))
     allocate(stepIndexFromMemberStep(numMembers*numStep))
     allocate(memberIndexFromMemberStep(numMembers*numStep))
-    
+
     do stepIndex = 1, numStep
       do memberIndex = 1, numMembers
         memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
@@ -2492,7 +2493,7 @@ CONTAINS
             end if
             ! If numMembers > nprocs, move to next batch
             if (numMembers > mmpi_nprocs) then
-              readFilePE(memberStepIndex) = 0              
+              readFilePE(memberStepIndex) = 0
               batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1) + 1
               lastReadFilePE = numMembers - 1
             end if
@@ -2570,7 +2571,7 @@ CONTAINS
       allocHeightSfc = .false.
       readHeightSfc  = .false.
     end if
-    
+
     ! More efficient handling of common case where input is on Z grid, analysis in on G grid
     if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
       if ( hco_file%ni == (hco_ens%ni+1) ) then
@@ -2618,10 +2619,10 @@ CONTAINS
     if (ens%statevector_work%heightSfcPresent) then
       call gsv_allocate(statevectorHeightSfc, 1, hco_ens, vco_ens,  &
                         mpi_local_opt=.false.,                      &
-                        varNames_opt=(/'P0'/), dataKind_opt=4,      & 
+                        varNames_opt=(/'P0'/), dataKind_opt=4,      &
                         allocHeightSfc_opt=.true.)
     end if
-    
+
     !
     !- 2.  Ensemble forecasts reading loop
     !
@@ -2639,7 +2640,7 @@ CONTAINS
     stepLoop: do stepIndex = 1, numStep
       write(*,*) ' '
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
-      
+
       memberLoop: do memberIndex = 1, numMembers
 
         memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
@@ -2666,6 +2667,7 @@ CONTAINS
                               hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
                               allocHeightSfc_opt= allocHeightSfc)
           end if
+
           call msg_memUsage('ens_readEnsemble')
 
           !  Read the file
@@ -2686,6 +2688,7 @@ CONTAINS
                               readHeightSfc_opt=readHeightSfc)
             call gio_fileUnitsToStateUnits(statevector_file_r4, containsFullField)
           end if
+          call msg_memUsage('ens_readEnsemble')
 
           ! Remove file from ram disk if no longer needed
           if ( all(readFilePE(memberStepIndex+1:numMembers*numStep) /= mmpi_myid) .or. &
@@ -2715,7 +2718,7 @@ CONTAINS
           else if (horizontalPaddingNeeded) then
             call gsv_hPad(statevector_file_r4, statevector_member_r4)
           end if
-          
+
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
             call gsv_getField(statevector_member_r4,ptr3d_r4)
@@ -2906,7 +2909,7 @@ CONTAINS
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     integer :: displs_height(mmpi_nprocs), nsizes_height(mmpi_nprocs)
     integer :: yourid, youridx, youridy, nsize, ierr
-    
+
     ! Scatter surface height (if it exists) from task 0 to all others, 1 tile per task.
     if (statevector_mpiGlobal%heightSfcPresent .and. statevector_tiles%heightSfcPresent) then
       allocate(gd_send_height(statevector_tiles%lonPerPEmax,statevector_tiles%latPerPEmax,mmpi_nprocs))
@@ -2989,7 +2992,7 @@ CONTAINS
     end if
 
   end subroutine scatterHeightSfc
-  
+
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
@@ -3082,7 +3085,7 @@ CONTAINS
     else
       writeNetCDF = .false.
     end if
-    
+
     if (present(writeHeightSfc_opt)) then
       writeHeightSfc = writeHeightSfc_opt
     else
@@ -3173,11 +3176,11 @@ CONTAINS
     if (writeHeightSfc) then
       call gsv_allocate(statevectorHeightSfc, 1, hco_ens, vco_ens,  &
                         mpi_local_opt=.false.,                      &
-                        varNames_opt=(/'P0'/), dataKind_opt=4,      & 
+                        varNames_opt=(/'P0'/), dataKind_opt=4,      &
                         allocHeightSfc_opt=.true.)
       call gsv_allocate(statevectorHeightSfc_tiles, 1, hco_ens, vco_ens,  &
                         mpi_local_opt=.true.,                             &
-                        varNames_opt=(/'P0'/), dataKind_opt=4,            & 
+                        varNames_opt=(/'P0'/), dataKind_opt=4,            &
                         allocHeightSfc_opt=.true.)
       call gsv_copyHeightSfc(ens%statevector_work,statevectorHeightSfc_tiles)
       call gsv_transposeTilesToMpiGlobal(statevectorHeightSfc,statevectorHeightSfc_Tiles)
@@ -3196,7 +3199,7 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,                    &
                         dateStampList_opt=dateStampList(stepIndex:stepIndex), mpi_local_opt=.false., &
-                        varNames_opt=varNamesInEns, dataKind_opt=4,                    & 
+                        varNames_opt=varNamesInEns, dataKind_opt=4,                    &
                         allocHeightSfc_opt=writeHeightSfc)
 
       ! copy over some time related parameters
@@ -3482,7 +3485,7 @@ CONTAINS
     call ens_getLatLonBounds(ensIncrement, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     do varLevIndex = 1, numVarLev
       increment_ptr => ens_getOneLev_r4(ensIncrement,varLevIndex)
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex,memberIndex)    
+      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex,memberIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, tim_nstepobsinc

@@ -133,9 +133,11 @@ contains
     joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
-    joSSTInstrument(:) = 0.0d0
-    nobsInstrumentGlob(:) = 0
-    nobsInstrument(:) = 0
+    if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
+      joSSTInstrument(:) = 0.0d0
+      nobsInstrumentGlob(:) = 0
+      nobsInstrument(:) = 0
+    end if
 
     pjo = 0.0d0
 

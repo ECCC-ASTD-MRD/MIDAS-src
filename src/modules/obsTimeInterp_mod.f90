@@ -12,11 +12,11 @@ module obsTimeInterp_mod
   use timecoord_mod
   use obsSpaceData_mod
   use obsFamilyList_mod
-  
+
   implicit none
   save
   private
-  
+
   ! Public derived type
   public :: struct_oti
 
@@ -69,7 +69,7 @@ contains
       if (stepObsIndex > 0.0d0) then
         stepIndex = nint(stepObsIndex)
         bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1          
+        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
         do familyIndex = 1, ofl_numFamily
           if (obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex) == ofl_familyList(familyIndex)) then
             my_inumheader(familyIndex,stepIndex) = my_inumheader(familyIndex,stepIndex)+1
@@ -128,11 +128,11 @@ contains
     nsize = size(inumheader)
     call rpn_comm_allreduce(my_inumheader, inumheader, nsize, &
          "mpi_integer", "mpi_sum", "GRID", ierr)
-    deallocate(my_inumheader) 
+    deallocate(my_inumheader)
     nsize = size(idataass)
     call rpn_comm_allreduce(my_idataass, idataass, nsize, &
          "mpi_integer", "mpi_sum", "GRID", ierr)
-    deallocate(my_idataass) 
+    deallocate(my_idataass)
     if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'
       write(*,*) 'Distribution of number of headers over stepobs ON ALL PROCESSORS'
@@ -177,7 +177,7 @@ contains
     integer             :: headerIndex
     real(8)             :: stepObsIndex
     integer, save       :: numWrites = 0
-    
+
     if ( associated(oti) ) then
       call utl_abort('oti_setup: the supplied oti pointer is not null!')
     endif
@@ -210,7 +210,7 @@ contains
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                                obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
                                obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
-      
+
       ! leave all weights zero if obs time is out of range, otherwise set weights
       if (.not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1)) then
         numWrites = numWrites + 1
@@ -220,18 +220,18 @@ contains
                                                obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
                                                obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
                                                obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-                                               obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)  
+                                               obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
       else if (tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1)) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
-          write(*,'(a,2i8,2a,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
+          write(*,'(a,i8,a2,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
                                       obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
                                       obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
                                       obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-                                      obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)  
+                                      obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
@@ -312,7 +312,7 @@ contains
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
-               numHeaderMax, numStep, mmpi_nprocs 
+               numHeaderMax, numStep, mmpi_nprocs
     allocate(oti%timeInterpWeightMpiGlobal(numHeaderMax,numStep,mmpi_nprocs))
 
     ! copy over timeInterpWeight into a local array with same size for all mpi tasks
@@ -320,7 +320,7 @@ contains
     timeInterpWeightMax(:,:) = 0.0d0
     timeInterpWeightMax(1:numHeader,1:numStep) = oti%timeInterpWeight(:,1:numStep)
 
-    nsize = numHeaderMax * numStep 
+    nsize = numHeaderMax * numStep
     call rpn_comm_allgather(timeInterpWeightMax,           nsize, 'MPI_REAL8',  &
                             oti%timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
                             'GRID', ierr)
@@ -366,7 +366,7 @@ contains
   function oti_getTimeInterpWeightMpiGlobal( oti, headerIndex, stepObs, procIndex ) result(weight_out)
     !
     implicit none
-  
+
     ! Arguments:
     type(struct_oti), pointer, intent(inout) :: oti
     integer,                   intent(in)    :: headerIndex

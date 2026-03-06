@@ -17,7 +17,7 @@ module bgckCSR_mod
 
   ! Public functions/subroutines
   public :: csrbg_bgCheckCSR
-  
+
   real, parameter :: csrbg_realMissing=-99.
   real, parameter :: csrbg_ompThreshold = 4.2
   integer, parameter :: maxNumsat  = 20     ! nb max de satellites
@@ -50,13 +50,13 @@ contains
     call utl_tmg_stop(181)
 
   end subroutine csrbg_init
-  
+
   !----------------------------------------------------------------------------------------
   ! csrbg_bgCheckCSR
   !----------------------------------------------------------------------------------------
   subroutine csrbg_bgCheckCSR (obsSpaceData)
     !
-    !: Purpose: Effectuer le controle que qualite sur les donnees CSR.  
+    !: Purpose: Effectuer le controle que qualite sur les donnees CSR.
     !           Modifier les marqueurs de donnees selon le type de rejet.
     !
     implicit none
@@ -70,7 +70,7 @@ contains
     real   , allocatable  :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
     integer, allocatable  :: obsFlags(:)         ! data flags
     integer, allocatable  :: cloudAmount(:)      ! data flags
-    integer, allocatable  :: obsChannels(:)      ! Tb Channels 
+    integer, allocatable  :: obsChannels(:)      ! Tb Channels
     integer, allocatable  :: obsDate(:)          ! date YYYYMMDD
     integer, allocatable  :: obsHour(:)          ! Hour HHMM
     integer               :: sensorIndex         ! find tvs_sensor index corresponding to current obs
@@ -84,9 +84,9 @@ contains
     logical, allocatable  :: strayLight(:)       !
     logical, allocatable  :: goesMidi(:)         ! goes noon
     logical, allocatable  :: isToAssim(:)        ! is channel assimilable
-    logical, allocatable  :: ompOutOfRange(:)        
-    integer               :: categorieRejet(7)        
-    integer               :: headerIndex 
+    logical, allocatable  :: ompOutOfRange(:)
+    integer               :: categorieRejet(7)
+    integer               :: headerIndex
     integer               :: codtyp
     logical               :: csrDataPresent
 
@@ -115,7 +115,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( .not. tvs_isIdBurpInst(codtyp,'radianceclear') ) then 
+      if ( .not. tvs_isIdBurpInst(codtyp,'radianceclear') ) then
         write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not a CSR data'
         cycle HEADER
       end if
@@ -127,7 +127,7 @@ contains
       call csrbg_readObsFromObsSpace(obsSpaceData, headerIndex, obsTb, ompTb, satZenithAngle, obsFlags, cloudAmount, &
                                      obsChannels, sensorIndex, obsDate, obsHour, burpFileSatId, &
                                      maxAngleReached, topographicData, nonCorrectedData, isTbPresent, &
-                                     isClearSky, strayLight, goesMidi, isToAssim, ompOutOfRange) 
+                                     isClearSky, strayLight, goesMidi, isToAssim, ompOutOfRange)
 
       !###############################################################################
       ! STEP 2) Controle de qualite des CSR. Data QC flags (obsFlags) are modified here!
@@ -143,7 +143,7 @@ contains
 
       call csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, headerIndex, sensorIndex)
 
-    end do HEADER 
+    end do HEADER
     write(*,*) "Nombre de donnees rejetees"
     write(*,*) "Attention, une donnee peut etre rejetee pour plusieurs raisons"
     write(*,*) "Maxangle, straylight ou goesmid    " , categorieRejet(1)
@@ -179,7 +179,7 @@ contains
     real   , allocatable, intent(out)   :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
     integer, allocatable, intent(out)   :: obsFlags(:)         ! data flags
     integer, allocatable, intent(out)   :: cloudAmount(:)      ! data flags
-    integer, allocatable, intent(out)   :: obsChannels(:)      ! Tb Channels 
+    integer, allocatable, intent(out)   :: obsChannels(:)      ! Tb Channels
     integer, allocatable, intent(out)   :: obsDate(:)          ! date YYYYMMDD
     integer, allocatable, intent(out)   :: obsHour(:)          ! Hour HHMM
     integer,              intent(out)   :: sensorIndex         ! find tvs_sensor index corresponding to current obs
@@ -193,8 +193,8 @@ contains
     logical, allocatable, intent(out)   :: strayLight(:)       !
     logical, allocatable, intent(out)   :: goesMidi(:)         ! goes noon
     logical, allocatable, intent(out)   :: isToAssim(:)        ! is channel assimilable
-    logical, allocatable, intent(out)   :: ompOutOfRange(:)    ! 
-  
+    logical, allocatable, intent(out)   :: ompOutOfRange(:)    !
+
     ! Locals:
     integer                              :: bodyIndex
     integer                              :: bodyIndexbeg
@@ -234,7 +234,7 @@ contains
         exit
       end if
     end do
-    
+
     if ( .not. sensorIndexFound ) call utl_abort('csrbg_readObsFromObsSpace: sensor Index not found')
 
     ! find actual Number of channels
@@ -272,7 +272,7 @@ contains
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - & 
+      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - &
                              tvs_channelOffset(sensorIndex)
       obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
       ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
@@ -286,13 +286,13 @@ contains
     end do
 
 
-    ! Get index for satCloudCoverLimit for current current sat  
+    ! Get index for satCloudCoverLimit for current current sat
     indexSatFound = .false.
     do indexSat = 1, maxNumSat
       if (trim(burpSatName(indexSat)) == trim(burpFileSatId)) then
         indexSatFound = .true.
         exit
-      end if 
+      end if
     end do
     if ( .not. indexSatFound ) call utl_abort('csrbg_readObsFromObsSpace: Cloud Cover Limit Not' // &
                                               'Found for ' // trim(burpFileSatId))
@@ -306,17 +306,17 @@ contains
     call utl_reAllocate(isClearSky, numObsToProcess*actualNumChannel)
     call utl_reAllocate(ompOutOfRange, numObsToProcess*actualNumChannel)
     call utl_reAllocate(isToAssim, numObsToProcess*actualNumChannel)
-    
+
     isTbPresent(:) = .false.
     isClearSky(:) = .false.
     nonCorrectedData = .false.
-    
+
     do channelIndex=1, numObsToProcess*actualNumChannel
       if (obsTb(channelIndex) /= csrbg_realMissing) isTbPresent(channelIndex) = .true.
-      if (cloudAmount(channelIndex) /= csrbg_realMissing .and. & 
+      if (cloudAmount(channelIndex) /= csrbg_realMissing .and. &
           cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
         isClearSky(channelIndex) = .true.
-      end if 
+      end if
       if (.not. btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = .true.
     end do
 
@@ -338,13 +338,13 @@ contains
       errorThreshold = oer_toverrst(obsChannels(channelIndex), sensorIndex)*csrbg_ompThreshold
       if (abs(ompTb(channelIndex)) > errorThreshold) ompOutOfRange(channelIndex) = .true.
     end do
-    
+
     strayLight(:) = .false.
     goesMidi(:) = .false.
     do  dataIndex = 1, numObsToProcess
       mois  = (obsDate(dataIndex)/100) - (obsDate(dataIndex)/10000)*100
       jour  = (obsDate(dataIndex)/100) -  (obsDate(dataIndex)/100)*100
-      heure = obsHour(dataIndex)/100 
+      heure = obsHour(dataIndex)/100
       if (burpFileSatId == '^METSAT7') then
         if ( heure == 21 ) straylight(dataIndex) = .true.
         if ( (heure == 20) .or. (heure == 22) ) then
@@ -357,9 +357,9 @@ contains
       if (burpFileSatId == '^GOES11' .or.  burpFileSatId == '^GOES15' .or. &
           burpFileSatId == '^GOES13' .or.  burpFileSatId == '^GOES14') then
         if ( (heure == (midnight - 1)) .or. (heure == midnight) ) goesMidi(dataIndex) = .true.
-      end if 
+      end if
     end do
-    
+
   end subroutine csrbg_readObsFromObsSpace
 
   !--------------------------------------------------------------------------
@@ -384,7 +384,7 @@ contains
     logical, intent(in)    :: strayLight(:)       !
     logical, intent(in)    :: goesMidi(:)         ! goes noon
     logical, intent(in)    :: isToAssim(:)        ! is channel assimilable
-    logical, intent(in)    :: ompOutOfRange(:)    ! abs of omp greater than threshold 
+    logical, intent(in)    :: ompOutOfRange(:)    ! abs of omp greater than threshold
 
     ! Locals:
     integer   :: currentChannelNumber
@@ -405,28 +405,28 @@ contains
         if (maxAngleReached(dataIndex) .or. &
             strayLight(dataIndex)      .or. &
             goesMidi(dataIndex) ) then
-          obsFlags(numData) = ibset(obsFlags(numData),7) 
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
+          obsFlags(numData) = ibset(obsFlags(numData),7)
+          obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(1) =  categorieRejet(1) + 1
         end if
 
         !Topo : bit 9 et 18 sont déjà là provenant du EnVar
         if (topographicData(dataIndex)) then
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
-          obsFlags(numData) = ibset(obsFlags(numData),18) 
+          obsFlags(numData) = ibset(obsFlags(numData),9)
+          obsFlags(numData) = ibset(obsFlags(numData),18)
           categorieRejet(2) =  categorieRejet(2) + 1
-        end if 
+        end if
 
         !Pas corrige : bit 11
         if (nonCorrectedData(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),11) 
+          obsFlags(numData) = ibset(obsFlags(numData),11)
           categorieRejet(3) =  categorieRejet(3) + 1
-        end if 
+        end if
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
         if (.not. isTbPresent(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),7) 
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
+          obsFlags(numData) = ibset(obsFlags(numData),7)
+          obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
@@ -441,16 +441,16 @@ contains
         if (.not. isToAssim(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),11)
           categorieRejet(6) =  categorieRejet(6) + 1
-        end if 
+        end if
 
         !Clearsky : Bit 7 & Bit 9
-        if (.not.isClearSky(numData)) then
+        if (.not. isClearSky(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),7)
           obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(7) =  categorieRejet(7) + 1
-        end if  
+        end if
       end do
-    end do    
+    end do
 
   end subroutine csrbg_csrCheckQc
 
@@ -466,8 +466,8 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
     integer,          intent(in)    :: obsFlags(:)            ! data flags
-    integer,          intent(in)    :: sensorIndex            ! sensor Index 
-    integer,          intent(in)    :: headerIndex            ! sensor Index 
+    integer,          intent(in)    :: sensorIndex            ! sensor Index
+    integer,          intent(in)    :: headerIndex            ! sensor Index
 
     ! Locals:
     integer                         :: bodyIndex

@@ -146,7 +146,6 @@ contains
     end if
 
     Vcode = vco_getVcode(gsv_getVco(statevector))
-
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_*')) then
@@ -193,13 +192,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
-    integer                   :: Vcode
+    integer :: Vcode
 
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 
@@ -260,13 +257,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
-    integer                   :: Vcode
+    integer :: Vcode
 
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 
@@ -3205,7 +3200,7 @@ contains
     character(len=*), optional, intent(in)    :: heightType_opt ! Altitude or Geopotential height (used for vcode2100x only)
 
     ! Locals:
-    integer :: vcode
+    integer :: Vcode
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
@@ -3218,7 +3213,6 @@ contains
       call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
       call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M, heightType_opt)
-
     end if
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'END', verb_opt=2)

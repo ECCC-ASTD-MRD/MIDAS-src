@@ -9,6 +9,7 @@ module utilities_mod
   use randomNumber_mod
   use netcdf
   use mathPhysConstants_mod
+  use omp_lib
 
   implicit none
   save
@@ -312,7 +313,7 @@ contains
 
   function utl_fstecr(fld8, npak, iun, dateo, deet, &
                       npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
-                      nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
+                      nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
                       datyp, rewrit) result(vfstecr)
     implicit none
 
@@ -334,11 +335,11 @@ contains
     integer,          intent(in) :: deet
     integer,          intent(in) :: npas
     integer,          intent(in) :: datyp
-    logical,          intent(in) :: rewrit  
-    character(len=*), intent(in) :: etiket 
+    logical,          intent(in) :: rewrit
+    character(len=*), intent(in) :: etiket
     character(len=*), intent(in) :: typvar
-    character(len=*), intent(in) :: grtyp 
-    character(len=*), intent(in) :: nomvar            
+    character(len=*), intent(in) :: grtyp
+    character(len=*), intent(in) :: nomvar
     ! Result:
     integer :: vfstecr
 
@@ -359,7 +360,7 @@ contains
     end do
 
     ikey = fstecr(buffer4, work, npak, iun, dateo, deet, &
-         npas, ni, nj, nk, ip1, ip2, ip3, typvar, nomvar, & 
+         npas, ni, nj, nk, ip1, ip2, ip3, typvar, nomvar, &
          etiket, grtyp, ig1, ig2, ig3, ig4, datyp, rewrit)
 
     deallocate(buffer4)
@@ -533,7 +534,7 @@ contains
         multFactor = 10.0 ! dam -> m
       else
         multFactor = real(1.0d0 / 10.0d0,4) ! m -> dam
-      end if 
+      end if
     case ('TO3','O3L')
       if (trim(direction) == 'fromFSTfile' ) then
         multFactor = 1.0E9 * mpc_molar_mass_O3_r4 / &
@@ -544,10 +545,10 @@ contains
       end if
     case default
       multFactor = 1.0
-    end select 
-    
+    end select
+
   end function utl_unitConvMultFactor_r4
-  
+
   !--------------------------------------------------------------------------
   ! utl_unitConvMultFactor_r8
   !--------------------------------------------------------------------------
@@ -599,11 +600,11 @@ contains
     case default
       multFactor = 1.d0
     end select
- 
+
   end function utl_unitConvMultFactor_r8
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
-    ! 
+    !
     !:Purpose: Calculate square root of an error covariance matrix
     !
     implicit none
@@ -618,7 +619,7 @@ contains
     real(8), allocatable :: eigenValues(:)
     real(8), allocatable :: work(:)
     real(8), allocatable :: eigenVectors(:,:)
-    integer :: sizework, info, index, index1, index2 
+    integer :: sizework, info, index, index1, index2
     logical :: printInformation
 
     if (present(printInformation_opt)) then
@@ -683,7 +684,7 @@ contains
     deallocate(eigenVectors)
     deallocate(eigenValues)
     deallocate(work)
-    
+
     if (printInformation) then
       write(*,*)
       write(*,*) 'utl_matsqrt: Ending...'
@@ -697,7 +698,7 @@ contains
   subroutine utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt, &
                             eigenValueRelThreshold_opt)
     !
-    !:Purpose: Calculate the inverse of a covariance matrix 
+    !:Purpose: Calculate the inverse of a covariance matrix
     !          and, optionally, also the inverse square-root.
     !
     implicit none
@@ -705,10 +706,10 @@ contains
     ! Arguments:
     integer,           intent(in)    :: rank                 ! order of the matrix
     real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
+    real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit
     real(8), optional, intent(in)    :: eigenValueRelThreshold_opt
     logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
-    
+
     ! Locals:
     integer :: index1, index2, info, sizework
     real(8) :: sizework_r8, eigenValueMin
@@ -766,7 +767,7 @@ contains
     else
       eigenValueMin = 1.0d-10
     end if
-    
+
     do index1=1,rank
       if(eigenValues(index1) > eigenValueMin) then
         eigenValues(index1)= 1.0d0/eigenValues(index1)
@@ -945,7 +946,7 @@ contains
     !:Purpose: for fast computation of matrix inverse using LU decomposition
     !
     implicit none
-    
+
     ! Arguments:
     real(8),           intent(in)  :: inputMatrix(:,:)   ! Input Matrix
     real(8),           intent(out) :: inverse(:,:)       ! its inverse
@@ -954,13 +955,13 @@ contains
     integer :: info, lwork, lineDim, columnDim
     real(8), allocatable :: work(:)
     integer, allocatable :: pivot(:)
-    
+
     lineDim = size(inputMatrix, dim=1)
     columnDim = size(inputMatrix, dim=2)
     if (lineDim /= columnDim) then
       call utl_abort('utl_fastInverse: the input matrix should be square !')
     end if
-    
+
     inverse(1:lineDim,1:columnDim) = inputMatrix(:,:)
 
     allocate(pivot(lineDim))
@@ -986,10 +987,10 @@ contains
 
     deallocate(work)
     deallocate(pivot)
-     
+
   end subroutine utl_fastInverse
 
-  
+
   !-----------------------------------------
   ! utl_pseudo_inverse
   !-----------------------------------------
@@ -1002,7 +1003,7 @@ contains
     ! Arguments:
     real(8),           intent(in)  :: inputMatrix(:,:)   ! Input Matrix
     real(8),           intent(out) :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
-    real(8), optional, intent(in)  :: threshold_opt 
+    real(8), optional, intent(in)  :: threshold_opt
 
     ! Locals:
     real(8), allocatable :: copyMatrix(:,:), leftSingularVector(:,:), rightSingularVectorT(:,:)
@@ -1024,8 +1025,8 @@ contains
     lwork = max(10000, max(1, 3 * min(lineDim,columnDim) + max(lineDim,columnDim), 5 * minDim ))
     allocate(work(lwork))
     call dgesvd("A", "A", lineDim, columnDim, copyMatrix, lineDim, singularValues, &
-         leftSingularVector, lineDim, rightSingularVectorT, columnDim, work, lwork, info ) 
-   
+         leftSingularVector, lineDim, rightSingularVectorT, columnDim, work, lwork, info )
+
     if (info /= 0) then
       write(errorMessage,*) "utl_pseudo_inverse: Problem in DGESVD ! ",info
       call utl_abort(errorMessage)
@@ -1094,7 +1095,7 @@ contains
     real(8), save :: startTime = -1.0d0
     real(8), save :: accumulatedStart = -1.0d0
     real(8), save :: previousTime = -1.0d0
-    real(8)       :: currentTime, omp_get_wtime
+    real(8)       :: currentTime
     logical, save :: firstCall = .true.
     logical       :: reset
     character(len=8)  :: dateString
@@ -1184,7 +1185,7 @@ contains
     integer :: iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4
     integer :: inpas,inpas2, iswa, iubc, iip2, iip3
     integer :: ipmode,idate2,idate3,idatefull
-    integer :: k,ier1 
+    integer :: k,ier1
     real(4) :: zlev_r4
     character(len=12) :: cletiket
     character(len=4) :: clnomvar
@@ -1228,10 +1229,10 @@ contains
           iig3 = -9999
           iig4 = -9999
           llflag = .true.
-          koutmpg = kinmpg(k) 
-          exit 
+          koutmpg = kinmpg(k)
+          exit
        end if
-    end do ! End of loop k   
+    end do ! End of loop k
     !
     if (knlev.gt.0) then
        do jlev = 1, knlev
@@ -1316,7 +1317,7 @@ contains
 
     ! Locals:
     integer :: comm, ierr, rpn_comm_comm
-    
+
     write(6,9000) message
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
     flush(6)
@@ -1357,8 +1358,8 @@ contains
   end subroutine utl_stopAndWait4Debug
 
   subroutine utl_open_asciifile(filename,unit)
-    ! 
-    !:Purpose: Opens an ascii file for output 
+    !
+    !:Purpose: Opens an ascii file for output
     !
     implicit none
 
@@ -1370,9 +1371,9 @@ contains
     logical :: file_exists
     integer :: ier
     character(len=20) :: mode
-    
+
     inquire(file=trim(filename), exist=file_exists)
-    
+
     if (file_exists) then
        mode = 'FTN+APPEND+R/W'
     else
@@ -1380,7 +1381,7 @@ contains
     end if
 
     unit=0
-    
+
     ier = utl_open_file(unit,trim(filename),trim(mode))
 
     if (ier.ne.0) call utl_abort('utl_open_messagefile: Error associating unit number')
@@ -1389,9 +1390,9 @@ contains
 
 
   function utl_open_file(unit,filename,mode) result(ier)
-    ! 
+    !
     !:Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
-    !          a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
+    !          a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.
     !
     implicit none
 
@@ -1411,7 +1412,7 @@ contains
     else
        position = 'ASIS'
     end if
-    
+
     if (index(mode,'R/W').gt.0) then
        action = 'READWRITE'
     else
@@ -1419,22 +1420,22 @@ contains
     end if
 
     ier = fnom(unit,filename,mode,0)
-    
+
     close(unit=unit)
     open(unit=unit, file=filename, position=position, action=action)
 
   end function utl_open_file
-    
+
 
   function utl_stnid_equal(id1,id2) result(same)
     !
-    !:Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
+    !:Purpose: Compares STNID values allowing for * as wildcards and trailing blanks
     !
     !:Arguments:
     !           :id1: reference stnid
     !           :id2: stnid being verified
     !           :same: logical indicating if id1 and id2 match
-    !     
+    !
     implicit none
 
     ! Arguments:
@@ -1448,15 +1449,15 @@ contains
 
     same=.true.
     ilen1=len_trim(id1)
-    ilen2=len_trim(id2)  
-              
+    ilen2=len_trim(id2)
+
     do ji=1,min(ilen1,ilen2)
        if ( id1(ji:ji).ne.'*' .and. id2(ji:ji).ne.'*' .and. id2(ji:ji).ne.id1(ji:ji) ) then
           same = .false.
           exit
        end if
     end do
-    
+
     if (same.and.ilen1.gt.ilen2) then
        do ji=ilen2+1,ilen1
           if (id1(ji:ji).ne.'*') then
@@ -1472,24 +1473,24 @@ contains
           end if
        end do
     end if
-        
+
   end function utl_stnid_equal
- 
+
 
   character(len=20) function utl_int2str(i)
     !
-    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
     !
     implicit none
 
     ! Arguments:
     integer, intent(in) :: i
-    
+
     write(utl_int2str,*) i
     utl_int2str = adjustl(utl_int2str)
-    
+
   end function utl_int2str
-            
+
 
   character(len=20) function utl_float2str(x)
     !
@@ -1527,11 +1528,11 @@ contains
     tmp(1:d1) = arr(1:d1)
 
     if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0.0D0
-    
+
     deallocate(arr)
 
     arr => tmp
-    
+
     nullify(tmp)
 
   end subroutine utl_resize_1d_real
@@ -1539,7 +1540,7 @@ contains
 
   subroutine utl_resize_1d_int(arr,dim1)
     !
-    !:Purpose: Resize 1D array 
+    !:Purpose: Resize 1D array
     !
     implicit none
 
@@ -1558,16 +1559,16 @@ contains
     tmp(1:d1) = arr(1:d1)
 
     if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0
-    
+
     deallocate(arr)
 
     arr => tmp
-    
+
     nullify(tmp)
 
   end subroutine utl_resize_1d_int
 
- 
+
   subroutine utl_resize_1d_str(arr,dim1)
     !
     !:Purpose: Resize 1D array
@@ -1589,7 +1590,7 @@ contains
     tmp(1:d1) = arr(1:d1)
 
     if (dim1.gt.dim1_in) tmp(d1+1:dim1) = ""
-    
+
     deallocate(arr)
     arr => tmp
     nullify(tmp)
@@ -1622,11 +1623,11 @@ contains
 
     if (dim1.gt.dim1_in) tmp(d1+1:dim1,:) = 0.0D0
     if (dim2.gt.dim2_in) tmp(:,d2+1:dim2) = 0.0D0
-      
+
     deallocate(arr)
 
     arr => tmp
-    
+
     nullify(tmp)
 
   end subroutine utl_resize_2d_real
@@ -1661,11 +1662,11 @@ contains
     if (dim1.gt.dim1_in) tmp(d1+1:dim1,:,:) = 0.0D0
     if (dim2.gt.dim2_in) tmp(:,d2+1:dim2,:) = 0.0D0
     if (dim3.gt.dim3_in) tmp(:,:,d3+1:dim3) = 0.0D0
-    
+
     deallocate(arr)
 
     arr => tmp
-    
+
     nullify(tmp)
 
   end subroutine utl_resize_3d_real
@@ -1673,7 +1674,7 @@ contains
 
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
     !
-    !:Purpose: Get element ID from a list of accumulating character strings (e.g. stnids). 
+    !:Purpose: Get element ID from a list of accumulating character strings (e.g. stnids).
     !          Called by filt_topoChm in filterobs_mod.ftn90
     !
     implicit none
@@ -1689,13 +1690,13 @@ contains
     ! Locals:
     integer :: i
     character(len=120) :: cstring
-    
+
     elemId=0
     if (NListSize.gt.Nmax-1) then
        write(*,*) 'utl_get_stringId: NListSize > Nmax-1 (', NListSize, '>', Nmax-1, ')'
-       call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')     
+       call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
-       if (nobslev.eq.1) then 
+       if (nobslev.eq.1) then
           cstring=trim(cstringin)//'U'
           do i=1,NListSize
              if (trim(cstring).eq.trim(CList(i))) then
@@ -1703,8 +1704,8 @@ contains
                  exit
              end if
           end do
-       else 
-          cstring=trim(cstringin)       
+       else
+          cstring=trim(cstringin)
           do i=1,NListSize
              if (trim(cstring).eq.trim(CList(i))) then
                  elemId=i
@@ -1712,7 +1713,7 @@ contains
              end if
           end do
        end if
-       
+
        if (elemId.eq.0) then
           do i=1,NListSize
              if (utl_stnid_equal(trim(CList(i)),trim(cstring))) then
@@ -1732,7 +1733,7 @@ contains
            CList(NListSize)=trim(cstringin)
         end if
     end if
-    
+
   end subroutine utl_get_stringId
 
 
@@ -1751,10 +1752,10 @@ contains
 
     ! Locals:
     integer :: i
-    
+
     elemId=0
     if (NListSize.gt.Nmax-1) then
-       call utl_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')     
+       call utl_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
        do i=1,NListSize
           if (id.eq.IdList(i)) then
@@ -1769,10 +1770,10 @@ contains
         elemId=NListSize
         IdList(NListSize)=id
     end if
-    
-    
+
+
   end subroutine utl_get_Id
-  
+
 
   subroutine utl_readFstField( fname, varName, iip1, iip2, iip3, etiketi, &
                                ni, nj, nkeys, array, xlat_opt, xlong_opt, lvls_opt, kind_opt )
@@ -2472,7 +2473,7 @@ contains
     !
     !:Purpose: Sort a real 2D array in ascending order according
     !          to the first column
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -2487,9 +2488,9 @@ contains
     ileft  = nsize/2+1
     iright = nsize
 
-    if (nsize == 1) return                  
+    if (nsize == 1) return
 
-    do 
+    do
       if(ileft > 1)then
         ileft = ileft-1
         values(:) = array(ileft,:)
@@ -2504,7 +2505,7 @@ contains
       end if
       i = ileft
       j = 2*ileft
-      do while (j <= iright) 
+      do while (j <= iright)
         if (j < iright) then
           if (array(j,1) < array(j+1,1)) j = j+1
         endif
@@ -2606,7 +2607,7 @@ contains
     write(*,*) 'utl_splitString: stringArraySize = ', stringArraySize
     write(*,*) 'utl_splitString: stringArray     = ', &
                (trim(stringArray(stringIndex))//' ', stringIndex=1,stringArraySize)
-    
+
   end subroutine utl_splitString
 
 
@@ -2643,7 +2644,7 @@ contains
 
     write(*,*) 'utl_combineString: stringCountTotal = ', stringCountTotal
     write(*,*) 'utl_combineString: string     = ', trim(string)
-    
+
   end subroutine utl_combineString
 
 
@@ -2682,7 +2683,7 @@ contains
     write(*,*) 'utl_removeEmptyStrings: stringCountTotal = ', stringCountTotal
     write(*,*) 'utl_removeEmptyStrings: stringArray      = ', &
                (trim(stringArray(stringIndex))//' ', stringIndex = 1, size(stringArray))
-    
+
   end subroutine utl_removeEmptyStrings
 
 
@@ -2714,7 +2715,7 @@ contains
   function utl_isNamelistPresent(namelistSectionName, namelistFileName) result(found)
     !
     !:Purpose: To find if a namelist name tag is present in a namelist file
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -2764,7 +2765,7 @@ contains
 
         read (line,*) word ! read first word of line
         ierr = clib_toUpper(word)
-        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive
           ! found search string at beginning of line
           found = .true.
           exit
@@ -2787,7 +2788,7 @@ contains
         if (trim(line) == "") cycle namelistLoop2 ! skip empty lines
         read (line,*) word          ! read first word of line
         ierr = clib_toUpper(word)
-        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive
           ! found search string at beginning of line
           found = .true.
           exit namelistLoop2
@@ -2808,7 +2809,7 @@ contains
     !
     !:Purpose: To return column values in array of strings and
     !          the number of space-delimited columns in a string
-    ! 
+    !
     implicit none
 
     ! Arguments:
@@ -2822,10 +2823,10 @@ contains
     linePosition = 1
     lineLength = len_trim(line)
     numColumns = 0
-    
+
     do while(linePosition <= lineLength)
 
-      do while(line(linePosition:linePosition) == ' ') 
+      do while(line(linePosition:linePosition) == ' ')
         linePosition = linePosition + 1
         if (lineLength < linePosition) return
       end do
@@ -2847,7 +2848,7 @@ contains
       end do
 
     end do
-    
+
   end subroutine utl_parseColumns
 
   !--------------------------------------------------------------------------
@@ -2913,21 +2914,21 @@ contains
          action='WRITE', access='STREAM', position=position)
 
     numChar = 0
-    do 
+    do
       read(unitin,iostat=ierr) bufferMB
       if (ierr < 0) exit
       numChar = numChar + bufferSizeMB
       write(unitout) bufferMB
     end do
 
-    do 
+    do
       read(unitin,iostat=ierr,pos=numChar+1) bufferKB
       if (ierr < 0) exit
       numChar = numChar + bufferSizeKB
       write(unitout) bufferKB
     end do
 
-    do 
+    do
       read(unitin,iostat=ierr,pos=numChar+1) bufferB
       if (ierr < 0) exit
       numChar = numChar + 1
@@ -2977,7 +2978,7 @@ contains
     call rpn_comm_allReduce(localValue, globalValue, 1, 'mpi_integer', &
                             'mpi_sum', 'grid', ierr)
     localGlobalValue = globalValue
-    
+
   end subroutine utl_allReduce
 
   !--------------------------------------------------------------------------
@@ -3019,7 +3020,7 @@ contains
     ! give warning if more than 1 found
     if (numFound > 1) then
       write(*,*) 'utl_findloc_logical: found multiple locations of ', value
-      write(*,*) 'utl_findloc_logical: number locations found =  ', numFound    
+      write(*,*) 'utl_findloc_logical: number locations found =  ', numFound
     end if
 
     ! return zero if not found
@@ -3061,7 +3062,7 @@ contains
     ! give warning if more than 1 found
     if (numFound > 1) then
       write(*,*) 'utl_findloc_char: found multiple locations of ', trim(value)
-      write(*,*) 'utl_findloc_char: number locations found =  ', numFound    
+      write(*,*) 'utl_findloc_char: number locations found =  ', numFound
     end if
 
     ! return zero if not found
@@ -3103,7 +3104,7 @@ contains
     ! give warning if more than 1 found
     if (numFound > 1) then
       write(*,*) 'utl_findloc_int: found multiple locations of ', value
-      write(*,*) 'utl_findloc_int: number locations found =  ', numFound    
+      write(*,*) 'utl_findloc_int: number locations found =  ', numFound
     end if
 
     ! return zero if not found
@@ -3265,7 +3266,7 @@ contains
     character(len=*), intent(in) :: blockLabel
 
     ! Locals:
-    integer            :: labelLength, omp_get_thread_num
+    integer            :: labelLength
     integer, parameter :: labelPaddedLength = 40
     character(len=labelPaddedLength) :: blockLabelPadded
 
@@ -3279,7 +3280,7 @@ contains
     call tmg_start(blockIndex, blockLabelPadded)
 
   end subroutine utl_tmg_start
-  
+
   !--------------------------------------------------------------------------
   ! utl_tmg_stop
   !--------------------------------------------------------------------------
@@ -3292,25 +3293,22 @@ contains
     ! Arguments:
     integer,          intent(in) :: blockIndex
 
-    ! Locals:
-    integer            :: omp_get_thread_num
-
     ! only the first thread does the timing
     if (omp_get_thread_num() > 0) return
 
     call tmg_stop(blockIndex)
 
-  end subroutine utl_tmg_stop  
-  
+  end subroutine utl_tmg_stop
+
   !--------------------------------------------------------------------------
   ! utl_medianIndex
   !--------------------------------------------------------------------------
   function utl_medianIndex(inputVector) result(medianIndex)
-    ! 
+    !
     !:Purpose: to find the median index of an input vector
     !
     implicit none
-    
+
     ! Arguments:
     real(4), intent(in) :: inputVector(:)
     ! Result:
@@ -3326,11 +3324,11 @@ contains
 
     ! sorting array:
     maskVector(:) = .true.
-    do vectorIndex = 1, vectorDim 
+    do vectorIndex = 1, vectorDim
       sortedArray(vectorIndex) = minval(inputVector, maskVector)
       maskVector(minloc(inputVector, maskVector)) = .false.
     end do
-  
+
     if (mod(size(inputVector), 2) == 0) then
       median = sortedArray(vectorDim / 2)
     else
@@ -3345,7 +3343,7 @@ contains
     end do
 
   end function utl_medianIndex
-  
+
   !--------------------------------------------------------------------------
   ! utl_checkNetCDFstatus
   !--------------------------------------------------------------------------
@@ -3365,7 +3363,7 @@ contains
     ! Locals:
     character(len=256) :: errorMessage
 
-    if(status /= nf90_noerr) then 
+    if(status /= nf90_noerr) then
 
       errorMessage = 'netCDF error'
       if (present(subroutineName_opt)) then
@@ -3382,7 +3380,7 @@ contains
       call utl_abort(trim(errorMessage))
 
     end if
-    
+
   end subroutine utl_checkNetCDFstatus
 
   !--------------------------------------------------------------------------
@@ -3393,17 +3391,17 @@ contains
     ! :Purpose: to verify if the given varName is present in netCDF file.
     !
     implicit none
- 
+
     ! Arguments:
     character(len=*), intent(in)  :: varName  ! variable name
     character(len=*), intent(in)  :: fileName ! netCDF filename
 
     ! Result:
-    logical :: variableFound 
+    logical :: variableFound
 
     ! Locals:
     integer :: ncid, varID, ierr
-    
+
     ! Open the template file
     call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
 
@@ -3421,7 +3419,7 @@ contains
 
     ! Close the file
     call utl_checkNetCDFstatus(nf90_close(ncid))
-    
+
   end function utl_varPresentInNetcdfFile
 
   !--------------------------------------------------------------------------

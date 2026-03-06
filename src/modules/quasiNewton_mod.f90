@@ -110,8 +110,8 @@ module quasiNewton_mod
       logical sscale
       integer n,nm,jmin,jmax,izs(1)
       real rzs(1)
-      real(8) depl(n),precos,diag(n),alpha(nm),ybar(n,1), &
-          sbar(n,1),aux(n),dzs(1)
+      real(8) depl(n),precos,diag(n),alpha(nm),ybar(n,nm), &
+          sbar(n,nm),aux(n),dzs(1)
       external prosca,dtonb,dtcab
 !
 !         variables locales
@@ -526,7 +526,7 @@ module quasiNewton_mod
       integer n,impres,io,mode,niter,nsim,m,jmin,jmax,izs(1)
       real rzs(1)
       real(8) x(n),f,g(n),dxmin,df1,epsg,d(n),gg(n),diag(n), &
-          aux(n),ybar(n,1),sbar(n,1),dzs(1)
+          aux(n),ybar(n,m),sbar(n,m),dzs(1)
       external simul,prosca,dtonb,dtcab
 !
 !         variables locales
