@@ -621,7 +621,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_JOBS= OBS_PRM +1 ! contribution to obs cost function
    integer, parameter, public :: OBS_QCV = OBS_JOBS+1 ! weight-reduction factor for var QC
    integer, parameter, public :: OBS_FSO = OBS_QCV+1  ! forecast sensitivity to observations
-   integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
+   integer, parameter, public :: OBS_FSR = OBS_FSO+1  ! forecast sensitivity to observation error variance
+   integer, parameter, public :: OBS_CRPS= OBS_FSR+1  ! Continuous Ranked Probability Score
    integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
    integer, parameter, public :: OBS_LATD= OBS_OMPE+1 ! obs LATitude  in Data table (radians)
@@ -644,9 +645,9 @@ module ObsColumnNames_mod
    !
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
-         'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','TSEM','OERI','TRAN','ETRU',     &
-         'OMHX' /)
+         'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','FSR ','CRPS',     &
+         'BCOR','OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','TSEM','OERI','TRAN',     &
+         'ETRU','OMHX' /)
 end module ObsColumnNames_mod
 
 
@@ -1105,8 +1106,8 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OER , OBS_HPHT, &
               OBS_ZHA , OBS_POB , OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , &
-              OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, OBS_LOCI, &
-              OBS_OMHX, (0,ii=23,100) /)
+              OBS_FSR , OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, &
+              OBS_LOCI, OBS_OMHX, (0,ii=24,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1629,9 +1630,9 @@ module ObsSpaceData_mod
    !    real-body column numbers
    public :: OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER
    public :: OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO
-   public :: OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , OBS_CRPS, OBS_BCOR
-   public :: OBS_POB , OBS_OMPE, OBS_LATD, OBS_LOND, OBS_BTCL, OBS_LOCI, OBS_TRUO
-   public :: OBS_EMER, OBS_TSEM, OBS_OERI, OBS_TRAN, OBS_ETRU, OBS_OMHX
+   public :: OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , OBS_FSR , OBS_CRPS
+   public :: OBS_BCOR, OBS_POB , OBS_OMPE, OBS_LATD, OBS_LOND, OBS_BTCL, OBS_LOCI
+   public :: OBS_TRUO, OBS_EMER, OBS_TSEM, OBS_OERI, OBS_TRAN, OBS_ETRU, OBS_OMHX
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

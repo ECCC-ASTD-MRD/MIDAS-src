@@ -196,7 +196,7 @@ program midas_genCoeff
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
   call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
-      addFSOdiag=.false.)
+      addFSOdiag=.false.,addFSRdiag=.false.)
 
   ! fill OBS_BCOR with computed bias correction
   call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)

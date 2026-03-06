@@ -234,9 +234,10 @@ contains
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
     logical :: onlyAssimObs  ! choose to not include unassimilated obs in 'diag' sqlite files
     logical :: addFSOdiag    ! choose to include FSO column in body table
+    logical :: addFSRdiag    ! choose to include FSR column in body table
     logical :: writeObsDb    ! write obDB file from scratch
 
-    namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, writeObsDb
+    namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, addFSRdiag, writeObsDb
 
     call utl_tmg_start(10,'--Observations')
 
@@ -247,6 +248,7 @@ contains
     lwritediagsql = .false.
     onlyAssimObs = .false.
     addFSOdiag = .false.
+    addFSRdiag = .false.
     writeObsDb = .false.
 
     if ( .not. utl_isNamelistPresent('namwritediag','./flnml') ) then
@@ -259,6 +261,10 @@ contains
       read(utl_flnml,nml=namwritediag,iostat=ierr)
       if (ierr /= 0) call utl_abort('obsf_writeFiles: Error reading namelist')
       call utl_tmg_stop(181)
+    end if
+
+    if (addFSOdiag .and. addFSRdiag) then
+      call utl_abort('obsf_writeFiles: both addFSOdiag and addFSRdiag are set to .true., which is not supported.')
     end if
 
     if (mmpi_myid == 0) write(*,nml = namwritediag)
@@ -338,7 +344,7 @@ contains
     call utl_tmg_start(15,'----WriteDiagFiles')
     if (lwritediagsql) then
       call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
-                                     addFSOdiag, ensObs_opt=ensObs_opt)
+                                     addFSOdiag, addFSRdiag, ensObs_opt=ensObs_opt)
     end if
     call utl_tmg_stop(15)
 
