@@ -16,19 +16,19 @@ which maestro 1>/dev/null 2>&1 || {
     ${SEQ_MAESTRO_SHORTCUT}
 }
 
-which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
-
-if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 -o "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    __rmnlib_version__=20251021
-elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    __rmnlib_version__=19.6.0
+__rmnlib_version__=20260202
+if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
+    __cmdiutils_version__=2.9
+elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
+    __cmdiutils_version__=2.12
 else
-    echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'ubuntu-18.04-skylake-64', 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are!" >&2
+    echo "The platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are!" >&2
     exit 1
 fi
-which r.date 1>/dev/null 2>&1 || . r.load.dot eccc/mrd/rpn/utils/${__rmnlib_version__}
+which r.date      1>/dev/null 2>&1 || . r.load.dot    eccc/mrd/rpn/utils/${__rmnlib_version__}
+which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/${__cmdiutils_version__}
 
-unset __rmnlib_version__
+unset __rmnlib_version__ __cmdiutils_version__
 
 DEFAULT_SUITE_NAME=midas-$(git rev-parse --abbrev-ref HEAD | cut -d- -f1)
 
@@ -55,7 +55,7 @@ else
 	        echo "Do you want to use that suite? (Y,y,yes,YES,...)"
 	        read REPONSE_YES_OR_NO
 	        if [[ "${REPONSE_YES_OR_NO}" = [yY] ]] || [[ "${REPONSE_YES_OR_NO}" = [yY][eE][sS] || \
-		    "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
+		      "${REPONSE_YES_OR_NO}" = [oO] ]] || [[ "${REPONSE_YES_OR_NO}" = [oO][uU][iI] ]]; then
 
                     echo "Do you want to erase everything and reinstall the suite? (Y,y,yes,YES,...)"
 	            read REPONSE_YES_OR_NO

@@ -282,8 +282,10 @@ contains
     end if
     vco%Vcode = Vcode
 
+    nullify(vgd_ip1_M)
+    nullify(vgd_ip1_T)
     ! Get vgrid values for ip1
-    stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
+    stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)',     value = vgd_ip1_m)
     stat = vgd_get(vco%vgrid, key='vipt - vertical ip1 levels (t)', value = vgd_ip1_t)
 
     vgd_nlev_M = size(vgd_ip1_M)

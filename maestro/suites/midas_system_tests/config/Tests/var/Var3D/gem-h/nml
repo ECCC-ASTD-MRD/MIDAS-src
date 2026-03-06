@@ -1,3 +1,7 @@
+ &NAMMKL
+   oneThreadMKL = .false.
+   dynamicMKL   = .true.
+/
  &NAMBHI
    NTRUNC  = 270,
    SCALEFACTOR = 100*1.0D0
@@ -62,7 +66,7 @@
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
   list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
+  list_topoFilt(2) = 'UA'
   list_topoFilt(3) = 'AI'
   list_topoFilt(4) = 'SW'
   list_topoFilt(5) = 'PR'
@@ -82,7 +86,7 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
- &NAMTOV   
+ &NAMTOV
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

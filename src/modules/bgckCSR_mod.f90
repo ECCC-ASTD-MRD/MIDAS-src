@@ -348,7 +348,7 @@ contains
       jour  = (obsDate(dataIndex)/100) -  (obsDate(dataIndex)/100)*100
       heure = obsHour(dataIndex)/100 
       if (burpFileSatId == '^METSAT7') then
-        if ( heure == 21 ) straylight(dataIndex) = 1
+        if ( heure == 21 ) straylight(dataIndex) = .true.
         if ( (heure == 20) .or. (heure == 22) ) then
           if ( (jour + (mois-1)*30) > 20 .and. (jour + (mois-1)*30) < 135 ) straylight(dataIndex) = .true.
           if ( (jour + (mois-1)*30) > 210 .and. (jour + (mois-1)*30) < 300 ) straylight(dataIndex) = .true.
@@ -404,49 +404,49 @@ contains
       do channelIndex = 1, currentChannelNumber
         numData = numData+1
         !Maxangle & Straylight & Goesmid : Bit 7 et 9 pour tous les canaux
-        if (maxAngleReached(dataIndex) == .true. .or. & 
-            strayLight(dataIndex)      == .true. .or. & 
-            goesMidi(dataIndex)        == .true. ) then 
+        if (maxAngleReached(dataIndex) .or. &
+            strayLight(dataIndex)      .or. &
+            goesMidi(dataIndex)        ) then
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(1) =  categorieRejet(1) + 1
         end if
 
         !Topo : bit 9 et 18 sont déjà là provenant du EnVar
-        if (topographicData(dataIndex) == .true.) then
+        if (topographicData(dataIndex)) then
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           obsFlags(numData) = ibset(obsFlags(numData),18) 
           categorieRejet(2) =  categorieRejet(2) + 1
         end if 
 
         !Pas corrige : bit 11
-        if (nonCorrectedData(numData) == .true.) then
+        if (nonCorrectedData(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),11) 
           categorieRejet(3) =  categorieRejet(3) + 1
         end if 
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
-        if (isTbPresent(numData) == .false.) then 
+        if (.not. isTbPresent(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),7) 
           obsFlags(numData) = ibset(obsFlags(numData),9) 
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
         !omp Out of range: Bit 9 et 16 pour les canaux concernés
-        if (ompOutOfRange(numData) == .true.) then 
+        if (ompOutOfRange(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),9)
           obsFlags(numData) = ibset(obsFlags(numData),16)
           categorieRejet(5) =  categorieRejet(5) + 1
         end if
 
         !Assim: Bit 11 pour les canaux concernés
-        if (isToAssim(numData) == .false.) then 
+        if (.not. isToAssim(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),11)
           categorieRejet(6) =  categorieRejet(6) + 1
         end if 
 
         !Clearsky : Bit 7 & Bit 9
-        if (isClearSky(numData) == .false.) then 
+        if (.not. isClearSky(numData)) then
           obsFlags(numData) = ibset(obsFlags(numData),7)
           obsFlags(numData) = ibset(obsFlags(numData),9)
           categorieRejet(7) =  categorieRejet(7) + 1

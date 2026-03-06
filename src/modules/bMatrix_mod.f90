@@ -35,8 +35,8 @@ module bMatrix_mod
   logical :: globalGrid = .true.
 
   integer,          parameter :: numMasterBmat = 4
-  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'  , 'ENS'  , 'CHM'  , 'DIFF'  /)
-  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_ENS', 'B_CHM', 'B_DIFF'/)
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI  ', 'ENS ', 'CHM ' , 'DIFF'  /)
+  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI  ', 'B_ENS ', 'B_CHM ', 'B_DIFF'/)
   logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .false., .true. , .true.  /)
 
   integer            :: numBmat

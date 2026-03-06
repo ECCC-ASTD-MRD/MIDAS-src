@@ -1216,7 +1216,7 @@ contains
           end if
        end do BODY_3
 
-       if ( .not.beSilent ) write(*,'(A9,i10,2f7.2,f18.10,f12.4,2I6)')  &
+       if ( .not.beSilent ) write(*,'(A9,i10,2f7.2,f18.10,f12.4,2L6)')  &
             'GPSRO_JO',headerIndex,lat,lon,pjob,zmt,isat,ldsc
        firstheader = .false.
     end do HEADER
