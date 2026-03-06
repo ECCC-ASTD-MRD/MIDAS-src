@@ -458,7 +458,7 @@ contains
       write(*,*) 'gpos_xyfll_unstructGrid: search radius           = ', maxGridSpacing, ' meters'
       write(*,*) 'gpos_xyfll_unstructGrid: obs lon, lat = ', lon_deg_r4, lat_deg_r4
       write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING: the search did not find 4 close points.'
-      write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
+      write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to', MPC_missingValue_R4
       xpos_r4 = MPC_missingValue_R4
       ypos_r4 = MPC_missingValue_R4
       return
@@ -467,7 +467,7 @@ contains
     if (searchResults(1)%dis > maxRadiusSquared) then
       write(*,*) 'gpos_xyfll_unstructGrid: No grid point found within ', maxGridSpacing, ' meters'
       write(*,*) 'of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
-      write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
+      write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to',MPC_missingValue_R4
       xpos_r4 = MPC_missingValue_R4
       ypos_r4 = MPC_missingValue_R4
       return
@@ -518,7 +518,7 @@ contains
           write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', &
                      lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (1): the reference point is outside the grid.'
-          write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
+          write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to', MPC_missingValue_R4
           xpos_r4 = MPC_missingValue_R4
           ypos_r4 = MPC_missingValue_R4
           return
@@ -554,7 +554,7 @@ contains
         write(*,*) 'Perturbed distance = ', gridSpacingSquared
         write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (2): of the reference location lat-lon (degrees): ', &
                    lat_deg_r4, lon_deg_r4
-        write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
+        write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to', MPC_missingValue_R4
         xpos_r4 = MPC_missingValue_R4
         ypos_r4 = MPC_missingValue_R4
         return
@@ -597,7 +597,7 @@ contains
           write(*,*) 'Perturbed distance = ', gridSpacingSquared
           write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
           write(*,*) 'gpos_xyfll_unstructGrid: ORCA025 WARNING (3): the reference point is outside the grid.'
-          write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to -999.'
+          write(*,*) 'gpos_xyfll_unstructGrid: the x- and y-positions are set to', MPC_missingValue_R4
           xpos_r4 = MPC_missingValue_R4
           ypos_r4 = MPC_missingValue_R4
           return
@@ -632,7 +632,8 @@ contains
         write(*,*) 'Closest distance = ', searchResults(closePointsIndex)%dis
         write(*,*) 'Perturbed distance = ', gridSpacingSquared
         write(*,*) 'gpos_xyfll_unstructGrid: of the reference location lat-lon (degrees): ', lat_deg_r4, lon_deg_r4
-        write(*,*) 'ORCA025 WARNING 4: the reference point is outside the grid. We will set the positions to -999.!!!'
+        write(*,*) 'ORCA025 WARNING 4: the reference point is outside the grid. We will set the positions to', MPC_missingValue_R4
+
         xpos_r4 = MPC_missingValue_R4
         ypos_r4 = MPC_missingValue_R4
         return

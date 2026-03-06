@@ -175,7 +175,7 @@ contains
     end if
 
     !- Setting default namelist variable values
-    randomSeed               =  -999
+    randomSeed               =  MPC_missingValue_INT
     includeYearInSeed        = .false.
     writeSubSample           = .false.
     writeSubSampleUnPert     = .false.
@@ -217,7 +217,7 @@ contains
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
     !
     numBits = 16
-    numBits2D = -999
+    numBits2D = MPC_missingValue_INT
     useAnalIncMask = .false.
     writeRawAnalStats = .false.
     writeAsciiRmsStats = .true.
@@ -234,7 +234,7 @@ contains
     call utl_tmg_stop(181)
 
     !- Set numBits2D if it does not appear in the namelist
-    if (numBits2D == -999) then
+    if (numBits2D == MPC_missingValue_INT) then
       numBits2D = numBits
     end if
 
@@ -447,8 +447,8 @@ contains
 
       !- Apply random additive inflation, if requested
       if (alphaRandomPert > 0.0D0) then
-        ! If namelist value is -999, set random seed using the date (as in standard EnKF)
-        if (randomSeed == -999) then
+        ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
+        if (randomSeed == MPC_missingValue_INT) then
           imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
           dateStamp = tim_getDateStamp()
           ierr = newdate(dateStamp, datePrint, timePrint, imode)
@@ -490,8 +490,8 @@ contains
 
         ! Apply random additive inflation to sub-sampled ensemble, if requested
         if (alphaRandomPertSubSample > 0.0D0) then
-          ! If namelist value is -999, set random seed using the date (as in standard EnKF)
-          if (randomSeed == -999) then
+          ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
+          if (randomSeed == MPC_missingValue_INT) then
             imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
             dateStamp = tim_getDateStamp()
             ierr = newdate(dateStamp, datePrint, timePrint, imode)

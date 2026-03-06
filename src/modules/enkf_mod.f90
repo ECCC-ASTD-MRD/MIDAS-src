@@ -554,7 +554,7 @@ contains
 
         nsize = nEnsGain * (enkfNML%nEns+1)
         numRecv = numRecv + 1
-        weightsRecvCombined(:,:,latLonIndex) = -999.8d0
+        weightsRecvCombined(:,:,latLonIndex) = MPC_missingValue_R8
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
                         nsize, mmpi_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv))
@@ -791,12 +791,12 @@ contains
         lonIndex = myLonIndexesRecv(latLonIndex)
         weightsMembers(:,:,lonIndex,latIndex) = weightsRecvCombined(:,1:enkfNML%nEns,latLonIndex)
         weightsMean(:,1,lonIndex,latIndex)    = weightsRecvCombined(:,(enkfNML%nEns+1),latLonIndex)
-        if (any(weightsMembers(:,:,lonIndex,latIndex) < -999.0d0)) then
+        if (any(weightsMembers(:,:,lonIndex,latIndex) < MPC_missingValue_R8)) then
           write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
           write(*,*) 'weightsMembers = ', weightsMembers(:,:,lonIndex,latIndex)
           call utl_abort('Invalid weight value received!!!')
         end if
-        if (any(weightsMean(:,:,lonIndex,latIndex) < -999.0d0)) then
+        if (any(weightsMean(:,:,lonIndex,latIndex) < MPC_missingValue_R8)) then
           write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
           write(*,*) 'weightsMean = ', weightsMean(:,:,lonIndex,latIndex)
           call utl_abort('Invalid weight value received!!!')
@@ -831,7 +831,7 @@ contains
       call utl_tmg_stop(146)
       call utl_tmg_stop(132)
       ! Should be safe to reuse buffer used for mpi_isend and the call to mpi_waitAll
-      weightsSendCombined(:,:,:) = -999.9d0
+      weightsSendCombined(:,:,:) = MPC_missingValue_R8
 
     end do LEV_LOOP
 

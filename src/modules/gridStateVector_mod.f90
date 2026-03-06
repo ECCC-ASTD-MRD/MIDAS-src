@@ -3295,7 +3295,7 @@ module gridStateVector_mod
     ! Result:
     integer                        :: dateStamp
 
-    dateStamp = -999
+    dateStamp = MPC_missingValue_INT
     if (associated(statevector%dateStampList)) then
       if (present(stepIndex_opt)) then
         if (stepIndex_opt.gt.0.and.stepIndex_opt.le.statevector%numStep) then

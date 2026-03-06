@@ -4817,7 +4817,7 @@ contains
 
       ! copy the data to temporary arrays: header-level data
       numHeaderPE_mpilocal(:) = 0
-      int_send(:,:,:) = -99999
+      int_send(:,:,:) = MPC_missingValue_INT
       do headerIndex=1,numHeader_in
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
          numHeaderPE_mpilocal(1+target_ip) = numHeaderPE_mpilocal(1+target_ip) + 1
@@ -4874,7 +4874,7 @@ contains
       headerIndex_out = 0
       do procIndex = 1, mmpi_nprocs
          do headerIndex=1,numHeader_mpimessage
-            if(int_recv(1,headerIndex,procIndex) /= -99999) then
+            if(int_recv(1,headerIndex,procIndex) /= MPC_missingValue_INT) then
                if(target_ip_index == OBS_IPF) then
                  ! put headers back in original order as in the files
                  headerIndex_out = message_onm(headerIndex,procIndex)
@@ -4943,7 +4943,7 @@ contains
       allocate(primaryKey_recv(numBody_mpimessage,mmpi_nprocs))
 
       numBodyPE_mpilocal(:) = 0
-      primaryKey_send(:,:) = -99999
+      primaryKey_send(:,:) = MPC_missingValue_INT
       do bodyIndex=1,numBody_in
          headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
@@ -4962,7 +4962,7 @@ contains
             bodyIndex = 0
             do headerIndex=1,numHeader_mpimessage
                headerIndex_out = message_onm(headerIndex,procIndex)
-               if(headerIndex_out /= -99999) then
+               if(headerIndex_out /= MPC_missingValue_INT) then
                   bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
                   bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
                   do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
@@ -4977,7 +4977,7 @@ contains
          bodyIndex_out = 0
          do procIndex = 1, mmpi_nprocs
             do bodyIndex=1,numBody_mpimessage
-               if(primaryKey_recv(bodyIndex,procIndex) /= -99999) then
+               if(primaryKey_recv(bodyIndex,procIndex) /= MPC_missingValue_INT) then
                   bodyIndex_out = bodyIndex_out + 1
                   obsdat_tmp%bodyPrimaryKey(bodyIndex_out)= &
                        primaryKey_recv(bodyIndex,procIndex)
@@ -5024,7 +5024,7 @@ contains
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
-                  if(headerIndex_out /= -99999) then
+                  if(headerIndex_out /= MPC_missingValue_INT) then
                      bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
                      bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
                      do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
@@ -5067,7 +5067,7 @@ contains
 
          ! copy the data to temporary arrays: body-level data
          numBodyPE_mpilocal(:) = 0
-         int_send_2d(:,:) = -99999
+         int_send_2d(:,:) = MPC_missingValue_INT
          do bodyIndex=1,numBody_in
             headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
             target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
@@ -5091,7 +5091,7 @@ contains
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
-                  if(headerIndex_out /= -99999) then
+                  if(headerIndex_out /= MPC_missingValue_INT) then
                      bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
                      bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
                      do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
@@ -5109,7 +5109,7 @@ contains
             bodyIndex_out = 0
             do procIndex = 1, mmpi_nprocs
                do bodyIndex=1,numBody_mpimessage
-                  if(int_recv_2d(bodyIndex,procIndex) /= -99999) then
+                  if(int_recv_2d(bodyIndex,procIndex) /= MPC_missingValue_INT) then
                      bodyIndex_out = bodyIndex_out + 1
                      obsdat_tmp%intBodies%columns(columnIndex)%value_i(bodyIndex_out)= &
                         int_recv_2d(bodyIndex,procIndex)

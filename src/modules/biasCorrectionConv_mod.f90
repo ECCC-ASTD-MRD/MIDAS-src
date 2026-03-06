@@ -40,7 +40,7 @@ MODULE biasCorrectionConv_mod
 
   ! Missing values in the input bias correction files for AI, GP and UA families
   real(8), parameter :: aiMissingValue = 99.d0
-  real(8), parameter :: gpMissingValue = -999.00d0
+  real(8), parameter :: gpMissingValue = MPC_missingValue_R8
   real(8), parameter :: uaMissingValue = -99.0d0
 
   integer               :: nbAircrafts, nbGpStations
@@ -964,7 +964,6 @@ CONTAINS
   subroutine bcc_readGPBiases(biasEstimateFile)
     !
     ! :Purpose: Read GB-GPS bias estimates (mean ZTD O-A [mm] by station) and fill bias correction array ztdCorrections.
-    !           Missing value = -999.00
     !
     implicit none
 
@@ -1465,7 +1464,7 @@ CONTAINS
           write(*,*) 'stnid, sondeTypeCode, date, time, lat'
           write(*,*) stnid, sondeTypeCode, date, time, lat*MPC_DEGREES_PER_RADIAN_R8
         end if
-        if ( sondeTypeCode == -999 ) then
+        if ( sondeTypeCode == MPC_missingValue_INT ) then
           sondeTypeCode = 0
           countMissingStype = countMissingStype + 1
           write (*,'(a60)') "bcc_applyUABcor: Missing sonde type at stn "//stnid

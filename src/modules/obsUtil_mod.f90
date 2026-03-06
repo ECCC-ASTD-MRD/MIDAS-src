@@ -61,7 +61,7 @@ contains
           transformBufrCodeExtra = ovt_getDestinationBufrCode(sourceBufrCode, &
                                                                    extra_opt=.true.)
 
-          flagExtra = -999
+          flagExtra = MPC_missingValue_INT
           do bodyIndex2 = bodyIndexStart, bodyIndexEnd
             if ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == transformBufrCodeExtra .and. &
                  utl_isEqual(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2), level) ) then
@@ -70,7 +70,7 @@ contains
           end do
 
           ! Combine flags
-          if (flagExtra /= -999) then
+          if (flagExtra /= MPC_missingValue_INT) then
             mergedFlag = ior(flag,flagExtra)
           else
             call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')

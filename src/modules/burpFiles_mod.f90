@@ -60,8 +60,8 @@ contains
     ier = mrfopc('MSGLVL','FATAL')
 
     ivals = 8
-    kdate = -9999
-    ktime = -9999
+    kdate = MPC_missingValue_INT
+    ktime = MPC_missingValue_INT
     nresume = 0
     nulburp = 0
     inquire(file=trim(burpFileName),exist=isExist_L)

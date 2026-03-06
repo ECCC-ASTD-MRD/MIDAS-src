@@ -4196,7 +4196,7 @@ module calcStatsGlb_mod
       if (loopIndex == 0) then
         write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
                    ' at a distance of ',distance(loopIndex+1)
-        hwhm = -999.0d0
+        hwhm = MPC_missingValue_R8
       else if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
         write(*,*) 'Warning from getFitHWHM: suspicious fit', &
                    ' at a distance of ',distance(loopIndex+1)
@@ -4215,7 +4215,7 @@ module calcStatsGlb_mod
       if (loopIndex == ndim) then
         write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
              ' at a distance of ',distance(loopIndex-1)
-        hwhm = -999.0d0
+        hwhm = MPC_missingValue_R8
       else if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
         write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
              ' at a distance of ',distance(loopIndex-1)

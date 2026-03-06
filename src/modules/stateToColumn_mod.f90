@@ -720,8 +720,8 @@ contains
     allocate(lonVecSend(mpiMsgSize,mmpi_nprocs))
     allocate(latVecRecv(mpiMsgSize,mmpi_nprocs))
     allocate(lonVecRecv(mpiMsgSize,mmpi_nprocs))
-    latVecSend(:,:) = -999
-    lonVecSend(:,:) = -999
+    latVecSend(:,:) = MPC_missingValue_INT
+    lonVecSend(:,:) = MPC_missingValue_INT
 
     do haloIndex = 1, intInfo%myHaloSize
       procIndex = intInfo%myHaloMpiIdSrc(haloIndex) + 1

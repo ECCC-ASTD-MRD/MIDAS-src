@@ -24,7 +24,7 @@ module bgckSSMIS_mod
 
   real,    parameter :: ssbg_realMissing=-99.
   integer, parameter :: ssbg_intMissing=-1
-  real,    parameter :: ssbg_rmisg=-999.0
+  real,    parameter :: ssbg_rmisg=MPC_missingValue_R4
   real,    parameter :: ssbg_clwThresh=0.02
   integer, parameter :: ssbg_mxval=30
   integer, parameter :: ssbg_maxObsNum=2500

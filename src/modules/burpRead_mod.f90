@@ -334,7 +334,7 @@ contains
     elseif ( TRIM(FAMILYTYPE2) == 'CH') then
       btyp_offset_uni= 256
     else
-      btyp_offset_uni= -999 !set to -999 when not used
+      btyp_offset_uni= MPC_missingValue_INT
     end if
 
 
@@ -1082,7 +1082,7 @@ contains
               !write(*,*) '  PAS DE COORDONNEE VERTICALE famille ',trim(FAMILYTYPE)
               il_index=0
             end if
-            VCOORD = -999.
+            VCOORD = MPC_missingValue_R4
 
             IND_eleu  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU)
             IND_elef  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMD)
@@ -2099,8 +2099,8 @@ contains
       call ovt_setup(LISTE_ELE_SFC(1:NELE_SFC))
     end if
 
-    btyp_offset_uni=-999
-    btyp_offset=-999
+    btyp_offset_uni=MPC_missingValue_INT
+    btyp_offset=MPC_missingValue_INT
     if (trim(BURP_TYP) == 'uni') then
       btyp_offset=256
     else
@@ -2119,7 +2119,7 @@ contains
     elseif (TRIM(FAMILYTYPE2) == 'CH') then
       btyp_offset_uni= 256
     else
-      btyp_offset_uni= -999 ! set to -999 when not used
+      btyp_offset_uni= MPC_missingValue_INT
     end if
 
     write(*,*) '-----------------------------------------------'
@@ -5358,7 +5358,7 @@ contains
     character(len=9)       :: station_id
     !! This is for 'burp_set_options'
     character(len=7), parameter :: opt_missing='MISSING'
-    real, parameter             :: val_option = -9999.0
+    real, parameter             :: val_option = MPC_missingValue_R4
 
     write(*,*) '----------------------------------------------------------'
     write(*,*) '-- Begin subroutine brpr_updateMissingObsFlags----'
@@ -5643,7 +5643,7 @@ contains
     integer                     :: icodele(3)
     integer                     :: icodeleMrq(3)
     integer                     :: btClearMrqElementID
-    real, parameter             :: val_option = -9999.0
+    real, parameter             :: val_option = MPC_missingValue_R4
     logical                     :: isDerialt
     logical                     :: isInstrumUsingCLW, isInstrumUsingHydrometeors
     logical                     :: beSilent
@@ -6070,7 +6070,7 @@ contains
     integer                     :: reportIndex, btyp, datyp, error
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
-    real, parameter             :: missingValue = -9999.0
+    real, parameter             :: missingValue = MPC_missingValue_R4
     integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
     logical                     :: resumeReport, cleanLevels, checkBlock, cleanLevelsCH
