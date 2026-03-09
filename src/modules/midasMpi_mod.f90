@@ -59,6 +59,7 @@ module midasMpi_mod
     integer :: ierr, nulnam, fnom, fclos, numNodeMasters
     integer, allocatable :: allMyidHost(:)
     logical :: flag
+    integer(KIND=MPI_ADDRESS_KIND) :: maxTagValue
 
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
@@ -126,12 +127,14 @@ module midasMpi_mod
     mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
 
     ! get some other useful values
-    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, mmpi_maxTagValue, flag, ierr)
+    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, maxTagValue, flag, ierr)
     if (flag) then
-      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', mmpi_maxTagValue
+      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', maxTagValue
     else
       call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
     end if
+
+    mmpi_maxTagValue = int(maxTagValue)
 
     write(*,*) ' '
     if(mmpi_doBarrier) then
