@@ -6,17 +6,14 @@
  &THIN_CH
    stnIdList(1) = '22494700'   ! OMPS-NM on NPP
    deltemps(1) = 1
-   deldist(1) = 111.2d0        ! Equivalent to 1 degree
    methodList(1) = 'byDistance'
    maxSunList(1) = 84.0  
    stnIdList(2) = '22594700'   ! OMPS-NP on NOAA-20
    deltemps(2) = 1
-   deldist(2) = 111.2d0
    methodList(2) = 'byDistance'
    maxSunList(2) = 84.0
    stnIdList(3) = '06412500'   ! TROPOMI
    deltemps(3) = 1
-   deldist(3) = 111.2d0
    methodList(3) = 'byDistance'
    maxSunList(3) = 84.0
    stnIdList(4) = 'WO****00'   ! Ozonesonde 
