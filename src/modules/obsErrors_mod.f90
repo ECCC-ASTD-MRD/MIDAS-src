@@ -2262,7 +2262,8 @@ contains
 
       blockIndex = 0
       blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_fge, bfam=bfam_fge, convert=.false., iostat=error)    
-
+      if (blockIndex == -1) cycle ! missing block
+      
       call burp_get_property(blkobs, NVAL=numLevels, IOSTAT=error)
       write(*,*) ' JFC for obsCount ', reportIndex, trim(stnid), numLevels
       obsCount = obsCount + numLevels
@@ -2274,7 +2275,7 @@ contains
       write(*,*) 'readHBHTFromObsFileForUA: no obs found in file, returning'
       return
     end if
-    
+
     !- Read obsValue from file
     allocate(obsVal(obsCount))
     if (winds) then
@@ -2287,15 +2288,16 @@ contains
     obsval_records_in: do
       ref_rpt = burp_find_report(fileIn, REPORT=report, SEARCH_FROM=ref_rpt, IOSTAT=error)
       if (ref_rpt <0) exit
-      
+
       call burp_get_property(report, STNID=stnid, IOSTAT=error)
       if (stnid(1:2) == ">>") cycle obsval_records_in
       
       blockIndex = 0
-      blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_obsval, bfam=bfam_obsval, convert=.true., iostat=error)    
-      
+      blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_obsval, bfam=bfam_obsval, convert=.true., iostat=error)
+      if (blockIndex == -1) cycle ! missing block
+
       call BURP_Get_Property(blkobs, NVAL=numLevels, IOSTAT=error)
-      
+
       varIndex = burp_find_element(blkobs, ELEMENT=varType, IOSTAT=error)
       if (varIndex == -1) then
         write(*,*) 'readHBHTFromObsFileForUA: Element not found, ABORT!', varIndex, varType
@@ -2350,6 +2352,7 @@ contains
       
       blockIndex = 0
       blockIndex = burp_find_block(report, block=blkobs, search_from=blockIndex, btyp=btyp_fge, bfam=bfam_fge, convert=.true., iostat=error)    
+      if (blockIndex == -1) cycle ! missing block
       
       call BURP_Get_Property(blkobs, NVAL=numLevels, IOSTAT=error)
       
