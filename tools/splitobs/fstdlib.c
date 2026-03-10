@@ -79,20 +79,20 @@ int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
    **********************************************************/
 
   key = c_fstinf(iun,&fst->ni,&fst->nj,&fst->nk,fst->dateo,fst->etiket,
-		 fst->ip1,fst->ip2,fst->ip3,fst->typvar,fst->nomvar);
+                 fst->ip1,fst->ip2,fst->ip3,fst->typvar,fst->nomvar);
   if (key<0) {
     fprintf(stderr,"Fonction getgrid: Erreur %d avec le fichier %s pour les parametres (%s,%s,%s,%d,%d,%d,%d) dans la fonction c_fstinf\n",
-	    key,fstin,fst->nomvar,fst->typvar,fst->etiket,fst->dateo,fst->ip1,fst->ip2,fst->ip3);
+            key,fstin,fst->nomvar,fst->typvar,fst->etiket,fst->dateo,fst->ip1,fst->ip2,fst->ip3);
     return NOT_OK;
   }
   ier = c_fstprm(key,&fst->dateo,&fst->deet,&fst->npas,&fst->ni,&fst->nj,&fst->nk,
-		 &fst->nbits,&fst->datyp,&fst->ip1,&fst->ip2,&fst->ip3,fst->typvar,
-		 fst->nomvar,fst->etiket,fst->grtyp,&fst->ig1,&fst->ig2,&fst->ig3,
-		 &fst->ig4,&fst->swa,&fst->lng,&fst->dltf,&fst->ubc,&fst->extra1,
-		 &fst->extra2,&fst->extra3);
+                 &fst->nbits,&fst->datyp,&fst->ip1,&fst->ip2,&fst->ip3,fst->typvar,
+                 fst->nomvar,fst->etiket,fst->grtyp,&fst->ig1,&fst->ig2,&fst->ig3,
+                 &fst->ig4,&fst->swa,&fst->lng,&fst->dltf,&fst->ubc,&fst->extra1,
+                 &fst->extra2,&fst->extra3);
   if (ier<0) {
     fprintf(stderr,"Fonction getgrid: Erreur %d avec le fichier %s pour les parametres (%s,%s,%s,%d,%d,%d,%d) dans la fonction c_fstprm\n",
-	    ier,fstin,fst->nomvar,fst->typvar,fst->etiket,fst->dateo,fst->ip1,fst->ip2,fst->ip3);
+            ier,fstin,fst->nomvar,fst->typvar,fst->etiket,fst->dateo,fst->ip1,fst->ip2,fst->ip3);
     return NOT_OK;
   }
   /**********************************************************
@@ -116,8 +116,8 @@ int getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin) {
   gridptr->gridid = c_ezqkdef(gridptr->ni,gridptr->nj,gridptr->grtyp,gridptr->ig1,gridptr->ig2,gridptr->ig3,gridptr->ig4,iun);
   if ( gridptr->gridid < 0 ) {
     fprintf(stderr,"Fonction getgrid: Probleme %d avec la fonction c_ezqkdef "
-	    "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n",
-	    gridptr->gridid, fst->nomvar,fst->etiket,fst->ip1,fst->ip2,fst->ip3,fst->dateo,fst->typvar);
+            "(nomvar=%s,etiket=%s,ip1=%d,ip2=%d,ip3=%d,date=%d,typvar=%s)\n",
+            gridptr->gridid, fst->nomvar,fst->etiket,fst->ip1,fst->ip2,fst->ip3,fst->dateo,fst->typvar);
     return NOT_OK;
   }
 
@@ -178,7 +178,8 @@ int print_stats_field(statstype* stats, int dim) {
  * fonction: padtime
  ***************************************************************************/
 int padtime(char* argv) {
-  int j,dat,tim,mode,datev;
+  int dat,tim,mode,datev;
+  size_t j; // consistency with strlen()
   char dattimstr[MAXSTR], datstr[MAXSTR], timstr[MAXSTR];
 
   strcpy(dattimstr,argv);
