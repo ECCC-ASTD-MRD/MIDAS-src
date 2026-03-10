@@ -108,9 +108,6 @@ endforeach()
 add_custom_command(
     OUTPUT update_test_environment.cmake
 
-    COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/src/update_resources.sh
-    COMMAND ${CMAKE_SOURCE_DIR}/src/update_resources.sh
-
     COMMAND ${CMAKE_COMMAND} -E echo Executing ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_SOURCE_DIR}/maestro/suites/midas_system_tests/update_abs.dot.sh ${CMAKE_SOURCE_DIR}
 
