@@ -1,3 +1,5 @@
+@RESOURCES_HEADER@
+
 # Machine stuff
 FRONTEND=ppp8
 BACKEND=conrad
@@ -24,20 +26,20 @@ LETKF_GLBXC40_CPUS=13x49x4
 
 ## Set this variable to '9' if you want to avoid running the 'check'
 ## task for each test
-CHECK_RESULTS_CATCHUP=2
+CHECK_RESULTS_CATCHUP=@CHECK_RESULTS_CATCHUP@
 
 ## Set this variable to '9' if you want to avoid running the 'clean'
 ## task for each test
-CLEAN_UNITTEST_CATCHUP=2
+CLEAN_UNITTEST_CATCHUP=@CLEAN_UNITTEST_CATCHUP@
 
 ## Set this variable for the number of minimization iterations
 ## 'NITERMAX' for EnVar in the tests '/Tests/var/EnVar/gdps' and
 ## '/Tests/var/EnVar/hrdps'.
-VAR_NITERMAX=70
+VAR_NITERMAX=@VAR_NITERMAX@
 
 ## Set this variable to the number of OpenMP threads needed in the
 ## task '/Tests/letkf/glb_15km/UnitTest/run'
-LETKF_GLB15KM_NUM_THREADS=2
+LETKF_GLB15KM_NUM_THREADS=@LETKF_GLB15KM_NUM_THREADS@
 
 ## Set this variable to the MPI topology needed in the task
 ## '/Tests/letkf/glb_10km/UnitTest/run'
@@ -48,4 +50,6 @@ LETKF_GLB10KM_MPITOPOLOGY=11x52
 
 ## Set this variable to '9' if you want to avoid running the test
 ## '/Tests/letkf/glb_10km'.
-LETKF_GLB10KM_CATCHUP=2
+LETKF_GLB10KM_CATCHUP=@LETKF_GLB10KM_CATCHUP@
+
+@RESOURCES_FOOTER@
