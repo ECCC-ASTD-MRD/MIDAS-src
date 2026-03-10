@@ -220,7 +220,10 @@ ssm:
       - RUNNER_TAG: hpcr-u3
   script:
     - version=$(./midas.version) ## This version number contains the 'v_'
-    - cmake . --build compiledir/midas_bld_resources --target prepare_resources
+    ## Run this command as a script since we only need the file
+    ## 'maestro/suites/midas_system_tests/resources/resources.def' to
+    ## be generated.
+    - ${__toplevel}/src/config.dot.sh --build ${toplevel}/compiledir/midas_bld_resources --no-cd-build --no-show-instructions
     - . maestro/suites/midas_system_tests/set_machine_list.dot
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
     - VERSION=$(./midas.version | cut -c3-)

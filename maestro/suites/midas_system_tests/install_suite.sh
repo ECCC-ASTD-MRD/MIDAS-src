@@ -9,7 +9,10 @@ MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 # If it does not yet exist, set the resources.def file, which depends
 # on '${TRUE_HOST}'
 if [ ! -f ${resourcesDir}/resources.def ]; then
-    cmake ${__toplevel} --build compiledir/midas_bld_resources --target prepare_resources
+    ## Run this command as a script since we only need the file
+    ## 'maestro/suites/midas_system_tests/resources/resources.def' to
+    ## be generated.
+    ${__toplevel}/src/config.dot.sh --build ${__toplevel}/compiledir/midas_bld_resources --no-cd-build --no-show-instructions
 fi
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
