@@ -71,8 +71,7 @@ else
                         break
                     else
 		        echo "Then do:"
-		        echo "   cd ~/.suites/${REPONSE}"
-		        echo "   xflow"
+		        echo "   xflow -exp ~/.suites/${REPONSE}"
 		        exit
                     fi
 	        else
