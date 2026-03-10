@@ -218,6 +218,7 @@ module gridStateVector_mod
     ! Locals
     integer             :: varIndex
 
+    levIndex = 0
     do varIndex = 1, vnl_numvarmax
       if (statevector%varExistList(varIndex)) then
         if ((varLevIndex >= (statevector%varOffset(varIndex) + 1)) .and.  &
@@ -250,6 +251,7 @@ module gridStateVector_mod
     ! Locals:
     integer             :: procIndex
 
+    MpiId = 0
     do procIndex = 1, mmpi_nprocs
       if ((varLevIndex >= statevector%allVarLevBeg(procIndex)) .and.  &
           (varLevIndex <= statevector%allVarLevEnd(procIndex))) then
@@ -4518,7 +4520,7 @@ module gridStateVector_mod
 
                 statevector_out%gd_r8(ilon_out, ilat_out, :, stepIndex) =  &
                   statevector_out%gd_r8(ilon_out, ilat_out, :, stepIndex) +  &
-                  statevector_in%gd_r8(lonIndex_in, ilat_in, :, stepIndex)
+                  statevector_in%gd_r8(lonIndex_in, latIndex_in, :, stepIndex)
 
               end do ! lonIndex_in
             end do ! lonIndex

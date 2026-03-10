@@ -396,7 +396,7 @@ contains
     ! Locals:
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
-    integer :: mpiStatus(MPI_STATUS_SIZE)
+    integer :: mpiStatuses(MPI_STATUS_SIZE)
     integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
@@ -585,8 +585,8 @@ contains
 
             ! Determine which MPI task is ready for a new work assignment
             call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &
-                          mmpi_comm_grid, mpiStatus, ierr)
-            workerProcID = mpiStatus(MPI_SOURCE)
+                          mmpi_comm_grid, mpiStatuses, ierr)
+            workerProcID = mpiStatuses(MPI_SOURCE)
 
             if (readySignal == 'N') then
               procAlreadyFinished(workerProcID+1) = .true.

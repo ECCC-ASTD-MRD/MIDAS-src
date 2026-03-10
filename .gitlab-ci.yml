@@ -18,7 +18,6 @@ midas_build:
   stage: build
   parallel:
     matrix:
-      - RUNNER_TAG: hpcr-u2
       - RUNNER_TAG: hpcr-u3
   script:
     - cd src
@@ -38,7 +37,6 @@ monitor_tests:
    stage: test
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/monitor
@@ -60,7 +58,6 @@ splitobs_burp_tests:
        ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240"
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/splitobs
@@ -79,7 +76,6 @@ splitobs_rdb_tests:
        ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240"
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/splitobs
@@ -99,10 +95,9 @@ midas_tests:
        ORD_SOUMET_ARGS: "-jn midas_tests_ci -cpus 1 -w 2880 -q dev_daemon"
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.9
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS
@@ -128,7 +123,6 @@ findTrials_tests:
    stage: test
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/findTrials
@@ -148,7 +142,6 @@ topoFinder_tests:
    stage: test
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/midas_scripts
@@ -164,7 +157,6 @@ isFileInList_tests:
    stage: test
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd tools/midas_scripts
@@ -180,7 +172,6 @@ timingTool_tests:
     stage: test
     parallel:
       matrix:
-        - RUNNER_TAG: hpcr-u2
         - RUNNER_TAG: hpcr-u3
     script:
       - cd tools/timingTool
@@ -196,7 +187,6 @@ clean_midas_abs:
    stage: clean
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - version=$(./midas.version)
@@ -222,7 +212,6 @@ doc_sphinx:
      midasdoc: /home/sanl888/public_html/midas-sphinx-doc
    parallel:
      matrix:
-       - RUNNER_TAG: hpcr-u2
        - RUNNER_TAG: hpcr-u3
    script:
      - cd scripts/sphinx
@@ -244,7 +233,6 @@ ssm:
   stage: deploy
   parallel:
     matrix:
-      - RUNNER_TAG: hpcr-u2
       - RUNNER_TAG: hpcr-u3
   script:
     - version=$(./midas.version) ## This version number contains the 'v_'

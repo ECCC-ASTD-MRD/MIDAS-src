@@ -1546,6 +1546,7 @@ contains
       real(4) :: heightSfcOffset_T_r4
       real(8) :: zpt, zpb, zwt, zwb, offset
       real(8), pointer :: col_ptr(:)
+      type(struct_vco), pointer :: vco_ptr
 
       ik = 1
       nlev = col_getNumLev(columnTrlOnTrlLev, 'TH')
@@ -1559,10 +1560,10 @@ contains
       zwb = log(p/zpt) / log(zpb/zpt)
       zwt = 1.d0 - zwb
       col_ptr => col_getColumn(columnTrlOnTrlLev, headerIndex, 'Z_T')
-
+      vco_ptr => col_getVco(columnTrlOnTrlLev)
       if (removeHeightSfcOffset .and. col_addHeightSfcOffset(columnTrlOnTrlLev) .and. (ik+1) == nlev) then
         ! Patch to prevent negative impacts with respect to legacy approach (addHeightSfcOffse=.false.)
-        status = vgd_get(col_getVco(columnTrlOnTrlLev)%vgrid, &
+        status = vgd_get(vco_ptr%vgrid, &
                          key='DHT - height of the diagnostic level (t)', &
                          value=heightSfcOffset_T_r4)
         offset = real(heightSfcOffset_T_r4,8)

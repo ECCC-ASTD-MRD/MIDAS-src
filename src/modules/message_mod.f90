@@ -31,6 +31,7 @@ module message_mod
     module procedure msg_str2str
     module procedure msg_log2str
     module procedure msg_int2str
+    module procedure msg_int82str
     module procedure msg_real42str
     module procedure msg_real82str
     module procedure msg_charArray2str
@@ -49,7 +50,7 @@ module message_mod
   logical :: msg_arrayVertical
 
   contains
-  
+
   !--------------------------------------------------------------------------
   ! msg
   !--------------------------------------------------------------------------
@@ -129,7 +130,8 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer            :: pgmUsageMb, fasttmpUsageMb
+    integer            :: pgmUsageMb
+    integer(8)         :: fasttmpUsageMb
     integer, external  :: get_max_rss
 
     pgmUsageMb = get_max_rss()/1024
@@ -141,14 +143,14 @@ module message_mod
       fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*/*/*')
     end if
 
-    if (fasttmpUsageMb == 0) then      
+    if (fasttmpUsageMb == 0) then
       call msg(origin, 'Memory Used: '//str(pgmUsageMb)//' Mb', verb_opt, mpiAll_opt)
     else
       call msg(origin, 'Memory Used: '//str(pgmUsageMb + fasttmpUsageMb)//' Mb ' // &
                '(including '//str(fasttmpUsageMb)//' Mb from fasttmp)', &
                verb_opt, mpiAll_opt)
     end if
-    
+
   contains
 
     function sizeOfFiles(path) result(usageMb)
@@ -157,10 +159,11 @@ module message_mod
       ! Arguments:
       character(len=*), intent(in) :: path
       ! Result:
-      integer                      :: usageMb
+      integer(8)                   :: usageMb
 
       ! Locals
-      integer            :: returnCode, fileIndex, numFiles, fileSize
+      integer            :: returnCode, fileIndex, numFiles
+      integer(8)         :: fileSize
       integer, parameter :: maxNumFiles = 100
       character(len=256) :: fileList(maxNumFiles)
       logical, parameter :: verbose = .false.
@@ -264,17 +267,17 @@ module message_mod
     logical :: arrayVertical  ! choose to use array vertical representation by default
     integer :: verbosity      ! maximum verbosity level of messages to be printed in the listing
     namelist /NAMMSG/verbosity, arrayVertical
-  
+
     if (alreadyRead) then
       return
     else
       alreadyRead = .true.
     end if
-  
+
     ! default namelist value
     verbosity = msg_DEFAULT
     arrayVertical = .false.
-  
+
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
                 mpiAll_opt=.false., verb_opt=msg_ALWAYS)
@@ -299,12 +302,12 @@ module message_mod
     ! :Purpose: Format and write message to default output
     !
     implicit none
-  
+
     ! Arguments:
     character(len=*),           intent(in) :: origin        ! originating subroutine/function
     character(len=*),           intent(in) :: message       ! message to be printed
     character(len=*), optional, intent(in) :: separator_opt ! separator string between origin and message
-  
+
     ! Locals:
     integer :: originLen, oneLineMsgLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
@@ -326,7 +329,7 @@ module message_mod
     originLen = len(originTrunc)
 
     oneLineMsgLen = msg_lineLen - originLen - len(separator)
-  
+
     if (len(message) > oneLineMsgLen) then
       ! Multiple lines message
       ! format: "origin: message on the first line..........."
@@ -336,28 +339,32 @@ module message_mod
       readLine = message(1:oneLineMsgLen+1)
       msgLine = msg_breakOnSpace(readLine)
       posIdx = posIdx + len(trim(msgLine)) +1
-      write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
-                                                  ',A', len(trim(msgLine)),')'
-      write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
-      do
-        if ( posIdx >= len(message) ) then
-          ! message printed
-          return
-        else if ( posIdx + oneLineMsgLen > len(trim(message)) ) then
-          ! last line
-          msgLine = message(posIdx+1:len(message))
-        else
-          ! neither first nor last
-          readLine = message(posIdx+1:min(posIdx+oneLineMsgLen+1,len(message)))
-          msgLine = msg_breakOnSpace(readLine)
-        end if
-        adjustedLine = adjustl(trim(msgLine))
-        posIdx = posIdx + len(adjustedLine) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A', &
-                                                len(adjustedLine),')'
-        write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
-      end do
+      if ( len(trim(msgLine)) > 0 ) then
+        write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
+                                                    ',A', len(trim(msgLine)),')'
+        write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
+        oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
+        do
+          if ( posIdx >= len(message) ) then
+            ! message printed
+            return
+          else if ( posIdx + oneLineMsgLen > len(trim(message)) ) then
+            ! last line
+            msgLine = message(posIdx+1:len(message))
+          else
+            ! neither first nor last
+            readLine = message(posIdx+1:min(posIdx+oneLineMsgLen+1,len(message)))
+            msgLine = msg_breakOnSpace(readLine)
+          end if
+          adjustedLine = adjustl(trim(msgLine))
+          posIdx = posIdx + len(adjustedLine) +1
+          write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A',len(adjustedLine),')'
+          write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
+        end do
+      else
+        ! write an empty line
+        write(*,*)
+      end if
     else
       ! Single lines message
       ! format: "origin: short message"
@@ -374,7 +381,7 @@ module message_mod
         ! :Purpose: Breaks line on last full word
         !
         implicit none
-    
+
         ! Arguments:
         character(len=*), intent(inout) :: line        ! line of text to be processed
         ! Result:
@@ -382,7 +389,7 @@ module message_mod
 
         ! Locals:
         integer :: idx, idxNewLine
-    
+
         idxNewLine = scan(line, new_line(''))
         if ( idxNewLine == 0) then ! no new line
           idx = scan(trim(line),' ',back=.true.)
@@ -394,7 +401,7 @@ module message_mod
         else ! presence of a new line
           shorterLine = trim(line(1:idxNewLine-1))
         end if
-    
+
       end function msg_breakOnSpace
   end subroutine msg_write
 
@@ -486,6 +493,25 @@ module message_mod
 
   end function msg_int2str
 
+  function msg_int82str(num) result(string)
+    !
+    ! :Purpose: Returns string representation of `integer`
+    !
+    implicit none
+
+    ! Arguments:
+    integer(8),                   intent(in)  :: num    ! input integer(8) variable to be interpreted
+    ! Result:
+    character(len=:), allocatable             :: string ! resulting string with integer value
+
+    ! Locals:
+    character(len=msg_num2strBufferLen) :: buffer
+
+    write(buffer,*) num
+    string = trim(adjustl(buffer))
+
+  end function msg_int82str
+
   !--------------------------------------------------------------------------
   ! msg_real42str (private)
   !--------------------------------------------------------------------------
@@ -507,7 +533,7 @@ module message_mod
 
     if (present(digits_opt)) then
       write(digitBuffer, *) digits_opt
-      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')' 
+      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')'
       write(buffer, readFmt) num
     else
       write(buffer,*) num
@@ -521,7 +547,7 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_real82str(num, digits_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `real(8)` 
+    ! :Purpose: Returns string representation of `real(8)`
     !
     implicit none
 
@@ -537,7 +563,7 @@ module message_mod
 
     if (present(digits_opt)) then
       write(digitBuffer, *) digits_opt
-      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')' 
+      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')'
       write(buffer, readFmt) num
     else
       write(buffer,*) num
@@ -551,7 +577,7 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_charArray2str(array, vertical_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `character(len=*), dimension(:)` 
+    ! :Purpose: Returns string representation of `character(len=*), dimension(:)`
     !
     implicit none
 
@@ -593,7 +619,7 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_logArray2str(array, vertical_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `logical, dimension(:)` 
+    ! :Purpose: Returns string representation of `logical, dimension(:)`
     !
     implicit none
 
@@ -627,7 +653,7 @@ module message_mod
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_logArray2str
 
   !--------------------------------------------------------------------------
@@ -635,7 +661,7 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_intArray2str(array, vertical_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `integer, dimension(:)` 
+    ! :Purpose: Returns string representation of `integer, dimension(:)`
     !
     implicit none
 
@@ -669,7 +695,7 @@ module message_mod
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_intArray2str
 
   !--------------------------------------------------------------------------
@@ -677,13 +703,13 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_real4Array2str(array, digits_opt, vertical_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `real(4), dimension(:)` 
+    ! :Purpose: Returns string representation of `real(4), dimension(:)`
     !
     implicit none
 
     ! Arguments:
     real(4),           intent(in) :: array(:)     ! input array of real(4) variables
-    integer, optional, intent(in) :: digits_opt   ! number of digits to include in output 
+    integer, optional, intent(in) :: digits_opt   ! number of digits to include in output
     logical, optional, intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
     ! Result:
     character(len=:), allocatable :: string       ! resulting string
@@ -712,7 +738,7 @@ module message_mod
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_real4Array2str
 
   !--------------------------------------------------------------------------
@@ -720,7 +746,7 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_real8Array2str(array, digits_opt, vertical_opt) result(string)
     !
-    ! :Purpose: Returns string representation of `real(8), dimension(:)` 
+    ! :Purpose: Returns string representation of `real(8), dimension(:)`
     !
     implicit none
 
@@ -755,7 +781,7 @@ module message_mod
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_real8Array2str
 
 end module message_mod

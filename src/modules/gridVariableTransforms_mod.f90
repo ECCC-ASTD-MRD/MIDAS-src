@@ -73,7 +73,7 @@ CONTAINS
   ! gvt_setup
   !--------------------------------------------------------------------------
   subroutine gvt_setup(hco_in,hco_core,vco_in)
-    ! 
+    !
     ! :Purpose: To set up a variable transformation object
     !
     implicit none
@@ -82,7 +82,7 @@ CONTAINS
     type(struct_hco), pointer, intent(inout) :: hco_in
     type(struct_hco), pointer, intent(inout) :: hco_core
     type(struct_vco), pointer, intent(inout) :: vco_in
-    
+
     if ( gsv_containsNonZeroValues(stateVectorRefHU) ) return
     if ( gsv_containsNonZeroValues(stateVectorRefHeight) ) return
     if ( any(varKindCHTrialsInitialized(:)) ) return
@@ -102,11 +102,11 @@ CONTAINS
   ! gvt_setupRefFromTrialFiles
   !--------------------------------------------------------------------------
   subroutine gvt_setupRefFromTrialFiles(varName, varKind_opt)
-    ! 
-    ! :Purpose: Initialise reference statevector from file 
+    !
+    ! :Purpose: Initialise reference statevector from file
     !
     ! :Arguments:
-    !   :varKind_opt: optional variable "kind" argument presently used to 
+    !   :varKind_opt: optional variable "kind" argument presently used to
     !                 initialise the reference state in a chemical assimilation
     !                 context.
     !
@@ -119,7 +119,7 @@ CONTAINS
     ! Locals:
     type(struct_gsv) :: statevector_noZnoP
     integer :: varIndex
-    
+
     select case ( trim(varName) )
     case ('HU')
       ! initialize stateVectorRefHU on analysis grid
@@ -168,11 +168,11 @@ CONTAINS
       if ( present(varKind_opt) ) then
         if (varKind_opt == 'CH' .and. &
             vnl_varKindFromVarname(varName) == varKind_opt ) then
-        
+
           varIndex = vnl_varListIndex(varName)
-          
+
           ! initialize stateVectorTrialvarKindCH(varIndex) on analysis grid
-          
+
           call gsv_allocate(stateVectorTrialvarKindCH(varIndex), &
                             tim_nstepobsinc, hco_anl, vco_anl,   &
                             dateStamp_opt=tim_getDateStamp(), &
@@ -184,10 +184,10 @@ CONTAINS
           call gio_readTrials( stateVectorTrialvarKindCH(varIndex) )  ! IN/OUT
 
           varKindCHTrialsInitialized(varIndex) = .true.
-           
+
         else
           call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
-        end if 
+        end if
       else
         call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
       end if
@@ -451,12 +451,12 @@ CONTAINS
   !--------------------------------------------------------------------------
     subroutine gvt_transform_ens( ens,transform, allowOverWrite_opt, &
                                   varName_opt, huMinValue_opt)
-    ! 
-    ! :Purpose: Top-level switch routine for ensemble transformations on the 
+    !
+    ! :Purpose: Top-level switch routine for ensemble transformations on the
     !           grid
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_ens),           intent(inout) :: ens ! operand (ensemble of statevector)
     character(len=*),           intent(in)    :: transform ! string identifying the requested transformation
@@ -485,7 +485,7 @@ CONTAINS
         call utl_abort('gvt_transform: for logCH missing variable name')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
         call utl_abort('gvt_transform: Invalid kind of varName for logCH')
-      end if 
+      end if
       call logCH_ens(ens,varName_opt)
     case default
       call utl_abort('gvt_transform_ens: Unsupported function '//trim(transform))
@@ -497,13 +497,13 @@ CONTAINS
   ! gvt_getStateVectorTrial
   !--------------------------------------------------------------------------
   function gvt_getStateVectorTrial(varName) result(statevector_ptr)
-    ! 
-    ! :Purpose: Returns a pointer to requested reference statevector 
+    !
+    ! :Purpose: Returns a pointer to requested reference statevector
     !
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName ! reference variable/type requested 
+    character(len=*), intent(in) :: varName ! reference variable/type requested
     ! Result:
     type(struct_gsv), pointer  :: statevector_ptr
 
@@ -532,17 +532,17 @@ CONTAINS
   subroutine gvt_setupRefFromStateVector( stateVectorOnTrlGrid, varName, &
                                           applyLimitOnHU_opt )
     !
-    !:Purpose: computing the reference stateVector on the analysis grid at each 
-    !          outer-loop iteration. The calculation is skipped if stateVectorRef* is 
+    !:Purpose: computing the reference stateVector on the analysis grid at each
+    !          outer-loop iteration. The calculation is skipped if stateVectorRef* is
     !          initialized (gsv_containsNonZeroValue(stateVectorRef*)=.true.).
     !          The input stateVector is the high spatial/temporal resolution
-    !          statevector used for reading the trials and should contain 
+    !          statevector used for reading the trials and should contain
     !          TT/HU/P0 if stateVectorRefHeight is asked for.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector 
+    type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector
     character(len=*),  intent(in) :: varName ! reference variable/type used
     logical, optional, intent(in) :: applyLimitOnHU_opt
 
@@ -587,7 +587,7 @@ CONTAINS
                         vco_trl, dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
                         allocHeightSfc_opt=allocHeightSfc, &
-                        hInterpolateDegree_opt='LINEAR', & 
+                        hInterpolateDegree_opt='LINEAR', &
                         allocHeight_opt=.false., allocPressure_opt=.false. )
       call gsv_copy( stateVectorOnTrlGrid, stateVectorLowResTime, &
                      allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true. )
@@ -638,7 +638,7 @@ CONTAINS
                         vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                         hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=varNames ) 
+                        varNames_opt=varNames )
       call gsv_copy(stateVectorOnTrlGrid, stateVectorLowResTime, &
                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true.)
 
@@ -670,8 +670,8 @@ CONTAINS
   ! LQtoHU
   !--------------------------------------------------------------------------
   subroutine LQtoHU(statevector)
-    ! 
-    ! :Purpose: Specific humidity logarithm exponentiation. 
+    !
+    ! :Purpose: Specific humidity logarithm exponentiation.
     !
     implicit none
 
@@ -704,8 +704,8 @@ CONTAINS
   ! HUtoLQ_gsv
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_gsv(statevector)
-    ! 
-    ! :Purpose: Logarithmic transformation of specific humidity 
+    !
+    ! :Purpose: Logarithmic transformation of specific humidity
     !
     implicit none
 
@@ -763,8 +763,8 @@ CONTAINS
   ! HUtoLQ_ens
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_ens(ens, huMinValue_opt)
-    ! 
-    ! :Purpose: Specific humidity logarithm exponentiation (ensemble processing) 
+    !
+    ! :Purpose: Specific humidity logarithm exponentiation (ensemble processing)
     !
     implicit none
 
@@ -793,7 +793,7 @@ CONTAINS
       if (varName /= 'HU') cycle
 
       ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)
-    
+
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, ens_getNumStep(ens)
@@ -814,8 +814,8 @@ CONTAINS
   ! LQtoHU_tlm
   !--------------------------------------------------------------------------
   subroutine LQtoHU_tlm(statevector, stateVectorRef_opt)
-    ! 
-    ! :Purpose: Tangent linear of exponentiation transformation of specific 
+    !
+    ! :Purpose: Tangent linear of exponentiation transformation of specific
     !           humidity in logarithmic representation
     !
     implicit none
@@ -856,7 +856,7 @@ CONTAINS
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
                    max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
@@ -874,7 +874,7 @@ CONTAINS
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)*  &
                    max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
@@ -892,8 +892,8 @@ CONTAINS
   ! HUtoLQ_tlm
   !--------------------------------------------------------------------------
   subroutine HUtoLQ_tlm(statevector, stateVectorRef_opt)
-    ! 
-    ! :Purpose: Tangent linear of logarithmic transformation of specific 
+    !
+    ! :Purpose: Tangent linear of logarithmic transformation of specific
     !           humidity
     !
     implicit none
@@ -961,8 +961,8 @@ CONTAINS
   ! LPRtoPR_gsv
   !--------------------------------------------------------------------------
   subroutine LPRtoPR_gsv(stateVector, statevectorOut_opt, allowOverWrite_opt)
-    ! 
-    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !
+    ! :Purpose: Quantity of precipitation logarithm exponentiation
     !
     implicit none
 
@@ -1014,7 +1014,7 @@ CONTAINS
         end if
       end if
       call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
-      
+
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
         do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('LPR'))
@@ -1095,8 +1095,8 @@ CONTAINS
   ! LPRtoPR_ens
   !--------------------------------------------------------------------------
   subroutine LPRtoPR_ens(ens, allowOverWrite_opt)
-    ! 
-    ! :Purpose: Quantity of precipitation logarithm exponentiation 
+    !
+    ! :Purpose: Quantity of precipitation logarithm exponentiation
     !           (ensemble processing)
     !
     implicit none
@@ -1166,7 +1166,7 @@ CONTAINS
   ! PRtoLPR_gsv
   !--------------------------------------------------------------------------
   subroutine PRtoLPR_gsv(stateVector, statevectorOut_opt)
-    ! 
+    !
     ! :Purpose: Logarithmic transformation of quantity of precipitation
     !
     implicit none
@@ -1188,7 +1188,7 @@ CONTAINS
         call gsv_getField(stateVector,lpr_ptr_r8,'LPR')
       end if
       call gsv_getField(stateVector,pr_ptr_r8,'PR')
-      
+
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
         do levIndex = 1, gsv_getNumLev(stateVector,vnl_varLevelFromVarname('PR'))
@@ -1246,8 +1246,8 @@ CONTAINS
   ! LVIStoVIS
   !--------------------------------------------------------------------------
   subroutine LVIStoVIS(stateVector, statevectorOut_opt, allowOverWrite_opt)
-    ! 
-    ! :Purpose: Visibility logarithm exponentiation 
+    !
+    ! :Purpose: Visibility logarithm exponentiation
     !
     implicit none
 
@@ -1299,7 +1299,7 @@ CONTAINS
         end if
       end if
       call gsv_getField(stateVector,lvis_ptr_r8,'LVIS')
-      
+
       do stepIndex = 1, stateVector%numStep
         !$OMP PARALLEL DO PRIVATE(lonIndex,latIndex,levIndex)
         do levIndex = 1, gsv_getNumLev( stateVector,&
@@ -1365,9 +1365,9 @@ CONTAINS
   ! ZandP_tl
   !--------------------------------------------------------------------------
   subroutine ZandP_tl(stateVector)
-    ! 
-    ! :Purpose: Tangeant linear of height and pressure computation.  
-    !           The computation order depends on the native model 
+    !
+    ! :Purpose: Tangeant linear of height and pressure computation.
+    !           The computation order depends on the native model
     !           representation (height or pressure based).
     !
     implicit none
@@ -1383,9 +1383,9 @@ CONTAINS
   ! ZandP_ad
   !--------------------------------------------------------------------------
   subroutine ZandP_ad(stateVector)
-    ! 
-    ! :Purpose: Adjoint of the tangeant linear computation of both height and 
-    !           pressure. The computation order depends on the native model 
+    !
+    ! :Purpose: Adjoint of the tangeant linear computation of both height and
+    !           pressure. The computation order depends on the native model
     !           representation (height or pressure based).
     !
     implicit none
@@ -1401,11 +1401,11 @@ CONTAINS
   ! UVtoVortDiv_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_gsv(statevector)
-    ! 
+    !
     ! :Purpose: Wind components to relative vorticity and divergence transformation.
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
@@ -1427,14 +1427,14 @@ CONTAINS
     end if
 
     nlev_M =  gsv_getNumLev  (statevector,'MM')
-    
+
     if (  statevector%hco%global ) then
       call utl_abort('UVtoVortDiv_gsv: global mode not available')
     else
       do stepIndex = 1, statevector%numStep
         call lgt_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
                              uu_ptr(:,:,:,stepIndex), vv_ptr(:,:,:,stepIndex), & ! IN
-                             nlev_M )                                            ! IN          
+                             nlev_M )                                            ! IN
       end do
     end if
 
@@ -1444,8 +1444,8 @@ CONTAINS
   ! vortDivtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine vortDivToPsiChi_gsv(statevector)
-    ! 
-    ! :Purpose: Relative vorticity and divergence to stream function and 
+    !
+    ! :Purpose: Relative vorticity and divergence to stream function and
     !           velocity potential transformation.
     !
     implicit none
@@ -1496,10 +1496,10 @@ CONTAINS
       end if
 
       do stepIndex = 1, statevector%numStep
-          
+
         pp_ptr(:,:,:,stepIndex) = qr_ptr(:,:,:,stepIndex)
         cc_ptr(:,:,:,stepIndex) = dd_ptr(:,:,:,stepIndex)
-         
+
         ! Vort -> Psi
         call lst_Laplacian(lst_lapl,                & ! IN
                            pp_ptr(:,:,:,stepIndex), & ! INOUT
@@ -1520,17 +1520,17 @@ CONTAINS
   ! UVtoPsiChi_gsv
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_gsv(statevector)
-    ! 
-    ! :Purpose: Wind components to stream function and velocity potential 
+    !
+    ! :Purpose: Wind components to stream function and velocity potential
     !           transformation.
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
-    integer               :: stepIndex 
+    integer               :: stepIndex
     real(8), pointer      :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer      :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
     real(8), allocatable  :: gridState(:,:,:), spectralState(:,:,:)
@@ -1615,17 +1615,17 @@ CONTAINS
     write(*,*) 'UVtoPsiChi_gsv: finished'
 
   end subroutine UVtoPsiChi_gsv
-  
+
   !--------------------------------------------------------------------------
   ! UVtoPsiChi_ens
   !--------------------------------------------------------------------------
   subroutine UVtoPsiChi_ens(ens)
-    ! 
-    ! :Purpose: Wind components to stream function and velocity potential 
+    !
+    ! :Purpose: Wind components to stream function and velocity potential
     !           transformation (ensemble processing).
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
@@ -1675,12 +1675,12 @@ CONTAINS
   ! UVtoVorDiv_ens
   !--------------------------------------------------------------------------
   subroutine UVtoVortDiv_ens(ens)
-    ! 
+    !
     ! :Purpose: Wind components to relative vorticity and divergence transformation
     !           (ensemble processing)
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
@@ -1734,11 +1734,11 @@ CONTAINS
   ! calcZandP_nl_ens
   !--------------------------------------------------------------------------
   subroutine calcZandP_nl_ens(ens)
-    ! 
+    !
     ! :Purpose: Compute 3D pressure (ensemble processing)
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
@@ -1762,7 +1762,7 @@ CONTAINS
 
     ! Add HeighSfc and, if existing, HeightSfcLs
     call ens_copyHeightSfcToGsv(ens, gridStateVector_oneMember)
-    
+
     !
     !- 2.  Loop on members
     !
@@ -1791,7 +1791,7 @@ CONTAINS
   ! logCH_ens
   !--------------------------------------------------------------------------
   subroutine logCH_ens(ens,varName)
-    ! 
+    !
     ! :Purpose: Logarithmic transformation of a chemical species concentration
     !           (ensemble processing)
     !
@@ -1817,7 +1817,7 @@ CONTAINS
 
       ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)
       minVal=real(gsv_minValVarKindCH(vnl_varListIndex(varName)),4)
-    
+
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = 1, ens_getNumStep(ens)
@@ -1838,7 +1838,7 @@ CONTAINS
   ! expCH_tlm
   !--------------------------------------------------------------------------
   subroutine expCH_tlm(statevector, varName, stateVectorRef_opt)
-    ! 
+    !
     ! :Purpose: Tangent linear of exponentiation of chemical species
     !           concentration.
     !           Transform d[log(x)] to dx where x = 'stateVectorRef_opt',
@@ -1851,7 +1851,7 @@ CONTAINS
     type(struct_gsv),           intent(inout) :: statevector
     character(len=*),           intent(in)    :: varName
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
-    
+
     ! Locals:
     integer           :: lonIndex,latIndex,levIndex,stepIndex,varIndex
     real(8), pointer  :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:)
@@ -1879,7 +1879,7 @@ CONTAINS
       do levIndex = 1, gsv_getNumLev( statevector,&
                                       vnl_varLevelFromVarname(trim(varName)))
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             var_ptr(lonIndex,latIndex,levIndex,stepIndex) =  &
                 logVar_ptr(lonIndex,latIndex,levIndex,stepIndex) &
                 * max(var_trial(lonIndex,latIndex,levIndex,stepIndex),minVal)
@@ -1895,14 +1895,14 @@ CONTAINS
   ! CH_bounds
   !--------------------------------------------------------------------------
   subroutine CH_bounds(statevector)
-    ! 
+    !
     ! :Purpose: Impose boundary values to variables of CH kind.
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    
+
     ! Locals:
     integer           :: varIndex,lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer  :: var_ptr(:,:,:,:)
@@ -1923,7 +1923,7 @@ CONTAINS
         do levIndex = 1, gsv_getNumLev( statevector,&
                                         vnl_varLevelFromVarname(trim(varName)))
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd       
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               var_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
                   max(var_ptr(lonIndex,latIndex,levIndex,stepIndex),minVal)
             end do
@@ -1943,10 +1943,10 @@ CONTAINS
     !
     ! :Purpose: Solve laplaces equation at a subset of gridpoints
     !           subject to the boundary conditions imposed by the
-    !           surrounding points.  Uses the method of sequential 
+    !           surrounding points.  Uses the method of sequential
     !           relaxation or Liebmann relaxation, which converges
     !           more rapidly than the simultaneous relaxation (see
-    !           numerical weather analysis and prediction by P. D. 
+    !           numerical weather analysis and prediction by P. D.
     !           Thompson, 1961, pp92-98). NOTE: this subroutine
     !           currently uses the oceanMask only for the first level.
     !           Therefore, if it is applied to 3D masked fields that
@@ -1959,7 +1959,7 @@ CONTAINS
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: stateVectorRef
-    character(len=*), intent(in)    :: outputVarName   
+    character(len=*), intent(in)    :: outputVarName
 
     ! Locals:
     type(struct_gsv) :: statevector_analysis_1step_r8
@@ -1971,7 +1971,7 @@ CONTAINS
     integer :: ipass, numPass, numCorrect
     logical :: orca12
     character(len=2) :: inputVarName
-    
+
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
       call utl_abort('gvt_oceanIceContinuous: 3D mask present - this case not properly handled')
@@ -2003,9 +2003,9 @@ CONTAINS
 
     if (gsv_isAllocated(stateVector_analysis_1step_r8)) then
 
-      if (outputVarName == 'LG') then 
+      if (outputVarName == 'LG') then
         inputVarName = 'GL'
-      else 
+      else
         inputVarName = outputVarName
       end if
       call gsv_getField(stateVector_analysis_1step_r8, input_ptr, inputVarName)
@@ -2204,7 +2204,7 @@ CONTAINS
 
     ! Locals:
     logical, allocatable :: isWaterValue(:,:)              ! .True. for water points, .False. for land points
-    logical, allocatable :: updatedIsWaterValue(:,:)       ! If the current value is already updated, set it to .True. 
+    logical, allocatable :: updatedIsWaterValue(:,:)       ! If the current value is already updated, set it to .True.
     real(4), allocatable :: updatedField(:,:)              ! updated surface temperature on land
     real(4)              :: updatedValueSum
     integer              :: top, bottom, left, right, np
@@ -2319,7 +2319,7 @@ CONTAINS
                 end if
               end if
             end do
-              
+
             ! mark the grid point as being filled by interpolation on the grid
             if (ngp /= 0) then
               updatedIsWaterValue(lonIndex, latIndex) = .True.

@@ -5642,7 +5642,6 @@ contains
     integer                     :: icodeleMrq(3) 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
-    integer, external           :: mrfmxl
     logical                     :: isDerialt
     logical                     :: isInstrumUsingCLW, isInstrumUsingHydrometeors 
     logical                     :: beSilent
