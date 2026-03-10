@@ -34,13 +34,17 @@ One can feed a listing directly from standard input:
 ```sh
 cat ${LISTING} | ./midas.timingTool
 ```
-Note that this allow to use it in conjunction with `nodelister` to get the timings directly from a suite:
+Note that this allows to use it in conjunction with `nodelister` to get the timings directly from a suite:
 ```sh
 SEQ_EXP_HOME=${path_to_suite} nodelister -n ${maestro_node} -d ${datetime} | ./midas.timingTool
 ```
-It also allows to process a gunzipped listing directly with
+It also allows to process a gzipped listing directly,
 ```sh
-zcat ${LISTING} | ./midas.timingTool
+./midas.timingTool ${COMPRESSED_LISTING}
+```
+however, it cannot process a gzipped stream (such as `cat ${COMPRESSED_LISTING} | ./midas.timingTool`).  You could however do
+```sh
+zcat ${COMPRESSED_LISTING} | ./midas.timingTool
 ```
 
 
@@ -63,6 +67,7 @@ SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1} | 
 ```sh
 ./midas.timingTool <(SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1}) -d -r <(SEQ_EXP_HOME=${path_to_suite2} nodelister -n ${maestro_node2} -d ${datetime2})
 ```
+The reference listing can also be gzipped.
 
 Another example is to use `cmcarc` to extract a listing from an archive like this:
 ```bash

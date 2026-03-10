@@ -1,23 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+import stat
 import sys
 import argparse
 import unittest
+import gzip
 
 #==== Command line interface =================================================
 
 parser = argparse.ArgumentParser()
-parser.add_argument("listing", nargs='?', type=argparse.FileType('r'), default=sys.stdin,
-                    help="input listing to be parsed for timings, omitting this argument, the script will read directly from stdin")
-parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
-parser.add_argument("-1", "--title", help="Replacement title for input")
-parser.add_argument("-2", "--title-reference", help="Replacement title for reference")
-parser.add_argument("-d", "--diff", help="compare input listing with the reference",action="store_true", default=False)
-parser.add_argument("-n", "--nocount", help="Do not show call count",action="store_false", default=True)
-parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
-parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)
-parser.add_argument("-u", "--unittest", help="Run the unit tests",action="store_true", default=False)
+parser.add_argument("listing", nargs='?', type=argparse.FileType('rb'), default=sys.stdin,
+                    help="Input listing to be parsed for timings, omitting this argument, the script will read directly from stdin. The input listing can be gzipped if passed as argument.")
+parser.add_argument("-r", "--reference", help="Reference listing to ensure common list of labels.  Can also be gzipped.")
+parser.add_argument("-1", "--title", help="Replacement title for input.")
+parser.add_argument("-2", "--title-reference", help="Replacement title for reference.")
+parser.add_argument("-d", "--diff", help="Compare input listing with the reference.",action="store_true", default=False)
+parser.add_argument("-n", "--nocount", help="Do not show call count.",action="store_false", default=True)
+parser.add_argument("-o", "--order", help="Order to construct the list of labels.", type=int, choices=[1, 2], default=1)
+parser.add_argument("-l", "--limit", help="Minimum timing threshold.", type=float, default=3.0)
+parser.add_argument("-u", "--unittest", help="Run the unit tests.",action="store_true", default=False)
 args = parser.parse_args()
 
 
@@ -25,18 +28,18 @@ minimumTimingLimit=args.limit
 exptOrder=args.order
 showCount=args.nocount
 
-# argparse will either open the file passed or feed in stdin
-# note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
-inputUnit = args.listing
-
-# this allows the user to specify a reference listing - timing information
-# will not be generated from this file, but it will be used to ensure a
-# common list (and order) of the labels to facilitate an xxdiff of files
-# from running the script twice, once for each listing file
-filename2 = args.reference
-
+input_source = args.listing
+## argparse will either open the file passed or feed in stdin
+## note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
 
 #==== Top-level functions ====================================================
+
+GZIP_MAGIC = b'\x1f\x8b' # gzipped files have these two header bytes
+def is_gzipped(file):
+    first_two_bytes = file.read(2)  # Read the first two bytes
+    file.seek(0)
+    return first_two_bytes == GZIP_MAGIC
+
 
 def printTMG(fileObj, fileObjRef = None):
     '''Top-level function for printing timings'''
@@ -159,7 +162,7 @@ def outputDiffTMG(labelList, diff, timings, showCount=False):
 def extractLines(fileObj):
     lines = list()
     for line in fileObj:
-        line=str(line)
+        line=str(line.strip())
         strIndex = line.find(" TMG:")
         if line.find(" TMG:") == -1 or line.find("oe-") == -1:
             continue
@@ -547,29 +550,64 @@ if __name__ == "__main__":
     if args.unittest:
         unittest.main(argv=[parser.prog], verbosity=2)
     else:
+        ##-- Input processing
+        ## Check if the input source is a regular file or a pipe
+        is_pipe = False
+        try:
+            # Use os.fstat on the file descriptor to check its file type
+            stat_info = os.fstat(input_source.fileno())  # Fetch the status using the file descriptor
+
+            # Determine if the file descriptor refers to a pipe (FIFO)
+            is_pipe = stat.S_ISFIFO(stat_info.st_mode)
+
+        except Exception as e:
+            print(f"Error checking input source: {e}")
+            sys.exit(1)
+
+        if is_pipe:
+            # Use stdin directly if it's coming from a pipe
+            inputUnit = input_source
+        else:
+            # Regular file handling
+            if is_gzipped(input_source):
+                inputUnit = gzip.open(input_source.name, 'rt')
+            else:
+                inputUnit = open(input_source.name, 'r')
+
+        # this allows the user to specify a reference listing - timing information
+        # will not be generated from this file, but it will be used to ensure a
+        # common list (and order) of the labels to facilitate an xxdiff of files
+        # from running the script twice, once for each listing file
+        refUnit = None
+        if args.reference:
+            try:
+                with gzip.open(args.reference, 'rb') as file:
+                    file.read(1)    #  Reading one byte forces a header check
+                    ref_gzipped = True
+            except (OSError, gzip.BadGzipFile):
+                ref_gzipped = False
+
+            if ref_gzipped:
+                refUnit = gzip.open(args.reference, 'rb')
+            else:
+                refUnit = open(args.reference, 'r')
+
         if args.title != None:
             print(f"{args.title}")
         else:
             print(f"Processing {inputUnit.name}")
 
-        if filename2:
+        if refUnit:
             if args.title_reference != None:
                 print(f"{args.title_reference} (reference)")
             else:
-                print(f"Reference file supplied: {filename2}")
+                print(f"Reference file supplied: {args.reference}")
             if exptOrder == "2":
                 print("  - Reference file used first for constructing label list")
             else:
                 print("  - Main file used first for constructing label list")
 
-            try:
-                refUnit = open(filename2, 'r')
-            except:
-                print(f"The reference file '{filename2}' does not exist!")
-                exit(1)
-        else:
-            refUnit = None
-
+        ##-- actual main top-level functions
         if args.diff:
             if refUnit == None:
                 raise ValueError(f"Reference listing must be provided with `-r|--diff`")
