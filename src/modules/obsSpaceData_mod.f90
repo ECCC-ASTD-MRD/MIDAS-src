@@ -5000,7 +5000,7 @@ contains
 
          ! copy the data to temporary arrays: body-level data
          numBodyPE_mpilocal(:) = 0
-         real_send_2d(:,:) = -99999.0d0
+         real_send_2d(:,:) = obs_missingValue_R
          do bodyIndex=1,numBody_in
             headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
             target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
@@ -5042,7 +5042,7 @@ contains
             bodyIndex_out = 0
             do procIndex = 1, mmpi_nprocs
               do bodyIndex=1,numBody_mpimessage
-                if( .not. utl_isEqual(real_recv_2d(bodyIndex,procIndex),-99999.0d0) ) then
+                if( .not. utl_isEqual(real_recv_2d(bodyIndex,procIndex),obs_missingValue_R) ) then
                   bodyIndex_out = bodyIndex_out + 1
                   obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
                        real_recv_2d(bodyIndex,procIndex)
