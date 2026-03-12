@@ -809,7 +809,6 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     logical           :: found, debugOceanInterp
     character(len=50) :: charDataType
     real(8)           :: weight
-    integer, parameter :: maxDebugObs = 10
 
     if (.not. beSilent) then
       write(*,*) 'Entering oop_oceanTS_nl...'
@@ -2311,12 +2310,11 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
 
       ! Locals:
       integer           :: headerIndex, bodyIndex, bufrCode
-      real(8)           :: anlIncValueBot
       character(len=4)  :: varName
       integer           :: verticalLevelIndex, layerIndex
       real(pre_obsReal) :: obsDepth_r ! raw (pre_obsReal) value returned by obs API
       real(8)           :: obsDepth, weight, modelPert
-      integer           :: numberVerticalLevels, nlev
+      integer           :: numberVerticalLevels
 
       ! Loop over all headers
       call obs_set_current_body_list(obsSpaceData)
