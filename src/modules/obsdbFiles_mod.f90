@@ -579,8 +579,8 @@ contains
     ! Set a bunch of obsSpaceData header columns to 'missing'
     do headTableIndex = 1, numRowsHeadTable
       headIndex = headTableIndex + headIndexBegin - 1
-      call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
-      call obs_headSet_i(obsdat, OBS_INS, headIndex, nint(MPC_missingValue_R8))
+      call obs_headSet_i(obsdat, OBS_SEN, headIndex, MPC_missingValue_INT)
+      call obs_headSet_i(obsdat, OBS_INS, headIndex, MPC_missingValue_INT)
       if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_HeadSet_r(obsdat, OBS_ELEV, headIndex, MPC_missingValue_R8)
     end do
 
@@ -1440,16 +1440,16 @@ contains
              codeType /= codtyp_get_codtyp('amsub') .and. &
              codeType /= codtyp_get_codtyp('mhs') .and. &
              codeType /= codtyp_get_codtyp('atms') ) then
-          sensor = nint(MPC_missingValue_R8)
+          sensor = MPC_missingValue_INT
         end if
 
         ! modify OBS_SAT, OBS_INS and OBS_SEN
 
         if ( instrument == 420 ) obsSat  = 784
         if ( codeType == 202 .and. instrument == 620 ) instrument = 2046
-        if ( sensor == nint(MPC_missingValue_R8) ) then
+        if ( sensor == MPC_missingValue_INT ) then
           sensor = 0
-          if (instrument == nint(MPC_missingValue_R8) ) instrument = 0
+          if (instrument == MPC_missingValue_INT ) instrument = 0
         else
           instrument = obsu_cvt_obs_instrum(sensor)
         end if
