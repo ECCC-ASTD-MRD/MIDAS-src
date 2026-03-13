@@ -20,8 +20,9 @@ midas_build:
     matrix:
       - RUNNER_TAG: hpcr-u3
   script:
+    - version=$(./midas.version)
     - cd src
-    - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
+    - MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS}/${version} MIDAS_ABS_LEAFDIR=./ ./midas_build
   only:
     - main
     - v_3.10
@@ -39,8 +40,9 @@ monitor_tests:
      matrix:
        - RUNNER_TAG: hpcr-u3
    script:
+     - version=$(./midas.version)
      - cd tools/monitor
-     - ./test.sh $MIDAS_ABS/midas.monitor-$(../../midas.version).Abs
+     - ./test.sh ${MIDAS_ABS}/${version}/midas.monitor-$(../../midas.version).Abs
    only:
      - main
      - v_3.10
@@ -60,8 +62,9 @@ splitobs_burp_tests:
      matrix:
        - RUNNER_TAG: hpcr-u3
    script:
+     - version=$(./midas.version)
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
+     - export SPLITOBS=${MIDAS_ABS}/${version}/midas.splitobs_${ORDENV_PLAT}-${version}.Abs
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_burp_${CI_BUILD_ID}
      - ./unittest burp
      - rm -rf ${WORKDIR}
@@ -78,8 +81,9 @@ splitobs_rdb_tests:
      matrix:
        - RUNNER_TAG: hpcr-u3
    script:
+     - version=$(./midas.version)
      - cd tools/splitobs
-     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version).Abs
+     - export SPLITOBS=${MIDAS_ABS}/${version}/midas.splitobs_${ORDENV_PLAT}-${version}.Abs
      - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_rdb_${CI_BUILD_ID}
      - ./unittest rdb
      - rm -rf ${WORKDIR}
@@ -97,17 +101,18 @@ midas_tests:
      matrix:
        - RUNNER_TAG: hpcr-u3
    script:
+     - version=$(./midas.version)
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
-     - ./install_suite.sh $suite run $MIDAS_ABS
+     - ./install_suite.sh $suite run ${MIDAS_ABS}/${version}
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh -findOutliers -emails ervig.lapalme@ec.gc.ca mark.buehner@ec.gc.ca
      - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
      - . ./set_machine_list.dot
-     - clean_suite -y ${suite}
+     - clean_suite --yes ${suite}
      - rm ~/.suites/${suite}
-     - rmdir ~/data_maestro/ords/maestro/$suite
+     - rmdir ~/data_maestro/ords/maestro/${suite}
    only:
      - main
      - v_3.10
@@ -190,10 +195,8 @@ clean_midas_abs:
        - RUNNER_TAG: hpcr-u3
    script:
      - version=$(./midas.version)
-     - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
-     - echo Moving programs for version ${version} in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
-     - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
-     - mv $MIDAS_ABS/midas-config $MIDAS_ABS_ARCHIVE/${version}
+     - echo Moving programs for version ${version} in ${MIDAS_ABS}/${version} to ${MIDAS_ABS_ARCHIVE}/${version}
+     - mv $MIDAS_ABS/${version} ${MIDAS_ABS_ARCHIVE}/${version}
    only:
      - main
      - v_3.10
@@ -215,9 +218,9 @@ doc_sphinx:
        - RUNNER_TAG: hpcr-u3
    script:
      - cd scripts/sphinx
-     - ./build_html.sh ../../src $midasdoc/$docname
-     - rm -fv $midasdoc/latest-${CI_COMMIT_REF_NAME}
-     - ln -sv $midasdoc/$docname $midasdoc/latest-${CI_COMMIT_REF_NAME}
+     - ./build_html.sh ../../src ${midasdoc}/${docname}
+     - rm -fv ${midasdoc}/latest-${CI_COMMIT_REF_NAME}
+     - ln -sv ${midasdoc}/${docname} ${midasdoc}/latest-${CI_COMMIT_REF_NAME}
    only:
      - main
      - v_3.10
