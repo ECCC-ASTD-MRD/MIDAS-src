@@ -58,9 +58,11 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/oMinusF/o-p_sfc 	24.9197 5.74608 0.230584 17 133 7845
 /Tests/oMinusF/o-p_sst 	7.93432 2.99345 0.377279 4 72 13658
 /Tests/obsImpact/EFSO   115.306 12.3343 0.106971 105 255 991
+/Tests/obsImpact/EFSR 	112.426 2.06817 0.0183958 109 123 61
 /Tests/obsImpact/HFSO_dryNorm   176.023 15.3121 0.0869888 158 330 683
 /Tests/obsImpact/HFSO_wetNorm   205.974 15.5386 0.0754393 184 348 585
 /Tests/obsImpact/HFSO_wetStratoNorm     206.127 15.0784 0.0731512 184 316 561
+/Tests/obsImpact/HFSR_wetNorm 	208.447 1.98279 0.00951217 205 214 38
 /Tests/obsSelection/BgckAirs_sqlite 	82.6082 13.6861 0.165675 61 174 2917
 /Tests/obsSelection/BgckAmsua 	90.1477 14.6872 0.162924 67 209 2810
 /Tests/obsSelection/BgckAmsua-gem-h/gem-h 	68.7766 24.4957 0.356163 51 238 3093
