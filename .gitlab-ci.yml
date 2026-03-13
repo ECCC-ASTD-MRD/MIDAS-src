@@ -25,10 +25,6 @@ midas_build:
     - MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS}/${version} MIDAS_ABS_LEAFDIR=./ ./midas_build
   only:
     - main
-    - v_3.10
-    - v_3.10-RandD
-    - v_3.9
-    - v_3.9-RandD
     - v_4.1
     - tags
   tags:
@@ -45,10 +41,6 @@ monitor_tests:
      - ./test.sh ${MIDAS_ABS}/${version}/midas.monitor-$(../../midas.version).Abs
    only:
      - main
-     - v_3.10
-     - v_3.10-RandD
-     - v_3.9
-     - v_3.9-RandD
      - v_4.1
      - tags
    tags:
@@ -115,10 +107,6 @@ midas_tests:
      - rmdir ~/data_maestro/ords/maestro/${suite}
    only:
      - main
-     - v_3.10
-     - v_3.10-RandD
-     - v_3.9
-     - v_3.9-RandD
      - v_4.1
      - tags
    tags:
@@ -134,10 +122,6 @@ findTrials_tests:
      - ./midas.findTrials --unittest
    only:
      - main
-     - v_3.10
-     - v_3.10-RandD
-     - v_3.9
-     - v_3.9-RandD
      - v_4.1
      - tags
    tags:
@@ -199,10 +183,6 @@ clean_midas_abs:
      - mv $MIDAS_ABS/${version} ${MIDAS_ABS_ARCHIVE}/${version}
    only:
      - main
-     - v_3.10
-     - v_3.10-RandD
-     - v_3.9
-     - v_3.9-RandD
      - v_4.1
      - tags
    tags:
@@ -223,10 +203,6 @@ doc_sphinx:
      - ln -sv ${midasdoc}/${docname} ${midasdoc}/latest-${CI_COMMIT_REF_NAME}
    only:
      - main
-     - v_3.10
-     - v_3.10-RandD
-     - v_3.9
-     - v_3.9-RandD
      - v_4.1
      - tags
    tags:
