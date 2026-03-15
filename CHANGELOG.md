@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added several changes to improve the background check of dropsondes and the assimilation of dropsondes in VAR (#1132 and !1084)
+ * (Nothing yet)
 
 ### Changed
 
@@ -16,11 +16,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fixed two bugs when combining vSDL and hSDL (#1186 and !1107)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [4.1.6]
+
+### Added
+
+ * Added several changes to improve the background check of dropsondes and the assimilation of dropsondes in VAR (#1132 and !1084)
+
+### Fixed
+
+ * Fixed two bugs when combining vSDL and hSDL (#1186 and !1107)
 
 ## [4.1.5]
 
@@ -1608,7 +1618,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.5...v_4.1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.6...v_4.1
+[4.1.6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.5...v_4.1.6
 [4.1.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1.5
 [4.1.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
 [4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
