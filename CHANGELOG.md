@@ -16,11 +16,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fixed missing namelists in web documentation (#1135 and !1071)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [4.1.5]
+
+### Fixed
+
+ * Fixed missing namelists in web documentation (#1135 and !1071)
 
 ## [4.1.4]
 
@@ -1602,7 +1608,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.5...v_4.1
+[4.1.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1.5
 [4.1.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
 [4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
 [4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
