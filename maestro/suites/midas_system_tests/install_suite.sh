@@ -12,7 +12,7 @@ if [ ! -f ${resourcesDir}/resources.def ]; then
     ## Run this command as a script since we only need the file
     ## 'maestro/suites/midas_system_tests/resources/resources.def' to
     ## be generated.
-    ${__toplevel}/src/config.dot.sh --build ${__toplevel}/compiledir/midas_bld_resources --no-cd-build --no-show-instructions
+    ${__toplevel}/src/config.dot.sh --build ${__toplevel}/compiledir/midas_bld_resources --fresh --no-cd-build --no-show-instructions
 fi
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
