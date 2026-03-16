@@ -442,14 +442,6 @@ The MIDAS project is not using it because it has several drawbacks:
    Preferring to keep the binaries that have been tested, the
    installed programs will never been used.
 
-### The `prepare_test` target
-
-A special target is available to update the testing environment which
-creates the files
-`maestro/suites/midas_system_tests/resources/resources.def` and
-`maestro/suites/midas_system_tests/abs.dot` that are necessary for the
-testing `maestro` suite.
-
 ### Calling make in parallel
 
 To compile a target using multiple cores use

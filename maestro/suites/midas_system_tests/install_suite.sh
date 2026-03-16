@@ -139,7 +139,13 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
     mkdir -p $(dirname ${MIDAS_TESTS_SUITE})
 fi
 
-./update_abs.dot.sh ${__toplevel}
+if [ ! -f ${MIDAS_SUITE_LAUNCH_DIRECTORY}/abs.dot ]; then
+    ## Run this command as a script since we only need the file
+    ## 'maestro/suites/midas_system_tests/abs.dot' to
+    ## be generated.
+    ${__toplevel}/src/config.dot.sh --build ${__toplevel}/compiledir/midas_bld_resources --fresh --no-cd-build --no-show-instructions
+fi
+
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
     mkdir -p ${ABS_DIR}
