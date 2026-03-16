@@ -333,14 +333,11 @@ It seems 'cmake' has already been run in build directory ${MIDAS_COMPILE_DIR_BUI
 You can rerun by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
    cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
-   make prepare_test
 EOF
             else
                 echo "Running cmake $(cmake_options) ${MIDAS_SOURCE_DIR}"
                 echo
                 cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
-                ## Updating test environment
-                make prepare_test
             fi
         fi ## End of 'if [ "${__run_cmake}" = true ]'
 
@@ -359,7 +356,6 @@ EOF
 You can run by yourself 'cmake' with the commands
    cd ${MIDAS_COMPILE_DIR_BUILD}
    cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
-   make prepare_test
 and build the programs using
 EOF
                 else
