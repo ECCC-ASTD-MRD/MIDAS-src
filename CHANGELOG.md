@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
+## [4.1.5]
+
+### Fixed
+
+ * Fixed missing namelists in web documentation (#1135 and !1071)
+
 ## [4.1.4]
 
 ### Added
@@ -406,6 +412,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
+
+## [3.10.4]
+
+### Fixed
+
+ * The script `tools/midas_scripts/midas.mpirun` now works fine on both
+   HPCR-U2 and HPCR-U3 (#1149 and !1076)
+
+## [3.10.3]
+
+### Changed
+
+ * Update the RPN and CMDA libraries and utilities to 20260202 (#1145 and !1070)
+   * Set Intel MPI environment variable `I_MPI_PIN_PROCESSOR_EXCLUDE_LIST`
+     to ignore some cores when the OpenMP configuration allows MPI ranks
+     to be spread over several NUMA nodes on `rhel-9-graniterapids-64`.
+ * Add ability to control number of threads used by math library (#1139 and !1065)
+
+### Fixed
+
+ * Add changes to the code needed to compile with `gfortran` (#1141 and !1064)
+   * This change is fixing some occasional non-validation observed on HPCR-U3.
+
+### Removed
+
+ * Remove support for HPCR-U2 platform in the CI (#1047 and !1072)
 
 ## [3.10.2]
 
@@ -1626,7 +1658,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.5...v_4.1
+[4.1.5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.4...v_4.1.5
 [4.1.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.3...v_4.1.4
 [4.1.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.2...v_4.1.3
 [4.1.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.1...v_4.1.2
@@ -1636,7 +1669,9 @@ are not documenting them here.
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
-[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.4...v_4.0.0
+[3.10.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.3...v_3.10.4
+[3.10.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.2...v_3.10.3
 [3.10.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.1...v_3.10.2
 [3.10.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.10.0...v_3.10.1
 [3.10.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.7...v_3.10.0

@@ -496,9 +496,6 @@ module message_mod
 
   end function msg_int2str
 
-  !--------------------------------------------------------------------------
-  ! msg_int2str (private)
-  !--------------------------------------------------------------------------
   function msg_int82str(num) result(string)
     !
     ! :Purpose: Returns string representation of `integer`

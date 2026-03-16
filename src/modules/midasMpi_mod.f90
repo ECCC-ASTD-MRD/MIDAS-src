@@ -10,6 +10,7 @@ module midasMpi_mod
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use rpn_comm
   use utilities_mod
+  use mkl_service
 
   implicit none
   save
@@ -191,11 +192,19 @@ contains
     ! Locals:
     integer :: mythread, numthread
     integer :: omp_get_thread_num, omp_get_num_threads
-    integer :: ierr, numNodeMasters
-    integer :: npex, npey
+    integer :: ierr, numNodeMasters, nulnam
+    integer, external :: fnom, fclos
+    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
+
+    ! Namelist variables for 'namMKL'
+    logical :: oneThreadMKL ! choose to use only 1 thread for MKL subroutines
+    logical :: dynamicMKL   ! choose to use dynamic assignment of threads for MKL subroutines
+
+    namelist /nammkl/ oneThreadMKL, dynamicMKL
 
     ! read main namelist if there is a namelist block NAMMMPI
     call readNml()
@@ -299,6 +308,45 @@ contains
       write(*,*) 'mmpi_initialize: no optional MPI_BARRIERs will be done'
     endif
     write(*,*) ' '
+
+    ! default values for MKL namelist
+    oneThreadMKL = .false.
+    dynamicMKL = .true.
+
+    ! read the MKL namelist
+    if (.not. utl_isNamelistPresent('namMKL','./flnml')) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: namMKL is missing in the namelist.'
+        write(*,*) '                 the default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml = namMKL, iostat = ierr)
+      if (ierr /= 0) call utl_abort('mmpi_initialize:: Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    if (mmpi_myid == 0) write(*, nml = namMKL)
+
+    ! Modify the MKL thread configuration based on namelist variables
+
+    if (dynamicMKL) then
+      call mkl_set_dynamic(1)
+    else
+      call mkl_set_dynamic(0)
+    end if
+
+    if (oneThreadMKL) then
+      call mkl_set_num_threads(1)
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: number of threads used for MKL set to one'
+      end if
+    else
+      if (mmpi_myid == 0) then
+        write(*,*) 'mmpi_initialize: default number of threads used for MKL'
+      end if
+    end if
 
   end subroutine mmpi_initialize
 

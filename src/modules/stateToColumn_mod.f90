@@ -3237,8 +3237,8 @@ contains
         ! Extract the temporal interpolation weight
         headerIndex = intInfo%myInterpObsHeaderIndex(columnIndex)
         procIndex   = intInfo%myInterpObsMpiIdSrc(columnIndex) + 1
-        timeWeight = oti_getTimeInterpWeightMpiGlobal(intInfo%oti, headerIndex,  &
-                                                      stepIndex,procIndex)
+        timeWeight  = oti_getTimeInterpWeightMpiGlobal(intInfo%oti, headerIndex,  &
+                                                       stepIndex,procIndex)
 
         ! skip this time step if weight is zero
         if ( utl_isEqual(timeWeight, 0.0d0) ) cycle
