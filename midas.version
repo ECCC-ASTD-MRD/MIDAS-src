@@ -78,7 +78,7 @@ if [ "${status}" -ne 0 ]; then
         ## Run this command as a script since we only need the file
         ## 'maestro/suites/midas_system_tests/resources/resources.def' to
         ## be generated.
-        ${toplevel}/src/config.dot.sh --build ${toplevel}/compiledir/midas_bld_resources --no-cd-build --no-show-instructions
+        ${toplevel}/src/config.dot.sh --build ${toplevel}/compiledir/midas_bld_resources --fresh --no-cd-build --no-show-instructions
     fi
     . ${suite}/set_machine_list.dot ${suite}
 
