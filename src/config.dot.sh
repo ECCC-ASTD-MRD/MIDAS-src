@@ -31,6 +31,13 @@ while [[ $# > 0 ]]; do
         else
             echo "config.dot.sh: this option '${arg}' needs a build directory" >&2
         fi
+    elif [[ "${arg}" = --build-id ]]; then
+        if [[ $# -ge 2 ]]; then
+            __midas_compile_build_id=${2}
+            shift
+        else
+            echo "config.dot.sh: this option '${arg}' needs a build id" >&2
+        fi
     elif [[ "${arg}" = --no-cmake ]]; then
         __run_cmake=false
     elif [[ "${arg}" = --cmake ]]; then
@@ -50,6 +57,7 @@ while [[ $# > 0 ]]; do
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --build: explicitly specify a build directory"
+        echo "        --build-id: specify an extension the build directory name"
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
@@ -199,7 +207,9 @@ if [ "${__run_cmake}" != stop ]; then
     MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
     __install_always_midas=true
 
-    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+    if [ -n "${__midas_compile_build_id}" ]; then
+        __versionid_build=-${__midas_compile_build_id}
+    elif [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
         __versionid_build=-${__revstring}
     else
         __versionid_build=
