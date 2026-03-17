@@ -703,7 +703,6 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0,ftype = 'F',nEns = nEns)
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
@@ -772,7 +771,6 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex,  &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, ftype='A', nEns = nEns)
 
       ! output analmean_raw and analrms_raw, if requested
       if (writeRawAnalStats) then
@@ -793,7 +791,6 @@ contains
                              numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                              containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
       end if  ! writeRawAnalStats
 
       if (alphaRandomPert > 0.0D0) then
@@ -815,7 +812,6 @@ contains
                              numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
                              containsFullField_opt = .false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
       call utl_tmg_stop(5)
 
