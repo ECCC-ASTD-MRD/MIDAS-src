@@ -213,7 +213,7 @@ MODULE mathPhysConstants_mod
    real(4), parameter :: MPC_MINIMUM_CH_R4                 =  1.000000000000000E-01 ! 0.1 micrograms/kg (for constituents)
    real(4), parameter :: MPC_MINIMUM_PM_R4                 =  0.000000000000000E+00 ! 0 micrograms/m^3 (for particulate matter)
 
-! <<<<<< OBS FILE CONSTANTS
+! <<<<<< C O N S T A N T S   R E P R E S E N T I N G   M I S S I N G   V A L U E S >>>>>>
    real(4), parameter :: MPC_missingValue_R4 = -999.
    real(8), parameter :: MPC_missingValue_R8 = -999.D0
    integer, parameter :: MPC_missingValue_INT = -999

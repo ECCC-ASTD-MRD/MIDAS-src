@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Replaced explicit missing values with a named constant (#1093 and !1083)
  * Refactor the way the file `maestro/suites/midas_system_tests/resources/resources.def` is built by using CMake (#1131 and !1079)
  * Parallelize writing of `rebm` files and make some `mpi_barrier` calls optional (#1144 and !1066)
  * Avoid unnecessary vertical interpolation of `columnData_mod` data (#1101 and !1032)
