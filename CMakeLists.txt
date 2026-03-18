@@ -159,9 +159,9 @@ ec_build_config()
 ## Build the resources file 'maestro/suites/midas_system_tests/resources/resources.def'
 if(DEFINED ENV{ORDENV_PLAT})
   if("$ENV{ORDENV_PLAT}" STREQUAL "rhel-8-icelake-64")
-    set(RESOURCE_FILE_EXTENSION "hpcr-u2")
+    set(RESOURCE_FILE_EXTENSION "hpcr-u2.in")
   elseif("$ENV{ORDENV_PLAT}" STREQUAL "rhel-9-graniterapids-64")
-    set(RESOURCE_FILE_EXTENSION "hpcr-u3")
+    set(RESOURCE_FILE_EXTENSION "hpcr-u3.in")
   endif()
 
   ## Build the file only for the two platforms supported
