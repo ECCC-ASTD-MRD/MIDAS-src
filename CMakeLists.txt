@@ -40,7 +40,11 @@ find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
 find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
 find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
 find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
+if(DEFINED ENV{EC_ARCH})
+  find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
+else()
+  find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL NO_MODULE)
+endif()
 
 # Define libraries bundle
 if(DEFINED ENV{RTTOV_VERSION})
