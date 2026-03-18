@@ -78,7 +78,15 @@ if [ "${status}" -ne 0 ]; then
         ## Run this command as a script since we only need the file
         ## 'maestro/suites/midas_system_tests/resources/resources.def' to
         ## be generated.
-        ${toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions
+        status=0
+        cmake_listing=${TMPDIR}/cmake_midas_version_resources.listing
+        ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions > ${cmake_listing} 2>&1 || status=1
+        if [[ "${status}" -ne 0 ]]; then
+            echo "$0: There was an error while updating the resources file (see the listing ${cmake_listing})" >&2
+            exit 1
+        else
+            rm ${cmake_listing}
+        fi
     fi
     . ${suite}/set_machine_list.dot ${suite}
 
