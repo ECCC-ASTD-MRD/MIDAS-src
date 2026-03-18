@@ -12,7 +12,15 @@ if [ ! -f ${resourcesDir}/resources.def ]; then
     ## Run this command as a script since we only need the file
     ## 'maestro/suites/midas_system_tests/resources/resources.def' to
     ## be generated.
-    ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions
+    status=0
+    cmake_listing=${TMPDIR}/cmake_install_suite_resources.listing
+    ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions > ${cmake_listing} 2>&1 || status=1
+    if [[ "${status}" -ne 0 ]]; then
+        echo "install_suite.sh: There was an error while updating the resources file (see the listing ${cmake_listing})" >&2
+        exit 1
+    else
+        rm ${cmake_listing}
+    fi
 fi
 ## Initialize the hosts list for the test suite
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
@@ -143,7 +151,15 @@ if [ ! -f ${MIDAS_SUITE_LAUNCH_DIRECTORY}/abs.dot ]; then
     ## Run this command as a script since we only need the file
     ## 'maestro/suites/midas_system_tests/abs.dot' to
     ## be generated.
-    ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions
+    status=0
+    cmake_listing=${TMPDIR}/cmake_install_suite_absdot.listing
+    ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions > ${cmake_listing} 2>&1 || status=1
+    if [[ "${status}" -ne 0 ]]; then
+        echo "install_suite.sh: There was an error while updating the 'abs.dot' file (see the listing ${cmake_listing})" >&2
+        exit 1
+    else
+        rm ${cmake_listing}
+    fi
 fi
 
 if [ -n "${MIDAS_ABS}" ]; then
