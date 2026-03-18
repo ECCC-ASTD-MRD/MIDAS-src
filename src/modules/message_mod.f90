@@ -496,9 +496,12 @@ module message_mod
 
   end function msg_int2str
 
+  !--------------------------------------------------------------------------
+  ! msg_int82str (private)
+  !--------------------------------------------------------------------------
   function msg_int82str(num) result(string)
     !
-    ! :Purpose: Returns string representation of `integer`
+    ! :Purpose: Returns string representation of `integer(8)`
     !
     implicit none
 
