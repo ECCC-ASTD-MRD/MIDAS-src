@@ -63,6 +63,8 @@ endif()
 
 if(DEFINED ENV{perftools_LIBRARY_PATH})
   find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV perftools_LIBRARY_PATH)
+else()
+  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 endif()
 
 set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)

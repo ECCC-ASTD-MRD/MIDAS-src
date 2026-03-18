@@ -11,5 +11,6 @@ target_link_libraries(midas PUBLIC
   rmn::rmn-ompi
   rpncomm::rpncomm
   vgrid::vgrid
+  ${hpcoperf}
   ${HDF5_Libraries}
 )
