@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
 #----- Append EC specific module path
+if(DEFINED ENV{cmake_rpn_modules_path})
+  list(APPEND CMAKE_MODULE_PATH $ENV{cmake_rpn_modules_path})
+endif()
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
 include(ec_init)           # Include EC specific cmake utils
@@ -36,6 +39,7 @@ find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
 find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
 find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
+find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
 
 # Define libraries bundle
@@ -46,10 +50,19 @@ else()
 endif()
 
 set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main)
+set(rttov_LIBRARIES "") # Initialize list as empty string/list
 foreach(component ${rttov_FIND_COMPONENTS})
+  if(DEFINED ENV{rttov_INSTALLDIR})
+    find_library(${component}_lib NAMES ${component} REQUIRED HINTS PATHS $ENV{rttov_INSTALLDIR}/lib)
+  else()
     find_library(${component}_lib NAME ${component} HINTS ENV LIBRARY_PATH)
-    set(rttov_LIBRARIES ${rttov_LIBRARIES} ${${component}_lib})
+  endif()
+  list(APPEND rttov_LIBRARIES ${${component}_lib})
 endforeach()
+
+if(DEFINED ENV{perftools_LIBRARY_PATH})
+  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV perftools_LIBRARY_PATH)
+endif()
 
 set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
@@ -124,7 +137,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 message(STATUS "(EC) Sources directory is: ${CMAKE_SOURCE_DIR}")
-message(STATUS "(EC) Build directory is: ${CMAKE_BINARY_DIR}")
+message(STATUS "(EC) Build   directory is: ${CMAKE_BINARY_DIR}")
 message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
