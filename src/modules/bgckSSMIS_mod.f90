@@ -22,8 +22,8 @@ module bgckSSMIS_mod
 
   logical :: ssbg_debug
 
-  real,    parameter :: ssbg_realMissing=-99.
-  integer, parameter :: ssbg_intMissing=-1
+  real,    parameter :: ssbg_realMissing=MPC_missingValue_R4
+  integer, parameter :: ssbg_intMissing=MPC_missingValue_INT
   real,    parameter :: ssbg_rmisg=MPC_missingValue_R4
   real,    parameter :: ssbg_clwThresh=0.02
   integer, parameter :: ssbg_mxval=30
@@ -827,7 +827,7 @@ contains
 
     ! Locals:
     ! Notes: In the case where an output parameter cannot be calculated, the
-    ! value of this parameter is the missing value, i.e. -99.
+    ! value of this parameter is the missing value, i.e. MPC_missingValue_*
     integer :: obsIndex
 
     ! ____1) Initialise output parameters:**    -------------------------------*
