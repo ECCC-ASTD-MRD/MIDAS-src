@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
+option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
+
 #----- Append EC specific module path
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
@@ -63,7 +65,11 @@ else()
   find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 endif()
 
-set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
+if (SQLITE_FORTRAN_SUPPORT)
+  set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
+else()
+  set(SQLITE_Libraries SQLite::SQLite3)
+endif()
 set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
