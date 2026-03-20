@@ -76,7 +76,7 @@ function print_usage {
     echo "        -d|-debug|--debug: compile using the debug options (override the variable 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS')"
     echo "        --opt-report: add the compiler options to output the optimization report (override the variable 'MIDAS_COMPILE_OPTIMIZE_REPORT')"
     echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
-    echo "        --codecov: activate the code covering compiler options (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
+    echo "        --codecov: activate the code covering compiler options (needs a directory for storing the code coverage information) (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
     echo "        --local: avoid launching a batch job to compile (override the variable 'MIDAS_COMPILE_'HEADNODE_FRONTEND)"
     echo "        --fresh: erase the build directory if it already exists before compilation"
     echo "        --no-clean: do not erase the build directory after the compilation (override the variable 'MIDAS_COMPILE_CLEAN'"
