@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
 #----- Append EC specific module path
-if(DEFINED ENV{cmake_rpn_modules_path})
-  list(APPEND CMAKE_MODULE_PATH $ENV{cmake_rpn_modules_path})
-endif()
 list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
 
 include(ec_init)           # Include EC specific cmake utils
