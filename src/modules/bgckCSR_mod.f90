@@ -11,6 +11,7 @@ module bgckCSR_mod
   use tovs_mod
   use obsErrors_mod
   use obsFlags_mod
+  use mathPhysConstants_mod
 
   implicit none
   save
@@ -19,9 +20,9 @@ module bgckCSR_mod
   ! Public functions/subroutines
   public :: csrbg_bgCheckCSR
 
-  real,    parameter :: csrbg_realMissing=-99. ! This should be corresponding to the same value as 'NULL_COLUMN_VALUE_R' in 'ObsSpaceData_mod' but it is not!
-  integer, parameter :: csrbg_intMissing=-10   ! This corresponds to the same value as 'NULL_COLUMN_VALUE_I' in 'ObsSpaceData_mod'
-  real,    parameter :: csrbg_ompThreshold = 4.2
+  real,    parameter :: csrbg_realMissing=real(MPC_missingValue_R8) ! This should be corresponding to the same value as 'NULL_COLUMN_VALUE_R' in 'ObsSpaceData_mod' but it is not!
+  integer, parameter :: csrbg_intMissing=MPC_missingValue_INT   ! This corresponds to the same value as 'NULL_COLUMN_VALUE_I' in 'ObsSpaceData_mod'
+  real, parameter :: csrbg_ompThreshold = 4.2
   integer, parameter :: maxNumsat  = 20     ! nb max de satellites
   integer, parameter :: maxNumchan = 15     ! nb max de canaux
 

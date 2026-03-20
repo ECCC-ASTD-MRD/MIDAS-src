@@ -1661,8 +1661,8 @@ module ObsSpaceData_mod
 
    ! It is intended that these null values
    ! be used with scratchRealHeader, etc.
-   real(pre_obsReal), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, pre_obsReal)
-   integer          , parameter :: NULL_COLUMN_VALUE_I = -10
+   real(pre_obsReal), parameter :: NULL_COLUMN_VALUE_R = real(MPC_missingValue_R8, pre_obsReal)
+   integer          , parameter :: NULL_COLUMN_VALUE_I = MPC_missingValue_INT
 
    ! This type is the goal of the ObsSpaceData and supporting modules.  An
    ! instance of this derived type contains all information pertaining to a set
