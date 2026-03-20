@@ -705,8 +705,8 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0, ftype = 'F', &
-                             nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
+      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0, &
+                                                     ftype = 'F', nEns = nEns)
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
@@ -775,8 +775,8 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex,  &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, ftype = 'A', &
-                             nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
+      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, &
+                                                     ftype = 'A', nEns = nEns)
 
       ! output analmean_raw and analrms_raw, if requested
       if (writeRawAnalStats) then
@@ -797,8 +797,8 @@ contains
                              numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                              containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlRaw, outFileName, elapsed = 0.0D0, ftype = 'A', &
-                               nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
+        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlRaw, outFileName, elapsed = 0.0D0, &
+                                                       ftype = 'A', nEns = nEns)
       end if  ! writeRawAnalStats
 
       if (alphaRandomPert > 0.0D0) then
@@ -820,8 +820,8 @@ contains
                              numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
                              containsFullField_opt = .false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, elapsed = 0.0D0, ftype = 'P', &
-                               nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
+        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, elapsed = 0.0D0, &
+                                                       ftype = 'P', nEns = nEns)
       end if
       call utl_tmg_stop(5)
 
@@ -1767,7 +1767,7 @@ contains
   !-----------------------------------------------------------------
   ! epp_printRmsStats
   !-----------------------------------------------------------------
-  subroutine epp_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns,writeAsciiRmsStats)
+  subroutine epp_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns)
     !
     ! :Purpose: Print statistics of a field to an ASCII output file
     !
@@ -1779,7 +1779,6 @@ contains
     real(8),          intent(in) :: elapsed            ! Unknown input
     character(len=1), intent(in) :: ftype              ! Type of fields ('A' for analysis, 'F' for forecast and 'P' for perturbed)
     integer,          intent(in) :: nEns               ! Size of the ensemble
-    logical,          intent(in) :: writeAsciiRmsStats ! Do write or not the files (if '.false.', exit immediatly)
 
     ! Locals:
     real(8), allocatable          :: rmsvalue(:)
@@ -1799,11 +1798,6 @@ contains
     integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
-
-    if (.not. writeAsciiRmsStats) then
-      write(*,*) 'epp_printRmsStats: ''writeAsciiRmsStats'' is ''.false.'' so don''t write ' // trim(fileName)
-      return
-    end if
 
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
