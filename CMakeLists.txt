@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.16)
 option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
 
 #----- Append EC specific module path
-list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
+if(DEFINED ENV{EC_CMAKE_MODULE_PATH})
+  set(TEMP_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
+  string(REPLACE ":" ";" TEMP_MODULE_PATH "${TEMP_MODULE_PATH}")
+  list(APPEND CMAKE_MODULE_PATH ${TEMP_MODULE_PATH})
+endif()
 
 include(ec_init)           # Include EC specific cmake utils
 ec_git_version()           # Get the version from the git repository
@@ -39,7 +43,7 @@ find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
 find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
 find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
 find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
+find_package(HDF5 REQUIRED COMPONENTS C Fortran HL)
 
 # Define libraries bundle
 if(DEFINED ENV{RTTOV_VERSION})
@@ -65,12 +69,20 @@ else()
   find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 endif()
 
+find_package(NetCDF COMPONENTS Fortran REQUIRED)
+find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
+if(NOT "${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+endif()
+
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 else()
   set(SQLITE_Libraries SQLite::SQLite3)
 endif()
-set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
+set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   ## If code codecoverage is activated, we use '-O0'

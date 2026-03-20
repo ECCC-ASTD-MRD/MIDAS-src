@@ -10,7 +10,9 @@ module midasMpi_mod
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use rpn_comm
   use utilities_mod
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
   use mkl_service
+#endif
 
   implicit none
   save
@@ -331,6 +333,7 @@ contains
 
     ! Modify the MKL thread configuration based on namelist variables
 
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
     if (dynamicMKL) then
       call mkl_set_dynamic(1)
     else
@@ -347,6 +350,7 @@ contains
         write(*,*) 'mmpi_initialize: default number of threads used for MKL'
       end if
     end if
+#endif
 
   end subroutine mmpi_initialize
 
