@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
 option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
+option(MKL_SUPPORT "Use Intel MKL mathematical library for blas and lapack routines" OFF)
+
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
+  set(MKL_SUPPORT ON)
+endif()
 
 #----- Append EC specific module path
 if(DEFINED ENV{EC_CMAKE_MODULE_PATH})
@@ -42,6 +47,10 @@ find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
 find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
 find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
+if(NOT MKL_SUPPORT)
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+endif()
 
 # Define libraries bundle
 if(DEFINED ENV{RTTOV_VERSION})
@@ -70,12 +79,18 @@ endif()
 find_package(NetCDF COMPONENTS Fortran REQUIRED)
 find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
+
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 else()
   set(SQLITE_Libraries SQLite::SQLite3)
 endif()
-set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl)
+
+if (MKL_SUPPORT)
+  set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl)
+else()
+  set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+endif()
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   ## If code codecoverage is activated, we use '-O0'

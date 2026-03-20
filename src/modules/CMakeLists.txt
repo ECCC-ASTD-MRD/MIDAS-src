@@ -18,3 +18,7 @@ target_link_libraries(midas PUBLIC
   ${hpcoperf}
   ${HDF5_Libraries}
 )
+
+if(MKL_SUPPORT)
+  target_compile_definitions(midas PRIVATE "MKL_SUPPORT")
+endif()
