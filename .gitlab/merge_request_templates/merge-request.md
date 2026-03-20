@@ -18,6 +18,10 @@
 * changes respect the [coding standards](docs/codingStd_top10.md)?
   * [ ] yes
   * [ ] no
+* [documentation headers](docs/documentationStandards.md) for subroutines/modules/programs updated accordingly?
+  * [ ] yes
+  * [ ] no
+  * [ ] does not apply since no Fortran code was changed or no change to the documentation is needed
 * all the programs compile without any warning?
   * [ ] yes
   * [ ] no
