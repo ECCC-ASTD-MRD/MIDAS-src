@@ -705,8 +705,7 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0, &
-                                                     ftype = 'F', nEns = nEns)
+      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevTrl, outFileName, ftype = 'F', nEns = nEns)
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
@@ -775,8 +774,7 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex,  &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, &
-                                                     ftype = 'A', nEns = nEns)
+      if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnl, outFileName, ftype = 'A', nEns = nEns)
 
       ! output analmean_raw and analrms_raw, if requested
       if (writeRawAnalStats) then
@@ -797,8 +795,7 @@ contains
                              numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                              containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
-        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlRaw, outFileName, elapsed = 0.0D0, &
-                                                       ftype = 'A', nEns = nEns)
+        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlRaw, outFileName, ftype = 'A', nEns = nEns)
       end if  ! writeRawAnalStats
 
       if (alphaRandomPert > 0.0D0) then
@@ -820,8 +817,7 @@ contains
                              numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
                              containsFullField_opt = .false.)
         outFileName = trim(outFileName) // '_ascii'
-        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, elapsed = 0.0D0, &
-                                                       ftype = 'P', nEns = nEns)
+        if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, ftype = 'P', nEns = nEns)
       end if
       call utl_tmg_stop(5)
 
@@ -1767,18 +1763,18 @@ contains
   !-----------------------------------------------------------------
   ! epp_printRmsStats
   !-----------------------------------------------------------------
-  subroutine epp_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns)
+  subroutine epp_printRmsStats(stateVectorStdDev, fileName, ftype, nEns, elapsed_opt)
     !
     ! :Purpose: Print statistics of a field to an ASCII output file
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVectorStdDev  ! State vector containing the precomputed standard deviation
-    character(len=*), intent(in) :: fileName           ! File name containing the output
-    real(8),          intent(in) :: elapsed            ! Unknown input
-    character(len=1), intent(in) :: ftype              ! Type of fields ('A' for analysis, 'F' for forecast and 'P' for perturbed)
-    integer,          intent(in) :: nEns               ! Size of the ensemble
+    type(struct_gsv),  intent(in) :: stateVectorStdDev  ! State vector containing the precomputed standard deviation
+    character(len=*),  intent(in) :: fileName           ! File name containing the output
+    character(len=1),  intent(in) :: ftype              ! Type of fields ('A' for analysis, 'F' for forecast and 'P' for perturbed)
+    integer,           intent(in) :: nEns               ! Size of the ensemble
+    real(8), optional, intent(in) :: elapsed_opt        ! Unknown input
 
     ! Locals:
     real(8), allocatable          :: rmsvalue(:)
@@ -1793,11 +1789,16 @@ contains
     integer                       :: varLevIndexUU, varLevIndexVV
     integer                       :: levIndex, nLev_M
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
-    real(8)                       :: pzSfc(1,1)
+    real(8)                       :: pzSfc(1,1), elapsed
     real(8), pointer              :: pressureOrHeight_T(:,:,:), pressureOrHeight_M(:,:,:)
     integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
+
+    elapsed = 0.0d0
+    if (present(elapsed_opt)) then
+      elapsed = elapsed_opt
+    end if
 
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
