@@ -67,12 +67,15 @@ else()
   find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 endif()
 
+find_package(NetCDF COMPONENTS Fortran REQUIRED)
+find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 else()
   set(SQLITE_Libraries SQLite::SQLite3)
 endif()
-set(HDF5_Libraries netcdff netcdf hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 z curl)
+set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl)
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   ## If code codecoverage is activated, we use '-O0'
