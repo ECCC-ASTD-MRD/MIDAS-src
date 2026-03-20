@@ -118,6 +118,7 @@ contains
     integer  :: numBits2D ! number of bits when writing ensemble mean and spread for 2D surface variables
     logical  :: useAnalIncMask        ! mask out the increment on the pilot zone
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
+    logical  :: writeAsciiRmsStats    ! write the global statistics in an ASCII file
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
     logical  :: writeNetCDFInc             ! to write LETKF increments into a netCDF file
@@ -136,7 +137,7 @@ contains
                                    numBits2D, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState, &
                                    use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,          &
                                    qcLimitsBeforeRecenter, writeNetCDFensAnalysis,                      &
-                                   horizSmoothMeanInc, horizSmoothMeanIncShape
+                                   horizSmoothMeanInc, horizSmoothMeanIncShape, writeAsciiRmsStats
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -219,6 +220,7 @@ contains
     numBits2D = -999
     useAnalIncMask = .false.
     writeRawAnalStats = .false.
+    writeAsciiRmsStats = .true.
     useMemberAsHuRefState = .false.
     use4Drecentering3Densemble = .false.
     horizSmoothMeanInc = MPC_missingValue_R8 ! A large negative value
@@ -703,7 +705,8 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0,ftype = 'F',nEns = nEns)
+      call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0, ftype = 'F', &
+                             nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
@@ -772,7 +775,8 @@ contains
                            numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex,  &
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, ftype='A', nEns = nEns)
+      call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, ftype = 'A', &
+                             nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
 
       ! output analmean_raw and analrms_raw, if requested
       if (writeRawAnalStats) then
@@ -793,7 +797,8 @@ contains
                              numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                              containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
+        call epp_printRmsStats(stateVectorStdDevAnlRaw, outFileName, elapsed = 0.0D0, ftype = 'A', &
+                               nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
       end if  ! writeRawAnalStats
 
       if (alphaRandomPert > 0.0D0) then
@@ -815,7 +820,8 @@ contains
                              numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
                              containsFullField_opt = .false.)
         outFileName = trim(outFileName) // '_ascii'
-        call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
+        call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, elapsed = 0.0D0, ftype = 'P', &
+                               nEns = nEns, writeAsciiRmsStats = writeAsciiRmsStats)
       end if
       call utl_tmg_stop(5)
 
@@ -1761,18 +1767,19 @@ contains
   !-----------------------------------------------------------------
   ! epp_printRmsStats
   !-----------------------------------------------------------------
-  subroutine epp_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns)
+  subroutine epp_printRmsStats(stateVectorStdDev,fileName,elapsed,ftype,nEns,writeAsciiRmsStats)
     !
     ! :Purpose: Print statistics of a field to an ASCII output file
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVectorStdDev
-    character(len=*), intent(in) :: fileName
-    real(8),          intent(in) :: elapsed
-    character(len=1), intent(in) :: ftype
-    integer,          intent(in) :: nEns
+    type(struct_gsv), intent(in) :: stateVectorStdDev  ! State vector containing the precomputed standard deviation
+    character(len=*), intent(in) :: fileName           ! File name containing the output
+    real(8),          intent(in) :: elapsed            ! Unknown input
+    character(len=1), intent(in) :: ftype              ! Type of fields ('A' for analysis, 'F' for forecast and 'P' for perturbed)
+    integer,          intent(in) :: nEns               ! Size of the ensemble
+    logical,          intent(in) :: writeAsciiRmsStats ! Do write or not the files (if '.false.', exit immediatly)
 
     ! Locals:
     real(8), allocatable          :: rmsvalue(:)
@@ -1792,6 +1799,11 @@ contains
     integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
+
+    if (.not. writeAsciiRmsStats) then
+      write(*,*) 'epp_printRmsStats: ''writeAsciiRmsStats'' is ''.false.'' so don''t write ' // trim(fileName)
+      return
+    end if
 
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
