@@ -1,0 +1,2 @@
+option('sqlite_fortran_support', type: 'boolean', value: true, description: 'Enable SQLite support in fortran code')
+option('mkl_support', type: 'boolean', value: false, description: 'Use Intel MKL mathematical library for blas and lapack routines')
