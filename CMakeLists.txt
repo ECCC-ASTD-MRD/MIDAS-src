@@ -3,10 +3,6 @@ cmake_minimum_required(VERSION 3.16)
 option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
 option(MKL_SUPPORT "Use Intel MKL mathematical library for blas and lapack routines" OFF)
 
-if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
-  set(MKL_SUPPORT ON)
-endif()
-
 #----- Append EC specific module path
 if(DEFINED ENV{EC_CMAKE_MODULE_PATH})
   list(APPEND CMAKE_MODULE_PATH $ENV{EC_CMAKE_MODULE_PATH})
@@ -17,6 +13,11 @@ ec_git_version()           # Get the version from the git repository
 ec_parse_manifest()        # Parse MANIFEST file
 
 project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
+
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
+  message(STATUS "Activating MKL support")
+  set(MKL_SUPPORT ON)
+endif()
 
 ## Find the 'base' version of the project (the latest tag of the project)
 execute_process(
