@@ -76,20 +76,26 @@ else()
   find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 endif()
 
-find_package(NetCDF COMPONENTS Fortran REQUIRED)
-find_package(CURL REQUIRED)
-find_package(ZLIB REQUIRED)
-
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
 else()
   set(SQLITE_Libraries SQLite::SQLite3)
 endif()
 
-if (MKL_SUPPORT)
-  set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl)
+find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
+
+find_package(NetCDF OPTIONAL_COMPONENTS Fortran)
+if (NETCDF_Fortran_FOUND)
+  set(HDF5_Libraries NetCDF::NetCDF_Fortran)
 else()
-  set(HDF5_Libraries NetCDF::NetCDF_Fortran hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+  set(HDF5_Libraries netcdff netcdf)
+endif()
+
+list(APPEND HDF5_Libraries hdf5::hdf5_fortran hdf5::hdf5_hl_fortran hdf5::hdf5_hl hdf5::hdf5 ZLIB::ZLIB CURL::libcurl)
+
+if (NOT MKL_SUPPORT)
+  list(APPEND HDF5_Libraries ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
 endif()
 
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
