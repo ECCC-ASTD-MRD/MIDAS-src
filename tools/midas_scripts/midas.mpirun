@@ -35,23 +35,14 @@ unset __midas_mpirun_msg__ __midas_mpirun_nodelogger__
 export OMP_STACKSIZE=${__midas_mpirun_OMP_STACKSIZE__}
 unset __midas_mpirun_OMP_STACKSIZE__
 
-if [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
-    set +x
-    echo loading rpn/code-tools/20251217/env/inteloneapi-2022.1.2
-    . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2022.1.2
-    echo loading eccc/mrd/rpn/libs/20251009-beta
-    . r.load.dot eccc/mrd/rpn/libs/20251009-beta
-    echo loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    set -x
-elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
+if [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
     set +x
     echo loading rpn/code-tools/20251217/env/inteloneapi-2025.1.0
     . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0
-    echo loading eccc/mrd/rpn/libs/20251009-beta
-    . r.load.dot eccc/mrd/rpn/libs/20251009-beta
-    echo loading eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
-    . r.load.dot eccc/mrd/rpn/utils/20251009-beta/burp-tools_20.0.14-${COMP_ARCH}_${ORDENV_PLAT}
+    echo loading eccc/mrd/rpn/libs/20260316-beta
+    . r.load.dot eccc/mrd/rpn/libs/20260316-beta
+    echo loading eccc/mrd/rpn/utils/20260316-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
+    . r.load.dot eccc/mrd/rpn/utils/20260316-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
     echo loading hdf5-netcdf4
     . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
     set -x
@@ -71,7 +62,7 @@ elif [ "${EC_ARCH}" = rhel-9-graniterapids-64 ]; then
         fi ## End of 'if (( 42 % OMP_NUM_THREADS == 0 ))'
     fi ## End of 'if [[ -z "${I_MPI_PIN_PROCESSOR_EXCLUDE_LIST}" ]]'
 else
-    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are)"
+    echo "midas.mpirun: The plateform 'EC_ARCH=${EC_ARCH}' is not supported (only 'rhel-9-graniterapids-64' is supported)"
     exit 1
 fi
 
