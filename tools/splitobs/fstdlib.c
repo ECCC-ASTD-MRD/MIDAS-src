@@ -187,8 +187,8 @@ int padtime(char* argv) {
   for(j=0;j<MAXSTR_DATETIME-strlen(argv);j++)
     strcat(dattimstr,"0");
 
-  strncpy(datstr,dattimstr,MAXSTR_DATE);
-  strncpy(timstr,&dattimstr[MAXSTR_DATE],MAXSTR_TIME);
+  snprintf(datstr, sizeof(datstr), "%.*s", MAXSTR_DATE, dattimstr);
+  snprintf(timstr, sizeof(timstr), "%.*s", MAXSTR_TIME, &dattimstr[MAXSTR_DATE]);
 
   dat = atoi(datstr);
   tim = atoi(timstr);
