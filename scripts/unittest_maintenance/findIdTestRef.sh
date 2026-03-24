@@ -1,30 +1,30 @@
-#!/bin/bash
+#! /bin/bash
 
-##-- Default values
+##-- Default values --
 ROOT=./
-OUTPUT="::stdout::"
 MAXSIZE_TO_PROCESS=0
 N_THREADS=1
 SEP=' '
 REPLACE=false
-DRYRUN=false
-
+OUTPUT="::stdout::"
+VERBOSE=false
 
 
 ##-- INTERFACE --
 usage() {
-echo "Usage: $0 [-d ROOT] [-m MAXSIZE] [-n N_THREADS] [-o OUTPUT] [-r -t -h]"
+echo "Usage: $0 [-d ROOT] [-m MAXSIZE] [-n N_THREADS] [-o OUTPUT] [-r -t -h -v]"
 echo "  -d ROOT DIR        Specify the root directory (default: ./)"
 echo "  -m MAXSIZE         Maximum size of files to process (default: 0 - no maximum)"
 echo "  -n N_THREADS       Number of threads to use (default: 1)"
 echo "  -o OUTPUT          output file (default: stdout)"
 echo "  -r                 replace duplicates with symlink"
 echo "  -t                 test replacement only (dry run)"
+echo "  -v                 verbose outputs to stdout (output md5sum of all files)"
 echo "  -h                 print this help"
 }
 
 ## Parse command line options
-while getopts "d:m:n:o:rth" opt; do
+while getopts "d:m:n:o:rthv" opt; do
   case ${opt} in
     d )
       ROOT="$OPTARG"
@@ -44,6 +44,9 @@ while getopts "d:m:n:o:rth" opt; do
     t )
       DRYRUN=true
       ;;
+    v )
+      VERBOSE=true
+      ;;
     h )
       usage; exit
       ;;
@@ -55,8 +58,25 @@ done
 
 ##-- FUNCTIONS --
 
+function findTests () {
+  ## find all unit test dir by looking for directories that only have leaf
+  ## directories (unit test version directory)
+
+  root=${1:?"ROOT!"}
+  find $root -type d | while read dir; do
+    subdir_count=$(find "$dir" -maxdepth 1 -type d | wc -l)
+    [ "$subdir_count" -le 1 ] && continue
+
+    leaf_count=$(find "$dir" -maxdepth 1 -type d -exec sh -c  '
+      [ ! "$(find "$1" -maxdepth 1 -mindepth 1 -type d)" ] && echo 1
+      ' sh {} \; | wc -l)
+    [ "$((subdir_count - 1))" -eq "$leaf_count" ] && echo "$dir"
+  done
+}
+
 process_file() {
-  local _file="$1"
+  ## compute md5sum and size fo file
+  local _file="${1:?"input file mandatory"}"
   local _md5sum
 
   local _size=$(stat --format="%s" "${_file}")
@@ -70,6 +90,7 @@ process_file() {
 
 relative_path() {
     # Arguments are the target file and the current working directory for the symlink
+    set +x
     local _target="$1"
     local _current_dir="$2"
 
@@ -109,10 +130,10 @@ relative_path() {
     done
 
     echo "$rel_path"
-} 
+}
 
 replace_with_symlinks() {
-  local _string_input="$1"
+  local _string_input="${1:?"string input mandatory"}"
   local _file_list
   local _kept_file
   local _string
@@ -156,75 +177,98 @@ replace_with_symlinks() {
 
 ##-- MAIN --
 
-declare -A FILE_SIZE_ARRAY
-declare -A FILE_HASH_ARRAY
-declare -A HASH_LIST_ARRAY
+declare -A id_files_array
+declare -A hash_in_test_array
+declare -A file_size_array
+declare -A file_hash_array
 
-export -f process_file
+## Find all files and compute md5sum in parallel, capturing output
+$VERBOSE && echo "Computing md5sum for all files in $ROOT"
 export ROOT
 export MAXSIZE_TO_PROCESS
-
-## Find files and process them in parallel, capturing output
+export -f process_file
 results=$(find "$ROOT" -type f | xargs -P "$N_THREADS" -I {} bash -c 'process_file "$@"' _ {})
 
 ## Read results and populate associative arrays
 while IFS=: read -r _file _size _md5sum; do
-  FILE_SIZE_ARRAY["$_file"]="$_size"
-  FILE_HASH_ARRAY["$_file"]="$_md5sum"
+  file_size_array["$_file"]="$_size"
+  file_hash_array["$_file"]="$_md5sum"
 done <<< "$results"
 
 
+## find all unit tests
+all_tests=$(findTests $ROOT)
 
-## Triangular search
-FILES=("${!FILE_HASH_ARRAY[@]}")
-for ((i = 0; i < ${#FILES[@]}; i++)); do
-  _fileA=${FILES[$i]}
-  _hashA=${FILE_HASH_ARRAY[${_fileA}]}
+for ut_test in $all_tests; do
+  $VERBOSE && echo "Searching in $ut_test"
 
-  for ((j = i + 1; j < ${#FILES[@]}; j++)); do
-    _fileB=${FILES[$j]}
-    _hashB=${FILE_HASH_ARRAY[${_fileB}]}
+  ## Find all files within the different version of the test
+  declare -A test_files
+  n=0
+  for file in $(find "$ut_test" -type f); do
+    test_files[$n]=$file
+    ((n++))
+  done
 
-    if [[ "$_hashA" == "$_hashB" ]]; then
-      if [[ -z ${HASH_LIST_ARRAY[${_hashA}]} ]]; then
-        HASH_LIST_ARRAY[${_hashA}]="${_fileA}${SEP}${_fileB}"
-      else
-        ## Split the existing entries into an array
-        IFS=${SEP} read -r -a existing_files <<< "${HASH_LIST_ARRAY[${_hashA}]}"
+  set +x ## listing clutter
 
-        ## Append file if not already in the list
-        if [[ ! " ${existing_files[@]} " =~ " ${_fileA} " ]]; then
-          HASH_LIST_ARRAY[${_hashA}]+="${SEP}${_fileA}"
+  ## Triangular search within the test
+  for ((i = 0; i < ${#test_files[@]}; i++)); do
+    _fileA=${test_files[$i]}
+    _hashA=${file_hash_array[${_fileA}]}
+
+    $VERBOSE && echo "   ${_fileA/$ut_test/} : $_hashA"
+
+    for ((j = i + 1; j < ${#test_files[@]}; j++)); do
+      _fileB=${test_files[$j]}
+      _hashB=${file_hash_array[${_fileB}]}
+
+      if [[ "$_hashA" == "$_hashB" ]]; then
+        if [[ -z ${id_files_array["$ut_test,${_hashA}"]} ]]; then
+          hash_in_test_array[$ut_test]+=" $_hashA"
+          id_files_array["$ut_test,${_hashA}"]="${_fileA}${SEP}${_fileB}"
+        else
+          ## Split the existing entries into an array
+          IFS=${SEP} read -r -a existing_files <<< ${id_files_array["$ut_test,${_hashA}"]}
+
+          ## Append file if not already in the list
+          if [[ ! " ${existing_files[@]} " =~ " ${_fileA} " ]]; then
+            id_files_array["$ut_test,${_hashA}"]+="${SEP}${_fileA}"
+          fi
+          if [[ ! " ${existing_files[@]} " =~ " ${_fileB} " ]]; then
+            id_files_array["$ut_test,${_hashA}"]+="${SEP}${_fileB}"
+          fi
         fi
-        if [[ ! " ${existing_files[@]} " =~ " ${_fileB} " ]]; then
-          HASH_LIST_ARRAY[${_hashA}]+="${SEP}${_fileB}"
-        fi
-
       fi
+    done
+
+    ## Limit to N_THREADS
+    if (( (i + 1) % N_THREADS == 0 )); then
+      wait
     fi
   done
 
-  ## Limit to N_THREADS
-  if (( (i + 1) % N_THREADS == 0 )); then
-    wait
-  fi
+  ## Wait for any remaining background jobs
+  wait
 done
 
-## Wait for any remaining background jobs
-wait
 
 ##-- OUTPUT AND REPLACEMENT --
+
 if [ ! "${OUTPUT}" == "::stdout::" ]; then
   rm -f ${OUTPUT}
 fi
-for _hash in ${!HASH_LIST_ARRAY[@]}; do
-  _string="> ${_hash}: ${HASH_LIST_ARRAY[${_hash}]}"
-  if [ "${OUTPUT}" == "::stdout::" ]; then
-    echo ${_string}
-  else
-    echo ${_string} >> ${OUTPUT}
-  fi
-  if ${REPLACE}; then
-    replace_with_symlinks "${_string}"
-  fi
+for ut_test in $all_tests; do
+  for _hash in ${hash_in_test_array[$ut_test]}; do
+    _files=${id_files_array["$ut_test,${_hash}"]}
+    _string="> ${_hash}: ${_files}"
+    if [ "${OUTPUT}" == "::stdout::" ]; then
+      echo ${_string//$ut_test/}
+    else
+      echo ${_string//$ut_test/} >> ${OUTPUT}
+    fi
+    if ${REPLACE}; then
+      replace_with_symlinks "${_string}"
+    fi
+  done
 done
