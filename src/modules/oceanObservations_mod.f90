@@ -14,20 +14,20 @@ module oceanObservations_mod
   use verticalCoord_mod
   use oceanMask_mod
   use timeCoord_mod
-  use codePrecision_mod  
+  use codePrecision_mod
   use sqliteRead_mod
   use bufr_mod
   use physicsFunctions_mod
-  
+
   implicit none
   save
   private
 
   ! Public functions/subroutines
   public :: oobs_pseudoSST, oobs_pseudoSIC
- 
+
   ! External functions
-  integer, external :: fnom, fclos  
+  integer, external :: fnom, fclos
 
   ! mpi topology
   integer :: myLatBeg, myLatEnd
@@ -42,21 +42,21 @@ module oceanObservations_mod
   subroutine oobs_pseudoSST(hco, vco, iceFractionThreshold, outputSST, outputFreshWaterST, &
                             iceThinning, outputFileName, seaWaterThreshold, useSalinity)
     !
-    !:Purpose: to generate pseudo SST data  
+    !:Purpose: to generate pseudo SST data
     !
     implicit none
-    
+
     ! Arguments:
     type(struct_hco), pointer , intent(inout) :: hco                  ! horizontal grid structure
     type(struct_vco), pointer , intent(in)    :: vco                  ! vertical grid structure
     real(8)                   , intent(in)    :: iceFractionThreshold ! consider no ice condition below this threshold
     real(8)                   , intent(in)    :: outputSST            ! output SST value for pseudo observations
     real(8)                   , intent(in)    :: outputFreshWaterST   ! output fresh water surface temperature for pseudo obs
-    integer                   , intent(in)    :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
-    character(len=*)          , intent(in)    :: outputFileName    
-    real(8)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    integer                   , intent(in)    :: iceThinning          ! generate pseudo obs in every 'iceThinning' points
+    character(len=*)          , intent(in)    :: outputFileName
+    real(8)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water
     logical                   , intent(in)    :: useSalinity          ! to use or not NEMO salinity field to compute freezing point temperature
-    
+
     ! Locals:
     type(struct_gsv)     :: stateVector_ice, stateVector_seaWater, stateVector_salinity
     real(8), pointer     :: seaIce_ptr(:, :, :), seaWater_ptr(:, :, :)
@@ -64,13 +64,15 @@ module oceanObservations_mod
     type(struct_ocm)     :: oceanMask
     integer              :: numberIceCoveredPoints, lonIndex, latIndex, dateStamp, inlandWaterPoints
     integer              :: datePrint, timePrint, imode, seaWaterPoints
-    integer              :: randomSeed, newDate, ierr 
+    integer              :: randomSeed, ierr
     integer, allocatable :: iceDomainIndexesAux(:), iceDomainIndexes(:)
-    real(8), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:) 
+    real(8), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:)
     real(8), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
-    type(struct_obs)     :: obsData   
+    type(struct_obs)     :: obsData
+    ! external definitions
+    integer, external :: newDate
 
-    call utl_tmg_start(185,'--oobs_pseudoSST')    
+    call utl_tmg_start(185,'--oobs_pseudoSST')
 
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -109,12 +111,12 @@ module oceanObservations_mod
     allocate(iceLonsAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
     allocate(iceLatsAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
     allocate(seaWaterFractionAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
-    
+
     numberIceCoveredPoints = 0
     inlandWaterPoints = 0
     seaWaterPoints = 0
-    
-    do lonIndex = myLonBeg, myLonEnd 
+
+    do lonIndex = myLonBeg, myLonEnd
       do latIndex = myLatBeg, myLatEnd
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
           if (seaice_ptr(lonIndex, latIndex, 1) > iceFractionThreshold) then
@@ -142,7 +144,7 @@ module oceanObservations_mod
     end do
     call ocm_deallocate(oceanMask)
     call gsv_deallocate(stateVector_ice)
-    call gsv_deallocate(stateVector_seaWater)            
+    call gsv_deallocate(stateVector_seaWater)
     if (useSalinity) call gsv_deallocate(stateVector_salinity)
 
     write(*,*) 'oobs_pseudoSST: ', numberIceCoveredPoints, ' ice-covered points found'
@@ -153,7 +155,7 @@ module oceanObservations_mod
 
       allocate(iceDomainIndexes(1:numberIceCoveredPoints))
       iceDomainIndexes(:) = iceDomainIndexesAux(1:numberIceCoveredPoints)
-      allocate(seaWaterFraction(1:numberIceCoveredPoints))      
+      allocate(seaWaterFraction(1:numberIceCoveredPoints))
       seaWaterFraction(:) = seaWaterFractionAux(1:numberIceCoveredPoints)
       allocate(iceLons(1:numberIceCoveredPoints))
       allocate(iceLats(1:numberIceCoveredPoints))
@@ -166,30 +168,30 @@ module oceanObservations_mod
       end if
 
     end if
-  
+
     deallocate(iceLonsAux)
     deallocate(iceLatsAux)
     deallocate(iceDomainIndexesAux)
     deallocate(seaWaterFractionAux)
     if (useSalinity) deallocate(salinityAux)
-    
+
     dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
-    write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp 
+    write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp
     ! compute random seed from the date for randomly forming sea-ice subdomain
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
     timePrint = timePrint / 1000000
     datePrint =  datePrint * 100 + timePrint
-    
+
     ! Remove the century, keeping 2 digits of the year
     randomSeed = datePrint - 100000000 * (datePrint / 100000000)
-    write(*,*) 'oobs_pseudoSST: datePrint, timePrint: ', datePrint, timePrint 
+    write(*,*) 'oobs_pseudoSST: datePrint, timePrint: ', datePrint, timePrint
 
     if (numberIceCoveredPoints > 0) then
 
       call utl_randomOrderInt(iceDomainIndexes, randomSeed)
       write(*,*) 'oobs_pseudoSST: seed for random shuffle of sea-ice points: ', randomSeed
-    
+
       if (useSalinity) then
         call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
                                  iceThinning, outputSST, outputFreshWaterST, &
@@ -204,10 +206,10 @@ module oceanObservations_mod
                                  inlandWaterPoints)
       end if
 
-    else 
-    
+    else
+
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writePseudoOceanIceObs(obsData, 'OS', outputFileName)   
+      call sqlr_writePseudoOceanIceObs(obsData, 'OS', outputFileName)
 
     end if
 
@@ -217,8 +219,8 @@ module oceanObservations_mod
       deallocate(iceDomainIndexes)
       deallocate(seaWaterFraction)
       if (useSalinity) deallocate(salinity)
-    end if  
-    
+    end if
+
     write(*,*) 'oobs_pseudoSST: done'
     call utl_tmg_stop(185)
 
@@ -229,12 +231,12 @@ module oceanObservations_mod
   !----------------------------------------------------------------------------------------
   subroutine oobs_pseudoSIC(hco, vco, iceFractionThreshold, outputFileName, seaIceBand)
     !
-    !:Purpose: to generate pseudo Sea Ice Concentration (SIC) data to preserve sharp 
-    !          SIC gradients at the boundary between ice-covered regions and open water, 
-    !          which is essential for maintaining a realistic ice edge during 
-    !          strongly coupled sea-ice-ocean data assimilation. 
+    !:Purpose: to generate pseudo Sea Ice Concentration (SIC) data to preserve sharp
+    !          SIC gradients at the boundary between ice-covered regions and open water,
+    !          which is essential for maintaining a realistic ice edge during
+    !          strongly coupled sea-ice-ocean data assimilation.
     !
-    !          The computation of the pseudo SIC observations is performed globally 
+    !          The computation of the pseudo SIC observations is performed globally
     !          on the MPI task 0 (the global sea-ice field is read by the MPI task 0).
     !          Other MPI tasks produce empty pseudo SIC observation files.
     !
@@ -474,7 +476,7 @@ module oceanObservations_mod
     !---------------------------------------------------------
 
     write(*,*) 'oobs_pseudoSIC: pseudo SIC points: ', numberPseudoSICPoints
-    
+
     if (numberPseudoSICPoints > 0) then
 
       call obs_initialize(obsData, numHeader_max_opt = numberPseudoSICPoints, &
@@ -505,7 +507,7 @@ module oceanObservations_mod
       call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
 
     else
-      
+
       write(*,*) 'oobs_pseudoSIC: WARNING: No pseudo SIC observations were generated.'
       write(*,*) '                Check namelist parameters: iceFractionThreshold and seaIceBand.'
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
@@ -535,66 +537,66 @@ module oceanObservations_mod
                                  datePrint, timePrint, seaWaterFraction, &
                                  seaWaterThreshold, inlandWaterPoints, salinity_opt)
     !
-    !:Purpose: pseudo SST data are put into obsSpaceData  
+    !:Purpose: pseudo SST data are put into obsSpaceData
     !          and written into an SQLite file
-    
+
     implicit none
-    
+
     ! Arguments:
-    type(struct_obs) , intent(inout) :: obsData            ! obsSpaceData   
+    type(struct_obs) , intent(inout) :: obsData            ! obsSpaceData
     integer          , intent(in)    :: iceDomainIndexes(:)! array of the ice-covered point indexes
-    real(8)          , intent(in)    :: iceLons(:)         ! longitudes of sea ice 
-    real(8)          , intent(in)    :: iceLats(:)         ! latitudes of sea ice 
-    integer          , intent(in)    :: iceThinning        ! generate pseudo obs in every 'iceThinning' points   
+    real(8)          , intent(in)    :: iceLons(:)         ! longitudes of sea ice
+    real(8)          , intent(in)    :: iceLats(:)         ! latitudes of sea ice
+    integer          , intent(in)    :: iceThinning        ! generate pseudo obs in every 'iceThinning' points
     real(8)          , intent(in)    :: outputSST          ! output SST value for pseudo observations
     real(8)          , intent(in)    :: outputFreshWaterST ! output fresh water surface temperature for pseudo obs
-    character(len=*) , intent(in)    :: outputFileName    
+    character(len=*) , intent(in)    :: outputFileName
     integer          , intent(in)    :: datePrint
     integer          , intent(in)    :: timePrint
     real(8)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water
-    real(8)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water 
-    integer          , intent(in)    :: inlandWaterPoints  ! number of inland water points 
+    real(8)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water
+    integer          , intent(in)    :: inlandWaterPoints  ! number of inland water points
     real(8), optional, intent(in)    :: salinity_opt(:)    ! to use or not NEMO salinity field to compute freezing point temperature
-     
+
     ! Locals:
     real(pre_obsReal) :: obsLon, obsLat, obsValue
     integer           :: iceIndex, iceDomainDimension, pseudoObsDimension
     integer           :: codeType, headerIndex
     integer           :: coordinatesIndex, counterThinning, checkInlandWatersCount, checkSeaWatersCount
-    
+
     iceDomainDimension = size(iceDomainIndexes)
     pseudoObsDimension = floor(real((iceDomainDimension - inlandWaterPoints) / iceThinning)) + inlandWaterPoints
-      
+
     write(*,*) 'oobs_computeObsData: sea-ice domain dimension: ', iceDomainDimension
     write(*,*) 'oobs_computeObsData: pseudo obs vector dimension: ', pseudoObsDimension
     write(*,*) 'oobs_computeObsData: pseudo SST obs will be generated in every ', iceThinning, &
     ' points of the sea-ice field for sea water, '
     write(*,*) 'oobs_computeObsData: and in every point for inland waters, where sea water fraction <= ', seaWaterThreshold
-    write(*,*) 'oobs_computeObsData: number of inland waters points: ', inlandWaterPoints  
-    
+    write(*,*) 'oobs_computeObsData: number of inland waters points: ', inlandWaterPoints
+
     call obs_initialize(obsData, numHeader_max_opt = pseudoObsDimension, &
                         numBody_max_opt = pseudoObsDimension, mpi_local_opt = .true.)
     codeType = codtyp_get_codtyp('pseudosfc')
-    
+
     headerIndex = 1
     counterThinning = iceThinning
     checkInlandWatersCount = 0
     checkSeaWatersCount = 0
 
-    do iceIndex = 1, iceDomainDimension 
+    do iceIndex = 1, iceDomainDimension
 
       if (headerIndex > pseudoObsDimension ) cycle
-      
+
       coordinatesIndex = iceDomainIndexes(iceIndex)
       obsLon   = iceLons(coordinatesIndex)
       obsLat   = iceLats(coordinatesIndex)
- 
+
       if (seaWaterFraction(coordinatesIndex) <= seaWaterThreshold) then
         obsValue = real((1.0d0 - seaWaterFraction(coordinatesIndex)) * outputFreshWaterST + &
                         seaWaterFraction(coordinatesIndex)* outputSST, pre_obsReal)
         checkInlandWatersCount =  checkInlandWatersCount + 1
       else
-        if (counterThinning == iceThinning) then  
+        if (counterThinning == iceThinning) then
           obsValue = real(outputSST, pre_obsReal)
           checkSeaWatersCount = checkSeaWatersCount + 1
           counterThinning = 1
@@ -616,20 +618,20 @@ module oceanObservations_mod
       call obs_headSet_r(obsData, OBS_LAT, headerIndex, obsLat)
       call obs_headSet_r(obsData, OBS_LON, headerIndex, obsLon)
       call obs_bodySet_r(obsData, OBS_VAR, headerIndex, obsValue)
-      call obs_bodySet_i(obsData, OBS_VNM, headerIndex, bufr_sst)  
+      call obs_bodySet_i(obsData, OBS_VNM, headerIndex, bufr_sst)
       call     obs_set_c(obsData, 'STID' , headerIndex, 'ABOG')
       call obs_headSet_i(obsData, OBS_NLV, headerIndex, 1)
       call obs_headSet_i(obsData, OBS_RLN, headerIndex, headerIndex)
       call obs_headSet_i(obsData, OBS_DAT, headerIndex, datePrint / 100)
       call obs_headSet_i(obsData, OBS_ETM, headerIndex, timePrint)
       headerIndex = headerIndex + 1
-    end do 
-    
-    call sqlr_writePseudoOceanIceObs(obsData, 'OS', outputFileName) 
- 
+    end do
+
+    call sqlr_writePseudoOceanIceObs(obsData, 'OS', outputFileName)
+
     ! Deallocate obsSpaceData
     call obs_finalize(obsData)
 
   end subroutine oobs_computeObsData
 
-end module oceanObservations_mod  
+end module oceanObservations_mod

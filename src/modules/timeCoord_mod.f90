@@ -144,7 +144,8 @@ contains
     integer    :: lengthValidDateStr, status, imode, ierr
     integer(8) :: dateTimePrint, datePrint, timePrint
     character(len=256) :: validDateStr
-    integer    :: newdate
+    ! external definitions
+    integer, external :: newdate
 
     status = 0
     call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
@@ -202,8 +203,10 @@ contains
     character(len=*), optional, intent(in) :: fileNameForDate_opt
 
     ! Locals:
-    integer :: ierr, newdate, imode, prntdate, prnttime
+    integer :: ierr, imode, prntdate, prnttime
     integer :: dateStampEnvVar
+    ! external definitions
+    integer, external :: newdate
 
     call tim_readNml()
 
@@ -450,9 +453,11 @@ contains
 
     ! Locals:
     integer :: stepIndex
-    integer :: ierr, newdate, imode, prntdate, prnttime
+    integer :: ierr, imode, prntdate, prnttime
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
+    ! external definitions
+    integer, external :: newdate
 
     if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
 
@@ -530,11 +535,13 @@ contains
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
     ! Locals:
-    integer :: newdate, istat, imode
+    integer :: istat, imode
     real(8) :: dddt      ! delta time in hours
     integer :: istobs    ! obs CMC date-time stamp
     integer :: itobs     ! obs time HHMMSShh
     real(8) :: dlhours   ! delta time from synop time
+    ! external definitions
+    integer, external :: newdate
 
     if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
 
@@ -620,8 +627,10 @@ contains
     character(len=8)            :: yyyymmdd
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     integer                     :: ndaysM(12)
-    integer                     :: imode, ierr, newdate, prntdate
+    integer                     :: imode, ierr, prntdate
     logical                     :: verbose = .True.
+    ! external definitions
+    integer, external :: newdate
 
     ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
 
@@ -666,7 +675,9 @@ contains
     integer(8)              :: dateTimeMin, dateTimeMax, timeMin, timeMax, dateMin, dateMax
     integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
     integer                 :: ier, imode
-    integer                 :: newdate, dateStampIn, dateStampOut
+    integer                 :: dateStampIn, dateStampOut
+    ! external definitions
+    integer, external :: newdate
 
     call tim_readNml()
 
@@ -797,7 +808,9 @@ contains
     integer, intent(out) :: numberHours
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, newdate
+    integer :: ierr, imode, refDateStamp
+    ! external definitions
+    integer, external :: newdate
 
     write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate
     imode = 3
@@ -824,8 +837,10 @@ contains
     integer(8), intent(out) :: numberSeconds
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, newdate
+    integer :: ierr, imode, refDateStamp
     real(8) :: numberHours
+    ! external definitions
+    integer, external :: newdate
 
     write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate
     imode = 3

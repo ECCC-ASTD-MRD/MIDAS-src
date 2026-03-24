@@ -228,7 +228,7 @@ program midas_letkf
   real(4), pointer :: field_Psfc(:,:,:,:)
 
   character(len=50)    :: outfilename ! filename for the dfs output
-  integer              :: fclos, funit
+  integer              :: funit
   integer              :: obsIndex, localBodyIndex, gridIndex
   real(8)              :: Ya_anom, Ya_mean
   type(struct_enkfDFS) :: enkfDFS
@@ -237,7 +237,7 @@ program midas_letkf
   type(struct_enkfNML) :: enkfNML
 
   ! external definitions
-  integer, external :: fstopc
+  integer, external :: fstopc, fclos
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -922,7 +922,9 @@ contains
     integer             :: randomSeed
 
     ! Locals:
-    integer :: imode, datePrint, timePrint, newdate
+    integer :: imode, datePrint, timePrint
+    ! external definitions
+    integer, external :: newdate
 
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)

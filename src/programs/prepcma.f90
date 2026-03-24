@@ -109,7 +109,7 @@ program midas_prepcma
 
   implicit none
 
-  integer :: fnom, ierr, dateStampFromObs
+  integer :: ierr, dateStampFromObs
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
@@ -134,6 +134,8 @@ program midas_prepcma
   real(8) :: nto_pmax(1) = (/ 0.0 /)
   character(len=codtyp_name_length) :: tovsInstName
   character(len=codtyp_name_length), allocatable :: tovsInstNameList(:)
+  ! external definitions
+  integer, external :: fnom
 
   ! Namelist variables:
   integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst

@@ -2033,9 +2033,11 @@ contains
     ! Locals:
     integer :: subEnsIndex, subEnsIndex2, memberIndex, memberIndex2
     integer :: imode, dateStamp, ierr, timePrint, datePrint, randomSeed
-    integer :: eigenVectorColumnIndex, memberIndexInModEns, newDate
+    integer :: eigenVectorColumnIndex, memberIndexInModEns
     integer, allocatable, save :: randomMemberIndexArray(:)
     logical, save :: firstCall = .true.
+    ! external definitions
+    integer, external :: newDate
 
     if (.not.enkfNML%randomShuffleSubEns) then
       ! form subensembles with contiguous sequential groups of members
@@ -3450,7 +3452,9 @@ contains
     real(8)             :: eDim, dof, trace
     character(len=50)   :: outfilename
     integer             :: memberIndex
-    integer             :: fclos, funit, ierr
+    integer             :: funit, ierr
+    ! external definitions
+    integer, external :: fclos
 
     eDim  = 0.0d0
     dof   = 0.0d0

@@ -498,8 +498,10 @@ contains
     character(len=*), intent(in) :: cmsg
 
     ! Locals:
-    INTEGER :: iulstatus,fnom,fclos, ierr
+    INTEGER :: iulstatus, ierr
     character(len=22):: clmsg
+    ! external definitions
+    integer, external :: fnom, fclos
 
     clmsg='VAR3D_STATUS='//cmsg
     iulstatus = 0
@@ -619,10 +621,10 @@ contains
     integer :: k,ier1
     real(4) :: zlev_r4
     character(len=12) :: cletiket
-    character(len=4) :: clnomvar
-    character(len=3) :: clnomvar_3
-    character(len=2) :: cltypvar
-    character(len=1) :: clgrtyp2,clgrtyp,clstring
+    character(len=4)  :: clnomvar
+    character(len=3)  :: clnomvar_3
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp2,clgrtyp,clstring
     logical :: llflag
     integer :: ikeys(knmaxlev)
     ! external definitions
@@ -2139,11 +2141,13 @@ contains
     logical :: found
 
     ! Locals:
-    integer :: unit, fnom, fclos, ierr, positionBeg, positionEnd
+    integer :: unit, ierr, positionBeg, positionEnd
     character(len=1000) :: line, failMode
     character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
     character(len=:), pointer :: nameListStr_ptr
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Set action if namelist is missing
     if (present(failMode_opt)) then
@@ -2151,7 +2155,7 @@ contains
     else
       failMode = 'ABORT'
     end if
-    
+
     ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
     if (.not. namelistExist) then
@@ -2164,7 +2168,7 @@ contains
         return
       end if
     end if
-    
+
     ! Ensure namelist section name is all in upper case
     namelistSectionNameUpper = namelistSectionName
     ierr = clib_toUpper(namelistSectionNameUpper)

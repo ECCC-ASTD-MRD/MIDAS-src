@@ -439,7 +439,8 @@ contains
     ! Locals:
     integer,    allocatable :: headDateValues(:), headTimeValues(:)
     integer                 :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer                 :: newdate
+    ! external definitions
+    integer, external :: newdate
 
     call odbf_setup()
 

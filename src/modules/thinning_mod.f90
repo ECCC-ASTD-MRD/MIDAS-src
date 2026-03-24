@@ -780,9 +780,11 @@ contains
 
     ! Locals:
     integer :: headerIndex, bodyIndex, headerSkip, keepCount
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: nulnam, ierr
     ! Namelist variables
     integer :: preThinPercent    ! percentage of obs to keep after pre-thinning
+    ! external definitions
+    integer, external :: fnom, fclos
 
     namelist /thin_preThin/preThinPercent
 

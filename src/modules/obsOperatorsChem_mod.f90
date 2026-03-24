@@ -525,7 +525,8 @@ module obsOperatorsChem_mod
     real(8) :: genOperOmAStatsFactor(0:oopc_constituentsSize) ! Additional OmAStats normalization factor for oopc_genOper
     integer :: obsdata_maxsize ! Max number of obs associated with ordered obs indices
 
-    external fnom,fclos
+    ! external definitions
+    integer, external :: fnom, fclos
 
     namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev,   &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
@@ -590,11 +591,11 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Locals:
-    integer :: fnom, fclos
     integer :: ierr, jlev, jelm, nulstat, ios, isize, icount
     logical :: LnewExists,newread
     character (len=128) :: ligne
-    external :: fnom,fclos
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Initialization
 
@@ -989,11 +990,11 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Locals:
-    integer :: fnom, fclos
     integer :: ierr, jlev, jelm, nulstat, ios, isize, icount, iend
     logical :: LnewExists,newread
     character (len=128) :: ligne
-    external :: fnom,fclos
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Initialization
 

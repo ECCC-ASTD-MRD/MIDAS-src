@@ -654,7 +654,7 @@ module gridStateVectorFileIO_mod
     real(8), allocatable :: fileField2D(:,:,:,:), netCDFTimes(:)
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp
-    integer :: imode, ierr, newdate, prntdate, prnttime
+    integer :: imode, ierr, prntdate, prnttime
     integer :: numberRecords, timeCounterID, dimTimeCounterID
     character(len = nf90_max_name) :: recordDimName
     integer :: refDateStamp, currentDateStamp
@@ -662,6 +662,8 @@ module gridStateVectorFileIO_mod
     integer :: timeIndexToRead
     integer :: nDims, nVars, nGlobalAtts, unlimDimID
     integer :: numDimsInFile ! returned number of variable dimensions
+    ! external definitions
+    integer, external :: newdate
 
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
@@ -2746,7 +2748,7 @@ module gridStateVectorFileIO_mod
     integer         , optional, intent(in) :: timeCounter_opt       ! time counter for array in netcdf file (default is stepIndex)
     ! Locals:
     logical :: iDoWriting, containsFullField
-    integer :: ierr, ncid, stepIndex, imode, newdate
+    integer :: ierr, ncid, stepIndex, imode
     integer :: ni, nj
     integer :: levIndex, numLev, varLevIndex
     integer :: yourid, youridy, youridx
@@ -2765,6 +2767,8 @@ module gridStateVectorFileIO_mod
     logical :: fileExists
     integer :: currentDateStamp, timeLevel, printableValidDate, printableValidTime
     character(len=20) :: localVariableName(dimNemovar)
+    ! external definitions
+    integer, external :: newdate
 
     call msg('gio_writeToFileNetCDF', 'START')
 

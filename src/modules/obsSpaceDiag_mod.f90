@@ -178,7 +178,9 @@ contains
     ! Locals:
     logical :: nmlExists,anlm_mod
     integer :: ierr
-    integer :: dateprnt,timeprnt,newdate
+    integer :: dateprnt,timeprnt
+    ! external definitions
+    integer, external :: newdate
 
     if (present(analysisMode_opt)) then
        anlm_mod = analysisMode_opt
@@ -229,7 +231,7 @@ contains
     integer, allocatable :: counts(:,:,:)
     real(8), allocatable :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
     integer, allocatable :: my_counts(:,:,:)
-    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
+    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,ivco,ivco_recv,iseed,jj,jlev,jvar
     integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
     real(8), pointer         :: cvBhi(:), cvBen(:), cvBchm(:)
@@ -239,6 +241,8 @@ contains
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
     character(len=6)   :: elementStr
     character(len=10)  :: dateStr
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (numFamily == 0) then
       write(*,*) 'osd_calcInflation: No families configured in ''NAMOSD'': No inflation computed'

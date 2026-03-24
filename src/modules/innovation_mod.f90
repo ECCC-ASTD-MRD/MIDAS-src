@@ -69,8 +69,10 @@ contains
 
     ! Locals:
     character(len=20) :: nameDimFile
-    integer :: ierr, fnom, fclos, unitDimFile, mxstn, mxobs
+    integer :: ierr, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))

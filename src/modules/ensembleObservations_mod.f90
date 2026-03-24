@@ -818,8 +818,9 @@ CONTAINS
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
-    integer :: fnom, fclos
     logical :: fileExists
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (.not. ensObs%allocated) then
       call utl_abort('eob_writeToFiles: this object is not allocated')
@@ -915,7 +916,7 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs), assFlagFrom1File(ensObs%numObs)
     integer :: assFlagFromAllFiles(ensObs%numObs)
     integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
-    integer :: numMembersFromFile, fnom, fclos
+    integer :: numMembersFromFile
     integer :: fileIndex, numMembersAlreadyRead
     integer, allocatable :: memberIndexFromFile(:)
     logical :: fileExists
@@ -924,6 +925,8 @@ CONTAINS
     character(len=4)   :: myidxStr, myidyStr
     character(len=3)   :: fileIndexStr
     character(len=30)  :: fileNameExtention
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_readFromFiles: this object is not allocated')
@@ -1411,12 +1414,14 @@ CONTAINS
 
     ! Locals:
     character(len=50)   :: outfilename          ! filename for the output
-    integer             :: fclos, funit, ierr
+    integer             :: funit, ierr
     integer             :: codTyp, physVarIndex
     logical             :: file_exists
     real(8)             :: distMax, distMean, locFun, obsErr, ensSpread
     real(8)             :: trace, vertTop, vertBottom
     integer             :: numSelected, numRejected
+    ! external definitions
+    integer, external :: fclos
 
     write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
     outfilename = './eob_glbi_'//trim(adjustl(outfilename))

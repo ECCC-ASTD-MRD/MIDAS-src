@@ -1945,12 +1945,14 @@ contains
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
     LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent,LOK,LROK
     integer                :: NDATA,NDATA_SF
-    integer                :: IER,date2,time2,time_sonde,NEWDATE
+    integer                :: IER,date2,time2,time_sonde
     real                   :: RAD_MOY,RAD_STD
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     integer                :: scanPosElementId
+    ! external definitions
+    integer, external      :: newdate
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'

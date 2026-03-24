@@ -412,8 +412,10 @@ contains
     real(8),          intent(in) :: HXens_mpiglobal(:,:)
 
     ! Locals:
-    integer :: unitHX, ierr, headerIndex, fnom, fclos
+    integer :: unitHX, ierr, headerIndex
     character(len=10) :: fileNameHX
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*) 'obsf_writeHX: Starting'
 
@@ -442,9 +444,11 @@ contains
 
     ! Locals:
     character(len=25) :: fileNameAsciDump
-    integer :: unitAsciDump, ierr, fnom, fclos
+    integer :: unitAsciDump, ierr
     character(len=4)    :: myIdxStr, myIdyStr
     character(len=9)    :: myIdStr
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*) 'obsf_writeAsciDump: Starting'
 
@@ -599,22 +603,22 @@ contains
     namePrefix(101) = 'obshydro'
     namePrefix(102) = 'obssarwinds'
     namePrefix(103) = 'obsgl_rcm'
-    namePrefix(104) = 'obsos_insitu'   ! All In-situ SST for G6 
+    namePrefix(104) = 'obsos_insitu'   ! All In-situ SST for G6
     namePrefix(105) = 'obsos_avhrr'    ! AVHRR SST
     namePrefix(106) = 'obsos_amsr2'    ! AMSR2 SST
     namePrefix(107) = 'obsos_viirs'    ! VIIRS SST
-    namePrefix(108) = 'obsos_pseudo'   ! Pseudo foundation SST 
+    namePrefix(108) = 'obsos_pseudo'   ! Pseudo foundation SST
     namePrefix(109) = 'obsos_slstr'    ! Sea and Land Surface Temperature Radiometer (SLSTR) SST
     namePrefix(110) = 'obsos_CO_PR_CT' ! Copernicus CORA 'PR': vertical profile, 'CT': CTD
     namePrefix(111) = 'obsos_CO_PR_GL' ! Copernicus CORA 'PR': vertical profile, 'GL': Gliders
-    namePrefix(112) = 'obsos_CO_PR_ML' ! Copernicus CORA 'PR': vertical profile, 'ML': Mini loggers for fishery observations  
+    namePrefix(112) = 'obsos_CO_PR_ML' ! Copernicus CORA 'PR': vertical profile, 'ML': Mini loggers for fishery observations
     namePrefix(113) = 'obsos_CO_PR_PF' ! Copernicus CORA 'PR': vertical profile, 'PF': Argo profiles
     namePrefix(114) = 'obsos_CO_PR_SM' ! Copernicus CORA 'PR': vertical profile, 'SM': Sea mammals
     namePrefix(115) = 'obsos_CO_PR_TX' ! Copernicus CORA 'PR': vertical profile, 'TX': Thermistor chain data
     namePrefix(116) = 'obsos_CO_PR_XB' ! Copernicus CORA 'PR': vertical profile, 'XB': XBT, XCTD or MBT profiles
     namePrefix(117) = 'obsos_CO_TS_DB' ! Copernicus CORA 'TS': time series     , 'DB': Drifter buoys
     namePrefix(118) = 'obsos_CO_TS_FB' ! Copernicus CORA 'TS': time series     , 'FB': Ferry boxes
-    namePrefix(119) = 'obsos_CO_TS_MO' ! Copernicus CORA 'TS': time series     , 'MO': Moorings 
+    namePrefix(119) = 'obsos_CO_TS_MO' ! Copernicus CORA 'TS': time series     , 'MO': Moorings
     namePrefix(120) = 'obsos_CO_TS_TG' ! Copernicus CORA 'TS': time series     , 'TG': Tide gauges
     namePrefix(121) = 'obsos_CO_TS_TS' ! Copernicus CORA 'TS': time series     , 'TS': Ship underway data, thermosalinograph
     namePrefix(122) = 'obssh_al_l3'    ! Altimetry Saral/AltiKa
@@ -622,7 +626,7 @@ contains
     namePrefix(124) = 'obssh_j3_l3'    ! Altimetry Jason-3
     namePrefix(125) = 'obssh_s3a_l3'   ! Altimetry Sentinel-3A
     namePrefix(126) = 'obssh_s3b_l3'   ! Altimetry Sentinel-3B
-    
+
     familyName(:)   = ''
     familyName( 1)  = 'TO'
     familyName( 2)  = 'TO'

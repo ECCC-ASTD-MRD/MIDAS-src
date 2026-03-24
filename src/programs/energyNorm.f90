@@ -118,13 +118,15 @@ program midas_energyNorm
 
   character(len=256), parameter :: inputFileName  = 'inputFiles'
   character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
-  integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileOutput
+  integer :: istamp,ierr,nulFileOutput
   integer :: fileIndex, numberOfFiles, maxFileLength
   character(len=1024) :: referenceFileName, fileNameHeader, fileNameFormat
   character(len=1024), allocatable :: fileNames(:)
   type(struct_gsv) :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
+  ! external definitions
+  integer, external :: exdb, exfin, fnom, fclos
 
   ! Namelist variables
   logical :: fullStates ! If '.true.', then the files will be considered as full states and the energy norm will be compute with the difference of the state and the reference state (default is ``.true``).

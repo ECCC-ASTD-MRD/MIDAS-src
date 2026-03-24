@@ -187,9 +187,8 @@ CONTAINS
     integer, allocatable,       intent(out) :: cvDimPerInstance(:)
 
     ! Locals:
-    integer        :: fnom, fclos, ierr
+    integer        :: ierr, nulnam = 0
     integer        :: cvDimStorage(nInstanceMax)
-    integer        :: nulnam = 0
     ! Namelist variables
     integer             :: nEns                                   ! number of ensemble members
     real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables
@@ -228,6 +227,8 @@ CONTAINS
     real(8)             :: huMinValue                             ! minimum humidity value imposed on ensemble members
     character(len=12)   :: hInterpolationDegree                   ! select degree of horizontal interpolation (if needed)
     character(len=20)   :: transformVarKindCH                     ! name of transform performed on chemistry-related variables in ens.
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,                       &
@@ -434,12 +435,14 @@ CONTAINS
     integer        :: levIndex, jvar, ierr
     integer        :: horizWaveBandIndex, vertWaveBandIndex, stepIndex
     integer        :: hLocalizeIndex, vLocalizeIndex
-    character(len=256) :: ensFileName
-    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
+    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
     logical        :: scaleDecompositionNeeded = .false.
-    character(len=32)   :: direction, directionEnsPerts, directionAnlInc
-    character(len=32)   :: decompositionMode, filterResponseFunctionMode
+    character(len=32)  :: direction, directionEnsPerts, directionAnlInc
+    character(len=32)  :: decompositionMode, filterResponseFunctionMode
+    character(len=256) :: ensFileName
+    ! external definitions
+    integer, external :: newdate
 
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
 

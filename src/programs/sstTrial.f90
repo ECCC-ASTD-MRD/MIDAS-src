@@ -147,7 +147,9 @@ program midas_sstTrial
 
     ! Locals:
     character(len=*), parameter :: gridFile = './analysis'
-    integer                     :: prntdate, prnttime, imode, newdate, indexMonth
+    integer                     :: prntdate, prnttime, imode, indexMonth
+    ! external definitions
+    integer, external :: newdate
     namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim
 
     write(*,*) ''

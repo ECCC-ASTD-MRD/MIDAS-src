@@ -1353,9 +1353,10 @@ contains
 
     ! Locals:
     character(len=*), parameter :: fileName = 'rttov_h2o_limits.dat'
-    integer :: fnom, fclos
     integer :: nulfile, ierr, levIndex
     logical, save :: firstTime = .true.
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Open the file
     nulfile = 0

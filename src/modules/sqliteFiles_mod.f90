@@ -46,8 +46,9 @@ module sqliteFiles_mod
     ! Locals:
     logical              :: fileExists
     integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer              :: newdate
     integer, allocatable :: headDateValues(:), headTimeValues(:)
+    ! external definitions
+    integer, external :: newdate
 
     validDate = MPC_missingValue_INT
     validTime = MPC_missingValue_INT

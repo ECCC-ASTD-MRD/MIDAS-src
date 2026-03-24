@@ -351,7 +351,6 @@ contains
     ! Locals:
     integer, parameter :: bgckColumnIndex = 1
     integer, parameter :: analysisColumnIndex = 2
-    integer,external  :: FNOM, FCLOS
     integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM
     integer :: INUMSAT, INUMSAT2, ISAT, IPLF
     integer :: IPLATFORM(tvs_maxNumberOfSensors), ISATID(tvs_maxNumberOfSensors)
@@ -373,6 +372,8 @@ contains
     integer :: amsuaChannelOffset, amsuaChannelNum, instrumId, wordCount
     character (len=132) :: CLDUM,CPLATF,CINSTR
     character (len=256) :: lineRead
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*) 'oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing'
 
@@ -890,9 +891,11 @@ contains
     implicit none
 
     ! Locals:
-    integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat
+    integer :: ierr, jlev, jelm, jcat, icodtyp, nulstat
     logical             :: LnewExists
     character (len=128) :: ligne
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (visAndGustAdded) then
       surfaceObsTypeNumber = 6
@@ -1031,14 +1034,15 @@ contains
     implicit none
 
     ! Locals:
-    external fnom, fclos
-    integer :: fnom, fclos, ierr, jlev, jelm, nulstat
-    logical            :: fileExists
+    integer :: ierr, jlev, jelm, nulstat
+    logical :: fileExists
     character(len=128) :: ligne
     character(len=15), parameter :: fileName = 'sea_ice_obs-err'
     ! Variables for the ASCAT backscatter anisotropy
     integer :: jcell_no, icell_no, imonth
     real :: tiePoint12, tiePoint13, tiePoint23
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! CHECK THE EXISTENCE OF THE FILE WITH STATISTICS
     inquire(file = fileName, exist = fileExists)
@@ -1155,11 +1159,12 @@ contains
     implicit none
 
     ! Locals:
-    external :: fnom, fclos
-    integer                      :: fnom, fclos, ierr, nulstat
+    integer                      :: ierr, nulstat
     logical                      :: fileExists
     character(len=15), parameter :: fileName = 'obserr_hydro'
     character(len=*) , parameter :: myName   = 'oer_readObsErrorsHydro'
+    ! external definitions
+    integer, external :: fnom, fclos
 
     inquire(file = fileName, exist = fileExists)
     if (fileExists) then
@@ -1594,7 +1599,7 @@ contains
               if(unsupportedCodeType) then
                 write(*,'(a,i5,3a,2i5)') 'oer_fillObsErrors: unsupported ocean data, codtype ', codeType,', cstnid ', &
                                          cstnid,' found in ocean datasets, where oceanDataParams(indexDataset)%codeType: ', &
-                                         oceanDataParams(indexDataset)%codeType, indexDataset 
+                                         oceanDataParams(indexDataset)%codeType, indexDataset
                 call utl_abort('oer_fillObsErrors: unsupported codeType!')
               end if
 
@@ -3248,12 +3253,12 @@ contains
     implicit none
 
     ! Locals:
-    integer :: FNOM, FCLOS
     integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
     logical :: LnewExists
     character(len=11) :: chemAuxObsDataFile = 'obsinfo_chm'
     character (len=128) :: ligne
-    EXTERNAL FNOM,FCLOS
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Initialization
 

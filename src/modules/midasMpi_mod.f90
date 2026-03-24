@@ -198,6 +198,8 @@ contains
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! read main namelist if there is a namelist block NAMMMPI
     call readNml()
@@ -454,8 +456,9 @@ contains
     integer, intent(out) :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
     ! Locals:
-    integer :: ierr
-    integer :: nulnam, fnom, fclos
+    integer :: ierr, nulnam
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Namelist variables
     namelist /ptopo/ npex, npey

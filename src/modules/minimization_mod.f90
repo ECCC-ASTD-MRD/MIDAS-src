@@ -875,13 +875,15 @@ CONTAINS
     real(4), allocatable :: vatravec_r4_mpiglobal(:)
     real(4), allocatable :: vatra_r4(:)
     real(8), allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
-    integer :: ibrpstamp,ireslun, ierr, fnom, fclos
+    integer :: ibrpstamp,ireslun, ierr
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
     integer :: ivadim, itrunc
     integer :: ivamaj
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl_io
     character(len=3) :: cl_version
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (status == 0) then
       if (mmpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname

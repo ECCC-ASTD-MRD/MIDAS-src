@@ -40,7 +40,7 @@ contains
     character(len=*), intent(in)  :: burpFileName
 
     ! Locals:
-    integer :: ier, inblks, nulburp, fnom, fclos, numblks
+    integer :: ier, inblks, nulburp, numblks
     logical :: isExist_L
     integer :: ktime, kdate, kdate_recv, ktime_recv, ihandl, ilong
     integer :: itime, iflgs, idburp, ilat, ilon, idx, idy
@@ -48,10 +48,13 @@ contains
     integer :: insup, inxaux
     integer, allocatable :: ibuf(:)
     integer :: inrecs
-    integer :: istampobs, inewhh, newdate, nresume, ivals
+    integer :: istampobs, inewhh, nresume, ivals
     real(8) :: delhh
     character(len=9) :: clstnid
     integer, parameter :: sup(1) = (/0/)
+    ! external definitions
+    integer, external :: fnom, fclos, newdate
+    integer, external :: mrbhdr, mrfget
 
     !
     !- Get the date from the burp files
