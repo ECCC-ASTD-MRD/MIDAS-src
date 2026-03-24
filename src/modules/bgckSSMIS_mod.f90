@@ -1657,10 +1657,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
-    integer,              intent(in)    :: headerIndex            ! Current header index
-    logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
-    logical, allocatable, intent(out)   :: waterObs(:)            ! Observations over land and sea-ice 
+    type(struct_obs),     intent(inout) :: obsSpaceData   ! ObsSpaceData object
+    integer,              intent(in)    :: headerIndex    ! Current header index
+    logical, allocatable, intent(out)   :: obsToReject(:) ! Observations that will be rejected
+    logical, allocatable, intent(out)   :: waterObs(:)    ! Observations over land and sea-ice
 
     ! Locals:
     ! arrays to get from obsspacedata
@@ -2116,7 +2116,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,          intent(in)    :: headerIndex            ! Current header index
     logical,          intent(in)    :: obsToReject(:)         ! Observations that will be rejected
-    logical,          intent(in)    :: waterObs(:)            ! Observations over land and sea-ice 
+    logical,          intent(in)    :: waterObs(:)            ! Observations over land and sea-ice
 
     ! Locals:
     integer, allocatable                :: obsFlags(:)
@@ -2200,7 +2200,7 @@ contains
         dataIndex = dataIndex+1
         if (resetQc) obsFlags(dataIndex) = 0
         if (obsToReject(dataIndex)) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),7)
-        if ((obsToReject(dataIndex)) .and. (.not. waterObs(obsIndex))) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),19)       
+        if ((obsToReject(dataIndex)) .and. (.not. waterObs(obsIndex))) obsFlags(dataIndex) = ibset(obsFlags(dataIndex),19)
       end do
     end do
 

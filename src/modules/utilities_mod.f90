@@ -9,6 +9,7 @@ module utilities_mod
   use clibInterfaces_mod
   use randomNumber_mod
   use mathPhysConstants_mod
+  use omp_lib
 
   implicit none
   save
@@ -1108,7 +1109,7 @@ contains
     real(8), save :: startTime = -1.0d0
     real(8), save :: accumulatedStart = -1.0d0
     real(8), save :: previousTime = -1.0d0
-    real(8)       :: currentTime, omp_get_wtime
+    real(8)       :: currentTime
     logical, save :: firstCall = .true.
     logical       :: reset
     character(len=8)  :: dateString
@@ -3233,7 +3234,7 @@ contains
     character(len=*), intent(in) :: blockLabel
 
     ! Locals:
-    integer            :: labelLength, omp_get_thread_num
+    integer            :: labelLength
     integer, parameter :: labelPaddedLength = 40
     character(len=labelPaddedLength) :: blockLabelPadded
 
@@ -3259,9 +3260,6 @@ contains
 
     ! Arguments:
     integer,          intent(in) :: blockIndex
-
-    ! Locals:
-    integer            :: omp_get_thread_num
 
     ! only the first thread does the timing
     if (omp_get_thread_num() > 0) return

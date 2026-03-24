@@ -47,7 +47,7 @@ contains
     integer :: ialt, idelay, idate, irs, irunn, inblk, isup, ixaux
     integer :: insup, inxaux
     integer, allocatable :: ibuf(:)
-    integer :: inrecs, mrbhdr, mrfget
+    integer :: inrecs
     integer :: istampobs, inewhh, newdate, nresume, ivals
     real(8) :: delhh
     character(len=9) :: clstnid
@@ -655,6 +655,7 @@ contains
     real(4), allocatable :: new_vals(:,:,:)
     logical, allocatable :: modify(:)
 
+    nrep_modified = 0
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
       nrep_modified = 0

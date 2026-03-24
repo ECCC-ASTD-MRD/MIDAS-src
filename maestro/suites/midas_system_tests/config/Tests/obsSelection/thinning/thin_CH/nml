@@ -11,12 +11,12 @@
    maxSunList(1) = 84.0
    stnIdList(2) = '22594700'   ! OMPS-NP on NOAA-20
    deltemps(2) = 1
-   deldist(2) = 111
+   deldist(2) = 111           ! Equivalent to 1 degree
    methodList(2) = 'byDistance'
    maxSunList(2) = 84.0
    stnIdList(3) = '06412500'   ! TROPOMI
    deltemps(3) = 1
-   deldist(3) = 111
+   deldist(3) = 111           ! Equivalent to 1 degree
    methodList(3) = 'byDistance'
    maxSunList(3) = 84.0
    stnIdList(4) = 'WO****00'   ! Ozonesonde

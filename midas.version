@@ -65,7 +65,7 @@ if [[ -z "${gitobject}" ]]; then
 fi
 
 status=0
-most_recent_tag_reachable=$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1) || status=1
+most_recent_tag_reachable=$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1) || status=1
 if [ "${status}" -eq 0 ]; then
     git describe ${git_describe_options} --match ${most_recent_tag_reachable} ${gitobject} || status=1
 fi
@@ -77,5 +77,5 @@ if [ "${status}" -ne 0 ]; then
     suite=${toplevel}/maestro/suites/midas_system_tests
     . ${suite}/set_machine_list.dot ${suite}
 
-    ssh ${MACHINE_PPP} "cd ${toplevel}; most_recent_tag_reachable=\$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1); git describe ${git_describe_options} --match \${most_recent_tag_reachable}"  || echo unkown revision
+    ssh ${MACHINE_PPP} "cd ${toplevel}; most_recent_tag_reachable=\$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1); git describe ${git_describe_options} --match \${most_recent_tag_reachable}"  || echo unkown revision
 fi

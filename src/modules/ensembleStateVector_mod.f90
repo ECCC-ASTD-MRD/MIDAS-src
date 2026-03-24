@@ -2665,6 +2665,7 @@ CONTAINS
                               hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
                               allocHeightSfc_opt= allocHeightSfc)
           end if
+
           call msg_memUsage('ens_readEnsemble')
 
           !  Read the file
@@ -2685,6 +2686,7 @@ CONTAINS
                               readHeightSfc_opt=readHeightSfc)
             call gio_fileUnitsToStateUnits(statevector_file_r4, containsFullField)
           end if
+          call msg_memUsage('ens_readEnsemble')
 
           ! Remove file from ram disk if no longer needed
           if ( all(readFilePE(memberStepIndex+1:numMembers*numStep) /= mmpi_myid) .or. &

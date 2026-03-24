@@ -315,10 +315,12 @@ contains
       call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
     end if
 
+    nullify(vgd_ip1_M)
+    nullify(vgd_ip1_T)
     ! Get vgrid values for ip1
     nullify(vgd_ip1_M)
     nullify(vgd_ip1_T)
-    stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
+    stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)',     value = vgd_ip1_m)
     stat = vgd_get(vco%vgrid, key='vipt - vertical ip1 levels (t)', value = vgd_ip1_t)
 
     vgd_nlev_M = size(vgd_ip1_M)

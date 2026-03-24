@@ -925,14 +925,12 @@ contains
     integer,          intent(in)    :: headerIndex     ! current header Index
 
     ! Locals:
-    logical :: GROSSERROR
     integer :: testIndex, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: obsTb
     character(len=obs_stnidLength) :: stnId
 
     testIndex = 11
-    GROSSERROR = .FALSE.
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex)
@@ -951,7 +949,6 @@ contains
         if (.not. utl_isEqual(obsTb, mwbg_realMissing) .and. &
             (obsTb < mwbg_grossValMinThresh(obsChanNumWithOffset) .or. &
              obsTb > mwbg_grossValMaxThresh(obsChanNumWithOffset))) then
-          GROSSERROR = .TRUE.
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
           call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
@@ -6167,7 +6164,7 @@ contains
         ((obsChanNum >= 1 .and. obsChanNum <= mwbg_atmsNumSfcSensitiveChannel) .or. &
         (obsChanNum >= 16 .and. obsChanNum <= 19))) then
         call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
-      end if     
+      end if
       if (mwbg_useClwDiffForAllskyBcorr) then
         clwDiff = abs(cloudLiquidWaterPathObs - cloudLiquidWaterPathFG)
         obsTooCloudy = (clwDiff > mwbg_clwDiffThreshBcorr)
@@ -6412,10 +6409,10 @@ contains
       if (lflagchn(obsChanNum)) then
         call flg_setFlag(obsSpaceData, bodyIndex, flg_07rejVarious)
       end if
-      if ((.not. waterobs) .and. & 
+      if ((.not. waterobs) .and. &
         (obsChanNum == 1 .or. obsChanNum == 10 .or. obsChanNum == 14 .or. obsChanNum == 15)) then
         call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
-      end if      
+      end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
       if (instrumentIsAllskyHu .and. waterobs .and. channelIndex /= 0 .and. &

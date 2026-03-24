@@ -28,7 +28,7 @@ test case through a sequence of 4 tasks:
   2. `run`: submit the program to be tested with the provided configuration
   3. `check`: fetch the expected results from the reference path and compare
      them with the program outputs (aborting if there is a difference)
-  4. `clean`: remove the work directories 
+  4. `clean`: remove the work directories
 If a task aborts, the following one won't launch allowing the user to inspect the
 test state.
 
@@ -80,7 +80,7 @@ Then edit this configuration file and provide the basic `UnitTest` variable defi
 UnitTest_run_namelist=${SEQ_EXP_HOME}/config/Tests/${yourNewTest}/nml
 UnitTest_run_exe=${ABS_DIR}/midas-${yourTestProgram}_${ORDENV_PLAT}-${MIDAS_version}.Abs
 
-UnitTest_mpiscript=var.sh 
+UnitTest_mpiscript=var.sh
 # most probably unless a test specific launch script is provided
 
 UnitTest_reference=${pathToReference}
@@ -89,7 +89,7 @@ UnitTest_reference=${pathToReference}
 #    * when your TTD contribution will be merged back, this directory will be moved
 #      to a protected account (such as `~sanl000`).
 UnitTest_reference_update=${pathForUpdate}
-# the path where the _updated_ inputs and expected 
+# the path where the _updated_ inputs and expected
 # results would be placed if the task `update` was launched.
 ```
 
@@ -99,9 +99,9 @@ the timing statistics expected.
 
 ### Preparing Inputs
 
-The `get` task will fetch the contents of all `inputs*.ca` (`cmcarc` archives) 
+The `get` task will fetch the contents of all `inputs*.ca` (`cmcarc` archives)
 from the directory pointed by `${UnitTest_reference}`.
-When creating a test (or modifying its inputs), assemble all the required 
+When creating a test (or modifying its inputs), assemble all the required
 inputs and group them in different archives, for instance separating observations
 from trials or constants and so forth.
 To archive a group of files, the `cmcarc` program:
@@ -262,7 +262,7 @@ coverage report using [`codecov.sh`](src/codecov.sh):
 
 A [code coverage report has been generated for version
 `v_3.8.1-516-g746c074` if you want to have a
-look](http://goc-dx.science.gc.ca/~erv000/midas/codecoverage-v_3.8.1-516-g746c074/CODE_COVERAGE.HTML)
+look](https://goc-dx-u3.science.gc.ca/~erv000/midas/codecoverage-v_3.8.1-516-g746c074/CODE_COVERAGE.HTML)
 
 Note that the values of `CHECK_RESULTS_CATCHUP` and
 `CLEAN_UNITTEST_CATCHUP` in
@@ -356,7 +356,7 @@ configuration file (the task will abort if the directory already exists).
 The listings will be collected at the same time.
 
 Once the new results have been collected, you can update the variable
-`UnitTest_reference` with the path to the new results. However, it is 
+`UnitTest_reference` with the path to the new results. However, it is
 recommended to replace `${USER}` with your actual username to allow other
 users to run the test using your updated results.
 
@@ -369,7 +369,7 @@ git repository maintainers.
 ## Splitting an observation file to prepare a unit test input
 
 In the case a user wants to split an observation file to prepare a
-unit test input, this program can be called like this (after loading an 
+unit test input, this program can be called like this (after loading an
 appropriate MIDAS ssm package):
 ```bash
 midas.splitobs.Abs -obsin ${OBS_FILE_IN} -obsout ${OBS_FILE_OUTPUT_PREFIX} -round-robin -npex ${NPEX} -npey ${NPEY}

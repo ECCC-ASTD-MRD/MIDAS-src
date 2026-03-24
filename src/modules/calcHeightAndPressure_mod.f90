@@ -207,13 +207,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
-    integer                   :: Vcode
+    integer :: Vcode
 
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 
@@ -276,13 +274,11 @@ contains
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
     ! Locals:
-    type(struct_vco), pointer :: vco
-    integer                   :: Vcode
+    integer :: Vcode
 
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
-    vco => gsv_getVco(statevector)
-    Vcode = vco_getVcode(vco)
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 0) return
 
@@ -559,6 +555,8 @@ contains
 
     call msg('calcGeopotHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
+    vco_ptr => gsv_getVco(statevector)
+
     allocate(Hsfc_r4(statevector%myLonBeg:statevector%myLonEnd, &
                      statevector%myLatBeg:statevector%myLatEnd))
     Hsfc => gsv_getHeightSfc(statevector)
@@ -690,6 +688,8 @@ contains
     type(struct_vco), pointer :: vco_ptr
 
     call msg('calcGeopotHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
+
+    vco_ptr => gsv_getVco(statevector)
 
     Hsfc => gsv_getHeightSfc(statevector)
     numStep = statevector%numStep
@@ -2268,6 +2268,7 @@ contains
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
     numStep = statevector%numStep
+    vco_ptr => gsv_getVco(statevector)
 
     allocate(tv(nlev_T))
 
@@ -2275,7 +2276,6 @@ contains
       call utl_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
     end if
 
-    vco_ptr => gsv_getVco(statevector)
     status = vgd_get( vco_ptr%vgrid, &
                       key='DHM - height of the diagnostic level (m)', &
                       value=heightSfcOffset_M_r4)
@@ -2981,6 +2981,7 @@ contains
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
         numStep = statevector%numstep
+        vco_ptr => gsv_getVco(statevector)
 
         allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                       statevector%myLatBeg:statevector%myLatEnd))
@@ -3387,6 +3388,7 @@ contains
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
         numStep = statevector%numstep
+        vco_ptr => gsv_getVco(statevector)
 
         allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                       statevector%myLatBeg:statevector%myLatEnd))
@@ -5350,6 +5352,7 @@ contains
         delP_T  => col_getAllColumns(columnInc,'P_T')
         delPsfc => col_getAllColumns(columnInc,'P0')
         PsfcRef => col_getAllColumns(columnIncRef,'P0')
+        vco_ptr => col_getVco(columnInc)
 
         nlev_T = col_getNumLev(columnInc,'TH')
         nlev_M = col_getNumLev(columnInc,'MM')
