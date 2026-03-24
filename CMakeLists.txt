@@ -71,11 +71,7 @@ foreach(component ${rttov_FIND_COMPONENTS})
   list(APPEND rttov_LIBRARIES ${${component}_lib})
 endforeach()
 
-if(DEFINED ENV{perftools_LIBRARY_PATH})
-  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV perftools_LIBRARY_PATH)
-else()
-  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
-endif()
+find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
 
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
