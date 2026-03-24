@@ -7,6 +7,7 @@ MODULE bMatrixHI_mod
   !           matrix based on homogeneous and isotropic correlations. This is
   !           the Global version. A separate module exists for limited-area applications.
   !
+  use rmn_fst98
   use midasMpi_mod
   use message_mod
   use earthConstants_mod
@@ -109,7 +110,7 @@ CONTAINS
 
     ! Locals:
     character(len=15)        :: bhi_mode
-    integer                  :: jlev, ierr, fnom, fclos, fstouv, fstfrm
+    integer                  :: jlev, ierr
     integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl, maxMyNla
     logical                  :: llfound, lExists
     real(8)                  :: pSurfRef, hSurfRef
@@ -458,8 +459,6 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstprm,fstinf
-    integer :: fnom,fstouv,fstfrm,fclos
 
     lldebug = .false.
 
@@ -872,7 +871,6 @@ CONTAINS
     ! standard file variables
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
-    integer :: fnom, fstouv,  fstfrm, fclos
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
 
@@ -1070,10 +1068,10 @@ CONTAINS
     integer :: ip1,ip2,ip3
     integer :: ierr,ntrials
     integer :: idateo
-    integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
+    integer :: iultg
     integer :: ip1s(1), nulbgsts(1)
     integer :: TrlmNumberWanted
-    integer :: fstlir, key, nultrl, ni_trial, nj_trial
+    integer :: key, nultrl, ni_trial, nj_trial
     integer :: deet, npas, nbits, datyp
     integer :: ig1,ig2,ig3,ig4,swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
@@ -1739,7 +1737,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1887,7 +1884,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1986,7 +1982,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -2143,7 +2138,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fstinf
 
     ip1 = -1
     ip3 = -1

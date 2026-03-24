@@ -5,6 +5,7 @@ module bgckMicrowave_mod
   !:Purpose: Perform background check and quality control for all microwave
   !          satellite radiance observations: AMSU-A, AMSU-B/MHS, ATMS, MWHS2.
   !
+  use rmn_fst98
   use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
@@ -4097,7 +4098,7 @@ contains
     real(4), save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
     logical, save  :: firstCall = .true.   ! If .true. we read GL, MT and MG
     integer :: gdllsval, IUNGEO
-    integer :: ier, irec, ezqkdef, ezsetopt, FSTINF,FSTPRM,FCLOS, FSTLIR,FSTFRM, FNOM, FSTOUV
+    integer :: ier, irec
     integer :: NI, NJ, NK, IG1, IG2, IG3, IG4, IDUM1, IDUM2, IDUM3, IDUM4, IDUM5, IDUM6, IDUM7, IDUM8
     integer :: IDUM9, IDUM10, IDUM11, IDUM12, IDUM13, IDUM14, IDUM15, IDUM16, IDUM17, IDUM18
     integer :: NLAT, NLON, boxPointIndex, latIndex, lonIndex, boxPointNum
@@ -4399,8 +4400,6 @@ contains
     integer :: ezsetopt, ezqkdef
     integer :: gdllsval, gdid, gdidlg
     ! Define FORTRAN FST functions:
-    integer, external :: fstinf, fstprm, fstlir, fnom, fclos
-    integer, external :: fstouv, fstfrm
     integer :: idum1, idum2, idum3
 
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)

@@ -16,6 +16,7 @@ module diffusion_mod
   !:Basic equations: * Lcorr^2 = 2*k*dt*numt   (1)
   !                  * stab    = k*dt/dx^2     (2)
   !
+  use rmn_fst98
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -23,7 +24,6 @@ module diffusion_mod
   use earthConstants_mod
   use randomNumber_mod
   use utilities_mod
-  use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
 
@@ -117,8 +117,6 @@ contains
     character(len=12) :: etiket
     logical  :: rewrit, file_exist
     real     :: dumwrk(1)
-
-    integer, external :: fnom,fstouv,fstecr,fstfrm,fclos
 
     integer  :: diffID
 

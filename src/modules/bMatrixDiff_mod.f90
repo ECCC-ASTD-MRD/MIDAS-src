@@ -7,6 +7,7 @@ MODULE bMatrixDiff_mod
   !           covariance matrix based on correlations modelled using a
   !           diffusion operator.
   !
+  use rmn_fst98
   use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -308,7 +309,7 @@ CONTAINS
     type(struct_vco), pointer, intent(in) :: vco_in
 
     ! Locals:
-    integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
+    integer :: ierr, nmax
     integer :: variableIndex
     logical :: lExists
 

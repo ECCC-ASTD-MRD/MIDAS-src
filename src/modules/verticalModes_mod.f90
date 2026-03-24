@@ -9,6 +9,7 @@ module verticalModes_mod
   !           Therefore, capablity #2 behaves like a spectral transform but in the vertical
   !           dimension.
   !
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use utilities_mod
@@ -532,7 +533,7 @@ contains
 
     ! Locals:
     integer :: var3dIndex, levIndex1, levIndex2
-    integer :: fstouv, fnom, fstfrm, fclos, iunstats, errorID
+    integer :: iunstats, errorID
     character(len=4), allocatable :: varName3d(:)
     character(len=128) :: outfilename
 
@@ -681,7 +682,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:)
     real(4) :: work
-    integer :: errorID, fstecr
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -742,7 +743,7 @@ contains
 
     ! Locals:
     real(4) :: work
-    integer :: errorID, fstecr_s
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4

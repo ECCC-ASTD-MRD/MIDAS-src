@@ -5,7 +5,9 @@ module utilities_mod
   !:Purpose: A place to collect numerous simple utility routines.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use omp_lib
   use netcdf
+  use rmn_fst98
   use clibInterfaces_mod
   use randomNumber_mod
   use mathPhysConstants_mod
@@ -242,7 +244,6 @@ contains
     ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer4(:)
-    integer :: fstluk, fstinf
 
     !     Get field dimensions and allow memory for REAL copy of fld8.
     key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
@@ -294,7 +295,6 @@ contains
     ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer_r4(:)
-    integer :: fstluk, fstinf
 
     !     Get field dimensions.
     key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
@@ -359,7 +359,6 @@ contains
     real(4) :: work
     integer :: ikey, jk1, jk2, jk3
     real(4), allocatable :: buffer4(:,:,:)
-    integer :: fstecr
 
     allocate(buffer4(ni,nj,nk))
 
@@ -611,7 +610,6 @@ contains
     character(len=*), intent(out) :: cdetiket
 
     ! Locals:
-    integer :: fstinl,fstprm,ezqkdef,newdate
     integer :: ini,inj,ink,jlev,ier
     integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf
     integer :: iextra1, iextra2, iextra3, iig12, iig22
@@ -627,6 +625,8 @@ contains
     character(len=1) :: clgrtyp2,clgrtyp,clstring
     logical :: llflag
     integer :: ikeys(knmaxlev)
+    ! external definitions
+    integer, external :: newdate, ezqkdef
 
     knlev = 0
 
@@ -1222,7 +1222,6 @@ contains
     real(8), allocatable, optional, intent(out) :: xlong_opt(:)
 
     ! Locals:
-    integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
     real(4) :: lvl_r4
     logical :: Exists
     character(len=1) :: string
@@ -1241,6 +1240,8 @@ contains
     real(4), allocatable :: buffer(:,:)
     real(4), allocatable :: buffer3D(:,:,:)
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Open file
     iun = 0

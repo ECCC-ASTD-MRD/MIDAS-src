@@ -66,6 +66,7 @@ module tovs_mod
        min_reflectivity            ,&
        min_radiance_radar
   use parkind1, only : jpim, jplm, jprb
+  use rmn_fst98
   use midasMpi_mod
   use message_mod
   use codtyp_mod
@@ -3999,7 +4000,6 @@ contains
     integer            :: nisf,njsf,nksf
     integer            :: niwa,njwa,nkwa
     character(len=20)  :: ceresFile
-    integer, external  :: fnom,fstouv,fstfrm,fclos,fstlir
     integer            :: isftest
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
@@ -4249,7 +4249,6 @@ contains
     character(len=1)   :: grtyp3,grtyp4,grtyp5
     character(len=2)   :: nomvar, snowvar
     character(len=8)   :: etiket
-    integer, external  :: fnom,fstouv,fstinf,fstprm,fstfrm,fclos
     integer, external  :: ezqkdef,ezdefset
     real(8)            :: zig1,zig2,zig3,zig4
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs

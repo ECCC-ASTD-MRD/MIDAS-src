@@ -6,6 +6,7 @@ module calcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use codePrecision_mod
@@ -1114,7 +1115,6 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
-    integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip3,kni,knj,idatyp,idateo
     integer :: nulstats
     real(8) :: bufz(nLevEns_M),bufyz(nj,nLevEns_M),zsp(0:ntrunc,nLevEns_M)
@@ -1672,7 +1672,6 @@ module calcStatsGlb_mod
     ! Locals:
     real(8) :: corvert(numVarLevEns,numVarLevEns)
     integer :: jn, ierr, ipak
-    integer :: fstouv, fnom, fstfrm, fclos
     integer :: ip1, ip2, ip3, idatyp, idateo
     integer :: nulstats
     character(len=128) :: outfilename
@@ -1913,7 +1912,6 @@ module calcStatsGlb_mod
     integer, allocatable :: dateStampList(:)
     character(len=4) :: nomVarToWrite(1:20)
     character(len=256) :: fname
-    integer :: fstouv, fnom, fstfrm, fclos
 
     numBits = 32
     idatyp = 5
@@ -2049,7 +2047,6 @@ module calcStatsGlb_mod
     integer :: status
     real(8) :: dummy(2,2)
     character(len=256) :: fname
-    integer :: fstouv, fnom, fstfrm, fclos
 
     if (mmpi_myid /= 0) return
 
@@ -2113,7 +2110,6 @@ module calcStatsGlb_mod
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
     integer :: latIndex, levIndex, ierr, varIndex, nLevEns
-    integer :: fstouv, fnom, fstfrm, fclos
     integer :: ip1, ip2, ip3, idatyp, idateo, numBits
     integer :: nulstats
     real(8), pointer :: field(:,:,:)
@@ -3252,7 +3248,6 @@ module calcStatsGlb_mod
     ! Locals:
     real(8) :: dfact,zbuf(ni,nj)
     integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
-    integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
     character(len=12) :: etiket

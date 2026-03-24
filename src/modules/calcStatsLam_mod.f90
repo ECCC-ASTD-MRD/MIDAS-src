@@ -6,6 +6,7 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use mathPhysConstants_mod
@@ -1263,7 +1264,7 @@ contains
     real(8), allocatable :: vertCorrel_local(:,:)
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, ier
-    integer :: fstouv, fnom, fstfrm, fclos, iunstats
+    integer :: iunstats
 
     write(*,*)
     write(*,*) 'calcVertCorrel: Starting...'
@@ -1768,8 +1769,7 @@ contains
     type(struct_gsv), intent(in) :: statevector_stdDev
 
     ! Locals:
-    integer   :: ier, fstouv, fnom, fstfrm, fclos
-    integer   :: iunstats
+    integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov.fst'
 
     write(*,*)
@@ -1824,8 +1824,7 @@ contains
     real(8),          intent(in) :: HorizScale(bhi%nVarLev)
 
     ! Locals:
-    integer   :: ier, fstouv, fnom, fstfrm, fclos
-    integer   :: iunstats
+    integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov_diag.fst'
 
     write(*,*)
@@ -1888,7 +1887,7 @@ contains
     ! Locals:
     real(4), allocatable :: work2d(:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr, totwvnb
+    integer :: ier, totwvnb
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -1955,7 +1954,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr
+    integer :: ier
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2016,7 +2015,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4)   :: work(1)
-    integer   :: ier, fstecr
+    integer   :: ier
     integer   :: var, k, kgdim
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
@@ -2089,7 +2088,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr, var
+    integer :: ier, var
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2150,7 +2149,7 @@ contains
     integer, intent(in) :: iun
 
     ! Locals:
-    integer :: ier, fstecr, fstecr_s
+    integer :: ier
     real(4) :: work(1)
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4

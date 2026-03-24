@@ -6,6 +6,7 @@ module lamAnalysisGridTransforms_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
+  use rmn_fst98
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
@@ -1028,7 +1029,7 @@ contains
     ! Locals:
     integer :: ni_ext, nj_ext, i, j, lev, ni, nj, nk
     integer :: iun = 0
-    integer :: ier, fnom, fstouv, fstfrm, fclos, fstecr
+    integer :: ier
     real(8), allocatable :: Field2d(:,:)
     real(8), allocatable :: lat_ext(:)
     real(8), allocatable :: lon_ext(:)

@@ -4,6 +4,7 @@ module bgckSSMIS_mod
   !
   !:Purpose: To perform background check and quality control for SSMIS radiance observations.
   !
+  use rmn_fst98
   use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
@@ -932,14 +933,6 @@ contains
     real                    :: topoFact               ! Facteur x topo pour avoir des unites en metre
     real                    :: xLat
     real                    :: xLon
-    ! External functions
-    integer, external       :: fclos
-    integer, external       :: fnom
-    integer, external       :: fstfrm
-    integer, external       :: fstinf
-    integer, external       :: fstlir
-    integer, external       :: fstouv
-    integer, external       :: fstprm
 
     ! STEP 1: CHECK if obsLatitude AND obsLongitude ARE SAME DIMENSION
     nObsLat = size(obsLatitude)
@@ -1223,14 +1216,6 @@ contains
     real                    :: xLat
     real                    :: xLatRad
     real                    :: xLon
-    ! External functions
-    integer, external       :: fclos
-    integer, external       :: fnom
-    integer, external       :: fstfrm
-    integer, external       :: fstinf
-    integer, external       :: fstlir
-    integer, external       :: fstouv
-    integer, external       :: fstprm
 
     ! Allocate space for arrays holding values on mesh grid pts.
     call utl_reAllocate(latMesh, mxLat*mxLon)
@@ -1454,14 +1439,6 @@ contains
     real, allocatable :: xLon(:)
     real, allocatable :: wenTyp(:)
     real, allocatable :: lm(:)
-    ! External functions
-    integer, external :: fclos
-    integer, external :: fnom
-    integer, external :: fstfrm
-    integer, external :: fstinf
-    integer, external :: fstlir
-    integer, external :: fstouv
-    integer, external :: fstprm
 
     ! Open Wentz surface field if first call
     iUnIn = 0

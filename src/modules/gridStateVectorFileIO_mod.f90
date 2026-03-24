@@ -5,6 +5,10 @@ module gridStateVectorFileIO_mod
   !:Purpose: The grid-point state vector I/O methods for reading from and writing to
   !          files.
   !
+  use netcdf
+  use rmn_fst98
+  use rmn_fst24
+  use Vgrid_Descriptors
   use midasMpi_mod
   use gridStateVector_mod
   use interpolation_mod
@@ -17,10 +21,7 @@ module gridStateVectorFileIO_mod
   use timeCoord_mod
   use mathPhysConstants_mod
   use codePrecision_mod
-  use Vgrid_Descriptors
-  use netcdf
   use message_mod
-  use rmn_fst24
   use clibInterfaces_mod
 
   implicit none
@@ -830,8 +831,7 @@ module gridStateVectorFileIO_mod
     integer :: ierr, ip1, ni_file, nj_file, nk_file, varLevIndex, stepIndex
     integer :: ikey, levIndex, nulfile, nulfileToRead, dateStampToRead
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
-    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
-    integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
+    integer :: EZscintID_var
     integer :: dateo_var, deet_var, npas_var, nbits_var, datyp_var
     integer :: ip1_var, ip2_var, ip3_var, swa_var, lng_var, dltf_var, ubc_var
     integer :: extra1_var, extra2_var, extra3_var

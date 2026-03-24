@@ -6,6 +6,7 @@ module gridVariableTransforms_mod
   !           from gridStateVector(s). Outputs are also placed in a
   !           gridStateVector.
   !
+  use rmn_fst98
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -2405,8 +2406,6 @@ CONTAINS
     integer  :: ip1, ip2, ip3
     character(len=1) :: grtyp
     character(len=12) :: etiket
-
-    integer, external :: fnom,fstouv,fstfrm,fclos
 
     call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
 

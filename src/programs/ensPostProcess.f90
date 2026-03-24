@@ -139,6 +139,7 @@ program midas_ensPostProcess
   !========================== ========================== ==============================================================
   !
 
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -167,7 +168,6 @@ program midas_ensPostProcess
   integer, allocatable :: dateStampList(:)
   integer :: ierr, stepIndex
   logical :: targetGridFileExists
-  integer, external :: fstopc
 
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
@@ -209,7 +209,7 @@ program midas_ensPostProcess
   writeTrlEnsemble = .false.
   hInterpolationDegree = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
   writeHeightSfc = .false.
-  
+
   !- Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
@@ -334,7 +334,7 @@ program midas_ensPostProcess
 
   !
   !- 5. MPI, tmg finalize
-  !  
+  !
   call msg_memUsage('midas-ensPostProcess')
   call utl_tmg_stop(0)
   call utl_printTime()
