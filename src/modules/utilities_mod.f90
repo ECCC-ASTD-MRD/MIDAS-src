@@ -606,7 +606,7 @@ contains
     integer,          intent(out) :: koutmpg
     integer,          intent(in)  :: kinmpg(ktrials)
     character(len=*), intent(out) :: cdtypvar
-    character(len=*), intent(out) :: cdvar
+    character(len=*), intent(in)  :: cdvar
     character(len=*), intent(out) :: cdetiket
 
     ! Locals:
