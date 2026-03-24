@@ -6,14 +6,14 @@ program midas_ensembleH
   !
   !          ---
   !
-  !:Algorithm: The background (a.k.a trial) ensemble members are read and the non-linear 
+  !:Algorithm: The background (a.k.a trial) ensemble members are read and the non-linear
   !            observation operators are applied to each ensemble member:
   !            :math:`H(xb_{i})`,
-  !            the innovations are computed: 
+  !            the innovations are computed:
   !            :math:`y-H(xb_{i})`,
-  !            and stored in unformatted binary files. ``ensembleH`` has the ability 
-  !            to compute innovations for a batch of ensemble members when the member 
-  !            indices are sequential. 
+  !            and stored in unformatted binary files. ``ensembleH`` has the ability
+  !            to compute innovations for a batch of ensemble members when the member
+  !            indices are sequential.
   !
   !            --
   !
@@ -73,10 +73,10 @@ program midas_ensembleH
   !
   !             - **Computation**
   !
-  !               - Option to read ensemble mean from file (``gio_readFromFile``) or 
+  !               - Option to read ensemble mean from file (``gio_readFromFile``) or
   !                 compute ensemble mean (``ens_computeMean``)
   !
-  !               - Loop over background ensemble members, computing innovation for each, 
+  !               - Loop over background ensemble members, computing innovation for each,
   !                 with resulting ``H(xb)`` being stored in ``ensObs`` objects both for
   !                 original ensemble and, optionally, for the modulated
   !                 ensemble members.
@@ -84,7 +84,7 @@ program midas_ensembleH
   !               - store the local ``ensObs`` object to binary file.
   !
   !             --
-  !  
+  !
   !
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#ensembleH>`_
   !          that can affect the ``ensembleH`` program.
@@ -94,13 +94,13 @@ program midas_ensembleH
   !
   !          * Some of the other relevant namelist blocks used to configure the
   !            ``ensembleH`` are listed in the following table:
-  ! 
+  !
   !===================== ================== ===============================================================
   ! Program/Module        Namelist           Description of what is controlled
   !===================== ================== ===============================================================
   ! ``midas_ensembleh``   ``NAMENSEMBLEH``   number of ensemble members, additional parameters to control
-  !                                          generating modulated members from original ensembles, 
-  !                                          the member number the current batch starts with, number of 
+  !                                          generating modulated members from original ensembles,
+  !                                          the member number the current batch starts with, number of
   !                                          members in the batch, option to read ensemble mean from file.
   ! ``timeCoord_mod``     ``NAMTIME``        assimilation time window length, temporal resolution of
   !                                          the background state.
@@ -219,7 +219,7 @@ program midas_ensembleH
   call tim_setup(fileNameForDate_opt = ensFileName)
   allocate(dateStampList(tim_nstepobs))
   call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
-  
+
   write(*,*) 'midas-ensembleH: dateStamp = ',tim_getDateStamp()
 
   !- Initialize variables of the model states
@@ -260,7 +260,7 @@ program midas_ensembleH
   else
     ensObsGain => ensObs
   end if
-  
+
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObsCod(ensObs)
   if (useModulatedEns) call eob_setLatLonObsCod(ensObsGain)
@@ -295,7 +295,7 @@ program midas_ensembleH
                       allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_zero(stateVector4Dmod)
   end if
-  
+
   ! Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
   call gsv_allocate(stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
                     dateStamp_opt=tim_getDateStamp(),  &
@@ -329,7 +329,7 @@ program midas_ensembleH
     call ens_computeMean(ensembleTrl4D)
     call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   end if
-  
+
   do memberIndex = 1, enkfNML%nEns
 
     write(*,*) ''
@@ -379,7 +379,7 @@ program midas_ensembleH
       memberIndexInEnsObs = (eigenVectorIndex - 1) * enkfNML%nEns + memberIndex
       call eob_setYb(ensObsGain, memberIndexInEnsObs)
     end do ! eigenVectorIndex
-    
+
   end do
   call gsv_deallocate(stateVectorWithZandP4D)
   if (gsv_isAllocated(stateVector4Dmod)) call gsv_deallocate(stateVector4Dmod)
@@ -403,7 +403,7 @@ program midas_ensembleH
 
   !
   !- MPI, tmg finalize
-  !  
+  !
   call msg_memUsage('midas-ensembleH')
   call utl_tmg_stop(0)
   call utl_printTime()

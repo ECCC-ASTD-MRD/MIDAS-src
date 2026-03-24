@@ -15,7 +15,7 @@ program midas_calcStats
   !                         are available and controlled controlled by ``NAMCOMPUTEBHI``: 1) the legacy CVT formulation
   !                         described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein,
   !                         and 2) the latbands CVT formulation which can also be run globally and, contrary to the
-  !                         legacy formulation, does not impose balance operators. (2) is not restricted to the standard 
+  !                         legacy formulation, does not impose balance operators. (2) is not restricted to the standard
   !                         weather fields and provides additional options controlled by ``NAMCOMPUTEBHILATBANDS``.
   !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
   !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
@@ -31,8 +31,8 @@ program midas_calcStats
   !                applications.
   !            ---
   !
-  !            Vertical coordinates input for the atmospheric case (i.e., when !! is provided): When the ensemble  
-  !            files do not include TT and UU, then TH and MM records are required at least in the ensemble member 
+  !            Vertical coordinates input for the atmospheric case (i.e., when !! is provided): When the ensemble
+  !            files do not include TT and UU, then TH and MM records are required at least in the ensemble member
   !            file with suffix $NNNN=0001 in order to set the vertical coordinates. Alternatively, if stats
   !            are not to be generated for TT an HU, TT and UU can be provided as substitutes for TH and MM
   !            in the file with $NNNN=0001.
@@ -75,7 +75,7 @@ program midas_calcStats
   ! ``calcstatslam_mod``     ``mode-dependent``  Too many to be listed here
   !======================== ============ ==============================================================
   !
- 
+
   use midasMpi_mod
   use version_mod
   use fileNames_mod
@@ -210,7 +210,7 @@ program midas_calcStats
 
   !
   !- 4.  MPI, tmg finalize
-  !  
+  !
   call utl_tmg_stop(0)
   call utl_printTime()
 
