@@ -96,10 +96,12 @@ program midas_calcStats
 
   character(len=256), parameter :: enspathname = 'ensemble'
 
-  integer           :: fstopc
-  integer           :: ierr
+  integer            :: ierr
   character(len=256) :: ensFileName
   character(len=4), pointer :: anlVar(:)
+
+  ! external definitions
+  integer, external :: fstopc
 
   ! namelist variables
   character(len=60) :: mode   ! can be 'BHI', 'TOOLBOX', 'STDDEV or 'POWERSPEC'

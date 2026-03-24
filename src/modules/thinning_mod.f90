@@ -1583,7 +1583,6 @@ contains
     type(struct_hco), pointer :: hco_sfc
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
-    integer :: ezgdef, ezsint, ezdefset, ezsetopt
     integer :: ierr, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
     integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex, obsStepIndex
@@ -1614,6 +1613,8 @@ contains
     integer :: countAcc_tt, countRej_tt, countAccMpi_tt, countRejMpi_tt
     integer :: countAcc_es, countRej_es, countAccMpi_es, countRejMpi_es
     integer, parameter :: numVars=5, numTraj=2, maxNumLev=300
+    ! external definitions
+    integer, external :: ezgdef, ezsint, ezdefset, ezsetopt
 
     ! Namelist variables:
     real(8) :: rprefinc        ! parameter for defining fixed set of model levels for vertical thinning

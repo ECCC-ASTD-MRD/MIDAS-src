@@ -905,9 +905,6 @@ contains
     integer                 :: boxPointNum
     integer                 :: dataIndex
     integer                 :: dataNum
-    integer                 :: ezQkDef
-    integer                 :: ezSetOpt
-    integer                 :: gdllsval
     integer,           save :: gdgz                   ! topo interpolation param
     integer                 :: idum1, idum2, idum3, idum4
     integer                 :: idum5, idum6, idum7, idum8
@@ -935,6 +932,7 @@ contains
     real                    :: xLon
     ! external definitions
     integer, external :: fnom, fclos
+    integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! STEP 1: CHECK if obsLatitude AND obsLongitude ARE SAME DIMENSION
     nObsLat = size(obsLatitude)
@@ -1177,11 +1175,8 @@ contains
     character(len=4)        :: nomvxx
     character(len=2)        :: typxx
     integer                 :: boxPointIndex
-    integer                 :: ezQkDef
-    integer                 :: ezSetOpt
     integer,           save :: gdId
     integer,           save :: gdIdlg
-    integer                 :: gdllsval
     integer                 :: idum1, idum2, idum3, idum4
     integer                 :: idum5, idum6, idum7, idum8
     integer                 :: idum9, idum10, idum11, idum12
@@ -1220,6 +1215,7 @@ contains
     real                    :: xLon
     ! external definitions
     integer, external :: fnom, fclos
+    integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! Allocate space for arrays holding values on mesh grid pts.
     call utl_reAllocate(latMesh, mxLat*mxLon)
@@ -1424,10 +1420,7 @@ contains
     character(len=1)  :: grtyp
     character(len=4)  :: nomvxx
     character(len=2)  :: typxx
-    integer           :: ezQkDef
-    integer           :: ezSetOpt
     integer           :: gdId
-    integer           :: gdllsval
     integer           :: idum1, idum2, idum3, idum4
     integer           :: idum5, idum6, idum7, idum8
     integer           :: idum9, idum10, idum11, idum12
@@ -1445,6 +1438,7 @@ contains
     real, allocatable :: lm(:)
     ! external definitions
     integer, external :: fnom, fclos
+    integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! Open Wentz surface field if first call
     iUnIn = 0

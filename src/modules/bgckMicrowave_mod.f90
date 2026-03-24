@@ -4097,7 +4097,7 @@ contains
     integer, save  ::  gdgl                ! glace interpolation param
     real(4), save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
     logical, save  :: firstCall = .true.   ! If .true. we read GL, MT and MG
-    integer :: gdllsval, IUNGEO
+    integer :: IUNGEO
     integer :: ier, irec
     integer :: NI, NJ, NK, IG1, IG2, IG3, IG4, IDUM1, IDUM2, IDUM3, IDUM4, IDUM5, IDUM6, IDUM7, IDUM8
     integer :: IDUM9, IDUM10, IDUM11, IDUM12, IDUM13, IDUM14, IDUM15, IDUM16, IDUM17, IDUM18
@@ -4112,7 +4112,7 @@ contains
     logical :: readGlaceMask
     ! external definitions
     integer, external :: fnom, fclos
-    integer, external :: ezsetopt, ezqkdef
+    integer, external :: ezsetopt, ezqkdef, gdllsval
 
     ! lat/lon
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)

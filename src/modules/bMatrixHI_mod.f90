@@ -1054,9 +1054,8 @@ CONTAINS
 
     ! Locals:
     logical :: llpb
-    integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
+    integer :: ikey, jlat, jlon, jla
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset
-    integer :: ezdefset
     integer :: ip1style,ip1kind
     integer :: koutmpg
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
@@ -1091,6 +1090,7 @@ CONTAINS
     logical :: trialExists
     ! external definitions
     integer, external :: fnom, fclos
+    integer, external :: ezgprm, ezqkdef, ezdefset
 
     !
     !- 1.  Reading and processing TG standard deviations

@@ -5,6 +5,7 @@ module timeCoord_mod
   !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
+  use rmn_fst98
   use midasMpi_mod
   use varNameList_mod
   use utilities_mod
@@ -58,7 +59,10 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: firstCall = .true.
-    integer :: nulnam, fnom, fclos
+    integer :: nulnam
+
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)
@@ -282,7 +286,6 @@ contains
     integer :: nulFile, ierr
     integer, parameter :: maxNumDates = 2000
     integer :: numDates, ikeys(maxNumDates), varIndex
-    integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
     integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
     logical :: fileExists, foundWindow, foundVarNameInFile
     real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
@@ -293,6 +296,9 @@ contains
     character(len=4)  :: nomvar
     character(len=12) :: etiket
     character(len=1)  :: grtyp
+
+    ! external definitions
+    integer, external :: fnom, fclos, newdate
 
     if (mmpi_myid == 0) then
 

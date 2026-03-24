@@ -118,7 +118,6 @@ CONTAINS
     ! Locals:
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, stepIndexSF, stepIndexAF, ierr
     integer :: levIndexBelow, levIndexAbove
-    integer :: gdxyfll, gdllfxy
     integer :: nLevType
     integer, allocatable :: dateStampListSteeringFlow(:)
     integer, allocatable :: advectedFieldAssociatedStepIndexSF(:)
@@ -137,6 +136,8 @@ CONTAINS
     integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
+    ! external definitions
+    integer, external :: gdxyfll, gdllfxy
 
     !
     !- 1.  Set low-level variables
@@ -681,11 +682,13 @@ CONTAINS
     integer, intent(in)  :: levIndex
 
     ! Locals:
-    integer :: subStepIndex, stepIndexSF, ierr, gdxyfll, latIndex, lonIndex
+    integer :: subStepIndex, stepIndexSF, ierr, latIndex, lonIndex
     integer :: alfa, ni, nj,  stepIndex_direction, stepIndex_first, stepIndex_last
     real(8) :: uu, vv, subDelT, lonAdvect, latAdvect
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
     real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4
+    ! external definitions
+    integer, external :: gdxyfll
 
     ni = hco%ni
     nj = hco%nj

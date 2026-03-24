@@ -518,7 +518,9 @@ module bCovarSetupChem_mod
 
     ! Locals:
     integer :: lonIndex, latIndex, varIndex, levelIndex, nlev, nulsig
-    integer :: ierr, fnom, fstouv, fstfrm, fclos
+    integer :: ierr
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (WritePhysSpaceStats .and. mmpi_myid == 0) then
       nulsig = 0
@@ -583,7 +585,6 @@ module bCovarSetupChem_mod
     integer :: jcol,jrow,jstart,jnum,jstart2,jnum2
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: nulbgst
     logical :: lExists
 
@@ -594,6 +595,9 @@ module bCovarSetupChem_mod
     character(len=4)  :: clnomvar
     character(len=4), allocatable :: clnomvarCrosscorns(:)
     character(len=12) :: cletiket
+
+    ! external definitions
+    integer, external :: fnom, fclos
 
     inquire(file=bFileName,exist=lExists)
     if ( lexists ) then
@@ -804,8 +808,9 @@ module bCovarSetupChem_mod
     real(8), allocatable :: wtemp(:,:,:)
     real(8), allocatable :: hcorrel(:,:,:),hdist(:)
     logical :: lfound
-    integer :: fnom, fstouv, fstfrm, fclos
     integer :: nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     do latIndex = 1, bgStats%nj
       zrmu(latIndex)  = gst_getrmu(latIndex,gstID)
@@ -1071,8 +1076,9 @@ module bCovarSetupChem_mod
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
     integer :: idate(100)
-    integer :: ierr, fnom, fstouv, fstfrm, fclos
-    integer :: nulbgst
+    integer :: ierr, nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
@@ -1161,8 +1167,9 @@ module bCovarSetupChem_mod
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
-    integer :: nulbgst
+    integer :: ierr, nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
@@ -1263,8 +1270,9 @@ module bCovarSetupChem_mod
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     real(8), allocatable  :: vlev(:),vlevout(:)
-    integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
-    integer :: nulbgst
+    integer :: ierr, nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
@@ -1357,8 +1365,9 @@ module bCovarSetupChem_mod
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     real(8) :: vlev(1),vlevout(1)
-    integer :: ierr, fnom, fstouv, fstfrm, fclos, fstinf
-    integer :: nulbgst
+    integer :: ierr, nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     nulbgst = 0
     ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
@@ -1608,8 +1617,9 @@ module bCovarSetupChem_mod
     ! Standard file variables
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fnom,fstouv,fstfrm,fclos
     logical, allocatable :: lfound(:)
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Compute total vertical correlations and its inverse
     ! (currently for each block matrix).
@@ -1755,7 +1765,8 @@ module bCovarSetupChem_mod
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
     character(len=4)  :: clnomvar
-    integer :: fnom, fstouv, fstfrm, fclos
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if(mmpi_myid==0) then
 
@@ -1843,8 +1854,9 @@ module bCovarSetupChem_mod
     integer :: idateo
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
-    integer :: fnom, fstouv, fstfrm, fclos
     integer :: nulbgst
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Open background stats file
     nulbgst = 0

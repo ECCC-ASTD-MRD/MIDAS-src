@@ -853,7 +853,8 @@ module gridStateVectorFileIO_mod
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile, ignoreDate
     ! external definitions
-    integer, external :: fnom, fclos, ezqkdef, ezdefset
+    integer, external :: fnom, fclos
+    integer, external :: ezqkdef, ezdefset
 
     write(*,*) 'gio_readFileFst: starting'
     call msg_memUsage('gio_readFileFst')
@@ -1388,7 +1389,6 @@ module gridStateVectorFileIO_mod
     logical             :: fileExists, allocHeightSfc
     logical             :: useInputStateVectorTrial
     integer, parameter  :: maxNumTrials = 100
-    integer             :: fnom, fstouv, fclos, fstfrm, fstinf
     integer             :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
     integer             :: ni_file, nj_file, nk_file, dateStamp, varNameIndex
     integer             :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
@@ -1401,6 +1401,8 @@ module gridStateVectorFileIO_mod
     type(struct_gsv)          :: stateVector_1step_r4
     logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
     character(len=12) :: trialFileName
+    ! external definitions
+    integer, external :: fnom, fclos
 
     call utl_tmg_start(1,'--ReadTrials')
 
@@ -2168,7 +2170,9 @@ module gridStateVectorFileIO_mod
     real(4), allocatable, target :: work2dFile_r4(:,:)
     integer, allocatable, target :: mask(:,:)
     logical :: success
-    integer :: ierr, ezdefset, maskLevIndex
+    integer :: ierr, maskLevIndex
+    ! external definitions
+    integer, external :: ezdefset
 
     fstRecordTmp = fstRecord
 

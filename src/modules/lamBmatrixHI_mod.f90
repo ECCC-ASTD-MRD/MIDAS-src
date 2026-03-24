@@ -6,6 +6,7 @@ module lamBmatrixHI_mod
   !           using the homogeneous and isotropic background error covariance
   !           matrix.
   !
+  use rmn_fst98
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -91,10 +92,12 @@ contains
     integer  :: var
     integer  :: iu_bstats = 0
     integer  :: iu_flnml = 0
-    integer  :: ier, fnom, fstouv, fstfrm, fclos, levIndex, nLev
+    integer  :: ier, levIndex, nLev
     logical  :: FileExist
     type(struct_vco), pointer :: vco_file
     integer  :: ntrunc
+    ! external definitions
+    integer, external :: fnom, fclos
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 
@@ -262,7 +265,7 @@ contains
     integer, intent(in) :: iu_bstats
 
     ! Locals:
-    integer :: key, fstinf, fstlir, fstlir_s
+    integer :: key
     integer :: ni, nj, nlev
     integer :: dateo, nk
     integer :: ip1, ip2, ip3
@@ -311,10 +314,13 @@ contains
     nomvar = 'CVN'
 
     etiket = 'MODEL'
-    key = fstlir_s(ControlModelVarnameList,                    & ! OUT
-                   iu_bstats,                                  & ! IN
-                   ni, nj, nlev,                               & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    key = fstlir_s(ControlModelVarnameList,                     & ! OUT
+                   iu_bstats,                                   & ! IN
+                   ni, nj, nlev,                                & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
+                   lngstr = 4)
+    ! We use 'lngstr = 4' because 'ControlModelVarnameList' is declared as 'character(len=4) :: ControlModelVarnameList(bhi%nControlVariable)'
+
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -322,10 +328,12 @@ contains
     end if
 
     etiket = 'B_HI'
-    key = fstlir_s(ControlBhiVarnameList,                      & ! OUT
-                   iu_bstats,                                  & ! IN
-                   ni, nj, nlev,                               & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    key = fstlir_s(ControlBhiVarnameList,                       & ! OUT
+                   iu_bstats,                                   & ! IN
+                   ni, nj, nlev,                                & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
+                   lngstr = 4)
+    ! We use 'lngstr = 4' because 'ControlBhiVarnameList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -347,10 +355,13 @@ contains
     end if
 
     etiket = 'LEVTYPE'
-    key = fstlir_s(ControlVarGridTypeList,                     & ! OUT
-                   iu_bstats,                                  & ! IN
-                   ni, nj, nlev,                               & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    key = fstlir_s(ControlVarGridTypeList,                      & ! OUT
+                   iu_bstats,                                   & ! IN
+                   ni, nj, nlev,                                & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
+                   lngstr = 2)
+    ! We use 'lngstr = 2' because 'ControlVarGridTypeList' is declared as 'character(len=2) :: ControlVarGridTypeList(bhi%nControlVariable)'
+
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -503,7 +514,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: bsqrt2d  (:,:)
-    integer :: key, fstinf, fstinl, totwvnb, infon
+    integer :: key, totwvnb, infon
     integer, parameter :: nmax=2000
     integer :: liste(nmax)
     integer                     :: ip1, ip2, ip3
@@ -600,13 +611,15 @@ contains
     ! Locals:
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
-    integer :: ezdefset, ier
     integer :: ni_t, nj_t, nlev_t, var, k
-    integer :: dateo, ip1,ip2,ip3
+    integer :: dateo, ip1, ip2, ip3, ier
     character(len=4 )      :: nomvar
     character(len=2 )      :: typvar
     character(len=12)      :: etiket
     real(8) :: UnitConv
+
+    ! external definitions
+    integer, external :: ezdefset
 
     !
     !- 1.  Read grid point standard deviations

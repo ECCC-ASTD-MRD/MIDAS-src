@@ -4251,7 +4251,6 @@ contains
     character(len=1)   :: grtyp3,grtyp4,grtyp5
     character(len=2)   :: nomvar, snowvar
     character(len=8)   :: etiket
-    integer, external  :: ezqkdef,ezdefset
     real(8)            :: zig1,zig2,zig3,zig4
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs
     real (8)           :: alat, alon, zzlat, zzlon
@@ -4262,6 +4261,7 @@ contains
     real(8)              :: glace_intrpl(nprf,1), neige_intrpl(nprf,1), alb_intrpl(nprf,1)
     ! external definitions
     integer, external :: fnom, fclos
+    integer, external :: ezqkdef,ezdefset
 
     ! printout header
     write(*,*)

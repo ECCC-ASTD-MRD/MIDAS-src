@@ -6,11 +6,12 @@ module verticalCoord_mod
   !           The derived type includes a pointer to the associated VGRID
   !           descriptor.
   !
+  use netcdf
+  use rmn_fst98
   use midasMpi_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod
-  use netcdf
   use mathPhysConstants_mod, only: MPC_missingValue_INT
 
   implicit none
@@ -98,7 +99,6 @@ contains
     integer :: nultemplate,ierr
     integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
-    integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: fileExists, atmFieldFound, sfcFieldFound, oceanFieldFound, netCdfFormat
@@ -111,6 +111,8 @@ contains
     character(len=4) :: nomvar
     character(len=1) :: grtyp
     character(len=2) :: varKind
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if ( associated(vco) ) then
       call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
@@ -251,7 +253,6 @@ contains
 
     ! Locals:
     integer :: Vcode, jlev, nlevMatched, stat, nultemplate, ierr, ikey
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: vgd_nlev_M, vgd_nlev_T, ip1_sfc
     integer :: ni, nj, nk, varListIndex, IP1kind
     integer, pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
@@ -260,6 +261,8 @@ contains
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
     real(4) :: otherVertCoordValue, coefR3, coefR4
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Open the template file
     nultemplate = 0
@@ -521,7 +524,6 @@ contains
     integer :: nultemplate, ierr
     integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
-    integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     character(len=10) :: blk_S
     integer :: IP1kind
     real :: vertCoordValue
@@ -531,11 +533,14 @@ contains
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
-    character(len=2) :: typvar
-    character(len=4) :: nomvar
-    character(len=1) :: grtyp
-    character(len=4) :: varLevel
-    character(len=2) :: varKind
+    character(len=2)  :: typvar
+    character(len=4)  :: nomvar
+    character(len=1)  :: grtyp
+    character(len=4)  :: varLevel
+    character(len=2)  :: varKind
+    character(len=12) :: etiket_read
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromFile: found ocean fields in file: ', trim(templateFile)
@@ -566,7 +571,7 @@ contains
     record_loop: do recordIndex = 1, numRecords
       ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, &
                     ini, inj, ink, inbits, idatyp, ip1, ip2, ip3, &
-                    typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
+                    typvar, nomvar, etiket_read, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
 
       ! ignore any variables not present in varnamelist_mod

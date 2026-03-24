@@ -622,7 +622,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4) :: work
-    integer :: errorID, fstecr
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4

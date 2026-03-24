@@ -3898,7 +3898,8 @@ contains
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
     integer, save :: numWrites = 0
-    integer :: gdllfxy
+    ! external definitions
+    integer, external :: gdllfxy
 
     write(*,*) ' '
     write(*,*) 'latlonChecksAnlGrid: STARTING'
@@ -7398,7 +7399,8 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     logical :: latlonOutsideGrid, rejectHeader
-    integer :: gdllfxy
+    ! external definitions
+    integer, external :: gdllfxy
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( hco%grtyp == 'G' .or. (hco%grtyp == 'Z' .and. hco%global) ) then

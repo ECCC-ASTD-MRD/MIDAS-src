@@ -682,7 +682,8 @@ contains
     real    :: xpos_r4, ypos_r4
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
-    integer :: gdxyfll
+    ! external definitions
+    integer, external :: gdxyfll
 
     !
     !- Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy

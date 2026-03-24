@@ -6,11 +6,12 @@ module varNameList_mod
   !           as analysis variables along with additional information for each
   !           and procedures for accessing this information
   !
+  use netcdf
+  use rmn_fst98
   use bufr_mod
   use midasMpi_mod
   use utilities_mod
   use MathPhysConstants_mod
-  use netcdf
 
   implicit none
   save
@@ -881,11 +882,13 @@ module varNameList_mod
       logical                                :: found      ! true if variable name is found, false, the converse
 
       ! Locals:
-      integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
       integer :: unit, ncid, varID
       character(len=2)   :: typvar
       character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF
+
+      ! external definitions
+      integer, external :: fnom, fclos
 
       unit = 0
       ! Set 'found' to '.false' first so we are sure it is set to a

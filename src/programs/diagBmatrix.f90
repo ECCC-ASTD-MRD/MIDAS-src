@@ -133,7 +133,6 @@ program midas_diagBmatrix
 
   real(8) :: centralValue, centralValueLocal, multFactor
 
-  integer :: fnom, fstopc, newdate
   integer :: ierr, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
@@ -159,6 +158,9 @@ program midas_diagBmatrix
   character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
   character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
   character(len=4)             :: varNameALFA(1)
+
+  ! external definitions
+  integer, external :: fnom, newdate, fstopc
 
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev

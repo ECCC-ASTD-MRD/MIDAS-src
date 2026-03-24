@@ -7,6 +7,7 @@ module oceanMask_mod
   !                 * In the case of variables on ocean depth levels, it varies with vertical level.
   !                 * In other cases it is a single 2D field used for all variables.
   !
+  use rmn_fst98
   use midasMpi_mod
   use kdTree2_mod
   use horizontalCoord_mod
@@ -61,12 +62,13 @@ module oceanMask_mod
     ! Locals:
     integer :: nulfile, ierr, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
-    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui
     integer, allocatable :: mask(:,:)
     integer :: maxkeys
     integer :: ip1
     logical :: fileExist
     character(len=len_trim(inputFileName)+len_trim(netcdfFileExtention)) :: fileName
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (trim(utl_fileType(inputFileName)) == 'NetCDF') then
       fileName = trim(inputFileName) // netcdfFileExtention

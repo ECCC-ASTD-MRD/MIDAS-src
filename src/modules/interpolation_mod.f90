@@ -1403,7 +1403,9 @@ contains
 
     ! Locals:
     character(len=12) :: extrapDegree
-    integer           :: ierr, ezsetopt, ezsetval
+    integer           :: ierr
+    ! external definitions
+    integer, external :: ezsetopt, ezsetval
 
     call msg('int_setezopt', 'START', verb_opt=4)
     if ( trim(interpDegree) /= 'LINEAR' .and. &
@@ -1454,7 +1456,9 @@ contains
     real(4), pointer :: fieldOut_r4(:,:,:,:), fieldIn_r4(:,:,:,:)
     real(8), pointer :: fieldOut_r8(:,:,:,:), fieldIn_r8(:,:,:,:)
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
-    integer :: ezsint, ezdefset
+
+    ! external definitions
+    integer, external :: ezsint, ezdefset
 
     call msg('int_hInterpScalar_gsv', 'START', verb_opt=4)
     ! read the namelist
@@ -1560,8 +1564,8 @@ contains
     ! Result:
     integer :: ierr
 
-    ! Locals:
-    integer :: ezsint
+    ! external definitions
+    integer, external :: ezsint
 
     call msg('int_hInterpScalar_r4_2d', 'START', verb_opt=4)
     ! read the namelist
@@ -1597,7 +1601,7 @@ contains
     integer                         :: ierr
 
     ! Locals:
-    integer :: gdxyfll, omp_get_thread_num
+    integer :: omp_get_thread_num
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
     integer :: top, bottom, left, right, numBoxIndexes, lonIndexCloud, latIndexCloud
     integer :: boxSize, lonBoxIndex, latBoxIndex, boxIndex, lonIndexGrid, latIndexGrid
@@ -1616,6 +1620,8 @@ contains
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
     real(kdkind)              :: searchRadiusSquared
     real(kdkind)              :: refPosition(3)
+    ! external definitions
+    integer, external :: gdxyfll
 
     call utl_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
     call msg('int_sintCloudToGrid_gsv', 'START', verb_opt=2)
@@ -1931,7 +1937,9 @@ contains
     integer :: nii, nji, nio, njo
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
-    integer :: ezsint
+
+    ! external definitions
+    integer, external :: ezsint
 
     call msg('int_hInterpScalar_r8_2d', 'START', verb_opt=4)
     ! read the namelist
@@ -1997,7 +2005,8 @@ contains
     real(8), pointer :: UUout8(:,:,:,:), VVout8(:,:,:,:), UUin8(:,:,:,:), VVin8(:,:,:,:)
     real(4), pointer :: UVout4(:,:,:), UVin4(:,:,:)
     real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
-    integer :: ezuvint, ezdefset
+    ! external definitions
+    integer, external :: ezuvint, ezdefset
 
     call msg('int_hInterpUV_gsv', 'START', verb_opt=4)
 
@@ -2116,8 +2125,8 @@ contains
     ! Result:
     integer :: ierr
 
-    ! Locals:
-    integer :: ezuvint
+    ! external definitions
+    integer, external :: ezuvint
 
     call msg('int_hInterpUV_r4_2d', 'START', verb_opt=4)
     ! read the namelist
@@ -2155,7 +2164,8 @@ contains
     integer :: jk1, jk2
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
-    integer :: ezuvint
+    ! external definitions
+    integer, external :: ezuvint
 
     call msg('int_hInterpUV_r8_2d', 'START', verb_opt=4)
     ! read the namelist
@@ -2226,7 +2236,8 @@ contains
     ! Locals:
     integer :: ier2, jk, ilenx, ileny
     real(4), allocatable :: bufax4(:), bufay4(:)
-    integer :: ezgdef
+    ! external definitions
+    integer, external :: ezgdef
 
     if (grtyp .eq. 'Y') then
       ilenx = max(1,ni*nj)

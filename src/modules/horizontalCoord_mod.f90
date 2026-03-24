@@ -5,13 +5,14 @@ module horizontalCoord_mod
   !:Purpose:  Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
   !
+  use netcdf
+  use rmn_fst98
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
-  use netcdf
   use message_mod
 
   implicit none
@@ -90,9 +91,7 @@ contains
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
     integer :: iu_template, numSubGrid, varIndex
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos
-    integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-    integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+    integer :: key, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -108,6 +107,9 @@ contains
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
     character(len=len_trim(templateFile)+len_trim(netcdfFileExtention)) :: fileName
+    ! external definitions
+    integer, external :: fnom, fclos
+    integer, external :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
 
     ! Define template file where to look for variables:
     if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then

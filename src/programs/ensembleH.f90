@@ -144,7 +144,7 @@ program midas_ensembleH
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  integer :: fstopc, ierr
+  integer :: ierr
   integer :: memberIndex, dateStampFromObs
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
@@ -159,6 +159,9 @@ program midas_ensembleH
 
   ! derived type variable with all namelist variables
   type(struct_enkfNML) :: enkfNML
+
+  ! external definitions
+  integer, external :: fstopc
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'

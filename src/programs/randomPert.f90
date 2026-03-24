@@ -134,7 +134,7 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:), fieldInterp(:,:,:)
 
-  integer :: fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
+  integer :: dateStamp, datePrevious, dateStampPrevious
   integer :: imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
   integer :: datePrint, timePrint, randomSeed
@@ -160,6 +160,9 @@ program midas_randomPert
   character(len=25) :: outFileName, inFileName
   character(len=64) :: ensMeanFileName = 'ensMeanState'
   character(len=2)  :: typvarOut
+
+  ! external definitions
+  integer, external :: newdate, fstopc
 
   ! Namelist variables
   logical :: remove_mean          ! choose to remove mean from perturbations

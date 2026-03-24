@@ -5,6 +5,7 @@ module obsSpaceErrorStdDev_mod
   !:Purpose:  Contains subroutines for computing background-error and OmP-error
   !           standard deviations in observation space
   !
+  use rmn_fst98
   use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -294,7 +295,6 @@ module obsSpaceErrorStdDev_mod
     CHARACTER(1) CLGRTYP
     CHARACTER(4) CLNOMVAR
     INTEGER IULSSF,IDATEO
-    INTEGER FSTPRM,FNOM,FSTOUV
     INTEGER IKEY,IERR,IDATE
     REAL(8), allocatable :: ZBUFFER(:,:)
     real(8), pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
@@ -304,6 +304,8 @@ module obsSpaceErrorStdDev_mod
     integer :: nLev_M,nLev_T,shift_level,Vcode_anl
     integer :: cvdim
     real(8), allocatable  :: scaleFactor(:)
+    ! external definitions
+    integer, external :: fnom
 
     !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
@@ -1977,13 +1979,14 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Locals:
-    integer, external :: fnom, fclos
     integer :: ierr, nulstat
     logical :: LnewExists
     character (len=128) :: ligne
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
     integer :: ipos, stnidIndex, monthIndex, levIndex, ios, isize, icount
     character(len=20) :: abortText
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Initialization
 
