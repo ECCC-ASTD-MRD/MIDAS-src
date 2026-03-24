@@ -4110,6 +4110,9 @@ contains
     real(4) :: XLAT, XLON, obsLat, obsLon
     real(4), allocatable :: ZLATBOX(:), ZLONBOX(:), MGINTBOX(:), MTINTBOX(:), GLINTBOX(:)
     logical :: readGlaceMask
+    ! external definitions
+    integer, external :: fnom, fclos
+    integer, external :: ezsetopt, ezqkdef
 
     ! lat/lon
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
@@ -4396,11 +4399,11 @@ contains
     real(4), allocatable       :: mgintob(:), lgintob(:)
     real(4), allocatable       :: zlatbox(:), zlonbox(:)
     real(4) :: mgintrp, lgintrp
-    ! RMNLIB interpolating functions:
-    integer :: ezsetopt, ezqkdef
-    integer :: gdllsval, gdid, gdidlg
-    ! Define FORTRAN FST functions:
+    integer :: gdid, gdidlg
     integer :: idum1, idum2, idum3
+    ! external definitions
+    integer, external :: fnom, fclos
+    integer, external :: ezsetopt, ezqkdef, gdllsval
 
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
     obsLon = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
@@ -6521,9 +6524,10 @@ contains
     integer               :: headerIndex              ! header Index
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype
-    integer, external     :: exdb, exfin, fnom, fclos
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
+    ! external definitions
+    integer, external :: fnom, fclos
 
     call utl_tmg_start(118,'--BgckMicrowave')
     mwDataPresent = .false.

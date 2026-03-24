@@ -117,6 +117,8 @@ CONTAINS
     real(8),         pointer :: vertCoordProfile_M(:),vertCoordProfile_T(:)
     type(struct_vco),pointer :: vco_file
     character(len=8)         :: bFileName = './bgcov'
+    ! external definitions
+    integer, external :: fnom, fclos
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
@@ -459,6 +461,8 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
+    ! external definitions
+    integer, external :: fnom, fclos
 
     lldebug = .false.
 
@@ -871,6 +875,8 @@ CONTAINS
     ! standard file variables
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
 
@@ -1083,6 +1089,8 @@ CONTAINS
     character(len=2) :: flnum
     character(len=128) :: trialfile
     logical :: trialExists
+    ! external definitions
+    integer, external :: fnom, fclos
 
     !
     !- 1.  Reading and processing TG standard deviations

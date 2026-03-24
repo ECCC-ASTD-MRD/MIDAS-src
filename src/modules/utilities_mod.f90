@@ -807,7 +807,8 @@ contains
 
     ! Locals:
     character(len=10) :: position,action
-    integer :: fnom
+    ! external definitionsx
+    integer, external :: fnom
 
     if (index(mode,'APPEND').gt.0) then
        position = 'APPEND'

@@ -1265,6 +1265,8 @@ contains
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, ier
     integer :: iunstats
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'calcVertCorrel: Starting...'
@@ -1771,6 +1773,8 @@ contains
     ! Locals:
     integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov.fst'
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'Writing covariance statistics for VAR'
@@ -1826,6 +1830,8 @@ contains
     ! Locals:
     integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov_diag.fst'
+    ! external definitions
+    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'Writing Diagnostics'
@@ -2204,19 +2210,22 @@ contains
     ier = fstecr_s(ControlModelVarnameList, work, npak, &
          iun, dateo, deet, npas, ni, nj, 1, ip1,    &
          ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+         ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
+    ! We use 'lngstr = 4' because 'ControlModelVarnameList' is declared as 'character(len=4) :: ControlModelVarnameList(bhi%nControlVariable)'
 
     ier = fstecr_s(ControlBhiVarnameList, work, npak, &
          iun, dateo, deet, npas, ni, nj, 1, ip1,    &
          ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+         ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
+    ! We use 'lngstr = 4' because 'ControlBhiVarnameList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
 
     nomvar   = 'CVL'
     ni       =  2  ! 2 Characters
     ier = fstecr_s(ControlVarGridTypeList, work, npak, &
          iun, dateo, deet, npas, ni, nj, 1, ip1,    &
          ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+         ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
+    ! We use 'lngstr = 4' because 'ControlVarGridTypeList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
 
     datyp    =  2 ! Integer
     ni       =  bhi%nControlVariable

@@ -933,6 +933,8 @@ contains
     real                    :: topoFact               ! Facteur x topo pour avoir des unites en metre
     real                    :: xLat
     real                    :: xLon
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! STEP 1: CHECK if obsLatitude AND obsLongitude ARE SAME DIMENSION
     nObsLat = size(obsLatitude)
@@ -1216,6 +1218,8 @@ contains
     real                    :: xLat
     real                    :: xLatRad
     real                    :: xLon
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Allocate space for arrays holding values on mesh grid pts.
     call utl_reAllocate(latMesh, mxLat*mxLon)
@@ -1439,6 +1443,8 @@ contains
     real, allocatable :: xLon(:)
     real, allocatable :: wenTyp(:)
     real, allocatable :: lm(:)
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! Open Wentz surface field if first call
     iUnIn = 0

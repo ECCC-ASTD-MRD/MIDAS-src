@@ -536,6 +536,8 @@ contains
     integer :: iunstats, errorID
     character(len=4), allocatable :: varName3d(:)
     character(len=128) :: outfilename
+    ! external definitions
+    integer, external :: fnom, fclos
 
     if (.not. vModes%initialized) then
       call utl_abort('vms_writeModes: The vModes structure is not initialized')
@@ -774,8 +776,9 @@ contains
 
     !- Writing
     errorID = fstecr_s(array, work, npak, iun, dateo, deet, npas, ni, nj, &
-                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,    &
-                      ig1, ig2, ig3, ig4, datyp, .true.)
+                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
+                      ig1, ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
+    ! We use 'lngstr = 4' because 'array' is declared as 'character(len=4) :: array(size)'
 
   end subroutine writeArray1d_c4
 

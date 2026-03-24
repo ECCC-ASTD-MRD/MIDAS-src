@@ -312,6 +312,8 @@ CONTAINS
     integer :: ierr, nmax
     integer :: variableIndex
     logical :: lExists
+    ! external definitions
+    integer, external :: fnom, fclos
 
     call msg('bdiff_rdstats', 'stddevMode is '//stddevMode)
     write(*,*) 'bdiff_rdstats: Number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)

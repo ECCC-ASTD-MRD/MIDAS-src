@@ -852,6 +852,8 @@ module gridStateVectorFileIO_mod
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile, ignoreDate
+    ! external definitions
+    integer, external :: fnom, fclos, ezqkdef, ezdefset
 
     write(*,*) 'gio_readFileFst: starting'
     call msg_memUsage('gio_readFileFst')

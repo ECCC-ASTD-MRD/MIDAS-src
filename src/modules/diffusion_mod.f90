@@ -129,6 +129,9 @@ contains
     type(struct_ocm)            :: oceanMask
     real(4),pointer             :: field3D_r4_ptr(:,:,:)
 
+    ! external definitions
+    integer, external :: fnom, fclos
+
     if ( nDiffAlreadyAllocated == nMaxDiff ) then
       write(*,*) 'diff_setup: the maximum number of diffusion operators have already been allocated! ',nMaxDiff
       call utl_abort('diff_setup')

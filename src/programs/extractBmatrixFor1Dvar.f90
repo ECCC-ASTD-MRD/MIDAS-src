@@ -108,6 +108,8 @@ program midas_extractBmatrixFor1Dvar
   character(len=4)   :: varName1, varName2
   character(len=4),allocatable :: varList(:)
   real(8), allocatable :: Bmatrix(:,:)
+  ! external definitions
+  integer, external :: fnom, fclos, newdate
 
   ! namelist variables
   integer :: extractdate               ! date for the B matrix extracted

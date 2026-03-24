@@ -4002,6 +4002,8 @@ contains
     character(len=20)  :: ceresFile
     integer            :: isftest
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
+    ! external definitions
+    integer, external :: fnom, fclos
 
     isftest = 0
 
@@ -4258,6 +4260,8 @@ contains
     real(8), allocatable :: glace(:,:), neige(:,:), alb(:,:)
     ! fields on output grid
     real(8)              :: glace_intrpl(nprf,1), neige_intrpl(nprf,1), alb_intrpl(nprf,1)
+    ! external definitions
+    integer, external :: fnom, fclos
 
     ! printout header
     write(*,*)
