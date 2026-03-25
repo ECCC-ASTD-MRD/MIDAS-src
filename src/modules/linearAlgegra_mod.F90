@@ -576,9 +576,11 @@ contains
     ! Locals:
     integer :: firstDim, lastDim, summationDim
     integer :: firstDimA, firstDimB, firstDimC
-    integer :: iIndex, jIndex
     character :: transposeA, transposeB
     logical :: isCSymmetric
+#ifdef DGEMMTR_SUPPORT
+    integer :: iIndex, jIndex
+#endif
 
     firstDimA = size(AmatrixIn, 1)
     firstDimB = size(BmatrixIn, 1)
@@ -622,23 +624,24 @@ contains
       end if
     end if
 
+    call utl_tmg_start(184,'low-level--linalg_fastMatMul')
+
     if (present(isCSymmetric_opt)) then
       isCSymmetric = isCSymmetric_opt
     else
       isCSymmetric = .false.
     end if
 
-    call utl_tmg_start(184,'low-level--linalg_fastMatMul')
-
+#ifdef DGEMMTR_SUPPORT
     if (isCSymmetric) then
       ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
-      call dgemmt('U', transposeA, transposeB, &
-                   lastDim, summationDim,      & ! N, K
-                   1.0d0,                      & ! alpha
-                   AmatrixIn,  firstDimA,      & ! A
-                   BmatrixIn,  firstDimB,      & ! B
-                   0.0d0,                      & ! beta
-                   CmatrixOut, firstDimC)        ! C
+      call DGEMMTR_SUPPORT('U', transposeA, transposeB, &
+                           lastDim, summationDim,       & ! N, K
+                           1.0d0,                       & ! alpha
+                           AmatrixIn,  firstDimA,       & ! A
+                           BmatrixIn,  firstDimB,       & ! B
+                           0.0d0,                       & ! beta
+                           CmatrixOut, firstDimC)        ! C
 
       ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
@@ -648,7 +651,14 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
-    else
+    endif
+#else
+    ! If there is no support for the routine 'dgemmt' in the BLAS
+    ! library, just use the non-symmetric formulation.
+    isCSymmetric = .false.
+#endif
+
+    if (.not. isCSymmetric) then
       ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm(transposeA, transposeB, &
                  firstDim, lastDim, summationDim, & ! M, N, K

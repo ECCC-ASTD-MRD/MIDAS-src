@@ -20,5 +20,9 @@ target_link_libraries(midas PUBLIC
 )
 
 if(MKL_SUPPORT)
-  target_compile_definitions(midas PRIVATE "MKL_SUPPORT")
+  target_compile_definitions(midas PRIVATE MKL_SUPPORT)
+endif()
+
+if (DGEMMTR_SUPPORT)
+  target_compile_definitions(midas PRIVATE DGEMMTR_SUPPORT=${DGEMMTR_SUPPORT})
 endif()

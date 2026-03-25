@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
 option(MKL_SUPPORT "Use Intel MKL mathematical library for blas and lapack routines" OFF)
+option(DGEMMTR_SUPPORT "Use the BLAS routine for matrix multiplication if the resulting matrix is known to be symmetric (Intel MKL is implementing this routine as 'dgemmt'" OFF)
 
 #----- Append EC specific module path
 if(DEFINED ENV{EC_CMAKE_MODULE_PATH})
@@ -17,6 +18,8 @@ project(${NAME} DESCRIPTION "${DESCRIPTION}" LANGUAGES C Fortran)
 if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
   message(STATUS "Activating MKL support")
   set(MKL_SUPPORT ON)
+  message(STATUS "Use 'dgemmt' as DGEMMTR")
+  set(DGEMMTR_SUPPORT "dgemmt")
 endif()
 
 ## Find the 'base' version of the project (the latest tag of the project)
