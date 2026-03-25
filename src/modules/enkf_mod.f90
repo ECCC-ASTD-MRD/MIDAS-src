@@ -8,6 +8,7 @@ module enkf_mod
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use midasMpi_mod
   use utilities_mod
+  use linearAlgebra_mod
   use message_mod
   use mathPhysConstants_mod
   use timeCoord_mod
@@ -1189,7 +1190,7 @@ contains
     ! Compute Pa and sqrt(Pa) matrices from PaInv
     Pa_pert(:,:) = PaInv(:,:)
     call utl_tmg_start(135,'------EigenDecomp')
-    call utl_matInverse(Pa_pert, enkfNML%nEns, inverseSqrt_opt=PaSqrt_pert)
+    call linalg_matInverse(Pa_pert, enkfNML%nEns, inverseSqrt_opt=PaSqrt_pert)
     call utl_tmg_stop(135)
 
     if (eob_simObsAssim) then
@@ -1199,7 +1200,7 @@ contains
       end do
       Pa_mean(:,:) = PaInv(:,:)
       call utl_tmg_start(135,'------EigenDecomp')
-      call utl_matInverse(Pa_mean, enkfNML%nEns)
+      call linalg_matInverse(Pa_mean, enkfNML%nEns)
       call utl_tmg_stop(135)
     else
       Pa_mean(:,:) = Pa_pert(:,:)
@@ -1264,9 +1265,9 @@ contains
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
     tolerance = 1.0D-50
-    call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
+    call linalg_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
     if (eob_simObsAssim) then
-      call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+      call linalg_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
     else
       eigenValues_mean(:)    = eigenValues_pert(:)
       eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
@@ -1402,9 +1403,9 @@ contains
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
     tolerance = 1.0D-50
-    call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
+    call linalg_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
     if (eob_simObsAssim) then
-      call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+      call linalg_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
     else
       eigenValues_mean(:)    = eigenValues_pert(:)
       eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
@@ -1542,7 +1543,7 @@ contains
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
     tolerance = 1.0D-50
-    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call linalg_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
     call utl_tmg_stop(135)
 
     if (enkfNML%localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_mean, enkfNML%nEns)
@@ -1601,7 +1602,7 @@ contains
         end do
       end do
       tolerance = 1.0D-50
-      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
       call utl_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
@@ -1710,7 +1711,7 @@ contains
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
     tolerance = 1.0D-50
-    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call linalg_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
     call utl_tmg_stop(135)
     !if (matrixRank < (nEns-1)) then
     !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
@@ -1771,7 +1772,7 @@ contains
         end do
       end do
       tolerance = 1.0D-50
-      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
       call utl_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
@@ -1875,7 +1876,7 @@ contains
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
     tolerance = 1.0D-50
-    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call linalg_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
     call utl_tmg_stop(135)
 
     if (enkfNML%localSelectionOutput /= 0) call enkf_writeEdim(eigenValues_mean, enkfNML%nEns)
@@ -1935,7 +1936,7 @@ contains
         end do
       end do
       tolerance = 1.0D-50
-      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call linalg_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
       call utl_tmg_stop(135)
 
       ! Loop over members within the current sub-ensemble being updated
@@ -2405,14 +2406,14 @@ contains
     ! When nEns1 equals nEns2 we can assume the output matrix will be symmetric
     isSymmetric = nEns1 == nEns2
 
-    call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert,                 &
-                        isATransposed_opt = .false., isBTransposed_opt = .true., &
-                        isCSymmetric_opt = isSymmetric, summationDim_opt = numLocalObs)
+    call linalg_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert,                 &
+                           isATransposed_opt = .false., isBTransposed_opt = .true., &
+                           isCSymmetric_opt = isSymmetric, summationDim_opt = numLocalObs)
 
     if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-      call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean,                 &
-                          isATransposed_opt = .false., isBTransposed_opt = .true., &
-                          isCSymmetric_opt = isSymmetric, summationDim_opt = numLocalObs)
+      call linalg_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean,                 &
+                             isATransposed_opt = .false., isBTransposed_opt = .true., &
+                             isCSymmetric_opt = isSymmetric, summationDim_opt = numLocalObs)
     end if
 
     deallocate(YbCopy_r8)
@@ -3329,8 +3330,8 @@ contains
 
       ! Compute eigenValues/Vectors of vertical localization matrix
       tolerance = 1.0D-50
-      call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
-                           tolerance, matrixRank)
+      call linalg_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
+                              tolerance, matrixRank)
       if ( matrixRank < enkfNML%numRetainedEigen ) then
         write(*,*) 'matrixRank=', matrixRank
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')

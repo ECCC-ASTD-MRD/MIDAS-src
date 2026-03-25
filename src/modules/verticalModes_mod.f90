@@ -9,6 +9,8 @@ module verticalModes_mod
   !           Therefore, capablity #2 behaves like a spectral transform but in the vertical
   !           dimension.
   !
+  use linearAlgebra_mod
+  use midasMpi_mod
   use utilities_mod
   use varNameList_mod
   use horizontalCoord_mod
@@ -16,7 +18,6 @@ module verticalModes_mod
   use localizationFunction_mod
   use calcHeightAndPressure_mod
   use ensembleStatevector_mod
-  use midasMpi_mod
 
   implicit none
   save
@@ -359,11 +360,11 @@ contains
     do var3dIndex = 1, vModes%nVar3d
 
       !- Compute the eigenvectors and eigenvalue
-      call utl_eigenDecomp(vModes%allVar3d(var3dIndex)%autoCovariance, & ! IN
-                           vModes%allVar3d(var3dIndex)%eigenValues,    & ! OUT
-                           vModes%allVar3d(var3dIndex)%eigenVectors,   & ! OUT
-                           tolerance,                                  & ! IN
-                           matrixRank)                                   ! OUT
+      call linalg_eigenDecomp(vModes%allVar3d(var3dIndex)%autoCovariance, & ! IN
+                              vModes%allVar3d(var3dIndex)%eigenValues,    & ! OUT
+                              vModes%allVar3d(var3dIndex)%eigenVectors,   & ! OUT
+                              tolerance,                                  & ! IN
+                              matrixRank)                                   ! OUT
       if ( matrixRank < vModes%allVar3d(var3dIndex)%nLev ) then
         write(*,*) 'varName    =', vModes%allVar3d(var3dIndex)%varName
         write(*,*) 'matrixRank =', matrixRank

@@ -5,6 +5,7 @@ module obsOperatorsChem_mod
   !:Purpose:  Observation operators for CH obs family, including nonlinear, tangent-linear
   !           and adjoint versions, and related setup and input routines.
   !
+  use linearAlgebra_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -2943,12 +2944,12 @@ module obsOperatorsChem_mod
 
             ! Apply averaging kernels to observation operator(s)
 
-            call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
-                                obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
+            call linalg_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                   obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             if (obsoper%applyGenOper .and.  &
                 trim(obsoper%operatorCategory) /= 'Interp') then
-              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
-                                  obsoper%zhp(:,:),zhpwork(obslevIndex:obslevIndex,:))
+              call linalg_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                     obsoper%zhp(:,:),zhpwork(obslevIndex:obslevIndex,:))
             end if
 
             ! Extend vertical range of obs operator according to the influence of
@@ -3029,8 +3030,8 @@ module obsOperatorsChem_mod
 
               ! Merge the averaging kernel matrix (avgkern) and the
               ! vertical interpolator (initial zh)
-              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
-                                  obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
+              call linalg_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                     obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             end if
           end do
           obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),:) = zhwork(:,:)
