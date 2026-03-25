@@ -1763,7 +1763,7 @@ contains
   !-----------------------------------------------------------------
   ! epp_printRmsStats
   !-----------------------------------------------------------------
-  subroutine epp_printRmsStats(stateVectorStdDev, fileName, ftype, nEns, elapsed_opt)
+  subroutine epp_printRmsStats(stateVectorStdDev, fileName, ftype, nEns)
     !
     ! :Purpose: Print statistics of a field to an ASCII output file
     !
@@ -1774,7 +1774,6 @@ contains
     character(len=*),  intent(in) :: fileName           ! File name containing the output
     character(len=1),  intent(in) :: ftype              ! Type of fields ('A' for analysis, 'F' for forecast and 'P' for perturbed)
     integer,           intent(in) :: nEns               ! Size of the ensemble
-    real(8), optional, intent(in) :: elapsed_opt        ! Unknown input
 
     ! Locals:
     real(8), allocatable          :: rmsvalue(:)
@@ -1789,16 +1788,12 @@ contains
     integer                       :: varLevIndexUU, varLevIndexVV
     integer                       :: levIndex, nLev_M
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
-    real(8)                       :: pzSfc(1,1), elapsed
+    real(8)                       :: pzSfc(1,1)
     real(8), pointer              :: pressureOrHeight_T(:,:,:), pressureOrHeight_M(:,:,:)
     integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
-
-    elapsed = 0.0d0
-    if (present(elapsed_opt)) then
-      elapsed = elapsed_opt
-    end if
+    real(8), parameter            :: elapsed = 0.0d0
 
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
