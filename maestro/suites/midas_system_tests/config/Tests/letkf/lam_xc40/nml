@@ -20,6 +20,7 @@
    alphaRandomPert       = 0.25D0
    imposeSaturationLimit = .true.
    imposeRttovHuLimits   = .true.
+   writeAsciiRmsStats    = .false.
 /
  &NAMBHI
    NTRUNC  =          42,
