@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added namelist variable `writeAsciiRmsStats` in `namEnsPostProcModule` (#1153 and !1082)
  * Added a checkbox in the MR for documentation update (#785 and !1081)
  * Added support for gzipped listing in `midas.timingTool` (#1137 and !1069)
  * Remove the usage of the RAM disk for test `ensPostProcess/afterLETKF` (#1143 and !1063)
