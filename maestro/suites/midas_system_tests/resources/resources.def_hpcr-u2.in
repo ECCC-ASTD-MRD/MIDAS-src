@@ -31,7 +31,7 @@ LETKF_GLBXC40_CPUS=24x49x2
 LETKF_GLB10KM_MPITOPOLOGY=11x52
 ##LETKF_GLB10KM_MPITOPOLOGY=48x52
 
-## This part below is update when running 'cmake'
+## This part below is updated when running 'cmake'
 
 ## Set this variable to '9' if you want to avoid running the 'check'
 ## task for each test

@@ -14,14 +14,6 @@ module linearAlgebra_mod
   save
   private
 
-  ! Public variables
-  !integer, public, protected :: mmpi_myid      = 0
-
-  ! module constants
-  ! global communicator
-  ! Since, we are only considering a single grid, we can assume here that there is only one world
- ! type(mpi_comm), public, parameter :: mmpi_comm_GRID = MPI_COMM_WORLD
-
   ! Public procedures
   public :: linalg_setMKLThreads
   public :: linalg_matSqrt
@@ -85,16 +77,16 @@ contains
 
   end subroutine linalg_setMKLThreads
 
-  subroutine linalg_matsqrt(matrix, rank, exponentSign, printInformation_opt )
+  subroutine linalg_matSqrt(matrix, rank, exponentSign, printInformation_opt )
     !
     !:Purpose: Calculate square root of an error covariance matrix
     !
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: rank
-    real(8),           intent(inout) :: matrix(rank,rank)
-    real(8),           intent(in)    :: exponentSign
+    integer,           intent(in)    :: rank                 ! rank of the input matrix
+    real(8),           intent(inout) :: matrix(rank,rank)    ! input matrix
+    real(8),           intent(in)    :: exponentSign         ! compute (matrix)**(exponentSign/2)
     logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
@@ -112,7 +104,7 @@ contains
 
     if (printInformation) then
       write(*,*)
-      write(*,*) 'linalg_matsqrt: Starting...'
+      write(*,*) 'linalg_matSqrt: Starting...'
     end if
 
     sizework = 64 * rank
@@ -134,7 +126,7 @@ contains
     if ( info /= 0 ) then
       write(*,*)
       write(*,*) 'dsyev: ',info
-      call utl_abort('linalg_matsqrt: DSYEV failed!')
+      call utl_abort('linalg_matSqrt: DSYEV failed!')
     end if
 
     if (printInformation) then
@@ -169,10 +161,10 @@ contains
 
     if (printInformation) then
       write(*,*)
-      write(*,*) 'linalg_matsqrt: Ending...'
+      write(*,*) 'linalg_matSqrt: Ending...'
     end if
 
-  end subroutine linalg_matsqrt
+  end subroutine linalg_matSqrt
 
   !--------------------------------------------------------------------------
   ! linalg_matInverse
@@ -189,7 +181,7 @@ contains
     integer,           intent(in)    :: rank                 ! order of the matrix
     real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
     real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit
-    real(8), optional, intent(in)    :: eigenValueRelThreshold_opt
+    real(8), optional, intent(in)    :: eigenValueRelThreshold_opt ! minimum threshold for eigenvalues
     logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
