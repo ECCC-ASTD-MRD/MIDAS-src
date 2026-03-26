@@ -46,6 +46,10 @@ CLEAN_UNITTEST_CATCHUP=@CLEAN_UNITTEST_CATCHUP@
 ## '/Tests/var/EnVar/hrdps'.
 VAR_NITERMAX=@VAR_NITERMAX@
 
+## Set this variable for the number of minimization iterations
+## 'NITERMAX' for 'var1D' in the test '/Tests/var1D/idealized'.
+VAR1D_IDEALIZED_NITERMAX=@VAR1D_IDEALIZED_NITERMAX@
+
 ## Set this variable to the number of OpenMP threads needed in the
 ## task '/Tests/letkf/glb_15km/UnitTest/run'
 LETKF_GLB15KM_NUM_THREADS=@LETKF_GLB15KM_NUM_THREADS@
