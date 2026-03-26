@@ -225,268 +225,287 @@ module oceanObservations_mod
   ! oobs_pseudoSIC
   !----------------------------------------------------------------------------------------
   subroutine oobs_pseudoSIC(hco, vco, iceFractionThreshold, outputFileName, seaIceBand)
-    !
-    !:Purpose: to generate pseudo SST data  
-    !
+
     implicit none
-    
-    ! Arguments:
-    type(struct_hco), pointer , intent(inout) :: hco                  ! horizontal grid structure
-    type(struct_vco), pointer , intent(in)    :: vco                  ! vertical grid structure
-    real(8)                   , intent(in)    :: iceFractionThreshold ! consider no ice condition below this threshold
-    character(len=*)          , intent(in)    :: outputFileName    
-    real(8)                   , intent(in)    :: seaIceBand           ! band in km around the ice edge where to put pseudo SIC observations 
-    
-    ! Locals:
-    type(struct_gsv)     :: stateVector_ice 
+
+    ! Arguments
+    type(struct_hco), pointer , intent(inout) :: hco
+    type(struct_vco), pointer , intent(in)    :: vco
+    real(8)                   , intent(in)    :: iceFractionThreshold
+    character(len=*)          , intent(in)    :: outputFileName
+    real(8)                   , intent(in)    :: seaIceBand
+
+    ! Locals
+    type(struct_gsv)     :: stateVector_ice
     real(8), pointer     :: seaIce_ptr(:, :, :)
     type(struct_ocm)     :: oceanMask
-    integer              :: lonIndex, latIndex, dateStamp
-    integer              :: datePrint, timePrint, imode
-    integer              :: newDate, ierr 
-    type(struct_obs)     :: obsData   
+    logical, allocatable :: isIce(:,:), isEdge(:,:), isBand(:,:), isGap(:,:), isOcean(:,:)
+    integer              :: newDate
+    integer              :: ni, nj, bandCells
+    integer              :: lonIndex, latIndex, nIceNeighbors
+    type(struct_obs)     :: obsData
     integer              :: numberPseudoSICPoints, headerIndex
-    integer, allocatable :: iceDomainIndexesAux(:), iceDomainIndexes(:)
-    real(8), allocatable :: iceLonsAux(:), iceLatsAux(:)
-    real(8), allocatable :: iceLons(:), iceLats(:)
-    real(8)              :: gridResolution   ! grid resolution in km 
-    integer              :: bandCells        ! number of band cells defined as seaIceBand / gridResolution
-    logical, allocatable :: isIce(:,:), isEdge(:,:), isBand(:,:), isGap(:,:)
-    integer              :: bandCellIndex, nIceNeighbors
-    logical, allocatable :: isBandNew(:,:)
-    integer              :: iceIndex, codeType
+    integer              :: dateStamp, datePrint, timePrint, imode, ierr
+    integer              :: codeType
     real(pre_obsReal)    :: obsLon, obsLat, obsValue
+    real(8), allocatable :: iceLons(:), iceLats(:)
+    real(8)              :: gridResolution   ! grid resolution in km
+    ! BFS queue (Breadth-First Search)
+    ! It's an algorithm used to explore faster a grid layer by layer
+    integer, allocatable :: queueLonIndex(:), queueLatIndex(:), queueDistance(:)
+    integer :: queueHead, queueTail
 
-    ! get mpi topology
-    call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
-    call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    ni = hco%ni
+    nj = hco%nj
 
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'LG'/), &
                       hInterpolateDegree_opt = 'LINEAR')
     call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
-                          unitConversion_opt=.false., containsFullField_opt=.true.)
+                          unitConversion_opt = .false., containsFullField_opt = .true.)
     call gsv_getField(stateVector_ice, seaIce_ptr)
 
     ! Get land mask from analysisgrid file (1=water, 0=land)
     call ocm_readMaskFromFile(oceanMask, hco, vco, './analysisgrid')
-    
-    allocate(iceDomainIndexesAux((myLonEnd-myLonBeg+1)*(myLatEnd-myLatBeg+1)))
-    allocate(iceLonsAux((myLonEnd-myLonBeg+1)*(myLatEnd-myLatBeg+1)))
-    allocate(iceLatsAux((myLonEnd-myLonBeg+1)*(myLatEnd-myLatBeg+1)))
 
-    gridResolution = hco%maxGridSpacing / 1000.d0
-    bandCells = max(1, nint(seaIceBand / gridResolution))
-    write(*,*) 'oobs_pseudoSIC: grid resolution ', gridResolution
-    write(*,*) 'oobs_pseudoSIC: number of band cells: ', bandCells
-
-    allocate(isIce(myLonBeg:myLonEnd, myLatBeg:myLatEnd))
-    allocate(isEdge(myLonBeg:myLonEnd, myLatBeg:myLatEnd))
-    allocate(isBand(myLonBeg:myLonEnd, myLatBeg:myLatEnd))
-    allocate(isGap(myLonBeg:myLonEnd, myLatBeg:myLatEnd))
+    !---------------------------------------------------------
+    ! Allocate
+    !---------------------------------------------------------
+    allocate(isIce(ni,nj), isEdge(ni,nj), isBand(ni,nj), isGap(ni,nj), isOcean(ni,nj))
 
     isIce(:,:)  = .false.
     isEdge(:,:) = .false.
     isBand(:,:) = .false.
     isGap(:,:)  = .false.
 
-    ! 1. Building 2D sea-ice mask
-    do lonIndex = myLonBeg, myLonEnd 
-      do latIndex = myLatBeg, myLatEnd
-        if (oceanMask%mask(lonIndex, latIndex, 1)) then
-          if (seaice_ptr(lonIndex, latIndex, 1) > iceFractionThreshold) then
+    isOcean(:,:) = oceanMask%mask(:,:,1)
+
+    !---------------------------------------------------------
+    ! 1. Ice mask
+    !---------------------------------------------------------
+    do latIndex = 1, nj
+      do lonIndex = 1, ni
+        if (isOcean(lonIndex, latIndex)) then
+          if (seaIce_ptr(lonIndex, latIndex, 1) > iceFractionThreshold) then
             isIce(lonIndex, latIndex) = .true.
-           end if
-        end if 
+          end if
+        end if
       end do
     end do
 
-    ! 2. Detect edge cells 
-    do lonIndex = myLonBeg, myLonEnd 
-      do latIndex = myLatBeg, myLatEnd
+    !---------------------------------------------------------
+    ! 2. Edge detection
+    !---------------------------------------------------------
+    do latIndex = 2, nj - 1
+      do lonIndex = 2, ni - 1
 
-        if (.not. oceanMask%mask(lonIndex,latIndex,1)) cycle
+        if (.not. isOcean(lonIndex, latIndex)) cycle
 
-        if (lonIndex > myLonBeg) then
-          if (isIce(lonIndex, latIndex) .neqv. isIce(lonIndex - 1, latIndex)) isEdge(lonIndex, latIndex) = .true.
-        end if
-        if (lonIndex < myLonEnd) then
-          if (isIce(lonIndex, latIndex) .neqv. isIce(lonIndex + 1, latIndex)) isEdge(lonIndex, latIndex) = .true.
-        end if
-        if (latIndex > myLatBeg) then
-          if (isIce(lonIndex, latIndex) .neqv. isIce(lonIndex, latIndex - 1)) isEdge(lonIndex, latIndex) = .true.
-        end if
-        if (latIndex < myLatEnd) then
-          if (isIce(lonIndex, latIndex) .neqv. isIce(lonIndex, latIndex + 1)) isEdge(lonIndex, latIndex) = .true.
+        if (isIce(lonIndex, latIndex) .neqv. isIce(lonIndex - 1, latIndex) .or. &
+            isIce(lonIndex, latIndex) .neqv. isIce(lonIndex + 1, latIndex) .or. &
+            isIce(lonIndex, latIndex) .neqv. isIce(lonIndex, latIndex - 1) .or. &
+            isIce(lonIndex, latIndex) .neqv. isIce(lonIndex, latIndex + 1)) then
+
+          isEdge(lonIndex, latIndex) = .true.
+
         end if
 
       end do
     end do
 
-    ! Innitialize band points
-    isBand(:,:) = isEdge(:,:)
+    gridResolution = hco%maxGridSpacing / 1000.d0
+    bandCells = max(1, nint(seaIceBand / gridResolution))
+    write(*,*) 'oobs_pseudoSIC: grid resolution ', gridResolution
+    write(*,*) 'oobs_pseudoSIC: number of band cells: ', bandCells
 
-    ! 3. Fill the band 
-    allocate(isBandNew(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+    !---------------------------------------------------------
+    ! 3. BFS band expansion
+    !---------------------------------------------------------
 
-    do bandCellIndex = 1, bandCells
+    allocate(queueLonIndex(ni*nj), queueLatIndex(ni*nj), queueDistance(ni*nj))
+    queueHead = 1
+    queueTail = 0
 
-      isBandNew = isBand
-
-      do lonIndex = myLonBeg, myLonEnd
-        do latIndex = myLatBeg, myLatEnd
-          if (isBand(lonIndex,latIndex)) cycle
-
-          if (lonIndex > myLonBeg) then
-            if (isBand(lonIndex-1,latIndex)) isBandNew(lonIndex,latIndex)=.true.
-          end if
-          if (lonIndex < myLonEnd) then
-            if (isBand(lonIndex+1,latIndex)) isBandNew(lonIndex,latIndex)=.true.
-          end if
-          if (latIndex > myLatBeg) then
-            if (isBand(lonIndex,latIndex-1)) isBandNew(lonIndex,latIndex)=.true.
-          end if
-          if (latIndex < myLatEnd) then
-            if (isBand(lonIndex,latIndex+1)) isBandNew(lonIndex,latIndex)=.true.
-          end if
-        end do
+    ! Initialize queue with edges
+    do latIndex = 1, nj
+      do lonIndex = 1, ni
+        if (isEdge(lonIndex, latIndex)) then
+          queueTail = queueTail + 1
+          queueLonIndex(queueTail) = lonIndex
+          queueLatIndex(queueTail) = latIndex
+          queueDistance(queueTail) = 0
+          isBand(lonIndex, latIndex) = .true.
+        end if
       end do
-      isBand = isBandNew
     end do
 
-    deallocate(isBandNew)
-    
-    ! 4. Detect internal gaps
-    do lonIndex = myLonBeg, myLonEnd
-      do latIndex = myLatBeg, myLatEnd
-        if (.not. oceanMask%mask(lonIndex, latIndex, 1)) cycle
+    ! BFS propagation
+    do while (queueHead <= queueTail)
+
+      lonIndex = queueLonIndex(queueHead)
+      latIndex = queueLatIndex(queueHead)
+
+      if (queueDistance(queueHead) < bandCells) then
+
+        if (lonIndex > 1) then
+          if (.not. isBand(lonIndex - 1, latIndex)) then
+            queueTail = queueTail + 1
+            queueLonIndex(queueTail) = lonIndex - 1
+            queueLatIndex(queueTail) = latIndex
+            queueDistance(queueTail) = queueDistance(queueHead) + 1
+            isBand(lonIndex - 1, latIndex) = .true.
+          end if
+        end if
+
+        if (lonIndex < ni) then
+          if (.not. isBand(lonIndex + 1, latIndex)) then
+            queueTail = queueTail + 1
+            queueLonIndex(queueTail) = lonIndex + 1
+            queueLatIndex(queueTail) = latIndex
+            queueDistance(queueTail) = queueDistance(queueHead) + 1
+            isBand(lonIndex + 1, latIndex) = .true.
+          end if
+        end if
+
+        if (latIndex > 1) then
+          if (.not. isBand(lonIndex, latIndex - 1)) then
+            queueTail = queueTail + 1
+            queueLonIndex(queueTail) = lonIndex
+            queueLatIndex(queueTail) = latIndex - 1
+            queueDistance(queueTail) = queueDistance(queueHead) + 1
+            isBand(lonIndex, latIndex - 1) = .true.
+          end if
+        end if
+
+        if (latIndex < nj) then
+          if (.not. isBand(lonIndex, latIndex + 1)) then
+            queueTail = queueTail + 1
+            queueLonIndex(queueTail) = lonIndex
+            queueLatIndex(queueTail) = latIndex + 1
+            queueDistance(queueTail) = queueDistance(queueHead) + 1
+            isBand(lonIndex, latIndex + 1) = .true.
+          end if
+        end if
+
+      end if ! queueDistance(queueHead) < bandCells
+
+      queueHead = queueHead + 1
+
+    end do ! BFS propagation
+
+    deallocate(queueLonIndex, queueLatIndex, queueDistance)
+
+    !---------------------------------------------------------
+    ! 4. Gap detection
+    !---------------------------------------------------------
+    do latIndex = 2, nj-1
+      do lonIndex = 2, ni-1
+
+        if (.not. isOcean(lonIndex, latIndex)) cycle
         if (isIce(lonIndex, latIndex)) cycle
+
         nIceNeighbors = 0
-        if (lonIndex > myLonBeg) then
-          if (isIce(lonIndex - 1, latIndex)) nIceNeighbors = nIceNeighbors + 1
-        end if
-        if (lonIndex < myLonEnd) then
-          if (isIce(lonIndex + 1, latIndex)) nIceNeighbors = nIceNeighbors + 1
-        end if
-        if (latIndex > myLatBeg) then
-          if (isIce(lonIndex, latIndex - 1)) nIceNeighbors = nIceNeighbors + 1
-        end if
-        if (latIndex < myLatEnd) then
-          if (isIce(lonIndex, latIndex + 1)) nIceNeighbors = nIceNeighbors + 1
-        end if
-        if (nIceNeighbors >= 3) then
-          isGap(lonIndex, latIndex) = .true.
-        end if
+
+        if (isIce(lonIndex - 1, latIndex)) nIceNeighbors = nIceNeighbors + 1
+        if (isIce(lonIndex + 1, latIndex)) nIceNeighbors = nIceNeighbors + 1
+        if (isIce(lonIndex, latIndex - 1)) nIceNeighbors = nIceNeighbors + 1
+        if (isIce(lonIndex, latIndex + 1)) nIceNeighbors = nIceNeighbors + 1
+
+        if (nIceNeighbors >= 3) isGap(lonIndex, latIndex) = .true.
+
       end do
     end do
 
-    ! 5. Select SIC Pseudo Observation Points
-
+    !---------------------------------------------------------
+    ! 5. Collect obs points
+    !---------------------------------------------------------
     numberPseudoSICPoints = 0
+    allocate(iceLons(ni*nj), iceLats(ni*nj))
 
-    do lonIndex = myLonBeg, myLonEnd
-      do latIndex = myLatBeg, myLatEnd
-        if (.not. oceanMask%mask(lonIndex, latIndex, 1)) cycle
+    do latIndex = 1, nj
+      do lonIndex = 1, ni
+
+        if (.not. isOcean(lonIndex, latIndex)) cycle
+
         if (.not. isIce(lonIndex, latIndex)) then
           if (isBand(lonIndex, latIndex) .or. isGap(lonIndex, latIndex)) then
             numberPseudoSICPoints = numberPseudoSICPoints + 1
-            iceDomainIndexesAux(numberPseudoSICPoints) = numberPseudoSICPoints
-            iceLonsAux(numberPseudoSICPoints) = hco%lon2d_4(lonIndex, latIndex)
-            iceLatsAux(numberPseudoSICPoints) = hco%lat2d_4(lonIndex, latIndex)
+            iceLons(numberPseudoSICPoints) = hco%lon2d_4(lonIndex, latIndex)
+            iceLats(numberPseudoSICPoints) = hco%lat2d_4(lonIndex, latIndex)
           end if
         end if
+
       end do
     end do
 
-    deallocate(isIce)
-    deallocate(isEdge)
-    deallocate(isBand)
-    deallocate(isGap)
-
-    call ocm_deallocate(oceanMask)
-    call gsv_deallocate(stateVector_ice)
-
+    !---------------------------------------------------------
+    ! Date
+    !---------------------------------------------------------
     dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
-    write(*,*) 'oobs_pseudoSIC: datestamp: ', dateStamp 
-    ! compute random seed from the date for randomly forming sea-ice subdomain
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    imode = -3
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
     timePrint = timePrint / 1000000
-    datePrint =  datePrint * 100 + timePrint
+    datePrint = datePrint * 100 + timePrint
 
     !---------------------------------------------------------
-    ! 6. Compact arrays to exact size
+    ! Write obs
     !---------------------------------------------------------
-    if (numberPseudoSICPoints > 0) then
 
-      allocate(iceDomainIndexes(numberPseudoSICPoints))
-      allocate(iceLons(numberPseudoSICPoints))
-      allocate(iceLats(numberPseudoSICPoints))
-
-      iceDomainIndexes(:) = iceDomainIndexesAux(1:numberPseudoSICPoints)
-      iceLons(:)          = iceLonsAux(1:numberPseudoSICPoints)
-      iceLats(:)          = iceLatsAux(1:numberPseudoSICPoints)
-
-    else
-      allocate(iceDomainIndexes(1))
-      allocate(iceLons(1))
-      allocate(iceLats(1))
-    end if
-
-    deallocate(iceDomainIndexesAux)
-    deallocate(iceLonsAux)
-    deallocate(iceLatsAux)
-
-    write(*,*) 'oobs_pseudoSIC: local pseudo SIC points: ', numberPseudoSICPoints
-
-
+    write(*,*) 'oobs_pseudoSIC: pseudo SIC points: ', numberPseudoSICPoints
+    
     if (numberPseudoSICPoints > 0) then
 
       call obs_initialize(obsData, numHeader_max_opt = numberPseudoSICPoints, &
                           numBody_max_opt = numberPseudoSICPoints, mpi_local_opt = .true.)
       codeType = codtyp_get_codtyp('pseudosfc')
-    
-      headerIndex = 1
       obsValue = 0.0_pre_obsReal
 
-      do iceIndex = 1, numberPseudoSICPoints 
-        if (headerIndex > numberPseudoSICPoints) cycle
-        obsLon   = iceLons(iceIndex)
-        obsLat   = iceLats(iceIndex)
-        call obs_setFamily(obsData, 'GL'   , headerIndex)
+      do headerIndex = 1, numberPseudoSICPoints
+
+        obsLon = iceLons(headerIndex)
+        obsLat = iceLats(headerIndex)
+
+        call obs_setFamily(obsData, 'GL', headerIndex)
         call obs_headSet_i(obsData, OBS_ONM, headerIndex, headerIndex)
         call obs_headSet_i(obsData, OBS_ITY, headerIndex, codeType)
         call obs_headSet_r(obsData, OBS_LAT, headerIndex, obsLat)
         call obs_headSet_r(obsData, OBS_LON, headerIndex, obsLon)
         call obs_bodySet_r(obsData, OBS_VAR, headerIndex, obsValue)
-        call obs_bodySet_i(obsData, OBS_VNM, headerIndex, bufr_iceBogus)  
-        call     obs_set_c(obsData, 'STID' , headerIndex, 'BOGUS')
+        call obs_bodySet_i(obsData, OBS_VNM, headerIndex, bufr_iceBogus)
+        call obs_set_c(obsData, 'STID', headerIndex, 'BOGUS')
         call obs_headSet_i(obsData, OBS_NLV, headerIndex, 1)
         call obs_headSet_i(obsData, OBS_RLN, headerIndex, headerIndex)
         call obs_headSet_i(obsData, OBS_DAT, headerIndex, datePrint / 100)
         call obs_headSet_i(obsData, OBS_ETM, headerIndex, timePrint)
-        headerIndex = headerIndex + 1
-      end do 
-    
+
+      end do
+
       call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
 
-    else 
-    
+    else
+
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'GL', outputFileName)   
+      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'GL', outputFileName)
 
     end if
- 
-    ! Deallocate obsSpaceData
+
     call obs_finalize(obsData)
+
+    !---------------------------------------------------------
+    ! Cleanup
+    !---------------------------------------------------------
+    deallocate(isIce, isEdge, isBand, isGap, isOcean)
+    deallocate(iceLons, iceLats)
+
+    call ocm_deallocate(oceanMask)
+    call gsv_deallocate(stateVector_ice)
 
   end subroutine oobs_pseudoSIC
 
   !--------------------------------------------------------------------------
   ! oobs_computeObsData
   !--------------------------------------------------------------------------
-
   subroutine oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, iceThinning, &
                                  outputSST, outputFreshWaterST, outputFileName, &
                                  datePrint, timePrint, seaWaterFraction, &
