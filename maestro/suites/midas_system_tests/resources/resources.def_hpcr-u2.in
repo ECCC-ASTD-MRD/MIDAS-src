@@ -33,6 +33,9 @@ LETKF_GLB10KM_MPITOPOLOGY=11x52
 
 ## This part below is updated when running 'cmake'
 
+## This is to let the suite know how the compilation was done.
+COMPILATION_MODE=@CMAKE_BUILD_TYPE@
+
 ## Set this variable to '9' if you want to avoid running the 'check'
 ## task for each test
 CHECK_RESULTS_CATCHUP=@CHECK_RESULTS_CATCHUP@
