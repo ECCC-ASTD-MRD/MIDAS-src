@@ -75,7 +75,7 @@ program midas_calcStats
   ! ``calcstatslam_mod``     ``mode-dependent``  Too many to be listed here
   !======================== ============ ==============================================================
   !
-
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use fileNames_mod
@@ -99,9 +99,6 @@ program midas_calcStats
   integer            :: ierr
   character(len=256) :: ensFileName
   character(len=4), pointer :: anlVar(:)
-
-  ! external definitions
-  integer, external :: fstopc
 
   ! namelist variables
   character(len=60) :: mode   ! can be 'BHI', 'TOOLBOX', 'STDDEV or 'POWERSPEC'

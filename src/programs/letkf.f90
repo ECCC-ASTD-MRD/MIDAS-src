@@ -156,6 +156,7 @@ program midas_letkf
   !                                         the background state and the analysis
   !======================== ============== ==============================================================
   !
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use mathPhysConstants_mod
@@ -237,7 +238,7 @@ program midas_letkf
   type(struct_enkfNML) :: enkfNML
 
   ! external definitions
-  integer, external :: fstopc, fclos
+  integer, external :: fclos
 
   ! Some high-level configuration settings
   midasMode = 'analysis'

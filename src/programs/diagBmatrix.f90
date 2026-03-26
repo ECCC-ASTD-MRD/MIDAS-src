@@ -89,7 +89,7 @@ program midas_diagBmatrix
   ! Other **B** matrix modules   various      weight and other parameters for each type of **B** matrix
   !======================== ============ ==============================================================
   !
-
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -160,7 +160,7 @@ program midas_diagBmatrix
   character(len=4)             :: varNameALFA(1)
 
   ! external definitions
-  integer, external :: fnom, newdate, fstopc
+  integer, external :: fnom, newdate
 
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev

@@ -106,6 +106,7 @@ program midas_ensembleH
   !                                          the background state.
   !===================== ================== ===============================================================
   !
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -159,9 +160,6 @@ program midas_ensembleH
 
   ! derived type variable with all namelist variables
   type(struct_enkfNML) :: enkfNML
-
-  ! external definitions
-  integer, external :: fstopc
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'

@@ -103,7 +103,7 @@ program midas_randomPert
   !           ``&NAMBDIFF`` for diffusion correlations and ``&NAMBCHM`` for homogeneous
   !           and isotropic chemical constituents covariances.
   !
-
+  use rmn_fst98
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
@@ -162,7 +162,7 @@ program midas_randomPert
   character(len=2)  :: typvarOut
 
   ! external definitions
-  integer, external :: newdate, fstopc
+  integer, external :: newdate
 
   ! Namelist variables
   logical :: remove_mean          ! choose to remove mean from perturbations
