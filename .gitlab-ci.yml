@@ -23,6 +23,11 @@ midas_build:
     - version=$(./midas.version)
     - cd src
     - MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS}/${version} MIDAS_ABS_LEAFDIR=./ ./midas_build
+  artifacts:
+    paths:
+      - maestro/suites/midas_system_tests/abs.dot
+      - maestro/suites/midas_system_tests/resources/resources.def
+    expire_in: 1 week
   only:
     - main
     - v_4.1
@@ -92,6 +97,8 @@ midas_tests:
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u3
+   dependencies:
+     - midas_build
    script:
      - version=$(./midas.version)
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
