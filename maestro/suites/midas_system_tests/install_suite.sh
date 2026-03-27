@@ -8,7 +8,7 @@ MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 
 # If it does not yet exist, set the resources.def file, which depends
 # on '${TRUE_HOST}'
-if [ ! -f ${resourcesDir}/resources.def ]; then
+if [ ! -f ${MIDAS_SUITE_LAUNCH_DIRECTORY}/resources/resources.def ]; then
     ## Run this command as a script since we only need the file
     ## 'maestro/suites/midas_system_tests/resources/resources.def' to
     ## be generated.
