@@ -164,8 +164,10 @@ fi
 
 if [ -n "${MIDAS_ABS}" ]; then
     . ./abs.dot
-    mkdir -p ${ABS_DIR}
-    cp ${MIDAS_ABS}/midas-*-${MIDAS_version}.Abs ${ABS_DIR}
+    if [[ "$(true_path ${MIDAS_ABS})" != "$(true_path ${ABS_DIR})" ]]; then
+       mkdir -p ${ABS_DIR}
+       cp ${MIDAS_ABS}/midas-*-${MIDAS_version}.Abs ${ABS_DIR}
+    fi
 fi
 
 [ -L ~/.suites/${MIDAS_TESTS_SUITE} ] && rm ~/.suites/${MIDAS_TESTS_SUITE}

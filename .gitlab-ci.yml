@@ -104,7 +104,7 @@ midas_tests:
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
-     - ./install_suite.sh $suite run ${MIDAS_ABS}/${version}
+     - ./install_suite.sh ${suite} run ${MIDAS_ABS}/${version}
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh -findOutliers -emails ervig.lapalme@ec.gc.ca mark.buehner@ec.gc.ca
      - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
