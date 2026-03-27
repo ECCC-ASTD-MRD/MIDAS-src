@@ -147,7 +147,7 @@ contains
       if (myid == 0) then
         write(*,*)
         write(*,*) '============BEGIN CONTENTS OF FLNML================'
-        write(*,*) utl_flnml
+        write(*,'(A)') utl_flnml
         write(*,*) '============END   CONTENTS OF FLNML================'
       end if
     else
@@ -187,7 +187,7 @@ contains
       if (myid == 0) then
         write(*,*)
         write(*,*) '============BEGIN CONTENTS OF FLNML_STATIC================'
-        write(*,*) utl_flnml_static
+        write(*,'(A)') utl_flnml_static
         write(*,*) '============END   CONTENTS OF FLNML_STATIC================'
       end if
 
