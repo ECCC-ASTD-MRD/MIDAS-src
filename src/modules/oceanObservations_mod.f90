@@ -69,7 +69,9 @@ module oceanObservations_mod
     real(8), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:) 
     real(8), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
     type(struct_obs)     :: obsData   
-    
+
+    call utl_tmg_start(185,'--oobs_pseudoSST')    
+
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
     call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
@@ -218,14 +220,20 @@ module oceanObservations_mod
     end if  
     
     write(*,*) 'oobs_pseudoSST: done'
-    
+    call utl_tmg_stop(185)
+
   end subroutine oobs_pseudoSST
 
   !----------------------------------------------------------------------------------------
   ! oobs_pseudoSIC
   !----------------------------------------------------------------------------------------
   subroutine oobs_pseudoSIC(hco, vco, iceFractionThreshold, outputFileName, seaIceBand)
-
+    !
+    !:Purpose: to generate pseudo Sea Ice Concentration (SIC) data to preserve sharp 
+    !          SIC gradients at the boundary between ice-covered regions and open water, 
+    !          which is essential for maintaining a realistic ice edge during 
+    !          strongly coupled sea-ice-ocean data assimilation. 
+    !
     implicit none
 
     ! Arguments
@@ -254,6 +262,15 @@ module oceanObservations_mod
     ! It's an algorithm used to explore faster a grid layer by layer
     integer, allocatable :: queueLonIndex(:), queueLatIndex(:), queueDistance(:)
     integer :: queueHead, queueTail
+
+    call utl_tmg_start(186,'--oobs_pseudoSIC')
+
+    if (mmpi_myid /= 0) then
+      call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
+      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'GL', outputFileName)
+      call utl_tmg_stop(186)
+      return
+    end if
 
     ni = hco%ni
     nj = hco%nj
@@ -500,6 +517,7 @@ module oceanObservations_mod
 
     call ocm_deallocate(oceanMask)
     call gsv_deallocate(stateVector_ice)
+    call utl_tmg_stop(186)
 
   end subroutine oobs_pseudoSIC
 
