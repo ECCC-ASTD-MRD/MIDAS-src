@@ -4,6 +4,7 @@ module climatologies_mod
   !
   ! :Purpose: Access to climatologies
   !
+  use rmn_date
   use midasMpi_mod
   use bufr_mod
   use mathPhysConstants_mod
@@ -87,10 +88,9 @@ contains
     character(len=12), parameter :: climFields = 'climatFields'
     character(len=11), parameter :: ozoneBaseline = 'ozoneclim98'
     integer :: varIndex, constituentId, SourceIndex
-    integer :: ijour, imonth, iday, itime, iyear
+    integer :: ijour(2), imonth, iday, itime, iyear
     real(8) :: day, scaleFactor
     integer :: datestamp
-    integer, external :: newdate
     logical :: initialized = .false.
     logical :: timeInterp
     integer :: ierr
@@ -193,9 +193,9 @@ contains
     if ( ierr < 0 ) then
       call utl_abort('clm_readFields: Invalid datestamp ' // trim(utl_str(datestamp)))
     end if
-    iyear = ijour/10000
-    imonth = MOD(ijour/100,100)
-    iday = MOD(ijour,100)
+    iyear = ijour(1)/10000
+    imonth = MOD(ijour(1)/100,100)
+    iday = MOD(ijour(1),100)
     day = iday + itime*1.0D-8
     if (day > 15.) then
       day = day - 15.0

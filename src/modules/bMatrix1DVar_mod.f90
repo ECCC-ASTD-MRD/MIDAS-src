@@ -4,6 +4,7 @@ module bMatrix1DVar_mod
   !
   !:Purpose: contains all 1Dvar B matrices.
   !
+  use rmn_date
   use mathPhysConstants_mod
   use message_mod
   use columnData_mod
@@ -955,18 +956,19 @@ contains
 
     ! Locals:
     integer :: nulmat, ierr
-    integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
+    integer :: yyyymmdd(2), hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
     integer :: globalDumpedIndex, countDumpedOut
     integer :: columnIndex, headerIndex
     integer :: tag, taskIndex, dumpedIndex
     integer :: numstep, numVarLev, landSea
-    integer, external ::  fnom, fclos, newdate
     integer              :: obsOffset(0:mmpi_nprocs-1)
     integer              :: countDumpedAllTasks(mmpi_nprocs)
     integer, allocatable :: listColumnDumped(:)
     real(8) :: latitude, longitude
     real(8), allocatable :: tempoBmatrix(:,:)
     real(8), allocatable :: outLats(:),outLons(:), outBmatrix(:,:,:)
+    ! external definitions
+    integer, external ::  fnom, fclos
 
     if (mmpi_myid == 0) write(*,*) 'dumpBmatrices: Starting'
     call msg_memUsage('dumpBmatrices', mpiAll_opt=.false.)
@@ -1032,7 +1034,7 @@ contains
         ierr = newdate(dateStampList(1 + numstep / 2), yyyymmdd, hhmm, -3)
         countDumpedOut = countDumped
         if (doAveraging) countDumpedOut = 1
-        write(nulmat) yyyymmdd * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
+        write(nulmat) yyyymmdd(1) * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
             vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, numVarLev, countDumpedOut
         write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
         allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, numVarLev, numVarLev))

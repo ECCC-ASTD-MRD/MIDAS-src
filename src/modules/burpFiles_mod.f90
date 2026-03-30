@@ -5,6 +5,7 @@ module burpFiles_mod
   !:Purpose:  To store the filenames of the burp observation files and call
   !           subroutines in readBurp_mod to read and update burp files.
   !
+  use rmn_date
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -42,7 +43,7 @@ contains
     ! Locals:
     integer :: ier, inblks, nulburp, numblks
     logical :: isExist_L
-    integer :: ktime, kdate, kdate_recv, ktime_recv, ihandl, ilong
+    integer :: ktime, kdate, kdate_array(2), kdate_recv, ktime_recv, ihandl, ilong
     integer :: itime, iflgs, idburp, ilat, ilon, idx, idy
     integer :: ialt, idelay, idate, irs, irunn, inblk, isup, ixaux
     integer :: insup, inxaux
@@ -53,7 +54,7 @@ contains
     character(len=9) :: clstnid
     integer, parameter :: sup(1) = (/0/)
     ! external definitions
-    integer, external :: fnom, fclos, newdate
+    integer, external :: fnom, fclos
     integer, external :: mrbhdr, mrfget
 
     !
@@ -115,15 +116,16 @@ contains
     call mmpi_allReduce(ktime, ktime_recv, mmpi_max)
     kdate = kdate_recv
     ktime = ktime_recv
+    kdate_array(:) = kdate
     if (nresume >= 1 ) then
-      ier = newdate(datestamp,kdate,ktime*10000,3)
+      ier = newdate(datestamp,kdate_array,ktime*10000,3)
     else
       ! Assumes 6-hour windows with reference times being synoptic times.
       ! Does not require kdate and ktime to be from a resume record.
-      ier = newdate(istampobs,kdate,ktime*10000,3)
+      ier = newdate(istampobs,kdate_array,ktime*10000,3)
       delhh = 3.0d0
       call incdatr (datestamp, istampobs, delhh)
-      ier = newdate(datestamp,kdate,inewhh,-3)
+      ier = newdate(datestamp,kdate_array,inewhh,-3)
       ktime = ktime/100
       if (ktime >= 21 .or. ktime < 3) then
         ktime = 0
@@ -134,7 +136,7 @@ contains
       else
         ktime = 18
       end if
-      ier = newdate(datestamp,kdate,ktime*1000000,3)
+      ier = newdate(datestamp,kdate_array,ktime*1000000,3)
       ktime = ktime*100
     end if
 

@@ -5,6 +5,7 @@ module sqliteFiles_mod
   !:Purpose:  To store the filenames of the sqlite observation files and call
   !           subroutines in readSqlite to read and update sqlite files.
   !
+  use rmn_date
   use midasMpi_mod
   use mathPhysConstants_mod
   use fSQLite
@@ -47,8 +48,7 @@ module sqliteFiles_mod
     logical              :: fileExists
     integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
     integer, allocatable :: headDateValues(:), headTimeValues(:)
-    ! external definitions
-    integer, external :: newdate
+    integer              :: validDateRecv_array(2)
 
     validDate = MPC_missingValue_INT
     validTime = MPC_missingValue_INT
@@ -70,7 +70,8 @@ module sqliteFiles_mod
     else
       ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
       imode = 3
-      ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
+      validDateRecv_array(:) = validDateRecv
+      ier = newdate(dateStamp, validDateRecv_array, validTimeRecv * 1000000, imode)
       write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDateRecv
       write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTimeRecv
       write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp

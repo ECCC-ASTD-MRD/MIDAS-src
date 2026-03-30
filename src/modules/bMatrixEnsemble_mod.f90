@@ -7,6 +7,7 @@ module bMatrixEnsemble_mod
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
   !
+  use rmn_date
   use midasMpi_mod
   use message_mod
   use fileNames_mod
@@ -435,14 +436,12 @@ CONTAINS
     integer        :: levIndex, jvar, ierr
     integer        :: horizWaveBandIndex, vertWaveBandIndex, stepIndex
     integer        :: hLocalizeIndex, vLocalizeIndex
-    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime
+    integer        :: dateStampFSO, ensDateStampOfValidity, idate(2), itime
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
     logical        :: scaleDecompositionNeeded = .false.
     character(len=32)  :: direction, directionEnsPerts, directionAnlInc
     character(len=32)  :: decompositionMode, filterResponseFunctionMode
     character(len=256) :: ensFileName
-    ! external definitions
-    integer, external :: newdate
 
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
 
@@ -477,8 +476,8 @@ CONTAINS
           if (bEns(instanceIndex)%ensDateOfValidity == -1) then
             ensDateStampOfValidity = bEns(instanceIndex)%ensDateOfValidity
           else
-            idate = bEns(instanceIndex)%ensDateOfValidity/100
-            itime = (bEns(instanceIndex)%ensDateOfValidity-idate*100)*1000000
+            idate(:) = bEns(instanceIndex)%ensDateOfValidity/100
+            itime = (bEns(instanceIndex)%ensDateOfValidity-idate(1)*100)*1000000
             ierr = newdate(ensDateStampOfValidity, idate, itime, 3)
           end if
           bEns(instanceIndex)%dateStampList(:) = ensDateStampOfValidity

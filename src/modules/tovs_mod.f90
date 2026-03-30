@@ -67,6 +67,7 @@ module tovs_mod
        min_radiance_radar
   use parkind1, only : jpim, jplm, jprb
   use rmn_fst98
+  use rmn_date
   use midasMpi_mod
   use message_mod
   use codtyp_mod
@@ -2625,9 +2626,8 @@ contains
     integer :: profileIndex, levelIndex
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
-    integer :: ierr,day,month,year,ijour,itime
+    integer :: ierr,day,month,year,ijour(2),itime
     integer :: allocStatus
-    integer, external ::  newdate
     integer, allocatable :: sensorHeaderIndexes(:)
     type(struct_vco), pointer :: vco
     real(8), allocatable :: pressure (:,:)
@@ -2737,9 +2737,9 @@ contains
       write(*,*) 'Invalid datestamp ',datestamp,ijour,itime,ierr
       call utl_abort('tvs_fillProfiles')
     end if
-    year= ijour / 10000
-    month = mod(ijour / 100,100)
-    day = mod(ijour,100)
+    year= ijour(1) / 10000
+    month = mod(ijour(1) / 100,100)
+    day = mod(ijour(1),100)
 
     !  1.2   Read ozone climatology
 

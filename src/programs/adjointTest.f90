@@ -66,6 +66,7 @@ program midas_adjointTest
   !             * **'advGSV'** : test the adjoint of the advection operator on a single
   !               statevector
   !
+  use rmn_date
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -105,8 +106,7 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector2(:)
 
   integer :: ierr, cvDim
-  integer :: idate, itime, dateStamp
-  integer, external :: newdate
+  integer :: idate(2), itime, dateStamp
 
   character(len=20) :: test     ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   integer           :: testdate ! yyyymmddhh date
@@ -157,10 +157,10 @@ program midas_adjointTest
   call tim_setup()
   ! Decompose testdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
   ! and calculate date-time stamp
-  idate = testdate/100
-  itime = (testdate-idate*100)*1000000
+  idate(:) = testdate/100
+  itime = (testdate-idate(1)*100)*1000000
   ierr = newdate(dateStamp, idate, itime, 3)
-  write(*,*)' idate= ',idate,' time= ',itime
+  write(*,*)' idate= ',idate(1),' time= ',itime
   write(*,*)' date= ',testdate,' stamp= ',dateStamp
   call tim_setDatestamp(dateStamp)
   if (tim_getDateStamp()==0) then

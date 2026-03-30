@@ -5,6 +5,7 @@ module ensPostProcess_mod
   !:Purpose:  Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
+  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
@@ -57,7 +58,7 @@ contains
     logical, optional, intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
-    integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
+    integer                   :: ierr, nEns, dateStamp, datePrint, datePrint_array(2), timePrint, imode, randomSeedRandomPert
     integer                   :: stepIndex, middleStepIndex
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
@@ -79,7 +80,6 @@ contains
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
-    integer, external         :: newdate
     logical                   :: outputOnlyEnsMean
     logical                   :: writeHeightSfc
 
@@ -451,9 +451,10 @@ contains
         if (randomSeed == MPC_missingValue_INT) then
           imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
           dateStamp = tim_getDateStamp()
-          ierr = newdate(dateStamp, datePrint, timePrint, imode)
+          ierr = newdate(dateStamp, datePrint_array, timePrint, imode)
+          datePrint = datePrint_array(1)
           timePrint = timePrint/1000000
-          datePrint =  datePrint*100 + timePrint
+          datePrint = datePrint*100 + timePrint
           if (includeYearInSeed) then
             ! Remove the century, keeping 2 digits of the year
             randomSeedRandomPert = datePrint - 100000000*(datePrint/100000000)
@@ -494,7 +495,8 @@ contains
           if (randomSeed == MPC_missingValue_INT) then
             imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
             dateStamp = tim_getDateStamp()
-            ierr = newdate(dateStamp, datePrint, timePrint, imode)
+            ierr = newdate(dateStamp, datePrint_array, timePrint, imode)
+            datePrint = datePrint_array(1)
             timePrint = timePrint/1000000
             datePrint =  datePrint*100 + timePrint
             if (includeYearInSeed) then

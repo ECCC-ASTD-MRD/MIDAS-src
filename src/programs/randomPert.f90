@@ -104,6 +104,7 @@ program midas_randomPert
   !           and isotropic chemical constituents covariances.
   !
   use rmn_fst98
+  use rmn_date
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
@@ -137,7 +138,7 @@ program midas_randomPert
   integer :: dateStamp, datePrevious, dateStampPrevious
   integer :: imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
-  integer :: datePrint, timePrint, randomSeed
+  integer :: datePrint(2), timePrint, randomSeed
   integer :: n_grid_point, n_grid_point_glb
 
   integer :: latPerPEa, latPerPEmaxa, myLatBega, myLatEnda
@@ -160,9 +161,6 @@ program midas_randomPert
   character(len=25) :: outFileName, inFileName
   character(len=64) :: ensMeanFileName = 'ensMeanState'
   character(len=2)  :: typvarOut
-
-  ! external definitions
-  integer, external :: newdate
 
   ! Namelist variables
   logical :: remove_mean          ! choose to remove mean from perturbations
@@ -261,9 +259,9 @@ program midas_randomPert
   dateStamp = tim_getDateStamp()
   imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
   ierr = newdate(dateStamp, datePrint, timePrint, imode)
-  write(dateString, '(I10)') datePrint*100 + timePrint/1000000
+  write(dateString, '(I10)') datePrint(1)*100 + timePrint/1000000
   if( mmpi_myid == 0 ) then
-    write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
+    write(*,*) ' date= ', datePrint(1), ' time= ', timePrint, ' stamp= ', dateStamp
     write(*,*) ' dateString = ', dateString
   end if
 
@@ -333,9 +331,9 @@ program midas_randomPert
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
     timePrint = timePrint/1000000
-    datePrint =  datePrint*100 + timePrint
+    datePrint(1) =  datePrint(1)*100 + timePrint
     ! Remove the century, keeping 2 digits of the year
-    randomSeed = datePrint - 100000000*(datePrint/100000000)
+    randomSeed = datePrint(1) - 100000000*(datePrint(1)/100000000)
   else
     ! Otherwise, use value from namelist
     randomSeed = seed
@@ -593,7 +591,7 @@ program midas_randomPert
     call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
-    datePrevious =  datePrint*100 + timePrint/1000000
+    datePrevious =  datePrint(1)*100 + timePrint/1000000
     write(datePreviousString, '(I10)') datePrevious
     write(*,*) 'midas-randomPert: previous date, stamp = ', datePrevious, dateStampPrevious
 

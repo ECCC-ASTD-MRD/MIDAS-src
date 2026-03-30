@@ -90,6 +90,7 @@ program midas_diagBmatrix
   !======================== ============ ==============================================================
   !
   use rmn_fst98
+  use rmn_date
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -135,7 +136,7 @@ program midas_diagBmatrix
 
   integer :: ierr, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
-  integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
+  integer :: dateTime, datePrint(2), timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
@@ -160,7 +161,7 @@ program midas_diagBmatrix
   character(len=4)             :: varNameALFA(1)
 
   ! external definitions
-  integer, external :: fnom, newdate
+  integer, external :: fnom
 
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev
@@ -230,9 +231,9 @@ program midas_diagBmatrix
   ! Build date-time string from dateStamp
   dateStamp = tim_getDateStamp()
   ierr = newdate(dateStamp,datePrint,timePrint,-3)
-  dateTime = datePrint*100 + timePrint/1000000
+  dateTime = datePrint(1)*100 + timePrint/1000000
   write(datestr,'(i10.10)') dateTime
-  write(*,*)' datePrint= ',datePrint,' timePrint= ',timePrint
+  write(*,*)' datePrint= ',datePrint(1),' timePrint= ',timePrint
   write(*,*)' date= ',dateTime,' stamp= ',dateStamp
 
   ! Initialize variables of the model states

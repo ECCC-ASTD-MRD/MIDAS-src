@@ -4,6 +4,7 @@ module bgckOcean_mod
   !
   !:Purpose: to perform ocean data background check.
   !
+  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
@@ -334,7 +335,7 @@ module bgckOcean_mod
     ! Locals:
     integer              :: ierr
     integer              :: headerIndex, bodyIndex, stationIndex, bodyCount
-    integer              :: obsChid, obsDate, obsTime, obsFlag
+    integer              :: obsChid, obsDate(2), obsTime, obsFlag
     integer              :: obsDateStamp
     integer, allocatable :: numberObs(:), bodyIndexList(:,:)
     integer, allocatable :: minDateStamp(:), maxDateStamp(:), swathID(:)
@@ -343,8 +344,7 @@ module bgckOcean_mod
     real(8)              :: OmP, deltaHours
     integer              :: numberObsRejected
     character(len=obs_stnidLength) :: cstnid
-    integer, external    :: newdate
-    integer              :: imode, prntdate, prnttime
+    integer              :: imode, prntdate(2), prnttime
     integer, parameter   :: numStationMax = 20              ! maximum number of 'idStation' values
     integer              :: numStation, unitRMSD
     character(len=22)    :: fileName
@@ -406,7 +406,7 @@ module bgckOcean_mod
              (obsFlag /= 0 .and. cstnid /= 'CIS_REGIONAL') ) cycle HEADER
 
         obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
-        obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+        obsDate(:) = obs_headElem_i(obsData, OBS_DAT, headerIndex)
         obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
 
         imode = 3 ! printable to stamp
@@ -474,9 +474,9 @@ module bgckOcean_mod
         call msg('ocebg_bgCheckSeaIce', 'Timespan:')
         imode = -3 ! stamp to printable
         ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
-        call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
+        call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate(1))//str(prnttime/100))
         ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
-        call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
+        call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate(1))//str(prnttime/100))
 
         write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
         write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)

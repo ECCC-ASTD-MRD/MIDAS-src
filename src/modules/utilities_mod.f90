@@ -5,6 +5,7 @@ module utilities_mod
   !:Purpose: A place to collect numerous simple utility routines.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use rmn_date
   use omp_lib
   use netcdf
   use rmn_fst98
@@ -617,7 +618,7 @@ contains
     integer :: iextra1, iextra2, iextra3, iig12, iig22
     integer :: iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4
     integer :: inpas,inpas2, iswa, iubc, iip2, iip3
-    integer :: ipmode,idate2,idate3,idatefull
+    integer :: ipmode,idate2(2),idate3,idatefull
     integer :: k,ier1
     real(4) :: zlev_r4
     character(len=12) :: cletiket
@@ -628,7 +629,7 @@ contains
     logical :: llflag
     integer :: ikeys(knmaxlev)
     ! external definitions
-    integer, external :: newdate, ezqkdef
+    integer, external :: ezqkdef
 
     knlev = 0
 
@@ -649,7 +650,7 @@ contains
        if(knlev > 0 ) then
           ier1   = newdate(kstampv,idate2,idate3,-3)
 
-          idatefull = idate2*100 + idate3/1000000
+          idatefull = idate2(1)*100 + idate3/1000000
           idateo = MPC_missingValue_INT
           ideet = MPC_missingValue_INT
           inpas = MPC_missingValue_INT

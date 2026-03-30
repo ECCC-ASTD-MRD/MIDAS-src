@@ -65,6 +65,7 @@ program midas_sstTrial
   !
   !            --
   !
+  use rmn_date
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
@@ -147,9 +148,7 @@ program midas_sstTrial
 
     ! Locals:
     character(len=*), parameter :: gridFile = './analysis'
-    integer                     :: prntdate, prnttime, imode, indexMonth
-    ! external definitions
-    integer, external :: newdate
+    integer                     :: prntdate(2), prnttime, imode, indexMonth
     namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim
 
     write(*,*) ''
@@ -192,7 +191,7 @@ program midas_sstTrial
 
     imode = -3 ! stamp to printable
     ierr = newdate(trialDateStamp, prntdate, prnttime, imode)
-    write(*,*) 'SSTtrial_setup: trial date = ', prntdate
+    write(*,*) 'SSTtrial_setup: trial date = ', prntdate(1)
     write(*,*) 'SSTtrial_setup: trial time = ', prnttime
     !
     !- Initialize variables of the model states

@@ -139,6 +139,7 @@ program midas_diagHBHt
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use rmn_date
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -405,8 +406,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
-    integer :: index_body, local_dimension, jj, dateprnt, timeprnt, nrandseed, istat
-    integer ,external :: newdate
+    integer :: index_body, local_dimension, jj, dateprnt(2), timeprnt, nrandseed, istat
     real(8) ,external :: gasdev
 
     !
@@ -441,7 +441,7 @@ contains
 
     !- Initialize random number generator
     ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
-    nrandseed=100*dateprnt + int(timeprnt/100.0)
+    nrandseed=100*dateprnt(1) + int(timeprnt/100.0)
     write(*,*) 'diagHBHt: Random seed set to ',nrandseed
     call rng_setup(nrandseed)
     ! Generate a random vector from N(0,1)

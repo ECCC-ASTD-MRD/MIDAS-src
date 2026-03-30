@@ -4,6 +4,7 @@ module fileNames_mod
   !
   !:Purpose: Routines related to file names.
   !
+  use rmn_date
   use utilities_mod
   use clibInterfaces_mod
   use ramDisk_mod
@@ -181,17 +182,15 @@ contains
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
 
     ! Locals:
-    integer :: imode, ierr, hours, prntdate, prnttime
+    integer :: imode, ierr, hours, prntdate(2), prnttime
     character(len=4)  :: ensNumber
     character(len=10) :: dateStrAnl
-    ! external definitions
-    integer, external :: newdate
 
     ! Set the printable date for analysis related file names
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, prntdate, prnttime, imode)
     hours = prnttime/1000000
-    write(dateStrAnl,'(i10.10)') prntdate*100 + hours
+    write(dateStrAnl,'(i10.10)') prntdate(1)*100 + hours
 
     if (present(memberIndex_opt)) then
       write(ensNumber,'(i4.4)') memberIndex_opt
@@ -257,12 +256,10 @@ contains
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
 
     ! Locals:
-    integer :: imode, ierr, hours, prntdate, prnttime, dateStampTrl
+    integer :: imode, ierr, hours, prntdate(2), prnttime, dateStampTrl
     character(len=4)  :: ensNumber
     character(len=3)  :: leadTimeStr
     character(len=10) :: dateStrTrl
-    ! external definitions
-    integer, external :: newdate
 
     ! Compute the datestamp for the origin time of the trial forecasts
     call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
@@ -272,7 +269,7 @@ contains
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStampTrl, prntdate, prnttime, imode)
     hours = prnttime/1000000
-    write(dateStrTrl,'(i10.10)') prntdate*100 + hours
+    write(dateStrTrl,'(i10.10)') prntdate(1)*100 + hours
 
     if (present(memberIndex_opt)) then
       write(ensNumber,'(i4.4)') memberIndex_opt

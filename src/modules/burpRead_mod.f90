@@ -5,7 +5,7 @@ module burpRead_mod
   !:Purpose:  To read and update BURP observation files. Data is stored in
   !           obsSpaceData object.
   !
-
+  use rmn_date
   use codePrecision_mod
   use bufr_mod
   use burp_module
@@ -1937,7 +1937,7 @@ contains
     REAL(pre_obsReal)      :: RELEV,XLAT,XLON,RELEV2
     real                   :: XTIME,ROLAT0,ROLON0,ROLAT1,ROLON1
     integer                :: status ,idtyp,lati,long,dx,dy,elev
-    integer                :: drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
+    integer                :: drnd,date_h,hhmm_h,oars,runn,YMD_DATE(2),HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
 
     integer                :: iele,NELE,NELE_SFC,NVAL,NT,NELE_INFO,LN
     integer                :: bit_alt,btyp_offset,btyp_offset_uni
@@ -1945,14 +1945,12 @@ contains
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
     LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent,LOK,LROK
     integer                :: NDATA,NDATA_SF
-    integer                :: IER,date2,time2,time_sonde
+    integer                :: IER,date2(2),time2,time_sonde
     real                   :: RAD_MOY,RAD_STD
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     integer                :: scanPosElementId
-    ! external definitions
-    integer, external      :: newdate
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -2953,7 +2951,7 @@ contains
             IF ( xlon  < 0. ) xlon  = 360. + xlon
             XLON    = XLON*MPC_RADIANS_PER_DEGREE_R8
             XLAT    = XLAT*MPC_RADIANS_PER_DEGREE_R8
-            YMD_DATE=date(k)
+            YMD_DATE(:)=date(k)
             HM      =hhmm(k)
             STATUS  =GLBFLAG(K)
             RELEV   =REAL(ELEV) - 400.
@@ -2962,7 +2960,7 @@ contains
             XLAT    =LATI*.01 -90.
             XLON    = XLON*MPC_RADIANS_PER_DEGREE_R8
             XLAT    = XLAT*MPC_RADIANS_PER_DEGREE_R8
-            YMD_DATE=date_h
+            YMD_DATE(:)=date_h
             HM      =hhmm_h
             RELEV   =REAL(ELEV,pre_obsReal) - 400.
           END IF
@@ -2993,7 +2991,7 @@ contains
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
                 IER=newdate(kstamp,date2,time_sonde,-3)
                 time2=time_sonde/10000
-                YMD_DATE_SFC=date2
+                YMD_DATE_SFC=date2(1)
                 HM_SFC=time2
               END IF
 
@@ -3080,9 +3078,9 @@ contains
 
                 IF (NDATA > 0) THEN
                   if ( phasePresent ) then
-                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2(1),time2,idtyp,STATUS,RELEV,FILENUMB,phase(jj,k))
                   else
-                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2(1),time2,idtyp,STATUS,RELEV,FILENUMB)
                   end if
 !==================================================================================
 !
@@ -3155,7 +3153,7 @@ contains
                                    BiasCorrection_opt=BCOR_SFC)
 
               IF ( NDATA_SF > 0) THEN
-                call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
+                call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE(1),HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
                 if (obs_columnActive_IH(obsdat,obs_prfl)) call obs_headSet_i(obsdat,OBS_PRFL,OBSN,kk)
                 if (obs_columnActive_IH(obsdat,obs_hdd)) call obs_headSet_i(obsdat,OBS_HDD,OBSN,date_h)
@@ -3209,9 +3207,9 @@ contains
 
                 IF (NDATA_SF == 0) THEN
                   if ( phasePresent ) then
-                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB,phase(1,k))
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE(1),HM,idtyp,STATUS,RELEV,FILENUMB,phase(1,k))
                   else
-                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
+                    call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE(1),HM,idtyp,STATUS,RELEV,FILENUMB)
                   end if
 
 !==================================================================================

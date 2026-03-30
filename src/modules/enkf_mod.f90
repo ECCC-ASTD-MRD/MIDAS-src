@@ -6,6 +6,7 @@ module enkf_mod
   !           an EnKF in MIDAS, including the LETKF.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use linearAlgebra_mod
@@ -2032,12 +2033,10 @@ contains
 
     ! Locals:
     integer :: subEnsIndex, subEnsIndex2, memberIndex, memberIndex2
-    integer :: imode, dateStamp, ierr, timePrint, datePrint, randomSeed
+    integer :: imode, dateStamp, ierr, timePrint, datePrint(2), randomSeed
     integer :: eigenVectorColumnIndex, memberIndexInModEns
     integer, allocatable, save :: randomMemberIndexArray(:)
     logical, save :: firstCall = .true.
-    ! external definitions
-    integer, external :: newDate
 
     if (.not.enkfNML%randomShuffleSubEns) then
       ! form subensembles with contiguous sequential groups of members
@@ -2067,9 +2066,9 @@ contains
       dateStamp = tim_getDateStamp()
       ierr = newdate(dateStamp, datePrint, timePrint, imode)
       timePrint = timePrint/1000000
-      datePrint =  datePrint*100 + timePrint
+      datePrint(1) = datePrint(1)*100 + timePrint
       ! Remove the century, keeping 2 digits of the year
-      randomSeed = datePrint - 100000000*(datePrint/100000000)
+      randomSeed = datePrint(1) - 100000000*(datePrint(1)/100000000)
       if (firstCall) allocate(randomMemberIndexArray(enkfNML%nEns))
       do memberIndex = 1, enkfNML%nEns
         randomMemberIndexArray(memberIndex) = memberIndex

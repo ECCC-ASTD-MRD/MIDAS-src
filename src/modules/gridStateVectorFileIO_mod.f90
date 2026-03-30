@@ -8,6 +8,7 @@ module gridStateVectorFileIO_mod
   use netcdf
   use rmn_fst98
   use rmn_fst24
+  use rmn_date
   use Vgrid_Descriptors
   use midasMpi_mod
   use gridStateVector_mod
@@ -62,7 +63,7 @@ module gridStateVectorFileIO_mod
                                                        '3D'      ,      '3D'    ,      '4D'    , &
                                                        '4D'/)
   integer :: NEMOvarid(dimNemovar)
-  integer, parameter  :: referenceDateNEMO = 19500101 ! reference date for netCDF output files
+  integer, parameter  :: referenceDateNEMO(2) = 19500101 ! reference date for netCDF output files
 
   contains
 
@@ -654,7 +655,7 @@ module gridStateVectorFileIO_mod
     real(8), allocatable :: fileField2D(:,:,:,:), netCDFTimes(:)
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp
-    integer :: imode, ierr, prntdate, prnttime
+    integer :: imode, ierr, prntdate(2), prnttime
     integer :: numberRecords, timeCounterID, dimTimeCounterID
     character(len = nf90_max_name) :: recordDimName
     integer :: refDateStamp, currentDateStamp
@@ -662,8 +663,6 @@ module gridStateVectorFileIO_mod
     integer :: timeIndexToRead
     integer :: nDims, nVars, nGlobalAtts, unlimDimID
     integer :: numDimsInFile ! returned number of variable dimensions
-    ! external definitions
-    integer, external :: newdate
 
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
@@ -684,7 +683,7 @@ module gridStateVectorFileIO_mod
       imode = -3 ! stamp to printable
       call msg('gio_readFileNetCDF', 'Current datestamp /date: ')
       ierr = newdate(dateStamp, prntdate, prnttime, imode)
-      write(*,*) dateStamp, prntdate, prnttime / 1000000, 'h'
+      write(*,*) dateStamp, prntdate(1), prnttime / 1000000, 'h'
     end if
 
     ni = stateVector%hco%ni
@@ -720,7 +719,7 @@ module gridStateVectorFileIO_mod
                                               count = (/numberRecords/)))
       imode = 3
       ierr = newdate(refDateStamp, referenceDateNEMO, 0, imode)
-      write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateNEMO, refDateStamp
+      write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateNEMO(1), refDateStamp
 
       foundRequiredState = .false.
 
@@ -2765,10 +2764,8 @@ module gridStateVectorFileIO_mod
     real(8) :: netCDFtime
     character(len=100) :: fileName
     logical :: fileExists
-    integer :: currentDateStamp, timeLevel, printableValidDate, printableValidTime
+    integer :: currentDateStamp, timeLevel, printableValidDate(2), printableValidTime
     character(len=20) :: localVariableName(dimNemovar)
-    ! external definitions
-    integer, external :: newdate
 
     call msg('gio_writeToFileNetCDF', 'START')
 
@@ -2871,7 +2868,7 @@ module gridStateVectorFileIO_mod
       ! - convert valid dateStamp into printable
       imode = -3
       ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
-      netCDFtime = real(printableValidDate, 8)
+      netCDFtime = real(printableValidDate(1), 8)
 
       if (typvar == 'A') then
         localVariableName(:) = NEMOvarNameAnl(:)
@@ -2909,7 +2906,7 @@ module gridStateVectorFileIO_mod
       ! - convert valid dateStamp into printable
       imode = -3
       ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
-      netCDFtime = real(printableValidDate, 8)
+      netCDFtime = real(printableValidDate(1), 8)
 
       ! put netCDFtime into 'time_counter', varIndexNEMO = 4
       call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(4), NEMOvarid(4)))
