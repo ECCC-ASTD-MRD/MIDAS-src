@@ -207,7 +207,7 @@ module oceanObservations_mod
     else 
     
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'OS', outputFileName)   
+      call sqlr_writePseudoOceanIceObs(obsData, 'OS', outputFileName)   
 
     end if
 
@@ -233,6 +233,10 @@ module oceanObservations_mod
     !          SIC gradients at the boundary between ice-covered regions and open water, 
     !          which is essential for maintaining a realistic ice edge during 
     !          strongly coupled sea-ice-ocean data assimilation. 
+    !
+    !          The computation of the pseudo SIC observations is performed globally 
+    !          on the MPI task 0 (the global sea-ice field is read by the MPI task 0).
+    !          Other MPI tasks produce empty pseudo SIC observation files.
     !
     implicit none
 
@@ -267,7 +271,7 @@ module oceanObservations_mod
 
     if (mmpi_myid /= 0) then
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'GL', outputFileName)
+      call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
       call utl_tmg_stop(186)
       return
     end if
@@ -501,9 +505,11 @@ module oceanObservations_mod
       call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
 
     else
-
+      
+      write(*,*) 'oobs_pseudoSIC: WARNING: No pseudo SIC observations were generated.'
+      write(*,*) '                Check namelist parameters: iceFractionThreshold and seaIceBand.'
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
-      call sqlr_writeEmptyPseudoOceanIceObsFile(obsData, 'GL', outputFileName)
+      call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
 
     end if
 
