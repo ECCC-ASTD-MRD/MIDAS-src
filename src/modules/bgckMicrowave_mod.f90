@@ -53,9 +53,9 @@ module bgckMicrowave_mod
   logical :: mwbg_useClwDiffForAllskyBcorr, mwbg_useClwDiffForAllskyQc
   logical :: mwbg_useSiDiffForAllskyBcorr, mwbg_useSiDiffForAllskyQc
 
-  integer, parameter :: mwbg_maxScanAngle = 98
-  real(8), parameter :: mwbg_realMissing = -99.0d0
-  integer, parameter :: mwbg_intMissing = -1
+  integer, parameter :: mwbg_maxScanAngle = 98     ! These 3 parameters values are left harcoded because
+  real(8), parameter :: mwbg_realMissing = -99.0d0 ! they are associated to a convention in obsSpaceData
+  integer, parameter :: mwbg_intMissing = -1       ! modying these values break retro-compatibility
 
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
   character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file

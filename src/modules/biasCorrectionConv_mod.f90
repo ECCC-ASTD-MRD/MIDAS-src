@@ -39,9 +39,11 @@ MODULE biasCorrectionConv_mod
   integer, parameter :: Index500mb = 5
 
   ! Missing values in the input bias correction files for AI, GP and UA families
-  real(8), parameter :: aiMissingValue = 99.d0
+  real(8), parameter :: aiMissingValue = 99.d0 ! we leave this value hardcoded because it
+                                               ! is linked to the biasEstimateFile convention
   real(8), parameter :: gpMissingValue = MPC_missingValue_R8
-  real(8), parameter :: uaMissingValue = -99.0d0
+  real(8), parameter :: uaMissingValue = -99.0d0 ! we leave this value harcoded because it is
+                                                 ! linked to the biasCorrectionFile convention
 
   integer               :: nbAircrafts, nbGpStations
   real(8), allocatable  :: AIttCorrections(:,:,:)
