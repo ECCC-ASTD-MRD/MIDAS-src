@@ -6,6 +6,7 @@ module enkf_mod
   !           an EnKF in MIDAS, including the LETKF.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use omp_lib
   use rmn_date
   use midasMpi_mod
   use utilities_mod
@@ -2999,7 +3000,6 @@ contains
     integer :: lonIndex, latIndex, memberIndex1, memberIndex2, interpIndex
     integer :: interpLonIndex, interpLatIndex, numMembers1, numMembers2
     integer :: totalCount(mmpi_numthread)
-    integer, external :: omp_get_thread_num
     logical, save :: firstCall = .true.
 
     myLonBegHalo = wInterpInfo%myLonBegHalo

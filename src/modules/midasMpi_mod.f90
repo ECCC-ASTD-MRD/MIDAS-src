@@ -8,6 +8,7 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use omp_lib
   use rpn_comm
   use linearAlgebra_mod
   use utilities_mod
@@ -191,7 +192,6 @@ contains
 
     ! Locals:
     integer :: mythread, numthread
-    integer :: omp_get_thread_num, omp_get_num_threads
     integer :: ierr, numNodeMasters
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
     integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)

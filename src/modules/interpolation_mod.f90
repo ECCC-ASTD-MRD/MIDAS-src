@@ -4,6 +4,7 @@ module interpolation_mod
   !
   !:Purpose: The grid-point state vector interpolation.
   !
+  use omp_lib
   use midasMpi_mod
   use gridstatevector_mod
   use columnData_mod
@@ -1601,7 +1602,6 @@ contains
     integer                         :: ierr
 
     ! Locals:
-    integer :: omp_get_thread_num
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
     integer :: top, bottom, left, right, numBoxIndexes, lonIndexCloud, latIndexCloud
     integer :: boxSize, lonBoxIndex, latBoxIndex, boxIndex, lonIndexGrid, latIndexGrid

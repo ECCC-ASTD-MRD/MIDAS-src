@@ -447,6 +447,7 @@ module kdTree2_mod
   !           locations (first used in LETKF to find all obs near an analysis grid point).
   !           Written by Matt Kennel.
   !
+  use omp_lib
   use utilities_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
@@ -613,7 +614,6 @@ contains
     real(kdkind), target :: input_data(:,:)
     !
     integer :: i, numthread, mythread
-    integer, external :: omp_get_thread_num, omp_get_num_threads
     ! ..
     allocate (mr)
     mr%the_data => input_data
@@ -1017,7 +1017,6 @@ contains
     integer, intent (In)         :: nn
     type(kdtree2_result), target :: results(:)
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1062,7 +1061,6 @@ contains
     integer, intent (In)           :: idxin, correltime, nn
     type(kdtree2_result), target   :: results(:)
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1119,7 +1117,6 @@ contains
     integer, intent (In)         :: nalloc
     type(kdtree2_result), target :: results(:)
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
     !
@@ -1180,7 +1177,7 @@ contains
     integer, intent(out)         :: nfound
     type(kdtree2_result), target :: results(:)
     integer :: mythread
-    integer, external :: omp_get_thread_num
+
     ! ..
     ! .. Intrinsic Functions ..
     intrinsic HUGE
@@ -1243,9 +1240,9 @@ contains
     type (kdtree2), pointer   :: tp
     real(kdkind), target, intent (In) :: qv(:)
     real(kdkind), intent(in)          :: r2
-    integer                   :: nfound
+    integer :: nfound
     integer :: mythread
-    integer, external :: omp_get_thread_num
+
     ! ..
     ! .. Intrinsic Functions ..
     intrinsic HUGE
@@ -1297,7 +1294,7 @@ contains
     real(kdkind), intent(in)        :: r2
     integer                 :: nfound
     integer :: mythread
-    integer, external :: omp_get_thread_num
+
     ! ..
     ! ..
     ! .. Intrinsic Functions ..
@@ -1347,7 +1344,6 @@ contains
     ! :Purpose: make sure we have enough storage for n
     integer, intent(in) :: n
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1394,7 +1390,6 @@ contains
     real(kdkind), pointer           :: qv(:)
     type(interval), pointer :: box(:)
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1486,7 +1481,6 @@ contains
     real(kdkind)    :: dis, ballsize
     real(kdkind)    :: l, u
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1523,7 +1517,6 @@ contains
     logical                :: rearrange
     type(pq), pointer      :: pqp
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 
@@ -1634,7 +1627,6 @@ contains
     real(kdkind)                   :: ballsize, sd
     logical                :: rearrange
     integer :: mythread
-    integer, external :: omp_get_thread_num
 
     mythread = omp_get_thread_num()
 

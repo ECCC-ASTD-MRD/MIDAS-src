@@ -7,6 +7,7 @@ module bMatrixEnsemble_mod
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
   !
+  use omp_lib
   use rmn_date
   use midasMpi_mod
   use message_mod
@@ -165,8 +166,6 @@ module bMatrixEnsemble_mod
   character(len=4), parameter  :: varNameALFAocean(1) = (/ 'ALFO' /)
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
-
-  integer, external    :: omp_get_thread_num
 
 CONTAINS
 
