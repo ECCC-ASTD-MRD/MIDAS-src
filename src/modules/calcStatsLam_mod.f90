@@ -6,7 +6,7 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
-  use rmn_fst98 !, only: fstecr, fstouv, fstfrm !, fstecr_s => fstecr_s_screwup
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use mathPhysConstants_mod
@@ -2166,8 +2166,6 @@ contains
     character(len=4)  :: ControlBhiVarnameList  (bhi%nControlVariable)
     character(len=4)  :: ControlVarGridTypeList (bhi%nControlVariable)
     integer           :: ControlVarNlevList     (bhi%nControlVariable)
-    ! external definitions
-    !integer, external :: fstecr_s ! The 'rmn_fst98' interface is wrong so we use the legacy one
 
     !
     !- 1. Gathering the info
@@ -2209,25 +2207,22 @@ contains
     nj       =  bhi%nControlVariable
     datyp    =  7 ! Character
 
-    ier = fstecr_s(ControlModelVarnameList, work, npak,           &
-                   iun, dateo, deet, npas, ni, nj, 1, ip1,        &
-                   ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
-                   ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
-    ! We use 'lngstr = 4' because 'ControlModelVarnameList' is declared as 'character(len=4) :: ControlModelVarnameList(bhi%nControlVariable)'
+    ier = fstecr(ControlModelVarnameList, work, npak,           &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,        &
+                 ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
-    ier = fstecr_s(ControlBhiVarnameList, work, npak,            &
-                   iun, dateo, deet, npas, ni, nj, 1, ip1,       &
-                   ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
-                   ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
-    ! We use 'lngstr = 4' because 'ControlBhiVarnameList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
+    ier = fstecr(ControlBhiVarnameList, work, npak,            &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,       &
+                 ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
     nomvar   = 'CVL'
     ni       =  2  ! 2 Characters
-    ier = fstecr_s(ControlVarGridTypeList, work, npak,              &
-                   iun, dateo, deet, npas, ni, nj, 1, ip1,          &
-                   ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
-                   ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
-    ! We use 'lngstr = 4' because 'ControlVarGridTypeList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
+    ier = fstecr(ControlVarGridTypeList, work, npak,              &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,          &
+                 ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
     datyp    =  2 ! Integer
     ni       =  bhi%nControlVariable

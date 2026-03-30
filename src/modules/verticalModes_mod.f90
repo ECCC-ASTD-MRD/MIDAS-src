@@ -775,10 +775,9 @@ contains
     datyp  = 7 ! Character
 
     !- Writing
-    errorID = fstecr_s(array, work, npak, iun, dateo, deet, npas, ni, nj, &
-                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
-                      ig1, ig2, ig3, ig4, datyp, FST_YES, lngstr = 4)
-    ! We use 'lngstr = 4' because 'array' is declared as 'character(len=4) :: array(size)'
+    errorID = fstecr(array, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
 
   end subroutine writeArray1d_c4
 
