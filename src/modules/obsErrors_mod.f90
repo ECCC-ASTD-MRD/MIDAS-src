@@ -179,8 +179,8 @@ module obsErrors_mod
   character(len=12) :: dropSondeWindDynamic  ! dynamic approach to inflate dropsonde wind errors based on O-B, sigmaO and sigmaB
   character(len=12) :: dropSondePsurfDynamic ! dynamic approach to inflate dropsonde surface pressure errors based on O-B, sigmaO and sigmaB
   logical :: dropSondeWindSameUVerror   ! give the same inflated dropsonde error to both wind components (true) or not (false)
-  real(8) :: dropSondeWindCutoffFactor  ! cutoff used in the dynamic approach to inflate the dropsonde wind errors
-  real(8) :: dropSondePsurfCutoffFactor ! cutoff factor used in the dynamic approach to inflate the droopsonde surface pressure error
+  real(8) :: dropSondeWindTransitionFactor  ! factor to the transition point in the dynamic approach to inflate the dropsonde wind errors
+  real(8) :: dropSondePsurfTransitionFactor ! factor to the transition point in the dynamic approach to inflate the droopsonde surface pressure error
   real(8) :: dropSondeWindSlope         ! slope used in the dynamic approach to inflate the dropsonde wind errors
   real(8) :: dropSondePsurfSlope        ! slope used in the dynamic approach to inflate the droopsonde surface pressure errors
 contains
@@ -232,7 +232,7 @@ contains
     namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ instrumentNamesInflateErrAllskyTt, instrumentNamesInflateErrAllskyHu
     namelist /namoer/ readOldSymmetricObsErrFile, dropSondeWindDynamic, dropSondePsurfDynamic
-    namelist /namoer/ dropSondeWindSameUVerror, dropSondeWindCutoffFactor, dropSondePsurfCutoffFactor
+    namelist /namoer/ dropSondeWindSameUVerror, dropSondeWindTransitionFactor, dropSondePsurfTransitionFactor
     namelist /namoer/ dropSondeWindSlope, dropSondePsurfSlope
     integer :: ierr
 
@@ -270,8 +270,8 @@ contains
     dropSondeWindDynamic  = 'none'
     dropSondePsurfDynamic = 'none'
     dropSondeWindSameUVerror = .false.
-    dropSondeWindCutoffFactor  = 1.0d0
-    dropSondePsurfCutoffFactor = 1.0d0
+    dropSondeWindTransitionFactor  = 1.0d0
+    dropSondePsurfTransitionFactor = 1.0d0
     dropSondeWindSlope    = 1.0d0
     dropSondePsurfSlope   = 1.0d0
     
@@ -1353,14 +1353,6 @@ contains
                 sigmaObsErrUsed = zwt * xstd_ua_ai_sw(jn, ielem) + zwb * xstd_ua_ai_sw(jn + 1, ielem)
               end if
 
-              !if (ielem == 4 .and. codeType == 37 .and. dropSondeWindDynamic) then
-              !  omp  = obs_bodyElem_r(obsSpaceData, OBS_OMP , bodyIndex)
-              !  fge  = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
-              !  sigmaObsErr = sigmaObsErrUsed
-              !  sigmaObsErrUsed = calcDynamicObsErr(omp, sigmaObsErr, fge, dropSondeWindSlope)
-              !  write(*,*) 'calcDynamicObsErr ', headerIndex, bodyIndex, ityp, sigmaObsErrUsed, sigmaObsErr, omp**2/(sigmaObsErr**2+fge**2), omp, fge, dropSondeWindSlope
-              !end if
-
             end if
 
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsErrUsed)
@@ -2142,8 +2134,6 @@ contains
                                            .or. dropSondePsurfDynamic /= 'none') ) then
       call setObsErrorsFlowDependentUA(obsSpaceData, obsOMPcolumn)
     end if
-
-    !call utl_abort('JFC fin forcee in setObsErrorsFlowDependent')
     
   end subroutine oer_setObsErrorsFlowDependent
   
@@ -2272,7 +2262,6 @@ contains
       if (blockIndex == -1) cycle ! missing block
       
       call burp_get_property(blkobs, NVAL=numLevels, IOSTAT=error)
-      write(*,*) ' JFC for obsCount ', reportIndex, trim(stnid), numLevels
       obsCount = obsCount + numLevels
       numReportsWithObs = numReportsWithObs + 1
     end do
@@ -2324,11 +2313,6 @@ contains
         obsVal(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
         if (winds) then
           obsVal2(obsValIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
-        end if
-        if (winds) then
-          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,I4,2x,f12.6,2x,f12.6)') 'JFC winds obsv', levelIndex, obsValIndex, varIndex, varIndex2, obsVal(obsValIndex), obsVal2(obsValIndex)
-        else
-          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,f12.6)') 'JFC scalar obsv', levelIndex, obsValIndex, varIndex, obsVal(obsValIndex)
         end if
       end do
       
@@ -2387,11 +2371,6 @@ contains
         fge(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
         if (winds) then
           fge2(obsFgeIndex) = BURP_Get_Rval(blkobs, NELE_IND=varIndex2, NVAL_IND=levelIndex, NT_IND=1, IOSTAT=error)
-        end if
-        if (winds) then
-          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,I4,2x,f12.6,2x,f12.6)') 'JFC winds fge', levelIndex, obsFgeIndex, varIndex, varIndex2, fge(obsFgeIndex), fge2(obsFgeIndex)
-        else
-          write(*,'(a15,2x,I4,2x,I4,2x,I4,2x,f12.6)') 'JFC scalar fge', levelIndex, obsFgeIndex, varIndex, fge(obsFgeIndex)
         end if
       end do
       
@@ -2473,7 +2452,7 @@ contains
     integer :: codeType, varType, assimFlag, nVar
     integer :: varType1, varType2
     integer, allocatable :: varTypeList(:)
-    real(8) :: omp, fge, sigmaObsStatic, sigmaObsDynamic, slope, cutoffFactor
+    real(8) :: omp, fge, sigmaObsStatic, sigmaObsDynamic, slope, transitionFactor
     real(8) :: sigmaObsUU, sigmaObsVV, sigmaObsUV
     real(8) :: obsLevUU, obsLev2
     character(len=12) :: dynamicApproach 
@@ -2487,14 +2466,14 @@ contains
       allocate(varTypeList(nVar))
       varTypeList=(/bufr_neuu,bufr_nevv,bufr_neus,bufr_nevs/)
       dynamicApproach = dropSondeWindDynamic
-      cutoffFactor = dropSondeWindCutoffFactor
+      transitionFactor = dropSondeWindTransitionFactor
       slope = dropSondeWindSlope
     case('psurf')
       nVar=1
       allocate(varTypeList(nVar))
       varTypeList=(/bufr_neps/)
       dynamicApproach = dropSondePsurfDynamic
-      cutoffFactor = dropSondePsurfCutoffFactor
+      transitionFactor = dropSondePsurfTransitionFactor
       slope = dropSondePsurfSlope
     case default
       call utl_abort('setDynamicObsErrors: Invalid obsType '//obsType)
@@ -2521,10 +2500,7 @@ contains
           omp             = obs_bodyElem_r(obsSpaceData, obsOMPcolumn, bodyIndex)
           fge             = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
           sigmaObsStatic  = obs_bodyElem_r(obsSpaceData, OBS_OER , bodyIndex)
-          !write(*,*) 'setDynamicObsErrors BEFORE ', headerIndex, bodyIndex, varType, assimFlag, omp, fge, sigmaObsStatic, obs_bodyElem_r(obsSpaceData, OBS_VAR , bodyIndex), obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
-          sigmaObsDynamic = calcDynamicObsErr(omp, sigmaObsStatic, fge, dynamicApproach, cutoffFactor, slope)
-          !write(*,*) 'setDynamicObsErrors AFTER  ', sigmaObsDynamic, sigmaObsStatic, omp**2/(sigmaObsStatic**2+fge**2),omp, fge, dropSondeWindSlope
-          write(*,*) 'setDynamicObsErrors', headerIndex, bodyIndex, varType, obs_bodyElem_r(obsSpaceData, OBS_VAR , bodyIndex), assimFlag, omp, fge, sigmaObsStatic, sigmaObsDynamic
+          sigmaObsDynamic = calcDynamicObsErr(omp, sigmaObsStatic, fge, dynamicApproach, transitionFactor, slope)
           if (sigmaObsDynamic /= sigmaObsStatic) then
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsDynamic)
           end if
@@ -2596,7 +2572,7 @@ contains
   ! calcDynamicObsErr
   !--------------------------------------------------------------------------
   function calcDynamicObsErr(omp, sigmaObsErrStatic, fge, formulation, &
-                             cutoffFactor, slope) result(sigmaObsErrDynamic)
+                             transitionFactor, slope) result(sigmaObsErrDynamic)
     !
     ! :Purpose: Calculate observation error based on omp, sigmaO and sigmaP
     !           Inspired by Bonavita et al. (2017; ECMWF tech memo)
@@ -2608,12 +2584,13 @@ contains
     real(8), intent(in) :: sigmaObsErrStatic    ! static/default observation error std dev
     real(8), intent(in) :: fge                  ! HBHT
     character(len=*), intent(in) :: formulation ! adjusted observation error formulation
-    real(8), intent(in) :: cutoffFactor         ! factor applied to the total error variance
-    real(8), intent(in) :: slope                ! slope controlling the error adjustment
+    real(8), intent(in) :: transitionFactor     ! factor applied to the transition point
+    real(8), intent(in) :: slope                ! slope controlling the error adjustment in the linear approach
     ! Result:
     real(8) ::  sigmaObsErrDynamic              ! adjusted observation error std dev
     
     ! Locals
+    real(8)            :: transitionPoint
     real(pre_obsReal)  :: missingValue
     
     missingValue = real(MPC_missingValue_R8,pre_obsReal)
@@ -2634,22 +2611,28 @@ contains
       write(*,*) 'calcDynamicObsErr: slope is negative ', slope
       call utl_abort ('calcDynamicObsErr')
     end if
-    if (cutoffFactor < 1.d0) then
-      write(*,*) 'calcDynamicObsErr: cutoffFactor is smaller than 1 ', cutoffFactor
+    if (transitionFactor < 1.d0) then
+      write(*,*) 'calcDynamicObsErr: transitionFactor is smaller than 1 ', transitionFactor
       call utl_abort ('calcDynamicObsErr')
     end if
+
+    transitionPoint = transitionFactor * sqrt(sigmaObsErrStatic**2 + fge**2)
     
-    if (omp**2 <= cutoffFactor**2 * (sigmaObsErrStatic**2 + fge**2)) then
-      sigmaObsErrDynamic = sigmaObsErrStatic ! don't modify the error
+    if (abs(omp) <= transitionPoint) then
+      sigmaObsErrDynamic = sigmaObsErrStatic ! don't modify the obs error
     else
       select case(trim(formulation))
       case('b17')
-        sigmaObsErrDynamic = sqrt(omp**2/cutoffFactor**2 - fge**2)
+        ! Redefining the obs error such that the innovation
+        ! is at exactly the transition point as in Bonavita et al. 2017
+        sigmaObsErrDynamic = sqrt(omp**2/transitionFactor**2 - fge**2)
       case('linear')
+        ! A new, more flexible approach
         sigmaObsErrDynamic = sigmaObsErrStatic + &
-             slope*(abs(omp)/cutoffFactor - sqrt(sigmaObsErrStatic**2 + fge**2))
+             slope*(abs(omp)/transitionFactor - sqrt(sigmaObsErrStatic**2 + fge**2))
       case('huber')
-        sigmaObsErrDynamic = sigmaObsErrStatic * sqrt(abs(omp)/(cutoffFactor*sqrt(sigmaObsErrStatic**2 + fge**2))) 
+        ! Follow the Huber norm with a transition point (c) defined as above
+        sigmaObsErrDynamic = sigmaObsErrStatic * sqrt(abs(omp)/(transitionPoint)) 
       case default
         call utl_abort('calcDynamicObsErr: unknown formulation ' //trim(formulation))
       end select
