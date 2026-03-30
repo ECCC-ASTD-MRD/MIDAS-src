@@ -154,6 +154,7 @@ program midas_dfs
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use linearAlgebra_mod
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -1042,7 +1043,7 @@ contains
     allocate(hk(nbLevels,nbLevels))
 
     dMatrix(:,:) =  HBHt(:,:) + R(:,:)
-    call utl_fastInverse(dMatrix, inverse)
+    call linalg_fastInverse(dMatrix, inverse)
     hk = matmul(HBHt, inverse)
     dfs = 0.d0
     do levelIndex = 1, nbLevels

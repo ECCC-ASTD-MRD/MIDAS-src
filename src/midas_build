@@ -76,7 +76,7 @@ function print_usage {
     echo "        -d|-debug|--debug: compile using the debug options (override the variable 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS')"
     echo "        --opt-report: add the compiler options to output the optimization report (override the variable 'MIDAS_COMPILE_OPTIMIZE_REPORT')"
     echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
-    echo "        --codecov: activate the code covering compiler options (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
+    echo "        --codecov: activate the code covering compiler options (needs a directory for storing the code coverage information) (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
     echo "        --local: avoid launching a batch job to compile (override the variable 'MIDAS_COMPILE_'HEADNODE_FRONTEND)"
     echo "        --fresh: erase the build directory if it already exists before compilation"
     echo "        --no-clean: do not erase the build directory after the compilation (override the variable 'MIDAS_COMPILE_CLEAN'"
@@ -333,8 +333,8 @@ export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
 export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
-export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
+[ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ] && export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
 
 cd ${__here}
 

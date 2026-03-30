@@ -26,6 +26,7 @@ module bMatrix1DVar_mod
   use stateToColumn_mod
   use calcHeightAndPressure_mod
   use surfaceEmissivity_mod
+  use linearAlgebra_mod
 
   implicit none
   save
@@ -380,7 +381,7 @@ contains
         end do
       end do
       bMatSqrtLand(locationIndex, :, :) = bMatLand(locationIndex, :, :)
-      call utl_matsqrt(bMatSqrtLand(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
+      call linalg_matsqrt(bMatSqrtLand(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
     end do
 
     !application of the scaling factor for sea B-Matrix and compute its sqrt
@@ -392,7 +393,7 @@ contains
         end do
       end do
       bMatSqrtSea(locationIndex, :, :) = bMatSea(locationIndex, :, :)
-      call utl_matsqrt(bMatSqrtSea(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
+      call linalg_matsqrt(bMatSqrtSea(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
     end do
 
     if (allocated(bMatLand)) deallocate(bMatLand)
@@ -919,7 +920,7 @@ contains
 
     write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
     do columnIndex = 1, var1D_validHeaderCount
-      call utl_matsqrt(bMatSqrtEns(columnIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false. )
+      call linalg_matsqrt(bMatSqrtEns(columnIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false. )
     end do
 
     deallocate(varLevColFromVarLevBmat)

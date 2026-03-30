@@ -23,6 +23,11 @@ midas_build:
     - version=$(./midas.version)
     - cd src
     - MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS}/${version} MIDAS_ABS_LEAFDIR=./ ./midas_build
+  artifacts:
+    paths:
+      - maestro/suites/midas_system_tests/abs.dot
+      - maestro/suites/midas_system_tests/resources/resources.def
+    expire_in: 1 week
   only:
     - main
     - v_4.1
@@ -92,12 +97,14 @@ midas_tests:
    parallel:
      matrix:
        - RUNNER_TAG: hpcr-u3
+   dependencies:
+     - midas_build
    script:
      - version=$(./midas.version)
      - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.12
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_COMMIT_SHA} | cut -c-10)
-     - ./install_suite.sh $suite run ${MIDAS_ABS}/${version}
+     - ./install_suite.sh ${suite} run ${MIDAS_ABS}/${version}
      - ./wait4tests.sh $suite
      - ./extractRunTime.sh -findOutliers -emails ervig.lapalme@ec.gc.ca mark.buehner@ec.gc.ca
      - collect_unittest_listings_workdir=${PWD}/tmpdir collect_unittest_listings_output=$LISTINGS_ARCHIVE ./collect_unittest_listings
@@ -220,7 +227,10 @@ ssm:
       - RUNNER_TAG: hpcr-u3
   script:
     - version=$(./midas.version) ## This version number contains the 'v_'
-    - ./set_resources_def.sh
+    ## Run this command as a script since we only need the file
+    ## 'maestro/suites/midas_system_tests/resources/resources.def' to
+    ## be generated.
+    - ${__toplevel}/src/config.dot.sh --build ${toplevel}/compiledir/midas_bld_resources --fresh --no-cd-build --no-show-instructions
     - . maestro/suites/midas_system_tests/set_machine_list.dot
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
     - VERSION=$(./midas.version | cut -c3-)

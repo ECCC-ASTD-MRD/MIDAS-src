@@ -88,7 +88,7 @@ load_resources_variables() {
     done
 } ## End of function 'load_resources_variables'
 
-load_resources_variables resources/resources.def_hpcr-u2
+load_resources_variables resources/resources.def_hpcr-u2.in
 
 xf_host=$(xf_hostname ${REFERENCE_MACHINE})
 

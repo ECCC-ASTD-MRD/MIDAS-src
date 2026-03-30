@@ -9,6 +9,7 @@ module biasCorrectionSat_mod
   !          can also be applied to observations.
   !
   use midasMpi_mod
+  use linearAlgebra_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
@@ -378,10 +379,10 @@ contains
             end do
           end if
           bias(iSensor)%BHalfScanBias(:,:) =  Bmatrix(:,:)
-          call utl_matsqrt(bias(iSensor)%BHalfScanBias, nfov, 1.d0, printInformation_opt=.true.)
+          call linalg_matsqrt(bias(iSensor)%BHalfScanBias, nfov, 1.d0, printInformation_opt=.true.)
           if (doRegression) then
             bias(iSensor)%BMinusHalfScanBias(:,:) = Bmatrix(:,:)
-            call utl_matsqrt(bias(iSensor)%BMinusHalfScanBias, nfov, -1.d0, printInformation_opt=.true.)
+            call linalg_matsqrt(bias(iSensor)%BMinusHalfScanBias, nfov, -1.d0, printInformation_opt=.true.)
           end if
           deallocate(Bmatrix)
         end if
@@ -3076,7 +3077,7 @@ contains
           end if
 
           pIMatrix(:,:) = 0.d0
-          call utl_pseudo_inverse(matrixMpiGlobal(iChannel, 1:ndim, 1:ndim), pIMatrix(1:ndim, 1:ndim))
+          call linalg_pseudo_inverse(matrixMpiGlobal(iChannel, 1:ndim, 1:ndim), pIMatrix(1:ndim, 1:ndim))
           LineVec(1:ndim) = matmul(pIMatrix(1:ndim,1:ndim), vectorMpiGlobal(iChannel,1:ndim))
           !call dsymv("L", ndim, 1.d0, pIMatrix, ndim,vectorMpiGlobal(iChannel,:), 1, 0.d0, LineVec(1:ndim), 1)
         end if

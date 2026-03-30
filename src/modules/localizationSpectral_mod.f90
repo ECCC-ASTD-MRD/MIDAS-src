@@ -7,6 +7,7 @@ MODULE localizationSpectral_mod
   !           SPECTRAL ELEMENTS
   !
   use midasMpi_mod
+  use linearAlgebra_mod
   use utilities_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
@@ -295,7 +296,7 @@ CONTAINS
       end do
 
       !- 3.2 Compute sqrt of the matrix
-      call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
+      call linalg_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
 
     else
       lsp%LvertSqrt(:,:) = 1.d0/sqrt(real(lsp%nLev,8)) ! no vertical localization

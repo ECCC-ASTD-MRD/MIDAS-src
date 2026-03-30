@@ -8,6 +8,7 @@ module analysisErrorOI_mod
   !           total number of observations influence the analysis at a given grid point.
   !
   use midasMpi_mod
+  use linearAlgebra_mod
   use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -1219,8 +1220,8 @@ contains
             ! Inverse of the covariance matrix of the innovation
 
             innovCovarianceInverse(:,:) = innovCovariance(:,:)
-            call utl_matInverse(innovCovarianceInverse, numInfluentObs, &
-                                printInformation_opt = .false.)
+            call linalg_matInverse(innovCovarianceInverse, numInfluentObs, &
+                                   printInformation_opt = .false.)
 
             ! Kalman gain; this is the row corresponding to the analysis variable
 

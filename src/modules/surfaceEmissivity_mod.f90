@@ -4,6 +4,7 @@ module surfaceEmissivity_mod
   !:Purpose: Manipulate surface emissivity for idealized assimilation of
   !          surface sensitive AMSU-A channels.
   !
+  use linearAlgebra_mod
   use obsSpaceData_mod
   use rttov_types, only : rttov_emissivity, rttov_chanprof
   use rttov_const, only : surftype_land, surftype_seaice
@@ -246,7 +247,7 @@ contains
     end do
 
     ! Calculation of F**1/2
-    call utl_matSqrt(emissErrMat, nsubset, 1.d0, .false.)
+    call linalg_matSqrt(emissErrMat, nsubset, 1.d0, .false.)
 
     alpha = 1.d0
     beta = 0.d0

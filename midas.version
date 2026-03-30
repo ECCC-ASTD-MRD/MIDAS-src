@@ -19,7 +19,7 @@ function print_usage {
 } ## End of 'function print_usage'
 
 gitobject=
-git_describe_options=
+git_describe_options=--always
 
 add_git_describe_options() {
     if [[ -n "${git_describe_options}" ]]; then
@@ -73,8 +73,21 @@ fi
 ## If one of the above two command fails, we try on one of the PPPs.
 if [ "${status}" -ne 0 ]; then
     toplevel=$(git rev-parse --show-toplevel)
-    ${toplevel}/set_resources_def.sh
     suite=${toplevel}/maestro/suites/midas_system_tests
+    if [ ! -f ${suite}/resources/resources.def ]; then
+        ## Run this command as a script since we only need the file
+        ## 'maestro/suites/midas_system_tests/resources/resources.def' to
+        ## be generated.
+        status=0
+        cmake_listing=${TMPDIR}/cmake_midas_version_resources.listing
+        ${__toplevel}/src/config.dot.sh --build-id resources --fresh --no-cd-build --no-show-instructions > ${cmake_listing} 2>&1 || status=1
+        if [[ "${status}" -ne 0 ]]; then
+            echo "$0: There was an error while updating the resources file (see the listing ${cmake_listing})" >&2
+            exit 1
+        else
+            rm ${cmake_listing}
+        fi
+    fi
     . ${suite}/set_machine_list.dot ${suite}
 
     ssh ${MACHINE_PPP} "cd ${toplevel}; most_recent_tag_reachable=\$(git tag --merged ${gitobject} | grep -E '^v_[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1); git describe ${git_describe_options} --match \${most_recent_tag_reachable}"  || echo unkown revision

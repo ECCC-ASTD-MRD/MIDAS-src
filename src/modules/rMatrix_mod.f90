@@ -5,6 +5,7 @@ module rMatrix_mod
   !:Purpose:  Module to handle non-diagonal observation-error covariance
   !           matrices for assimilation of radiances.
   !
+  use linearAlgebra_mod
   use midasMpi_mod
   use rttovInterfaces_mod
   use rttov_const, only: errorstatus_success
@@ -256,7 +257,7 @@ contains
       end do
       ! Calculation of R**-1/2
       call utl_tmg_start(20,'----RmatMatSqrt')
-      call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
+      call linalg_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call utl_tmg_stop(20)
       allocate(R_tovs(headerIndex)%Rmat(nsubset,nsubset))
       do j=1,nsubset
@@ -415,7 +416,7 @@ contains
     end do
 
     ! Calculation of R**1/2
-    call utl_matSqrt(Rsub, nsubset, 1.d0, .false.)
+    call linalg_matSqrt(Rsub, nsubset, 1.d0, .false.)
 
     alpha = 1.d0
     beta = 0.d0

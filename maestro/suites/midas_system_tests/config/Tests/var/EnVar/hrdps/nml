@@ -23,7 +23,7 @@
 /
  &NAMMIN
    NVAMAJ   = 25,
-   NITERMAX = 70,
+   NITERMAX = ${VAR_NITERMAX},
    NSIMMAX  = 110,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
@@ -94,7 +94,7 @@
    SLANTPATH_RO_NL   = .TRUE.,
    calcHeightPressIncrOnColumn=.TRUE.,
 /
- &NAMTOV   
+ &NAMTOV
    CSATID(1)        = 'METOP-2',
    CINSTRUMENTID(1) = 'IASI',
    CSATID(2)        = 'NOAA15',

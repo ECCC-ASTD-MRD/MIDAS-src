@@ -3,7 +3,7 @@ add_dependencies(splitobs ${PROJECT_NAME}_build_info)
 
 target_link_libraries(splitobs PRIVATE
   SQLite::SQLite3
-  burpc.a
+  burp::burpc-static
   rmn::rmn
 )
 if (DEFINED CMAKE_INSTALL_RPATH)

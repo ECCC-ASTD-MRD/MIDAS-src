@@ -6,6 +6,7 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use linearAlgebra_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -1165,7 +1166,7 @@ contains
     Bsqrt(:,:,:) = B(:,:,:)
 
     do totwvnb = 0, nTrunc
-      call utl_matSqrt(Bsqrt(:,:,totwvnb),bhi%nVarLev,1.0d0,.true.)
+      call linalg_matSqrt(Bsqrt(:,:,totwvnb),bhi%nVarLev,1.0d0,.true.)
     end do
 
   end subroutine calcBsqrt

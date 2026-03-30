@@ -6,6 +6,7 @@ module calcStatsGlb_mod
   !           from forecast error estimate in model variable space (global
   !           version).
   !
+  use linearAlgebra_mod
   use midasMpi_mod
   use codePrecision_mod
   use message_mod
@@ -4507,7 +4508,7 @@ module calcStatsGlb_mod
     real(8), parameter :: tolerance = 0.0d0
 
     ! Get eigenvalues and eigenvectors
-    call utl_eigenDecomp(matrix, eigenValues, eigenVectors, tolerance, numReturned)
+    call linalg_eigenDecomp(matrix, eigenValues, eigenVectors, tolerance, numReturned)
 
     ! Apply relative tolerance to eigenvalues
     minAllowedEigenValue = relativeTol * maxval(eigenValues(1:numReturned))

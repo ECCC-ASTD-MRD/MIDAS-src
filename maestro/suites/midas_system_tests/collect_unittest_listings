@@ -21,7 +21,7 @@ fi
 LOCAL_GITDIR=$(cd ${SEQ_EXP_HOME}; git rev-parse --git-dir)
 gittag=${gittag:-$(git --git-dir=${LOCAL_GITDIR} describe --first-parent)}
 
-tasks=${COLLECT_UNITTEST_LISTINGS_TASKS:-"get run download check"}
+tasks=${COLLECT_UNITTEST_LISTINGS_TASKS:-"get run check"}
 
 if [ -n "${COLLECT_UNITTEST_LISTINGS_EXPDATE}" ]; then
     ExpDate=${COLLECT_UNITTEST_LISTINGS_EXPDATE}
