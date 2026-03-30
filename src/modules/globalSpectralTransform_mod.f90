@@ -2936,7 +2936,6 @@ contains
     logical :: lverbose
     integer :: jlat, jm
     real(8) :: zpisu2
-    external gauss
 
     ! Some explanation:
     ! rmu = sin(latitude)

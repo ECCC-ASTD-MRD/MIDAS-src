@@ -7,6 +7,7 @@ MODULE ensembleObservations_mod
   !           nearest observations within the local volume.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use rmn_fnom
   use midasMpi_mod
   use kdTree2_mod
   use message_mod
@@ -820,8 +821,6 @@ CONTAINS
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
     logical :: fileExists
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (.not. ensObs%allocated) then
       call rti_abort('eob_writeToFiles: this object is not allocated')
@@ -926,8 +925,6 @@ CONTAINS
     character(len=4)   :: myidxStr, myidyStr
     character(len=3)   :: fileIndexStr
     character(len=30)  :: fileNameExtention
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if ( .not. ensObs%allocated ) then
       call rti_abort('eob_readFromFiles: this object is not allocated')
@@ -1421,8 +1418,6 @@ CONTAINS
     real(8)             :: distMax, distMean, locFun, obsErr, ensSpread
     real(8)             :: trace, vertTop, vertBottom
     integer             :: numSelected, numRejected
-    ! external definitions
-    integer, external :: fclos
 
     write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
     outfilename = './eob_glbi_'//trim(adjustl(outfilename))
@@ -2593,10 +2588,9 @@ CONTAINS
     real(8), intent(inout) :: maxLnP        ! computed log pressure of maximum
 
     ! Locals:
-    external :: dgesv
     integer, parameter :: N=3
-    integer :: info
     integer, parameter :: lda=N, ldb=N, nrhs=1
+    integer :: info
     integer :: ipiv(N)
     real(8) :: A(lda,N),B(ldb,nrhs)
     integer :: index1, index2

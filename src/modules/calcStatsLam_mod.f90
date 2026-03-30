@@ -1266,8 +1266,6 @@ contains
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, ier
     integer :: iunstats
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'calcVertCorrel: Starting...'
@@ -1774,8 +1772,6 @@ contains
     ! Locals:
     integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov.fst'
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'Writing covariance statistics for VAR'
@@ -1831,8 +1827,6 @@ contains
     ! Locals:
     integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov_diag.fst'
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*)
     write(*,*) 'Writing Diagnostics'

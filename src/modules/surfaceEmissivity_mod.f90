@@ -4,6 +4,7 @@ module surfaceEmissivity_mod
   !:Purpose: Manipulate surface emissivity for idealized assimilation of
   !          surface sensitive AMSU-A channels.
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use obsSpaceData_mod
   use rttov_types, only : rttov_emissivity, rttov_chanprof
@@ -91,7 +92,6 @@ contains
     integer,              intent(out) :: numChan        ! Number of Channels
 
     ! Locals:
-    integer, external      :: fnom, fclos
     integer                :: iunit, ierr
     character(len=20)      :: fileName
     character(len = 512)   :: tmpStr
@@ -144,7 +144,6 @@ contains
     ! Locals:
     integer              :: chanIndex1, chanIndex2
     integer              :: iunit, ierr, count, readChanIndex
-    integer, external    :: fnom,fclos
     real(8)              :: tmpCor
     integer, allocatable :: foundChanIndex(:)
 

@@ -5,6 +5,7 @@ module minimization_mod
   !:Purpose:  Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
+  use rmn_fnom
   use midasMpi_mod
   use codePrecision_mod
   use message_mod
@@ -883,8 +884,6 @@ CONTAINS
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl_io
     character(len=3) :: cl_version
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (status == 0) then
       if (mmpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname

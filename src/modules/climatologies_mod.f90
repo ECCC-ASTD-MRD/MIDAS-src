@@ -4,6 +4,7 @@ module climatologies_mod
   !
   ! :Purpose: Access to climatologies
   !
+  use rmn_fnom
   use midasMpi_mod
   use bufr_mod
   use mathPhysConstants_mod
@@ -836,7 +837,6 @@ contains
     character(len=6) :: lineOffset,speciesNames(numSpecies),speciesUnits(numSpecies)
     character(len=13), parameter :: climScaling  = 'climatScaling'
     real(8) :: speciesMR(numSpecies)
-    integer, external :: fnom, fclos
     integer :: ierr, nulunScaling, iosScaling
     logical :: fileExists
     character (len=128) :: ligne

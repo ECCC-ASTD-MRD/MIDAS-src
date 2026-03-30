@@ -373,8 +373,6 @@ contains
     integer :: amsuaChannelOffset, amsuaChannelNum, instrumId, wordCount
     character (len=132) :: CLDUM,CPLATF,CINSTR
     character (len=256) :: lineRead
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*) 'oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing'
 
@@ -895,8 +893,6 @@ contains
     integer :: ierr, jlev, jelm, jcat, icodtyp, nulstat
     logical             :: LnewExists
     character (len=128) :: ligne
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (visAndGustAdded) then
       surfaceObsTypeNumber = 6
@@ -1042,8 +1038,6 @@ contains
     ! Variables for the ASCAT backscatter anisotropy
     integer :: jcell_no, icell_no, imonth
     real :: tiePoint12, tiePoint13, tiePoint23
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! CHECK THE EXISTENCE OF THE FILE WITH STATISTICS
     inquire(file = fileName, exist = fileExists)
@@ -1164,8 +1158,6 @@ contains
     logical                      :: fileExists
     character(len=15), parameter :: fileName = 'obserr_hydro'
     character(len=*) , parameter :: myName   = 'oer_readObsErrorsHydro'
-    ! external definitions
-    integer, external :: fnom, fclos
 
     inquire(file = fileName, exist = fileExists)
     if (fileExists) then
@@ -3258,8 +3250,6 @@ contains
     logical :: LnewExists
     character(len=11) :: chemAuxObsDataFile = 'obsinfo_chm'
     character (len=128) :: ligne
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Initialization
 

@@ -4003,8 +4003,6 @@ contains
     character(len=20)  :: ceresFile
     integer            :: isftest
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
-    ! external definitions
-    integer, external :: fnom, fclos
 
     isftest = 0
 
@@ -4261,7 +4259,6 @@ contains
     ! fields on output grid
     real(8)              :: glace_intrpl(nprf,1), neige_intrpl(nprf,1), alb_intrpl(nprf,1)
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezqkdef,ezdefset
 
     ! printout header
@@ -5143,7 +5140,6 @@ contains
     integer(8)                     :: obsIdd, obsIdo
     integer                        :: profileIndex, headerIndex
     integer                        :: err, iunit, numLev
-    integer, external              :: fnom,fclos
     character(len = 12), parameter :: dirName = 'tvs_jacobian'
 
     err = clib_isdir(trim(dirName))

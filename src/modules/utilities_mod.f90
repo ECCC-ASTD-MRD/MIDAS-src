@@ -684,8 +684,6 @@ contains
 
     ! Locals:
     character(len=10) :: position,action
-    ! external definitionsx
-    integer, external :: fnom
 
     if (index(mode,'APPEND').gt.0) then
        position = 'APPEND'
@@ -1118,8 +1116,6 @@ contains
     real(4), allocatable :: buffer(:,:)
     real(4), allocatable :: buffer3D(:,:,:)
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Open file
     iun = 0
@@ -2021,8 +2017,6 @@ contains
     character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
     character(len=:), pointer :: nameListStr_ptr
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Set action if namelist is missing
     if (present(failMode_opt)) then

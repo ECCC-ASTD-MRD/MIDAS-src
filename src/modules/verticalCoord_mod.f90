@@ -112,8 +112,6 @@ contains
     character(len=4) :: nomvar
     character(len=1) :: grtyp
     character(len=2) :: varKind
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if ( associated(vco) ) then
       call rti_abort('vco_setupFromFile: the supplied vco pointer is not null!')
@@ -262,8 +260,6 @@ contains
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
     real(4) :: otherVertCoordValue, coefR3, coefR4
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Open the template file
     nultemplate = 0
@@ -540,8 +536,6 @@ contains
     character(len=4)  :: varLevel
     character(len=2)  :: varKind
     character(len=12) :: etiket_read
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromFile: found ocean fields in file: ', trim(templateFile)

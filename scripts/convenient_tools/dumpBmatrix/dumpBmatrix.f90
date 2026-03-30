@@ -7,7 +7,6 @@ program dumpBmatrix
   integer               :: indexBand, indexI,indexJ
   integer               :: levelIndex, controlVectorIndex, varIndex
   integer, allocatable  :: ip1_T(:), ip1_M(:), controlVectorIp1(:)
-  integer, external     :: fnom, fclos
   real(4)               :: latitude, longitude
   real(8), allocatable  :: Bmatrix(:,:)
 

@@ -1043,8 +1043,6 @@ contains
     character(len=1)  :: grtyp
     character(len=2)  :: typvar
     character(len=12) :: etiket
-    ! external definitions
-    integer, external :: fnom, fclos
 
     !
     !- 1.  Opening the output template file

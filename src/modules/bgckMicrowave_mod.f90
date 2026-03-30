@@ -4112,7 +4112,6 @@ contains
     real(4), allocatable :: ZLATBOX(:), ZLONBOX(:), MGINTBOX(:), MTINTBOX(:), GLINTBOX(:)
     logical :: readGlaceMask
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezsetopt, ezqkdef, gdllsval
 
     ! lat/lon
@@ -4403,7 +4402,6 @@ contains
     integer :: gdid, gdidlg
     integer :: idum1, idum2, idum3
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezsetopt, ezqkdef, gdllsval
 
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
@@ -6527,8 +6525,6 @@ contains
     integer               :: codtyp                   ! codetype
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
-    ! external definitions
-    integer, external :: fnom, fclos
 
     call rti_tmg_start(118,'--BgckMicrowave')
     mwDataPresent = .false.

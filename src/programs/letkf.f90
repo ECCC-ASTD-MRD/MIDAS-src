@@ -238,9 +238,6 @@ program midas_letkf
   ! derived type variable with all namelist variables
   type(struct_enkfNML) :: enkfNML
 
-  ! external definitions
-  integer, external :: fclos
-
   ! Some high-level configuration settings
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'

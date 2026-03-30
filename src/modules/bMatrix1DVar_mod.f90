@@ -4,6 +4,7 @@ module bMatrix1DVar_mod
   !
   !:Purpose: contains all 1Dvar B matrices.
   !
+  use rmn_fnom
   use mathPhysConstants_mod
   use message_mod
   use columnData_mod
@@ -445,7 +446,6 @@ contains
     integer                       :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
     character(len=4), allocatable :: includeAnlVarHi(:)
     logical                       :: fileExists
-    integer, external             :: fnom, fclos
     integer                       :: ierr
     integer                       :: nulbgst=0
     real(4), allocatable          :: lonBMat(:)
@@ -967,8 +967,6 @@ contains
     real(8) :: latitude, longitude
     real(8), allocatable :: tempoBmatrix(:,:)
     real(8), allocatable :: outLats(:),outLons(:), outBmatrix(:,:,:)
-    ! external definitions
-    integer, external ::  fnom, fclos
 
     if (mmpi_myid == 0) write(*,*) 'dumpBmatrices: Starting'
     call msg_memUsage('dumpBmatrices', mpiAll_opt=.false.)

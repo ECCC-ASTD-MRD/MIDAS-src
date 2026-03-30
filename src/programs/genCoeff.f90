@@ -6,8 +6,8 @@ program midas_genCoeff
   !
   !:Algorithm: O-A are computed from input analysis fields resulting from a stand alone
   !            3DVar analysis assimilating only anchoring observations (considered as "trials")
-  !            and bgckalt files. 
-  !         
+  !            and bgckalt files.
+  !
   !            --
   !
   !:File I/O: The required input files and produced output files are listed as follows.
@@ -24,8 +24,8 @@ program midas_genCoeff
   ! ``stats_tovs``                                 In - Observation error file for radiances
   ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
-  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
-  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
+  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format
   ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
   !============================================== ==============================================================
   !
@@ -84,7 +84,7 @@ program midas_genCoeff
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#genCoeff>`_
   !          that can affect the ``genCoeff`` program.
   !
-  
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -97,7 +97,7 @@ program midas_genCoeff
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use obsFiles_mod
@@ -107,9 +107,6 @@ program midas_genCoeff
   use obsDiagFiles_mod
 
   implicit none
-
-  integer, external :: exdb,exfin,fnom,fclos
-  integer :: istamp
 
   type(struct_obs),         target :: obsSpaceData
   type(struct_columnData),  target :: columnTrlOnAnlIncLev
@@ -125,8 +122,6 @@ program midas_genCoeff
   character(len=48), parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                   varMode        = 'analysis'
 
-  istamp = exdb('GENCOEFF','DEBUT','NON')
-
   call ver_printNameAndVersion('genCoeff','Bias Correction Coefficient Computation')
 
   ! MPI initialization
@@ -139,10 +134,10 @@ program midas_genCoeff
 
   ! Read the namelists
   call utl_readNml()
- 
+
   ! 1. Top level setup
   call ram_setup()
- 
+
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
@@ -180,7 +175,7 @@ program midas_genCoeff
 
   ! Compute observation innovations
   call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
-  
+
   call rti_tmg_start(110,'--BiasCorrection')
 
   ! Refresh bias correction if requested
@@ -208,17 +203,15 @@ program midas_genCoeff
   ! if requested, dump the thinned predictors and coefficients to sqlite
   call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, fromGenCoeff_opt=.true.)
 
-  ! Deallocate internal bias correction structures 
+  ! Deallocate internal bias correction structures
   call bcs_finalize()
 
   call rti_tmg_stop(110)
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
-  
-  ! 3. Job termination
 
-  istamp = exfin('GENCOEFF','FIN','NON')
+  ! 3. Job termination
 
   call rti_tmg_stop(0)
   call rti_printTime()
@@ -238,7 +231,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: obsColumnMode
 
-    ! Locals:	
+    ! Locals:
     integer :: dateStamp, dateStampFromObs
 
     write(*,*) ''
@@ -251,7 +244,7 @@ contains
     !
     call tim_setup
 
-    !     
+    !
     !- Initialize observation file names and set datestamp from trial file
     !
     call obsf_setup(dateStampFromObs, varMode)
@@ -292,7 +285,7 @@ contains
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
     end if
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile( vco_anl,        & ! OUT

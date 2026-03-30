@@ -305,8 +305,6 @@ module obsSpaceErrorStdDev_mod
     integer :: nLev_M,nLev_T,shift_level,Vcode_anl
     integer :: cvdim
     real(8), allocatable  :: scaleFactor(:)
-    ! external definitions
-    integer, external :: fnom
 
     !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
@@ -1986,8 +1984,6 @@ module obsSpaceErrorStdDev_mod
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
     integer :: ipos, stnidIndex, monthIndex, levIndex, ios, isize, icount
     character(len=20) :: abortText
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Initialization
 

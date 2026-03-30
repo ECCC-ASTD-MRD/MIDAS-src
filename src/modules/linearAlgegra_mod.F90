@@ -9,6 +9,7 @@ module linearAlgebra_mod
   use mkl_service
 #endif
   use runtimeInfo_mod
+  use rmn_fnom
   use utilities_mod
 
   implicit none
@@ -30,8 +31,6 @@ contains
 
 #if MKL_SUPPORT
     integer :: nulnam, ierr
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Namelist variables for 'namMKL'
     logical :: oneThreadMKL ! choose to use only 1 thread for MKL subroutines

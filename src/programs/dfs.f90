@@ -154,6 +154,7 @@ program midas_dfs
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use midasMpi_mod
   use version_mod
@@ -186,8 +187,7 @@ program midas_dfs
 
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos
-  integer :: ierr, istamp, obsIndex
+  integer :: ierr, obsIndex
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -226,8 +226,6 @@ program midas_dfs
   real(8) :: lowResWaterFractionThreshold        ! value for the lowResWaterFraction threshold
 
   NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
-
-  istamp = exdb('dfs', 'DEBUT', 'NON')
 
   call ver_printNameAndVersion('dfs', 'Dfs computation')
 
@@ -346,8 +344,6 @@ program midas_dfs
   call obs_finalize(obsSpaceData)
 
   ! 3. Job termination
-
-  istamp = exfin('dfs', 'FIN', 'NON')
 
   call rti_tmg_stop(0)
   call rti_printTime()

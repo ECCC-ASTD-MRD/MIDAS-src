@@ -7,6 +7,7 @@ module innovation_mod
   !           the subroutine that reads in the gridded high-res background state
   !           from standard files.
   !
+  use rmn_fnom
   use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -72,8 +73,6 @@ contains
     character(len=20) :: nameDimFile
     integer :: ierr, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))

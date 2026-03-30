@@ -27,9 +27,6 @@ module oceanObservations_mod
   ! Public functions/subroutines
   public :: oobs_pseudoSST, oobs_pseudoSIC
 
-  ! External functions
-  integer, external :: fnom, fclos
-
   ! mpi topology
   integer :: myLatBeg, myLatEnd
   integer :: myLonBeg, myLonEnd

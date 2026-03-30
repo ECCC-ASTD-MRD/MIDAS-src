@@ -5,6 +5,7 @@ module obsSpaceDiag_mod
   !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
+  use rmn_fnom
   use midasMpi_mod
   use codePrecision_mod
   use bufr_mod
@@ -239,8 +240,6 @@ contains
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
     character(len=6)   :: elementStr
     character(len=10)  :: dateStr
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (numFamily == 0) then
       write(*,*) 'osd_calcInflation: No families configured in ''NAMOSD'': No inflation computed'
@@ -1562,7 +1561,6 @@ contains
     character(len=256), optional, intent(in)    :: label_opt
 
     ! Locals:
-    integer, external :: fclos
     real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
     real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
     real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0

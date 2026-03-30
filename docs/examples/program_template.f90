@@ -96,7 +96,7 @@ program main_midasprogramtemplate
   !      calculate date-time stamp for postproc.ftn
   idate = ndate/100
   itime = (ndate-idate*100)*1000000
-  ierr = newdate(nstamp, idate, itime, 3)
+  nstamp = tim_yyyymmddhhToDatestamp(idate, itime)
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',ndate,' stamp= ',nstamp
 

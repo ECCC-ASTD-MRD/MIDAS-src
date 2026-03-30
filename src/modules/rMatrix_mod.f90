@@ -5,6 +5,7 @@ module rMatrix_mod
   !:Purpose:  Module to handle non-diagonal observation-error covariance
   !           matrices for assimilation of radiances.
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use midasMpi_mod
   use rttovInterfaces_mod
@@ -124,7 +125,6 @@ contains
 
     ! Locals:
     integer :: i, j, iu, ierr, count, ich, nchn, nch
-    integer, external :: fnom, fclos
     real(8) :: x
     integer, allocatable :: foundChanIndex(:)
 
@@ -794,7 +794,6 @@ contains
     integer :: sensorIndex
     character (len=64) :: filename
     integer :: err, iunit, numChan, chanIndex1, chanIndex2
-    integer, external :: fnom, fclos
 
     SENSOR: do sensorIndex = 1, tvs_nsensors
       if (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSOR

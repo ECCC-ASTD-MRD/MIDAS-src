@@ -7,6 +7,7 @@ module enkf_mod
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use omp_lib
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
   use runtimeInfo_mod
@@ -116,8 +117,6 @@ module enkf_mod
     real(8), allocatable :: lnp(:)
     real(8), allocatable :: dfs(:)
   end type struct_enkfDFS
-
-  integer, external :: get_max_rss
 
 contains
 
@@ -3451,8 +3450,6 @@ contains
     character(len=50)   :: outfilename
     integer             :: memberIndex
     integer             :: funit, ierr
-    ! external definitions
-    integer, external :: fclos
 
     eDim  = 0.0d0
     dof   = 0.0d0

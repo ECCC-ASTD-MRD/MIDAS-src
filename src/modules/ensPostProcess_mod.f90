@@ -5,6 +5,7 @@ module ensPostProcess_mod
   !:Purpose:  Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
   use runtimeInfo_mod
@@ -1511,7 +1512,6 @@ contains
     integer :: memberIndex, memberIndexSubSample, memberIndexFull
     integer :: memberIndexesSubSample(1000), memberIndexesFull(1000)
     integer, allocatable :: dateStampListInc(:)
-    integer, external :: fnom, fclos
 
     numSubSample = 0
 
@@ -1605,7 +1605,6 @@ contains
     real(8), allocatable :: weightArray(:,:), weightArrayEnsMean1(:), weightArrayEnsMean2(:)
     real(8), allocatable :: weightArrayLand(:)
     real(8)              :: weightFound
-    integer, external    :: fnom, fclos
     integer              :: localDateStamp
 
     write(*,*) 'epp_hybridRecentering: RecenterAnlFileName = ', recenterAnlFileName
@@ -1788,7 +1787,6 @@ contains
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
     real(8)                       :: pzSfc(1,1)
     real(8), pointer              :: pressureOrHeight_T(:,:,:), pressureOrHeight_M(:,:,:)
-    integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
     real(8), parameter            :: elapsed = 0.0d0

@@ -5,6 +5,7 @@ module obsOperatorsChem_mod
   !:Purpose:  Observation operators for CH obs family, including nonlinear, tangent-linear
   !           and adjoint versions, and related setup and input routines.
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use earthConstants_mod
   use mathPhysConstants_mod
@@ -526,9 +527,6 @@ module obsOperatorsChem_mod
     real(8) :: genOperOmAStatsFactor(0:oopc_constituentsSize) ! Additional OmAStats normalization factor for oopc_genOper
     integer :: obsdata_maxsize ! Max number of obs associated with ordered obs indices
 
-    ! external definitions
-    integer, external :: fnom, fclos
-
     namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev,   &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
                        modelName,operatorSubType,storeOperators, &
@@ -595,8 +593,6 @@ module obsOperatorsChem_mod
     integer :: ierr, jlev, jelm, nulstat, ios, isize, icount
     logical :: LnewExists,newread
     character (len=128) :: ligne
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Initialization
 
@@ -994,8 +990,6 @@ module obsOperatorsChem_mod
     integer :: ierr, jlev, jelm, nulstat, ios, isize, icount, iend
     logical :: LnewExists,newread
     character (len=128) :: ligne
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Initialization
 
@@ -1546,7 +1540,6 @@ module obsOperatorsChem_mod
     ! Locals:
     real(8) :: zomp,zinc,zoer,zhbht
     integer :: kmode ! Mode of observation operator
-    integer, external :: fclos
     integer :: headerIndex,bodyIndex,bodyIndex_start,bodyIndex_end
     integer :: icodtyp,obslevIndex,nobslev,varno,maxnumHeaders,headerCount
     integer :: destObsColumn

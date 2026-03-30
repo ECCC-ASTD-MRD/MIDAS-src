@@ -2408,8 +2408,6 @@ CONTAINS
     integer  :: ip1, ip2, ip3
     character(len=1) :: grtyp
     character(len=12) :: etiket
-    ! external definitions
-    integer, external :: fnom, fclos
 
     call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
 

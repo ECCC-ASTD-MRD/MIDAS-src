@@ -56,7 +56,6 @@ contains
     character(len=9) :: clstnid
     integer, parameter :: sup(1) = (/0/)
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: mrbhdr, mrfget
 
     !

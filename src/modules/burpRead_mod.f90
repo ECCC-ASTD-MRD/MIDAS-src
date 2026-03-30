@@ -6072,12 +6072,13 @@ contains
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = MPC_missingValue_R4
-    integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
     logical                     :: resumeReport, cleanLevels, checkBlock, cleanLevelsCH
     character(len=2)            :: familyTypesToDo(8) = (/'AI','SW','TO','SC','GP','UA','SF','CH'/)
     character(len=9)            :: stnid
     logical                     :: debug = .false.
+    ! external definitions
+    integer, external           :: mrfbfl
 
     write(*,*)
     write(*,*) 'brpr_burpClean: starting'

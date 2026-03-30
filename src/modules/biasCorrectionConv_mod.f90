@@ -4,6 +4,7 @@ MODULE biasCorrectionConv_mod
   !
   !:Purpose: Performs bias correction for conventional observations.
   !
+  use rmn_fnom
   use utilities_mod
   use runtimeInfo_mod
   use obsSpaceData_mod
@@ -64,7 +65,6 @@ MODULE biasCorrectionConv_mod
   character(len=8), parameter  :: aiBcFile = "ai_bcors", gpBcFile = "gp_bcors"
   character(len=14), parameter :: uaBcFileStype = "ua_bcors_stype", uaBcFileStn = "ua_bcors_stn"
 
-  integer, external :: fnom, fclos
 
   ! Namelist variables
   logical :: aiBiasActive ! Control if bias correction is applied to aircraft data

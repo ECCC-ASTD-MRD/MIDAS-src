@@ -10,6 +10,7 @@ module obsFiles_mod
   !              2. SQLITE (burp2rdb format)
   !              3. SQLITE (obsDB format)
   !
+  use rmn_fnom
   use midasMpi_mod
   use ramDisk_mod
   use utilities_mod
@@ -415,8 +416,6 @@ contains
     ! Locals:
     integer :: unitHX, ierr, headerIndex
     character(len=10) :: fileNameHX
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*) 'obsf_writeHX: Starting'
 
@@ -448,8 +447,6 @@ contains
     integer :: unitAsciDump, ierr
     character(len=4)    :: myIdxStr, myIdyStr
     character(len=9)    :: myIdStr
-    ! external definitions
-    integer, external :: fnom, fclos
 
     write(*,*) 'obsf_writeAsciDump: Starting'
 

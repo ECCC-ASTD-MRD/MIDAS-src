@@ -537,8 +537,6 @@ contains
     integer :: iunstats, errorID
     character(len=4), allocatable :: varName3d(:)
     character(len=128) :: outfilename
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (.not. vModes%initialized) then
       call rti_abort('vms_writeModes: The vModes structure is not initialized')

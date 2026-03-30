@@ -10,6 +10,7 @@ module runtimeInfo_mod
 #ifdef __INTEL_LLVM_COMPILER
   use ifcore, only: tracebackqq
 #endif
+  use rmn_fnom
 
   implicit none
 
@@ -180,8 +181,6 @@ contains
     ! Locals:
     integer :: iulstatus, ierr
     character(len=22):: clmsg
-    ! external definitions
-    integer, external :: fnom, fclos
 
     clmsg = 'VAR3D_STATUS='//cmsg
     iulstatus = 0

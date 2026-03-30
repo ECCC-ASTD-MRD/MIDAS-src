@@ -4,6 +4,7 @@ module humidityLimits_mod
   !
   !:Purpose: Various manipulations of humidity-related quantities.
   !
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
   use runtimeInfo_mod
@@ -1356,8 +1357,6 @@ contains
     character(len=*), parameter :: fileName = 'rttov_h2o_limits.dat'
     integer :: nulfile, ierr, levIndex
     logical, save :: firstTime = .true.
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Open the file
     nulfile = 0

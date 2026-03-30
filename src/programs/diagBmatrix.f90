@@ -160,9 +160,6 @@ program midas_diagBmatrix
   character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
   character(len=4)             :: varNameALFA(1)
 
-  ! external definitions
-  integer, external :: fnom
-
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev
   integer :: nrandseed               ! initial random seed value

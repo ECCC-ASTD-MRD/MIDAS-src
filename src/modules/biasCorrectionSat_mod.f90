@@ -8,6 +8,7 @@ module biasCorrectionSat_mod
   !          for estimating the bias. Existing bias correction estimates
   !          can also be applied to observations.
   !
+  use rmn_fnom
   use midasMpi_mod
   use linearAlgebra_mod
   use mathPhysConstants_mod
@@ -97,7 +98,6 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  integer, external     :: fnom, fclos
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables

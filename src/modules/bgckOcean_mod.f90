@@ -4,6 +4,7 @@ module bgckOcean_mod
   !
   !:Purpose: to perform ocean data background check.
   !
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
   use runtimeInfo_mod
@@ -350,7 +351,6 @@ module bgckOcean_mod
     character(len=22)    :: fileName
     integer              :: hour, day, monthNumber
     integer              :: yyyy, ndays, minute
-    integer, external    :: fclos
 
     ! Namelist variables: (local)
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath

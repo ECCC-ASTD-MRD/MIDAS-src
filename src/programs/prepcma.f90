@@ -88,6 +88,7 @@ program midas_prepcma
   !=================== ====================== ===========================================
   !
   !
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use obsSpaceData_mod
@@ -135,8 +136,6 @@ program midas_prepcma
   real(8) :: nto_pmax(1) = (/ 0.0 /)
   character(len=codtyp_name_length) :: tovsInstName
   character(len=codtyp_name_length), allocatable :: tovsInstNameList(:)
-  ! external definitions
-  integer, external :: fnom
 
   ! Namelist variables:
   integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst

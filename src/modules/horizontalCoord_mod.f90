@@ -109,7 +109,6 @@ contains
     character(len=12) :: etiket
     character(len=len_trim(templateFile)+len_trim(netcdfFileExtention)) :: fileName
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
 
     ! Define template file where to look for variables:
@@ -717,7 +716,7 @@ contains
     ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco
 
-    ! Locals:
+    ! external definitions
     integer, external :: ezqkdef
 
     write(*,*) 'hco_mpiBcast: starting'
@@ -1094,8 +1093,6 @@ contains
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
     integer, parameter :: sindx = 6
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))

@@ -888,9 +888,6 @@ module varNameList_mod
       character(len=2)   :: typvar
       character(len=VNLmaxvarnamelengthNetCDF) :: varNameNetCDF
 
-      ! external definitions
-      integer, external :: fnom, fclos
-
       unit = 0
       ! Set 'found' to '.false' first so we are sure it is set to a
       ! value in the function.

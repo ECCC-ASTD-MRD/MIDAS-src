@@ -68,8 +68,6 @@ module oceanMask_mod
     integer :: ip1
     logical :: fileExist
     character(len=len_trim(inputFileName)+len_trim(netcdfFileExtention)) :: fileName
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (trim(utl_fileType(inputFileName)) == 'NetCDF') then
       fileName = trim(inputFileName) // netcdfFileExtention

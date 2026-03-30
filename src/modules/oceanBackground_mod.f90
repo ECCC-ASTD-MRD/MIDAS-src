@@ -20,9 +20,6 @@ module oceanBackground_mod
   ! Public functions/subroutines
   public :: obgd_computeSSTrial
 
-  ! External functions
-  integer, external :: fnom, fclos
-
   contains
 
   !----------------------------------------------------------------------------------------

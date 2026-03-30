@@ -131,8 +131,9 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer            :: pgmUsageMb
-    integer(8)         :: fasttmpUsageMb
+    integer    :: pgmUsageMb
+    integer(8) :: fasttmpUsageMb
+    ! external definitions
     integer, external  :: get_max_rss
 
     pgmUsageMb = get_max_rss()/1024

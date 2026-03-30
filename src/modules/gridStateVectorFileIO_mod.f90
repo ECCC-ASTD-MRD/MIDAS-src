@@ -852,7 +852,6 @@ module gridStateVectorFileIO_mod
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile, ignoreDate
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezqkdef, ezdefset
 
     write(*,*) 'gio_readFileFst: starting'
@@ -1400,8 +1399,6 @@ module gridStateVectorFileIO_mod
     type(struct_gsv)          :: stateVector_1step_r4
     logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
     character(len=12) :: trialFileName
-    ! external definitions
-    integer, external :: fnom, fclos
 
     call rti_tmg_start(1,'--ReadTrials')
 

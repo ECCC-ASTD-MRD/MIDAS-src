@@ -97,8 +97,6 @@ contains
     logical  :: FileExist
     type(struct_vco), pointer :: vco_file
     integer  :: ntrunc
-    ! external definitions
-    integer, external :: fnom, fclos
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 

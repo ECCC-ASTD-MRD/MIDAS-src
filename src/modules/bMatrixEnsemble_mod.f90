@@ -8,6 +8,7 @@ module bMatrixEnsemble_mod
   !           limited-area applications.
   !
   use omp_lib
+  use rmn_fnom
   use midasMpi_mod
   use message_mod
   use fileNames_mod
@@ -228,8 +229,6 @@ CONTAINS
     real(8)             :: huMinValue                             ! minimum humidity value imposed on ensemble members
     character(len=12)   :: hInterpolationDegree                   ! select degree of horizontal interpolation (if needed)
     character(len=20)   :: transformVarKindCH                     ! name of transform performed on chemistry-related variables in ens.
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,                       &

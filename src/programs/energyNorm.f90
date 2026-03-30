@@ -103,6 +103,7 @@ program midas_energyNorm
   !========================= ====================== =============================================================
   !
   !
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use utilities_mod
@@ -119,23 +120,19 @@ program midas_energyNorm
 
   character(len=256), parameter :: inputFileName  = 'inputFiles'
   character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
-  integer :: istamp,ierr,nulFileOutput
+  integer :: ierr,nulFileOutput
   integer :: fileIndex, numberOfFiles, maxFileLength
   character(len=1024) :: referenceFileName, fileNameHeader, fileNameFormat
   character(len=1024), allocatable :: fileNames(:)
   type(struct_gsv) :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
-  ! external definitions
-  integer, external :: exdb, exfin, fnom, fclos
 
   ! Namelist variables
   logical :: fullStates ! If '.true.', then the files will be considered as full states and the energy norm will be compute with the difference of the state and the reference state (default is ``.true``).
   real(8) :: multiplicativeFactor ! Multiplicative factor to apply to energy norm outputs (default is 1)
 
   namelist /namEnergyNorm/ fullStates, multiplicativeFactor
-
-  istamp = exdb('ENERGYNORM','DEBUT','NON')
 
   call ver_printNameAndVersion('energyNorm','Compute the energy norm of an atmospheric state')
 
@@ -240,7 +237,6 @@ program midas_energyNorm
   !
   !- 3. Job termination
   !
-  istamp = exfin('ENERGYNORM','FIN','NON')
 
   call rti_printTime()
   call rti_tmg_stop(0)

@@ -932,7 +932,6 @@ contains
     real                    :: xLat
     real                    :: xLon
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! STEP 1: CHECK if obsLatitude AND obsLongitude ARE SAME DIMENSION
@@ -1215,7 +1214,6 @@ contains
     real                    :: xLatRad
     real                    :: xLon
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! Allocate space for arrays holding values on mesh grid pts.
@@ -1438,7 +1436,6 @@ contains
     real, allocatable :: wenTyp(:)
     real, allocatable :: lm(:)
     ! external definitions
-    integer, external :: fnom, fclos
     integer, external :: ezQkDef, ezSetOpt, gdllsval
 
     ! Open Wentz surface field if first call

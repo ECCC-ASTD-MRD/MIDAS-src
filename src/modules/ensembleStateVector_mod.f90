@@ -5,6 +5,7 @@ module ensembleStateVector_mod
   !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
+  use rmn_fnom
   use midasMpi_mod
   use ramDisk_mod
   use message_mod
@@ -1818,8 +1819,6 @@ CONTAINS
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, varLevIndex, lon1, lon2, lat1, lat2, numStep, lonIndex, latIndex
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (present(computeSubEnsMeans_opt)) then
       computeSubEnsMeans = computeSubEnsMeans_opt

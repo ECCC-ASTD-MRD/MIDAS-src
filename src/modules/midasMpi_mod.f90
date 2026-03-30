@@ -9,6 +9,7 @@ module midasMpi_mod
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use omp_lib
+  use rmn_fnom
   use rpn_comm
   use linearAlgebra_mod
   use runtimeInfo_mod
@@ -199,8 +200,6 @@ contains
     integer(kind=MPI_ADDRESS_KIND) :: maxTagValue
     integer, allocatable :: allMyidHost(:)
     logical :: flag
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! read main namelist if there is a namelist block NAMMMPI
     call readNml()
@@ -458,8 +457,6 @@ contains
 
     ! Locals:
     integer :: ierr, nulnam
-    ! external definitions
-    integer, external :: fnom, fclos
 
     ! Namelist variables
     namelist /ptopo/ npex, npey

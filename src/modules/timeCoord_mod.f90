@@ -81,9 +81,6 @@ contains
     logical, save :: firstCall = .true.
     integer :: nulnam
 
-    ! external definitions
-    integer, external :: fnom, fclos
-
     ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)
     real(8) :: dstepobsinc   ! time step length for increment and/or B matrix (in hours)
@@ -311,9 +308,6 @@ contains
     character(len=4)  :: nomvar
     character(len=12) :: etiket
     character(len=1)  :: grtyp
-
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (mmpi_myid == 0) then
 

@@ -1121,8 +1121,6 @@ module calcStatsGlb_mod
     real(8) :: bufz(nLevEns_M),bufyz(nj,nLevEns_M),zsp(0:ntrunc,nLevEns_M)
     real(8) :: bufptot(nj,(nLevEns_T+1)*nLevEns_M),spptot(0:ntrunc,(nLevEns_T+1)*nLevEns_M)
     real(8) :: zspptot(nLevEns_T+1,nLevEns_M)
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (mmpi_myid /= 0) return
 
@@ -1683,8 +1681,6 @@ module calcStatsGlb_mod
     logical :: writeBlocks
     integer :: varIndex, offset, nlev
     integer :: varIndex2, offset2, nlev2, variableType
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (mmpi_myid /= 0) return
 
@@ -1917,8 +1913,6 @@ module calcStatsGlb_mod
     integer, allocatable :: dateStampList(:)
     character(len=4) :: nomVarToWrite(1:20)
     character(len=256) :: fname
-    ! external definitions
-    integer, external :: fnom, fclos
 
     numBits = 32
     idatyp = 5
@@ -2054,8 +2048,6 @@ module calcStatsGlb_mod
     integer :: status
     real(8) :: dummy(2,2)
     character(len=256) :: fname
-    ! external definitions
-    integer, external :: fnom, fclos
 
     if (mmpi_myid /= 0) return
 
@@ -2127,8 +2119,6 @@ module calcStatsGlb_mod
     character(len=4) :: nomVarToWrite(nvar)
     character(len=4) :: nomvar3dBal(nvar3d), nomvar2dBal(nvar2d)
     integer          :: varLevOffsetBal(nvar)
-    ! external definitions
-    integer, external :: fnom, fclos
 
     nomvar3dBal(1)='TB'
     nomvar2dBal(1)='PB'
@@ -3262,8 +3252,6 @@ module calcStatsGlb_mod
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
     character(len=12) :: etiket
-    ! external definitions
-    integer, external :: fnom, fclos
 
     etiket=trim(etiket_in)
 

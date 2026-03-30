@@ -8,6 +8,7 @@ module thinning_mod
   !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
+  use rmn_fnom
   use midasMpi_mod
   use message_mod
   use bufr_mod
@@ -783,8 +784,6 @@ contains
     integer :: nulnam, ierr
     ! Namelist variables
     integer :: preThinPercent    ! percentage of obs to keep after pre-thinning
-    ! external definitions
-    integer, external :: fnom, fclos
 
     namelist /thin_preThin/preThinPercent
 

@@ -4,6 +4,7 @@ module obsdbFiles_mod
   !
   !:Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
+  use rmn_fnom
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -90,7 +91,6 @@ contains
 
     ! Locals:
     integer            :: nulfile, ierr
-    integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
     integer            :: elementIndex
 
@@ -144,7 +144,6 @@ contains
 
     ! Locals:
     integer            :: nulfile, ierr
-    integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
     character(len=512), parameter :: obsDbColumnFile = 'obsdbColumnTable.dat'
     character(len=512) :: readLine
