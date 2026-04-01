@@ -12,6 +12,9 @@ VERBOSE=false
 
 ##-- INTERFACE --
 usage() {
+echo "Parse the MIDAS unit tests file tree (or part of) to detect identical files \
+within the same test.  It can also replace them with a symlink to one of them."
+echo
 echo "Usage: $0 [-d ROOT] [-m MAXSIZE] [-n N_THREADS] [-o OUTPUT] [-r -t -h -v]"
 echo "  -d ROOT DIR        Specify the root directory (default: ./)"
 echo "  -m MAXSIZE         Maximum size of files to process (default: 0 - no maximum)"

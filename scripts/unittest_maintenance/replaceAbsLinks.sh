@@ -24,10 +24,10 @@ function promptyn() {
 
 ##-- INTERFACE --
 usage() {
-echo "Find all symlinks in a file tree and identify those for wich the target is absolute."
-echo "Under the assumption that the absolute target path share a branch leaf structure with"
-echo "the root directory and that files are identical, identify how to replace the absolute"
-echo "symlink target absolute path with a local relative path."
+echo "Find all symlinks in a file tree and identify those for which the target is absolute. \
+Under the assumption that the absolute target path share a branch leaf structure with \
+the root directory and that files are identical, identify how to replace the symlink target \
+absolute path with a local relative path."
 echo
 echo "Usage: $0 [-d ROOT] [-s LINK_COMMON_ROOT] [-t TARGET_COMMON_ROOT] [-o OUTPUT] [-r -h]"
 echo "  -d ROOT DIR           Specify the root directory (default: ./)"
