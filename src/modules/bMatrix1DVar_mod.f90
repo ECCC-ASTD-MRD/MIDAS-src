@@ -4,7 +4,6 @@ module bMatrix1DVar_mod
   !
   !:Purpose: contains all 1Dvar B matrices.
   !
-  use rmn_date
   use mathPhysConstants_mod
   use message_mod
   use columnData_mod
@@ -956,7 +955,7 @@ contains
 
     ! Locals:
     integer :: nulmat, ierr
-    integer :: yyyymmdd(2), hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
+    integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
     integer :: globalDumpedIndex, countDumpedOut
     integer :: columnIndex, headerIndex
     integer :: tag, taskIndex, dumpedIndex
@@ -1031,10 +1030,10 @@ contains
         nulmat = 0
         ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
         numstep = size(dateStampList)
-        ierr = newdate(dateStampList(1 + numstep / 2), yyyymmdd, hhmm, -3)
+        call tim_dateStampToYYYYMMDDHH(dateStampList(1 + numstep / 2), yyyymmdd, hhmm)
         countDumpedOut = countDumped
         if (doAveraging) countDumpedOut = 1
-        write(nulmat) yyyymmdd(1) * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
+        write(nulmat) yyyymmdd * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
             vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, numVarLev, countDumpedOut
         write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
         allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, numVarLev, numVarLev))
