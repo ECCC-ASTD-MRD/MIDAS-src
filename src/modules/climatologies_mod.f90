@@ -189,9 +189,6 @@ contains
 
     datestamp = tim_getDateStamp()
     call tim_dateStampToYYYYMMDDHH(datestamp,ijour,itime)
-    if ( ierr < 0 ) then
-      call utl_abort('clm_readFields: Invalid datestamp ' // trim(utl_str(datestamp)))
-    end if
     iyear = ijour/10000
     imonth = MOD(ijour/100,100)
     iday = MOD(ijour,100)

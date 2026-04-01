@@ -622,11 +622,15 @@ contains
 
     ! Locals:
     character(len=8)            :: yyyymmdd
-    integer                     :: imode, ierr, prntdate(2)
+    integer                     :: mode, ierr, prntdate(2)
     logical                     :: verbose = .true.
 
-    imode = -3 ! stamp to printable
-    ierr = newdate(dateStamp, prntdate, printableTime, imode)
+    mode = -3 ! stamp to printable
+    ierr = newdate(dateStamp, prntdate, printableTime, mode)
+    if ( ierr < 0 ) then
+      call utl_abort('tim_dateStampToYYYYMMDDHHPrintable: Invalid datestamp when calling ''newdate'' with mode=-3: ' // trim(utl_str(datestamp)))
+    end if
+
     printableDate = prntdate(1)
     write(yyyymmdd,'(i8)') printableDate
 
@@ -735,13 +739,16 @@ contains
     integer :: currentDateStamp
 
     ! Locals:
-    integer :: imode, ierr
+    integer :: mode, ierr
     integer :: date_array(2)
 
     date_array(:) = date
 
-    imode = 3
-    ierr = newdate(currentDateStamp, date_array, time, imode)
+    mode = 3
+    ierr = newdate(currentDateStamp, date_array, time, mode)
+    if ( ierr < 0 ) then
+      call utl_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(datestamp)))
+    end if
 
   end function tim_yyyymmddhhToDatestampWithDateTime
 
