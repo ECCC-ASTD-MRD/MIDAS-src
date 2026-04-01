@@ -139,7 +139,6 @@ program midas_diagHBHt
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
-  use rmn_date
   use midasMpi_mod
   use version_mod
   use codePrecision_mod
@@ -168,7 +167,6 @@ program midas_diagHBHt
   implicit none
 
   integer :: istamp,exdb,exfin
-  integer :: ierr
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -406,7 +404,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
-    integer :: index_body, local_dimension, jj, dateprnt(2), timeprnt, nrandseed, istat
+    integer :: index_body, local_dimension, jj, dateprnt, timeprnt, nrandseed, istat
     real(8) ,external :: gasdev
 
     !
@@ -440,8 +438,8 @@ contains
     allocate(local_random_vector(cvm_nvadim),stat =istat )
 
     !- Initialize random number generator
-    ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
-    nrandseed=100*dateprnt(1) + int(timeprnt/100.0)
+    call tim_dateStampToYYYYMMDDHH(tim_getDatestamp(), dateprnt, timeprnt)
+    nrandseed=100*dateprnt + int(timeprnt/100.0)
     write(*,*) 'diagHBHt: Random seed set to ',nrandseed
     call rng_setup(nrandseed)
     ! Generate a random vector from N(0,1)
@@ -451,7 +449,7 @@ contains
     call msg_memUsage('midas-diagHBHt')
     !- Extract only the subvector for this processor
     call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
-         random_vector)      ! IN
+                               random_vector)          ! IN
     local_dimension = size(local_random_vector)
     !- Transform to control variables in physical space
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)

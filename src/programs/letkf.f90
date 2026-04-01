@@ -157,7 +157,6 @@ program midas_letkf
   !======================== ============== ==============================================================
   !
   use rmn_fst98
-  use rmn_date
   use midasMpi_mod
   use version_mod
   use mathPhysConstants_mod
@@ -921,14 +920,13 @@ contains
     integer             :: randomSeed
 
     ! Locals:
-    integer :: imode, datePrint(2), timePrint
+    integer :: datePrint, timePrint
 
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     ! Remove the century from date: YYMMDD
-    datePrint(1) = datePrint(1) - 1000000*(datePrint(1)/1000000)
+    datePrint = datePrint - 1000000*(datePrint/1000000)
     ! Add hours to date: YYMMDDHH
-    randomSeed =  datePrint(1)*100 + timePrint/1000000
+    randomSeed =  datePrint*100 + timePrint/1000000
 
   end function getRandomSeedFromDate
 

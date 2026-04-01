@@ -109,7 +109,7 @@ program midas_extractBmatrixFor1Dvar
   character(len=4),allocatable :: varList(:)
   real(8), allocatable :: Bmatrix(:,:)
   ! external definitions
-  integer, external :: fnom, fclos, newdate
+  integer, external :: fnom, fclos
 
   ! namelist variables
   integer :: extractdate               ! date for the B matrix extracted
@@ -159,7 +159,7 @@ program midas_extractBmatrixFor1Dvar
   ! and calculate date-time stamp
   idate = extractdate/100
   itime = (extractdate-idate*100)*1000000
-  ierr = newdate(dateStamp, idate, itime, 3)
+  dateStamp = tim_yyyymmddhhToDatestamp(idate, itime)
   write(datestr,'(i10.10)') extractdate
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',extractdate,' stamp= ',dateStamp

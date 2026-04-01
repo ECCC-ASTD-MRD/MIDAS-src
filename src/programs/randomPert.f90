@@ -135,10 +135,10 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:), fieldInterp(:,:,:)
 
+  integer :: ierr
   integer :: dateStamp, datePrevious, dateStampPrevious
-  integer :: imode, ierr
+  integer :: datePrint, timePrint, randomSeed
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
-  integer :: datePrint(2), timePrint, randomSeed
   integer :: n_grid_point, n_grid_point_glb
 
   integer :: latPerPEa, latPerPEmaxa, myLatBega, myLatEnda
@@ -255,11 +255,10 @@ program midas_randomPert
     end if
   end if
   dateStamp = tim_getDateStamp()
-  imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-  ierr = newdate(dateStamp, datePrint, timePrint, imode)
-  write(dateString, '(I10)') datePrint(1)*100 + timePrint/1000000
+  call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
+  write(dateString, '(I10)') datePrint*100 + timePrint/1000000
   if( mmpi_myid == 0 ) then
-    write(*,*) ' date= ', datePrint(1), ' time= ', timePrint, ' stamp= ', dateStamp
+    write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
     write(*,*) ' dateString = ', dateString
   end if
 
@@ -326,12 +325,11 @@ program midas_randomPert
     if (dateStamp == -1) then
       call utl_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
     end if
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint/1000000
-    datePrint(1) =  datePrint(1)*100 + timePrint
+    datePrint =  datePrint*100 + timePrint
     ! Remove the century, keeping 2 digits of the year
-    randomSeed = datePrint(1) - 100000000*(datePrint(1)/100000000)
+    randomSeed = datePrint - 100000000*(datePrint/100000000)
   else
     ! Otherwise, use value from namelist
     randomSeed = seed
@@ -587,9 +585,8 @@ program midas_randomPert
 
     ! determine dateStamp of previous date
     call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
-    datePrevious =  datePrint(1)*100 + timePrint/1000000
+    call tim_dateStampToYYYYMMDDHH(dateStampPrevious, datePrint, timePrint)
+    datePrevious =  datePrint*100 + timePrint/1000000
     write(datePreviousString, '(I10)') datePrevious
     write(*,*) 'midas-randomPert: previous date, stamp = ', datePrevious, dateStampPrevious
 
