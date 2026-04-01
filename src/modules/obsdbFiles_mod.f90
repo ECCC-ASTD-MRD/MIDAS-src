@@ -4,7 +4,6 @@ module obsdbFiles_mod
   !
   !:Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
-  use rmn_date
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -439,8 +438,7 @@ contains
 
     ! Locals:
     integer,    allocatable :: headDateValues(:), headTimeValues(:)
-    integer                 :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer                 :: validDateRecv_array(2)
+    integer                 :: validTime, validDate, validDateRecv, validTimeRecv
 
     call odbf_setup()
 
@@ -460,10 +458,9 @@ contains
       call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
     end if
 
-    ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
-    imode = 3
-    validDateRecv_array(:) = validDateRecv
-    ier = newdate(dateStamp, validDateRecv_array, validTimeRecv * 1000000, imode)
+    ! printable to stamp, validTime must be multiplied with 1e6 to
+    ! respect the expected time format by 'tim_yyyymmddhhToDatestamp'
+    dateStamp = tim_yyyymmddhhToDatestamp(validDateRecv, validTimeRecv*1000000)
     write(*,*)'odbf_getDateStamp: obsDB files valid date (YYYYMMDD): ', validDateRecv
     write(*,*)'odbf_getDateStamp: obsDB files valid time       (HH): ', validTimeRecv
     write(*,*)'odbf_getDateStamp: obsDB files dateStamp            : ', datestamp

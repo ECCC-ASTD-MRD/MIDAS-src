@@ -7,7 +7,6 @@ module enkf_mod
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use omp_lib
-  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use linearAlgebra_mod
@@ -2034,7 +2033,7 @@ contains
 
     ! Locals:
     integer :: subEnsIndex, subEnsIndex2, memberIndex, memberIndex2
-    integer :: imode, dateStamp, ierr, timePrint, datePrint(2), randomSeed
+    integer :: dateStamp, timePrint, datePrint, randomSeed
     integer :: eigenVectorColumnIndex, memberIndexInModEns
     integer, allocatable, save :: randomMemberIndexArray(:)
     logical, save :: firstCall = .true.
@@ -2063,13 +2062,12 @@ contains
       end if
     else
       ! compute random seed from the date for randomly forming subensembles
-      imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
       dateStamp = tim_getDateStamp()
-      ierr = newdate(dateStamp, datePrint, timePrint, imode)
+      call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
       timePrint = timePrint/1000000
-      datePrint(1) = datePrint(1)*100 + timePrint
+      datePrint = datePrint*100 + timePrint
       ! Remove the century, keeping 2 digits of the year
-      randomSeed = datePrint(1) - 100000000*(datePrint(1)/100000000)
+      randomSeed = datePrint - 100000000*(datePrint/100000000)
       if (firstCall) allocate(randomMemberIndexArray(enkfNML%nEns))
       do memberIndex = 1, enkfNML%nEns
         randomMemberIndexArray(memberIndex) = memberIndex

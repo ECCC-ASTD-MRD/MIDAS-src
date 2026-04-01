@@ -5,7 +5,6 @@ module ensPostProcess_mod
   !:Purpose:  Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
-  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
@@ -58,7 +57,7 @@ contains
     logical, optional, intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
-    integer                   :: ierr, nEns, dateStamp, datePrint, datePrint_array(2), timePrint, imode, randomSeedRandomPert
+    integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, randomSeedRandomPert
     integer                   :: stepIndex, middleStepIndex
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
@@ -449,10 +448,8 @@ contains
       if (alphaRandomPert > 0.0D0) then
         ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
         if (randomSeed == MPC_missingValue_INT) then
-          imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
           dateStamp = tim_getDateStamp()
-          ierr = newdate(dateStamp, datePrint_array, timePrint, imode)
-          datePrint = datePrint_array(1)
+          call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
           timePrint = timePrint/1000000
           datePrint = datePrint*100 + timePrint
           if (includeYearInSeed) then
@@ -493,10 +490,8 @@ contains
         if (alphaRandomPertSubSample > 0.0D0) then
           ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
           if (randomSeed == MPC_missingValue_INT) then
-            imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
             dateStamp = tim_getDateStamp()
-            ierr = newdate(dateStamp, datePrint_array, timePrint, imode)
-            datePrint = datePrint_array(1)
+            call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
             timePrint = timePrint/1000000
             datePrint =  datePrint*100 + timePrint
             if (includeYearInSeed) then

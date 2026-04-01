@@ -4,7 +4,6 @@ MODULE biasCorrectionConv_mod
   !
   !:Purpose: Performs bias correction for conventional observations.
   !
-  use rmn_date
   use utilities_mod
   use obsSpaceData_mod
   use MathPhysConstants_mod
@@ -584,19 +583,16 @@ CONTAINS
     !
 
     !    lat,  lon  = obsSpaceData header column OBS_LAT, OBS_LON (radians)
-    !    date, time = obsSpaceData header column OBS_DAT (yyyymmdd), OBS_ETM (hhmm)  -or-
-    !       datestamp = tim_getDatestamp()   -- date stamp for central (analysis) time
-    !       ier  = newdate(datestamp,date,time,-3)
-    !       time = time/10000
+    !    date, time = obsSpaceData header column OBS_DAT (yyyymmdd), OBS_ETM (hhmm)
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: date          ! yyyymmdd
-    integer, intent(in)  :: time          ! hhmm
-    real(8), intent(in)  :: lat           ! radians
-    real(8), intent(in)  :: lon           ! radians
-    real(8), intent(out) :: solarElev     ! degrees
+    integer, intent(in)  :: date      ! yyyymmdd
+    integer, intent(in)  :: time      ! hhmm
+    real(8), intent(in)  :: lat       ! radians
+    real(8), intent(in)  :: lon       ! radians
+    real(8), intent(out) :: solarElev ! degrees
 
     ! Locals:
     integer :: days(13) = (/0,31,28,31,30,31,30,31,31,30,31,30,31/)

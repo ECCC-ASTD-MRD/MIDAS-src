@@ -8,7 +8,6 @@ module bMatrixEnsemble_mod
   !           limited-area applications.
   !
   use omp_lib
-  use rmn_date
   use midasMpi_mod
   use message_mod
   use fileNames_mod
@@ -29,6 +28,7 @@ module bMatrixEnsemble_mod
   use lamAnalysisGridTransforms_mod
   use calcHeightAndPressure_mod
   use scaleDecomposition_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -432,10 +432,10 @@ CONTAINS
     real(8), pointer :: HeightSfc(:,:)
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
-    integer        :: levIndex, jvar, ierr
+    integer        :: levIndex, jvar
     integer        :: horizWaveBandIndex, vertWaveBandIndex, stepIndex
     integer        :: hLocalizeIndex, vLocalizeIndex
-    integer        :: dateStampFSO, ensDateStampOfValidity, idate(2), itime
+    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
     logical        :: scaleDecompositionNeeded = .false.
     character(len=32)  :: direction, directionEnsPerts, directionAnlInc
@@ -475,9 +475,9 @@ CONTAINS
           if (bEns(instanceIndex)%ensDateOfValidity == -1) then
             ensDateStampOfValidity = bEns(instanceIndex)%ensDateOfValidity
           else
-            idate(:) = bEns(instanceIndex)%ensDateOfValidity/100
-            itime = (bEns(instanceIndex)%ensDateOfValidity-idate(1)*100)*1000000
-            ierr = newdate(ensDateStampOfValidity, idate, itime, 3)
+            idate = bEns(instanceIndex)%ensDateOfValidity/100
+            itime = (bEns(instanceIndex)%ensDateOfValidity-idate*100)*1000000
+            ensDateStampOfValidity = tim_yyyymmddhhToDatestamp(idate, itime)
           end if
           bEns(instanceIndex)%dateStampList(:) = ensDateStampOfValidity
         else

@@ -4,7 +4,6 @@ module oceanObservations_mod
   !
   !:Purpose: storage for ocean observations related subroutines.
   !
-  use rmn_date
   use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
@@ -64,8 +63,8 @@ module oceanObservations_mod
     real(4), pointer     :: salinity_ptr(:, :, :)
     type(struct_ocm)     :: oceanMask
     integer              :: numberIceCoveredPoints, lonIndex, latIndex, dateStamp, inlandWaterPoints
-    integer              :: datePrint, timePrint, datePrint_array(2), imode, seaWaterPoints
-    integer              :: randomSeed, ierr
+    integer              :: datePrint, timePrint, seaWaterPoints
+    integer              :: randomSeed
     integer, allocatable :: iceDomainIndexesAux(:), iceDomainIndexes(:)
     real(8), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:)
     real(8), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
@@ -177,10 +176,9 @@ module oceanObservations_mod
     dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
     write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp
     ! compute random seed from the date for randomly forming sea-ice subdomain
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint_array, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint / 1000000
-    datePrint =  datePrint_array(1) * 100 + timePrint
+    datePrint =  datePrint * 100 + timePrint
 
     ! Remove the century, keeping 2 digits of the year
     randomSeed = datePrint - 100000000 * (datePrint / 100000000)

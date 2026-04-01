@@ -3,7 +3,6 @@ module var1DIdealize_mod
     !
     ! :Purpose: contains all 1Dvar-related methods.
     !
-    use rmn_date
     use midasMpi_mod
     use codeprecision_mod
     use mathphysconstants_mod
@@ -846,15 +845,13 @@ module var1DIdealize_mod
     integer           :: randomSeed  ! Generated random seed
 
     ! Locals:
-    integer           :: dateStamp, timePrint, datePrint(2)
-    integer           :: ierr, imode
+    integer           :: dateStamp, timePrint, datePrint
 
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     dateStamp = tim_getDateStamp()
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint/1000000
-    datePrint(1) =  datePrint(1)*100 + timePrint
-    randomSeed = (datePrint(1) - 100000000*(datePrint(1)/100000000)) + mmpi_myid
+    datePrint =  datePrint*100 + timePrint
+    randomSeed = (datePrint - 100000000*(datePrint/100000000)) + mmpi_myid
 
   end function var1Di_randomSeed
 

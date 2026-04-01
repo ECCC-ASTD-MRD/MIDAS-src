@@ -5,7 +5,6 @@ module obsSpaceDiag_mod
   !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
-  use rmn_date
   use midasMpi_mod
   use codePrecision_mod
   use bufr_mod
@@ -178,8 +177,7 @@ contains
 
     ! Locals:
     logical :: nmlExists,anlm_mod
-    integer :: ierr
-    integer :: dateprnt(2),timeprnt
+    integer :: dateprnt,timeprnt
 
     if (present(analysisMode_opt)) then
        anlm_mod = analysisMode_opt
@@ -188,8 +186,8 @@ contains
     end if
 
     call osd_setup(nmlExists)
-    ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
-    dateprnt(1)=dateprnt(1)*100+timeprnt/1000000
+    call tim_dateStampToYYYYMMDDHH(tim_getDatestamp(),dateprnt,timeprnt)
+    dateprnt=dateprnt*100+timeprnt/1000000
 
     ! Perform diagnostics based on OmP (and OmA if available)
 
@@ -199,7 +197,7 @@ contains
 
     ! Perform diagnostics from random perturbations
 
-    call osd_calcInflation(obsSpaceData,columnTrlOnAnlIncLev,hco_anl,dateprnt(1))
+    call osd_calcInflation(obsSpaceData,columnTrlOnAnlIncLev,hco_anl,dateprnt)
 
   end subroutine osd_ObsSpaceDiag
 

@@ -8,7 +8,6 @@ module thinning_mod
   !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
-  use rmn_date
   use midasMpi_mod
   use message_mod
   use bufr_mod
@@ -926,7 +925,7 @@ contains
     ! Locals:
     integer :: countObsIn, countObsInMpi, countObsOut
     integer :: countObsInAllMpi(mmpi_nprocs), countObsInMyOffset
-    integer :: numElements, codtyp, obsDateStamp, obsDateStamp_array(2), numStep
+    integer :: numElements, codtyp, obsDateStamp, numStep
     integer :: listIndex, obsIndex, obsIndex2, headerIndex, bodyIndex, procIndex
     integer :: ierr, istat, nulfile, numRowBlacklist
     integer :: elemIndex, rowIndex, colIndex, obsVarNo
@@ -1129,8 +1128,7 @@ contains
       if (numStep > 1) then
         obsDelT(obsIndex) = nint(60.0 * step * (obsStepIndex_r8 - real(obsStepIndex(obsIndex))))
       else
-        obsDateStamp_array(:) = obsDate(obsIndex)
-        ierr = newdate(obsDateStamp, obsDateStamp_array, obsTime(obsIndex) * 10000, 3)
+        obsDateStamp = tim_yyyymmddhhToDatestamp(obsDate(obsIndex), obsTime(obsIndex)*10000)
         ! Difference (in hours) between obs time
         call difdatr(obsDateStamp, tim_getDateStamp(), deltaHours)
         obsDelT(obsIndex) = nint(60.0 * deltaHours)
@@ -6358,9 +6356,9 @@ contains
     character(len=*), intent(in)    :: rarsDetectionCriterium
 
     ! Locals:
-    integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
+    integer :: lenStnId, headerIndex, headerIndex1, headerIndex2
     integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
-    integer :: obsDate(2), obsTime
+    integer :: obsDate, obsTime
     real(8) :: obsLatInRad, obsLonInRad
     real(8) :: dlhours
     integer,     allocatable  :: rarsCriterium(:), rarsCriteriumMpi(:)
@@ -6436,9 +6434,9 @@ contains
       end do
 
       ! Date stamp for each observation
-      obsDate(:) = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      obsTime    = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime*10000+2900, 3)
+      obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
+      obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      obsDateStamp(headerIndex) = tim_yyyymmddhhToDatestamp(obsDate, obsTime*10000+2900)
 
       ! Field of View for each observation
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -8422,7 +8420,7 @@ contains
     integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
     integer              :: channel, channelIndex, numChannels
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
-    integer              :: obsDate(2), obsTime, imode, ierr
+    integer              :: ierr, obsDate, obsTime
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
     logical              :: checkChannel
     logical, save        :: firstCall = .true.
@@ -8635,9 +8633,9 @@ contains
         obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
 
         ! Datestamp of observation
-        obsDate(:) = obs_headElem_i(obsDat, obs_dat, headerIndex)
-        obsTime    = obs_headElem_i(obsDat, obs_etm, headerIndex)
-        ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
+        obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
+        obsTime  = obs_headElem_i(obsDat, obs_etm, headerIndex)
+        obsDateStamp(headerIndex) = tim_yyyymmddhhToDatestamp(obsDate, obsTime*10000)
 
         ! Station ID
         obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
@@ -8645,7 +8643,7 @@ contains
         ! Print some diagnostics
         if (writeDiagnostics) then
           call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                   obsDate(1), obsTime, tim_nstepobs)
+                                   obsDate, obsTime, tim_nstepobs)
           write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                                  channel, headerIndex, obsLonInDeg(headerIndex),  &
                                  obsLatInDeg(headerIndex), obsStepIndex_r8
@@ -8753,10 +8751,9 @@ contains
 
             ! Write some diagnostics
             if (writeDiagnostics) then
-              imode = -3 ! stamp to printable
-              ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
+              call tim_dateStampToYYYYMMDDHH(obsDateStampMpi(headerIndex2), obsDate, obsTime)
               call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                       obsDate(1), obsTime, tim_nstepobs)
+                                       obsDate, obsTime, tim_nstepobs)
               write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
                                      headerIndex, headerIndex2, &
                                      obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
