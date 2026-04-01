@@ -158,7 +158,7 @@ contains
     integer, intent(inout) :: dateStamp
 
     ! Locals:
-    integer    :: lengthValidDateStr, status, imode, ierr, datePrintInt(2)
+    integer    :: lengthValidDateStr, status
     integer(8) :: dateTimePrint, datePrint, timePrint
     character(len=256) :: validDateStr
 
@@ -170,7 +170,6 @@ contains
     end if
     if (status == 1) then
       write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
-      !call utl_abort('tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has not been detected!')
       return
     end if
 
@@ -199,9 +198,7 @@ contains
     end if
 
     ! convert to CMC dateStamp
-    imode = 3 ! printable to stamp
-    datePrintInt(:) = int(datePrint,4)
-    ierr = newdate(datestamp, datePrintInt, int(timePrint,4), imode)
+    datestamp = tim_yyyymmddhhToDatestamp(int(datePrint,4), int(timePrint,4))
 
     write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
 
@@ -219,7 +216,7 @@ contains
     character(len=*), optional, intent(in) :: fileNameForDate_opt
 
     ! Locals:
-    integer :: ierr, imode, prntdate(2), prnttime
+    integer :: prntdate, prnttime
     integer :: dateStampEnvVar
 
     call tim_readNml()
@@ -239,9 +236,8 @@ contains
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
       write(*,*) 'tim_setup: ====================================================='
       dateStamp = dateStampEnvVar
-      imode = -3 ! stamp to printable
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ', prntdate(1)
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
       write(*,*) 'tim_setup: printtime = ', prnttime
       write(*,*) 'tim_setup: datestamp = ', datestamp
     else if (present(fileNameForDate_opt)) then
@@ -249,9 +245,8 @@ contains
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
       write(*,*) 'tim_setup: ====================================================='
       datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
-      imode = -3 ! stamp to printable
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ', prntdate(1)
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
       write(*,*) 'tim_setup: printtime = ', prnttime
       write(*,*) 'tim_setup: datestamp = ', datestamp
     else
@@ -303,7 +298,7 @@ contains
     integer :: nulFile, ierr
     integer, parameter :: maxNumDates = 2000
     integer :: numDates, ikeys(maxNumDates), varIndex
-    integer :: prntdate(2), prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
+    integer :: prntdate, prnttime, windowIndex, windowsPerDay, dateStamp_tmp
     logical :: fileExists, foundWindow, foundVarNameInFile
     real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
@@ -379,8 +374,7 @@ contains
       ! Modify date to ensure that it corresponds to the middle of the window
       ! Note: For this, we have to assume that the date in the file
       !       does NOT correspond to the final time of the window
-      imode = -3 ! stamp to printable, time is HHMMSShh
-      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+      call tim_dateStampToYYYYMMDDHH(datestamp_out, prntdate, prnttime)
       fileHour = real(prnttime,8)/1000000.0d0
       windowsPerDay = nint(24.0d0 / tim_windowsize)
       foundWindow = .false.
@@ -404,17 +398,14 @@ contains
         ! add 24h to dateStamp and recompute prntdate
         dateStamp_tmp = dateStamp_out
         call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
-        imode = -3 ! stamp to printable, only prntdate will be used
-        ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+        call tim_dateStampToYYYYMMDDHH(datestamp_out, prntdate, prnttime)
 
         ! subtract 24h from middleHour
         middleHour = 0.0d0
       end if
 
       prnttime = nint(middleHour) * 1000000
-      imode = 3 ! printable to stamp
-      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
-
+      datestamp_out = tim_yyyymmddhhToDatestamp(prntdate, prnttime)
     end if
 
   end function tim_getDateStampFromFile
@@ -467,7 +458,7 @@ contains
 
     ! Locals:
     integer :: stepIndex
-    integer :: ierr, imode, prntdate(2), prnttime
+    integer :: prntdate, prnttime
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
 
@@ -523,10 +514,9 @@ contains
     end if ! datestamp is specified or not
 
     call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
-    imode = -3
     do stepIndex = 1, numStep
-      ierr = newdate(dateStampList(stepIndex), prntdate, prnttime, imode)
-      write(*,*) stepIndex, dateStampList(stepIndex), prntdate(1), prnttime / 1000000, 'h'
+      call tim_dateStampToYYYYMMDDHH(dateStampList(stepIndex), prntdate, prnttime)
+      write(*,*) stepIndex, dateStampList(stepIndex), prntdate, prnttime / 1000000, 'h'
     end do
     call msg('tim_getStampList', 'Completed')
 
@@ -547,19 +537,14 @@ contains
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
     ! Locals:
-    integer :: istat, imode, obsYYYMMDD_array(2)
     real(8) :: dddt      ! delta time in hours
     integer :: istobs    ! obs CMC date-time stamp
-    integer :: itobs     ! obs time HHMMSShh
     real(8) :: dlhours   ! delta time from synop time
 
     if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
 
     ! Building observation stamp
-    imode = 3 ! printable to stamp
-    itobs = obsHHMM * 10000
-    obsYYYMMDD_array(:) = obsYYYMMDD
-    istat = newdate(istobs, obsYYYMMDD_array, itobs, imode)
+    istobs = tim_yyyymmddhhToDatestamp(obsYYYMMDD, obsHHMM*10000)
 
     ! Difference (in hours) between obs time and reference time
     call difdatr(istobs, referenceDateStamp, dlhours)
@@ -803,7 +788,6 @@ contains
     integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax
     integer(8)              :: dateTimeMin, dateTimeMax, timeMin, timeMax, dateMin, dateMax
     integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
-    integer                 :: ier, imode, dateTime_array(2), validDate_array(2)
     integer                 :: dateStampIn, dateStampOut
 
     call tim_readNml()
@@ -855,30 +839,20 @@ contains
         validTimeMin = nint((windowBoundaries(windowBoundaryMin) + 60.0*tim_windowSize/2.0)/60.0)
         if (validTimeMin >= 24) then
           validTimeMin = 0
-          imode = 3
-          dateTime_array(:) = int(dateMin,4)
-          ier = newdate(dateStampIn, dateTime_array, validTimeMin, imode)
+          dateStampIn = tim_yyyymmddhhToDatestamp(int(dateMin,4), validTimeMin)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
-          imode = -3
-          validDate_array(:) = validDateMin
-          ier = newdate(dateStampOut, validDate_array, validTimeMin, imode)
+          call tim_dateStampToYYYYMMDDHH(dateStampOut, validDateMin, validTimeMin)
           validTimeMin = 0
-          validDateMin = validDate_array(1)
         else
           validDateMin = int(dateMin,4)
         end if
         validTimeMax = nint((windowBoundaries(windowBoundaryMax) + 60.0*tim_windowSize/2.0)/60.0)
         if (validTimeMax >= 24) then
           validTimeMax = 0
-          imode = 3
-          dateTime_array(:) = int(dateMax,4)
-          ier = newdate(dateStampIn, dateTime_array, validTimeMax, imode)
+          dateStampIn = tim_yyyymmddhhToDatestamp(int(dateMax,4), validTimeMax)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
-          imode = -3
-          validDate_array(:) = validDateMax
-          ier = newdate(dateStampOut, validDate_array, validTimeMax, imode)
+          call tim_dateStampToYYYYMMDDHH(dateStampOut, validDateMax, validTimeMax)
           validTimeMax = 0
-          validDateMax = validDate_array(1)
         else
           validDateMax = int(dateMax,4)
         end if
@@ -911,12 +885,10 @@ contains
     integer, intent(out) :: numberHours
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, referenceDate_array(2)
+    integer :: refDateStamp
 
     write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate
-    imode = 3
-    referenceDate_array(:) = referenceDate
-    ierr = newdate(refDateStamp, referenceDate_array, 0, imode)
+    refDateStamp = tim_yyyymmddhhToDatestamp(referenceDate, 0)
     write(*,*) 'tim_getHoursSinceReferenceDate: reference datestamp: ', refDateStamp
 
     ! Difference (in hours) between current date and reference date
@@ -939,19 +911,9 @@ contains
     integer(8), intent(out) :: numberSeconds
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, referenceDate_array(2)
-    real(8) :: numberHours
+    integer :: numberHours
 
-    write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate
-    imode = 3
-    referenceDate_array(:) = referenceDate
-    ierr = newdate(refDateStamp, referenceDate_array, 0, imode)
-    write(*,*) 'tim_getSecondsSinceReferenceDate: reference datestamp: ', refDateStamp
-
-    ! Difference (in hours) between current date and reference date
-    call difdatr(currentDateStamp, refDateStamp, numberHours)
-    write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
-
+    call tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
   end subroutine tim_getSecondsSinceReferenceDate
