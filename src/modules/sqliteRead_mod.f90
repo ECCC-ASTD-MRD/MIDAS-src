@@ -1796,10 +1796,14 @@ module sqliteRead_mod
       write(*,*) 'sqlr_writePseudoOceanIceObs: Observation Family: ', obsFamily, &
                  ', number of insertions: ', numberInsertions
 
-      call fSQL_commit(db)
-      call fSQL_close(db, stat)
-
     end if ! write observations
+
+    !--------------------
+    ! Close file (even if empty)
+    !--------------------
+
+    call fSQL_commit(db)
+    call fSQL_close(db, stat)
 
   end subroutine sqlr_writePseudoOceanIceObs
 
