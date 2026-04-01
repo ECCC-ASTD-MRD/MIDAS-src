@@ -5,14 +5,13 @@ module utilities_mod
   !:Purpose: A place to collect numerous simple utility routines.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  use rmn_date
   use omp_lib
   use netcdf
+  use rmn_date
   use rmn_fst98
   use clibInterfaces_mod
   use randomNumber_mod
   use mathPhysConstants_mod
-  use omp_lib
 
   implicit none
   save
