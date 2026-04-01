@@ -96,7 +96,6 @@ program midas_calcStats
 
   character(len=256), parameter :: enspathname = 'ensemble'
 
-  integer            :: ierr
   character(len=256) :: ensFileName
   character(len=4), pointer :: anlVar(:)
 
@@ -113,7 +112,6 @@ program midas_calcStats
   !
   !- 1.  Initilization
   !
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI and TMG
   call mmpi_initialize

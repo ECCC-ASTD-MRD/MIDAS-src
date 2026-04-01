@@ -184,7 +184,6 @@ program midas_diagBmatrix
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
   call utl_printTime()
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Read the namelists
   call utl_readNml()

@@ -191,8 +191,6 @@ program midas_randomPert
   call msg_memUsage('midas-randomPert')
   call utl_printTime()
 
-  ierr = fstopc('MSGLVL','ERRORS',0)
-
   ! Read the namelists
   call utl_readNml()
 

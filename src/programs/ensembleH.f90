@@ -145,7 +145,6 @@ program midas_ensembleH
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  integer :: ierr
   integer :: memberIndex, dateStampFromObs
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
@@ -176,9 +175,6 @@ program midas_ensembleH
   call utl_tmg_start(0,'Main')
   call msg_memUsage('midas-ensembleH')
   call utl_printTime()
-
-  ! Avoid printing lots of stuff to listing for std file I/O
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Read the namelists
   call utl_readNml()

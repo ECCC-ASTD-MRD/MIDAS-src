@@ -47,19 +47,21 @@ fi
 echo load_env.dot >> localFilesNotToErase
 
 cat >> load_env.dot <<EOF
-
 export AFSISIO=/home/smco502
 export CMCCONST=/home/smco502/datafiles/constants
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
+export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 
 export SEQ_NPEX=${SEQ_NPEX}
 export SEQ_NPEY=${SEQ_NPEY}
 
-export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 EOF
 
+for app_variable in $(env | grep '^APP_'); do
+    echo "export ${app_variable}" >> load_env.dot
+done
 echo                    >> load_env.dot
 ## for non-interactive use, we want to unset the 'set -x' done in the job
 echo "tty -s || set +x" >> load_env.dot

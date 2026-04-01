@@ -261,9 +261,6 @@ program midas_letkf
 
   call msg_memUsage('midas-letkf')
 
-  ! Avoid printing lots of stuff to listing for std file I/O
-  ierr = fstopc('MSGLVL','ERRORS',0)
-
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 

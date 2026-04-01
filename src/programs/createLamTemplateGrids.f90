@@ -59,13 +59,12 @@ program midas_createLamTemplateGrids
   use verticalCoord_mod
   use lamAnalysisGridTransforms_mod
   use lamSpectralTransform_mod
+
   implicit none
 
   type(struct_vco), pointer :: vco_inputFile => null()
   type(struct_hco), pointer :: hco_inputFile => null()
 
-  integer            :: fstopc
-  integer            :: ierr
   integer            :: ni_ext, nj_ext
   integer            :: ni_ext_adjusted, nj_ext_adjusted
   integer            :: grd_ext_x, grd_ext_y
@@ -78,7 +77,6 @@ program midas_createLamTemplateGrids
   !
   !- 1.  Initilization
   !
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Read calling arguments
   call get_inputArguments(inputFileName, grd_ext_x, grd_ext_y)

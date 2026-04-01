@@ -91,7 +91,7 @@ module gridStateVectorFileIO_mod
       write(*,*) 'gio_setup: Problem when getting the environment variable '
     end if
     if (status.eq.1) then
-      write(*,*) 'gio_setup: The environment variable FST_OPTIONS  has not been detected!'
+      write(*,*) 'gio_setup: The environment variable FST_OPTIONS has not been detected!'
       fstOptions = 'FST_OPTIONS=BACKEND=' // outputFormat
     else
       write(*,*)
@@ -2162,7 +2162,7 @@ module gridStateVectorFileIO_mod
     type(fst_file),           intent(inout) :: fstFile     ! object representing the file using the FST24 interface
     type(fst_record),            intent(in) :: fstRecord   ! parameters to be used when writing the field to the file using the FST24 interface
     integer,                     intent(in) :: levIndex    ! index of the level in the structure 'statevector'
-    type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be writtent
+    type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be written
     logical,                     intent(in) :: interpolationToPhysicsGrid ! indicate if we should interpolate to the physics grid before writing
     real(4),          target,    intent(in) :: data(:,:)   ! 2D array which will be written to the file
 
