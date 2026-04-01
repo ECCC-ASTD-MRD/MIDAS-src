@@ -33,6 +33,16 @@ module timeCoord_mod
   integer :: datestamp = 0  ! datestamp is usually the centre of time window
   logical :: initialized = .false.
 
+  ! module interfaces
+  ! -----------------
+
+  ! general interface for tim_dateStampToYYYYMMDDHH
+  interface tim_dateStampToYYYYMMDDHH
+    module procedure tim_dateStampToYYYYMMDDHHWithDaysInMonth
+    module procedure tim_dateStampToYYYYMMDDHHOnly
+    module procedure tim_dateStampToYYYYMMDDHHPrintable
+  end interface tim_dateStampToYYYYMMDDHH
+
 contains
 
   subroutine tim_readNml()
@@ -604,9 +614,9 @@ contains
   end subroutine tim_getStepObsIndex
 
   !----------------------------------------------------------------------------------------
-  ! tim_dateStampToYYYYMMDDHH
+  ! tim_dateStampToYYYYMMDDHHPrintable
   !----------------------------------------------------------------------------------------
-  subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
+  subroutine tim_dateStampToYYYYMMDDHHPrintable(dateStamp, printableDate, printableTime, verbose_opt)
     !
     ! :Purpose: to get day (DD), month (MM), number of days in this month
     !           and year (YYYY) from dateStamp
@@ -614,41 +624,132 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: dateStamp
-    integer,           intent(inout) :: prnttime, dd, mm, ndays, yyyy
-    logical, optional, intent(in)    :: verbose_opt
+    integer,           intent(in)  :: dateStamp
+    integer,           intent(out) :: printableDate, printableTime
+    logical, optional, intent(in)  :: verbose_opt
 
     ! Locals:
     character(len=8)            :: yyyymmdd
-    character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    integer                     :: ndaysM(12)
     integer                     :: imode, ierr, prntdate(2)
-    logical                     :: verbose = .True.
-
-    ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
+    logical                     :: verbose = .true.
 
     imode = -3 ! stamp to printable
-    ierr = newdate(dateStamp, prntdate, prnttime, imode)
-    write(yyyymmdd,'(i8)') prntdate(1)
-    read (yyyymmdd(7:8), '(i2)') dd
-    read (yyyymmdd(5:6), '(i2)') mm
-    read (yyyymmdd(1:4), '(i4)') yyyy
-
-    ! leap year
-    if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
-    ndays = ndaysM(mm)
+    ierr = newdate(dateStamp, prntdate, printableTime, imode)
+    printableDate = prntdate(1)
+    write(yyyymmdd,'(i8)') printableDate
 
     if (present(verbose_opt)) verbose = verbose_opt
 
     if(verbose) then
-      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', prntdate(1)
-      write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
-      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)'
-      write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
-      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', printableDate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', printableTime
     end if
 
-  end subroutine tim_dateStampToYYYYMMDDHH
+  end subroutine tim_dateStampToYYYYMMDDHHPrintable
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateStampToYYYYMMDDHHOnly
+  !----------------------------------------------------------------------------------------
+  subroutine tim_dateStampToYYYYMMDDHHOnly(dateStamp, time, dd, mm, yyyy, verbose_opt)
+    !
+    ! :Purpose: to get day (DD), month (MM), number of days in this month
+    !           and year (YYYY) from dateStamp
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in)  :: dateStamp
+    integer,           intent(out) :: time, dd, mm, yyyy
+    logical, optional, intent(in)  :: verbose_opt
+
+    ! Locals:
+    character(len=8) :: yyyymmdd
+    integer          :: date
+    logical          :: verbose = .True.
+
+    if (present(verbose_opt)) verbose = verbose_opt
+
+    call tim_dateStampToYYYYMMDDHHPrintable(dateStamp, date, time, verbose_opt = .false.)
+    write(yyyymmdd,'(i8)') date
+    read (yyyymmdd(1:4), '(i4)') yyyy
+    read (yyyymmdd(5:6), '(i2)') mm
+    read (yyyymmdd(7:8), '(i2)') dd
+
+    if(verbose) then
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date  = ', yyyymmdd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: year  = ', yyyy
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: month = ', mm
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: day   = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time  = ', time
+    end if
+
+  end subroutine tim_dateStampToYYYYMMDDHHOnly
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateStampToYYYYMMDDHHWithDaysInMonth
+  !----------------------------------------------------------------------------------------
+  subroutine tim_dateStampToYYYYMMDDHHWithDaysInMonth(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
+    !
+    ! :Purpose: to get day (DD), month (MM), number of days in this month
+    !           and year (YYYY) from dateStamp
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in)  :: dateStamp
+    integer,           intent(out) :: prnttime, dd, mm, ndays, yyyy
+    logical, optional, intent(in)  :: verbose_opt
+
+    ! Locals:
+    character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    integer                     :: ndaysM(12) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
+    logical                     :: verbose = .True.
+
+    if (present(verbose_opt)) verbose = verbose_opt
+
+    call tim_dateStampToYYYYMMDDHHOnly(dateStamp, prnttime, dd, mm, yyyy, verbose_opt = .false.)
+
+    ! Leap year for February
+    if ( mm == 2 .and. (mod(yyyy,4)==0 .and. mod(yyyy,100)/=0) ) then
+      ndays = 29
+    else
+      ndays = ndaysM(mm)
+    end if
+
+    if(verbose) then
+      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)'
+    end if
+
+  end subroutine tim_dateStampToYYYYMMDDHHWithDaysInMonth
+
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestamp
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
+    integer, intent(in)  :: month ! month number in [1,12]
+    integer, intent(in)  :: day   ! day number to compute dateStamp
+    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
+
+    ! Result:
+    integer :: currentDateStamp
+
+    ! Locals:
+    integer :: imode, ierr
+    integer :: printableDate(2)
+
+    printableDate(:) = year * 10000 + month * 100 + day
+
+    imode = 3
+    ierr = newdate(currentDateStamp, printableDate, hour, imode)
+
+  end function tim_yyyymmddhhToDatestamp
 
   !----------------------------------------------------------------------------------------
   ! tim_getValidDateTimeFromList
@@ -760,35 +861,6 @@ contains
     end if checkNumDates
 
   end subroutine tim_getValidDateTimeFromList
-
-  !----------------------------------------------------------------------------------------
-  ! tim_yyyymmddhhToDatestamp
-  !----------------------------------------------------------------------------------------
-  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
-    !
-    !:Purpose: compute datestamp from year, month day and hour.
-    !
-    implicit none
-
-    ! Arguments:
-    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
-    integer, intent(in)  :: month ! month number in [1,12]
-    integer, intent(in)  :: day   ! day number to compute dateStamp
-    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
-
-    ! Result:
-    integer :: currentDateStamp
-
-    ! Locals:
-    integer :: imode, ierr
-    integer :: printableDate(2)
-
-    printableDate(:) = year * 10000 + month * 100 + day
-
-    imode = 3
-    ierr = newdate(currentDateStamp, printableDate, hour, imode)
-
-  end function tim_yyyymmddhhToDatestamp
 
   !----------------------------------------------------------------------------------------
   ! tim_getHoursSinceReferenceDate(currentDate, referenceDate)
