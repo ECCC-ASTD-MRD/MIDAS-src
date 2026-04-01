@@ -189,7 +189,7 @@ program midas_ensPostProcess
 
   call utl_tmg_start(0,'Main')
   call msg_memUsage('midas-ensPostProcess')
-  call utl_printTime()
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -335,7 +335,7 @@ program midas_ensPostProcess
   !
   call msg_memUsage('midas-ensPostProcess')
   call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize

@@ -126,7 +126,7 @@ program midas_adjointTest
   !- 1.2 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_printTime()
 
   !- 1.3 read in the namelists
   call utl_readNml()
@@ -232,7 +232,7 @@ program midas_adjointTest
   !
   write(*,*)
   write(*,*) '> midas-adjointTest: Ending'
-  call utl_printTime()
+  call rti_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

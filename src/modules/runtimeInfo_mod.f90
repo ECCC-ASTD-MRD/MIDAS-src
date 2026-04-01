@@ -6,6 +6,7 @@ module runtimeInfo_mod
   !:Purpose: Store and print the MIDAS version number for display in the listing.
   !
   use mpi_f08
+  use omp_lib
 
   implicit none
 
@@ -13,7 +14,7 @@ module runtimeInfo_mod
   private
 
   ! Public routines
-  public :: rti_abort
+  public :: rti_abort, rti_printTime
 
 contains
 
@@ -33,5 +34,76 @@ contains
     call mpi_abort(mpi_comm_world, 1, ierr)
 
   end subroutine rti_abort
+
+  !--------------------------------------------------------------------------
+  ! rti_printTime
+  !--------------------------------------------------------------------------
+  subroutine rti_printTime(reset_opt)
+    !
+    !:Purpose: Print the elapsed time in the listing. Use of the optional
+    !          argument `reset_opt=.true.` resets the accumulator to zero.
+    !
+    implicit none
+
+    ! Arguments:
+    logical, optional, intent(in) :: reset_opt ! Allow user to reset the accumulator
+
+    ! Locals:
+    real(8), save :: startTime = -1.0d0
+    real(8), save :: accumulatedStart = -1.0d0
+    real(8), save :: previousTime = -1.0d0
+    real(8)       :: currentTime
+    logical, save :: firstCall = .true.
+    logical       :: reset
+    character(len=8)  :: dateString
+    character(len=10) :: timeString
+
+    if (present(reset_opt)) then
+      reset = reset_opt
+    else
+      reset = .false.
+    end if
+
+    currentTime = omp_get_wtime()
+
+    if (startTime < 0.0d0) then
+      startTime = currentTime
+    end if
+
+    if (previousTime < 0.0d0) then
+      previousTime = currentTime
+    end if
+
+    if (accumulatedStart < 0.0d0 .or. reset) then
+      accumulatedStart = currentTime
+    end if
+
+    ! Also get the actual date and time
+    call date_and_time(dateString, timeString)
+
+    if (firstCall) then
+      write(*,'(A,A)') &
+           ' rti_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+           'First call, counters initialized'
+    end if
+
+    if (reset .and. .not.firstCall) then
+      write(*,'(A,A)') &
+           ' rti_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+           'Accumulator reset'
+    end if
+
+    if (.not. firstCall) then
+      write(*,'(A,A,f10.4,A,A,f10.4,A,A,f10.4,A)') &
+           ' rti_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+                          'deltaT = ', (currentTime - previousTime), ' s, ', &
+                          'accumT = ', (currentTime - accumulatedStart), ' s, ', &
+                          'totalT = ', (currentTime - startTime), ' s'
+    end if
+
+    previousTime = currentTime
+    firstCall = .false.
+
+  end subroutine rti_printTime
 
 end module runtimeInfo_mod

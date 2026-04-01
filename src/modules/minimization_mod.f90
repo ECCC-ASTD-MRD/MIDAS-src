@@ -601,7 +601,7 @@ CONTAINS
        if(mmpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
          call msg_memUsage('simvar')
-         call utl_printTime(reset_opt = (min_nsim==1))
+         call rti_printTime(reset_opt = (min_nsim==1))
        endif
 
        ! note: controlVectorIncrSum_ptr is sum of previous outer-loops

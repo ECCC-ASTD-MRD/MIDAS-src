@@ -533,7 +533,7 @@ contains
     numGridPointWeights = 0
     LEV_LOOP: do levIndex = 1, nLev_weights
       write(*,*) 'Computing ensemble updates for vertical level = ', levIndex
-      call utl_printTime(reset_opt = (levIndex==1))
+      call rti_printTime(reset_opt = (levIndex==1))
 
       ! For extra safety at the cost of possibly some performance we add
       ! a barrier here to avoid an MPI task getting 2 levels ahead of others
@@ -579,7 +579,7 @@ contains
         procAlreadyFinished(:) = .false.
 
         write(*,*) 'Send all assignments'
-        call utl_printTime()
+        call rti_printTime()
 
         ! Loop over all gridpoints where calculations need to be performed
         write(*,*) 'Start of loop over all global grid points where weights computed'
@@ -611,7 +611,7 @@ contains
 
         ! Now that all work is done, we need to inform all workers
         write(*,*) 'Finished all grid points, send *finished* signal to all mpi tasks'
-        call utl_printTime()
+        call rti_printTime()
 
         numFinished = 0
         do procIndex = 2, mmpi_nprocs
@@ -635,7 +635,7 @@ contains
         call mpi_waitAll(numFinished, requestIdRecvFinished(1:numFinished), MPI_STATUSES_IGNORE, ierr)
 
         write(*,*) 'All *finished* signals received and acknowledged'
-        call utl_printTime()
+        call rti_printTime()
 
         call utl_tmg_stop(145)
         call utl_tmg_stop(132)
@@ -655,7 +655,7 @@ contains
             call utl_tmg_start(145,'----CommWeights-signals')
 
             write(*,*) 'Requesting an assignment'
-            call utl_printTime()
+            call rti_printTime()
 
             ! Check if I have not yet reached max number of weight calculations allowed
             if ( (latLonIndex+1) <= myNumLatLonCalcMax) then
@@ -691,7 +691,7 @@ contains
             end if ! check if max allowed calculations not yet reached
 
             write(*,*) 'Received assignment: ', latLonIndexMpiGlobal
-            call utl_printTime()
+            call rti_printTime()
 
             call utl_tmg_stop(145)
             call utl_tmg_stop(132)

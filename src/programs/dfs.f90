@@ -237,7 +237,7 @@ program midas_dfs
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0, 'Main')
-  call utl_printTime()
+  call rti_printTime()
 
   varMode = 'analysis'
 
@@ -350,7 +350,7 @@ program midas_dfs
   istamp = exfin('dfs', 'FIN', 'NON')
 
   call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -378,7 +378,7 @@ contains
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine dfs_setup --'
     write(*,*) '-----------------------------------'
-    call utl_printTime()
+    call rti_printTime()
 
     !
     !- Initialize the Temporal grid and set dateStamp from env variable
@@ -471,7 +471,7 @@ contains
 
     call msg_memUsage('midas-dfs')
     write(*,*) 'dfs_setup: exiting...'
-    call utl_printTime()
+    call rti_printTime()
 
   end subroutine dfs_setup
 
@@ -518,7 +518,7 @@ contains
 
     write(*,*)
     write(*,*) 'Computing HBHT from selected observations start'
-    call utl_printTime()
+    call rti_printTime()
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
@@ -683,7 +683,7 @@ contains
             end if
           end do
           write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
-          call utl_printTime()
+          call rti_printTime()
         end do channelLoop1
 
         headerObs = ''
@@ -815,7 +815,7 @@ contains
               end if
             end do
             write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
-            call utl_printTime()
+            call rti_printTime()
           end do channelLoop2
           dfsCount = dfsCount + 1
 
@@ -1080,7 +1080,7 @@ contains
 
     write(*,*) 'selectChannels: start'
     call msg_memUsage('selectChannels')
-    call utl_printTime()
+    call rti_printTime()
     nChannelsIn = size(R, dim = 1)
 
     if (present(nChannelsOut_opt)) then
@@ -1110,7 +1110,7 @@ contains
       allocate(RSubset(channelIndex1,channelIndex1), HBHtSubset(channelIndex1,channelIndex1))
       numberOfFreeChannels = nChannelsIn - channelIndex1 + 1
       write(*,*) 'selectChannels: step ', channelIndex1
-      call utl_printTime()
+      call rti_printTime()
       do channelIndex2 = 1, numberOfFreeChannels
         tmpOrder(1:channelIndex1-1) = orderedChannelIndexes(1:channelIndex1-1)
         tmpOrder(channelIndex1) = freeIndexList(channelIndex2)

@@ -175,7 +175,7 @@ program midas_ensembleH
 
   call utl_tmg_start(0,'Main')
   call msg_memUsage('midas-ensembleH')
-  call utl_printTime()
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -401,7 +401,7 @@ program midas_ensembleH
   !
   call msg_memUsage('midas-ensembleH')
   call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize

@@ -329,7 +329,7 @@ program midas_var
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_printTime()
 
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
@@ -478,7 +478,7 @@ program midas_var
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     call msg('var','start of outer-loop index='//str(outerLoopIndex))
-    call utl_printTime()
+    call rti_printTime()
 
     ! Impose limits on ALL cloud variables
     call qlim_rttovLimit(stateVectorUpdateHighRes, applyLimitToHumidity_opt=.false.)
@@ -540,7 +540,7 @@ program midas_var
     controlVectorIncr(:) = 0.0d0
     deallocHessian = ( numOuterLoopIterations == 1 )
     isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
-    call utl_printTime()
+    call rti_printTime()
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
@@ -690,7 +690,7 @@ program midas_var
     call utl_writeStatus(clmsg)
   end if
 
-  call utl_printTime()
+  call rti_printTime()
 
   call utl_tmg_stop(0)
 

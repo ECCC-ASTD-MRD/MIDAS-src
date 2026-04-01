@@ -222,7 +222,7 @@ program midas_obsImpact
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_printTime()
 
   if (mmpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
@@ -389,7 +389,7 @@ program midas_obsImpact
     call utl_writeStatus('VAR3D_END')
   endif
 
-  call utl_printTime()
+  call rti_printTime()
   call utl_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
