@@ -43,6 +43,12 @@ module timeCoord_mod
     module procedure tim_dateStampToYYYYMMDDHHPrintable
   end interface tim_dateStampToYYYYMMDDHH
 
+  ! general interface for tim_yyyymmddhhToDatestamp
+  interface tim_yyyymmddhhToDatestamp
+    module procedure tim_yyyymmddhhToDatestampWithyyyymmddhh
+    module procedure tim_yyyymmddhhToDatestampWithDateTime
+  end interface tim_yyyymmddhhToDatestamp
+
 contains
 
   subroutine tim_readNml()
@@ -717,15 +723,46 @@ contains
     end if
 
     if(verbose) then
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', dateStamp
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
       write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)'
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
     end if
 
   end subroutine tim_dateStampToYYYYMMDDHHWithDaysInMonth
 
   !----------------------------------------------------------------------------------------
-  ! tim_yyyymmddhhToDatestamp
+  ! tim_yyyymmddhhToDatestampWithDateTime
   !----------------------------------------------------------------------------------------
-  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
+  function tim_yyyymmddhhToDatestampWithDateTime(date, time) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: date ! date as an integer in format yyyymmdd
+    integer, intent(in)  :: time ! time as an integer in format HHMMSShh
+
+    ! Result:
+    integer :: currentDateStamp
+
+    ! Locals:
+    integer :: imode, ierr
+    integer :: date_array(2)
+
+    date_array(:) = date
+
+    imode = 3
+    ierr = newdate(currentDateStamp, date_array, time, imode)
+
+  end function tim_yyyymmddhhToDatestampWithDateTime
+
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestampWithyyyymmddhh
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestampWithyyyymmddhh(year, month, day, time) result(currentDateStamp)
     !
     !:Purpose: compute datestamp from year, month day and hour.
     !
@@ -735,21 +772,19 @@ contains
     integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
     integer, intent(in)  :: month ! month number in [1,12]
     integer, intent(in)  :: day   ! day number to compute dateStamp
-    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
+    integer, intent(in)  :: time  ! time as an integer in format HHMMSShh
 
     ! Result:
     integer :: currentDateStamp
 
     ! Locals:
-    integer :: imode, ierr
-    integer :: printableDate(2)
+    integer :: date
 
-    printableDate(:) = year * 10000 + month * 100 + day
+    date = year * 10000 + month * 100 + day
 
-    imode = 3
-    ierr = newdate(currentDateStamp, printableDate, hour, imode)
+    currentDateStamp = tim_yyyymmddhhToDatestampWithDateTime(date, time)
 
-  end function tim_yyyymmddhhToDatestamp
+  end function tim_yyyymmddhhToDatestampWithyyyymmddhh
 
   !----------------------------------------------------------------------------------------
   ! tim_getValidDateTimeFromList
