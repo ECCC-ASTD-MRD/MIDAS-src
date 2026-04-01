@@ -3,6 +3,8 @@ program main_midasprogramtemplate
   !
   !:Purpose: Include here a short description of the purpose of the program
 
+  use rmn_fnom
+  use rmn_date
   use midasMpi_mod
   use mathPhysConstants_mod
   use controlVector_mod
@@ -22,7 +24,7 @@ program main_midasprogramtemplate
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
 
-  integer :: fclos,fnom,newdate,nstamp
+  integer :: nstamp
   integer :: ierr,status
   integer :: jmem,i,j,k,nkgdim
   integer :: idate,itime,ndate,nulnam,cvDim_local
