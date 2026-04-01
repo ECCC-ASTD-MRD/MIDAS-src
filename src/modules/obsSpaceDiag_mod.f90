@@ -701,10 +701,10 @@ contains
       return
     else
       ! read namosd namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namosd, iostat=ierr)
       if(ierr /= 0) call rti_abort('osd_setup: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
 
       nmlExists = .true.
     endif

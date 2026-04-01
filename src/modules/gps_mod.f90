@@ -2264,10 +2264,10 @@ module gps_mod
     !
     !   Override with NML values:
     !
-    call utl_tmg_start(181, 'low-level--readNML')
+    call rti_tmg_start(181, 'low-level--readNML')
     read(utl_flnml, nml=NAMGPSRO, iostat=ierr)
     if (ierr /= 0) call rti_abort('gps_setupro: Error reading namelist')
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     !
     if (hTpMaxEr < 0._dp) hTpMaxEr = hTpMax
     gps_level_RO      = levelGPSRO
@@ -2422,7 +2422,7 @@ module gps_mod
     lTestOp           = .FALSE.
     iZTDOp            = 1
 
-    call utl_tmg_start(181, 'low-level--readNML')
+    call rti_tmg_start(181, 'low-level--readNML')
     read(utl_flnml, nml=NAMGPSGB, iostat=ierr)
     if (ierr /= 0) call rti_abort('gps_setupgb: Error reading namelist')
     gps_gb_dzMin      = dzMin
@@ -2438,7 +2438,7 @@ module gps_mod
     gps_gb_lTestOp    = lTestOp
     gps_gb_iZTDOp     = iZTDOp
     if (mmpi_myid == 0) write(*, nml=NAMGPSGB)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if (l1Obs .and. mmpi_myid == 0) then
       write(*,*)    ' ******************************************'

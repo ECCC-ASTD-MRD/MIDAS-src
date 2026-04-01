@@ -337,10 +337,10 @@ contains
         end if
       else
         ! Read namelist NAMMMPI
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=nammmpi, iostat=ierr)
         if (ierr /= 0) call rti_abort('readNml (ens): Error reading namelist')
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=nammmpi)
 
@@ -467,7 +467,7 @@ contains
     npex=1
     npey=1
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
 
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
@@ -480,7 +480,7 @@ contains
 
     ierr=fclos(nulnam)
 
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
   end subroutine mmpi_getptopo
 
@@ -510,11 +510,11 @@ contains
     end if
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
@@ -535,7 +535,7 @@ contains
 
     call mmpi_bcast(sendRecvValue, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumreal8scalar
 
@@ -565,11 +565,11 @@ contains
     end if
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendRecvVector)
 
@@ -592,7 +592,7 @@ contains
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_1d
 
@@ -614,11 +614,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendRecvVector,1)
     numElements2 = size(sendRecvVector,2)
@@ -635,7 +635,7 @@ contains
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_2d
 
@@ -659,11 +659,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendVector)
 
@@ -679,7 +679,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_1d
 
@@ -703,11 +703,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -724,7 +724,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_2d
 
@@ -748,11 +748,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -770,7 +770,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:,:,:) = sum(all_sendRecvVector(:,:,:,:),4)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
 

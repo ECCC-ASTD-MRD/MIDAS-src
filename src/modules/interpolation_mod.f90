@@ -94,11 +94,11 @@ contains
            //'The default values will be taken.', mpiAll_opt=.false.)
     else
       ! Read namelist NAMINT
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namint,iostat=ierr)
       if (ierr /= 0) call rti_abort('int_readlNml: Error reading namelist NAMINT')
       if (mmpi_myid == 0) write(*,nml=namint)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
 
     call msg('int_readNml', 'END', verb_opt=2)
@@ -1624,7 +1624,7 @@ contains
     ! external definitions
     integer, external :: gdxyfll
 
-    call utl_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
+    call rti_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
     call msg('int_sintCloudToGrid_gsv', 'START', verb_opt=2)
 
     nullify(tree)
@@ -1912,7 +1912,7 @@ contains
     ierr = 0
 
     call msg('int_sintCloudToGrid_gsv', 'END', verb_opt=2)
-    call utl_tmg_stop(176)
+    call rti_tmg_stop(176)
 
   end function int_sintCloudToGrid_gsv
 

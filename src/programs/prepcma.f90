@@ -175,7 +175,7 @@ program midas_prepcma
 
   !- 1.1 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
@@ -203,11 +203,11 @@ program midas_prepcma
   tovsInstNamesWithMaxNumHeaders(:) = 'NOT_DEFINED'
   maxNumHeadersForTovsInst(:) = nto_target
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namprepcma, iostat=ierr)
   if (ierr /= 0) call rti_abort('midas-prepcma: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namprepcma)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- RAM disk usage
   call ram_setup
@@ -215,7 +215,7 @@ program midas_prepcma
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
-  call utl_tmg_start(10,'--Observations')
+  call rti_tmg_start(10,'--Observations')
 
   !- Set up list of elements to be assimilated and flags for rejection (from namelist)
   call filt_setup('prepcma')
@@ -228,9 +228,9 @@ program midas_prepcma
   call obs_initialize( obsSpaceData, mpi_local_opt=obsf_filesSplit() )
 
   !- Read observations
-  call utl_tmg_start(11,'----ReadObsFiles')
+  call rti_tmg_start(11,'----ReadObsFiles')
   call obsf_readFiles( obsSpaceData )
-  call utl_tmg_stop(11)
+  call rti_tmg_stop(11)
 
   numHeader = obs_numheader(obsSpaceData)
   numBody   = obs_numbody(obsSpaceData)
@@ -265,7 +265,7 @@ program midas_prepcma
   !- Call suprep again to 'black list' channels according to 'util' column of stats_tovs
   if (applySatUtil) call filt_suprep(obsSpaceData)
 
-  call utl_tmg_stop(10)
+  call rti_tmg_stop(10)
 
   !- Setup timeCoord module and set dateStamp from env variable
   call tim_setup()
@@ -386,7 +386,7 @@ program midas_prepcma
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call mmpi_finalize

@@ -117,10 +117,10 @@ contains
 
     else
       ! Reading the namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namqlim, iostat=ierr)
       if (ierr /= 0) call rti_abort('humidityLimits_mod: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
 
     end if
     if (mmpi_myid == 0) write(*,nml=namqlim)

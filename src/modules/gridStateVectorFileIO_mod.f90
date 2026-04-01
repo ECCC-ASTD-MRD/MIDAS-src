@@ -146,7 +146,7 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFromFile: START reading file: ', trim(fileName)
     write(*,*) 'gio_readFromFile: file format: ', trim(utl_fileType(trim(fileName)))
 
-    call utl_tmg_start(160,'low-level--gio_readFromFile')
+    call rti_tmg_start(160,'low-level--gio_readFromFile')
 
     if (present(stepIndex_opt)) then
       stepIndex = stepIndex_opt
@@ -261,7 +261,7 @@ module gridStateVectorFileIO_mod
 
     end if
 
-    call utl_tmg_stop(160)
+    call rti_tmg_stop(160)
     call msg_memUsage('gio_readFromFile')
     write(*,*) 'gio_readFromFile: END'
 
@@ -1403,7 +1403,7 @@ module gridStateVectorFileIO_mod
     ! external definitions
     integer, external :: fnom, fclos
 
-    call utl_tmg_start(1,'--ReadTrials')
+    call rti_tmg_start(1,'--ReadTrials')
 
     if ( mmpi_myid == 0 ) then
       write(*,*) ''
@@ -1581,7 +1581,7 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readTrials: Completed'
     write(*,*) ''
 
-    call utl_tmg_stop(1)
+    call rti_tmg_stop(1)
 
   end subroutine gio_readTrials
 
@@ -1640,7 +1640,7 @@ module gridStateVectorFileIO_mod
 
     call msg('gio_writeToFile', 'START')
 
-    call utl_tmg_start(161,'low-level--gio_writeToFile')
+    call rti_tmg_start(161,'low-level--gio_writeToFile')
 
     !
     !- 1.  Since this routine can only work with 'Tiles' distribution when mpi_local = .true.,
@@ -1979,9 +1979,9 @@ module gridStateVectorFileIO_mod
       end if
 
       if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
-        call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
+        call rti_tmg_start(183,'low-level--gio_writeToFile-gather')
         call mmpi_gather(gd_send_r4, gd_recv_r4)
-        call utl_tmg_stop(183)
+        call rti_tmg_stop(183)
       else
         ! just copy when either nprocs is 1 or data is global
         gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -2136,7 +2136,7 @@ module gridStateVectorFileIO_mod
       call gsv_deallocate(statevector_tiles)
     end if
 
-    call utl_tmg_stop(161)
+    call rti_tmg_stop(161)
     call msg('gio_writeToFile', 'Completed')
 
   end subroutine gio_writeToFile
@@ -2704,10 +2704,10 @@ module gridStateVectorFileIO_mod
         end if
       else
         ! Read namelist NAMSTIO
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namstio, iostat=ierr)
         if (ierr /= 0) call rti_abort('readNml (gio): Error reading namelist')
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=namstio)
 
@@ -2767,7 +2767,7 @@ module gridStateVectorFileIO_mod
 
     call msg('gio_writeToFileNetCDF', 'START')
 
-    call utl_tmg_start(182,'low-level--gsv_writeToFileNetCDF')
+    call rti_tmg_start(182,'low-level--gsv_writeToFileNetCDF')
 
     call readNml()
 
@@ -3038,7 +3038,7 @@ module gridStateVectorFileIO_mod
       call gsv_deallocate(stateVector_tiles)
     end if
 
-    call utl_tmg_stop(182)
+    call rti_tmg_stop(182)
     call msg('gio_writeToFileNetCDF', 'Completed')
 
   end subroutine gio_writeToFileNetCDF

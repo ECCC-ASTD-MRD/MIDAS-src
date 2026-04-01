@@ -182,7 +182,7 @@ program midas_diagBmatrix
   ! MPI, tmg initialization
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -203,11 +203,11 @@ program midas_diagBmatrix
   writePsiChiStddev = .false.
 
   ! Read the parameters from NAMDIAG
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namdiag, iostat=ierr)
   if(ierr.ne.0) call rti_abort('midas-diagBmatrix: Error reading namelist')
   write(*,nml=namdiag)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   nlevs=0
   do index = 1, size(oneobs_levs)
@@ -798,7 +798,7 @@ program midas_diagBmatrix
   call msg_memUsage('midas-diagBmatrix')
 
   ! MPI, tmg finalize
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize

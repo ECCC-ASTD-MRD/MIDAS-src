@@ -1177,7 +1177,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d'
-    call utl_tmg_start(151,'low-level--lst_fft')
+    call rti_tmg_start(151,'low-level--lst_fft')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1249,7 +1249,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
   end subroutine lst_transform1d
 
@@ -1281,7 +1281,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d_kij'
-    call utl_tmg_start(151,'low-level--lst_fft')
+    call rti_tmg_start(151,'low-level--lst_fft')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1353,7 +1353,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
   end subroutine lst_transform1d_kij
 
@@ -1377,7 +1377,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1405,7 +1405,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev
 
@@ -1429,7 +1429,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1468,7 +1468,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev_kij
 
@@ -1492,7 +1492,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do levIndex = lst%myLevBeg, lst%myLevEnd
@@ -1520,7 +1520,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1544,7 +1544,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1583,7 +1583,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1606,7 +1606,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1655,7 +1655,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LatToM
 
@@ -1678,7 +1678,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1727,7 +1727,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LatToM_kij
 
@@ -1750,7 +1750,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1799,7 +1799,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat
 
@@ -1822,7 +1822,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1871,7 +1871,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -1895,7 +1895,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mmpi_npex-1)
@@ -1933,7 +1933,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_LevToN
 
@@ -1957,7 +1957,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mmpi_npex-1)
@@ -1995,7 +1995,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_LevToN_kij
 
@@ -2019,7 +2019,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -2062,7 +2062,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_NToLev
 
@@ -2086,7 +2086,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -2129,7 +2129,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_NToLev_kij
 

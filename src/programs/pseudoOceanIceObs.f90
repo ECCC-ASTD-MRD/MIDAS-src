@@ -161,7 +161,7 @@ program midas_pseudoOceanIceObs
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! 1. Top level setup
@@ -192,7 +192,7 @@ program midas_pseudoOceanIceObs
   istamp = exfin('pseudoOceanIceObs','FIN','NON')
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -231,11 +231,11 @@ program midas_pseudoOceanIceObs
     seaIceBand              = 25.0d0
 
     ! Read the SST namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSSTobs, iostat = ierr)
     if (ierr /= 0) call rti_abort('pseudoOceanIceObs_setup: Error reading SST namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     ! Read the SIC namelist
     call utl_tmg_start(181,'low-level--readNML')

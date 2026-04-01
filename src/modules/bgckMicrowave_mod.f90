@@ -199,11 +199,11 @@ contains
     useSiDiffForAllskyQc                = .false.
     skipTestArr(:)                      = .false.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
     if (ierr /= 0) call rti_abort('mwbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=nambgck)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     mwbg_debug = debug
     mwbg_clwQcThreshold = real(clwQcThreshold,8)
@@ -6530,7 +6530,7 @@ contains
     ! external definitions
     integer, external :: fnom, fclos
 
-    call utl_tmg_start(118,'--BgckMicrowave')
+    call rti_tmg_start(118,'--BgckMicrowave')
     mwDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
@@ -6611,7 +6611,7 @@ contains
     ! STEP 4: Print the statistics in listing file
     call mwbg_qcStats(instName, sensorIndex, tvs_satelliteName(1:tvs_nsensors), .TRUE.)
 
-    call utl_tmg_stop(118)
+    call rti_tmg_stop(118)
 
   end subroutine mwbg_bgCheckMW
 

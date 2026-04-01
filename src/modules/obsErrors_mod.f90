@@ -263,11 +263,11 @@ contains
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = NAMOER, iostat = ierr)
       if (ierr /= 0) call rti_abort('oer_setObsErrors: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namoer)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'oer_setObsErrors: namoer is missing in the namelist. The default value will be taken.'
@@ -1127,11 +1127,11 @@ contains
     namelist /namOceanObsErrors/ numberOceanDatasets, oceanDataParams
 
     if (utl_isNamelistPresent('namOceanObsErrors','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = namOceanObsErrors, iostat = ierr)
       if (ierr /= 0) call rti_abort('oer_readObsErrorsOcean: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml = namOceanObsErrors)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (numberOceanDatasets /= MPC_missingValue_INT) then
         call rti_abort('oer_readObsErrorsOcean: check namOceanObsErrors '// &
                        'namelist section: numberOceanDatasets should be removed')

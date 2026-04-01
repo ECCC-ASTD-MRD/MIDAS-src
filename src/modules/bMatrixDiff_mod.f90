@@ -96,7 +96,7 @@ CONTAINS
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, &
                         homogeneous_std, latIgnoreFraction, fourSeasonsBgstdSST
 
-    call utl_tmg_start(65,'----B_DIFF_Setup')
+    call rti_tmg_start(65,'----B_DIFF_Setup')
     if(mmpi_myid == 0) call msg('bdiff_setup', 'Starting')
     call msg_memUsage('bdiff_setup', mpiAll_opt=.false.)
 
@@ -117,17 +117,17 @@ CONTAINS
         call msg('bdiff_setup', 'The default values will be taken.')
       end if
     else
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = nambdiff, iostat = ierr)
       if (ierr /= 0) call rti_abort('bdiff_setup: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = nambdiff)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
 
     if ( utl_isEqual(sum(scaleFactor(:)),0.0d0) ) then
       if(mmpi_myid == 0) call msg('bdiff_setup', 'scaleFactor=0, skipping rest of setup')
       cvdim_out = 0
-      call utl_tmg_stop(65)
+      call rti_tmg_stop(65)
       return
     end if
 
@@ -184,7 +184,7 @@ CONTAINS
         call msg('bdiff_setup', 'Bdiff matrix not produced.')
         call msg('bdiff_setup', 'END')
       end if
-      call utl_tmg_stop(65)
+      call rti_tmg_stop(65)
       cvdim_out = 0
       return
 
@@ -195,7 +195,7 @@ CONTAINS
     if (trim(bdiff_mode) == 'BackgroundCheck') then
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble)
                        ! that Diff is used
-      call utl_tmg_stop(65)
+      call rti_tmg_stop(65)
       return
     end if
 
@@ -269,7 +269,7 @@ CONTAINS
 
     initialized = .true.
 
-    call utl_tmg_stop(65)
+    call rti_tmg_stop(65)
 
   end subroutine bdiff_setup
 

@@ -112,11 +112,11 @@ module fsoi_mod
     StratoNorm = .false.
 
     ! read in the namelist NAMFSO
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namfso, iostat=ierr)
     if(ierr /= 0) call rti_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if (trim(fsoMode) == 'HFSO' .or. trim(fsoMode) == 'EFSO') then
       if (mmpi_myid == 0) write(*,*) 'fso_ensemble: FSO mode'
@@ -388,7 +388,7 @@ module fsoi_mod
     real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
     real(8),allocatable             :: gradJ(:), vatra(:)
 
-    call utl_tmg_start(90,'--Minimization')
+    call rti_tmg_start(90,'--Minimization')
 
     if (mmpi_myid == 0) write(*,*) 'minimize: starting'
 
@@ -421,9 +421,9 @@ module fsoi_mod
     zxmin = epsilon(zxmin)
     ! initial gradient calculation
     indic = 2
-    call utl_tmg_start(91,'----QuasiNewton')
+    call rti_tmg_start(91,'----QuasiNewton')
     call simvar(indic,nvadim,zhat,zjsp,gradJ)
-    call utl_tmg_stop(91)
+    call rti_tmg_stop(91)
     zdf1 =  rdf1fac * abs(zjsp)
 
     ! print amplitude of initial gradient and cost function value
@@ -436,12 +436,12 @@ module fsoi_mod
     write(*,'(//,10X," Minimization QNA_N1QN3 starts ...",10x,"DXMIN =",G23.16,2X,"DF1 =",G23.16,2X,"EPSG =",G23.16,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax
 
     ! Do the minimization
-    call utl_tmg_start(91,'----QuasiNewton')
+    call rti_tmg_start(91,'----QuasiNewton')
     call qna_n1qn3(simvar, prscal, dcanonb, dcanab, nvadim, zhat,  &
                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
                    itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
                    zspunused)
-    call utl_tmg_stop(91)
+    call rti_tmg_stop(91)
     call fool_optimizer(obsSpaceData)
 
     write(*,'(//,20X,20("*"),2X,20X,"Minimization ended with MODE:",I4,20X,"                Total number of iterations:",I4,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
@@ -451,7 +451,7 @@ module fsoi_mod
     deallocate(vatra)
     deallocate(gradJ)
 
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(90)
 
   end subroutine minimize
 
@@ -604,8 +604,8 @@ module fsoi_mod
     type(struct_gsv)          :: statevector
     type(struct_vco), pointer :: vco_anl
 
-    call utl_tmg_stop(91)
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(91)
+    call rti_tmg_stop(90)
 
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
@@ -630,19 +630,19 @@ module fsoi_mod
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
       call s2c_tl(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-      call utl_tmg_start(10,'--Observations')
-      call utl_tmg_start(18,'----ObsOper_TL')
+      call rti_tmg_start(10,'--Observations')
+      call rti_tmg_start(18,'----ObsOper_TL')
       call oop_Htl(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
 
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
-      call utl_tmg_stop(18)
-      call utl_tmg_stop(10)
+      call rti_tmg_stop(18)
+      call rti_tmg_stop(10)
 
       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
 
       Jobs = 0.d0
-      call utl_tmg_start(90,'--Minimization')
-      call utl_tmg_start(92,'----SumCostFunction')
+      call rti_tmg_start(90,'--Minimization')
+      call rti_tmg_start(92,'----SumCostFunction')
       call cfn_sumJo(obsSpaceData_ptr,Jobs)
       Jtotal = Jb + Jobs
       if (indic == 3) then
@@ -652,20 +652,20 @@ module fsoi_mod
         Jtotal = Jb + Jobs
         if (mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
       end if
-      call utl_tmg_stop(92)
-      call utl_tmg_stop(90)
+      call rti_tmg_stop(92)
+      call rti_tmg_stop(90)
 
-      call utl_tmg_start(10,'--Observations')
+      call rti_tmg_start(10,'--Observations')
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
-      call utl_tmg_stop(10)
+      call rti_tmg_stop(10)
 
       call col_zero(column_ptr)
 
-      call utl_tmg_start(10,'--Observations')
-      call utl_tmg_start(19,'----ObsOper_AD')
+      call rti_tmg_start(10,'--Observations')
+      call rti_tmg_start(19,'----ObsOper_AD')
       call oop_Had(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
-      call utl_tmg_stop(19)
-      call utl_tmg_stop(10)
+      call rti_tmg_stop(19)
+      call rti_tmg_stop(10)
 
       call s2c_ad(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
 
@@ -678,8 +678,8 @@ module fsoi_mod
       end if
     end if
 
-    call utl_tmg_start(90,'--Minimization')
-    call utl_tmg_start(91,'----QuasiNewton')
+    call rti_tmg_start(90,'--Minimization')
+    call rti_tmg_start(91,'----QuasiNewton')
 
     if (mmpi_myid == 0) write(*,*) 'simvar: Finished'
 

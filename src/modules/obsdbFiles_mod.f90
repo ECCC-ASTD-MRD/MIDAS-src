@@ -1603,7 +1603,7 @@ contains
     character(len=*),  intent(in)    :: familyType
     integer,           intent(in)    :: fileIndex
 
-    call utl_tmg_start(14,'----UpdateObsDBfile')
+    call rti_tmg_start(14,'----UpdateObsDBfile')
 
     call odbf_setup()
 
@@ -1629,7 +1629,7 @@ contains
       call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     end if
 
-    call utl_tmg_stop(14)
+    call rti_tmg_stop(14)
 
   end subroutine odbf_updateFile
 
@@ -1692,10 +1692,10 @@ contains
       numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namObsDbMIDASHeaderUpdate, iostat=ierr)
       if ( ierr /= 0 ) call rti_abort('odbf_insertInMidasHeaderTable: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if ( numberUpdateItems /= MPC_missingValue_INT) then
         call rti_abort('odbf_insertInMidasHeaderTable: check namObsDbMIDASHeaderUpdate namelist section: numberUpdateItems should be removed')
       end if
@@ -1919,10 +1919,10 @@ contains
       numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
       if ( ierr /= 0 ) call rti_abort('odbf_insertInMidasBodyTable: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (numberUpdateItems /=  MPC_missingValue_INT) then
         call rti_abort('odbf_insertInMidasBodyTable: check namObsDbMIDASBodyUpdate namelist section: numberUpdateItems should be removed')
       end if
@@ -2264,10 +2264,10 @@ contains
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml , nml=namObsDbClean, iostat=ierr)
       if ( ierr /= 0 ) call rti_abort('obdf_clean: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     if ( mmpi_myid == 0 ) write(*, nml=namObsDbClean)
 

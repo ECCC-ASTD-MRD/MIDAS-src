@@ -144,7 +144,7 @@ program midas_energyNorm
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -155,11 +155,11 @@ program midas_energyNorm
   fullStates = .true.
   multiplicativeFactor = 1.0D0
   if (utl_isNamelistPresent('namEnergyNorm', './flnml')) then
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namEnergyNorm, iostat = ierr)
     if (ierr /= 0) call rti_abort('midas-energyNorm: Error reading namelist namEnergyNorm')
     if (mmpi_myid == 0) write(*,nml = namEnergyNorm)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
   else
     write(*,*)
     write(*,*) 'midas-energyNorm: Namelist block namEnergyNorm is missing in the namelist.'
@@ -243,7 +243,7 @@ program midas_energyNorm
   istamp = exfin('ENERGYNORM','FIN','NON')
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -418,9 +418,9 @@ contains
                       hInterpolateDegree_opt='LINEAR',              &
                       beSilent_opt=.false.)
 
-    call utl_tmg_start(1,'--ReadingStateVectorRef')
+    call rti_tmg_start(1,'--ReadingStateVectorRef')
     call gio_readFromFile(stateVector, inputFileName, etiket_in=' ', typvar_in=' ')
-    call utl_tmg_stop(1)
+    call rti_tmg_stop(1)
     call msg_memUsage('midas-energyNorm')
 
   end subroutine initializeReferenceState
@@ -469,9 +469,9 @@ contains
 
     call msg_memUsage('midas-energyNorm')
 
-    call utl_tmg_start(2,'--ReadingStateVector')
+    call rti_tmg_start(2,'--ReadingStateVector')
     call gio_readFromFile(stateVector, fileName, etiket_in=' ', typvar_in=' ')
-    call utl_tmg_stop(2)
+    call rti_tmg_stop(2)
     call msg_memUsage('midas-energyNorm')
 
     ! If 'fullState' is true then we must compute the difference
@@ -481,18 +481,18 @@ contains
     if ( fullState ) then
       ! compute the difference between the state vector and the reference
       ! stateVector = stateVector - stateVectorReference
-      call utl_tmg_start(3,'--computeStateVectorDifference')
+      call rti_tmg_start(3,'--computeStateVectorDifference')
       call gsv_add(stateVectorReference, stateVector, -1.0d0)
-      call utl_tmg_stop(3)
+      call rti_tmg_stop(3)
       call msg_memUsage('midas-energyNorm')
     end if
 
-    call utl_tmg_start(4,'--computeEnergyNorm')
+    call rti_tmg_start(4,'--computeEnergyNorm')
     energyNorm = gvt_energyNorm(stateVector, stateVectorReference, &
                                 latMin=latMin, latMax=latMax, lonMin=lonMin, lonMax=lonMax, &
                                 uvNorm=includeUVNorm, ttNorm=includeTTNorm, p0Norm=includeP0Norm, &
                                 huNorm=includeHUNorm, tgNorm=includeTGNorm, straNorm=straNorm)
-    call utl_tmg_stop(4)
+    call rti_tmg_stop(4)
 
     call msg_memUsage('midas-energyNorm')
 

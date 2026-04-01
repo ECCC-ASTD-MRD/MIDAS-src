@@ -5,7 +5,6 @@ module utilities_mod
   !:Purpose: A place to collect numerous simple utility routines.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  use omp_lib
   use netcdf
   use rmn_fst98
   use clibInterfaces_mod
@@ -26,14 +25,13 @@ module utilities_mod
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
   public :: utl_reAllocate
-  public :: utl_heapsort2d
-  public :: utl_heapsort1d
+  public :: utl_heapsort1d, utl_heapsort2d
   public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt, utl_cosDegrees
-  public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
+  public :: utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus
   public :: utl_varPresentInNetcdfFile
 
@@ -2219,7 +2217,7 @@ contains
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
-    call utl_tmg_start(175,'low-level--utl_copyFile')
+    call rti_tmg_start(175,'low-level--utl_copyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
@@ -2289,7 +2287,7 @@ contains
       end if
     end if
 
-    call utl_tmg_stop(175)
+    call rti_tmg_stop(175)
 
   end function utl_copyFile
 
@@ -2562,54 +2560,6 @@ contains
     deallocate(realRandomArray)
 
   end subroutine utl_randomOrderInt
-
-  !--------------------------------------------------------------------------
-  ! utl_tmg_start
-  !--------------------------------------------------------------------------
-  subroutine utl_tmg_start(blockIndex, blockLabel)
-    !
-    !:Purpose: Wrapper for rpnlib subroutine tmg_start
-    !
-    implicit none
-
-    ! Arguments:
-    integer,          intent(in) :: blockIndex
-    character(len=*), intent(in) :: blockLabel
-
-    ! Locals:
-    integer            :: labelLength
-    integer, parameter :: labelPaddedLength = 40
-    character(len=labelPaddedLength) :: blockLabelPadded
-
-    ! only the first thread does the timing
-    if (omp_get_thread_num() > 0) return
-
-    blockLabelPadded = '........................................'
-    labelLength = min(len_trim(blockLabel), labelPaddedLength)
-    blockLabelPadded(1:labelLength) = blockLabel(1:labelLength)
-
-    call tmg_start(blockIndex, blockLabelPadded)
-
-  end subroutine utl_tmg_start
-
-  !--------------------------------------------------------------------------
-  ! utl_tmg_stop
-  !--------------------------------------------------------------------------
-  subroutine utl_tmg_stop(blockIndex)
-    !
-    !:Purpose: Wrapper for rpnlib subroutine tmg_stop
-    !
-    implicit none
-
-    ! Arguments:
-    integer,          intent(in) :: blockIndex
-
-    ! only the first thread does the timing
-    if (omp_get_thread_num() > 0) return
-
-    call tmg_stop(blockIndex)
-
-  end subroutine utl_tmg_stop
 
   !--------------------------------------------------------------------------
   ! utl_medianIndex

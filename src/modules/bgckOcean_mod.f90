@@ -113,10 +113,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namOceanBGcheck, iostat = ierr)
       if (ierr /= 0) call rti_abort('ocebg_bgCheckSST: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (nmonthsExceptionNH /=0) then
         call rti_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
@@ -169,7 +169,7 @@ module bgckOcean_mod
     call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
 
     if (checkWinds) then
-      call utl_tmg_start(122, '--checkWindsForSST')
+      call rti_tmg_start(122, '--checkWindsForSST')
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
       call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
       call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
@@ -205,7 +205,7 @@ module bgckOcean_mod
         end do
       end do
       call gsv_deallocate(stateVectorAmplFactor)
-      call utl_tmg_stop(122)
+      call rti_tmg_stop(122)
     end if
 
     ! Convert FGE stateVector to column object
@@ -369,10 +369,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
       if (ierr /= 0) call rti_abort('ocebg_bgCheckSeaIce: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       numStation = 0
       do stationIndex = 1, numStationMax
         if (trim(idStation(stationIndex)) == 'null') exit

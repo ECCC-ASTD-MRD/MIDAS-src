@@ -118,7 +118,7 @@ program midas_calcStats
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -137,10 +137,10 @@ program midas_calcStats
   nens              = 96                ! default value
   ip2               = -1                ! default value
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read (utl_flnml, nml=namens)
   write(*, nml=namens)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
@@ -159,10 +159,10 @@ program midas_calcStats
   !- 1.5 Read NAMCONF namelist to find the mode
   mode  = 'BHI'  ! default value
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read (utl_flnml, nml=namconf)
   write(*, nml=namconf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !
   !- 2. Select and launch the appropriate mode
@@ -207,7 +207,7 @@ program midas_calcStats
   !
   !- 4.  MPI, tmg finalize
   !
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

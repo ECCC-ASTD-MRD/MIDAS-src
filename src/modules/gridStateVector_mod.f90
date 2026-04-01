@@ -545,11 +545,11 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namstate,iostat=ierr)
     if (ierr /= 0) call rti_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mmpi_myid.eq.0) write(*,nml=namstate)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
@@ -722,7 +722,7 @@ module gridStateVector_mod
     logical :: beSilent, allocPressure, allocHeight, allocHeightSfc, uuExist, vvExist
     integer :: verbLevel
 
-    call utl_tmg_start(168, 'low-level--gsv_allocate')
+    call rti_tmg_start(168, 'low-level--gsv_allocate')
 
     if (.not. initialized) then
       call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
@@ -1179,7 +1179,7 @@ module gridStateVector_mod
 
     statevector%allocated=.true.
 
-    call utl_tmg_stop(168)
+    call rti_tmg_stop(168)
 
   end subroutine gsv_allocate
 
@@ -3402,7 +3402,7 @@ module gridStateVector_mod
       call rti_abort('gsv_transposeVarsLevsToTiles: out statevector must have Tiles mpi distribution')
     end if
 
-    call utl_tmg_start(164,'low-level--gsv_varsLevsToTiles')
+    call rti_tmg_start(164,'low-level--gsv_varsLevsToTiles')
 
     inKind = statevector_in%dataKind
     outKind = statevector_out%dataKind
@@ -3640,7 +3640,7 @@ module gridStateVector_mod
     statevector_out%deet = statevector_in%deet
     statevector_out%etiket = statevector_in%etiket
 
-    call utl_tmg_stop(164)
+    call rti_tmg_stop(164)
 
   end subroutine gsv_transposeVarsLevsToTiles
 
@@ -3706,9 +3706,9 @@ module gridStateVector_mod
     end if
 
     if (sendrecvKind == 4) then
-      call utl_tmg_start(165,'low-level--gsv_tilesToVarsLevs_r4')
+      call rti_tmg_start(165,'low-level--gsv_tilesToVarsLevs_r4')
     else
-      call utl_tmg_start(166,'low-level--gsv_tilesToVarsLevs_r8')
+      call rti_tmg_start(166,'low-level--gsv_tilesToVarsLevs_r8')
     end if
 
     maxkCount = maxval(statevector_out%allVarLevCount(:))
@@ -3998,9 +3998,9 @@ module gridStateVector_mod
     end if
 
     if (sendrecvKind == 4) then
-      call utl_tmg_stop(165)
+      call rti_tmg_stop(165)
     else
-      call utl_tmg_stop(166)
+      call rti_tmg_stop(166)
     end if
 
   end subroutine gsv_transposeTilesToVarsLevs
@@ -4034,7 +4034,7 @@ module gridStateVector_mod
     real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
     real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
 
-    call utl_tmg_start(167,'low-level--gsv_tilesToVarsLevsAD')
+    call rti_tmg_start(167,'low-level--gsv_tilesToVarsLevsAD')
 
     if (statevector_in%mpi_distribution /= 'VarsLevs') then
       call rti_abort('gsv_transposeTilesToVarsLevsAd: input statevector must have VarsLevs mpi distribution')
@@ -4389,7 +4389,7 @@ module gridStateVector_mod
     ! Copy over the mask, if it exists
     call gsv_copyMask(statevector_in, statevector_out)
 
-    call utl_tmg_stop(167)
+    call rti_tmg_stop(167)
 
   end subroutine gsv_transposeTilesToVarsLevsAd
 
@@ -4561,7 +4561,7 @@ module gridStateVector_mod
     real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
 
-    call utl_tmg_start(162,'low-level--gsv_stepToVarsLevs')
+    call rti_tmg_start(162,'low-level--gsv_stepToVarsLevs')
 
     if (statevector_VarsLevs%mpi_distribution /= 'VarsLevs') then
       call rti_abort('gsv_transposeStepToVarsLevs: output statevector must have VarsLevs mpi distribution')
@@ -4754,7 +4754,7 @@ module gridStateVector_mod
     call msg_memUsage('gsv_transposeStepToVarsLevs')
     call msg('gsv_transposeStepToVarsLevs','END', verb_opt=2)
 
-    call utl_tmg_stop(162)
+    call rti_tmg_stop(162)
 
   end subroutine gsv_transposeStepToVarsLevs
 
@@ -4794,7 +4794,7 @@ module gridStateVector_mod
 
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(163,'low-level--gsv_stepToTiles')
+    call rti_tmg_start(163,'low-level--gsv_stepToTiles')
 
     if (statevector_tiles%mpi_distribution /= 'Tiles') then
       call rti_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
@@ -5088,7 +5088,7 @@ module gridStateVector_mod
 
     call msg('gsv_transposeStepToTiles','END', verb_opt=2)
 
-    call utl_tmg_stop(163)
+    call rti_tmg_stop(163)
 
   end subroutine gsv_transposeStepToTiles
 
@@ -5884,7 +5884,7 @@ module gridStateVector_mod
     real(kdkind)              :: searchRadiusSquared
     real(kdkind)              :: refPosition(3)
 
-    call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
+    call rti_tmg_start(169, 'low-level--gsv_smoothHorizontal')
 
     if (horizontalScale <= 0.0d0) then
       call msg('gsv_smoothHorizontal', 'specified scale <= 0, returning')
@@ -6122,7 +6122,7 @@ module gridStateVector_mod
       call gsv_deallocate(statevector_varsLevs)
     end if
 
-    call utl_tmg_stop(169)
+    call rti_tmg_stop(169)
 
   end subroutine gsv_smoothHorizontal
 

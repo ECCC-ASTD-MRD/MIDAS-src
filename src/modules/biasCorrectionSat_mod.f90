@@ -180,11 +180,11 @@ contains
     !
     ! read in the namelist NAMBIASSAT
     if (utl_isNamelistPresent('nambiassat', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nambiassat, iostat=ierr)
       if (ierr /= 0) call rti_abort('bcs_readConfig: Error reading namelist section nambiassat')
       if (mmpi_myid == 0) write(*,nml=nambiassat)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcs_readconfig: nambiassat is missing in the namelist. The default value will be taken.'

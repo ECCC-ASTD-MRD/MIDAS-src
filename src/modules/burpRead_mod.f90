@@ -1746,7 +1746,7 @@ contains
       beSilent = .false.
     end if
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
     SELECT CASE(trim(NML_SECTION))
@@ -1822,7 +1822,7 @@ contains
         call rti_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
       END SELECT
 
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
   contains
 
@@ -5692,11 +5692,11 @@ contains
     if ( familyType == "TO" ) then
       if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
         ! read the namelist
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=NAMADDTOBURP, iostat=error)
         if ( error /= 0 ) call rti_abort('brpr_addElementsToBurp: Error reading namelist')
         write(*,nml=NAMADDTOBURP)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       else
         write(*,*)
         write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'

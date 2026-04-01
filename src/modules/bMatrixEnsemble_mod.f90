@@ -243,7 +243,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
-    call utl_tmg_start(54,'----B_ENS_Setup')
+    call rti_tmg_start(54,'----B_ENS_Setup')
 
     !- Set the module mode
     if ( present(mode_opt) ) then
@@ -406,7 +406,7 @@ CONTAINS
     allocate(cvDimPerInstance(nInstance))
     cvDimPerInstance(:) = cvDimStorage(1:nInstance)
 
-    call utl_tmg_stop(54)
+    call rti_tmg_stop(54)
 
   end subroutine ben_setup
 
@@ -1012,14 +1012,14 @@ CONTAINS
         bEns(instanceIndex)%dateStampListAdvectedFields(1) = tim_getDatestamp()
         bEns(instanceIndex)%dateStampListAdvectedFields(2) = bEns(instanceIndex)%dateStampList(bEns(instanceIndex)%numStep)
         delT_hour = bEns(instanceIndex)%fsoLeadTime/real(bEns(instanceIndex)%numStepAdvectFSOFcst-1,8) ! time between winds
-        call utl_tmg_start(55,'------B_ENS_SetupAdvecFSO')
+        call rti_tmg_start(55,'------B_ENS_SetupAdvecFSO')
         call adv_setup( bEns(instanceIndex)%adv_amplitudeFSOFcst,                                                     & ! OUT
                         'fromFirstTimeIndex', bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,               & ! IN
                         bEns(instanceIndex)%numStepAmplitudeFSOFcst, bEns(instanceIndex)%dateStampListAdvectedFields, & ! IN
                         bEns(instanceIndex)%numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst_M,                   & ! IN
                         'MMLevsOnly',                                                                                 & ! IN
                         steeringFlowFilename_opt=trim(bEns(instanceIndex)%ensPathName)//'/forecast_for_advection' )     ! IN
-        call utl_tmg_stop(55)
+        call rti_tmg_stop(55)
         deallocate(advectFactorFSOFcst_M)
       end if
     else
@@ -1049,7 +1049,7 @@ CONTAINS
       call ens_copyEnsMean(bEns(instanceIndex)%ensPerts(1,1), & ! IN
                            statevector_ensMean4D  )             ! OUT
 
-      call utl_tmg_start(56,'------B_ENS_SetupAdvecAnl')
+      call rti_tmg_start(56,'------B_ENS_SetupAdvecAnl')
 
       select case(trim(bEns(instanceIndex)%advectTypeAssimWindow))
       case ('amplitude')
@@ -1115,7 +1115,7 @@ CONTAINS
         call rti_abort('ben_setupOneInstance')
       end select
 
-      call utl_tmg_stop(56)
+      call rti_tmg_stop(56)
 
       deallocate(advectFactorAssimWindow_M)
 
@@ -1853,12 +1853,12 @@ CONTAINS
       do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
 
         ! 2.1 Compute the ensemble amplitudes
-        call utl_tmg_start(60,'------LocSpectral_TL')
+        call rti_tmg_start(60,'------LocSpectral_TL')
         call loc_Lsqrt(bEns(instanceIndex)%locStorage(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                        controlVector_in,                                                     & ! IN
                        ensAmplitude_ptr,                                                     & ! OUT
                        amp3dStepIndex)                                                         ! IN
-        call utl_tmg_stop(60)
+        call rti_tmg_stop(60)
 
         ! 2.2 Advect the amplitudes
         if      (bEns(instanceIndex)%advectAmplitudeFSOFcst     .and. useFSOFcst) then
@@ -2016,12 +2016,12 @@ CONTAINS
         end if
 
         ! 2.1 Compute the ensemble amplitudes
-        call utl_tmg_start(64,'------LocSpectral_AD')
+        call rti_tmg_start(64,'------LocSpectral_AD')
         call loc_LsqrtAd(bEns(instanceIndex)%locStorage(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                          ensAmplitude_ptr,                                                     & ! IN
                          controlVector_out,                                                    & ! OUT
                          amp3dStepIndex)                                                         ! IN
-        call utl_tmg_stop(64)
+        call rti_tmg_stop(64)
 
       end do ! Loop on vertical WaveBand
     end do ! Loop on horizontal WaveBand
@@ -2065,7 +2065,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMember'
 
-    call utl_tmg_start(58,'------AddMem_TL')
+    call rti_tmg_start(58,'------AddMem_TL')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2199,7 +2199,7 @@ CONTAINS
 
       end if
 
-      call utl_tmg_start(59,'--------AddMemInner_TL')
+      call rti_tmg_start(59,'--------AddMemInner_TL')
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
@@ -2224,7 +2224,7 @@ CONTAINS
       end do ! latIndex
       !$OMP END PARALLEL DO
 
-      call utl_tmg_stop(59)
+      call rti_tmg_stop(59)
 
       ! compute increment level from amplitude/member level
       if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -2260,7 +2260,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_out2)
 
-    call utl_tmg_stop(58)
+    call rti_tmg_stop(58)
 
   end subroutine addEnsMember
 
@@ -2296,7 +2296,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
 
-    call utl_tmg_start(62,'------AddMem_AD')
+    call rti_tmg_start(62,'------AddMem_AD')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2380,7 +2380,7 @@ CONTAINS
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 
-          if (omp_get_thread_num() == 0) call utl_tmg_start(63,'--------AddMemInner_AD')
+          if (omp_get_thread_num() == 0) call rti_tmg_start(63,'--------AddMemInner_AD')
           ensAmplitude_MT(:,:) = 0.0d0
           do stepIndex = stepBeg, stepEnd
             stepIndex2 = stepIndex - stepBeg + 1
@@ -2396,7 +2396,7 @@ CONTAINS
                 increment_in2(stepIndex2,lonIndex,latIndex) * dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
-          if (omp_get_thread_num() == 0) call utl_tmg_stop(63)
+          if (omp_get_thread_num() == 0) call rti_tmg_stop(63)
 
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
@@ -2485,7 +2485,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_in2)
 
-    call utl_tmg_stop(62)
+    call rti_tmg_stop(62)
 
   end subroutine addEnsMemberAd
 

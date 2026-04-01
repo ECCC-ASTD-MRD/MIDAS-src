@@ -283,11 +283,11 @@ module message_mod
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
                 mpiAll_opt=.false., verb_opt=msg_ALWAYS)
     else
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nammsg, iostat=ierr)
       if (ierr /= 0) call rti_abort('msg_readNml: Error reading namelist NAMMSG')
       if (mmpi_myid == 0) write(*,nml=nammsg)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     msg_NML = verbosity
     call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)

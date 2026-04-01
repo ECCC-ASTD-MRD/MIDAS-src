@@ -78,7 +78,7 @@ contains
     write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
     !
     !- Setup de the mode
@@ -121,9 +121,9 @@ contains
     !
     !- Read the observations from files
     !
-    call utl_tmg_start(11,'----ReadObsFiles')
+    call rti_tmg_start(11,'----ReadObsFiles')
     call obsf_readFiles(obsSpaceData)
-    call utl_tmg_stop(11)
+    call rti_tmg_stop(11)
 
     !
     !- Initialize GPS processing
@@ -186,7 +186,7 @@ contains
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine inn_setupobs
 
@@ -226,11 +226,11 @@ contains
     numObsBatches     = 20
 
     if (utl_isNamelistPresent('naminn','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=naminn, iostat=ierr)
       if (ierr /= 0) call rti_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=naminn)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'
@@ -464,7 +464,7 @@ contains
 
     logical, save :: lgpdata = .false.
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
     if (present(beSilent_opt)) then
       beSilent = beSilent_opt
@@ -546,7 +546,7 @@ contains
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
-    call utl_tmg_start(17,'----ObsOper_NL')
+    call rti_tmg_start(17,'----ObsOper_NL')
 
     ! Radiosondes
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
@@ -637,7 +637,7 @@ contains
                                      destObsColumn, analysisMode_opt=analysisMode)
     end if
 
-    call utl_tmg_stop(17)
+    call rti_tmg_stop(17)
 
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
@@ -660,7 +660,7 @@ contains
       write(*,*) '--Done subroutine inn_computeInnovation--'
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine inn_computeInnovation
 

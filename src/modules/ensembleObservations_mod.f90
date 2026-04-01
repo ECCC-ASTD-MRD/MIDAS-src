@@ -156,10 +156,10 @@ CONTAINS
 
     ! read namelist
     if (utl_isNamelistPresent('namensobs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namensobs, iostat=ierr)
       if (ierr /= 0) call rti_abort('eob_init: Error reading namelist namensobs')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do obsfamIndex = 1, ofl_numFamily
         if (trim(simObsFamily(obsfamIndex)) /= '') then
           numSimObsFam = numSimObsFam + 1
@@ -581,8 +581,8 @@ CONTAINS
       call rti_abort('eob_allGather: Cannot be called when firstMember is 0')
     end if
 
-    call utl_tmg_start(10,'--Observations')
-    call utl_tmg_start(24,'----Eob_AllGather')
+    call rti_tmg_start(10,'--Observations')
+    call rti_tmg_start(24,'----Eob_AllGather')
 
     ! refresh assimilation flag and then clean ensObs before communicating and writing
     call eob_setAssFlag(ensObs)
@@ -785,8 +785,8 @@ CONTAINS
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
-    call utl_tmg_stop(24)
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(24)
+    call rti_tmg_stop(10)
 
     write(*,*) 'eob_allGather: finished'
     call msg_memUsage('eob_allGather')

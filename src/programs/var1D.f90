@@ -201,7 +201,7 @@ program midas_var1D
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   write(*,*)
@@ -238,9 +238,9 @@ program midas_var1D
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=NAM1DVAR, iostat=ierr)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if(ierr.ne.0) call rti_abort('midas-var1D: Error reading namelist')
   end if
 
@@ -437,7 +437,7 @@ program midas_var1D
   istamp = exfin('VAR1D','FIN','NON')
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

@@ -542,11 +542,11 @@ module varNameList_mod
         forceSfcOnly(:) = 'XXXX'
 
         if (utl_isNamelistPresent('namvnl','./flnml')) then
-          call utl_tmg_start(181,'low-level--readNML')
+          call rti_tmg_start(181,'low-level--readNML')
           read (utl_flnml, nml = NAMVNL, iostat = ierr)
           if ( ierr /= 0 ) call rti_abort('vnl_varLevelFromVarname: Error reading namelist')
           if ( mmpi_myid == 0 ) write(*,nml=namvnl)
-          call utl_tmg_stop(181)
+          call rti_tmg_stop(181)
         else
           write(*,*)
           write(*,*) 'vnl_varLevelFromVarname: namvnl is missing in the namelist. The default value will be taken.'

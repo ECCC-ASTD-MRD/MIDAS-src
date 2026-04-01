@@ -87,11 +87,11 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_surface', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_surface, iostat = ierr)
       if (ierr /= 0) call rti_abort('thn_thinSurface: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_surface)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
@@ -101,9 +101,9 @@ contains
 
     if (.not. doThinning) return
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSurface
 
@@ -139,11 +139,11 @@ contains
 
     ! Read the namelist for Radiosonde observations (if it exists)
     if (utl_isNamelistPresent('thin_raobs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_raobs, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
@@ -151,9 +151,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, toleranceFactor)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinRaobs
 
@@ -185,11 +185,11 @@ contains
 
     ! Read the namelist for Aircraft observations (if it exists)
     if (utl_isNamelistPresent('thin_aircraft','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_aircraft, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aircraft)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
@@ -197,9 +197,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_aircraft)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinAircraft
 
@@ -233,11 +233,11 @@ contains
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_satwind, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatWinds: Namelist block thin_satwind is missing in the namelist.'
@@ -245,9 +245,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSatWinds
 
@@ -285,11 +285,11 @@ contains
 
     ! Read the namelist for GpsRo observations (if it exists)
     if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_gpsro, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gpsro)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinGpsRo: Namelist block thin_gpsro is missing in the namelist.'
@@ -297,9 +297,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, gpsroVarNo)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinGpsRo
 
@@ -337,11 +337,11 @@ contains
 
     ! Read the namelist for GbGps observations (if it exists)
     if (utl_isNamelistPresent('thin_gbgps','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_gbgps, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
@@ -349,9 +349,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected, rejectNoZTDScore)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinGbGps
 
@@ -383,11 +383,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_aladin','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_aladin, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinAladin: Error reading thin_aladin namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aladin)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAladin: Namelist block thin_aladin is missing in the namelist.'
@@ -396,9 +396,9 @@ contains
     end if
 
     if (keepNthVertical > 0) then
-      call utl_tmg_start(114,'--ObsThinning')
+      call rti_tmg_start(114,'--ObsThinning')
       call thn_keepNthObs(obsdat, 'AL', keepNthVertical)
-      call utl_tmg_stop(114)
+      call rti_tmg_stop(114)
     end if
 
   end subroutine thn_thinAladin
@@ -433,11 +433,11 @@ contains
 
     ! Read the namelist for CSR observations (if it exists)
     if (utl_isNamelistPresent('thin_csr','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_csr, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinCSR: Error reading thin_csr namelist')
       if (mmpi_myid == 0) write(*,nml=thin_csr)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinCSR: Namelist block thin_csr is missing in the namelist.'
@@ -446,9 +446,9 @@ contains
     end if
 
     call msg_memUsage('thn_thinCSR')
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
     call msg_memUsage('thn_thinCSR')
 
   end subroutine thn_thinCSR
@@ -483,11 +483,11 @@ contains
 
     ! Read the namelist for Scat observations (if it exists)
     if (utl_isNamelistPresent('thin_scat','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_scat, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinScat: Error reading thin_scat namelist')
       if (mmpi_myid == 0) write(*,nml=thin_scat)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinScat: Namelist block thin_scat is missing in the namelist.'
@@ -496,9 +496,9 @@ contains
     end if
 
     call msg_memUsage('thn_thinScat')
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
     call msg_memUsage('thn_thinScat')
 
   end subroutine thn_thinScat
@@ -541,11 +541,11 @@ contains
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_tovs, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinTovs: Error reading thin_tovs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
@@ -569,7 +569,7 @@ contains
       end if
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
 
     ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
@@ -620,7 +620,7 @@ contains
     call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('ssmis'), bufr_nbt3)
 
     call msg_memUsage('thn_thinTovs')
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinTovs
 
@@ -657,11 +657,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_hyper','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_hyper, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinHyper: Error reading thin_hyper namelist')
       if (mmpi_myid == 0) write(*,nml=thin_hyper)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
@@ -669,7 +669,7 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_hyper)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('airs'))
@@ -683,7 +683,7 @@ contains
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('crisfsr'))
     call msg_memUsage('thn_thinHyper')
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinHyper
 
@@ -729,11 +729,11 @@ contains
 
     ! Read the namelist for CH family observations (if it exists)
     if (utl_isNamelistPresent('thin_CH','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_CH, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinCH: Error reading thin_CH namelist')
       if (mmpi_myid == 0) write(*,nml=thin_CH)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       if (mmpi_myid == 0) then
         write(*,*)
@@ -747,16 +747,16 @@ contains
       if (trim(stnidList(stnIdIndex)) == '') exit STNIDLOOP
       write(*,*) 'Thinning for StnId ',trim(stnidList(stnIdIndex))
       if (trim(methodList(stnIdIndex)) == 'byDistance') then
-        call utl_tmg_start(114,'--ObsThinning')
+        call rti_tmg_start(114,'--ObsThinning')
         call thn_CHfamByDistance(obsdat, deltemps(stnIdIndex), deldist(stnIdIndex), &
                                  maxSunList(stnIdIndex), stnIdList(stnIdIndex))
-        call utl_tmg_stop(114)
+        call rti_tmg_stop(114)
       else if (trim(methodList(stnIdIndex)) == 'byNthLevel' .and. &
                keepNthVertical(stnIdIndex) > 1) then
-        call utl_tmg_start(114,'--ObsThinning')
+        call rti_tmg_start(114,'--ObsThinning')
         call thn_keepNthObs(obsdat, 'CH', keepNthVertical(stnIdIndex), &
                              stnId_opt = stnIdList(stnIdIndex))
-        call utl_tmg_stop(114)
+        call rti_tmg_stop(114)
       else
         call rti_abort('thn_thinCH: Thinning method not recognized ' // &
                        'or identified for ' //  stnIdList(stnIdIndex))
@@ -1800,7 +1800,7 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namgem, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_radiosonde: Error reading namgem namelist')
       if (numlev /= MPC_missingValue_INT) then
@@ -1812,7 +1812,7 @@ contains
         numlev = numlev + 1
       end do
       if (mmpi_myid == 0) write(*,nml=namgem)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       call rti_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
     end if
@@ -4750,11 +4750,11 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namgem, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_aircraftByBoxes: Error reading namgem namelist')
       if (mmpi_myid == 0) write(*,nml=namgem)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (numlev /= MPC_missingValue_INT) then
         call rti_abort('thn_aircraftByBoxes: check NAMGEM namelist section: numlev should be removed')
       end if
@@ -8012,11 +8012,11 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_satSST', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_satSST, iostat = ierr)
       if (ierr /= 0) call rti_abort('thn_thinSatSST: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_satSST)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'
@@ -8040,7 +8040,7 @@ contains
       end do
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
 
     ! Do thinning for each type of SST satellite data as identified by 'stid'
     do dataSetSSTIndex = 1, numberDataSetSST
@@ -8053,7 +8053,7 @@ contains
     call thn_superObs(obsdat, 'OS', codtyp_get_codtyp('satob'), bufr_sst)
     call msg_memUsage('thn_thinSatSST')
 
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSatSST
 
@@ -8524,11 +8524,11 @@ contains
       writeDiagnostics = .false.
 
       ! Read the namelist for super observations
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_superObs, iostat = ierr)
       if (ierr /= 0) call rti_abort('thn_superObs: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_superObs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       firstCall = .false.
 
       if (trim(averageType) /= 'average') then
@@ -8915,11 +8915,11 @@ contains
 
     ! Read the namelist for Ice observations (if it exists)
     if (utl_isNamelistPresent('thin_ice','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_ice, iostat=ierr)
       if (ierr /= 0) call rti_abort('thn_thinIce: Error reading thin_ice namelist')
       if (mmpi_myid == 0) write(*,nml=thin_ice)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       if (mmpi_myid == 0) then
         write(*,*)
@@ -8945,11 +8945,11 @@ contains
       end if
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     do dataSetIndex = 1, numberDataSet
       call thn_byDistance(obsData, deldist(dataSetIndex), dataSet(dataSetIndex))
     end do
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinIce
 

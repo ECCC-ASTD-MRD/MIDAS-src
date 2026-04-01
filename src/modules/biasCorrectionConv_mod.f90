@@ -129,11 +129,11 @@ CONTAINS
     uaNlatBands  = 1        ! UA: Number of latitude bands in ua_bcors_stype file (1 or 5): 1 = no bands (global biases).
     ! read in the namelist NAMBIASCONV
     if ( utl_isNamelistPresent('nambiasconv','./flnml') ) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nambiasconv, iostat=ierr)
       if ( ierr /= 0 )  call rti_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
       if ( mmpi_myid == 0 ) write(*,nml=nambiasconv)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcc_readconfig: NAMBIASCONV section is missing in the namelist. The default values will be used.'
@@ -149,10 +149,10 @@ CONTAINS
         nlNbSondes = MPC_missingValue_INT
         nlSondeTypes(:)   = 'empty'
         nlSondeCodes(:,:) = MPC_missingValue_INT
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namsondetypes, iostat=ierr)
         if ( ierr /= 0 )  call rti_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
         if (nlNbSondes /= MPC_missingValue_INT) then
           call rti_abort('bcc_readConfig: check namsondetypes namelist section, you should remove nlNbSondes')
         end if

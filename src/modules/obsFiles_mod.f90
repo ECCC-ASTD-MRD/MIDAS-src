@@ -240,7 +240,7 @@ contains
 
     namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, addFSRdiag, writeObsDb
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
     if ( .not.initialized ) call rti_abort('obsf_writeFiles: obsFiles_mod not initialized!')
 
@@ -258,10 +258,10 @@ contains
       end if
     else
       ! read in the namelist namwritediag
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namwritediag,iostat=ierr)
       if (ierr /= 0) call rti_abort('obsf_writeFiles: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
 
     if (addFSOdiag .and. addFSRdiag) then
@@ -342,12 +342,12 @@ contains
       sfFileName = 'sf'
     end if
 
-    call utl_tmg_start(15,'----WriteDiagFiles')
+    call rti_tmg_start(15,'----WriteDiagFiles')
     if (lwritediagsql) then
       call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
                                      addFSOdiag, addFSRdiag, ensObs_opt=ensObs_opt)
     end if
-    call utl_tmg_stop(15)
+    call rti_tmg_stop(15)
 
     if ( present(asciDumpObs_opt) ) then
       if ( asciDumpObs_opt ) then
@@ -359,7 +359,7 @@ contains
       end if
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine obsf_writeFiles
 
@@ -384,7 +384,7 @@ contains
       return
     end if
 
-    call utl_tmg_start(23, '----ObsFileClean')
+    call rti_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
@@ -398,7 +398,7 @@ contains
       end if
     end do
 
-    call utl_tmg_stop(23)
+    call rti_tmg_stop(23)
 
   end subroutine obsf_cleanObsFiles
 

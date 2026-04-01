@@ -249,7 +249,7 @@ program midas_obsSelection
 
   !- 1.1 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -262,11 +262,11 @@ program midas_obsSelection
   doThinning = .false.
   doPreThinning = .false.
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namObsSelection, iostat = ierr)
     if (ierr /= 0) call rti_abort('midas-obsSelection: Error reading namelist namObsSelection')
     if (mmpi_myid == 0) write(*,nml = namObsSelection)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
   else
     write(*,*)
     write(*,*) 'midas-obsSelection: Namelist block namObsSelection is missing in the namelist.'
@@ -643,7 +643,7 @@ program midas_obsSelection
   call mmpi_finalize
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
 end program midas_obsSelection

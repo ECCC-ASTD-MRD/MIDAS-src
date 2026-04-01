@@ -151,10 +151,10 @@ contains
       write(*,*) 'clm_readFields: Namelist block NAMCLIMATOLOGY is missing. Using defaults'
       write(*,*)
     else
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namclimatology, iostat=ierr)
       if (ierr /= 0) call rti_abort('clm_readFields: Error reading namelist NAMCLIMATOLOGY')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     if (mmpi_myid == 0) write(*,nml=namclimatology)
 

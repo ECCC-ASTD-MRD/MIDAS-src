@@ -187,7 +187,7 @@ program midas_ensPostProcess
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call msg_memUsage('midas-ensPostProcess')
   call rti_printTime()
 
@@ -209,11 +209,11 @@ program midas_ensPostProcess
   writeHeightSfc = .false.
 
   !- Read the namelist
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
   if (ierr /= 0) call rti_abort('midas-ensPostProcess: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namEnsPostProc)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
     call rti_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
@@ -286,7 +286,7 @@ program midas_ensPostProcess
 
   !- 3. Allocate and read ensembles
 
-  call utl_tmg_start(2,'--ReadEnsemble')
+  call rti_tmg_start(2,'--ReadEnsemble')
 
   !- Allocate ensembles, read the Anl ensemble
   if (readAnlEnsemble) then
@@ -305,7 +305,7 @@ program midas_ensPostProcess
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic = .false.)
   end if
 
-  call utl_tmg_stop(2)
+  call rti_tmg_stop(2)
 
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
@@ -334,7 +334,7 @@ program midas_ensPostProcess
   !- 5. MPI, tmg finalize
   !
   call msg_memUsage('midas-ensPostProcess')
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

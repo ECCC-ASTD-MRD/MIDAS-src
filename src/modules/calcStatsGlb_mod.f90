@@ -300,9 +300,9 @@ module calcStatsGlb_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namstate, iostat = ierr)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (ierr /= 0) call rti_abort('csg_setNomvar: Error reading namelist NAMSTATE')
     if (mmpi_myid == 0) write(*,nml=namstate)
 
@@ -629,9 +629,9 @@ module calcStatsGlb_mod
     if (.not. utl_isNamelistPresent('NAMCOMPUTEBHILATBANDS','./flnml')) then
       write(*,*) 'csg_computeBhiLatBands: Use default configuration shown below:'
     else
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = NAMCOMPUTEBHILATBANDS, iostat = ierr)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (ierr /= 0) call rti_abort('csg_computeBhiLatBands: Error reading namelist NAMCOMPUTEBHILATBAND')
     end if
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHILATBANDS)
@@ -1321,7 +1321,7 @@ module calcStatsGlb_mod
     real(8) :: dfact,dfact2,dsummed
     integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex
 
-    call utl_tmg_start(120,'--CalcStats_Corr')
+    call rti_tmg_start(120,'--CalcStats_Corr')
 
     corns(:,:,:) = 0.0d0
     do ensIndex = 1, nens
@@ -1429,7 +1429,7 @@ module calcStatsGlb_mod
       end if
     end if
 
-    call utl_tmg_stop(120)
+    call rti_tmg_stop(120)
     write(*,*) 'finished computing correlations...'
 
   end subroutine calcCorrelations
@@ -1458,7 +1458,7 @@ module calcStatsGlb_mod
     integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
     integer :: levIndex, latIndex
 
-    call utl_tmg_start(120,'--CalcStats_Corr')
+    call rti_tmg_start(120,'--CalcStats_Corr')
 
     corns(:,:,:) = 0.0d0
     do ensIndex = 1, nens
@@ -1551,7 +1551,7 @@ module calcStatsGlb_mod
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(120)
+    call rti_tmg_stop(120)
     write(*,*) 'finished computing correlations...'
 
   end subroutine calcCorrelations2
@@ -3022,7 +3022,7 @@ module calcStatsGlb_mod
     real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatend,numVarLevEns)
 
     ! Convert from U/V to PSI/CHI and spectrally filter all fields
-    call utl_tmg_start(121,'--CalcStats_UVtoPsiChi')
+    call rti_tmg_start(121,'--CalcStats_UVtoPsiChi')
     dla2   = ec_ra * ec_ra
     do ensIndex=1,nens
       write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', ensIndex
@@ -3042,7 +3042,7 @@ module calcStatsGlb_mod
       ensPerturbations(:,:,:,ensIndex)=real(member(:,:,:),4)
     end do
 
-    call utl_tmg_stop(121)
+    call rti_tmg_stop(121)
     write(*,*) 'finished doing u/v -> psi/chi and spectral filter...'
 
   end subroutine uv_to_psichi

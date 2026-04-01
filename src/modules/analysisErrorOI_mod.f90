@@ -122,10 +122,10 @@ contains
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namaer, iostat = ierr)
       if (ierr /= 0) call rti_abort('aer_analysisError:: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     write(*, nml = namaer)
 
@@ -919,7 +919,7 @@ contains
 
     call msg('aer_computeAnlErrorStd:', ' computing analysis error std field initialization...')
 
-    call utl_tmg_start(124,'--AnalErrOI_computeAnlErrStd')
+    call rti_tmg_start(124,'--AnalErrOI_computeAnlErrStd')
 
     ni = stateVectorTrlErrorStd%hco%ni
     nj = stateVectorTrlErrorStd%hco%nj
@@ -1307,7 +1307,7 @@ contains
       deallocate(anlErrorStdDevMpiGlobal)
     end if
 
-    call utl_tmg_stop(124)
+    call rti_tmg_stop(124)
 
     write(*,*) 'aer_computeAnlErrorStd: finished'
 

@@ -69,11 +69,11 @@ contains
     debug = .false.
     RESETQC = .false.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
     if (ierr /= 0) call rti_abort('ssbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=nambgck)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     ssbg_debug = debug
 
@@ -2824,7 +2824,7 @@ contains
 
     write(*,*) 'ssbg_bgCheckSSMIS: Starting'
 
-    call utl_tmg_start(119,'--BgckSSMIS')
+    call rti_tmg_start(119,'--BgckSSMIS')
     otherDataPresent = .false.
     ssmisDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -2937,7 +2937,7 @@ contains
 256 format(A55,i9)
 257 format(A55,i9,f7.2,' %')
 
-    call utl_tmg_stop(119)
+    call rti_tmg_stop(119)
 
     write(*,*) 'ssbg_bgCheckSSMIS: Finished'
 

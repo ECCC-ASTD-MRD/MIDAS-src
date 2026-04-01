@@ -236,7 +236,7 @@ program midas_dfs
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0, 'Main')
+  call rti_tmg_start(0, 'Main')
   call rti_printTime()
 
   varMode = 'analysis'
@@ -277,9 +277,9 @@ program midas_dfs
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = NAMDFS, iostat = ierr)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (ierr /= 0) call rti_abort('midas-dfs: Error reading namelist')
   end if
 
@@ -349,7 +349,7 @@ program midas_dfs
 
   istamp = exfin('dfs', 'FIN', 'NON')
 
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

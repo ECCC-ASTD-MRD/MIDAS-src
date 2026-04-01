@@ -191,7 +191,7 @@ contains
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
 
-    call utl_tmg_start(180,'low-level--linalg_matInverse')
+    call rti_tmg_start(180,'low-level--linalg_matInverse')
 
     if (present(printInformation_opt)) then
       printInformation = printInformation_opt
@@ -294,7 +294,7 @@ contains
       write(*,*) ' '
     end if
 
-    call utl_tmg_stop(180)
+    call rti_tmg_stop(180)
 
   end subroutine linalg_matInverse
 
@@ -617,7 +617,7 @@ contains
       end if
     end if
 
-    call utl_tmg_start(184,'low-level--linalg_fastMatMul')
+    call rti_tmg_start(184,'low-level--linalg_fastMatMul')
 
     if (present(isCSymmetric_opt)) then
       isCSymmetric = isCSymmetric_opt
@@ -662,7 +662,7 @@ contains
                  CmatrixOut, firstDimC)    ! C
     end if
 
-    call utl_tmg_stop(184)
+    call rti_tmg_stop(184)
 
   end subroutine linalg_fastMatMul
 

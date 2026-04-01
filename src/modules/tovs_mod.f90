@@ -643,7 +643,7 @@ contains
         end if
 
         errorStatus = errorStatus_success
-        call utl_tmg_start(16,'----RttovSetup')
+        call rti_tmg_start(16,'----RttovSetup')
         write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex)
 
         path = './'
@@ -692,7 +692,7 @@ contains
             call rti_abort('tvs_setupAlloc')
           end if
         end if
-        call utl_tmg_stop(16)
+        call rti_tmg_stop(16)
 
         tvs_opts(sensorIndex) % rt_all % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 
@@ -883,12 +883,12 @@ contains
     useWaterFraction = .true.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namtov, iostat=ierr)
     if (ierr /= 0) call rti_abort('tvs_setup: Error reading namelist NAMTOV')
 
     if (mmpi_myid == 0) write(*,nml=namtov)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     !  1.3 Transfer namelist variables to module variables
     if (nsensors /= MPC_missingValue_INT) then
@@ -1165,7 +1165,7 @@ contains
         call rti_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
       end if
       ! read the namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       listoffset(:) = 0
       listinstrum(:) = 'XXXXXXXX'
       read(utl_flnml_static,nml=NAMCHANOFFSET, iostat=ierr)
@@ -1178,7 +1178,7 @@ contains
           ioffset1b( tvs_getInstrumentId( listinstrum(instrumentIndex) ) )  = listoffset(instrumentIndex)
         end if
       end do
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       firstCall = .false.
     end if
 
@@ -1317,11 +1317,11 @@ contains
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_getAllIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX') then
           ninst_tovs = instrumentIndex - 1
@@ -1400,14 +1400,14 @@ contains
       if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
         call rti_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
       read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX') then
           ninst_tovs= instrumentIndex - 1
@@ -1471,11 +1471,11 @@ contains
       ninst_hyper = 0
       list_inst(:) = -1
       name_inst(:) = 'XXXXXX'
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isIdBurpHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (name_inst(instrumentIndex) == 'XXXXXX' ) then
           ninst_hyper = instrumentIndex - 1
@@ -1626,13 +1626,13 @@ contains
       if (utl_isNamelistPresent('NAMHYPER', './flnml')) then
         call rti_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isInstrumHyperSpectral: Error reading namelist section NAMHYPER in flnm_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
         list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
@@ -1688,11 +1688,11 @@ contains
     if (firstCall) then
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do instrumentIndex = 1, maxsize
         if (name_inst(instrumentIndex) == 'XXXXXXX') then
           ninst_hir = instrumentIndex -1
@@ -1746,11 +1746,11 @@ contains
       end if
       ninst_geo = 0
       name_inst(:) = 'XXXXXX'
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namgeo, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isInstrumGeostationary: Error reading namelist section NAMGEO in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namgeo)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
         list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
@@ -2154,13 +2154,13 @@ contains
       listinstrum(:) = 'XXXXXXXX'
 
       ! read the namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=NAMINST, iostat=ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMINST namelist section in flnml_static file !'
         call rti_abort('tvs_mapInstrum')
       end if
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
 
       ! figure out how many valid elements in the lists
       do instrumentIndex=1, mxinstrumburp
@@ -2217,11 +2217,11 @@ contains
       end if
       ninst_geo = 0
       name_inst(:) = 'XXXXXXXX'
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namgeobufr, iostat=ierr)
       if (ierr /= 0) call rti_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
       if (mmpi_myid == 0) write(*,nml=namgeobufr)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       do instrumentIndex = 1, maxsize
         if (name_inst(instrumentIndex) == 'XXXXXXXX') then
           ninst_geo = instrumentIndex - 1
@@ -2318,13 +2318,13 @@ contains
       listsat(:) = -1
       listplat(:) = 'XXXXXXXX'
       ! read the namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=NAMSAT, iostat = ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMSAT namelist section in flnml_static file !'
         call rti_abort('tvs_mapSat')
       end if
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
 
       !  Figure out how many valid elements in the lists
       do satelliteIndex=1, mxsatburp

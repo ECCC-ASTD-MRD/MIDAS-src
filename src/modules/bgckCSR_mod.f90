@@ -47,11 +47,11 @@ contains
     ! Locals:
     integer :: ierr
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namcsr, iostat=ierr)
     if (ierr /= 0) call rti_abort('csrbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=namcsr)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
   end subroutine csrbg_init
 
@@ -109,7 +109,7 @@ contains
       return
     end if
 
-    call utl_tmg_start(116,'--BgckCSR')
+    call rti_tmg_start(116,'--BgckCSR')
     write(*,*) ' CSRBG QC PROGRAM STARTS ....'
     ! Read Namelist
     call csrbg_init()
@@ -159,7 +159,7 @@ contains
     write(*,*) "Ciel non clair                     " , categorieRejet(7)
     write(*,*) "*******"
 
-    call utl_tmg_stop(116)
+    call rti_tmg_stop(116)
 
   end subroutine csrbg_bgCheckCSR
 

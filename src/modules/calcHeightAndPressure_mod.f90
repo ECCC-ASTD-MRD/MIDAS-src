@@ -340,7 +340,7 @@ contains
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
     real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
 
-    call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
+    call rti_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -417,7 +417,7 @@ contains
     end if
 
     call msg('calcHeight_gsv_nl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(172)
+    call rti_tmg_stop(172)
   end subroutine calcHeight_gsv_nl
 
   !---------------------------------------------------------
@@ -449,7 +449,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
+    call rti_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -502,7 +502,7 @@ contains
     end if
 
     call msg('czp_calcReturnHeight_gsv_nl', 'END', verb_opt=2)
-    call utl_tmg_stop(172)
+    call rti_tmg_stop(172)
   end subroutine czp_calcReturnHeight_gsv_nl
 
   !---------------------------------------------------------
@@ -1428,7 +1428,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
+    call rti_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -1463,7 +1463,7 @@ contains
     end if
 
     call msg('calcHeight_gsv_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(173)
+    call rti_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -1719,7 +1719,7 @@ contains
     type(struct_vco), pointer :: vco
     integer :: Vcode
 
-    call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
+    call rti_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_gsv_ad', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -1754,7 +1754,7 @@ contains
     end if
 
     call msg('calcHeight_gsv_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(174)
+    call rti_tmg_stop(174)
 
     contains
       !---------------------------------------------------------
@@ -2070,7 +2070,7 @@ contains
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
     real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
 
-    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+    call rti_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -2141,7 +2141,7 @@ contains
     end if
 
     call msg('calcPressure_gsv_nl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(177)
+    call rti_tmg_stop(177)
   end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
@@ -2173,7 +2173,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+    call rti_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -2220,7 +2220,7 @@ contains
     end if
 
     call msg('czp_calcReturnPressure_gsv_nl', 'END', verb_opt=2)
-    call utl_tmg_stop(177)
+    call rti_tmg_stop(177)
   end subroutine czp_calcReturnPressure_gsv_nl
 
   !---------------------------------------------------------
@@ -2688,7 +2688,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
+    call rti_tmg_start(178,'low-level--czp_calcPressure_tl')
     call msg('calcPressure_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -2723,7 +2723,7 @@ contains
     end if
 
     call msg('calcPressure_gsv_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(178)
+    call rti_tmg_stop(178)
 
     contains
 
@@ -3087,7 +3087,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
+    call rti_tmg_start(179,'low-level--czp_calcPressure_ad')
     call msg('calcPressure_gsv_ad (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -3122,7 +3122,7 @@ contains
     end if
 
     call msg('calcPressure_gsv_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(179)
+    call rti_tmg_stop(179)
 
     contains
 
@@ -4061,7 +4061,7 @@ contains
     ! Locals:
     integer :: Vcode
 
-    call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
+    call rti_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_col_tl (czp)', 'START', verb_opt=2)
 
     if (col_getNumCol(columnInc) == 0) return
@@ -4096,7 +4096,7 @@ contains
     end if
 
     call msg('calcHeight_col_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(173)
+    call rti_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -4291,7 +4291,7 @@ contains
     ! Locals:
     integer :: Vcode
 
-    call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
+    call rti_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_col_ad (czp)', 'START', verb_opt=2)
 
     if (col_getNumCol(columnInc) == 0) return
@@ -4326,7 +4326,7 @@ contains
     end if
 
     call msg('calcHeight_col_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(174)
+    call rti_tmg_stop(174)
 
     contains
       !---------------------------------------------------------

@@ -558,14 +558,14 @@ module obsOperatorsChem_mod
 
     ! Read from namelist file NAMCHEM
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namchem, iostat=ios)
     if (ios < -4 .or. ios > 0) then
       call rti_abort('oopc_readNamchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )
     else if (mmpi_myid == 0) then
       write(*,nml=namchem)
     end if
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     oopc_genOperConstraintType(:) = genOperConstraintType(:)
     oopc_genOperHCorrlenExpnt(:) =  genOperHCorrlenExpnt(:)

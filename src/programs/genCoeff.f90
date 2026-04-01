@@ -134,7 +134,7 @@ program midas_genCoeff
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -167,28 +167,28 @@ program midas_genCoeff
                                    stateVectorTrialHighRes )
   call msg_memUsage('midas-genCoeff')
 
-  call utl_tmg_start(110,'--BiasCorrection')
+  call rti_tmg_start(110,'--BiasCorrection')
 
   ! Remove bias correction if requested
   call bcs_removeBiasCorrection(obsSpaceData,"TO")
 
   call bcs_removeOutliers(obsSpaceData)
 
-  call utl_tmg_stop(110)
+  call rti_tmg_stop(110)
 
   call msg_memUsage('midas-genCoeff')
 
   ! Compute observation innovations
   call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
   
-  call utl_tmg_start(110,'--BiasCorrection')
+  call rti_tmg_start(110,'--BiasCorrection')
 
   ! Refresh bias correction if requested
   call bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnAnlIncLev)
 
-  call utl_tmg_start(111,'----Regression')
+  call rti_tmg_start(111,'----Regression')
   call bcs_do_regression(columnTrlOnAnlIncLev,obsSpaceData)
-  call utl_tmg_stop(111)
+  call rti_tmg_stop(111)
 
   ! Write coefficients to file
   call bcs_writebias()
@@ -211,7 +211,7 @@ program midas_genCoeff
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
 
-  call utl_tmg_stop(110)
+  call rti_tmg_stop(110)
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -220,7 +220,7 @@ program midas_genCoeff
 
   istamp = exfin('GENCOEFF','FIN','NON')
 
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

@@ -153,7 +153,7 @@ module sqliteFiles_mod
     character(len=*), parameter :: myName = 'sqlf_updateFile'
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call utl_tmg_start(13,'----UpdateSqliteFile')
+    call rti_tmg_start(13,'----UpdateSqliteFile')
     write(*,*) myName//' Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
@@ -174,7 +174,7 @@ module sqliteFiles_mod
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call utl_tmg_stop(13)
+    call rti_tmg_stop(13)
 
   end subroutine sqlf_updateFile
 

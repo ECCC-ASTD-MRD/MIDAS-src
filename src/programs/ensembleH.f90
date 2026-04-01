@@ -173,7 +173,7 @@ program midas_ensembleH
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call msg_memUsage('midas-ensembleH')
   call rti_printTime()
 
@@ -299,11 +299,11 @@ program midas_ensembleH
   call gsv_zero(stateVectorWithZandP4D)
 
   ! Allocate ensembles, read the Trl ensemble
-  call utl_tmg_start(2,'--ReadEnsemble')
+  call rti_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensembleTrl4D, enkfNML%nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList, &
                     fileMemberIndex1_opt = enkfNML%fileMemberIndex1)
   call ens_readEnsemble(ensembleTrl4D, enkfNML%ensPathName, biPeriodic=.false.)
-  call utl_tmg_stop(2)
+  call rti_tmg_stop(2)
 
   ! Compute ensemble mean and copy to meanTrl stateVectors
   if (enkfNML%readEnsMeanFromFile) then
@@ -400,7 +400,7 @@ program midas_ensembleH
   !- MPI, tmg finalize
   !
   call msg_memUsage('midas-ensembleH')
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

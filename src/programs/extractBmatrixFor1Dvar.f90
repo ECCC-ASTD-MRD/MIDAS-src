@@ -125,7 +125,7 @@ program midas_extractBmatrixFor1Dvar
   ! MPI, tmg initialization
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0, 'Main')
+  call rti_tmg_start(0, 'Main')
   call rti_printTime()
 
   ! Read the namelists
@@ -141,11 +141,11 @@ program midas_extractBmatrixFor1Dvar
   lonlatExtract(:,:) = -1
 
   ! Read the parameters from NAMEXTRACT
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namextract, iostat=ierr)
   if (ierr /= 0) call rti_abort('midas-extractBmatrix: Error reading namelist')
   write(*, nml=namextract)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   nLonLatPos = 0
   do lonlatPosIndex = 1, size(lonlatExtract(:,lonColumn))
@@ -336,7 +336,7 @@ program midas_extractBmatrixFor1Dvar
 
   ! MPI, tmg finalize
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 

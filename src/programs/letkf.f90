@@ -254,7 +254,7 @@ program midas_letkf
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   call utl_readNml()
@@ -442,11 +442,11 @@ program midas_letkf
   call gsv_zero(stateVectorWithZandP4D)
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
-  call utl_tmg_start(2,'--ReadEnsemble')
+  call rti_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensembleTrl4D, enkfNML%nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, enkfNML%ensPathName, biPeriodic = .false., &
                         ignoreDate_opt = enkfNML%ignoreEnsDate)
-  call utl_tmg_stop(2)
+  call rti_tmg_stop(2)
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (enkfNML%recenterInputEns) then
@@ -661,9 +661,9 @@ program midas_letkf
   call eob_setObsErrInv(ensObs)
   if (useModulatedEns) call eob_setObsErrInv(ensObsGain)
 
-  call utl_tmg_start(141,'----Barr')
+  call rti_tmg_start(141,'----Barr')
   call mmpi_barrier
-  call utl_tmg_stop(141)
+  call rti_tmg_stop(141)
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
@@ -875,13 +875,13 @@ program midas_letkf
     if (mmpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
-    call utl_tmg_start(3,'--WriteEnsemble')
+    call rti_tmg_start(3,'--WriteEnsemble')
     if (.not. enkfNML%outputOnlyEnsMean) then
       call ens_writeEnsemble(ensembleAnl, '.', '', enkfNML%etiket_anl, 'A',  &
                              numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                              containsFullField_opt = .true.)
     end if
-    call utl_tmg_stop(3)
+    call rti_tmg_stop(3)
 
   end if
 
@@ -889,7 +889,7 @@ program midas_letkf
   !- 8. MPI, tmg finalize
   !
   call msg_memUsage('midas-letkf')
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   !- Deallocate ensObs objects

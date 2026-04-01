@@ -3883,13 +3883,13 @@ contains
          nmxobs=0
          ndatamx=0
 
-         call utl_tmg_start(181,'low-level--readNML')
+         call rti_tmg_start(181,'low-level--readNML')
 
          ! Read the dimensions from a namelist
          read(utl_flnml,nml=namdimo,iostat=ierr)
          if(ierr /= 0) call obs_abort('obs_initialize: Error reading namelist')
          write(*,nml=namdimo)
-         call utl_tmg_stop(181)
+         call rti_tmg_stop(181)
          ! Verify that the namelist contained values
          if(nmxobs <= 0 .or. ndatamx <= 0) then
             write(message,*)'From file, flnml, positive values were not ' &

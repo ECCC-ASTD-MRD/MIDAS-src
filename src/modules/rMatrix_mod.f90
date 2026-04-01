@@ -65,11 +65,11 @@ contains
     rmat_estElevMax = mpc_missingvalue_r8
 
     ! Read the parameters from NAMRMAT
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namrmat, iostat=ierr)
     if (ierr /= 0) call rti_abort('rmat_init: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namrmat)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(headerEnd))
@@ -257,9 +257,9 @@ contains
         end do
       end do
       ! Calculation of R**-1/2
-      call utl_tmg_start(20,'----RmatMatSqrt')
+      call rti_tmg_start(20,'----RmatMatSqrt')
       call linalg_matSqrt(Rsub,nsubset,-1.d0,.false.)
-      call utl_tmg_stop(20)
+      call rti_tmg_stop(20)
       allocate(R_tovs(headerIndex)%Rmat(nsubset,nsubset))
       do j=1,nsubset
         do i=1,nsubset
@@ -268,13 +268,13 @@ contains
       end do
     end if
 
-    call utl_tmg_start(21,'----RmatMatMult')
+    call rti_tmg_start(21,'----RmatMatMult')
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
     ! Optimized symetric matrix vector product from Blas
     call dsymv("L", nsubset, alpha, R_tovs(headerIndex)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
-    call utl_tmg_stop(21)
+    call rti_tmg_stop(21)
 
   end subroutine rmat_RsqrtInverseOneObs
 

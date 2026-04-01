@@ -103,11 +103,11 @@ contains
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namstate,iostat=ierr)
     if(ierr /= 0) call rti_abort('col_setup: Error reading namelist')
     if(mmpi_myid == 0) write(*,nml=namstate)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     col_rhumin = rhumin
     col_minValVarKindCH(:)=minValVarKindCH(:)

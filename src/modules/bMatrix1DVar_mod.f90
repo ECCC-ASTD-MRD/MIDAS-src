@@ -125,7 +125,7 @@ contains
     integer :: ierr
     integer :: varIndex
 
-    call utl_tmg_start(50,'--Bmatrix')
+    call rti_tmg_start(50,'--Bmatrix')
 
     ! default values for namelist variables
     scaleFactorHI(:) = 0.d0
@@ -152,11 +152,11 @@ contains
 
     copyEmissBEnsFromBHi = .false.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambmat1D, iostat=ierr)
     if ( ierr /= 0 ) call rti_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambmat1D )
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (numIncludeAnlVar /= MPC_missingValue_INT) then
       call rti_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
     end if
@@ -190,16 +190,16 @@ contains
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         write(*,*) 'bmat1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
-        call utl_tmg_start(51,'----B_HI_Setup')
+        call rti_tmg_start(51,'----B_HI_Setup')
         call bmat1D_SetupBHi(vco_in, obsSpaceData, cvdim)
-        call utl_tmg_stop(51)
+        call rti_tmg_stop(51)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case ('ENS')
         !- 1.2 ensemble based
         write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
-        call utl_tmg_start(54,'----B_ENS_Setup')
+        call rti_tmg_start(54,'----B_ENS_Setup')
         call bmat1D_SetupBEns(vco_in, hco_in, obsSpaceData, cvdim)
-        call utl_tmg_stop(54)
+        call rti_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
         call rti_abort('bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)))
@@ -234,7 +234,7 @@ contains
       bmatActive(bmatIndex) = active
     end do
 
-    call utl_tmg_stop(50)
+    call rti_tmg_stop(50)
 
   end subroutine bmat1D_bsetup
 
@@ -1419,25 +1419,25 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
 
-      call utl_tmg_start(50,'--Bmatrix')
+      call rti_tmg_start(50,'--Bmatrix')
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(52,'----B_HI_TL')
+        call rti_tmg_start(52,'----B_HI_TL')
         call bmat1D_bsqrtHi(subVector,   & ! IN
                             column,      & ! OUT
                             obsspacedata) ! IN
-        call utl_tmg_stop(52)
+        call rti_tmg_stop(52)
       case ('ENS')
         !- 1.2 Ensemble based
-        call utl_tmg_start(57,'----B_ENS_TL')
+        call rti_tmg_start(57,'----B_ENS_TL')
         call bmat1D_bsqrtEns(subVector, &  ! IN
                               column)      ! OUT
-        call utl_tmg_stop(57)
+        call rti_tmg_stop(57)
       case default
         call rti_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
-      call utl_tmg_stop(50)
+      call rti_tmg_stop(50)
 
     end do bmat_loop
 
@@ -1468,25 +1468,25 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
 
-      call utl_tmg_start(50,'--Bmatrix')
+      call rti_tmg_start(50,'--Bmatrix')
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(53,'----B_HI_AD')
+        call rti_tmg_start(53,'----B_HI_AD')
         call bmat1D_bsqrtHiAd(subvector,  &  ! IN
                               column,     &  ! OUT
                               obSSpaceData ) ! IN
-        call utl_tmg_stop(53)
+        call rti_tmg_stop(53)
       case ('ENS')
         !- Ensemble based
-        call utl_tmg_start(61,'----B_ENS_AD')
+        call rti_tmg_start(61,'----B_ENS_AD')
         call bmat1D_bsqrtEnsAd(subvector, &  ! IN
                                 column )     ! OUT
-        call utl_tmg_stop(61)
+        call rti_tmg_stop(61)
       case default
         call rti_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
-      call utl_tmg_stop(50)
+      call rti_tmg_stop(50)
 
     end do bmat_loop
 

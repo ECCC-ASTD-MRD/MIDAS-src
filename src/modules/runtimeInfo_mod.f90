@@ -15,6 +15,7 @@ module runtimeInfo_mod
 
   ! Public routines
   public :: rti_abort, rti_printTime
+  public :: rti_tmg_start, rti_tmg_stop
 
 contains
 
@@ -105,5 +106,53 @@ contains
     firstCall = .false.
 
   end subroutine rti_printTime
+
+  !--------------------------------------------------------------------------
+  ! rti_tmg_start
+  !--------------------------------------------------------------------------
+  subroutine rti_tmg_start(blockIndex, blockLabel)
+    !
+    !:Purpose: Wrapper for 'hpcoperf' subroutine 'tmg_start'
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: blockIndex
+    character(len=*), intent(in) :: blockLabel
+
+    ! Locals:
+    integer            :: labelLength
+    integer, parameter :: labelPaddedLength = 40
+    character(len=labelPaddedLength) :: blockLabelPadded
+
+    ! only the first thread does the timing
+    if (omp_get_thread_num() > 0) return
+
+    blockLabelPadded = '........................................'
+    labelLength = min(len_trim(blockLabel), labelPaddedLength)
+    blockLabelPadded(1:labelLength) = blockLabel(1:labelLength)
+
+    call tmg_start(blockIndex, blockLabelPadded)
+
+  end subroutine rti_tmg_start
+
+  !--------------------------------------------------------------------------
+  ! rti_tmg_stop
+  !--------------------------------------------------------------------------
+  subroutine rti_tmg_stop(blockIndex)
+    !
+    !:Purpose: Wrapper for 'hpcoperf' subroutine 'tmg_stop'
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: blockIndex
+
+    ! only the first thread does the timing
+    if (omp_get_thread_num() > 0) return
+
+    call tmg_stop(blockIndex)
+
+  end subroutine rti_tmg_stop
 
 end module runtimeInfo_mod

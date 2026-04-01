@@ -71,15 +71,15 @@ module backgroundCheck_mod
       return
     end if
 
-    call utl_tmg_start(117,'--BgckConventional')
+    call rti_tmg_start(117,'--BgckConventional')
 
     new_bgck_sw = .false.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read( utl_flnml, nml = NAMBGCKCONV, IOSTAT = ier )
     if ( ier /= 0 ) write(*,*) myName//': no valid namelist NAMBGCKCONV found, default values will be taken:'
     write(*,*) myName//': new_bgck_sw = ',new_bgck_sw
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     ! Obtain or calc OmP-error std dev when requested and possible.
     ! Otherwise calc HBHT contribution (sigma_B in observation space)
@@ -104,7 +104,7 @@ module backgroundCheck_mod
 
     call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt = .false. )
 
-    call utl_tmg_stop(117)
+    call rti_tmg_stop(117)
 
   end subroutine bgck_bgcheck_conv
 

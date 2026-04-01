@@ -328,7 +328,7 @@ program midas_var
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   if (mmpi_myid == 0) then
@@ -363,10 +363,10 @@ program midas_var
 
   else
     ! read in the namelist NAMVAR
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namvar, iostat=ierr)
     if( ierr /= 0) call rti_abort('midas-var: Error reading namelist')
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
   end if
   if ( mmpi_myid == 0 ) write(*,nml=namvar)
 
@@ -692,7 +692,7 @@ program midas_var
 
   call rti_printTime()
 
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

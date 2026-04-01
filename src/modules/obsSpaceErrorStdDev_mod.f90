@@ -162,11 +162,11 @@ module obsSpaceErrorStdDev_mod
     else if ( staticHBHT .and. ensemble ) then
       ! Read Namelist first
       hybrid_mode = 'WEIGHTED_SUM' ! default value
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namhbht, iostat=ierr)
       if ( ierr /= 0) call rti_abort('ose_computeStddev: Error reading namelist')
       if ( mmpi_myid == 0 ) write(*,nml=namhbht)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
 
       write(*,*)
       write(*,*) 'ose_computeStddev: Using hybrid approach (blend of B_static and B_ensemble) in mode = ', trim(hybrid_mode)

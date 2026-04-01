@@ -106,10 +106,10 @@ CONTAINS
         end if
       else
         ! Read namelist NAMENSSTATE
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namensstate, iostat=ierr)
         if (ierr /= 0) call rti_abort('readNml (ens): Error reading namelist')
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=namensstate)
 
@@ -3266,10 +3266,10 @@ CONTAINS
             recvsizes(:) = 0
           end if
 
-          call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+          call rti_tmg_start(191,'ens_WriteEnsemble-alltoallv')
           call mmpi_alltoallv(gd_send_r4, sendsizes, displacements, &
                               gd_recv_r4, recvsizes, displacements)
-          call utl_tmg_stop(191)
+          call rti_tmg_stop(191)
         else
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
         end if
@@ -3385,11 +3385,11 @@ CONTAINS
     if ( numVarLevGroups > 1 ) then
       ! We have to make sure that all the intermediate files '*_group_*'
       ! are written to disk before regrouping it.
-      call utl_tmg_start(192,'ens_writeEnsemble-barrier')
+      call rti_tmg_start(192,'ens_writeEnsemble-barrier')
       call mmpi_barrier
-      call utl_tmg_stop(192)
+      call rti_tmg_stop(192)
 
-      call utl_tmg_start(193,'ens_writeEnsemble-combine_files')
+      call rti_tmg_start(193,'ens_writeEnsemble-combine_files')
       if ( mmpi_myid < ens%numMembers ) then
         ! We must reset the memberIndex with 'mmpi_myid'
         memberIndex = mmpi_myid + 1
@@ -3398,7 +3398,7 @@ CONTAINS
         call gio_collectMpiDistributedFiles(ensFileName, '_group_',                    &
                                             startIndex = 2, endIndex = numVarLevGroups)
       end if
-      call utl_tmg_stop(193)
+      call rti_tmg_stop(193)
     end if
 
     call msg_memUsage('ens_writeEnsemble')

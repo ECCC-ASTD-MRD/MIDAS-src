@@ -158,11 +158,11 @@ CONTAINS
     ReadWrite_sqrt = .false.
     stddevMode = 'SP2D'
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambhi, iostat=ierr)
     if ( ierr /= 0 ) call rti_abort( 'bhi_setup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambhi )
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     do jlev = 1, vco_maxNumLevels
       if( scaleFactor(jlev) > 0.0d0 ) then

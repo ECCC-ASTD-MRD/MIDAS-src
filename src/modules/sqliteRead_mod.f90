@@ -269,7 +269,7 @@ module sqliteRead_mod
     end select
 
     ! Read appropriate namelist based on obs family
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     select case(trim(familyType))
       case('TO')
         read(utl_flnml, nml = NAMSQLtovs, iostat = ierr)
@@ -330,7 +330,7 @@ module sqliteRead_mod
       case default
         call rti_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
     end select
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if ( numberElem /= MPC_missingValue_INT ) then
       call rti_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
@@ -934,11 +934,11 @@ module sqliteRead_mod
     numberUpdateItemsRadar = MPC_missingValue_INT
 
     ! Read the namelist for directives
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namSQLUpdate, iostat = ierr)
     if (ierr /= 0) call rti_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (numberUpdateBodyItems /= MPC_missingValue_INT) then
       call rti_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateBodyItems should be removed')
     end if
@@ -1365,11 +1365,11 @@ module sqliteRead_mod
     numberInsertItems = MPC_missingValue_INT
     itemInsertList(:) = MPC_missingValue_INT
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namSQLInsert, iostat = ierr)
     if (ierr /= 0) call rti_abort('sqlr_insertSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLInsert)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (numberInsertItems /= MPC_missingValue_INT) then
       call rti_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
     end if
@@ -1540,10 +1540,10 @@ module sqliteRead_mod
       end if
     else
       ! read in the namelist namwritediag
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namSqlClean,iostat=ierr)
       if (ierr /= 0) call rti_abort('sqlr_cleanSqlite: Error reading namelist')
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     if (mmpi_myid == 0 .and. firstCall) then
       write(*,nml = namSqlClean)

@@ -475,11 +475,11 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
 
     ! Read in the namelist NAMALADIN_OBS
     do_adjust_aladin = .false.
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namaladin_obs, iostat=ierr)
     if (ierr /= 0) call rti_abort('oop_zzz_nl: Error reading namelist')
     if (.not.beSilent) write(*,nml=namaladin_obs)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -644,11 +644,11 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       adjustTemperature = .true. ! default value
 
       if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namSurfaceObs, iostat=ierr)
         if (ierr /= 0) call rti_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
         if (.not. beSilent) write(*,nml=namSurfaceObs)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       else if (.not. beSilent) then
         write(*,*)
         write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'

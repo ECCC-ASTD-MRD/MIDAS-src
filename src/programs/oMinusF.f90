@@ -153,7 +153,7 @@ program midas_oMinusF
 
   !- 1.2 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   if ( mmpi_myid == 0 ) then
@@ -172,11 +172,11 @@ program midas_oMinusF
   nEns           = 20
   includeMember0 = .false.
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namomf, iostat=ierr)
   if (ierr /= 0) call rti_abort('midas-OminusF: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namomf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- 1.4 Set mode
   trlFileName = 'trlm'
@@ -263,7 +263,7 @@ program midas_oMinusF
   call eob_deallocate(ensObs)
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call mmpi_finalize

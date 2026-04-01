@@ -147,11 +147,11 @@ contains
     useEnkfTopoFilt = .false.
     rejectGZforAnalysis = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namfilt,iostat=ierr)
     if(ierr /= 0) call rti_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
     if(mmpi_myid == 0) write(*,nml=namfilt)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     filt_rlimlvhu    = rlimlvhu
 
@@ -268,7 +268,7 @@ contains
     integer :: idburp, ivnm, refValue, iknt, iknt_mpiglobal, ilansea
     logical :: llok, llrej, llbogus
 
-    call utl_tmg_start(22,'----ObsFiltSuprep')
+    call rti_tmg_start(22,'----ObsFiltSuprep')
 
     if(mmpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
@@ -365,7 +365,7 @@ contains
        call rti_abort('filt_suprep: No data to be assimilated')
     end if
 
-    call utl_tmg_stop(22)
+    call rti_tmg_stop(22)
 
   end subroutine filt_suprep
 
@@ -1320,11 +1320,11 @@ end subroutine filt_topoAISW
       maxRangeInterp = -1.0D0
 
       if ( utl_isNamelistPresent('namradvel', './flnml') ) then
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namradvel, iostat=ierr)
         if ( ierr /= 0 ) call rti_abort('oop_raDvel_nl: Error reading namelist namradvel')
         if ( .not. beSilent ) write(*,nml=namradvel)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       else if ( .not. beSilent ) then
         write(*,*)
         write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
@@ -1705,11 +1705,11 @@ end subroutine filt_topoAISW
       listPlatformIce(:) = '1234567890ab'
 
       if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read (utl_flnml, nml = namPlatformIce, iostat = ierr)
         if ( ierr /= 0 ) call rti_abort('filt_iceConcentration: Error reading namelist')
         if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
         if (nPlatformIce /= MPC_missingValue_INT) then
           call rti_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
         end if

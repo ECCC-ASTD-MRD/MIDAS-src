@@ -107,7 +107,7 @@ CONTAINS
     ! Locals:
     integer :: ierr
 
-    call utl_tmg_start(90,'--Minimization')
+    call rti_tmg_start(90,'--Minimization')
 
     if ( nvadim_mpilocal_in /= cvm_nvadim ) then
       write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
@@ -138,11 +138,11 @@ CONTAINS
     nwoqcv   = 5
 
     ! read in the namelist NAMMIN
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nammin, iostat=ierr)
     if(ierr /= 0) call rti_abort('min_setup: Error reading namelist')
     write(*,nml=nammin)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
@@ -159,7 +159,7 @@ CONTAINS
 
     initialized=.true.
 
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(90)
 
   end subroutine min_setup
 
@@ -191,7 +191,7 @@ CONTAINS
     ! Locals:
     type(struct_columnData) :: columnAnlInc
 
-    call utl_tmg_start(90,'--Minimization')
+    call rti_tmg_start(90,'--Minimization')
 
     write(*,*) '------------------------------------'
     write(*,*) '--Starting subroutine min_minimize--'
@@ -247,7 +247,7 @@ CONTAINS
     call msg_memUsage('min_minimize')
     write(*,*) '--Done subroutine minimize--'
 
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(90)
 
   end subroutine min_minimize
 
@@ -365,9 +365,9 @@ CONTAINS
         llvarqc = lvarqc
 
         if ( nwoqcv > 0 ) lvarqc = .false.
-        call utl_tmg_start(91,'----QuasiNewton')
+        call rti_tmg_start(91,'----QuasiNewton')
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
-        call utl_tmg_stop(91)
+        call rti_tmg_stop(91)
 
         lvarqc = llvarqc
       endif
@@ -378,9 +378,9 @@ CONTAINS
       llvarqc = lvarqc
       if ( nwoqcv > 0 .and. outerLoopIndex == 1 ) lvarqc = .false.
       INDIC =2
-      call utl_tmg_start(91,'----QuasiNewton')
+      call rti_tmg_start(91,'----QuasiNewton')
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
-      call utl_tmg_stop(91)
+      call rti_tmg_stop(91)
       lvarqc = llvarqc
 
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
@@ -410,7 +410,7 @@ CONTAINS
           iitnovqc = min(nwoqcv - iterdone,itermax)
           isimnovqc = isimmax
           lvarqc = .false.
-          call utl_tmg_start(91,'----QuasiNewton')
+          call rti_tmg_start(91,'----QuasiNewton')
 
           zeps1 = zeps0
 
@@ -418,7 +418,7 @@ CONTAINS
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
               iitnovqc, isimnovqc ,iztrl, vatra, nmtra, intUnused,   &
               zzsunused, dlds)
-          call utl_tmg_stop(91)
+          call rti_tmg_stop(91)
           call fool_optimizer(obsSpaceData)
 
           isimnovqc = isimnovqc - 1
@@ -434,9 +434,9 @@ CONTAINS
           if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
             imode = 2
             INDIC = 2
-            call utl_tmg_start(91,'----QuasiNewton')
+            call rti_tmg_start(91,'----QuasiNewton')
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
-            call utl_tmg_stop(91)
+            call rti_tmg_stop(91)
           else
             write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
             call rti_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
@@ -444,7 +444,7 @@ CONTAINS
         endif
 
         ! Now do main minimization with var-QC
-        call utl_tmg_start(91,'----QuasiNewton')
+        call rti_tmg_start(91,'----QuasiNewton')
 
         if ( outerLoopIndex > 1 ) imode = 2
 
@@ -454,7 +454,7 @@ CONTAINS
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
             itermaxtodo,isimmax, iztrl, vatra, nmtra, intUnused, zzsunused,   &
             dlds)
-        call utl_tmg_stop(91)
+        call rti_tmg_stop(91)
         call fool_optimizer(obsSpaceData)
 
         itertot = itertot + itermaxtodo
@@ -479,9 +479,9 @@ CONTAINS
         if ( lgrtest .and. isMinimizationFinalCall ) then
           WRITE(*,FMT=9400)
  9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
-          call utl_tmg_start(91,'----QuasiNewton')
+          call rti_tmg_start(91,'----QuasiNewton')
           call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
-          call utl_tmg_stop(91)
+          call rti_tmg_stop(91)
         end if
 
         ! Print some contents of obsSpaceData to the listing
@@ -516,7 +516,7 @@ CONTAINS
     ! Locals:
     integer :: dateStamp
 
-    call utl_tmg_start(90,'--Minimization')
+    call rti_tmg_start(90,'--Minimization')
 
     if ( lwrthess ) then
       ! Write out the Hessian to file
@@ -542,7 +542,7 @@ CONTAINS
       deallocate(vatra)
     end if
 
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(90)
 
   end subroutine min_writeHessian
 
@@ -584,8 +584,8 @@ CONTAINS
     logical, save :: firstCall = .true.
     logical       :: beSilent
 
-    call utl_tmg_stop(91)
-    call utl_tmg_stop(90)
+    call rti_tmg_stop(91)
+    call rti_tmg_stop(90)
 
     ! Be silent after the first call
     if (firstCall) then
@@ -631,12 +631,12 @@ CONTAINS
        end if
 
        ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call utl_tmg_start(10,'--Observations')
-       call utl_tmg_start(18,'----ObsOper_TL')
+       call rti_tmg_start(10,'--Observations')
+       call rti_tmg_start(18,'----ObsOper_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
                     initializeLinearization_opt=initializeForOuterLoop)
-       call utl_tmg_stop(18)
-       call utl_tmg_stop(10)
+       call rti_tmg_stop(18)
+       call rti_tmg_stop(10)
 
        ! Calculate OBS_OMA from OBS_WORK : d-Hdx
        call res_compute(obsSpaceData_ptr)
@@ -644,9 +644,9 @@ CONTAINS
        call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
        ! Save as OBS_WORK : R**-1/2 (d-Hdx)
-       call utl_tmg_start(10,'--Observations')
+       call rti_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)
-       call utl_tmg_stop(10)
+       call rti_tmg_stop(10)
 
        ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
        call cfn_calcJo(obsSpaceData_ptr)
@@ -657,8 +657,8 @@ CONTAINS
        endif
 
        dl_Jo = 0.d0
-       call utl_tmg_start(90,'--Minimization')
-       call utl_tmg_start(92,'----SumCostFunction')
+       call rti_tmg_start(90,'--Minimization')
+       call rti_tmg_start(92,'----SumCostFunction')
        call cfn_sumJo(obsSpaceData_ptr,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
@@ -668,13 +668,13 @@ CONTAINS
           da_J = dl_Jb + dl_Jo
           IF(mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
-       call utl_tmg_stop(92)
-       call utl_tmg_stop(90)
+       call rti_tmg_stop(92)
+       call rti_tmg_stop(90)
 
        ! Modify OBS_WORK : R**-1 (d-Hdx)
-       call utl_tmg_start(10,'--Observations')
+       call rti_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)
-       call utl_tmg_stop(10)
+       call rti_tmg_stop(10)
 
        IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
@@ -686,12 +686,12 @@ CONTAINS
        call col_zero(columnAnlInc_ptr)
 
        ! Put in column : -H_vert**T R**-1 (d-Hdx)
-       call utl_tmg_start(10,'--Observations')
-       call utl_tmg_start(19,'----ObsOper_AD')
+       call rti_tmg_start(10,'--Observations')
+       call rti_tmg_start(19,'----ObsOper_AD')
        call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
                     initializeLinearization_opt=initializeForOuterLoop)
-       call utl_tmg_stop(19)
-       call utl_tmg_stop(10)
+       call rti_tmg_stop(19)
+       call rti_tmg_stop(10)
 
        ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        if (oneDVarMode) then
@@ -716,8 +716,8 @@ CONTAINS
        endif
     endif
 
-    call utl_tmg_start(90,'--Minimization')
-    call utl_tmg_start(91,'----QuasiNewton')
+    call rti_tmg_start(90,'--Minimization')
+    call rti_tmg_start(91,'----QuasiNewton')
 
     initializeForOuterLoop = .false.
 
@@ -888,10 +888,10 @@ CONTAINS
 
     if (status == 0) then
       if (mmpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
-      call utl_tmg_start(93,'----ReadHess')
+      call rti_tmg_start(93,'----ReadHess')
     elseif (status == 1) then
       if (mmpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
-      call utl_tmg_start(94,'----WriteHess')
+      call rti_tmg_start(94,'----WriteHess')
     else
       call rti_abort('min_hessianIO: status not valid ')
     endif
@@ -1082,9 +1082,9 @@ CONTAINS
     endif
 
     if (status == 0) then
-      call utl_tmg_stop(93)
+      call rti_tmg_stop(93)
     elseif (status == 1) then
-      call utl_tmg_stop(94)
+      call rti_tmg_stop(94)
     endif
 
   end subroutine hessianIO

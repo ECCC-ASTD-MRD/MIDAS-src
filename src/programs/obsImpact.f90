@@ -221,7 +221,7 @@ program midas_obsImpact
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   if (mmpi_myid == 0) then
@@ -390,7 +390,7 @@ program midas_obsImpact
   endif
 
   call rti_printTime()
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

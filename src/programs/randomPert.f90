@@ -188,7 +188,7 @@ program midas_randomPert
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call msg_memUsage('midas-randomPert')
   call rti_printTime()
 
@@ -216,11 +216,11 @@ program midas_randomPert
   previousDateFraction = -1.0
 
   !- 1.2 Read the namelist
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namenkf, iostat=ierr)
   if(ierr /= 0) call rti_abort('midas-randomPert: Error reading namelist')
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   if (readEnsMean) then
     typvarOut = 'A'
@@ -765,7 +765,7 @@ program midas_randomPert
   deallocate(controlVector_mpiglobal)
 
   call msg_memUsage('midas-randomPert')
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
 
   !

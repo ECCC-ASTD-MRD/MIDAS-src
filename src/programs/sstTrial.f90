@@ -102,7 +102,7 @@ program midas_sstTrial
   call mmpi_initialize
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call rti_printTime()
 
   ! 1. Top level setup
@@ -125,7 +125,7 @@ program midas_sstTrial
   ! 3. Job termination
 
   istamp = exfin('SSTTRIAL','FIN','NON')
-  call utl_tmg_stop(0)
+  call rti_tmg_stop(0)
   call rti_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
@@ -162,11 +162,11 @@ program midas_sstTrial
     alphaClim = 0.983d0
 
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read( utl_flnml, nml = namSSTtrial, iostat = ierr )
     if ( ierr /= 0) call rti_abort( 'SSTtrial_setup: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*, nml = namSSTtrial )
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
