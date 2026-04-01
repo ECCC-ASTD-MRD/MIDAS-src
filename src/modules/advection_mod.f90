@@ -17,6 +17,7 @@ MODULE advection_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
 
   implicit none
@@ -154,7 +155,7 @@ CONTAINS
     allocate(adv%timeStepIndexSource(numStepAdvectedField))
 
     if (vco_in%Vcode /= 5002 .and. vco_in%Vcode /= 5005 ) then
-      call utl_abort('adv_setup: Only vCode 5002 and 5005 are currently supported!')
+      call rti_abort('adv_setup: Only vCode 5002 and 5005 are currently supported!')
     end if
 
     select case(trim(levTypeList))
@@ -165,7 +166,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Unsupported levTypeList: ', trim(levTypeList)
-      call utl_abort('adv_setup')
+      call rti_abort('adv_setup')
     end select
 
     !- 1.1 Mode
@@ -176,7 +177,7 @@ CONTAINS
       adv%singleTimeStepIndexSource= .true.
     case ('fromMiddleTimeIndex')
       if (mod(numStepAdvectedField,2) == 0) then
-        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=fromMiddleTimeIndex')
+        call rti_abort('adv_setup: numStepAdvectedField cannot be even with direction=fromMiddleTimeIndex')
       end if
       adv%timeStepIndexMainSource  = (numStepAdvectedField+1)/2
       adv%timeStepIndexSource(:)   = adv%timeStepIndexMainSource
@@ -193,7 +194,7 @@ CONTAINS
       adv%singleTimeStepIndexSource = .false.
     case('towardMiddleTimeIndex','towardMiddleTimeIndexInverse')
       if (mod(numStepAdvectedField,2) == 0) then
-        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=towardMiddleTimeIndex')
+        call rti_abort('adv_setup: numStepAdvectedField cannot be even with direction=towardMiddleTimeIndex')
       end if
       adv%timeStepIndexMainSource = (numStepAdvectedField+1)/2
       do stepIndexAF = 1, numStepAdvectedField
@@ -203,7 +204,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Unsupported mode : ', trim(mode)
-      call utl_abort('adv_setup')
+      call rti_abort('adv_setup')
     end select
 
     !- Set some important values
@@ -228,7 +229,7 @@ CONTAINS
       write(*,*) 'adv_setup: The grid is not divisible across all MPI tasks!'
       write(*,*) 'adv_setup: latitudes divisible  = ', nlat_equalAcrossMpiTasks
       write(*,*) 'adv_setup: longitudes divisible = ', nlon_equalAcrossMpiTasks
-      if (mmpi_myid == 0) call utl_abort('adv_setup: MPI topology not compatible with grid')
+      if (mmpi_myid == 0) call rti_abort('adv_setup: MPI topology not compatible with grid')
     end if
 
     allocate(adv%allLonBeg(mmpi_npex))
@@ -327,7 +328,7 @@ CONTAINS
       call gsv_getField(statevector_steeringFlow_opt, vv_steeringFlow_ptr4d, 'VV')
 
     else
-      call utl_abort('adv_setup: steeringFlow source was not provided!')
+      call rti_abort('adv_setup: steeringFlow source was not provided!')
     end if
 
     !
@@ -349,7 +350,7 @@ CONTAINS
         end if
       end do
       if ( advectedFieldAssociatedStepIndexSF(stepIndexAF) == -1 ) then
-        call utl_abort('adv_setup: no match between dateStampListAdvectedField and dateStampListSteeringFlow')
+        call rti_abort('adv_setup: no match between dateStampListAdvectedField and dateStampListSteeringFlow')
       end if
     end do
 
@@ -372,7 +373,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Oops! This should never happen. Check the code...'
-      call utl_abort('adv_setup')
+      call rti_abort('adv_setup')
     end select
 
     !
@@ -629,7 +630,7 @@ CONTAINS
       end do
 
     else
-      call utl_abort('processSteeringFlow: invalid levTypeIndex')
+      call rti_abort('processSteeringFlow: invalid levTypeIndex')
     end if
 
     ! rearrange gathered winds for convenience
@@ -726,7 +727,7 @@ CONTAINS
       stepIndex_last      = stepIndexSF_start-1
       stepIndex_direction = 1
     else
-      call utl_abort('calcTrajAndWeights: fatal error with stepIndexSF')
+      call rti_abort('calcTrajAndWeights: fatal error with stepIndexSF')
     end if
 
     do stepIndexSF = stepIndex_first, stepIndex_last, stepIndex_direction
@@ -933,7 +934,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'calcWeights: the input positions are wrong'
       write(*,*) '             xpos_r4, ypos_r4, lonIndex, latIndex = ', xpos_r4, ypos_r4, lonIndex, latIndex
-      call utl_abort('calcWeights')
+      call rti_abort('calcWeights')
     end if
 
     ! Compute the surrounding four gridpoint interpolation weights
@@ -954,7 +955,7 @@ CONTAINS
            interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
       write(*,*) '          xpos_r4, ypos_r4, lonIndex, latIndex, delx, dely  =', &
            xpos_r4, ypos_r4, lonIndex, latIndex, delx, dely
-      call utl_abort('calcWeights')
+      call rti_abort('calcWeights')
     end if
 
   end SUBROUTINE calcWeights
@@ -971,7 +972,7 @@ CONTAINS
     integer,          intent(in)    :: nEns
 
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
-      call utl_abort('adv_ensemble_tl: vertical levels are not compatible')
+      call rti_abort('adv_ensemble_tl: vertical levels are not compatible')
     end if
 
     if      ( ens_getDataKind(ens) == 8 ) then
@@ -979,7 +980,7 @@ CONTAINS
     else if ( ens_getDataKind(ens) == 4 ) then
       call adv_ensemble_tl_r4( ens, adv, nEns )
     else
-      call utl_abort('adv_ensemble_tl: ens%dataKind not valid')
+      call rti_abort('adv_ensemble_tl: ens%dataKind not valid')
     end if
 
   END SUBROUTINE adv_ensemble_tl
@@ -1219,16 +1220,16 @@ CONTAINS
     character(len=4) :: varName
 
     if ( .not. adv%singleTimeStepIndexSource ) then
-      call utl_abort('adv_ensemble_ad cannot deal with multiple timeStep index source')
+      call rti_abort('adv_ensemble_ad cannot deal with multiple timeStep index source')
     end if
     if ( ens_getDataKind(ens) /= 8 ) then
-      call utl_abort('adv_ensemble_ad: can only deal with double precision (real8) ensembleStateVector')
+      call rti_abort('adv_ensemble_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
-      call utl_abort('adv_ensemble_ad: vertical levels are not compatible')
+      call rti_abort('adv_ensemble_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
+      call rti_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
@@ -1354,10 +1355,10 @@ CONTAINS
     character(len=4) :: varName
 
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_tl: can only deal with double precision (real8) gridStateVector')
+      call rti_abort('adv_statevector_tl: can only deal with double precision (real8) gridStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
-      call utl_abort('adv_statevector_tl: vertical levels are not compatible')
+      call rti_abort('adv_statevector_tl: vertical levels are not compatible')
     end if
 
     call utl_tmg_start(100,'--ADV_GSV')
@@ -1475,16 +1476,16 @@ CONTAINS
     character(len=4) :: varName
 
     if ( adv%singleTimeStepIndexSource ) then
-      call utl_abort('adv_statevector_ad cannot work for singleTimeStepIndexSource')
+      call rti_abort('adv_statevector_ad cannot work for singleTimeStepIndexSource')
     end if
     if ( gsv_getDataKind(statevector) /= 8 ) then
-      call utl_abort('adv_statevector_ad: can only deal with double precision (real8) ensembleStateVector')
+      call rti_abort('adv_statevector_ad: can only deal with double precision (real8) ensembleStateVector')
     end if
     if ( adv%nLev_M /= statevector%vco%nLev_M .or. adv%nLev_T /= statevector%vco%nLev_T ) then
-      call utl_abort('adv_statevector_ad: vertical levels are not compatible')
+      call rti_abort('adv_statevector_ad: vertical levels are not compatible')
     end if
     if ( .not. nlat_equalAcrossMpiTasks .or. .not. nlon_equalAcrossMpiTasks) then
-      call utl_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
+      call rti_abort('adv_ensemble_ad: can only deal with even nlon and nlat across all MPI tasks')
     end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))

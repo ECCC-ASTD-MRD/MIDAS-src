@@ -24,6 +24,7 @@ module diffusion_mod
   use earthConstants_mod
   use randomNumber_mod
   use utilities_mod
+  use runtimeInfo_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
 
@@ -134,7 +135,7 @@ contains
 
     if ( nDiffAlreadyAllocated == nMaxDiff ) then
       write(*,*) 'diff_setup: the maximum number of diffusion operators have already been allocated! ',nMaxDiff
-      call utl_abort('diff_setup')
+      call rti_abort('diff_setup')
     end if
 
     nDiffAlreadyAllocated = nDiffAlreadyAllocated + 1
@@ -176,7 +177,7 @@ contains
 
     ! For implicit diffusion we only allow decomposition by latitude bands
     if (useImplicit .and.  mmpi_npex > 1) then
-      call utl_abort('diff_setup: Error: for implicit diffusion NPEX must be 1 (i.e. 1xNPEYxNUMTHREADS)' )
+      call rti_abort('diff_setup: Error: for implicit diffusion NPEX must be 1 (i.e. 1xNPEYxNUMTHREADS)' )
     end if
 
     allocate(diff(diffID)%cosyhalf(nj        ), diff(diffID)%cosyinv(nj)       , diff(diffID)%cosyinvsq(nj))

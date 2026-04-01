@@ -6,6 +6,7 @@ module gps_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use physicsFunctions_mod
@@ -2265,7 +2266,7 @@ module gps_mod
     !
     call utl_tmg_start(181, 'low-level--readNML')
     read(utl_flnml, nml=NAMGPSRO, iostat=ierr)
-    if (ierr /= 0) call utl_abort('gps_setupro: Error reading namelist')
+    if (ierr /= 0) call rti_abort('gps_setupro: Error reading namelist')
     call utl_tmg_stop(181)
     !
     if (hTpMaxEr < 0._dp) hTpMaxEr = hTpMax
@@ -2423,7 +2424,7 @@ module gps_mod
 
     call utl_tmg_start(181, 'low-level--readNML')
     read(utl_flnml, nml=NAMGPSGB, iostat=ierr)
-    if (ierr /= 0) call utl_abort('gps_setupgb: Error reading namelist')
+    if (ierr /= 0) call rti_abort('gps_setupgb: Error reading namelist')
     gps_gb_dzMin      = dzMin
     gps_gb_dzMax      = dzMax
     gps_gb_yZTDErr    = yZTDErr

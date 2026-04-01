@@ -173,6 +173,7 @@ program midas_letkf
   use timeCoord_mod
   use obsTimeInterp_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use stateToColumn_mod
   use obsFiles_mod
@@ -274,13 +275,13 @@ program midas_letkf
   useModulatedEns = (enkfNML%numRetainedEigen > 0)
   if (trim(enkfNML%algorithm) == 'LETKF-Gain-ME' .or. trim(enkfNML%algorithm) == 'CVLETKF-ME') then
     if (.not. useModulatedEns) then
-      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+      call rti_abort('midas-letkf: numRetainedEigen should be ' // &
                      'equal or greater than one for LETKF algorithm: ' // &
                      trim(enkfNML%algorithm))
     end if
   else
     if (useModulatedEns) then
-      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+      call rti_abort('midas-letkf: numRetainedEigen should be ' // &
                      'equal to zero for LETKF algorithm: ' // &
                      trim(enkfNML%algorithm))
     end if
@@ -288,7 +289,7 @@ program midas_letkf
 
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
   if (.not. all( utl_isEqual(enkfNML%hLocalize(2:4),enkfNML%hLocalize(1)) ) .and. useModulatedEns) then
-    call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
+    call rti_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
                    'letkf with modulated ensembles')
   end if
 
@@ -314,11 +315,11 @@ program midas_letkf
       ! use dateStamp from obs if not already set by env variable
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort('midas-letkf: DateStamp was not set')
+      call rti_abort('midas-letkf: DateStamp was not set')
     end if
   end if
   if (tim_nstepobsinc /= 1 .and. tim_nstepobsinc /= tim_nstepobs) then
-    call utl_abort('midas-letkf: invalid value for namelist variable DSTEPOBSINC. ' // &
+    call rti_abort('midas-letkf: invalid value for namelist variable DSTEPOBSINC. ' // &
                    'Increments can be either 3D or have same number of time steps as trials')
   end if
   allocate(dateStampList(tim_nstepobs))
@@ -339,12 +340,12 @@ program midas_letkf
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
-    call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
+    call rti_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
   nwpFields   = (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0)
   oceanFields = (vco_getNumLev(vco_ens,'DP') > 0)
   if (.not.nwpFields .and. .not.oceanFields) then
-    call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
+    call rti_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
   end if
 
   call msg_memUsage('midas-letkf')

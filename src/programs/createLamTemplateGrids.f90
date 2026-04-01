@@ -140,7 +140,7 @@ subroutine get_inputArguments(inputFileName, grd_ext_x, grd_ext_y)
   !
   ! :Purpose: To read program calling arguments
   !
-  use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
 
@@ -173,13 +173,13 @@ subroutine get_inputArguments(inputFileName, grd_ext_x, grd_ext_y)
 
   !- Error traps
   if (inputFileName == 'none') then
-    call utl_abort('get_inputArguments: -input missing or empty')
+    call rti_abort('get_inputArguments: -input missing or empty')
   end if
   if (grd_ext_x < 0) then
-    call utl_abort('get_inputArguments: -grd_ext_x missing, empty or negative')
+    call rti_abort('get_inputArguments: -grd_ext_x missing, empty or negative')
   end if
   if (grd_ext_y < 0) then
-    call utl_abort('get_inputArguments: -grd_ext_y missing, empty or negative')
+    call rti_abort('get_inputArguments: -grd_ext_y missing, empty or negative')
   end if
 
 end subroutine get_inputArguments

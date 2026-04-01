@@ -10,6 +10,7 @@ module lamSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -122,7 +123,7 @@ contains
     if (verbose) write(*,*) 'Entering lst_Setup'
 
     if (lst%allocated) then
-       call utl_abort('lst_setup: this structure is already allocated')
+       call rti_abort('lst_setup: this structure is already allocated')
     end if
 
     kreftype = 'MAX' ! hardwired
@@ -148,7 +149,7 @@ contains
                   ' dimensions be EVEN. Fields MUST be periodic' , &
                   ' but the last colum and row MUST NOT BE a '   , &
                   ' repetition of the first colum and row. '
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end if
 
     nfact_lon = lst%ni
@@ -165,7 +166,7 @@ contains
         write(*,*) 'Error: A fast transform cannot be used in Y'
         write(6,6140) lst%nj, nfact_lat
       end if
-      call utl_abort('lst_setup')
+      call rti_abort('lst_setup')
     end if
 
 6130 FORMAT('N = ni = ', I4,' the nearest factorizable N = ',I4)
@@ -236,7 +237,7 @@ contains
 
        ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
        if (.not.present(maxlevels_opt)) then
-          call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
+          call rti_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
        ! 2D MPI decomposition: split levels across npex
        call mmpi_setup_levels(maxlevels_opt,                          & ! IN
@@ -245,7 +246,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: MpiMode Unknown ', trim(MpiMode)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     write(*,*)
@@ -374,7 +375,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Unknown KREFTYPE in lst_setup : ', trim(kreftype)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     kMax = nint(lst_totalWaveNumber(lst%mmax,lst%nmax,mref,nref,kref))
@@ -385,7 +386,7 @@ contains
       if (ktrunc_in > 0) then
         lst%ktrunc = ktrunc_in
       else
-        call utl_abort('lst_setup: invalid truncation')
+        call rti_abort('lst_setup: invalid truncation')
       end if
     end if
 
@@ -538,7 +539,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: gridDataOrder Unknown ', trim(gridDataOrder_opt)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     !
@@ -573,7 +574,7 @@ contains
             i = 2*m+2
             j = 2*n+2
          else
-            call utl_abort('lst_Setup: Error in NormFactor')
+            call rti_abort('lst_Setup: Error in NormFactor')
          end if
 
          if (i == 1 .or. j == 1) then
@@ -768,7 +769,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     allocate(Step1(ni_l+nip_l,nj_l+njp_l,kStart:kEnd))
@@ -878,7 +879,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -1001,7 +1002,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     allocate(Step1(kStart:kEnd,ni_l+nip_l,nj_l+njp_l))
@@ -1111,7 +1112,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -1187,7 +1188,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -1211,7 +1212,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -1221,7 +1222,7 @@ contains
     if (nfact == n) then
        call setfft8(n) ! IN
     else
-       call utl_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
+       call rti_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case (trim(TransformAxe))
@@ -1291,7 +1292,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -1315,7 +1316,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -1325,7 +1326,7 @@ contains
     if (nfact == n) then
        call setfft8(n) ! IN
     else
-       call utl_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
+       call rti_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case (trim(TransformAxe))
@@ -2192,7 +2193,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_ReshapeTrunc: Unknown Direction', trim(Direction)
-      call utl_abort('lst_ReshapeTrunc')
+      call rti_abort('lst_ReshapeTrunc')
     end select
 
   end subroutine lst_ReshapeTrunc
@@ -2257,7 +2258,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_ReshapeTrunc_kij: Unknown Direction', trim(Direction)
-      call utl_abort('lst_ReshapeTrunc_kij')
+      call rti_abort('lst_ReshapeTrunc_kij')
     end select
 
   end subroutine lst_ReshapeTrunc_kij
@@ -2296,7 +2297,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_Laplacian: Error: Mode Unknown ', trim(Mode)
-      call utl_abort('lst_Laplacian')
+      call rti_abort('lst_Laplacian')
     end select
 
     !

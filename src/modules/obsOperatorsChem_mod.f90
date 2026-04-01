@@ -14,6 +14,7 @@ module obsOperatorsChem_mod
   use physicsFunctions_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use obsSubSpaceData_mod
   use obsFiles_mod
@@ -560,7 +561,7 @@ module obsOperatorsChem_mod
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namchem, iostat=ios)
     if (ios < -4 .or. ios > 0) then
-      call utl_abort('oopc_readNamchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )
+      call rti_abort('oopc_readNamchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )
     else if (mmpi_myid == 0) then
       write(*,nml=namchem)
     end if
@@ -616,7 +617,7 @@ module obsOperatorsChem_mod
     if ( ierr == 0 ) then
       open(unit=nulstat, file=trim(oopc_aux_filename), status='OLD')
     else
-      call utl_abort('oopc_readLevels: COULD NOT OPEN AUXILIARY file ' // trim(oopc_aux_filename))
+      call rti_abort('oopc_readLevels: COULD NOT OPEN AUXILIARY file ' // trim(oopc_aux_filename))
     end if
 
     ios=0
@@ -679,7 +680,7 @@ module obsOperatorsChem_mod
       end if
 
       if (icount+oopc_levels%n_lvl(jelm) > isize) then
-        call utl_abort('oopc_readLevels: READING PROBLEM. ' // &
+        call rti_abort('oopc_readLevels: READING PROBLEM. ' // &
                        'Max array size exceeded: ' // &
                        trim(utl_str(isize)))
       end if
@@ -717,7 +718,7 @@ module obsOperatorsChem_mod
     end do
 
  10 if (ios > 0) then
-      call utl_abort('oopc_readLevels: READING PROBLEM. ' // &
+      call rti_abort('oopc_readLevels: READING PROBLEM. ' // &
            'File read error message number: ' // trim(utl_str(ios)))
     end if
 
@@ -803,7 +804,7 @@ module obsOperatorsChem_mod
 
          if (oopc_levels%vco(stnidIndex) /= obs_vcoPressure &
              .and. oopc_levels%vco(stnidIndex) /= 6) then
-           call utl_abort('oopc_getLevels: Cannot handle this vertical coordinate type')
+           call rti_abort('oopc_getLevels: Cannot handle this vertical coordinate type')
          end if
 
          obsoper%nobslev=oopc_levels%n_lvl(stnidIndex)
@@ -842,7 +843,7 @@ module obsOperatorsChem_mod
              if (levelsBot(1) > levelsTop(2)) levelsBot(1) = levelsTop(2)
              levelsTop(1) = obsoper%pp(1)
            else if (levelsTop(1) < obsoper%pp(1)) then
-             call utl_abort('oopc_getLevels: Too many obs levels above model top')
+             call rti_abort('oopc_getLevels: Too many obs levels above model top')
            end if
          end if
 
@@ -1015,7 +1016,7 @@ module obsOperatorsChem_mod
     if ( ierr == 0 ) then
       open(unit=nulstat, file=trim(oopc_aux_filename), status='OLD')
     else
-      call utl_abort('oopc_readAvgkernAuxfile: COULD NOT OPEN AUXILIARY file ' // trim(oopc_aux_filename))
+      call rti_abort('oopc_readAvgkernAuxfile: COULD NOT OPEN AUXILIARY file ' // trim(oopc_aux_filename))
     end if
 
     ios=0
@@ -1092,7 +1093,7 @@ module obsOperatorsChem_mod
       end if
 
       if (icount+oopc_avgkern%n_lvl(jelm) > isize) then
-        call utl_abort('oopc_readAvgkernAuxfile: READING PROBLEM. ' // &
+        call rti_abort('oopc_readAvgkernAuxfile: READING PROBLEM. ' // &
                        'Max array size exceeded:' // trim(utl_str(isize)))
       end if
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -1116,7 +1117,7 @@ module obsOperatorsChem_mod
     end do STNIDLOOP
 
  10 if (ios > 0) then
-      call utl_abort('oopc_readAvgkernAuxfile: READING PROBLEM. ' // &
+      call rti_abort('oopc_readAvgkernAuxfile: READING PROBLEM. ' // &
                      'File read error message number: ' // trim(utl_str(ios)))
     end if
 
@@ -1227,7 +1228,7 @@ module obsOperatorsChem_mod
         ! Check number of columns
         if (ncol /= oopc_avgkern%n_col(istnid)) then
 
-          call utl_abort('oopc_getAvgkern: Inconsistency ' // &
+          call rti_abort('oopc_getAvgkern: Inconsistency ' // &
                          'in avg kern size for ' // oopc_avgkern%stnids(istnid))
         end if
 
@@ -1243,7 +1244,7 @@ module obsOperatorsChem_mod
       end if
 
     else
-      call utl_abort("oopc_getAvgkern: Invalid station ID index.")
+      call rti_abort("oopc_getAvgkern: Invalid station ID index.")
     end if
 
   end subroutine oopc_getAvgkern
@@ -1576,7 +1577,7 @@ module obsOperatorsChem_mod
     end if
 
     if ((kmode == 2 .or. kmode == 3) .and. (.not.present(columnAnlInc_opt))) then
-      call utl_abort("oopc_CHobsoperators: columnAnlInc_opt must " // &
+      call rti_abort("oopc_CHobsoperators: columnAnlInc_opt must " // &
                      "be specified for kmode = " // utl_str(kmode))
     end if
 
@@ -2037,7 +2038,7 @@ module obsOperatorsChem_mod
 
     if (.not.col_varExist(columnTrl,'TT')) then
       if (oopc_required_field('TT',obsoper%varno)) then
-        call utl_abort("chem_opsoper_init: TT required for BUFR code " // trim(utl_str(obsoper%varno)))
+        call rti_abort("chem_opsoper_init: TT required for BUFR code " // trim(utl_str(obsoper%varno)))
       end if
     end if
 
@@ -2222,7 +2223,7 @@ module obsOperatorsChem_mod
     logical, allocatable :: successLocalMain(:)
 
     if (code_len < oss_obsdata_code_len()) then
-      call utl_abort('oopc_obsoperators: Length of code string' // &
+      call rti_abort('oopc_obsoperators: Length of code string' // &
                      ' needs to be increased to ' // &
                      trim(utl_str(oss_obsdata_code_len())))
     end if
@@ -2370,7 +2371,7 @@ module obsOperatorsChem_mod
         varIndex=varIndex+1
       end do
       if (trim(bgStats%varNameList(varIndex)) == '') then
-        call utl_abort('oopc_obsoperators: Correlation matrix not found for ' &
+        call rti_abort('oopc_obsoperators: Correlation matrix not found for ' &
                        // trim(obsoper%varName) )
       end if
 
@@ -2586,16 +2587,16 @@ module obsOperatorsChem_mod
 
       if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
              .and. nobslevOriginal /= 1 ) then
-        call utl_abort('oopc_prepareOperator: Number of original levels must be one for this case')
+        call rti_abort('oopc_prepareOperator: Number of original levels must be one for this case')
       end if
 
       if ( oopc_avgkern%n_col(obsoper%iavgkern) < obsoper%nobslev) then
-        call utl_abort('oopc_prepareOperator: Inconsistency in number of averaging kernel columns')
+        call rti_abort('oopc_prepareOperator: Inconsistency in number of averaging kernel columns')
       end if
 
       if ( oopc_avgkern%n_col(obsoper%iavgkern) /= obsoper%nobslev+2 &
              .and. oopc_avgkern%n_lvl(obsoper%iavgkern) /= nobslevOriginal ) then
-        call utl_abort('oopc_prepareOperator: Inconsistency in number of levels')
+        call rti_abort('oopc_prepareOperator: Inconsistency in number of levels')
       end if
 
       if ( oopc_avgkern%n_col(obsoper%iavgkern) >= obsoper%nobslev+1 ) then
@@ -2612,7 +2613,7 @@ module obsOperatorsChem_mod
         write(*,*) '----------------------------------------------------------'
         write(*,*) 'STNID, BUFR index, nobslev: ',obsoper%stnid,' ', &
                    obsoper%varno,obsoper%nobslev
-        call utl_abort('oopc_obsoperators: Required layer boundaries not available!')
+        call rti_abort('oopc_obsoperators: Required layer boundaries not available!')
       else
         ! Vertical integration operator
         obsoper%operatorCategory='Integ'
@@ -2820,7 +2821,7 @@ module obsOperatorsChem_mod
     case(obs_vcoChemColumn,obs_vcoChemSfc)
       ! No actions taken
     case default
-      call utl_abort("oopc_obsoperators: vertical coordinate type vco = " &
+      call rti_abort("oopc_obsoperators: vertical coordinate type vco = " &
                      // trim(utl_str(obsoper%vco)) //  &
                      " not available for this operator.")
     end select
@@ -3042,17 +3043,17 @@ module obsOperatorsChem_mod
 
         ! Note that obsoper%applyGenOper=.true. is not set up for this case
         if (obsoper%applyGenOper) then
-          call utl_abort('prepareOperator: Log ' // &
+          call rti_abort('prepareOperator: Log ' // &
                          'space averaging kernels not currently usable with ' // &
                          'obsoper%applyGenOper=.true.')
         end if
       else
-        call utl_abort('oopc_prepareOperator: This averaging kernel ' // &
+        call rti_abort('oopc_prepareOperator: This averaging kernel ' // &
                        'application not yet available')
       end if
     else
       if ( nobslevOriginal /= obsoper%nobslev ) then
-        call utl_abort('oops_prepareOperator: Case of differing obs ' // &
+        call rti_abort('oops_prepareOperator: Case of differing obs ' // &
                        'and calculation levels not recognized.')
       end if
     end if
@@ -3317,7 +3318,7 @@ module obsOperatorsChem_mod
               BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
               BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
               BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2 /) )) then
-        call utl_abort("oopc_convertUnits: BUFR # " // trim(utl_str(obsoper%varno)) // " is not valid for PM" )
+        call rti_abort("oopc_convertUnits: BUFR # " // trim(utl_str(obsoper%varno)) // " is not valid for PM" )
       end if
 
       ! Conversion from ug/m^3 to ug/kg  (scaling by Rd*T/P)
@@ -3466,7 +3467,7 @@ module obsOperatorsChem_mod
 
       case default
 
-        call utl_abort('oopc_convertUnits: Unknown obs units ' // &
+        call rti_abort('oopc_convertUnits: Unknown obs units ' // &
                        'for varno = ' //  trim(utl_str(obsoper%varno)) )
 
       end select
@@ -3477,7 +3478,7 @@ module obsOperatorsChem_mod
 
     if (exp_T /= 0) then
       if (any(obsoper%tt <= 0.)) then
-        call utl_abort("oopc_convertUnits: " // &
+        call rti_abort("oopc_convertUnits: " // &
                        "Missing valid temperature for conversion.")
       end if
       model_col = model_col * obsoper%tt**exp_T
@@ -3618,7 +3619,7 @@ module obsOperatorsChem_mod
       if ( tropo_mode >= 1 .and. obsoper%columnBound > obsoper%vlayertop(1) ) then
 
         if (obsoper%iavgkern /= 0) then
-          call utl_abort('oopc_vertObsLayersWgts: Use of averaging ' // &
+          call rti_abort('oopc_vertObsLayersWgts: Use of averaging ' // &
                          'kernels not possible with reduced range of increment profile.')
         end if
 
@@ -3771,7 +3772,7 @@ module obsOperatorsChem_mod
     end do
 
     if (trim(bgStats%varNameList(varIndex)) == '') then
-      call utl_abort('oopc_genOperInterp: Background stats not found for ' // &
+      call rti_abort('oopc_genOperInterp: Background stats not found for ' // &
                      trim(obsoper%varName) )
     end if
 
@@ -3997,7 +3998,7 @@ module obsOperatorsChem_mod
     end do
 
     if (trim(bgStats%varNameList(varIndex)) == '') then
-      call utl_abort('oopc_genOper: Background stats not found for ' // &
+      call rti_abort('oopc_genOper: Background stats not found for ' // &
                      trim(obsoper%varName) )
     end if
 
@@ -4083,7 +4084,7 @@ module obsOperatorsChem_mod
           where (abs(rvalw(:)) <= threshold) rvalw(:)= zmin
         end if
       else
-        call utl_abort('oopc_genOper: oopc_genOperConstraintType value ' // &
+        call rti_abort('oopc_genOper: oopc_genOperConstraintType value ' // &
                        'unrecognized for ' // trim(obsoper%varName) )
       end if
 
@@ -4237,7 +4238,7 @@ module obsOperatorsChem_mod
                        uu_opt=uu_opt,vv_opt=vv_opt)
 
         case default
-           call utl_abort("oopc_getColBoundary: Unrecognized value for tropo_bound of " &
+           call rti_abort("oopc_getColBoundary: Unrecognized value for tropo_bound of " &
                           // trim(utl_str(tropo_bound)) )
         end select
 
@@ -4272,7 +4273,7 @@ module obsOperatorsChem_mod
     oopc_columnBoundary%nrep = oopc_columnBoundary%nrep+1
 
     if (oopc_columnBoundary%nrep > oopc_obsdata_maxsize) then
-      call utl_abort('oopc_addColBoundary: Reach max size of array ' // &
+      call rti_abort('oopc_addColBoundary: Reach max size of array ' // &
                      trim(utl_str(oopc_obsdata_maxsize)) )
     end if
 

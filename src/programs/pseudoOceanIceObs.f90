@@ -2,7 +2,7 @@ program midas_pseudoOceanIceObs
   !
   !:Purpose: Main program to produce pseudo SST observations
   !          in ice-covered areas and pseudo SIC observations
-  !          around the ice edges and in the polynias/gaps in the ice.  
+  !          around the ice edges and in the polynias/gaps in the ice.
   !          Pseudo SST observations are needed
   !          to prevent the propagation of analysis increments to
   !          the ice-covered areas, that may result in undesirable sea-ice melting.
@@ -117,6 +117,7 @@ program midas_pseudoOceanIceObs
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanObservations_mod
@@ -232,14 +233,14 @@ program midas_pseudoOceanIceObs
     ! Read the SST namelist
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSSTobs, iostat = ierr)
-    if (ierr /= 0) call utl_abort('pseudoOceanIceObs_setup: Error reading SST namelist')
+    if (ierr /= 0) call rti_abort('pseudoOceanIceObs_setup: Error reading SST namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
     call utl_tmg_stop(181)
 
     ! Read the SIC namelist
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSICobs, iostat = ierr)
-    if (ierr /= 0) call utl_abort('pseudoOceanIceObs_setup: Error reading SIC namelist')
+    if (ierr /= 0) call rti_abort('pseudoOceanIceObs_setup: Error reading SIC namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSICobs)
     call utl_tmg_stop(181)
 
@@ -268,7 +269,7 @@ program midas_pseudoOceanIceObs
       write(*,*) 'pseudoOceanIceObs_setup: sea-ice fraction threshold: ', iceFractionThresholdSIC
       write(*,*) 'pseudoOceanIceObs_setup: sea-ice band where to put pseudo SIC obs: ', seaIceBand
     end if
-    
+
     !
     !- Initialize the Analysis grid
     !

@@ -15,6 +15,7 @@ module increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
@@ -91,7 +92,7 @@ CONTAINS
         ! Reading the namelist
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=naminc, iostat=ierr)
-        if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
+        if ( ierr /= 0) call rti_abort('readNameList: Error reading namelist')
         call utl_tmg_stop(181)
       end if
       if ( mmpi_myid == 0 ) write(*,nml=naminc)
@@ -144,7 +145,7 @@ CONTAINS
     call readNameList
 
     if ( gsv_isAllocated(stateVectorPsfcHighRes) ) then
-      call utl_abort('inc_computeHighResAnalysis: '&
+      call rti_abort('inc_computeHighResAnalysis: '&
                       //'stateVectorPsfcHighRes should not be allocated yet')
     end if
 
@@ -886,14 +887,14 @@ CONTAINS
 
     ! Error traps
     if ( .not. gsv_isAllocated(statevector_in) ) then
-      call utl_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
+      call rti_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
     end if
     if ( .not. gsv_isAllocated(statevector_inout) ) then
-      call utl_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
+      call rti_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
     end if
     if ( present(statevectorRef_opt) ) then
       if ( statevector_in%numstep /= statevectorRef_opt%numstep) then
-        call utl_abort('inc_interpolateAndAdd: statevector_in and statevectorRef_opt numstep inconsistent')
+        call rti_abort('inc_interpolateAndAdd: statevector_in and statevectorRef_opt numstep inconsistent')
       end if
     end if
 

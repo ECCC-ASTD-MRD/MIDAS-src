@@ -16,6 +16,7 @@ module bMatrix1DVar_mod
   use obsSpaceData_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use verticalCoord_mod
   use tovs_mod
   use var1D_mod
@@ -153,11 +154,11 @@ contains
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambmat1D, iostat=ierr)
-    if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
+    if ( ierr /= 0 ) call rti_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambmat1D )
     call utl_tmg_stop(181)
     if (numIncludeAnlVar /= MPC_missingValue_INT) then
-      call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
+      call rti_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
     end if
     numIncludeAnlVar = 0
     do varIndex = 1, vnl_numvarmax
@@ -169,7 +170,7 @@ contains
     bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar) = includeAnlVar(1:numIncludeAnlVar)
 
     if (numExcludeVarScaling /= MPC_missingValue_INT) then
-      call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numExcludeVarScaling should be removed')
+      call rti_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numExcludeVarScaling should be removed')
     end if
     numExcludeVarScaling = 0
     do varIndex = 1, vnl_numvarmax
@@ -201,7 +202,7 @@ contains
         call utl_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
-        call utl_abort('bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)))
+        call rti_abort('bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)))
       end select
 
       !- 1.2 Append the info to the B matrix info arrays and setup the proper control sub-vectors
@@ -270,7 +271,7 @@ contains
                gsv_varExist(varName='VV') .and.  &
                (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
                gsv_varExist(varName='P0')) ) then
-      call utl_abort('bmat1D_setupBHi: Some or all weather fields are missing. If it is desired to deactivate&
+      call rti_abort('bmat1D_setupBHi: Some or all weather fields are missing. If it is desired to deactivate&
            & the weather assimilation, then all entries of the array SCALEFACTORHI in the namelist NAMVAR1D&
            & should be set to zero.')
     end if
@@ -365,7 +366,7 @@ contains
             multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
           end do
         case default
-          call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
+          call rti_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select
     end do
 
@@ -405,13 +406,13 @@ contains
     vco_file => vco_1Dvar
     vco_anl => vco_in
     if (.not. vco_equal(vco_anl,vco_file)) then
-      call utl_abort('bmat1D_setupBHi: vco from analysisgrid and cov file do not match')
+      call rti_abort('bmat1D_setupBHi: vco from analysisgrid and cov file do not match')
     end if
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
     Vcode_anl = vco_anl%vCode
     if(Vcode_anl /= 5002 .and. Vcode_anl /= 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
-      call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
+      call rti_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
     end if
 
     cvDim_out = numVarLev * var1D_validHeaderCount
@@ -454,7 +455,7 @@ contains
     if (fileExists) then
       ierr = fnom(nulbgst, trim(bMatFile), 'FTN+SEQ+UNF+OLD+R/O', 0)
     else
-      call utl_abort('bmat1D_readBMatHi: No 1DVar BACKGROUND STAT FILE ' // trim(bMatFile))
+      call rti_abort('bmat1D_readBMatHi: No 1DVar BACKGROUND STAT FILE ' // trim(bMatFile))
     end if
 
     ! Read Meta data
@@ -464,7 +465,7 @@ contains
     allocate(vco_bMat%ip1_T(vco_bMat%nLev_T), vco_bMat%ip1_M(vco_bMat%nLev_M))
     if (numIncludeAnlVarHi /= bmat1D_numIncludeAnlVar) then
       write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
-      call utl_abort('bmat1D_readBMatHi: incompatible number of 1DVar analyzed variables in ' // trim(bMatFile))
+      call rti_abort('bmat1D_readBMatHi: incompatible number of 1DVar analyzed variables in ' // trim(bMatFile))
     end if
 
     allocate(includeAnlVarHi(bmat1D_numIncludeAnlVar))
@@ -477,7 +478,7 @@ contains
       do varIndex = 1, bmat1D_numIncludeAnlVar
         write(*,*) varIndex, includeAnlVarHi(varIndex), bmat1D_includeAnlVar(varIndex)
       end do
-      call utl_abort('bmat1D_setupBHi: incompatible 1DVar analyzed variable list in ' // trim(bMatFile))
+      call rti_abort('bmat1D_setupBHi: incompatible 1DVar analyzed variable list in ' // trim(bMatFile))
     end if
     deallocate(includeAnlVarHi)
 
@@ -553,7 +554,7 @@ contains
     !- 1.1 Number of time step bins
     numStep = tim_nstepobsinc
     if (numStep /= 1 .and. numStep /= 3.and. numStep /= 5 .and. numStep /= 7) then
-      call utl_abort('bmat1D_setupBEns: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
+      call rti_abort('bmat1D_setupBEns: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
@@ -608,7 +609,7 @@ contains
           call czp_fetch1DLevels(vco_in, pSurfRef, sfcValueLS_opt=pSurfRef, &
                                  profM_opt=pressureProfileFile_M)
         else
-          call utl_abort('bmat1D_setupBEns: Unknown value of vcode')
+          call rti_abort('bmat1D_setupBEns: Unknown value of vcode')
         end if
 
         EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
@@ -637,7 +638,7 @@ contains
 
     if (vco_in%Vcode /= vco_ens%Vcode) then
       write(*,*) 'bmat1D_setupBEns: vco_in%Vcode = ', vco_in%Vcode, ', vco_ens%Vcode = ', vco_ens%Vcode
-      call utl_abort('bmat1D_setupBEns: vertical levels of ensemble not compatible with analysis grid')
+      call rti_abort('bmat1D_setupBEns: vertical levels of ensemble not compatible with analysis grid')
     end if
     nLevEns_M = vco_ens%nLev_M
     nLevEns_T = vco_ens%nLev_T
@@ -647,27 +648,27 @@ contains
     if (vco_in%Vcode == 5002) then
       if ( (nLevEns_T /= (nLevEns_M+1)) .and. (nLevEns_T /= 1 .or. nLevEns_M /= 1) ) then
         write(*,*) 'bmat1D_setubBEns: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
-        call utl_abort('bmat1D_setubBEns: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
+        call rti_abort('bmat1D_setubBEns: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       end if
     else if (vco_in%Vcode == 5005) then
       if ( nLevEns_T /= nLevEns_M .and. &
            nLevEns_T /= 0 .and. &
            nLevEns_M /= 0 ) then
         write(*,*) 'bmat1D_setubBEns: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
-        call utl_abort('bmat1D_setubBEns: Vcode=5005, nLevEns_T must equal nLevEns_M!')
+        call rti_abort('bmat1D_setubBEns: Vcode=5005, nLevEns_T must equal nLevEns_M!')
       end if
     else if (vco_in%Vcode == 0) then
       if ( nLevEns_T /= 0 .and. nLevEns_M /= 0 ) then
         write(*,*) 'bmat1D_setubBEns: nLevEns_T, nLevEns_M = ',nLevEns_T, nLevEns_M
-        call utl_abort('bmat1D_setubBEns: surface-only case (Vcode=0), nLevEns_T and nLevEns_M must equal 0!')
+        call rti_abort('bmat1D_setubBEns: surface-only case (Vcode=0), nLevEns_T and nLevEns_M must equal 0!')
       end if
     else
       write(*,*) 'bmat1D_setubBEns: vco_in%Vcode = ',vco_in%Vcode
-      call utl_abort('bmat1D_setubBEns: unknown vertical coordinate type!')
+      call rti_abort('bmat1D_setubBEns: unknown vertical coordinate type!')
     end if
 
     if (nLevEns_M > nLevInc_M) then
-      call utl_abort('bmat1D_setubBEns: ensemble has more levels than increment - not allowed!')
+      call rti_abort('bmat1D_setubBEns: ensemble has more levels than increment - not allowed!')
     end if
 
     if (nLevEns_M < nLevInc_M) then
@@ -707,7 +708,7 @@ contains
       if (scaleFactorEns(1) > 0.0d0) then
         scaleFactor_SF = sqrt(scaleFactorEns(1))
       else
-        call utl_abort('bmat1D_setubBEns: with vCode == 0, the scale factor should never be equal to 0')
+        call rti_abort('bmat1D_setubBEns: with vCode == 0, the scale factor should never be equal to 0')
       end if
     end if
 
@@ -723,7 +724,7 @@ contains
 
     !- 1.6 Localization
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
-      call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
+      call rti_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if
 
     call ens_allocate(ensembles,  &
@@ -1178,7 +1179,7 @@ contains
       end do
       if (offset /= numVarLev) then
         write(*,*) 'bmat1D_bsqrtHi: offset, numVarLev', offset, numVarLev
-        call utl_abort('bmat1D_bSqrtHi: inconsistency between Bmatrix and statevector size')
+        call rti_abort('bmat1D_bSqrtHi: inconsistency between Bmatrix and statevector size')
       end if
     end do
     !$OMP END PARALLEL DO
@@ -1234,7 +1235,7 @@ contains
       end do
       if (offset /= numVarLev) then
         write(*,*) 'bmat1D_bSqrtHiAd: offset, numVarLev', offset, numVarLev
-        call utl_abort('bmat1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
+        call rti_abort('bmat1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radians
       surfaceType =  tvs_ChangedStypValue(obsSpaceData, headerIndex)
@@ -1316,7 +1317,7 @@ contains
       end do
       if (offset /= numVarLev) then
         write(*,*) 'bmat1D_bsqrtEns: offset, numVarLev', offset, numVarLev
-        call utl_abort('bmat1D_bSqrtEns: inconsistency between Bmatrix and statevector size')
+        call rti_abort('bmat1D_bSqrtEns: inconsistency between Bmatrix and statevector size')
       end if
     end do
     !$OMP END PARALLEL DO
@@ -1366,7 +1367,7 @@ contains
       end do
       if (offset /= numVarLev) then
         write(*,*) 'bmat1D_bSqrtHiAd: offset, numVarLev', offset, numVarLev
-        call utl_abort('bmat1D_bSqrtEnsAd: inconsistency between Bmatrix and statevector size')
+        call rti_abort('bmat1D_bSqrtEnsAd: inconsistency between Bmatrix and statevector size')
       end if
       controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) =  &
              controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) + &
@@ -1434,7 +1435,7 @@ contains
                               column)      ! OUT
         call utl_tmg_stop(57)
       case default
-        call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
+        call rti_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
       call utl_tmg_stop(50)
 
@@ -1483,7 +1484,7 @@ contains
                                 column )     ! OUT
         call utl_tmg_stop(61)
       case default
-        call utl_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
+        call rti_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
       call utl_tmg_stop(50)
 

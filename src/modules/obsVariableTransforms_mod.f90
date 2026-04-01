@@ -12,6 +12,7 @@ module obsVariableTransforms_mod
   use earthConstants_mod
   use codtyp_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsFilter_mod
   use obsFlags_mod
 
@@ -200,7 +201,7 @@ contains
     integer :: bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_bufrCodeSkipped: this module has not been setup')
+      call rti_abort(' ovt_bufrCodeSkipped: this module has not been setup')
     end if
 
     skip = .false.
@@ -234,7 +235,7 @@ contains
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_getDestinationBufrCode: this module has not been setup')
+      call rti_abort(' ovt_getDestinationBufrCode: this module has not been setup')
     end if
 
     if (present(extra_opt)) then
@@ -261,7 +262,7 @@ contains
     if (destinationBufrCode == -1) then
       write(*,*)
       write(*,*) 'ovt_getDestinationBufrCode: source bufrCode = ', sourceBufrCode
-      call utl_abort('ovt_getDestinationBufrCode: found no associated bufrCode for the above source variable bufr code')
+      call rti_abort('ovt_getDestinationBufrCode: found no associated bufrCode for the above source variable bufr code')
     end if
 
   end function ovt_getDestinationBufrCode
@@ -287,7 +288,7 @@ contains
     integer :: transformIndex, destinationBufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_getSourceBufrCode: this module has not been setup')
+      call rti_abort(' ovt_getSourceBufrCode: this module has not been setup')
     end if
 
     if (present(extra_opt)) then
@@ -314,7 +315,7 @@ contains
     if (sourceBufrCode == -1) then
       write(*,*)
       write(*,*) 'ovt_getSourceBufrCode: tranform variable bufr code = ', destinationBufrCode
-      call utl_abort('ovt_getSourceBufrCode: found no associated variable bufr code for the above transform variable bufr code')
+      call rti_abort('ovt_getSourceBufrCode: found no associated variable bufr code for the above transform variable bufr code')
     end if
 
   end function ovt_getSourceBufrCode
@@ -337,7 +338,7 @@ contains
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_isWindObs: this module has not been setup')
+      call rti_abort(' ovt_isWindObs: this module has not been setup')
     end if
 
     transformLoop : do transformIndex = 1, nTransformSupported
@@ -369,7 +370,7 @@ contains
     integer :: transformIndex, bufrCodeIndex
 
     if (.not. initialized) then
-      call utl_abort(' ovt_isTransformedVariable: this module has not been setup')
+      call rti_abort(' ovt_isTransformedVariable: this module has not been setup')
     end if
 
     transformed = .false.
@@ -407,7 +408,7 @@ contains
     if (obs_numHeader(obsSpaceData) == 0) return
 
     if (.not. initialized) then
-      call utl_abort('ovt_transformObsValues: this module has not been setup')
+      call rti_abort('ovt_transformObsValues: this module has not been setup')
     end if
 
     do transformIndex = 1, nTransformSupported
@@ -421,7 +422,7 @@ contains
         case ('precipToLogPrecip')
           call ovt_precipToLogPrecip     (obsSpaceData, headerIndexStart, headerIndexEnd)
         case default
-          call utl_abort('ovt_transformObsValues: Unsupported function ' // trim(transform(transformIndex)%name))
+          call rti_abort('ovt_transformObsValues: Unsupported function ' // trim(transform(transformIndex)%name))
         end select
       end if
 
@@ -448,7 +449,7 @@ contains
     if (obs_numHeader(obsSpaceData) == 0) return
 
     if (.not. initialized) then
-      call utl_abort('ovt_transformResiduals: this module has not been setup')
+      call rti_abort('ovt_transformResiduals: this module has not been setup')
     end if
 
     do transformIndex = 1, nTransformSupported
@@ -462,7 +463,7 @@ contains
         case ('precipToLogPrecip')
           call ovt_precipToLogPrecip_residual     (obsSpaceData, residualTypeID)
         case default
-          call utl_abort('ovt_transformResiduals: Unsupported function ' // trim(transform(transformIndex)%name))
+          call rti_abort('ovt_transformResiduals: Unsupported function ' // trim(transform(transformIndex)%name))
         end select
       end if
 
@@ -551,7 +552,7 @@ contains
         end do
 
         if (.not. uWind_present .or. .not. vWind_present) then
-          call utl_abort('ovt_windSpeedDirectionToUV: uWind and/or vWind bodyIndex not found!')
+          call rti_abort('ovt_windSpeedDirectionToUV: uWind and/or vWind bodyIndex not found!')
         end if
 
         ! Find the speed report and compute uWind and vWind
@@ -846,7 +847,7 @@ contains
         end do body2
 
         if (.not. logVisFound) then
-          call utl_abort('ovt_visToLogVis: logVis bodyIndex not found!')
+          call rti_abort('ovt_visToLogVis: logVis bodyIndex not found!')
         end if
 
       end do body
@@ -915,7 +916,7 @@ contains
       end do body2
 
       if (.not. visFound) then
-        call utl_abort('ovt_visToLogVis_residual: vis bodyIndex not found!')
+        call rti_abort('ovt_visToLogVis_residual: vis bodyIndex not found!')
       end if
 
     end do body
@@ -984,7 +985,7 @@ contains
         end do body2
 
         if (.not. logPrecipFound) then
-          call utl_abort('ovt_precipToLogPrecip: logPrecip bodyIndex not found!')
+          call rti_abort('ovt_precipToLogPrecip: logPrecip bodyIndex not found!')
         end if
 
       end do body
@@ -1054,7 +1055,7 @@ contains
       end do body2
 
       if (.not. precipFound) then
-        call utl_abort('ovt_precipToLogPrecip_residual: precip bodyIndex not found!')
+        call rti_abort('ovt_precipToLogPrecip_residual: precip bodyIndex not found!')
       end if
 
     end do body

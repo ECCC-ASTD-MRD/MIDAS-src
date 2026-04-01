@@ -90,6 +90,7 @@ program midas_genCoeff
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -260,7 +261,7 @@ contains
     if (dateStamp > 0) then
       call tim_setDatestamp(datestamp)
     else
-      call utl_abort('var_setup: Problem getting dateStamp from first trial field')
+      call rti_abort('var_setup: Problem getting dateStamp from first trial field')
     end if
 
     !

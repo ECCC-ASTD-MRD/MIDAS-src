@@ -6,6 +6,7 @@ module satWind_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -77,7 +78,7 @@ contains
     if (utl_isNamelistPresent('NAMSW','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=NAMSW, iostat=ierr)
-      if (ierr /= 0) call utl_abort('swd_readSwqi: Error reading NAMSW namelist')
+      if (ierr /= 0) call rti_abort('swd_readSwqi: Error reading NAMSW namelist')
       call utl_tmg_stop(181)
     else
       write(*,*)

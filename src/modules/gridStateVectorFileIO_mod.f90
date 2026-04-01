@@ -13,6 +13,7 @@ module gridStateVectorFileIO_mod
   use gridStateVector_mod
   use interpolation_mod
   use utilities_mod
+  use runtimeInfo_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use oceanMask_mod
@@ -157,7 +158,7 @@ module gridStateVectorFileIO_mod
     if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
       write(*,*) 'stepIndex = ', stepIndex
       write(*,*) 'stateVector_out%numStep = ', stateVector_out%numStep
-      call utl_abort('gio_readFromFile: invalid value for stepIndex')
+      call rti_abort('gio_readFromFile: invalid value for stepIndex')
     end if
 
     if (present(unitConversion_opt)) then
@@ -222,7 +223,7 @@ module gridStateVectorFileIO_mod
         foundVarNameInFile = .true.
     end if
 
-    if (.not. foundVarNameInFile) call utl_abort('gio_readFromFile: NO variables found in the file!!!')
+    if (.not. foundVarNameInFile) call rti_abort('gio_readFromFile: NO variables found in the file!!!')
 
     write(*,*) 'gio_readFromFile: defining hco by varname: ', varName, ' from file: ', trim(fileName)
 
@@ -623,7 +624,7 @@ module gridStateVectorFileIO_mod
 
     else
 
-      call utl_abort('gio_readFile: unknown file type: '//&
+      call rti_abort('gio_readFile: unknown file type: '//&
                      trim(utl_fileType(trim(fileName))))
 
     end if
@@ -666,17 +667,17 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
     if (stateVector%numStep > 1) then
-      call utl_abort('gio_readFileNetCDF: Not compatible with stateVector containing multiple time steps.')
+      call rti_abort('gio_readFileNetCDF: Not compatible with stateVector containing multiple time steps.')
     end if
 
     if (stateVector%mpi_distribution /= 'VarsLevs' .and. &
         stateVector%mpi_local) then
-      call utl_abort('gio_readFileNetCDF: statevector must have ' //   &
+      call rti_abort('gio_readFileNetCDF: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
 
     if (.not. associated(stateVector%dateStampList)) then
-      call utl_abort('gio_readFileNetCDF: dateStampList of statevector is not associated with a target!')
+      call rti_abort('gio_readFileNetCDF: dateStampList of statevector is not associated with a target!')
     else
       dateStamp = stateVector%dateStampList(1)
       call msg('gio_readFileNetCDF', 'Current datestamp /date: ')
@@ -739,7 +740,7 @@ module gridStateVectorFileIO_mod
           call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
           write(*,*) timeIndex, currentDateStamp
         end do
-        call utl_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
+        call rti_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
       end if
 
       deallocate(netCDFTimes)
@@ -861,7 +862,7 @@ module gridStateVectorFileIO_mod
 
     if ( stateVector%mpi_distribution /= 'VarsLevs' .and. &
          stateVector%mpi_local ) then
-      call utl_abort('gio_readFileFst: statevector must have ' //   &
+      call rti_abort('gio_readFileFst: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
 
@@ -880,7 +881,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (.not. associated(stateVector%dateStampList)) then
-      call utl_abort('gio_readFileFst: dateStampList of statevector is not associated with a target!')
+      call rti_abort('gio_readFileFst: dateStampList of statevector is not associated with a target!')
     else
       dateStampList(:) = stateVector%dateStampList(:)
       if (ignoreDate) then
@@ -897,11 +898,11 @@ module gridStateVectorFileIO_mod
     if (ierr >= 0) then
       ierr  =  fstouv(nulfile,'RND+OLD')
     else
-      call utl_abort('gio_readFileFst: problem opening input file')
+      call rti_abort('gio_readFileFst: problem opening input file')
     end if
 
     if (nulfile == 0) then
-      call utl_abort('gio_readFileFst: unit number for input file not valid')
+      call rti_abort('gio_readFileFst: unit number for input file not valid')
     end if
 
     ! Read surface height and height LS if requested
@@ -927,14 +928,14 @@ module gridStateVectorFileIO_mod
           if (ikey < 0) then
             write(*,*) 'gio_readFileFst: etiket_in = ', etiket_in
             write(*,*) 'gio_readFileFst: typvar_in = ', typvar_in
-            call utl_abort('gio_readFileFst: Problem with reading surface height from file')
+            call rti_abort('gio_readFileFst: Problem with reading surface height from file')
           end if
         end if
 
         if (ni_file /= stateVector%hco%ni .or. nj_file /= stateVector%hco%nj) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
           write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
-          call utl_abort('gio_readFileFst: Dimensions of surface height not consistent')
+          call rti_abort('gio_readFileFst: Dimensions of surface height not consistent')
         end if
 
         allocate(gd2d_file_r4(ni_file, nj_file))
@@ -945,7 +946,7 @@ module gridStateVectorFileIO_mod
           write(*,*) 'ip1 = ', ip1
           write(*,*) 'etiket_in = ', etiket_in
           write(*,*) 'typvar_var = ', typvar_var
-          call utl_abort('gio_readFileFst: Problem with reading surface height from file')
+          call rti_abort('gio_readFileFst: Problem with reading surface height from file')
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         heightSfc_ptr = real(gd2d_file_r4(1:statevector%hco%ni, 1:statevector%hco%nj), 8) * &
@@ -965,13 +966,13 @@ module gridStateVectorFileIO_mod
           if (ikey < 0) then
             write(*,*) 'gio_readFileFst: etiket_in = ', etiket_in
             write(*,*) 'gio_readFileFst: typvar_in = ', typvar_in
-            call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
+            call rti_abort('gio_readFileFst: Problem with reading surface height LS from file')
           end if
 
           if (ni_file /= stateVector%hco%ni .or. nj_file /= stateVector%hco%nj) then
             write(*,*) 'ni, nj in file        = ', ni_file, nj_file
             write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
-            call utl_abort('gio_readFileFst: Dimensions of surface height LS not consistent')
+            call rti_abort('gio_readFileFst: Dimensions of surface height LS not consistent')
           end if
 
           allocate(gd2d_file_r4(ni_file, nj_file))
@@ -982,7 +983,7 @@ module gridStateVectorFileIO_mod
             write(*,*) 'ip1 = ', ip1
             write(*,*) 'etiket_in = ', etiket_in
             write(*,*) 'typvar_var = ', typvar_var
-            call utl_abort('gio_readFileFst: Problem with reading surface height LS from file')
+            call rti_abort('gio_readFileFst: Problem with reading surface height LS from file')
           end if
           hco_file => gsv_getHco(statevector)
           heightSfcLS_ptr => gsv_getHeightSfcLS(statevector)
@@ -1032,7 +1033,7 @@ module gridStateVectorFileIO_mod
             foundVarNameInFile = .true.
         end if
 
-        if (.not. foundVarNameInFile) call utl_abort('gio_readFileFst: NO variable is in the file')
+        if (.not. foundVarNameInFile) call rti_abort('gio_readFileFst: NO variable is in the file')
 
         call hco_setupFromFile(hco_file, trim(fileName), ' ', 'INPUTFILE', varName_opt = varName)
 
@@ -1091,7 +1092,7 @@ module gridStateVectorFileIO_mod
           case ('LPR')
             varNameToRead = 'PR'
           case default
-            call utl_abort('gio_readFileFst: variable '//trim(varName)//&
+            call rti_abort('gio_readFileFst: variable '//trim(varName)//&
                            ' was not found in '//trim(fileName))
           end select
         end if
@@ -1115,7 +1116,7 @@ module gridStateVectorFileIO_mod
           ip1 = -1
         else
           write(*,*) 'varLevel =', varLevel
-          call utl_abort('gio_readFileFst: unknown varLevel')
+          call rti_abort('gio_readFileFst: unknown varLevel')
         end if
 
         ! Make sure that the input variable has the same grid size than hco_file
@@ -1135,7 +1136,7 @@ module gridStateVectorFileIO_mod
             write(*,*) 'gio_readFileFst: etiket  = ', etiket_in
             write(*,*) 'gio_readFileFst: typvar  = ', typvarToRead
             write(*,*) 'gio_readFileFst: nulfile = ', nulfileToRead
-            call utl_abort('gio_readFileFst: cannot find field '// &
+            call rti_abort('gio_readFileFst: cannot find field '// &
                            trim(varNameToRead)//' in file '//trim(fileName))
           end if
         end if
@@ -1154,7 +1155,7 @@ module gridStateVectorFileIO_mod
 
         ! Check if we found a mask field by mistake - if yes, need to fix the code!
         if (typvar_var == '@@') then
-          call utl_abort('gio_readFileFst: read a mask file by mistake - need to modify file or fix the code')
+          call rti_abort('gio_readFileFst: read a mask file by mistake - need to modify file or fix the code')
         end if
 
         if (ni_var == hco_file%ni .and. nj_var == hco_file%nj) then
@@ -1173,15 +1174,15 @@ module gridStateVectorFileIO_mod
                 write(*,*) 'gio_readFileFst: this variable on same grid as other physics variables'
                 statevector%onPhysicsGrid(vnl_varListIndex(varName)) = .true.
               else
-                call utl_abort('gio_readFileFst: this variable not on same grid as other physics variables')
+                call rti_abort('gio_readFileFst: this variable not on same grid as other physics variables')
               end if
             else
-              call utl_abort('gio_readFileFst: physics grid has not been set up')
+              call rti_abort('gio_readFileFst: physics grid has not been set up')
             end if
           end if
 
           if (statevector%hco%global) then
-            call utl_abort('gio_readFileFst: This is not allowed in global mode!')
+            call rti_abort('gio_readFileFst: This is not allowed in global mode!')
           end if
 
           EZscintID_var  = ezqkdef(ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfileToRead) ! IN
@@ -1200,7 +1201,7 @@ module gridStateVectorFileIO_mod
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
             write(*,*) 'gio_readFileFst: read mask that needs interpolation for variable name: ', nomvar_var
-            call utl_abort('gio_readFileFst: not implemented yet')
+            call rti_abort('gio_readFileFst: not implemented yet')
           end if
 
           deallocate(gd2d_var_r4)
@@ -1244,13 +1245,13 @@ module gridStateVectorFileIO_mod
             end if
 
           case default
-            call utl_abort('gio_readFileFst: Oups! This should not happen... Check the code.')
+            call rti_abort('gio_readFileFst: Oups! This should not happen... Check the code.')
           end select
         endif
 
         if (ierr < 0)then
           write(*,*) varNameToRead, ip1, dateStampToRead
-          call utl_abort('gio_readFileFst: Problem with reading file')
+          call rti_abort('gio_readFileFst: Problem with reading file')
         end if
 
         ! When mpi distribution could put UU on a different mpi task than VV
@@ -1500,7 +1501,7 @@ module gridStateVectorFileIO_mod
           fileName = trim(trialFileName)
         else
           if (trim(utl_fileType(trim(trialFileName))) == 'NetCDF') then
-            call utl_abort('gio_readTrials: All NEMO trial fields must be stored in one netCDF file.')
+            call rti_abort('gio_readTrials: All NEMO trial fields must be stored in one netCDF file.')
           end if
 
           ! identify which trial file corresponds with current datestamp
@@ -1523,7 +1524,7 @@ module gridStateVectorFileIO_mod
 
           if (ikey <= 0 .or. .not.fileExists) then
             write(*,*) 'stepIndexToRead, dateStamp = ', stepIndexToRead, dateStamp
-            call utl_abort('gio_readTrials: trial file not found for this increment timestep')
+            call rti_abort('gio_readTrials: trial file not found for this increment timestep')
           end if
         end if
 
@@ -1559,7 +1560,7 @@ module gridStateVectorFileIO_mod
       else if (stateVectorTrial_ptr%mpi_distribution == 'Tiles') then
         call gsv_transposeStepToTiles(stateVector_1step_r4, stateVectorTrial_ptr, stepIndexBeg)
       else
-        call utl_abort('gio_readTrials: not compatible with mpi_distribution = ' // &
+        call rti_abort('gio_readTrials: not compatible with mpi_distribution = ' // &
                        trim(stateVectorTrial_ptr%mpi_distribution))
       end if
 
@@ -1675,7 +1676,7 @@ module gridStateVectorFileIO_mod
       if ( outputFormat == 'RSF' ) then
         numThreadsForWriting = mmpi_numthread
       else
-        call utl_abort('gio_writeToFile: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+        call rti_abort('gio_writeToFile: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
       end if
     end if
 
@@ -1729,10 +1730,10 @@ module gridStateVectorFileIO_mod
       varLevIndexEnd = varLevIndexEnd_opt
     else
       if ( present(varLevIndexBeg_opt) ) then
-        call utl_abort('gio_writeToFile: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
+        call rti_abort('gio_writeToFile: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
       end if
       if ( present(varLevIndexEnd_opt) ) then
-        call utl_abort('gio_writeToFile: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
+        call rti_abort('gio_writeToFile: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
       end if
 
       varLevIndexBeg = 1
@@ -1815,7 +1816,7 @@ module gridStateVectorFileIO_mod
         call msg('gio_writeToFile', 'File name = ' // trim(fileNameTMp))
         success = fstFiles(thread) % open(trim(fileNameTmp), 'R/W')
         if (.not. success) then
-          call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNameTmp))
+          call rti_abort('gio_writeToFile: problem opening output file ' // trim(fileNameTmp))
         end if
       end do
 
@@ -1892,7 +1893,7 @@ module gridStateVectorFileIO_mod
           !- Writing to file
           success = fstFiles(0) % write(fstRecords(0))
           if (.not. success) then
-            call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
+            call rti_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
                            str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
           end if
         end if ! iDoWriting
@@ -1944,7 +1945,7 @@ module gridStateVectorFileIO_mod
             !- Writing to file
             success = fstFiles(0) % write(fstRecords(0))
             if (.not. success) then
-              call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
+              call rti_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
                               str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
             end if
           end if ! iDoWriting
@@ -2025,7 +2026,7 @@ module gridStateVectorFileIO_mod
         else
           varLevel = vnl_varLevelFromVarname(nomvar)
           write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
-          call utl_abort('gio_writeToFile')
+          call rti_abort('gio_writeToFile')
         end if
 
         ! Set the precision
@@ -2110,7 +2111,7 @@ module gridStateVectorFileIO_mod
         fileNameTmp = trim(fileNamePtr)
         success = fstFiles(thread)%close()
         if (.not. success) then
-          call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
+          call rti_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
         end if
 
         ! If 'numThreadsForWriting' is 1 then we directly write to the final output file.
@@ -2202,7 +2203,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (.not. success) then
-      call utl_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+      call rti_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
     end if
 
     if (statevector%oceanMask%maskPresent) then
@@ -2224,7 +2225,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (.not. success) then
-      call utl_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+      call rti_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
     end if
 
   end subroutine writeFieldToFile
@@ -2283,7 +2284,7 @@ module gridStateVectorFileIO_mod
       fstRecord%nk = 1
       success = fstFile % write(fstRecord, rewrite = FST_SKIP)
       if (.not. success) then
-        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
       lat_8(:) = statevector%hco%lat(:)*mpc_degrees_per_radian_r8
@@ -2294,7 +2295,7 @@ module gridStateVectorFileIO_mod
       fstRecord%nk = 1
       success = fstFile % write(fstRecord, rewrite = FST_SKIP)
       if (.not. success) then
-        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
       ! Also write the tic tac for the physics grid
@@ -2318,7 +2319,7 @@ module gridStateVectorFileIO_mod
         fstRecord%nk = 1
         success = fstFile % write(fstRecord, rewrite = FST_SKIP)
         if (.not. success) then
-          call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+          call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
         end if
 
         lat_8(1:statevector%hco_physics%nj) = statevector%hco_physics%lat(:)*mpc_degrees_per_radian_r8
@@ -2329,7 +2330,7 @@ module gridStateVectorFileIO_mod
         fstRecord%nk = 1
         success = fstFile % write(fstRecord, rewrite = FST_SKIP)
         if (.not. success) then
-          call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+          call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
         end if
       end if
 
@@ -2357,7 +2358,7 @@ module gridStateVectorFileIO_mod
       fstRecord%data = c_loc(statevector%hco%tictacU)
       success = fstFile % write(fstRecord)
       if (.not. success) then
-        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
     else if (statevector%hco%grtyp == 'Y') then
@@ -2389,7 +2390,7 @@ module gridStateVectorFileIO_mod
       fstRecord%nk = 1
       success = fstFile % write(fstRecord, rewrite = FST_SKIP)
       if (.not. success) then
-        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
       ! TODO: simplify the floating point precision conversions
@@ -2402,7 +2403,7 @@ module gridStateVectorFileIO_mod
       fstRecord%nk = 1
       success = fstFile % write(fstRecord, rewrite = FST_SKIP)
       if (.not. success) then
-        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        call rti_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
 
     end if
@@ -2413,7 +2414,7 @@ module gridStateVectorFileIO_mod
     if (statevector%vco%vgridPresent) then
       status = vgd_write(statevector%vco%vgrid,fstFile%get_unit(),'fst')
       if (status /= VGD_OK) then
-        call utl_abort('writeTicTacToc: ERROR with vgd_write')
+        call rti_abort('writeTicTacToc: ERROR with vgd_write')
       end if
     end if
 
@@ -2446,10 +2447,10 @@ module gridStateVectorFileIO_mod
       ! that will be used later in 'appendMpiDistributedFile_XDF'
       success = fstFile%open(trim(fileName), options = 'R/W')
       if (.not. success) then
-        call utl_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
+        call rti_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
       end if
     else if ( outputFormat /= 'RSF' ) then
-      call utl_abort('gio_collectMpiDistributedFiles: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+      call rti_abort('gio_collectMpiDistributedFiles: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
     end if
 
     do index = startIndex, endIndex
@@ -2467,7 +2468,7 @@ module gridStateVectorFileIO_mod
     if ( outputFormat == 'XDF' ) then
       success = fstFile%close()
       if (.not. success) then
-        call utl_abort('gio_collectMpiDistributedFiles: problem closing output file ' // trim(fileName))
+        call rti_abort('gio_collectMpiDistributedFiles: problem closing output file ' // trim(fileName))
       end if
     end if
 
@@ -2496,7 +2497,7 @@ module gridStateVectorFileIO_mod
 
     success = fstFileOut%open(trim(inputFileName), options = 'R/O')
     if (.not. success) then
-      call utl_abort('appendMpiDistributedFiles_XDF: problem opening output file ' // trim(inputFileName))
+      call rti_abort('appendMpiDistributedFiles_XDF: problem opening output file ' // trim(inputFileName))
     end if
 
     ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
@@ -2504,7 +2505,7 @@ module gridStateVectorFileIO_mod
     do while (fstQuery%read_next(fstRecord))
       success = fstFile%write(fstRecord)
       if (.not. success) then
-        call utl_abort('appendMpiDistributedFiles_XDF: problem writing to file ' // trim(inputFileName) &
+        call rti_abort('appendMpiDistributedFiles_XDF: problem writing to file ' // trim(inputFileName) &
                        // ' the record ' // fstRecord%nomvar // ' ' // str(fstRecord%ip1))
       end if
     end do
@@ -2512,7 +2513,7 @@ module gridStateVectorFileIO_mod
 
     success = fstFileOut%close()
     if (.not. success) then
-      call utl_abort('appendMpiDistributedFiles_XDF: problem closing output file ' // trim(inputFileName))
+      call rti_abort('appendMpiDistributedFiles_XDF: problem closing output file ' // trim(inputFileName))
     end if
 
   end subroutine appendMpiDistributedFile_XDF
@@ -2705,13 +2706,13 @@ module gridStateVectorFileIO_mod
         ! Read namelist NAMSTIO
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namstio, iostat=ierr)
-        if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
+        if (ierr /= 0) call rti_abort('readNml (gio): Error reading namelist')
         call utl_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=namstio)
 
       if ( outputFormat /= 'XDF' .and. outputFormat /= 'RSF' ) then
-        call utl_abort('readNml (gio): ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+        call rti_abort('readNml (gio): ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
       end if
 
       firstCall = .false.
@@ -2809,11 +2810,11 @@ module gridStateVectorFileIO_mod
       varLevIndexEnd = varLevIndexEnd_opt
     else
       if (present(varLevIndexBeg_opt)) then
-        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexEnd_opt'' must be given'// &
+        call rti_abort('gio_writeToFileNetCDF: An argument ''varLevIndexEnd_opt'' must be given'// &
                        ' when ''varLevIndexBeg_opt_opt'' is given.')
       end if
       if (present(varLevIndexEnd_opt)) then
-        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexBeg_opt'' must be given'// &
+        call rti_abort('gio_writeToFileNetCDF: An argument ''varLevIndexBeg_opt'' must be given'// &
                        ' when ''varLevIndexEnd_opt_opt'' is given.')
       end if
       varLevIndexBeg = 1
@@ -2821,7 +2822,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (varLevIndexBeg /= 1 .or. varLevIndexEnd /= gsv_getNumVarLev(stateVector)) then
-      call utl_abort('gio_writeToFileNetCDF: Parallel access to netCDF files is not implemented')
+      call rti_abort('gio_writeToFileNetCDF: Parallel access to netCDF files is not implemented')
     end if
 
     ! if step index not specified, choose anltime (usually center of window)
@@ -2846,7 +2847,7 @@ module gridStateVectorFileIO_mod
     if (gsv_varExist(statevector, 'TM')) then
       numLev = gsv_getNumLevFromVarName(stateVector, 'TM')
     else
-      call utl_abort('gio_writeToFileNetCDF: variable TM should be present in the state vector.')
+      call rti_abort('gio_writeToFileNetCDF: variable TM should be present in the state vector.')
     end if
 
     ! only proc 0 does writing or each proc when data is global
@@ -2871,7 +2872,7 @@ module gridStateVectorFileIO_mod
       else if (typvar == 'R') then
         localVariableName(:) = NEMOvarNameInc(:)
       else
-        call utl_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
+        call rti_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
       end if
 
       fileName = trim(fileNameTemplate)//'.nc'
@@ -2941,7 +2942,7 @@ module gridStateVectorFileIO_mod
         case('SSH')
           varIndexNEMO = 10
         case default
-          call utl_abort('gio_writeToFileNetCDF: requested variable name does not exist '//trim(varName))
+          call rti_abort('gio_writeToFileNetCDF: requested variable name does not exist '//trim(varName))
       end select
 
       levIndex = gsv_getLevFromVarLev(stateVector, varLevIndex)
@@ -3013,7 +3014,7 @@ module gridStateVectorFileIO_mod
                                                   count = (/ni, nj,        1,        1/)), &
                                      'gio_writeToFileNetCDF', 'nf90_put_var')
         else
-          call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
+          call rti_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
                           varName//' ('//trim(localVariableName(varIndexNEMO))//')')
         end if
 
@@ -3088,7 +3089,7 @@ module gridStateVectorFileIO_mod
     else if (typvar == 'R') then
       localVariableName(:) = NEMOvarNameInc(:)
     else
-      call utl_abort('gio_createOceanIncrementNetCDFfile: unknown typvar: '//typvar)
+      call rti_abort('gio_createOceanIncrementNetCDFfile: unknown typvar: '//typvar)
     end if
 
     ! define the dimensions.

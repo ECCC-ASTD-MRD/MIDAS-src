@@ -7,6 +7,7 @@ module quasiNewton_mod
   !
       use midasMpi_mod
       use utilities_mod
+      use runtimeInfo_mod
 
       implicit none
       save

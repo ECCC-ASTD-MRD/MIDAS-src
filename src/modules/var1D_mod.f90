@@ -15,6 +15,7 @@ module var1D_mod
   use codeprecision_mod
   use mathphysconstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save

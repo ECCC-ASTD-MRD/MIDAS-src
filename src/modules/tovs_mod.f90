@@ -71,6 +71,7 @@ module tovs_mod
   use message_mod
   use codtyp_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use mathPhysConstants_mod
   use climatologies_mod
@@ -424,14 +425,14 @@ contains
       call tvs_mapSat(satelliteCode,iplatform,isat)
       if (iplatform == -1) then
         write(*,*) 'Unknown OBS_SAT !', satelliteCode
-        call utl_abort('tvs_setupAlloc')
+        call rti_abort('tvs_setupAlloc')
       end if
       !    map burp instrument info to RTTOV instrument.
       instrumentCode = obs_headElem_i(obsSpaceData,OBS_INS,headerIndex)
       call tvs_mapInstrum(instrumentCode,instrum)
       if (instrum == -1) then
         write(*,*) 'Unknown OBS_INS !', instrumentCode
-        call utl_abort('tvs_setupAlloc')
+        call rti_abort('tvs_setupAlloc')
       end if
       !    find sensor number for this obs.
       nosensor = 0
@@ -659,7 +660,7 @@ contains
             end if
           end do
           if (trim(fullNameWithPath) == 'NOTFOUND') then
-            call utl_abort('tvs_setupAlloc: unable to find coefficient file starting with ' // trim(filePrefix))
+            call rti_abort('tvs_setupAlloc: unable to find coefficient file starting with ' // trim(filePrefix))
           end if
         end if
 
@@ -674,7 +675,7 @@ contains
 
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
-          call utl_abort('tvs_setupAlloc')
+          call rti_abort('tvs_setupAlloc')
         end if
 
         if (tvs_copyCoefficientFileToRamdisk .and. ram_getRamDiskDir() /= ' ') then
@@ -688,7 +689,7 @@ contains
                tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
           if (errorStatus /= errorStatus_success) then
             write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFileName
-            call utl_abort('tvs_setupAlloc')
+            call rti_abort('tvs_setupAlloc')
           end if
         end if
         call utl_tmg_stop(16)
@@ -699,7 +700,7 @@ contains
         call rttov_user_options_checkinput(errorStatus, tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'error in rttov options', errorStatus
-          call utl_abort('tvs_setupAlloc')
+          call rti_abort('tvs_setupAlloc')
         end if
       end do
 
@@ -745,7 +746,7 @@ contains
         profiles => tvs_profiles_tlad
         if (present(cld_profiles_opt)) cld_profiles_opt => tvs_cld_profiles_tlad
       case default
-        call utl_abort('tvs_getProfile: invalid profileType ' // profileType)
+        call rti_abort('tvs_getProfile: invalid profileType ' // profileType)
     end select
 
   end subroutine tvs_getProfile
@@ -884,14 +885,14 @@ contains
     !   1.2 Read the NAMELIST NAMTOV to modify them
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namtov, iostat=ierr)
-    if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist NAMTOV')
+    if (ierr /= 0) call rti_abort('tvs_setup: Error reading namelist NAMTOV')
 
     if (mmpi_myid == 0) write(*,nml=namtov)
     call utl_tmg_stop(181)
 
     !  1.3 Transfer namelist variables to module variables
     if (nsensors /= MPC_missingValue_INT) then
-      call utl_abort('tvs_setup: check namelist section NAMTOV; nsensors should be removed as it is' // &
+      call rti_abort('tvs_setup: check namelist section NAMTOV; nsensors should be removed as it is' // &
           ' now computed by Midas from cinstrumentid and csatid arrays')
     end if
 
@@ -942,12 +943,12 @@ contains
 
     if (radiativeTransferCode /= 'RTTOV') then
       write(*,'(A)') ' Invalid radiation model name'
-      call utl_abort('tvs_setup')
+      call rti_abort('tvs_setup')
     end if
 
     if (tvs_nsensors > tvs_maxNumberOfSensors) then
       write(*,'(A)') ' Number of sensors (tvs_nsensors) is greater than maximum allowed (tvs_maxNumberOfSensors)'
-      call utl_abort('tvs_setup')
+      call rti_abort('tvs_setup')
     end if
 
     !  1.5 Print the content of this NAMELIST
@@ -984,7 +985,7 @@ contains
       if (instrumentNamesUsingCLW(instrumentIndex) /= '***UNDEFINED***') then
         if (instrumentIdsUsingCLW(instrumentIndex) == -1) then
           write(*,*) instrumentIndex, instrumentNamesUsingCLW(instrumentIndex)
-          call utl_abort('tvs_setup: Unknown instrument name to use CLW')
+          call rti_abort('tvs_setup: Unknown instrument name to use CLW')
         end if
       else
         numMWInstrumToUseCLW = instrumentIndex - 1
@@ -1000,7 +1001,7 @@ contains
       if (instrumentNamesUsingHydrometeors(instrumentIndex) /= '***UNDEFINED***') then
         if (instrumentIdsUsingHydrometeors(instrumentIndex) == -1) then
           write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
-          call utl_abort('tvs_setup: Unknown instrument name to use hydrometeors')
+          call rti_abort('tvs_setup: Unknown instrument name to use hydrometeors')
         end if
       else
         numMWInstrumToUseHydrometeors = instrumentIndex - 1
@@ -1016,7 +1017,7 @@ contains
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
         if (instrumentIdsUsingHydrometeors(instrumentIndex) /= tvs_getInstrumentId('atms')) then
           write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
-          call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
+          call rti_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
         end if
       end if
     end do
@@ -1066,10 +1067,10 @@ contains
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
         call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(headerIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
             tvs_opts(sensorIndex), asw=0,coefs=tvs_coefs(sensorIndex), init=.false. ) ! asw =0 deallocation
-        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_nl')
+        if (allocStatus /= 0) call rti_abort('tvs_cleanup: memory deallocation error for tvs_profiles_nl')
         call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(headerIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(sensorIndex),asw=0,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =0 deallocation
-        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_tlad')
+        if (allocStatus /= 0) call rti_abort('tvs_cleanup: memory deallocation error for tvs_profiles_tlad')
       end do
 
       deallocate(tvs_profiles_nl)
@@ -1078,7 +1079,7 @@ contains
       do sensorIndex = tvs_nsensors, 1, -1
         call rttov_dealloc_coefs(allocStatus, tvs_coefs(sensorIndex))
         write(*,*) 'Deallocating coefficient structure for instrument', sensorIndex
-        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error in rttov_dealloc_coefs')
+        if (allocStatus /= 0) call rti_abort('tvs_cleanup: memory deallocation error in rttov_dealloc_coefs')
       end do
 
       deallocate(tvs_coefs)
@@ -1161,7 +1162,7 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMCHANOFFSET', './flnml')) then
-        call utl_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
+        call rti_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
       end if
       ! read the namelist
       call utl_tmg_start(181,'low-level--readNML')
@@ -1170,7 +1171,7 @@ contains
       read(utl_flnml_static,nml=NAMCHANOFFSET, iostat=ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMCHANOFFSET namelist section in flnml_static file !'
-        call utl_abort('sensors')
+        call rti_abort('sensors')
       end if
       do instrumentIndex=0, ninst - 1
         if (listinstrum(instrumentIndex) /= 'XXXXXXXX') then
@@ -1221,7 +1222,7 @@ contains
       end do
       if (tvs_platforms(sensorIndex) < 0) then
         write(*,'(A)') ' Satellite ' // trim(tempocsatid) // ' not supported.'
-        call utl_abort('SENSORS')
+        call rti_abort('SENSORS')
       else
         ipos1 = len_trim(platform_name(kindex))
         ipos2 = len_trim(tempocsatid)
@@ -1230,7 +1231,7 @@ contains
         if (ierr /= 0) then
           write(*,'(A,1x,i6,1x,i3,1x,i3,1x,A15)') 'Problem while reading satellite number', &
                ierr, ipos1, ipos2, tempocsatid
-          call utl_abort('SENSORS')
+          call rti_abort('SENSORS')
         else
           tvs_satellites(sensorIndex) = numerosat
         end if
@@ -1257,7 +1258,7 @@ contains
       end if
       if (tvs_instruments(sensorIndex) < 0) then
         write(*,'(A)') ' INSTRUMENT '// trim( tvs_instrumentName(sensorIndex)) // ' not supported.'
-        call utl_abort('SENSORS')
+        call rti_abort('SENSORS')
       end if
       tvs_channelOffset(sensorIndex) = ioffset1b(tvs_instruments(sensorIndex))
     end do
@@ -1311,14 +1312,14 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
-        call utl_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+        call rti_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
+      if (ierr /= 0) call rti_abort('tvs_getAllIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
@@ -1329,11 +1330,11 @@ contains
           list_inst(instrumentIndex) = codtyp_get_codtyp( inst_names(instrumentIndex) )
           if (list_inst(instrumentIndex) < 0) then
             write(*,*) inst_names(instrumentIndex)
-            call utl_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
+            call rti_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
           end if
         end if
       end do
-      if (ninst_tovs == 0) call utl_abort('tvs_getAllIdBurpTovs: Empty namtovsinst namelist')
+      if (ninst_tovs == 0) call rti_abort('tvs_getAllIdBurpTovs: Empty namtovsinst namelist')
       firstCall = .false.
     end if
 
@@ -1397,14 +1398,14 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
-        call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+        call rti_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
       call utl_tmg_start(181,'low-level--readNML')
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
       read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
+      if (ierr /= 0) call rti_abort('tvs_isIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
@@ -1415,11 +1416,11 @@ contains
           list_inst(instrumentIndex) = codtyp_get_codtyp( inst_names(instrumentIndex) )
           if (list_inst(instrumentIndex) < 0) then
             write(*,*) inst_names(instrumentIndex)
-            call utl_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
+            call rti_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
           end if
         end if
       end do
-      if ( ninst_tovs == 0 ) call utl_abort('tvs_isIdBurpTovs: Empty namtovsinst namelist')
+      if ( ninst_tovs == 0 ) call rti_abort('tvs_isIdBurpTovs: Empty namtovsinst namelist')
       firstCall = .false.
     end if
 
@@ -1465,14 +1466,14 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMHYPER', './flnml')) then
-        call utl_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+        call rti_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
       ninst_hyper = 0
       list_inst(:) = -1
       name_inst(:) = 'XXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
+      if (ierr /= 0) call rti_abort('tvs_isIdBurpHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
@@ -1483,11 +1484,11 @@ contains
           list_inst(instrumentIndex) = codtyp_get_codtyp( name_inst(instrumentIndex) )
           if (list_inst(instrumentIndex) < 0) then
             write(*,*) name_inst(instrumentIndex)
-            call utl_abort('tvs_isIdBurpHyperSpectral: unknown instrument in namhyper namelist')
+            call rti_abort('tvs_isIdBurpHyperSpectral: unknown instrument in namhyper namelist')
           end if
         end if
       end do
-      if ( ninst_hyper == 0 ) call utl_abort('tvs_isIdBurpHyperSpectral: Empty namhyper namelist')
+      if ( ninst_hyper == 0 ) call rti_abort('tvs_isIdBurpHyperSpectral: Empty namhyper namelist')
       firstCall = .false.
     end if
 
@@ -1623,13 +1624,13 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMHYPER', './flnml')) then
-        call utl_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+        call rti_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
       call utl_tmg_start(181,'low-level--readNML')
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist section NAMHYPER in flnm_static file')
+      if (ierr /= 0) call rti_abort('tvs_isInstrumHyperSpectral: Error reading namelist section NAMHYPER in flnm_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       call utl_tmg_stop(181)
       list_inst(:) = -1
@@ -1638,7 +1639,7 @@ contains
         if (name_inst(instrumentIndex) /= 'XXXXXXX') then
           if (list_inst(instrumentIndex) == -1) then
             write(*,*) instrumentIndex,name_inst(instrumentIndex)
-            call utl_abort('tvs_isInstrumHyperSpectral: Unknown instrument name')
+            call rti_abort('tvs_isInstrumHyperSpectral: Unknown instrument name')
           end if
         else
           ninst_hir = instrumentIndex - 1
@@ -1689,7 +1690,7 @@ contains
       name_inst(:) = 'XXXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
+      if (ierr /= 0) call rti_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       call utl_tmg_stop(181)
       do instrumentIndex = 1, maxsize
@@ -1741,13 +1742,13 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMGEO', './flnml')) then
-        call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
+        call rti_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
       end if
       ninst_geo = 0
       name_inst(:) = 'XXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namgeo, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist section NAMGEO in flnml_static file')
+      if (ierr /= 0) call rti_abort('tvs_isInstrumGeostationary: Error reading namelist section NAMGEO in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namgeo)
       call utl_tmg_stop(181)
       list_inst(:) = -1
@@ -1756,7 +1757,7 @@ contains
         if (name_inst(instrumentIndex) /= 'XXXXXX') then
           if (list_inst(instrumentIndex) == -1) then
             write(*,*) instrumentIndex,name_inst(instrumentIndex)
-            call utl_abort('tvs_isInstrumGeostationary: Unknown instrument name')
+            call rti_abort('tvs_isInstrumGeostationary: Unknown instrument name')
           end if
         else
           ninst_geo = instrumentIndex - 1
@@ -1924,7 +1925,7 @@ contains
                     ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
                     ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
 
-          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingHydrometeors')
+          call rti_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingHydrometeors')
         end if
 
         ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
@@ -1948,7 +1949,7 @@ contains
                       ', isChannelInAsciiList=', isChannelInAsciiList, &
                       ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
-            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
+            call rti_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
           end if
         end do ! do chanNum = 1, tvs_maxNumberOfChannels
       end if ! if (tvs_isInstrumUsingHydrometeors(instrumId)) then
@@ -1975,7 +1976,7 @@ contains
                     ', chanNumWithOffsetEnd=', chanNumWithOffsetEnd, &
                     ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffsetStart:chanNumWithOffsetEnd,sensorIndex)
 
-          call utl_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingClw')
+          call rti_abort('tvs_checkAllskyChanNum: numChanInAsciiList /= numChan in tvs_channelsUsingClw')
         end if
 
         ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
@@ -1999,7 +2000,7 @@ contains
                       ', isChannelInAsciiList=', isChannelInAsciiList, &
                       ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
-            call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
+            call rti_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
           end if
         end do ! do chanNum = 1, tvs_maxNumberOfChannels
       end if ! if (tvs_isInstrumUsingCLW(instrumId)) then
@@ -2145,7 +2146,7 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMINST', './flnml')) then
-        call utl_abort('tvs_mapInstrum: NAMINST namelist section should be now in flnml_static !')
+        call rti_abort('tvs_mapInstrum: NAMINST namelist section should be now in flnml_static !')
       end if
 
       ! set the default values
@@ -2157,7 +2158,7 @@ contains
       read(utl_flnml_static, nml=NAMINST, iostat=ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMINST namelist section in flnml_static file !'
-        call utl_abort('tvs_mapInstrum')
+        call rti_abort('tvs_mapInstrum')
       end if
       call utl_tmg_stop(181)
 
@@ -2169,7 +2170,7 @@ contains
         end if
       end do
       if (numinstburp > mxinstrumburp) then
-        call utl_abort('tvs_mapInstrum: exceeded maximum number of platforms')
+        call rti_abort('tvs_mapInstrum: exceeded maximum number of platforms')
       end if
       write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
       write(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
@@ -2212,13 +2213,13 @@ contains
 
     if (firstCall) then
       if (utl_isNamelistPresent('NAMGEOBUFR', './flnml')) then
-        call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
+        call rti_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
       end if
       ninst_geo = 0
       name_inst(:) = 'XXXXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml_static, nml=namgeobufr, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
+      if (ierr /= 0) call rti_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
       if (mmpi_myid == 0) write(*,nml=namgeobufr)
       call utl_tmg_stop(181)
       do instrumentIndex = 1, maxsize
@@ -2310,7 +2311,7 @@ contains
     !     Fill tables from namelist at the first call
     if (firstCall) then
       if (utl_isNamelistPresent('NAMSAT', './flnml')) then
-        call utl_abort('tvs_mapSat: NAMSAT namelist section should be now in flnml_static !')
+        call rti_abort('tvs_mapSat: NAMSAT namelist section should be now in flnml_static !')
       end if
       ! set the default values
       listburp(:) = -1
@@ -2321,7 +2322,7 @@ contains
       read(utl_flnml_static, nml=NAMSAT, iostat = ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMSAT namelist section in flnml_static file !'
-        call utl_abort('tvs_mapSat')
+        call rti_abort('tvs_mapSat')
       end if
       call utl_tmg_stop(181)
 
@@ -2333,7 +2334,7 @@ contains
         end if
       end do
       if (numsatburp >= mxsatburp) then
-        call utl_abort('tvs_mapSat: exceeded maximum number of platforms')
+        call rti_abort('tvs_mapSat: exceeded maximum number of platforms')
       end if
       write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
       write(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
@@ -2596,7 +2597,7 @@ contains
         surfem (radianceIndex) = 0.d0
       else
         write(*,*) sensorType,instrument
-        call utl_abort('tvs_getOtherEmissivities. invalid sensor type or unknown IR instrument')
+        call rti_abort('tvs_getOtherEmissivities. invalid sensor type or unknown IR instrument')
       end if
     end do
 
@@ -2653,12 +2654,12 @@ contains
     if (tvs_headerEnd < 0) return    ! exit if there are no tovs data
 
     if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnTrl,'LWCR') ) then
-      call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
+      call rti_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
                      'the LWCR variable must be included as an analysis variable in NAMSTATE. ')
     end if
     if (tvs_numMWInstrumUsingHydrometeors > 0) then
       if (.not. (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR'))) then
-        call utl_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
+        call rti_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
                        'the LWCR/IWCR variables must be included as an analysis variable in NAMSTATE. ')
       end if
       if (.not. beSilent .and. .not. (col_varExist(columnTrl,'RF') .and. col_varExist(columnTrl,'SF') .and. &
@@ -2673,13 +2674,13 @@ contains
             .not. tvs_mwAllskyAssim) .or. &
          (tvs_numMWInstrumUsingCLW == 0 .and. tvs_numMWInstrumUsingHydrometeors  > 0 .and. &
             .not. tvs_mwAllskyAssim) ) then
-      call utl_abort('tvs_fillProfiles: number of instrument to use CLW/hydrometeors do not match ' // &
+      call rti_abort('tvs_fillProfiles: number of instrument to use CLW/hydrometeors do not match ' // &
                      'all-sky namelist variable.')
     end if
 
     if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrl,'TO3') .and. &
         .not. col_varExist(columnTrl,'O3L') ) then
-      call utl_abort('tvs_fillProfiles: if tvs_useO3FromTrials is set to .true. the ozone variable ' // &
+      call rti_abort('tvs_fillProfiles: if tvs_useO3FromTrials is set to .true. the ozone variable ' // &
                      'must be included as an analysis variable in NAMSTATE. ')
     else if (tvs_useO3FromTrials) then
       if (col_varExist(columnTrl,'TO3') ) then
@@ -2707,7 +2708,7 @@ contains
       end if
     else
       write(*,*) 'Invalid  profileType ', profileType
-      call utl_abort('tvs_fillProfiles')
+      call rti_abort('tvs_fillProfiles')
     end if
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: profileType is ', profileType
@@ -2735,7 +2736,7 @@ contains
     call tim_dateStampToYYYYMMDDHH(datestamp,ijour,itime)
     if (ierr < 0) then
       write(*,*) 'Invalid datestamp ',datestamp,ijour,itime,ierr
-      call utl_abort('tvs_fillProfiles')
+      call rti_abort('tvs_fillProfiles')
     end if
     year= ijour / 10000
     month = mod(ijour / 100,100)
@@ -2814,7 +2815,7 @@ contains
              asw=1,                            & ! asw =1 allocation
              coefs=tvs_coefs(sensorIndex),     &
              init=.true. )
-        if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_prof')
+        if (allocStatus /= 0) call rti_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_prof')
         if (runObsOperatorWithHydrometeors) then
           call rttov_alloc_scatt_prof(                &
                allocstatus,                           &
@@ -2827,7 +2828,7 @@ contains
                init=.true.,                           & ! initialize profiles to zero
                flux_conversion=[1,2,0,0,0] )            !flux_conversion  input units: 0 (default) => kg/kg,
                                                         ! 1,2 => kg/m2/s, optional for rain, snow
-          if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_scatt_prof')
+          if (allocStatus /= 0) call rti_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_scatt_prof')
         end if
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
@@ -2870,7 +2871,7 @@ contains
             if (clw(levelIndex,profileCount) < qlim_getMinValueCloud('LWCR') .or. &
                 clw(levelIndex,profileCount) > qlim_getMaxValueCloud('LWCR')) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount)
-              call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
+              call rti_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
 
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
@@ -2881,7 +2882,7 @@ contains
             if (ciw(levelIndex,profileCount) < qlim_getMinValueCloud('IWCR') .or. &
                 ciw(levelIndex,profileCount) > qlim_getMaxValueCloud('IWCR')) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount)
-              call utl_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
+              call rti_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
             end if
 
             ! rain flux (zero, if not part of control variables)
@@ -2891,7 +2892,7 @@ contains
             if (rainFlux(levelIndex,profileCount) < qlim_getMinValueCloud('RF') .or. &
                 rainFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('RF')) then
               write(*,*) 'tvs_fillProfiles: rainFlux=' , rainFlux(:,profileCount)
-              call utl_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
+              call rti_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
             end if
 
             ! snow flux (zero, if not part of control variables)
@@ -2901,7 +2902,7 @@ contains
             if (snowFlux(levelIndex,profileCount) < qlim_getMinValueCloud('SF') .or. &
                 snowFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('SF')) then
               write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount)
-              call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
+              call rti_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
             end if
 
             ! cloud fraction (zero, if not part of control variables)
@@ -2911,7 +2912,7 @@ contains
             if (cloudFraction(levelIndex,profileCount) < qlim_getMinValueCloud('CLDR') .or. &
                 cloudFraction(levelIndex,profileCount) > qlim_getMaxValueCloud('CLDR')) then
               write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount)
-              call utl_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
+              call rti_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
             end if
 
             ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
@@ -3193,7 +3194,7 @@ contains
       !    2.2  Prepare all input variables required by rttov.
 
       if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. allocated(tvs_emissivityFromTrl))) then
-        call utl_abort('tvs_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
+        call rti_abort('tvs_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
       end if
 
       if (btCount > 0) then
@@ -3210,7 +3211,7 @@ contains
             calcemis=calcemis,           &
             emissivity=emissivity_local, &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 1 in rttov_alloc_direct')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov: memory allocation error 1 in rttov_alloc_direct')
         allocate(surfem1(btCount))
 
         if (tvs_isInstrumHyperSpectral(instrum)) then
@@ -3262,10 +3263,10 @@ contains
           ! allocate transmitance structure for 1 profile
           call rttov_alloc_transmission(allocStatus, transmission1, nlevels=nlv_T, &
               nchanprof=tvs_nchan(sensorIndex), asw=1, init=.true.)
-          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error in rttov_alloc_transmission')
+          if (allocStatus /= 0) call rti_abort('tvs_rttov: memory allocation error in rttov_alloc_transmission')
           ! allocate radiance structure for 1 profile
           call rttov_alloc_rad (allocStatus, tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=1, init=.true.)
-          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error in rttov_alloc_rad')
+          if (allocStatus /= 0) call rti_abort('tvs_rttov: memory allocation error in rttov_alloc_rad')
           ! allocate chanprof for 1 profile
           allocate(chanprof1(tvs_nchan(sensorIndex)))
           do channelIndex = 1, tvs_nchan(sensorIndex)
@@ -3312,10 +3313,10 @@ contains
           ! transmittance deallocation for 1 profile
           call rttov_alloc_transmission(allocStatus, transmission1, nlevels=nlv_T,  &
               nchanprof=tvs_nchan(sensorIndex), asw=0)
-          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error in rttov_alloc_transmission')
+          if (allocStatus /= 0) call rti_abort('tvs_rttov: memory deallocation error in rttov_alloc_transmission')
           ! radiance deallocation for 1 profile
           call rttov_alloc_rad (allocStatus, tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=0)
-          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error in rttov_alloc_rad')
+          if (allocStatus /= 0) call rti_abort('tvs_rttov: memory deallocation error in rttov_alloc_rad')
         else
 
           ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData
@@ -3369,7 +3370,7 @@ contains
           if (.not. beSilent) write(*,*) 'after rttov_parallel_direct...'
           if (rttov_err_stat /= 0) then
             write(*,*) 'Error in rttov_parallel_direct',rttov_err_stat
-            call utl_abort('tvs_rttov')
+            call rti_abort('tvs_rttov')
           end if
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
 
@@ -3425,7 +3426,7 @@ contains
             calcemis=calcemis,           &
             emissivity=emissivity_local, &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error 1 in rttov_alloc_direct')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov: memory deallocation error 1 in rttov_alloc_direct')
 
         deallocate(surfem1)
       end if ! if (btCount > 0)
@@ -3446,7 +3447,7 @@ contains
             calcemis=calcemisScatt,          &
             emissivity=emissivity_localScatt,&
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 2 in rttov_alloc_direct')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov: memory allocation error 2 in rttov_alloc_direct')
 
         call tvs_rttov_scatt_setupindex(                   &
             rttov_err_stat,                                &
@@ -3537,7 +3538,7 @@ contains
         if (.not. beSilent) write(*,*) 'after rttov_scatt...'
         if (rttov_err_stat /= 0) then
           write(*,*) 'Error in rttov_scatt',rttov_err_stat
-          call utl_abort('tvs_rttov')
+          call rti_abort('tvs_rttov')
         end if
 
         !    2.4  Store hx in the structure tvs_radiance
@@ -3590,7 +3591,7 @@ contains
              calcemis=calcemisScatt,          &
              emissivity=emissivity_localScatt,&
              init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error 2 in rttov_alloc_direct')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov: memory deallocation error 2 in rttov_alloc_direct')
         deallocate(surfem1Scatt)
         deallocate(frequencies)
         deallocate(transmission % tau_total)
@@ -3713,7 +3714,7 @@ contains
             !instrument we currently assimilate as discussed with
             !James Hocking.
             write(*,*) "tvs_rttov_scatt_setupindex: fatal error: found inconsistent frequencies after application of RttovScatt bugfix  ...", freq1, freq2, channelIndex1, frequencyIndex
-            call utl_abort('tvs_rttov_scatt_setupindex')
+            call rti_abort('tvs_rttov_scatt_setupindex')
           end if
         end if
 
@@ -3758,7 +3759,7 @@ contains
              coefs = tvs_coefs(sensorIndex)  )
         if (returnCode /= 0) then
           write(*,*) 'Error in rttov_atlas_setup MW',returnCode
-          call utl_abort('tvs_getMWemissivityFromAtlas')
+          call rti_abort('tvs_getMWemissivityFromAtlas')
         end if
       end if
 
@@ -3772,7 +3773,7 @@ contains
 
       if (returnCode /= 0) then
         write(*,*) 'Error in rttov_get_emis MW', returnCode
-        call utl_abort('tvs_getMWemissivityFromAtlas')
+        call rti_abort('tvs_getMWemissivityFromAtlas')
       end if
 
       profileCount = size( sensorHeaderIndexes )
@@ -4019,7 +4020,7 @@ contains
     if (iv1 < 0 .or. iv2 < 0 .or. iv3 < 0 .or. iv4 < 0 .or. iv5 < 0 .or. iv6 < 0) then
       write(*,*) 'LES iv DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-      call utl_abort('Problem with file ceres_global.std in tvs_emis_read_climatology ')
+      call rti_abort('Problem with file ceres_global.std in tvs_emis_read_climatology ')
     end if
 
   end subroutine tvs_emis_read_climatology
@@ -4097,7 +4098,7 @@ contains
 
         if (errorStatus /= 0) then
           write(*,*) 'Error in rttov_atlas_setup IR', errorStatus
-          call utl_abort('emis_getIrEmissivity')
+          call rti_abort('emis_getIrEmissivity')
         end if
       end if
 
@@ -4132,7 +4133,7 @@ contains
           calcemis,                                &
           emissivity)
       if (errorStatus /= 0) then
-        call utl_abort('emis_getIrEmissivity: problem in rttov_calcemis_ir')
+        call rti_abort('emis_getIrEmissivity: problem in rttov_calcemis_ir')
       end if
       !Restore RTTOV surface type
       do profileIndex = 1, nprf
@@ -4178,7 +4179,7 @@ contains
             uOfWLandWSurfaceEmissivity )            ! out
         if (errorStatus /= 0) then
           write(*,*) 'Error in rttov_get_emis IR', errorStatus
-          call utl_abort('emis_getIrEmissivity')
+          call rti_abort('emis_getIrEmissivity')
         end if
         if (uOfWLandWSurfaceEmissivity((profileIndex-1)*nchn + 1) < 0.d0) then
           ! land Emissivity atlas is not defined where there is too much water
@@ -4726,7 +4727,7 @@ contains
 
     if (size(channels) > tvs_maxChannelNumber) then
       write(*,*) 'You need to increase tvs_maxChannelNumber in tovsNL_mod !',size(channels), tvs_maxChannelNumber
-      call utl_abort('tvs_getCommonChannelSet')
+      call rti_abort('tvs_getCommonChannelSet')
     end if
 
     if (mmpi_myid == 0) then
@@ -4841,7 +4842,7 @@ contains
         bufrChannelNumber = rttovChannelNumber + tvs_channelOffset(sensorIndex)
         if (channelIndex == 0) then
           write(*,'(A)') '  tvs_printDetailledOmfStatistics: error with channel number'
-          call utl_abort(' tvs_printDetailledOmfStatistics')
+          call rti_abort(' tvs_printDetailledOmfStatistics')
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
@@ -5002,7 +5003,7 @@ contains
       deallocate(cloudProfileToStore)
 
     else
-      call utl_abort('updateCloudInTovsProfile: mode should be either "save" or "restore"')
+      call rti_abort('updateCloudInTovsProfile: mode should be either "save" or "restore"')
     end if
 
   end subroutine updateCloudInTovsProfile
@@ -5078,7 +5079,7 @@ contains
       deallocate(cloudFractionProfileToStore)
 
     else
-      call utl_abort('updateCloudInTovsCloudProfile: mode should be either "save" or "restore"')
+      call rti_abort('updateCloudInTovsCloudProfile: mode should be either "save" or "restore"')
     end if
 
   end subroutine updateCloudInTovsCloudProfile
@@ -5161,7 +5162,7 @@ contains
     iunit = 0
     err = fnom(iunit, trim(dirName) // '/' // trim(fileName), 'FTN+SEQ+R/W', 0)
     if (err /= 0) then
-      call utl_abort('tvs_writeJacobianAscii: Error writing Jacobian files')
+      call rti_abort('tvs_writeJacobianAscii: Error writing Jacobian files')
     end if
 
     do btIndex = 1, btCount
@@ -5176,7 +5177,7 @@ contains
         if (size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % t(:)) .or. &
             size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % q(:)) .or. &
             size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % p(:))) then
-          call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match ' // &
+          call rti_abort('tvs_writeJacobianAscii: Number of pressure levels does not match ' // &
                           'the number of model levels in Jacobian')
         end if
 
@@ -5573,7 +5574,7 @@ contains
         end if
       end do
       if (hydroChannelsCount == 0) then
-        call utl_abort('tvs_setupPointers: you have to initialize channelsUsingHydrometeors(:,:) in NAMTOV namelist section')
+        call rti_abort('tvs_setupPointers: you have to initialize channelsUsingHydrometeors(:,:) in NAMTOV namelist section')
       end if
     end if
 
@@ -5716,7 +5717,7 @@ contains
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
 
     if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
-      call utl_abort('tvs_rttov_tl: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+      call rti_abort('tvs_rttov_tl: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (tvs_useO3FromTrials) then
       if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
@@ -5792,7 +5793,7 @@ contains
           asw=1,                        &
           coefs=tvs_coefs(sensorIndex), &
           init=.true.)
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error in rttov_alloc_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory allocation error in rttov_alloc_prof')
       call rttov_alloc_scatt_prof (allocStatus,      &
                                    profileCount,     &
                                    cld_profiles_tl,  &
@@ -5802,7 +5803,7 @@ contains
                                    asw=1,            &
                                    init=.true.,      &
                                    flux_conversion=[1,2,0,0,0])
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error in rttov_alloc_scatt_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory allocation error in rttov_alloc_scatt_prof')
 
       profileLoop:do profileIndex = 1, profileCount
         profilesdata_tl(profileIndex) % gas_units = gas_unit_specconc ! all gas profiles should be provided in kg/kg
@@ -5915,7 +5916,7 @@ contains
             emissivity_tl=emissivity_tl,     &
             init=.true.)
         !   Prepare all input variables required by rttov.
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error 1 in rttov_alloc_tl')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory allocation error 1 in rttov_alloc_tl')
         allocate(surfem1(btCount))
          !    get Hyperspecral IR emissivities
         if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorHeaderIndexes, &
@@ -5981,7 +5982,7 @@ contains
           write(*,*) 'Error in rttov_parallel_tl', errorStatus
           write(*,*) 'temperature           profile=',profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
-          call utl_abort('tvs_rttov_tl')
+          call rti_abort('tvs_rttov_tl')
         end if
 
         !  2.4  Store hx in obsSpaceData,OBS_WORK
@@ -6011,7 +6012,7 @@ contains
            calcemis=calcemis,                &
            emissivity=emissivity_local,      &
            emissivity_tl=emissivity_tl )
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation 1 error in rttov_alloc_tl')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory deallocation 1 error in rttov_alloc_tl')
         deallocate(surfem1)
 
       end if ! if (btCount > 0)
@@ -6031,7 +6032,7 @@ contains
             emissivity=emissivity_localScatt, &
             emissivity_tl=emissivity_tlScatt, &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error 2 in rttov_alloc_tl')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory allocation error 2 in rttov_alloc_tl')
 
         ! Prepare all input variables required by rttovScatt.
 
@@ -6049,7 +6050,7 @@ contains
             lChannelSubset )                                    ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'tvs_rttov_tl: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
-          call utl_abort('tvs_rttov_tl')
+          call rti_abort('tvs_rttov_tl')
         end if
 
         call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
@@ -6080,7 +6081,7 @@ contains
           write(*,*) 'Error in rttov_scatt_tl', errorStatus
           write(*,*) 'temperature           profile=',profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
-          call utl_abort('tvs_rttov_tl')
+          call rti_abort('tvs_rttov_tl')
         end if
 
         !  2.4  Store hx in obsSpaceData,OBS_WORK
@@ -6110,7 +6111,7 @@ contains
             calcemis=calcemisScatt,           &
             emissivity=emissivity_localScatt, &
             emissivity_tl=emissivity_tlScatt )
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation error 2 in rttov_alloc_tl')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory deallocation error 2 in rttov_alloc_tl')
       end if  ! if (btCountScatt > 0)
 
       call rttov_alloc_scatt_prof (allocStatus,                 &
@@ -6121,7 +6122,7 @@ contains
                                    nhydro_frac=1,               &
                                    asw=0,                       &
                                    flux_conversion=[1,2,0,0,0])
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation error in rttov_alloc_scatt_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory deallocation error in rttov_alloc_scatt_prof')
       deallocate(cld_profiles_tl)
 
       call rttov_alloc_prof(            &
@@ -6133,7 +6134,7 @@ contains
           asw=0,                        &
           coefs=tvs_coefs(sensorIndex), &
           init=.true.)
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation error in rttov_alloc_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_tl: memory deallocation error in rttov_alloc_prof')
       deallocate (sensorHeaderIndexes)
     end do sensor_loop
 
@@ -6215,7 +6216,7 @@ contains
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
 
     if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
-      call utl_abort('tvs_rttov_ad: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+      call rti_abort('tvs_rttov_ad: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
     else if (tvs_useO3FromTrials) then
       if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
@@ -6300,7 +6301,7 @@ contains
           asw=1,                        &
           coefs=tvs_coefs(sensorIndex), &
           init=.true.)
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory allocation error in rttov_alloc_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory allocation error in rttov_alloc_prof')
       !  2.2  Prepare all input variables required by rttov_ad.
       if (btCount > 0) then
         call rttov_alloc_ad(                 &
@@ -6319,7 +6320,7 @@ contains
             emissivity=emissivity_local,     &
             emissivity_ad=emissivity_ad,     &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory allocation error 1 in rttov_alloc_ad')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory allocation error 1 in rttov_alloc_ad')
         allocate(surfem1(btCount))
 
         !  get Hyperspectral IR emissivities
@@ -6379,7 +6380,7 @@ contains
             nthreads = nthreads )
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'Error in rttov_parallel_ad', errorStatus
-          call utl_abort('tvs_rttov_ad')
+          call rti_abort('tvs_rttov_ad')
         end if
 
         call rttov_alloc_ad(                 &
@@ -6396,7 +6397,7 @@ contains
             radiance_ad=radiancedata_ad,     &
             calcemis=calcemis,               &
             emissivity=emissivity_local)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
         deallocate(surfem1)
       end if ! if (btCount > 0)
 
@@ -6415,7 +6416,7 @@ contains
             emissivity=emissivity_localScatt,  &
             emissivity_ad=emissivity_adScatt,  &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory allocation error 2 in rttov_alloc_ad')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory allocation error 2 in rttov_alloc_ad')
         allocate(surfem1Scatt(btCountScatt))
         allocate(frequencies(btCountScatt))
         allocate(cld_profiles_ad(profileCount))
@@ -6428,7 +6429,7 @@ contains
                                     asw=1,            &
                                     init=.true.,      &
                                     flux_conversion=[1,2,0,0,0])
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory allocation error in rttov_alloc_scatt_prof')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory allocation error in rttov_alloc_scatt_prof')
         ! Build the list of channels/profiles indices
         call tvs_rttov_scatt_setupindex(                      &
             errorStatus,                                      &
@@ -6442,7 +6443,7 @@ contains
             lChannelSubset)                                      ! OPTIONAL array of logical flags to indicate a subset of channels
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'tvs_rttov_ad: fatal error in tvs_rttov_scatt_setupindex ', errorStatus
-          call utl_abort('tvs_rttov_ad')
+          call rti_abort('tvs_rttov_ad')
         end if
         !     get non Hyperspectral IR emissivities
         call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, &
@@ -6479,7 +6480,7 @@ contains
             radiancedata_adScatt)                              ! inout
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'Error in rttov_scatt_ad', errorStatus
-          call utl_abort('tvs_rttov_ad')
+          call rti_abort('tvs_rttov_ad')
         end if
 
         call rttov_alloc_ad(                  &
@@ -6495,7 +6496,7 @@ contains
             calcemis=calcemisScatt,           &
             emissivity=emissivity_localScatt, &
             emissivity_ad=emissivity_adScatt )
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error 2 in rttov_alloc_ad')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory deallocation error 2 in rttov_alloc_ad')
         deallocate(surfem1Scatt)
         deallocate(frequencies)
       end if !if (btCountScatt > 0)
@@ -6572,7 +6573,7 @@ contains
             opts=tvs_opts(sensorIndex),      &
             coefs=tvs_coefs(sensorIndex),    &
             emissivity_ad=emissivity_ad )
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
 
       call rttov_alloc_prof(            &
           allocStatus,                  &
@@ -6583,7 +6584,7 @@ contains
           asw=0,                        &
           coefs=tvs_coefs(sensorIndex), &
           init=.true.)
-      if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error in rttov_alloc_prof')
+      if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory deallocation error in rttov_alloc_prof')
       deallocate(profilesdata_ad)
 
       if (btCountScatt > 0) then
@@ -6596,7 +6597,7 @@ contains
             nhydro_frac=1,            &
             asw=0,                    &
             flux_conversion=[1,2,0,0,0])
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error in rttov_alloc_scatt_prof')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_ad: memory deallocation error in rttov_alloc_scatt_prof')
         deallocate(cld_profiles_ad)
       end if
 
@@ -6787,7 +6788,7 @@ contains
             emissivity=emissivity_local,     &
             emissivity_k=emissivity_k,       &
             init=.true.)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_k: memory allocation error in rttov_alloc_k')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_k: memory allocation error in rttov_alloc_k')
 
         ! Set nthreads to actual number of threads which will be used.
         nthreads = min(mmpi_numThread, profileCount)
@@ -6839,7 +6840,7 @@ contains
           write(*,*) "Error in rttov_parallel_k", errorstatus
           write(*,*) 'temperature profile=', profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature Jacobian profile=', profiles_k(1) % t(:)
-          call utl_abort('tovs_rttov_k')
+          call rti_abort('tovs_rttov_k')
         end if
 
         ! Write Jacobian to ASCII files
@@ -6864,12 +6865,12 @@ contains
             calcemis=calcemis,               &
             emissivity=emissivity_local,     &
             emissivity_k=emissivity_k)
-        if (allocStatus /= 0) call utl_abort('tvs_rttov_k: memory deallocation error in rttov_alloc_k')
+        if (allocStatus /= 0) call rti_abort('tvs_rttov_k: memory deallocation error in rttov_alloc_k')
         deallocate(surfem1)
       end if  !if (btCount > 0)
 
       if (btCountScatt > 0) then
-        call utl_abort("tvs_rttov_k: jacobians not (yet) available when rttov_scatt is used !")
+        call rti_abort("tvs_rttov_k: jacobians not (yet) available when rttov_scatt is used !")
       end if
     end do sensor_loop
 

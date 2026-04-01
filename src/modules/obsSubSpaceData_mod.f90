@@ -30,6 +30,7 @@ module obsSubSpaceData_mod
   !
   use codePrecision_mod
   use utilities_mod
+  use runtimeInfo_mod
   use MathPhysConstants_mod
   use midasMpi_mod
   use bufr_mod
@@ -359,7 +360,7 @@ contains
         stat_opt = 1
         return
       else
-        call utl_abort("obsdata_set_index: No reports available. Check for consistency " // &
+        call rti_abort("obsdata_set_index: No reports available. Check for consistency " // &
                        "between input BURP file and input NAMBURP_FILTER_*  namelist " // &
                        "(and input auxiliary file if part of CH family).")
       end if
@@ -399,7 +400,7 @@ contains
                    stat_opt = 2
                    return
                 else
-                   call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
+                   call rti_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
                 end if
              end if
           else
@@ -407,7 +408,7 @@ contains
                 stat_opt = 2
                 return
              else
-                call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
+                call rti_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
              end if
           end if
           exit
@@ -592,13 +593,13 @@ contains
     end if
 
     if (obsdata%dim1 > size(val)) &
-         call utl_abort('obsdata_add_data1d: Insufficient data values provided. ' // trim(utl_str(size(val))) )
+         call rti_abort('obsdata_add_data1d: Insufficient data values provided. ' // trim(utl_str(size(val))) )
 
     ! nrep counts the number data values/profiles in the data arrays
     obsdata%nrep = obsdata%nrep+1
 
     if (obsdata%nrep > maxsize) &
-         call utl_abort('obsdata_add_data1d: Reach max size of array ' // trim(utl_str(maxsize)) )
+         call rti_abort('obsdata_add_data1d: Reach max size of array ' // trim(utl_str(maxsize)) )
 
     ! Save unique code
     obsdata%code(obsdata%nrep)=trim(code)
@@ -899,8 +900,8 @@ contains
     ! Add new elements to internal arrays if not there already
     if (present(stnid_add_opt)) then
 
-       if (iset >= 2 .and. (.not. present(varno_add_opt))) call utl_abort('oss_comboIdlist: varno_add must be present to add element for nset>=2.')
-       if (iset >= 3 .and. (.not. present(unilev_add_opt))) call utl_abort('oss_comboIdlist: unilev_add must be present to add element for nset>=3.')
+       if (iset >= 2 .and. (.not. present(varno_add_opt))) call rti_abort('oss_comboIdlist: varno_add must be present to add element for nset>=2.')
+       if (iset >= 3 .and. (.not. present(unilev_add_opt))) call rti_abort('oss_comboIdlist: unilev_add must be present to add element for nset>=3.')
 
        same = .false.
 
@@ -913,7 +914,7 @@ contains
 
        if (.not.same) then
           num_unique=num_unique+1
-          if (num_unique > nmax) call utl_abort("oss_comboIDlist: Max allowed dimension exceeded.")
+          if (num_unique > nmax) call rti_abort("oss_comboIDlist: Max allowed dimension exceeded.")
           stnid_unique(num_unique) = stnid_add_opt
           if (iset >= 2) varno_unique(num_unique) = varno_add_opt
           if (iset >= 3) unilev_unique(num_unique) = unilev_add_opt
@@ -961,7 +962,7 @@ contains
 
                 if (.not.same) then
                    num_unique=num_unique+1
-                   if (num_unique > nmax) call utl_abort("oss_comboIDlist: Max allowed dimension exceeded.")
+                   if (num_unique > nmax) call rti_abort("oss_comboIDlist: Max allowed dimension exceeded.")
                    stnid_unique(num_unique) = stnid_unique_all(j,iproc)
                    if (iset >= 2) varno_unique(num_unique) = varno_unique_all(j,iproc)
                    if (iset >= 3) unilev_unique(num_unique) = unilev_unique_all(j,iproc)

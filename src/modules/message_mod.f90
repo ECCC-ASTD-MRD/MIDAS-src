@@ -7,6 +7,7 @@ module message_mod
   use midasMpi_mod
   use clibInterfaces_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
 
   implicit none
@@ -284,7 +285,7 @@ module message_mod
     else
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nammsg, iostat=ierr)
-      if (ierr /= 0) call utl_abort('msg_readNml: Error reading namelist NAMMSG')
+      if (ierr /= 0) call rti_abort('msg_readNml: Error reading namelist NAMMSG')
       if (mmpi_myid == 0) write(*,nml=nammsg)
       call utl_tmg_stop(181)
     end if

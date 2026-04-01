@@ -5,6 +5,7 @@ module fileNames_mod
   !:Purpose: Routines related to file names.
   !
   use utilities_mod
+  use runtimeInfo_mod
   use clibInterfaces_mod
   use ramDisk_mod
   use timeCoord_mod
@@ -81,7 +82,7 @@ contains
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= clib_ok) then
         if (shouldExist) then
-          call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
+          call rti_abort('fln_ensFileName: reached maximum number of files or no file is available')
         else
           write(*,*) 'fln_ensFileName: reached maximum number of files or no file is available'
           ensFileName='missing'
@@ -92,7 +93,7 @@ contains
       ensFileName = trim(fileList(1))
       totalLength = len_trim(ensFileName)
       if (totalLength == 0) then
-        call utl_abort('fln_ensFileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
+        call rti_abort('fln_ensFileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
       end if
 
       ! find number of digits used to identify ensemble member index
@@ -103,7 +104,7 @@ contains
       end do
 
       if (ensembleFileExtLength == 0) then
-        call utl_abort('fln_ensFileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
+        call rti_abort('fln_ensFileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
       end if
 
       ! find the last '/' in the file name to get the basename of the file

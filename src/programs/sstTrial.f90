@@ -69,6 +69,7 @@ program midas_sstTrial
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -163,7 +164,7 @@ program midas_sstTrial
     ! Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
     read( utl_flnml, nml = namSSTtrial, iostat = ierr )
-    if ( ierr /= 0) call utl_abort( 'SSTtrial_setup: Error reading namelist')
+    if ( ierr /= 0) call rti_abort( 'SSTtrial_setup: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*, nml = namSSTtrial )
     call utl_tmg_stop(181)
 

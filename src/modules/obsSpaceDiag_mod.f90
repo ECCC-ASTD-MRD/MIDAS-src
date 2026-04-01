@@ -26,6 +26,7 @@ module obsSpaceDiag_mod
   use randomNumber_mod
   use obsOperators_mod
   use utilities_mod
+  use runtimeInfo_mod
   use physicsfunctions_mod
   use obsSubSpaceData_mod
   use obsfiles_mod
@@ -463,7 +464,7 @@ contains
             else if(latIndex > maxLat .or. lonIndex > maxLon .or. verticalIndex > maxVertical) then
                write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
                           ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
-               call utl_abort('osd_calcInflation')
+               call rti_abort('osd_calcInflation')
             endif
 
             ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
@@ -702,7 +703,7 @@ contains
       ! read namosd namelist
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namosd, iostat=ierr)
-      if(ierr /= 0) call utl_abort('osd_setup: Error reading namelist')
+      if(ierr /= 0) call rti_abort('osd_setup: Error reading namelist')
       call utl_tmg_stop(181)
 
       nmlExists = .true.
@@ -710,7 +711,7 @@ contains
 
     if(mmpi_myid == 0) write(*,nml=namosd)
     if (numFamily /= MPC_missingValue_INT) then
-      call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
+      call rti_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
     end if
     numFamily = 0
     do familyIndex = 1, ofl_numFamily
@@ -718,7 +719,7 @@ contains
        numFamily = numFamily + 1
     end do
     if (numElement /= MPC_missingValue_INT) then
-      call utl_abort('osd_setup: check NAMOSD namelist section: numElement should be removed')
+      call rti_abort('osd_setup: check NAMOSD namelist section: numElement should be removed')
     end if
     numElement = 0
     do elementIndex = 1, ofl_numFamily
@@ -727,9 +728,9 @@ contains
     end do
     do familyIndex = 1, numFamily
       if ( .not. ofl_isFamilyTypeInList(familyList(familyIndex)) ) &
-          call utl_abort('osd_setup: Specified family '//familyList(familyIndex)//' was not recognized')
+          call rti_abort('osd_setup: Specified family '//familyList(familyIndex)//' was not recognized')
       obsspace_diagn_filename(familyIndex) ='obsspace_diag_'//familyList(familyIndex)//'_'
-      if (diagn_num(familyIndex) > max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
+      if (diagn_num(familyIndex) > max_cfg_size) call rti_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
     end do
 
   end subroutine osd_setup
@@ -1787,7 +1788,7 @@ contains
        end if
 
     case default
-       call utl_abort("osd_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
+       call rti_abort("osd_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
     end select
 
 

@@ -11,6 +11,7 @@ module globalSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -460,7 +461,7 @@ contains
 
     if(nGstAlreadyAllocated.eq.nMaxGst) then
       if(mmpi_myid.eq.0) write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ', nMaxGst
-      call utl_abort('gst_setup')
+      call rti_abort('gst_setup')
     endif
 
     nGstAlreadyAllocated = nGstAlreadyAllocated+1
@@ -1379,7 +1380,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1447,7 +1448,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_GDSP: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_GDSP: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_GDSP: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1788,7 +1789,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGDA: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -3477,7 +3478,7 @@ contains
     call ngfft( i )
     if ( i.ne.ni ) then
        write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
-       call utl_abort('fft3dvar: vector length is not compatible with FFT')
+       call rti_abort('fft3dvar: vector length is not compatible with FFT')
     endif
     call setfft8(ni)
 
@@ -3537,7 +3538,7 @@ contains
     call ngfft( i )
     if ( i.ne.ni ) then
        write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
-       call utl_abort('fft3dvar: vector length is not compatible with FFT')
+       call rti_abort('fft3dvar: vector length is not compatible with FFT')
     endif
     call setfft8(ni)
 

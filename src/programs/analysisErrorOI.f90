@@ -98,6 +98,7 @@ program midas_analysisErrorOI
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -156,7 +157,7 @@ program midas_analysisErrorOI
   call tim_setup()
 
   if (tim_nstepobs > 1 .or. tim_nstepobsinc > 1) then
-    call utl_abort('analysisErrorOI: The program assumes only one time step.')
+    call rti_abort('analysisErrorOI: The program assumes only one time step.')
   end if
 
   !
@@ -167,7 +168,7 @@ program midas_analysisErrorOI
     if (dateStampFromObs > 0) then
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort('analysisErrorOI: DateStamp was not set')
+      call rti_abort('analysisErrorOI: DateStamp was not set')
     end if
   end if
 

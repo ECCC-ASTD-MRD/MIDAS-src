@@ -119,6 +119,7 @@ program midas_randomPert
   use timeCoord_mod
   use randomNumber_mod
   use utilities_mod
+  use runtimeInfo_mod
   use gridVariableTransforms_mod
 
   implicit none
@@ -217,7 +218,7 @@ program midas_randomPert
   !- 1.2 Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namenkf, iostat=ierr)
-  if(ierr /= 0) call utl_abort('midas-randomPert: Error reading namelist')
+  if(ierr /= 0) call rti_abort('midas-randomPert: Error reading namelist')
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
   call utl_tmg_stop(181)
 
@@ -228,7 +229,7 @@ program midas_randomPert
   end if
 
   if (previousDateFraction > 1.0) then
-    call utl_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
+    call rti_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
   end if
 
   call msg_memUsage('midas-randomPert')
@@ -251,7 +252,7 @@ program midas_randomPert
       dateStamp = tim_getDatestampFromFile(ensMeanFileName)
       call tim_setDatestamp(dateStamp)
     else
-      call utl_abort('midas-randomPert: DateStamp must be set through env variable')
+      call rti_abort('midas-randomPert: DateStamp must be set through env variable')
     end if
   end if
   dateStamp = tim_getDateStamp()
@@ -323,7 +324,7 @@ program midas_randomPert
     ! If "seed" namelist value is -999, set random seed using the date
     dateStamp = tim_getDateStamp()
     if (dateStamp == -1) then
-      call utl_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
+      call rti_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
     end if
     call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint/1000000

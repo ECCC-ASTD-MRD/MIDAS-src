@@ -7,6 +7,7 @@ module presProfileOperators_mod
   !           (widely spaced) RTTOV pressure levels.
   !
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
 
   implicit none
@@ -97,7 +98,7 @@ contains
         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
         if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
              plong2 < 2.0d0*xlong(1)-xlong(2)) then
-          call utl_abort('ppo_getColumn: Outside longitude range')
+          call rti_abort('ppo_getColumn: Outside longitude range')
         end if
         if ( plong2 < 0.5d0*(xlong(1)+xlong(2)) ) then
           lonIndex=1
@@ -120,7 +121,7 @@ contains
 
         if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
              plat < 2.0d0*xlat(1)-xlat(2)) then
-          call utl_abort('ppo_getColumn: Outside latitude range')
+          call rti_abort('ppo_getColumn: Outside latitude range')
         end if
         if ( plat < 0.5d0*(xlat(1)+xlat(2)) ) then
           latIndex=1
@@ -157,7 +158,7 @@ contains
         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
         if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
              plong2 < 2.0d0*xlong(1)-xlong(2)) then
-          call utl_abort('ppo_getColumn: Outside longitude range')
+          call rti_abort('ppo_getColumn: Outside longitude range')
         end if
         do lonIndex = 2, nlong
           if  (xlong(lonIndex-1) < xlong(lonIndex)) then
@@ -175,7 +176,7 @@ contains
       if ( nlat > 1) then
         if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
              plat < 2.0d0*xlat(1)-xlat(2)) then
-          call utl_abort('ppo_getColumn: Outside latitude range')
+          call rti_abort('ppo_getColumn: Outside latitude range')
         end if
         do latIndex = 2, nlat
           if (plat <= xlat(latIndex)) exit
@@ -440,7 +441,7 @@ contains
                                   wgts,kstart,kend,validLevel_opt=success)
 
     else
-      call utl_abort('ppo_vertInterpWgts: This interpolation observation operator is not recognized')
+      call rti_abort('ppo_vertInterpWgts: This interpolation observation operator is not recognized')
     end if
 
   end subroutine ppo_vertInterpWgts
@@ -1145,7 +1146,7 @@ contains
       write(*,*) 'y1,y2 = ',y1,y2
       write(*,*) 'z1,z2 = ',z1,z2
       write(*,*) 'x1,x2 = ',x1,x2
-      call utl_abort("ppo_sublayerInterpWgts: dy is negative")
+      call rti_abort("ppo_sublayerInterpWgts: dy is negative")
     else if (dy.lt.c1) then
       ! dy~0; weights can be taken as having values of zero.
       ! w1 and w2 unchanged.

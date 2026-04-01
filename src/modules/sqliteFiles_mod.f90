@@ -9,6 +9,7 @@ module sqliteFiles_mod
   use mathPhysConstants_mod
   use fSQLite
   use utilities_mod
+  use runtimeInfo_mod
   use codePrecision_mod
   use sqliteRead_mod
   use obsSpaceData_mod

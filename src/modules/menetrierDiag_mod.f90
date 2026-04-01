@@ -9,6 +9,7 @@ module menetrierDiag_mod
   use midasMpi_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use localizationFunction_mod
   use varNameList_mod
   use horizontalCoord_mod
@@ -488,7 +489,7 @@ contains
       if ( nWaveBand /= 1 ) then
         if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
+          call rti_abort('calbmatrix_glb')
         end if
         write(wbnum,'(I2.2)') waveBandIndex_opt
       end if
@@ -634,7 +635,7 @@ contains
 
     if (binIndex == -1) then
       write(*,*) 'findBinIndex: No match found! ABORTING'
-      call utl_abort('findBinIndex')
+      call rti_abort('findBinIndex')
     end if
 
   end function findBinIndex
@@ -963,7 +964,7 @@ contains
       if ( nWaveBand /= 1 ) then
         if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
+          call rti_abort('calbmatrix_glb')
         end if
         write(wbnum,'(I2.2)') waveBandIndex_opt
       end if

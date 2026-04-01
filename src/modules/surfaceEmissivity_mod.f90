@@ -12,6 +12,7 @@ module surfaceEmissivity_mod
   use midasMpi_mod
   use randomNumber_mod
   use utilities_mod
+  use runtimeInfo_mod
   use columnData_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -99,7 +100,7 @@ contains
     fileName = 'EmissErrStd.dat'
     iunit = 0
     ierr = fnom(iunit, fileName, 'SEQ+FMT', 0)
-    if (ierr /= 0) call utl_abort('sse_readEmissError: Error reading surface emissivity error stdev. file')
+    if (ierr /= 0) call rti_abort('sse_readEmissError: Error reading surface emissivity error stdev. file')
 
     ! Read temporary strings
     read(iunit, *) tmpStr
@@ -122,7 +123,7 @@ contains
     read(iunit, '(A)') tmpStr
 
     ierr = fclos(iunit)
-    if (ierr /= 0) call utl_abort ('sse_readEmissError')
+    if (ierr /= 0) call rti_abort ('sse_readEmissError')
   end subroutine sse_readEmissError
 
   !--------------------------------------------------------------------------
@@ -151,7 +152,7 @@ contains
     ierr = fnom(iunit, trim(infile), 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) then
       write(*,*) 'Cannot open ' // trim(infile)
-      call utl_abort('sse_readCEmissMatrixByFileName')
+      call rti_abort('sse_readCEmissMatrixByFileName')
     end if
 
     write(*,*) 'sse_readCEmissMatrixByFileName: Reading ' // trim(infile)
@@ -236,7 +237,7 @@ contains
       write(*,*) 'Missing information for some channel !'
       write(*,*) list_sub(:)
       write(*,*) foundChanIndex(:)
-      call utl_abort('sse_emissErrMatSqrt')
+      call rti_abort('sse_emissErrMatSqrt')
     end if
 
     do chanIndex2 = 1, nsubset
@@ -308,7 +309,7 @@ contains
     do sensorIndex = 1, nSensor
       if (trim(instrumentName(sensorIndex)) /= 'AMSUA') then
         write(*,*) 'Satellite Name: ', trim(instrumentName(sensorIndex))
-        call utl_abort('sse_setupEmissivityfromState: !! can only be used for AMSUA instrument')
+        call rti_abort('sse_setupEmissivityfromState: !! can only be used for AMSUA instrument')
       end if
     end do
 
@@ -336,7 +337,7 @@ contains
     end if
 
     if (numSourceFile /= 1) then
-      call utl_abort('sse_setupEmissivityfromState: Only one source of emissivity variable must be supplied')
+      call rti_abort('sse_setupEmissivityfromState: Only one source of emissivity variable must be supplied')
     end if
 
     btCount = size(emissivity_inout)
@@ -466,7 +467,7 @@ contains
     integer :: nlevEmiss, latitudeBandIndex(1)
 
     if (.not. any(bmat1D_includeAnlVar(:) == 'EMMW')) then
-      call utl_abort('sse_updateBEnsMatEmissFromBHi: bmat1D_includeAnlVar does not include EMMW')
+      call rti_abort('sse_updateBEnsMatEmissFromBHi: bmat1D_includeAnlVar does not include EMMW')
     end if
 
     ! Get number of levels in the surface emssivity analysis variable
@@ -538,7 +539,7 @@ contains
       emissPtrRef => col_getAllColumns(columnRef_opt, 'EMMW')
 
       if (numCol /= numColRef .and. numLev /= numLevRef) then
-        call utl_abort('sse_emissivityRttovLimits: number of column and ' // &
+        call rti_abort('sse_emissivityRttovLimits: number of column and ' // &
                         'levels between column and reference column are not the same')
       end if
     end if

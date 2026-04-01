@@ -18,6 +18,7 @@ MODULE bMatrixHI_mod
   use timeCoord_mod
   use varNameList_mod
   use utilities_mod
+  use runtimeInfo_mod
   use gridVariableTransforms_mod
   use interpolation_mod
   use calcHeightAndPressure_mod
@@ -137,7 +138,7 @@ CONTAINS
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode_opt)
-          call utl_abort('bmatrixHI: unknown mode')
+          call rti_abort('bmatrixHI: unknown mode')
        end if
     else
        bhi_mode = 'Analysis'
@@ -159,7 +160,7 @@ CONTAINS
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambhi, iostat=ierr)
-    if ( ierr /= 0 ) call utl_abort( 'bhi_setup: Error reading namelist' )
+    if ( ierr /= 0 ) call rti_abort( 'bhi_setup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambhi )
     call utl_tmg_stop(181)
 
@@ -192,13 +193,13 @@ CONTAINS
     call vco_SetupFromFile( vco_file,  & ! OUT
                             bFileName )  ! IN
     if (.not. vco_equal(vco_anl,vco_file)) then
-      call utl_abort('bmatrixHI: vco from analysisgrid and cov file do not match')
+      call rti_abort('bmatrixHI: vco from analysisgrid and cov file do not match')
     end if
 
     Vcode_anl = vco_anl%Vcode
     if(Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
-      call utl_abort('bmatrixHI: unknown vertical coordinate type!')
+      call rti_abort('bmatrixHI: unknown vertical coordinate type!')
     endif
 
     if (.not. (gsv_varExist(varName='TT') .and.  &
@@ -206,7 +207,7 @@ CONTAINS
                gsv_varExist(varName='VV') .and.  &
                (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
                gsv_varExist(varName='P0')) ) then
-      call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
+      call rti_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
     if (.not. gsv_varExist(varName='TG')) then
       write(*,*) 'bmatrixHI: WARNING: The TG field is missing. This must be present when assimilating'
@@ -343,7 +344,7 @@ CONTAINS
       if ( ierr == 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call utl_abort('BHI_setup:NO BACKGROUND STAT FILE!!')
+        call rti_abort('BHI_setup:NO BACKGROUND STAT FILE!!')
       endif
     endif
 
@@ -359,7 +360,7 @@ CONTAINS
     elseif(stddevMode == 'SP2D') then
       call BHI_rdspstd_newfmt
     else
-      call utl_abort('BHI_setup: unknown stddevMode')
+      call rti_abort('BHI_setup: unknown stddevMode')
     endif
 
     call BHI_scalestd
@@ -780,7 +781,7 @@ CONTAINS
       call dsyev('V','U',numVarLev2,eigenvec,numVarLev2,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
         write(*,*) 'bhi_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-        call utl_abort('BHI_SUCORNS')
+        call rti_abort('BHI_SUCORNS')
       endif
 
       ! set selected number of eigenmodes to zero
@@ -949,7 +950,7 @@ CONTAINS
       endif
 
       if (ini .ne. numVarLev2 .or. inj .ne. numVarLev2) then
-        call utl_abort('READCORNS2: BG stat levels inconsitencies')
+        call rti_abort('READCORNS2: BG stat levels inconsitencies')
       endif
 
       do jcol = 1, numVarLev2
@@ -1043,7 +1044,7 @@ CONTAINS
         enddo
       enddo
     else
-      call utl_abort('CALCCORR- Undefined correlation type')
+      call rti_abort('CALCCORR- Undefined correlation type')
     endif
 
   END SUBROUTINE BHI_calcCorr
@@ -1127,7 +1128,7 @@ CONTAINS
     elseif(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 ==   &
             0 .and. ig2 ==1 .and. ig3 == 0 .and.ig4 == 0) then
        !- 1.2.2 flipped Gaussian grid no longer supported
-       call utl_abort('bhi_sutg: The flipped Gaussian grid is no longer supported!')
+       call rti_abort('bhi_sutg: The flipped Gaussian grid is no longer supported!')
 
     else
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
@@ -1175,7 +1176,7 @@ CONTAINS
         inquire(file=trim(trialfile),exist=trialExists)
         if ( .not. trialExists ) then
            if ( mmpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
-           call utl_abort('BMatrixHI : DID NOT FIND A TRIAL FIELD FILE')
+           call rti_abort('BMatrixHI : DID NOT FIND A TRIAL FIELD FILE')
         end if
       end if
 
@@ -1199,7 +1200,7 @@ CONTAINS
       if (key < 0) then
          write(*,*)
          write(*,*) 'bMatrixHI: Unable to find trial field = ',clnomvar
-         call utl_abort('BMatrixHI')
+         call rti_abort('BMatrixHI')
       end if
 
       ierr = fstprm( key,                                                 & ! IN
@@ -1223,7 +1224,7 @@ CONTAINS
       if ( ierr < 0 ) then
          write(*,*)
          write(*,*) 'bMatrixHI: Unable to read trial field = ',clnomvar
-         call utl_abort('BMatrixHI : fstlir failed')
+         call rti_abort('BMatrixHI : fstlir failed')
       end if
 
       if (ini /= ni_trial .or. inj /= nj_trial) then
@@ -1234,7 +1235,7 @@ CONTAINS
           write(*,*) 'ip1         =', ip1
           write(*,*) 'Found ni,nj =', ini, inj
           write(*,*) 'Should be   =', ni_trial, nj_trial
-          call utl_abort('bMatrixHI')
+          call rti_abort('bMatrixHI')
         end if
 
       clnomvar = 'GL'
@@ -1243,7 +1244,7 @@ CONTAINS
       if ( ierr < 0 ) then
          write(*,*)
          write(*,*) 'bMatrixHI: Unable to read trial field = ',clnomvar
-         call utl_abort('BMatrixHI : fstlir failed')
+         call rti_abort('BMatrixHI : fstlir failed')
       end if
 
       if (ini /= ni_trial .or. inj /= nj_trial) then
@@ -1254,7 +1255,7 @@ CONTAINS
           write(*,*) 'ip1         =', ip1
           write(*,*) 'Found ni,nj =', ini, inj
           write(*,*) 'Should be   =', ni_trial, nj_trial
-          call utl_abort('bMatrixHI')
+          call rti_abort('bMatrixHI')
       end if
 
       TrialGridID  = ezqkdef( ni_trial, nj_trial, clgrtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
@@ -1412,7 +1413,7 @@ CONTAINS
       llpb = llpb.or.((zsp_mpiglobal(jla,1).lt.0.).and.(zabs.gt.epsilon(zabs)))
     enddo
     if(llpb) then
-      call utl_abort(' AUTOCORRELATION  NEGATIVES')
+      call rti_abort(' AUTOCORRELATION  NEGATIVES')
     endif
     do jla = 1, ntrunc+1
       zsp_mpiglobal(jla,1) = abs(zsp_mpiglobal(jla,1))
@@ -1424,7 +1425,7 @@ CONTAINS
       zpole = zpole + zsp_mpiglobal(jla,1)*sqrt((2.d0*jn+1.d0)/2.d0)
     enddo
     if(zpole.le.0.d0) then
-      call utl_abort('POLE VALUE NEGATIVE IN SUTG')
+      call rti_abort('POLE VALUE NEGATIVE IN SUTG')
     endif
     do jla = 1, ntrunc+1
       zsp_mpiglobal(jla,1) = zsp_mpiglobal(jla,1)/zpole
@@ -1657,11 +1658,11 @@ CONTAINS
       istdkey = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(istdkey .lt.0 ) then
-        call utl_abort('READCORNS2: Problem with background stat file')
+        call rti_abort('READCORNS2: Problem with background stat file')
       endif
 
       if (ini .ne. iksdim) then
-        call utl_abort('READCORNS2: BG stat levels inconsitencies')
+        call rti_abort('READCORNS2: BG stat levels inconsitencies')
       endif
 
       ! Looking for FST record parameters..
@@ -1676,11 +1677,11 @@ CONTAINS
       icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(icornskey .lt.0 ) then
-        call utl_abort('READCORNS2: Problem with background stat file')
+        call rti_abort('READCORNS2: Problem with background stat file')
       endif
 
       if (ini .ne. iksdim .or. inj .ne. iksdim) then
-        call utl_abort('READCORNS2: BG stat levels inconsitencies')
+        call rti_abort('READCORNS2: BG stat levels inconsitencies')
       endif
 
       do jcol = 1, numVarLev2
@@ -1784,7 +1785,7 @@ CONTAINS
         endif
 
         if (ini .ne. nlev_MT) then
-          call utl_abort('RDSPSTD: BG stat levels inconsitencies')
+          call rti_abort('RDSPSTD: BG stat levels inconsitencies')
         endif
 
         do jlevo = 1, nlev_MT
@@ -1924,12 +1925,12 @@ CONTAINS
         ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
-        call utl_abort('RDSTD')
+        call rti_abort('RDSTD')
       endif
 
       if (ink .ne. nlev_MT) then
         write(*,*) 'ink, nlev_MT=', ink, nlev_MT
-        call utl_abort('RDSPSTD: BG stat levels inconsitencies')
+        call rti_abort('RDSPSTD: BG stat levels inconsitencies')
       endif
 
       if(clnomvar == 'PP') then
@@ -1956,7 +1957,7 @@ CONTAINS
         ikey = utl_fstlir(zgr,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
-        call utl_abort('RDSTD')
+        call rti_abort('RDSTD')
       endif
 
       if(clnomvar == 'UP') then
@@ -2041,7 +2042,7 @@ CONTAINS
           ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
-          call utl_abort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+          call rti_abort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
         endif
 
         zsp(:,jlevo) = 0.0d0
@@ -2101,7 +2102,7 @@ CONTAINS
         ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
-        call utl_abort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+        call rti_abort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
       endif
 
       zsp(:,1) = 0.0d0
@@ -2246,7 +2247,7 @@ CONTAINS
 
     if(ntruncCut.gt.ntrunc) then
       write(*,*) ntruncCut, ntrunc
-      call utl_abort('bhi_truncateCV: ntruncCut is greater than ntrunc!')
+      call rti_abort('bhi_truncateCV: ntruncCut is greater than ntrunc!')
     endif
 
     jdim = 0
@@ -2391,7 +2392,7 @@ CONTAINS
           ilev1 = nspositTG
         else
           ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
-!          call utl_abort('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+!          call rti_abort('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
           cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
@@ -2576,13 +2577,13 @@ CONTAINS
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call utl_abort('bhi_reduceToMPILocal')
+                         call rti_abort('bhi_reduceToMPILocal')
                       end if
                       if (jdim_mpiglobal > cvDim_mpiglobal) then
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call utl_abort('bhi_reduceToMPILocal')
+                         call rti_abort('bhi_reduceToMPILocal')
                       end if
 
                    endif
@@ -2715,13 +2716,13 @@ CONTAINS
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call utl_abort('bhi_reduceToMPILocal')
+                         call rti_abort('bhi_reduceToMPILocal')
                       end if
                       if (jdim_mpiglobal > cvDim_mpiglobal) then
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call utl_abort('bhi_reduceToMPILocal')
+                         call rti_abort('bhi_reduceToMPILocal')
                       end if
 
                    endif

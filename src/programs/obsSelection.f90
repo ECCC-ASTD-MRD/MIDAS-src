@@ -185,6 +185,7 @@ program midas_obsSelection
   use ramDisk_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -263,7 +264,7 @@ program midas_obsSelection
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namObsSelection, iostat = ierr)
-    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist namObsSelection')
+    if (ierr /= 0) call rti_abort('midas-obsSelection: Error reading namelist namObsSelection')
     if (mmpi_myid == 0) write(*,nml = namObsSelection)
     call utl_tmg_stop(181)
   else
@@ -280,7 +281,7 @@ program midas_obsSelection
     ! when only doThinning is true, we can do much less setup
     midasMode = 'thinning'
   else
-    call utl_abort('midas-obsSelection: one of doBgck, doBiasCorr, doThinning must be .true.')
+    call rti_abort('midas-obsSelection: one of doBgck, doBiasCorr, doThinning must be .true.')
   end if
 
   !
@@ -322,7 +323,7 @@ program midas_obsSelection
         ! use dateStamp from obs if not set by env variable
         call tim_setDateStamp(dateStampFromObs)
       else
-        call utl_abort('midas-obsSelection: DateStamp was not set')
+        call rti_abort('midas-obsSelection: DateStamp was not set')
       end if
     end if
   else

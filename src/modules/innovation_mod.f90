@@ -19,6 +19,7 @@ module innovation_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use obsFilter_mod
   use gps_mod
@@ -227,7 +228,7 @@ contains
     if (utl_isNamelistPresent('naminn','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=naminn, iostat=ierr)
-      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
+      if (ierr /= 0) call rti_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=naminn)
       call utl_tmg_stop(181)
     else
@@ -754,11 +755,11 @@ contains
        end do
     case ('LATLONTILESBALANCED')
        !- Distribute by latitude/longitude tiles, but with simple & cheap balancing for obs_ipc (1 send or recv):
-       call utl_abort('setObsMpiStrategy: Sorry, LATLONTILESBALANCED no longer available')
+       call rti_abort('setObsMpiStrategy: Sorry, LATLONTILESBALANCED no longer available')
     case default
        write(*,*)
        write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
-       call utl_abort('setObsMpiStrategy')
+       call rti_abort('setObsMpiStrategy')
     end select
 
   end subroutine setObsMpiStrategy

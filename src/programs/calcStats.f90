@@ -84,6 +84,7 @@ program midas_calcStats
   use calcStatsGlb_mod
   use calcStatsLam_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -191,7 +192,7 @@ program midas_calcStats
   case default
      write(*,*)
      write(*,*) 'Unknown value of MODE in global mode: ',mode
-     call utl_abort('midas-calcstats')
+     call rti_abort('midas-calcstats')
   end select
 
   !

@@ -24,6 +24,7 @@ module bMatrix_mod
   use gridStateVector_mod
   use horizontalCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -154,7 +155,7 @@ contains
 
       case default
 
-        call utl_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
+        call rti_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
 
       end select
 
@@ -209,7 +210,7 @@ contains
     !- 4. Check if the control vector has zero length (i.e. no B matrix is active)
     !
     if (cvm_nvadim_mpiglobal == 0) then
-      call utl_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
+      call rti_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
     end if
 
     call utl_tmg_stop(50)
@@ -556,7 +557,7 @@ contains
       case ('DIFF')
 
         !- 2.3 Covariances modelled using a diffusion operator.
-        call utl_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
+        call rti_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
         !call bdiff_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')

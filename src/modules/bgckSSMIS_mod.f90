@@ -8,6 +8,7 @@ module bgckSSMIS_mod
   use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use tovs_mod
   use obsErrors_mod
@@ -70,7 +71,7 @@ contains
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
-    if (ierr /= 0) call utl_abort('ssbg_init: Error reading namelist')
+    if (ierr /= 0) call rti_abort('ssbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=nambgck)
     call utl_tmg_stop(181)
 
@@ -691,7 +692,7 @@ contains
           call ssmi_ta2tb_fweng(remappedTa, Tb)
           ! IWV computed in determ_clw subroutine below.
         else
-          call utl_abort('cld_filter_fweng: Invalid algorithm option !!')
+          call rti_abort('cld_filter_fweng: Invalid algorithm option !!')
         end if
 
         ! Call CLW retrieval algorithm subroutine.
@@ -938,7 +939,7 @@ contains
     nObsLat = size(obsLatitude)
     nObsLon = size(obsLongitude)
     if (nObsLat /= nObsLon) then
-      call utl_abort ('ssbg_readGeophysicFieldsAndInterpolate: OBSERVATION obsLatitude and obsLongitude should have SAME LENGTH')
+      call rti_abort ('ssbg_readGeophysicFieldsAndInterpolate: OBSERVATION obsLatitude and obsLongitude should have SAME LENGTH')
     else
       dataNum = nObsLat
     end if
@@ -957,7 +958,7 @@ contains
         call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
         irec = fstinf(iUnGeo,ni,nj,nk,-1,' ',ip1_sfc,-1,-1,' ','GZ')
         if (irec < 0) then
-          call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Could not find GZ at the surface')
+          call rti_abort('ssbg_readGeophysicFieldsAndInterpolate: Could not find GZ at the surface')
         end if
       end if
       topoFact = 10.0  ! dam --> m
@@ -965,7 +966,7 @@ contains
       if (allocated(GZ)) deallocate(GZ)
       allocate ( GZ(ni*nj), stat=ier)
       if ( ier /= 0 ) then
-        call utl_abort('ssbg_readGeophysicFieldsAndInterpolate: Allocation of array GZ failed')
+        call rti_abort('ssbg_readGeophysicFieldsAndInterpolate: Allocation of array GZ failed')
       end if
       ier = fstlir(GZ,iUnGeo,ni,nj,nk,-1,' ',ip1_sfc,-1,-1,' ','GZ')
 
@@ -1017,7 +1018,7 @@ contains
 
     ier = gdllsval(gdgz,GZIntBox,GZ,obsLatBox,obsLonBox,boxPointNum*dataNum)
     if (ier < 0) then
-      call utl_abort ('ssbg_readGeophysicFieldsAndInterpolate: ERROR in the interpolation of GZ')
+      call rti_abort ('ssbg_readGeophysicFieldsAndInterpolate: ERROR in the interpolation of GZ')
     end if
 
     if(allocated(modelInterpTer)) deallocate(modelInterpTer)
@@ -1239,7 +1240,7 @@ contains
       ! Read MG field.
       irec = fstinf(iUnGeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
       if ( irec <  0 ) then
-        call utl_abort('land_ice_mask_ssmis: The MG field is MISSING')
+        call rti_abort('land_ice_mask_ssmis: The MG field is MISSING')
       end if
 
       call utl_reAllocate(mg, ni*nj)
@@ -1255,7 +1256,7 @@ contains
 
       irec = fstinf(iUnGeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'LG')
       if ( irec <  0 ) then
-        call utl_abort('land_ice_mask_ssmis: The LG field is MISSING ')
+        call rti_abort('land_ice_mask_ssmis: The LG field is MISSING ')
       end if
       call utl_reAllocate(lg, nilg*njlg)
       ier = fstlir(lg,iUnGeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
@@ -1447,7 +1448,7 @@ contains
 
     irec = fstinf(iUnIn,ni,nj,nk,-1,' ',0,0,0,' ','LM')
     if ( irec <  0 ) then
-      call utl_abort('wentz_sfctype_ssmis: The LM field is MISSING ')
+      call rti_abort('wentz_sfctype_ssmis: The LM field is MISSING ')
     else
       call utl_reAllocate( lm, ni*nj )
       ier = fstlir(lm,iUnIn,ni,nj,nk,-1,' ',-1,-1,-1,' ','LM')
@@ -1495,7 +1496,7 @@ contains
         ! wentz = sea/sea-ice --> sea
         landSeaQualifier(obsIndex) = 1
       else
-        call utl_abort('wentz_sfctype_ssmis: Unexpected Wentz value ')
+        call rti_abort('wentz_sfctype_ssmis: Unexpected Wentz value ')
       end if
     end do
     ier = fstfrm(iUnIn)
@@ -1728,7 +1729,7 @@ contains
         exit HEADER0
       end if
     end do HEADER0
-    if ( .not. sensorIndexFound ) call utl_abort('ssbg_satqcSsmis: sensor Index not found')
+    if ( .not. sensorIndexFound ) call rti_abort('ssbg_satqcSsmis: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -2134,7 +2135,7 @@ contains
         exit HEADER0
       end if
     end do HEADER0
-    if ( .not. sensorIndexFound ) call utl_abort('ssbg_updateObsSpaceAfterSatQc: sensor Index not found')
+    if ( .not. sensorIndexFound ) call rti_abort('ssbg_updateObsSpaceAfterSatQc: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -2289,7 +2290,7 @@ contains
         exit HEADER1
       end if
     end do HEADER1
-    if ( .not. sensorIndexFound ) call utl_abort('ssbg_inovqcSsmis: sensor Index not found')
+    if ( .not. sensorIndexFound ) call rti_abort('ssbg_inovqcSsmis: sensor Index not found')
 
     !--------------------------------------------------------------------
     ! 2) Allocating arrays
@@ -2707,7 +2708,7 @@ contains
         exit HEADER
       end if
     end do HEADER
-    if ( .not. sensorIndexFound ) call utl_abort('ssbg_updateObsSpaceAfterInovQc: sensor Index not found')
+    if ( .not. sensorIndexFound ) call rti_abort('ssbg_updateObsSpaceAfterInovQc: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -2839,7 +2840,7 @@ contains
     end do HEADER0
 
     if ( ssmisDataPresent .and. otherDataPresent ) then
-      call utl_abort ('ssbg_bgCheckSSMIS: Other data than SSMIS also included in obsSpaceData')
+      call rti_abort ('ssbg_bgCheckSSMIS: Other data than SSMIS also included in obsSpaceData')
     endif
 
     if ( .not. ssmisDataPresent ) then
@@ -2894,7 +2895,7 @@ contains
       ! STEP 5) compute statistics of different inovQc flags types                   !
       !###############################################################################
       inovQcSize = size(flagsInovQc)
-      if (maxval(flagsInovQc) > 8) call utl_abort('ssbg_bgCheckSSMIS: Problem with flagsInovQc, value greater than 8.')
+      if (maxval(flagsInovQc) > 8) call rti_abort('ssbg_bgCheckSSMIS: Problem with flagsInovQc, value greater than 8.')
       do dataIndex = 1,inovQcSize
         dataIndex1 = flagsInovQc(dataIndex)+1
         ! Counting number of flags with value flagsInovQc(dataIndex)

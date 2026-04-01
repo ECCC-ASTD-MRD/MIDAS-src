@@ -106,6 +106,7 @@ program midas_energyNorm
   use midasMpi_mod
   use version_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use timeCoord_mod
   use horizontalCoord_mod
@@ -156,7 +157,7 @@ program midas_energyNorm
   if (utl_isNamelistPresent('namEnergyNorm', './flnml')) then
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namEnergyNorm, iostat = ierr)
-    if (ierr /= 0) call utl_abort('midas-energyNorm: Error reading namelist namEnergyNorm')
+    if (ierr /= 0) call rti_abort('midas-energyNorm: Error reading namelist namEnergyNorm')
     if (mmpi_myid == 0) write(*,nml = namEnergyNorm)
     call utl_tmg_stop(181)
   else
@@ -184,7 +185,7 @@ program midas_energyNorm
   if ( mmpi_myid == 0 ) then
     ierr = fnom(nulFileOutput, trim(outputFileName), 'SEQ+R/W', 0)
     if (ierr /= 0) then
-      call utl_abort('midas-energyNorm: Cannot open ascii output file')
+      call rti_abort('midas-energyNorm: Cannot open ascii output file')
     end if
   end if
 
@@ -275,7 +276,7 @@ contains
     nulFileInput = 0
     ierr = fnom(nulFileInput, trim(inputFileName), 'SEQ+R/O', 0)
     if (ierr /= 0) then
-      call utl_abort('midas-energyNorm: findFileNames: Cannot open ascii output file')
+      call rti_abort('midas-energyNorm: findFileNames: Cannot open ascii output file')
     end if
 
     ! Read a first time the file 'inputFileName' to find the number of files to
@@ -327,13 +328,13 @@ contains
     anyFileNamesOptArgIsGiven = present(referenceFileName_opt) .or. present(maxFileLength_opt) .or. present(fileNames_opt)
 
     if (.not. initializeAllFileNames .and. anyFileNamesOptArgIsGiven ) then
-      call utl_abort('midas-energyNorm: parseInputFiles has been called with one or two of ''referenceFileName_opt'', ''fileNames_opt'', ''maxFileLength_opt''.  All must be specified or none.')
+      call rti_abort('midas-energyNorm: parseInputFiles has been called with one or two of ''referenceFileName_opt'', ''fileNames_opt'', ''maxFileLength_opt''.  All must be specified or none.')
     end if
 
     if ( initializeAllFileNames ) then
       maxFileLength_opt = 0
       if (.not.allocated(fileNames_opt)) then
-        call utl_abort('midas-energyNorm: parseInputFiles has been called without a proper allocated ''fileNames_opt'' argument.')
+        call rti_abort('midas-energyNorm: parseInputFiles has been called without a proper allocated ''fileNames_opt'' argument.')
       end if
     end if
 
@@ -347,7 +348,7 @@ contains
       if ( readStatus < 0 ) exit readLoopLineByLine
       ! We encountered an error while reading the file
       if ( readStatus > 0 ) then
-        call utl_abort('midas-energyNorm: parseInputFiles: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
+        call rti_abort('midas-energyNorm: parseInputFiles: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
       end if
 
       ! build 'trimmedLine' by removing leading spaces in 'line'
@@ -378,9 +379,9 @@ contains
     end do readLoopLineByLine
 
     if ( numberOfInputFiles == 0 ) then
-      call utl_abort('midas-energyNorm: parseInputFiles: No input state has been given in the ''' // trim(inputFileName) // '''')
+      call rti_abort('midas-energyNorm: parseInputFiles: No input state has been given in the ''' // trim(inputFileName) // '''')
     else if ( numberOfInputFiles == 1 ) then
-      call utl_abort('midas-energyNorm: parseInputFiles: No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
+      call rti_abort('midas-energyNorm: parseInputFiles: No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
     end if
 
     if (present(numberOfFilesToProcess_opt)) then

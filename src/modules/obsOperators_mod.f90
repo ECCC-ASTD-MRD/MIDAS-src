@@ -18,6 +18,7 @@ module obsOperators_mod
   use timeCoord_mod
   use tovs_mod
   use utilities_mod
+  use runtimeInfo_mod
   use verticalCoord_mod
   use varNameList_mod
   use obsOperatorsChem_mod
@@ -111,7 +112,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_nedz) then
           zlev = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
         else
-          call utl_abort('oop_vobslyrs: zlev cannot be set, bufr_nedz not supported!')
+          call rti_abort('oop_vobslyrs: zlev cannot be set, bufr_nedz not supported!')
         end if
         headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
         bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
@@ -152,7 +153,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
             zlev = zlev - obs_headElem_r(obsSpaceData, OBS_TRAD, headerIndex)
           end if
         else
-          call utl_abort('oop_vobslyrs: zlev cannot be set, bufr_nedz not supported!')
+          call rti_abort('oop_vobslyrs: zlev cannot be set, bufr_nedz not supported!')
         end if
 
         varLevel = vnl_varLevelFromVarnum(bufrCode)
@@ -476,7 +477,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     do_adjust_aladin = .false.
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namaladin_obs, iostat=ierr)
-    if (ierr /= 0) call utl_abort('oop_zzz_nl: Error reading namelist')
+    if (ierr /= 0) call rti_abort('oop_zzz_nl: Error reading namelist')
     if (.not.beSilent) write(*,nml=namaladin_obs)
     call utl_tmg_stop(181)
 
@@ -587,7 +588,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         cycle BODY
       case (bufr_nees)
-        call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
+        call rti_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
 
       case default
         ! These are the profiler observations
@@ -645,7 +646,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namSurfaceObs, iostat=ierr)
-        if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
+        if (ierr /= 0) call rti_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
         if (.not. beSilent) write(*,nml=namSurfaceObs)
         call utl_tmg_stop(181)
       else if (.not. beSilent) then
@@ -909,7 +910,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                                                       headerIndex, varName)
         else
           ! unexpected negative obs depth
-          call utl_abort('oop_oceanTS_nl: undefined obs depth: '//str(obsDepth))
+          call rti_abort('oop_oceanTS_nl: undefined obs depth: '//str(obsDepth))
         end if ! different types of obsDepth: diurnal SST, foundation SST or vertical T/S profile
 
         ! Compute innovation (observation minus model)
@@ -1317,7 +1318,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           zuu(nwndlev) = zuu(nwndlev-1)
           zvv(nwndlev) = zuu(nwndlev-1)
        else
-          call utl_abort('oop_gpsro_nl: invalid vertical coord!')
+          call rti_abort('oop_gpsro_nl: invalid vertical coord!')
        end if
        zuu(ngpslev) = zuu(nwndlev)
        zvv(ngpslev) = zuu(nwndlev)
@@ -1653,7 +1654,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                 write(*,*) ' Problem with ZTD observation error!'
                 write(*,*) ' Station =',cstnid
                 write(*,*) ' Error =', zoer
-                call utl_abort('OOP_GPSGB_NL: ABORT! BAD ZTD OBSERR')
+                call rti_abort('OOP_GPSGB_NL: ABORT! BAD ZTD OBSERR')
              end if
 
              ! Observation height (m)
@@ -1735,7 +1736,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
              end if
           end do HEADER_1
        else
-          call utl_abort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
+          call rti_abort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
        end if
     end if
 
@@ -1787,7 +1788,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
        end do HEADER_2
 
        if ( iztd /= gps_gb_numztd ) then
-          call utl_abort('ERROR: gps_ZTD_Index init: iztd /= gps_gb_numZTD!')
+          call rti_abort('ERROR: gps_ZTD_Index init: iztd /= gps_gb_numZTD!')
        end if
 
     end if
@@ -1846,7 +1847,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     else
        option = 'HR'
     end if
-    if ( option /= 'HR' ) call utl_abort('oop_tovs_nl: Invalid option for input state')
+    if ( option /= 'HR' ) call rti_abort('oop_tovs_nl: Invalid option for input state')
 
     if (present(sourceObs_opt)) then
        sourceObs = sourceObs_opt
@@ -1912,7 +1913,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
         call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                                             channelNumber, channelIndex )
 
-        if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
+        if ( channelIndex == 0 ) call rti_abort('oop_tovs_nl: error with channel number')
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance (headerIndex) % bt(channelIndex)
@@ -2280,7 +2281,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                 call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, ZDELPS+ZDELTV)
               else
 
-                call utl_abort('oop_Hsf: You have entered the twilight zone!')
+                call rti_abort('oop_Hsf: You have entered the twilight zone!')
 
               end if
 
@@ -2391,7 +2392,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                                weight  * col_getElem(columnAnlInc, layerIndex + 1, &
                                                      headerIndex, varName_opt = varName)
         else
-          call utl_abort('oop_HoceanTS: undefined obs depth: '//str(obsDepth))
+          call rti_abort('oop_HoceanTS: undefined obs depth: '//str(obsDepth))
         end if
 
         call obs_bodySet_r(obsSpaceData, obs_work, bodyIndex, modelPert)
@@ -2608,7 +2609,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
               cfam = obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex)
               write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
                          'bufrCode =', bufrCode, 'cfam =',  cfam
-              call utl_abort('oop_HheightCoordObs')
+              call rti_abort('oop_HheightCoordObs')
 
             end if
           end do BODY
@@ -2767,7 +2768,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
          if ( ASSIM ) THEN
             iztd = gps_iztd_from_index(headerIndex)
             if ( iztd < 1 .or. iztd > gps_gb_numZTD ) then
-               call utl_abort('oop_Hgp: ERROR: index from gps_iztd_from_index() is out of range!')
+               call rti_abort('oop_Hgp: ERROR: index from gps_iztd_from_index() is out of range!')
             end if
 
             ! Local vector state (analysis increments)
@@ -3115,7 +3116,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
                                      col_getOltv(columnTrlOnAnlIncLev,2,nlev_T,headerIndex)*ZATV
                else
 
-                 call utl_abort('oop_HTsf: You have entered the twilight zone!')
+                 call rti_abort('oop_HTsf: You have entered the twilight zone!')
 
                end if
 
@@ -3227,7 +3228,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
           columnOceanTS(layerIndex)     = columnOceanTS(layerIndex)     + (1.0d0 - weight) * residual
           columnOceanTS(layerIndex + 1) = columnOceanTS(layerIndex + 1) +          weight  * residual
         else
-          call utl_abort('oop_HToceanTS: undefined obs depth: '//str(obsDepth))
+          call rti_abort('oop_HToceanTS: undefined obs depth: '//str(obsDepth))
         end if
 
       end do BODY
@@ -3497,7 +3498,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
             icount = icount + 1
             iztd = gps_iztd_from_index(headerIndex)
             if ( iztd < 1 .or. iztd > gps_gb_numZTD ) then
-               call utl_abort('oop_HTgp: ERROR: index from gps_iztd_from_index() is out of range!')
+               call rti_abort('oop_HTgp: ERROR: index from gps_iztd_from_index() is out of range!')
             end if
 
             do JL = 1, 4*NFLEV
@@ -3634,7 +3635,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
               cfam = obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex)
               write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
                          'bufrCode =', bufrCode, 'cfam =',  cfam
-              call utl_abort('oop_HTheighCoordObs')
+              call rti_abort('oop_HTheighCoordObs')
 
             end if
           end do BODY
@@ -4016,7 +4017,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
     ! Initializations
-    if ( .not. allocated(gps_ZTD_Index) ) call utl_abort('oop_calcGPSGBJacobian: ERROR:  gps_ZTD_Index not allocated!')
+    if ( .not. allocated(gps_ZTD_Index) ) call rti_abort('oop_calcGPSGBJacobian: ERROR:  gps_ZTD_Index not allocated!')
     if ( allocated(oop_vZTD_Jacobian) ) write(*,*) 'oop_calcGPSGBJacobian: WARNING, oop_vZTD_Jacobian is already allocated. Re-allocating'
     call utl_reallocate(oop_vZTD_Jacobian,gps_gb_numZTD,4*NFLEV)
     oop_vZTD_Jacobian(:,:) = 0.0d0
@@ -4150,13 +4151,13 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     write(*,*) '           gps_ZTD_Index(iztd)             = ', gps_ZTD_Index(iztd)
 
     if ( icount /= gps_gb_numZTD ) then
-      call utl_abort('oop_calcGPSGBJacobian: ERROR: icount /= gps_gb_numZTD!')
+      call rti_abort('oop_calcGPSGBJacobian: ERROR: icount /= gps_gb_numZTD!')
     end if
     if ( icount /= iztd ) then
-      call utl_abort('oop_calcGPSGBJacobian: ERROR: icount /= iztd!')
+      call rti_abort('oop_calcGPSGBJacobian: ERROR: icount /= iztd!')
     end if
     if ( gps_gb_numZTD /= iztd ) then
-      call utl_abort('oop_calcGPSGBJacobian: ERROR: gps_gb_numZTD /= iztd!')
+      call rti_abort('oop_calcGPSGBJacobian: ERROR: gps_gb_numZTD /= iztd!')
     end if
 
     write(*,*) 'EXIT oop_calcGPSGBJacobian'

@@ -247,6 +247,7 @@ program midas_var
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -364,18 +365,18 @@ program midas_var
     ! read in the namelist NAMVAR
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namvar, iostat=ierr)
-    if( ierr /= 0) call utl_abort('midas-var: Error reading namelist')
+    if( ierr /= 0) call rti_abort('midas-var: Error reading namelist')
     call utl_tmg_stop(181)
   end if
   if ( mmpi_myid == 0 ) write(*,nml=namvar)
 
   if ( numOuterLoopIterations > maxNumOuterLoopIter ) then
-    call utl_abort('midas-var: numOuterLoopIterations is greater than max value')
+    call rti_abort('midas-var: numOuterLoopIterations is greater than max value')
   end if
 
   if ( numOuterLoopIterations > 1 .and. &
        .not. all(numIterMaxInnerLoop(1:numOuterLoopIterations) > 0) ) then
-    call utl_abort('midas-var: some numIterMaxInnerLoop(:) in namelist are negative or zero')
+    call rti_abort('midas-var: some numIterMaxInnerLoop(:) in namelist are negative or zero')
   end if
 
   obsMpiStrategy = 'LIKESPLITFILES'
@@ -389,7 +390,7 @@ program midas_var
     if (dateStampFromObs > 0) then
       call tim_setDatestamp(datestampFromObs)
     else
-      call utl_abort('var_setup: DateStamp was not set')
+      call rti_abort('var_setup: DateStamp was not set')
     end if
   end if
 
@@ -467,7 +468,7 @@ program midas_var
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     call msg('var','Problem allocating memory for controlVectorIncr'//str(ierr))
-    call utl_abort('aborting in VAR')
+    call rti_abort('aborting in VAR')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   call msg_memUsage('var')

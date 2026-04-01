@@ -9,6 +9,7 @@ module utilities_mod
   use netcdf
   use rmn_fst98
   use clibInterfaces_mod
+  use runtimeInfo_mod
   use randomNumber_mod
   use mathPhysConstants_mod
 
@@ -20,7 +21,7 @@ module utilities_mod
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_unitConvMultFactor_r8, utl_unitConvMultFactor_r4
-  public :: utl_writeStatus, utl_getfldprm, utl_abort
+  public :: utl_writeStatus, utl_getfldprm
   public :: utl_printTime
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
@@ -49,7 +50,7 @@ module utilities_mod
     module procedure utl_resize_3d_real
   end interface utl_resize
 
-  ! interface for conversion to a left-justified string (useful for calls to utl_abort)
+  ! interface for conversion to a left-justified string (useful for calls to rti_abort)
   interface utl_str
     module procedure utl_int2str
     module procedure utl_float2str
@@ -129,7 +130,7 @@ contains
     ! would introduce a circular dependency.
     call mpi_comm_rank(mpi_comm_world, myid, ierr)
     if ( ierr /= 0 ) then
-      call utl_abort('MPI error raised in mpi_comm_rank called from utl_readNml')
+      call rti_abort('MPI error raised in mpi_comm_rank called from utl_readNml')
     end if
 
     ! First read the file flnml which must exist
@@ -152,7 +153,7 @@ contains
         write(*,*) '============END   CONTENTS OF FLNML================'
       end if
     else
-      call utl_abort('utl_readNml: The file "flnml" is not accessible')
+      call rti_abort('utl_readNml: The file "flnml" is not accessible')
     end if
 
     ! Check for and remove comments
@@ -396,7 +397,7 @@ contains
     real(4) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+      call rti_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
@@ -450,7 +451,7 @@ contains
     real(8) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+      call rti_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
@@ -702,7 +703,7 @@ contains
                   ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3' &
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
                   ,'for variable ',cdvar
-             call utl_abort('GETFLDPRM2')
+             call rti_abort('GETFLDPRM2')
           end if
        end do
        !
@@ -730,28 +731,11 @@ contains
        end do
        write(*,*) 'Error - getfldprm2: no record found for field ', cdvar, &
                   ' but', knlev, ' records found in unit ', kinmpg(k)
-       call utl_abort('GETFLDPRM2')
+       call rti_abort('GETFLDPRM2')
     end if
     !
   end subroutine utl_getfldprm
 
-
-  subroutine utl_abort(message)
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: message
-
-    ! Locals:
-    integer :: ierr
-
-    write(6,9000) message
-9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
-    flush(6)
-
-    call mpi_abort(mpi_comm_world, 1, ierr)
-
-  end subroutine utl_abort
 
   subroutine utl_open_asciifile(filename,unit)
     !
@@ -780,7 +764,7 @@ contains
 
     ier = utl_open_file(unit,trim(filename),trim(mode))
 
-    if (ier.ne.0) call utl_abort('utl_open_messagefile: Error associating unit number')
+    if (ier.ne.0) call rti_abort('utl_open_messagefile: Error associating unit number')
 
   end subroutine utl_open_asciifile
 
@@ -876,7 +860,7 @@ contains
 
   character(len=20) function utl_int2str(i)
     !
-    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine rti_abort.
     !
     implicit none
 
@@ -891,7 +875,7 @@ contains
 
   character(len=20) function utl_float2str(x)
     !
-    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine rti_abort.
     !
     implicit none
 
@@ -1091,7 +1075,7 @@ contains
     elemId=0
     if (NListSize.gt.Nmax-1) then
        write(*,*) 'utl_get_stringId: NListSize > Nmax-1 (', NListSize, '>', Nmax-1, ')'
-       call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')
+       call rti_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
        if (nobslev.eq.1) then
           cstring=trim(cstringin)//'U'
@@ -1152,7 +1136,7 @@ contains
 
     elemId=0
     if (NListSize.gt.Nmax-1) then
-       call utl_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')
+       call rti_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
        do i=1,NListSize
           if (id.eq.IdList(i)) then
@@ -1242,7 +1226,7 @@ contains
     iun = 0
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
-      call utl_abort('utl_readFstField: Did not find file ' // trim(fname))
+      call rti_abort('utl_readFstField: Did not find file ' // trim(fname))
     else
       ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
       ier=fstouv(iun,'RND+OLD')
@@ -1252,13 +1236,13 @@ contains
     ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys)
 
     if(ier.lt.0.or.nkeys.eq.0) then
-      call utl_abort('utl_readFstField: Search field missing ' // trim(varName) // &
+      call rti_abort('utl_readFstField: Search field missing ' // trim(varName) // &
            ' from file ' // trim(fname) // '. IPs and etiket: ' // &
            utl_str(iip1) // ', ' // utl_str(iip2) // ', ' // utl_str(iip3) // &
            ',  ' // trim(etiketi) // '.')
     else if (nk.gt.1) then
       if (nkeys > 1 .or. present(kind_opt) .or. present(lvls_opt) ) then
-        call utl_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
+        call rti_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
              ' for ' // trim(varName) // ' of file ' // trim(fname))
       end if
     end if
@@ -1304,7 +1288,7 @@ contains
              ig1, ig2, ig3, ig4 ) ! IN
 
         if ( .not. utl_isEqual(xlat1_4, xlat2_4) .or. .not. utl_isEqual(xlon1_4,xlon2_4) ) &
-             call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
+             call rti_abort('utl_readFstField: Cannot currently handle rotated grid')
 
       else if (trim(clgrtyp) == 'B') then
 
@@ -1355,7 +1339,7 @@ contains
 
       else if (trim(clgrtyp) /= 'G') then
 
-        call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
+        call rti_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
 
       end if
 
@@ -1448,7 +1432,7 @@ contains
       else
         write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
         write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-        call utl_abort('utl_fileType: unknown file type')
+        call rti_abort('utl_fileType: unknown file type')
       end if
     end select
 
@@ -1938,7 +1922,7 @@ contains
     integer :: ileft,iright
 
     if (size(rvalues) /= size(rvalues)) then
-      call utl_abort('utl_heapsort1d: input arrays have different sizes.')
+      call rti_abort('utl_heapsort1d: input arrays have different sizes.')
     endif
     nsize  = size(rvalues)
     ileft  = nsize/2+1
@@ -2152,7 +2136,7 @@ contains
     inquire(file=namelistFileName,exist=namelistExist)
     if (.not. namelistExist) then
       if (trim(failMode) == 'ABORT') then
-        call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
+        call rti_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
       else
         write(*,*)
         write(*,*) 'utl_isNamelistPresent: WARNING, namelist file is missing : ' // namelistFileName
@@ -2369,12 +2353,12 @@ contains
     else
       status = -1
       if (numChar == 0) then
-        call utl_abort('utl_copyFile: ERROR, zero bytes copied')
+        call rti_abort('utl_copyFile: ERROR, zero bytes copied')
       else
         ! Note: If 'numChar' becomes negative then it means it got bigger
         !       than the maximum integer the 'integer' type and so the
         !       variable 'numChar' wraps around and becomes negative.
-        call utl_abort('utl_copyFile: ERROR, overflow detected since number of bytes copied is negative!')
+        call rti_abort('utl_copyFile: ERROR, overflow detected since number of bytes copied is negative!')
       end if
     end if
 
@@ -2778,7 +2762,7 @@ contains
       end if
 
       write(*,*) 'nf90 error status: ', trim(nf90_strerror(status))
-      call utl_abort(trim(errorMessage))
+      call rti_abort(trim(errorMessage))
 
     end if
 

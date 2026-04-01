@@ -41,6 +41,7 @@ module bMatrixChem_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use runtimeInfo_mod
   use bCovarSetupChem_mod
 
   implicit none
@@ -768,13 +769,13 @@ module bMatrixChem_mod
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                   write(*,*) '       proc, levelIndex, jn, jm = ',jproc, levelIndex, jn, jm
-                  call utl_abort('bchm_reduceToMPILocal')
+                  call rti_abort('bchm_reduceToMPILocal')
                 end if
                 if (jdim_mpiglobal > cvDim_mpiglobal) then
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                   write(*,*) '       proc, levelIndex, jn, jm = ',jproc, levelIndex, jn, jm
-                  call utl_abort('bchm_reduceToMPILocal')
+                  call rti_abort('bchm_reduceToMPILocal')
                 end if
 
               end if
@@ -912,13 +913,13 @@ module bMatrixChem_mod
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                   write(*,*) '       proc, levelIndex, jn, jm = ',jproc, levelIndex, jn, jm
-                  call utl_abort('bchm_reduceToMPILocal')
+                  call rti_abort('bchm_reduceToMPILocal')
                 end if
                 if (jdim_mpiglobal > cvDim_mpiglobal) then
                   write(*,*)
                   write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                   write(*,*) '       proc, levelIndex, jn, jm = ',jproc, levelIndex, jn, jm
-                  call utl_abort('bchm_reduceToMPILocal')
+                  call rti_abort('bchm_reduceToMPILocal')
                 end if
 
               end if

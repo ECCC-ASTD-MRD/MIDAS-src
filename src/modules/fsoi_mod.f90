@@ -26,6 +26,7 @@ module fsoi_mod
   use tovs_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use rttov_const, only: inst_name, platform_name
 
   implicit none
@@ -113,7 +114,7 @@ module fsoi_mod
     ! read in the namelist NAMFSO
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namfso, iostat=ierr)
-    if(ierr /= 0) call utl_abort('fso_setup: Error reading namelist')
+    if(ierr /= 0) call rti_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
     call utl_tmg_stop(181)
 
@@ -126,7 +127,7 @@ module fsoi_mod
       obsFSOorR = OBS_FSR
       strFSOorR = 'FSR'
     else
-      call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO, EFSO, HFSR or EFSR')
+      call rti_abort('fso_setup: Invalid value of fsoMode. Must be HFSO, EFSO, HFSR or EFSR')
     end if
 
     ! convert Latmin,max and Lonmin,max from degres into RAD

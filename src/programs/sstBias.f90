@@ -107,6 +107,7 @@ program midas_sstBias
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -209,7 +210,7 @@ program midas_sstBias
         ! use dateStamp from obs if not set by env variable
         call tim_setDateStamp(dateStampFromObs)
       else
-        call utl_abort('SSTbias_setup: DateStamp was not set')
+        call rti_abort('SSTbias_setup: DateStamp was not set')
       end if
     end if
 

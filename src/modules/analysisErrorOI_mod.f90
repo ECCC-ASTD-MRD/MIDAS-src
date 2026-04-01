@@ -18,6 +18,7 @@ module analysisErrorOI_mod
   use stateToColumn_mod
   use varNamelist_mod
   use utilities_mod
+  use runtimeInfo_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsOperators_mod
@@ -123,7 +124,7 @@ contains
       ! reading namelist variables
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namaer, iostat = ierr)
-      if (ierr /= 0) call utl_abort('aer_analysisError:: Error reading namelist')
+      if (ierr /= 0) call rti_abort('aer_analysisError:: Error reading namelist')
       call utl_tmg_stop(181)
     end if
     write(*, nml = namaer)
@@ -132,7 +133,7 @@ contains
     call gsv_varNamesList(analysisVariable)
 
     if (size(analysisVariable) > 1) then
-      call utl_abort('aer_analysisError: Check namelist NAMSTATE. analysisVariable is greater than 1.')
+      call rti_abort('aer_analysisError: Check namelist NAMSTATE. analysisVariable is greater than 1.')
     end if
 
     if (analysisVariable(1) == 'GL') then
@@ -140,7 +141,7 @@ contains
     else if(analysisVariable(1) == 'TM') then
       call msg('aer_analysisError:', ' computing SST analysis error...')
     else
-      call utl_abort('aer_analysisError:: The current code does not work with '&
+      call rti_abort('aer_analysisError:: The current code does not work with '&
                      //trim(analysisVariable(1))//' analysis variable.')
     end if
 
@@ -350,7 +351,7 @@ contains
     real(8), allocatable :: obsLon(:), allObsLon(:,:), obsLat(:), allObsLat(:,:)
 
     numStep = stateVectorTrlErrorStd%numStep
-    if (numStep > 1) call utl_abort('aer findObs: Code is not adapted for numStep > 1')
+    if (numStep > 1) call rti_abort('aer findObs: Code is not adapted for numStep > 1')
 
     ! Communicate some quantities to all MPI tasks
 
@@ -451,7 +452,7 @@ contains
             else if (trim(variableName) == 'TM') then
               influenceRadius_r8 = maxLcorr
             else
-              call utl_abort('findObs: The current code does not work with '&
+              call rti_abort('findObs: The current code does not work with '&
                              //trim(variableName)//' analysis variable.')
             end if
 
@@ -474,7 +475,7 @@ contains
                     numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
                     if(associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
                       if(numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
-                        call utl_abort('findObs: Array too small')
+                        call rti_abort('findObs: Array too small')
                       end if
                       influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
                       influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
@@ -502,7 +503,7 @@ contains
                                      results = searchResults)
 
               if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
-                call utl_abort('findObs: parameter maxNumLocalGridptsSearch must be increased')
+                call rti_abort('findObs: parameter maxNumLocalGridptsSearch must be increased')
               end if
 
               do resultsIndex = 1, numLocalGridptsFoundSearch
@@ -511,7 +512,7 @@ contains
                 if (gridIndex < 1 .or. &
                      gridIndex > stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj) then
                   write(*,*) 'analysisErrorStdDev: gridIndex = ', gridIndex
-                  call utl_abort('findObs: gridIndex out of bound.')
+                  call rti_abort('findObs: gridIndex out of bound.')
                 end if
 
                 latIndex = (gridIndex - 1) / stateVectorTrlErrorStd%hco%ni + 1
@@ -520,13 +521,13 @@ contains
                      latIndex < 1 .or. latIndex > stateVectorTrlErrorStd%hco%nj) then
                   write(*,*) 'analysisErrorStdDev: lonIndex = ', lonIndex, &
                                                 ', latIndex = ', latIndex
-                  call utl_abort('findObs: lonIndex/latIndex out of bound.')
+                  call rti_abort('findObs: lonIndex/latIndex out of bound.')
                 end if
 
                 numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
                 if (associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
                   if (numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
-                    call utl_abort('findObs: Array too small in subroutine findObs')
+                    call rti_abort('findObs: Array too small in subroutine findObs')
                   end if
                   influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
                   influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
@@ -1045,7 +1046,7 @@ contains
 
                   numVariables = numVariables + 1
                   if(numVariables > maxvar) then
-                    call utl_abort('aer_computeAnlErrorStd: Structure state'// &
+                    call rti_abort('aer_computeAnlErrorStd: Structure state'// &
                                    ' too small in subroutine'// &
                                    ' analysis_error_mod. Increase maxvar')
                   end if
@@ -1072,7 +1073,7 @@ contains
             if(.not. found) then
               numVariables = numVariables + 1
               if(numVariables > maxvar) then
-                call utl_abort('aer_computeAnlErrorStd: Structure state too small in'// &
+                call rti_abort('aer_computeAnlErrorStd: Structure state too small in'// &
                      ' subroutine analysis_error_mod'// &
                      ' increase maxvar')
               end if
@@ -1144,7 +1145,7 @@ contains
                     write(*,*) 'varIndex2 statei statej = ',statei(varIndex2), &
                                                             statej(varIndex2)
                   end do
-                  call utl_abort('aer_computeAnlErrorStd: not found in state vect.')
+                  call rti_abort('aer_computeAnlErrorStd: not found in state vect.')
 
                 end do GRIDPTCYCLE2
               end do VARLEVCYCLE2

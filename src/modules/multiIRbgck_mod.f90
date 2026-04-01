@@ -16,6 +16,7 @@ module multiIRbgck_mod
        rttov_chanprof      ,&
        rttov_emissivity
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use columnData_mod
@@ -146,10 +147,10 @@ contains
       
       ! read the namelist
       read(utl_flnml, nml=NAMBGCKIR, iostat=ierr)
-      if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
+      if (ierr /= 0) call rti_abort('irbg_init: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
       if (ninst /= MPC_missingValue_INT) then
-        call utl_abort('irbg_init: check NAMBGCKIR namelist section: ninst should be removed')
+        call rti_abort('irbg_init: check NAMBGCKIR namelist section: ninst should be removed')
       end if
       ninst = 0
       do instrumentIndex = 1, nmaxinst
@@ -306,7 +307,7 @@ contains
       end if
     end do
 
-    if (qcid == -1) call utl_abort('bgck_get_qcid: unknown instrument '//trim(instrumentName))
+    if (qcid == -1) call rti_abort('bgck_get_qcid: unknown instrument '//trim(instrumentName))
 
   end subroutine bgck_get_qcid
 
@@ -408,7 +409,7 @@ contains
           exit
         end if
       end do
-      if (id < 0) call utl_abort('irbg_doQualityControl: should not happen !')
+      if (id < 0) call rti_abort('irbg_doQualityControl: should not happen !')
     end if
 
     !  Find number of profiles
@@ -2514,7 +2515,7 @@ contains
       allocStatus = 0
       if (idiasi_old > 0) then
         call rttov_dealloc_coefs(allocStatus, coefs_avhrr)
-        if (allocStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: memory deallocation error in rttov_dealloc_coefs')
+        if (allocStatus /= 0) call rti_abort('tovs_rttov_avhrr_for_IASI: memory deallocation error in rttov_dealloc_coefs')
       end if
 
       call rttov_read_coefs(errorStatus, &! out
@@ -2523,7 +2524,7 @@ contains
            channels=ichan_avhrr,         &! in
            instrument=list_sensor )       ! in
 
-      if (errorStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: error in rttov_read_coefs')
+      if (errorStatus /= 0) call rti_abort('tovs_rttov_avhrr_for_IASI: error in rttov_read_coefs')
 
       idiasi_old = idiasi
 
@@ -2557,7 +2558,7 @@ contains
          radiance=radiancedata_d,    &
          init=.true.)
 
-    if (allocStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: memory allocation error in rttov_alloc_direct')
+    if (allocStatus /= 0) call rti_abort('tovs_rttov_avhrr_for_IASI: memory allocation error in rttov_alloc_direct')
 
     call rttov_direct(            &
          errorStatus,             & ! out
@@ -2570,7 +2571,7 @@ contains
          calcemis=calcemis,       & ! in
          emissivity=emissivity)     ! inout
 
-    if (errorStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: fatal error in rttov_direct')
+    if (errorStatus /= 0) call rti_abort('tovs_rttov_avhrr_for_IASI: fatal error in rttov_direct')
 
     avhrr_bgck(headerIndex) % radclearcalc(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
     avhrr_bgck(headerIndex) % tbclearcalc(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
@@ -2590,7 +2591,7 @@ contains
          transmission=transmission,  &
          radiance=radiancedata_d )
 
-    if (allocStatus /= 0) call utl_abort('tovs_rttov_avhrr_for_IASI: memory deallocation error in rttov_alloc_direct')
+    if (allocStatus /= 0) call rti_abort('tovs_rttov_avhrr_for_IASI: memory deallocation error in rttov_alloc_direct')
 
     nullify(profiles)
 

@@ -11,6 +11,7 @@ module obsDiagFiles_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use tovs_mod
   use rttov_const, only : ninst
@@ -462,7 +463,7 @@ module obsDiagFiles_mod
 
         if ( present( ensObs_opt ) ) then
           if ( .not. associated(ensObs_opt%Yb_r4) ) then
-            call utl_abort('diaf_writeSqlDiagFile: ensObs%Yb_r4 must be allocated and it is not')
+            call rti_abort('diaf_writeSqlDiagFile: ensObs%Yb_r4 must be allocated and it is not')
           end if
           ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
           do memberIndex = ensObs_opt%firstMember, ensObs_opt%numMembers
@@ -518,7 +519,7 @@ module obsDiagFiles_mod
 
     if (obsFamily == 'TO') then
       if (.not. present(codetype_opt)) then
-        call utl_abort('diaf_getObsFileName: codetype_opt must be specified for TO family')
+        call rti_abort('diaf_getObsFileName: codetype_opt must be specified for TO family')
       end if
 
       if (codtyp_get_name(codeType_opt) == 'radianceclear') then
@@ -551,7 +552,7 @@ module obsDiagFiles_mod
       end if
     else
       if (.not. present(sfFileName_opt)) then
-        call utl_abort('diaf_getObsFileName: sfFileName_opt must be specified')
+        call rti_abort('diaf_getObsFileName: sfFileName_opt must be specified')
       end if
       call up2low(obsFamily, fileName)
       if (fileName == 'ra') fileName = 'radar'

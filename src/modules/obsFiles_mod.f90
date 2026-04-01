@@ -13,6 +13,7 @@ module obsFiles_mod
   use midasMpi_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use burpFiles_mod
   use sqliteFiles_mod
@@ -90,7 +91,7 @@ contains
          obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
     else
-      call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
+      call rti_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
     end if
 
     !
@@ -119,7 +120,7 @@ contains
     ! Result:
     logical :: obsFilesSplit_out
 
-    if ( .not.initialized ) call utl_abort('obsf_filesSplit: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_filesSplit: obsFiles_mod not initialized!')
 
     obsFilesSplit_out = obsFilesSplit
 
@@ -143,7 +144,7 @@ contains
     character(len=familyTypeLen)      :: obsFamilyType
     logical :: fileExists
 
-    if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
     ! for every splitted file, the file type is defined separately
     do fileIndex = 1, obsf_numMpiUniqueList
@@ -202,7 +203,7 @@ contains
     ! abort if NAMTOV does not exist but there are radiance observation files
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
         any(obsf_familyType(:) == 'TO') ) then
-      call utl_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
+      call rti_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
     end if
 
     ! initialize OBS_HIND for each observation
@@ -241,7 +242,7 @@ contains
 
     call utl_tmg_start(10,'--Observations')
 
-    if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_writeFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
@@ -259,12 +260,12 @@ contains
       ! read in the namelist namwritediag
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namwritediag,iostat=ierr)
-      if (ierr /= 0) call utl_abort('obsf_writeFiles: Error reading namelist')
+      if (ierr /= 0) call rti_abort('obsf_writeFiles: Error reading namelist')
       call utl_tmg_stop(181)
     end if
 
     if (addFSOdiag .and. addFSRdiag) then
-      call utl_abort('obsf_writeFiles: both addFSOdiag and addFSRdiag are set to .true., which is not supported.')
+      call rti_abort('obsf_writeFiles: both addFSOdiag and addFSRdiag are set to .true., which is not supported.')
     end if
 
     if (mmpi_myid == 0) write(*,nml = namwritediag)
@@ -372,7 +373,7 @@ contains
     integer                    :: fileIndex
     character(len=fileTypeLen) :: obsFileType
 
-    if ( .not.initialized ) call utl_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
@@ -902,7 +903,7 @@ contains
     end do procid_loop
 
     if ( .not.fileExists ) then
-      call utl_abort('obsf_determineFileType: No observation files found')
+      call rti_abort('obsf_determineFileType: No observation files found')
     end if
 
     write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
@@ -932,7 +933,7 @@ contains
     obsFileType = trim(utl_fileType(fileName))
     if (.not. (trim(obsFileType) == 'BURP' .or. trim(obsFileType) == 'sqliteOrObsdb')) then
       write(*,*) 'obsf_determineSplitFileType: obsFileType=', obsFileType
-      call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+      call rti_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
     if (trim(obsFileType) == 'sqliteOrObsdb') then
@@ -1034,7 +1035,7 @@ contains
       call obsf_determineSplitFileType( obsFileType, filename )
       if (obsFileType=='BURP') then
         if (.not.present(block_opt)) &
-          call utl_abort("obsf_obsSubRead: optional variable 'block_opt' is required for BURP observational files.")
+          call rti_abort("obsf_obsSubRead: optional variable 'block_opt' is required for BURP observational files.")
         if (.not.present(numColumns_opt)) then
           obsdata = brpf_obsSubRead(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
                     match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
@@ -1043,7 +1044,7 @@ contains
                     match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt,numColumns_opt=numColumns_opt)
         end if
       else
-        call utl_abort("obsf_obsSubRead: Only BURP observational files currently supported.")
+        call rti_abort("obsf_obsSubRead: Only BURP observational files currently supported.")
       end if
 
     else
@@ -1061,7 +1062,7 @@ contains
         obsdata%nrep=0
         write(*,*) "obsf_obsSubRead: Setting empty struct_oss_obsdata object for this node."
       else
-        call utl_abort("obsf_obsSubRead: Abort since files are not split.")
+        call rti_abort("obsf_obsSubRead: Abort since files are not split.")
       end if
     end if
 
@@ -1113,10 +1114,10 @@ contains
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
-                  call utl_abort("obsf_obsSubUpdate: optional varaible 'block_opt' is required for BURP observational files.")
+                  call rti_abort("obsf_obsSubUpdate: optional varaible 'block_opt' is required for BURP observational files.")
              nrep_modified = brpf_obsSubUpdate(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
           else
-             call utl_abort("obsf_obsSubUpdate: Only BURP observational files currently supported.")
+             call rti_abort("obsf_obsSubUpdate: Only BURP observational files currently supported.")
           end if
        end if
     else
@@ -1162,7 +1163,7 @@ contains
         write(*,*) 'obsf_addCloudParametersAndEmissivity: obsDB files handled separately'
       else
         write(*,*) ' UNKNOWN FileType=',obsFileType
-        call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
+        call rti_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
       end if
     end do
 
@@ -1282,7 +1283,7 @@ contains
 
     else
 
-      call utl_abort('obsf_copyObsDirectory: invalid value for direction')
+      call rti_abort('obsf_copyObsDirectory: invalid value for direction')
 
     end if
 

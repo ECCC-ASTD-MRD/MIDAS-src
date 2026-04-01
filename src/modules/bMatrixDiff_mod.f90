@@ -16,6 +16,7 @@ MODULE bMatrixDiff_mod
   use varNameList_mod
   use physicsFunctions_mod
   use utilities_mod
+  use runtimeInfo_mod
   use diffusion_mod
   use message_mod
   use timeCoord_mod
@@ -118,7 +119,7 @@ CONTAINS
     else
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = nambdiff, iostat = ierr)
-      if (ierr /= 0) call utl_abort('bdiff_setup: Error reading namelist')
+      if (ierr /= 0) call rti_abort('bdiff_setup: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = nambdiff)
       call utl_tmg_stop(181)
     end if
@@ -138,7 +139,7 @@ CONTAINS
       else
         write(*,*)
         call msg('bdiff_setup', 'mode = '//trim(mode_opt))
-        call utl_abort('bdiff_setup: unknown mode')
+        call rti_abort('bdiff_setup: unknown mode')
       end if
     else
       bdiff_mode = 'Analysis'
@@ -149,7 +150,7 @@ CONTAINS
     vco_anl => vco_in
     if (vco_anl%Vcode /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0) then
       call msg('bdiff_setup', 'vco_anl%Vcode = '//str(vco_anl%Vcode))
-      call utl_abort('bdiff_setup: unknown vertical coordinate type!')
+      call rti_abort('bdiff_setup: unknown vertical coordinate type!')
     end if
 
     numvar2d = 0
@@ -327,7 +328,7 @@ CONTAINS
         if (ierr == 0) then
           nmax = fstouv(nulbgst, 'RND+OLD')
         else
-          call utl_abort('bdiff_rdstats: Error opening file bgstddev')
+          call rti_abort('bdiff_rdstats: Error opening file bgstddev')
         end if
       else
         ! Assume background-error stats in file bgcov.
@@ -337,10 +338,10 @@ CONTAINS
           if (ierr == 0) then
             nmax = fstouv(nulbgst, 'RND+OLD')
           else
-            call utl_abort('bdiff_rdstats: error opening file bgcov')
+            call rti_abort('bdiff_rdstats: error opening file bgcov')
           end if
         else
-          call utl_abort('bdiff_rdstats: No background error statistics file found.')
+          call rti_abort('bdiff_rdstats: No background error statistics file found.')
         end if
       end if
 
@@ -363,7 +364,7 @@ CONTAINS
 
     else
 
-      call utl_abort('bdiff_rdstats: unknown stddevMode: '//trim(stddevMode))
+      call rti_abort('bdiff_rdstats: unknown stddevMode: '//trim(stddevMode))
 
     end if
 
@@ -865,7 +866,7 @@ CONTAINS
     call difdatr(bgstd%dataStamp(indexRight), bgstd%dataStamp(indexLeft), deltaRightLeft)
 
     if (deltaDatestampLeft < 0. .or. deltaRightLeft < 0.) then
-      call utl_abort('bdiff_getSSTBGstdFromFourSeasons: Confusion! '//&
+      call rti_abort('bdiff_getSSTBGstdFromFourSeasons: Confusion! '//&
                      'Both distances between two dates must be positive! '//&
                      str(deltaDatestampLeft)//', '//str(deltaRightLeft))
     end if

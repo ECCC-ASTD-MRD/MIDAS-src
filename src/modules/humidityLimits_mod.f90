@@ -6,6 +6,7 @@ module humidityLimits_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use varNameList_mod
   use physicsFunctions_mod
@@ -118,7 +119,7 @@ contains
       ! Reading the namelist
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namqlim, iostat=ierr)
-      if (ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
+      if (ierr /= 0) call rti_abort('humidityLimits_mod: Error reading namelist')
       call utl_tmg_stop(181)
 
     end if
@@ -217,7 +218,7 @@ contains
         deallocate(height4D_M_r8)
         deallocate(height4D_T_r8)
       else
-        call utl_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
+        call rti_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
       end if
       deallocate(pressure4D_M_r8)
 
@@ -254,7 +255,7 @@ contains
         deallocate(height4D_M_r4)
         deallocate(height4D_T_r4)
       else
-        call utl_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
+        call rti_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
       end if
       pressure4D_T_r8(:,:,:,:) = real(pressure4D_T_r4(:,:,:,:),8)
       deallocate(pressure4D_M_r4)
@@ -334,7 +335,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
-      call utl_abort('qlim_saturationLimit_ens: Not compatible with dataKind = 8')
+      call rti_abort('qlim_saturationLimit_ens: Not compatible with dataKind = 8')
     end if
 
     if (.not. ens_varExist(ensemble,'HU')) then
@@ -381,7 +382,7 @@ contains
             call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressureEns)
           else
             write(*,*) 'vcode = ', vco_ptr%vcode
-            call utl_abort('qlim_saturationLimit_ens: Unknown vcode value')
+            call rti_abort('qlim_saturationLimit_ens: Unknown vcode value')
           end if
           pressure(:,:,:,stepIndex) = pressureEns(:,:,:)
           deallocate(pressureEns)
@@ -570,7 +571,7 @@ contains
       else
 
         write(*,*) 'vcode = ', vco_ptr%vcode
-        call utl_abort('qlim_rttovLimit_gsv: unknown vcode')
+        call rti_abort('qlim_rttovLimit_gsv: unknown vcode')
 
       end if
 
@@ -706,7 +707,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
-      call utl_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
+      call rti_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
     end if
 
     ! User can choose whether or not to apply limits to humidity variable
@@ -777,7 +778,7 @@ contains
               call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3D_ptr_r8)
             else
               write(*,*) 'vcode = ', vco_ptr%vcode
-              call utl_abort('qlim_rttovLimit_ens: Unknown vcode value')
+              call rti_abort('qlim_rttovLimit_ens: Unknown vcode value')
             end if
             pressure4D_r8(:,:,:,stepIndex) = pressure3D_ptr_r8(:,:,:)
             deallocate(pressure3D_ptr_r8)
@@ -1109,7 +1110,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'qlim_setMin_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
-      call utl_abort('qlim_setMin_ens: Not compatible with dataKind = 8')
+      call rti_abort('qlim_setMin_ens: Not compatible with dataKind = 8')
     end if
 
     if (.not. ens_varExist(ensemble,'HU')) then
@@ -1174,7 +1175,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
-      call utl_abort('qlim_getMinValueCloud')
+      call rti_abort('qlim_getMinValueCloud')
    end select
 
   end function qlim_getMinValueCloud
@@ -1210,7 +1211,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
-      call utl_abort('qlim_getMaxValueCloud')
+      call rti_abort('qlim_getMaxValueCloud')
    end select
 
   end function qlim_getMaxValueCloud
@@ -1363,7 +1364,7 @@ contains
     ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
     if (ierr /= 0) then
       if (mmpi_myid == 0) write(*,*) 'fileName = ', fileName
-      call utl_abort('qlim_rttovLimit_col: error opening the humidity limits file')
+      call rti_abort('qlim_rttovLimit_col: error opening the humidity limits file')
     end if
 
     ! Read the contents

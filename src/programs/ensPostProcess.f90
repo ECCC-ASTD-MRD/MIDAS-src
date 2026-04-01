@@ -151,6 +151,7 @@ program midas_ensPostProcess
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use ensPostProcess_mod
 
@@ -210,20 +211,20 @@ program midas_ensPostProcess
   !- Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-ensPostProcess: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namEnsPostProc)
   call utl_tmg_stop(181)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
-    call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
+    call rti_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
   end if
 
   if (writeTrlEnsemble .and. .not.readTrlEnsemble) then
-    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble if it is not read')
+    call rti_abort('midas-ensPostProcess: cannot write Trial ensemble if it is not read')
   end if
 
   if (writeTrlEnsemble .and. readAnlEnsemble) then
-    call utl_abort('midas-ensPostProcess: cannot write Trial ensemble when Analysis ensemble is read')
+    call rti_abort('midas-ensPostProcess: cannot write Trial ensemble when Analysis ensemble is read')
   end if
 
   !- 1. Initialize date/time-related info

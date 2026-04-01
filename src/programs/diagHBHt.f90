@@ -144,6 +144,7 @@ program midas_diagHBHt
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
@@ -303,7 +304,7 @@ contains
       if (dateStampFromObs > 0) then
         call tim_setDatestamp(dateStampFromObs)
       else
-        call utl_abort('var_setup: dateStamp was not set')
+        call rti_abort('var_setup: dateStamp was not set')
       end if
     end if
 

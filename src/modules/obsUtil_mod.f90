@@ -12,6 +12,7 @@ module obsUtil_mod
   use obsVariableTransforms_mod
   use obsFlags_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -73,7 +74,7 @@ contains
           if (flagExtra /= MPC_missingValue_INT) then
             mergedFlag = ior(flag,flagExtra)
           else
-            call utl_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
+            call rti_abort('obsu_updateSourceVariablesFlag: could not find the wind companion variable')
           end if
 
           ! Find sourceBufrCode and sourceBufrCodeExtra and update their flag

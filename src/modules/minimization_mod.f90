@@ -27,6 +27,7 @@ module minimization_mod
   use obsOperators_mod
   use quasinewton_mod
   use utilities_mod
+  use runtimeInfo_mod
   use biasCorrectionSat_mod
   use columnVariableTransforms_mod
 
@@ -110,7 +111,7 @@ CONTAINS
 
     if ( nvadim_mpilocal_in /= cvm_nvadim ) then
       write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
-      call utl_abort('min_setup: control vector dimension not consistent')
+      call rti_abort('min_setup: control vector dimension not consistent')
     endif
 
     nvadim_mpilocal = nvadim_mpilocal_in
@@ -139,14 +140,14 @@ CONTAINS
     ! read in the namelist NAMMIN
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nammin, iostat=ierr)
-    if(ierr /= 0) call utl_abort('min_setup: Error reading namelist')
+    if(ierr /= 0) call rti_abort('min_setup: Error reading namelist')
     write(*,nml=nammin)
     call utl_tmg_stop(181)
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
-      call utl_abort('min_setup: only N1GC=3 currently supported!')
+      call rti_abort('min_setup: only N1GC=3 currently supported!')
     END IF
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
@@ -213,7 +214,7 @@ CONTAINS
 
     if ( (nitermax > 0 .and. numIterMaxInnerLoop > 0) .or. &
          (nitermax == 0 .and. numIterMaxInnerLoop == 0) ) then
-      call utl_abort('min_minimize: one of nitermax or numIterMaxInnerLoop should be zero and the other positive')
+      call rti_abort('min_minimize: one of nitermax or numIterMaxInnerLoop should be zero and the other positive')
     end if
 
     if ( nitermax > 0 ) then
@@ -221,7 +222,7 @@ CONTAINS
     else if ( numIterMaxInnerLoop > 0 ) then
       numIterMaxInnerLoopUsed = numIterMaxInnerLoop
     else
-      call utl_abort('min_minimize: one of the variables nIterMax and numIterMaxInnerLoop must be positive')
+      call rti_abort('min_minimize: one of the variables nIterMax and numIterMaxInnerLoop must be positive')
     end if
     if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
 
@@ -307,7 +308,7 @@ CONTAINS
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call utl_abort('min quasiNewtonMinimization')
+        call rti_abort('min quasiNewtonMinimization')
       endif
 
       ! set module variable pointers for obsspacedata and the two column objects
@@ -438,7 +439,7 @@ CONTAINS
             call utl_tmg_stop(91)
           else
             write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
-            call utl_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
+            call rti_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
           endif
         endif
 
@@ -892,7 +893,7 @@ CONTAINS
       if (mmpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
       call utl_tmg_start(94,'----WriteHess')
     else
-      call utl_abort('min_hessianIO: status not valid ')
+      call rti_abort('min_hessianIO: status not valid ')
     endif
 
     call mmpi_allReduce(nvadim_mpilocal, nvadim_mpiglobal, mmpi_sum)
@@ -918,14 +919,14 @@ CONTAINS
          else
             write(*,*)
             write(*,*) 'min_hessianIO : Only V5 Hessian are supported, found ', trim(cl_version)
-            call utl_abort('min_hessianIO')
+            call rti_abort('min_hessianIO')
          endif
 
          if (i1gc == 3 .and. i1gc == k1gc) then
             write(*,*) trim(cl_version),' M1QN3'
          else
             write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-            call utl_abort('min_hessianIO: Inconsistant input hessian')
+            call rti_abort('min_hessianIO: Inconsistant input hessian')
          endif
 
          rewind (ireslun)
@@ -934,7 +935,7 @@ CONTAINS
          read(ireslun) ivamaj,iztrl_io
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-            call utl_abort('min_hessianIO : ERROR, size of V5 Hessian not consistent')
+            call rti_abort('min_hessianIO : ERROR, size of V5 Hessian not consistent')
          endif
 
       end if
@@ -1077,7 +1078,7 @@ CONTAINS
       !- Close the Hessian matrix file
       if (mmpi_myid == 0) ierr = fclos(ireslun)
     else
-      call utl_abort('min_hessianIO: status not valid')
+      call rti_abort('min_hessianIO: status not valid')
     endif
 
     if (status == 0) then

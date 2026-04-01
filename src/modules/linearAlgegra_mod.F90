@@ -8,6 +8,7 @@ module linearAlgebra_mod
 #if MKL_SUPPORT
   use mkl_service
 #endif
+  use runtimeInfo_mod
   use utilities_mod
 
   implicit none
@@ -48,7 +49,7 @@ contains
        nulnam = 0
        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
        read(nulnam, nml = namMKL, iostat = ierr)
-       if (ierr /= 0) call utl_abort('linalg_setMKLThreads:: Error reading namelist')
+       if (ierr /= 0) call rti_abort('linalg_setMKLThreads:: Error reading namelist')
        ierr = fclos(nulnam)
     else
       write(*,*) 'linalg_setMKLThreads: namMKL is missing in the namelist.'
@@ -126,7 +127,7 @@ contains
     if ( info /= 0 ) then
       write(*,*)
       write(*,*) 'dsyev: ',info
-      call utl_abort('linalg_matSqrt: DSYEV failed!')
+      call rti_abort('linalg_matSqrt: DSYEV failed!')
     end if
 
     if (printInformation) then
@@ -433,7 +434,7 @@ contains
     lineDim = size(inputMatrix, dim=1)
     columnDim = size(inputMatrix, dim=2)
     if (lineDim /= columnDim) then
-      call utl_abort('linalg_fastInverse: the input matrix should be square !')
+      call rti_abort('linalg_fastInverse: the input matrix should be square !')
     end if
 
     inverse(1:lineDim,1:columnDim) = inputMatrix(:,:)
@@ -441,9 +442,9 @@ contains
     allocate(pivot(lineDim))
     call dgetrf(lineDim, lineDim, inverse, columnDim, pivot, info)
     if (info < 0) then
-      call utl_abort('linalg_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetrf')
+      call rti_abort('linalg_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetrf')
     else if (info > 0) then
-      call utl_abort('linalg_fastInverse: in dgetrf the U matrix is exactly singular ' // utl_str(info) )
+      call rti_abort('linalg_fastInverse: in dgetrf the U matrix is exactly singular ' // utl_str(info) )
     end if
 
     lwork = -1
@@ -454,9 +455,9 @@ contains
     call utl_reallocate(work, lwork)
     call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
     if (info < 0) then
-      call utl_abort('linalg_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetri')
+      call rti_abort('linalg_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetri')
     else if (info > 0) then
-      call utl_abort('linalg_fastInverse: in dgetri singular matrix' // utl_str(info) )
+      call rti_abort('linalg_fastInverse: in dgetri singular matrix' // utl_str(info) )
     end if
 
     deallocate(work)
@@ -502,7 +503,7 @@ contains
 
     if (info /= 0) then
       write(errorMessage,*) "linalg_pseudo_inverse: Problem in DGESVD ! ",info
-      call utl_abort(errorMessage)
+      call rti_abort(errorMessage)
     end if
 
     deallocate(work)

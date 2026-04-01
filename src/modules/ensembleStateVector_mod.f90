@@ -18,6 +18,7 @@ module ensembleStateVector_mod
   use oceanMask_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use codePrecision_mod
   use message_mod
@@ -107,7 +108,7 @@ CONTAINS
         ! Read namelist NAMENSSTATE
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namensstate, iostat=ierr)
-        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        if (ierr /= 0) call rti_abort('readNml (ens): Error reading namelist')
         call utl_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=namensstate)
@@ -220,7 +221,7 @@ CONTAINS
         allocate( ens%allLev_r4(varLevIndex)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
       end do
     else
-      call utl_abort('ens_allocate: unknown value of datakind')
+      call rti_abort('ens_allocate: unknown value of datakind')
     end if
 
     ens%allocated = .true.
@@ -392,10 +393,10 @@ CONTAINS
     integer           :: varLevIndex, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens_in%allocated) then
-      call utl_abort('ens_copy: ens_in not yet allocated')
+      call rti_abort('ens_copy: ens_in not yet allocated')
     end if
     if (.not.ens_out%allocated) then
-      call utl_abort('ens_copy: ens_out not yet allocated')
+      call rti_abort('ens_copy: ens_out not yet allocated')
     end if
 
     call gsv_copyMask(ens_in%statevector_work,ens_out%statevector_work)
@@ -442,7 +443,7 @@ CONTAINS
       !$OMP END PARALLEL DO
 
     else
-      call utl_abort('ens_copy: Data type must be the same for both ensembleStatevectors')
+      call rti_abort('ens_copy: Data type must be the same for both ensembleStatevectors')
     end if
 
   end subroutine ens_copy
@@ -467,10 +468,10 @@ CONTAINS
     integer           :: numStepIn, numStepOut, middleStepIndex
 
     if (.not.ens_in%allocated) then
-      call utl_abort('ens_copy4Dto3D: ens_in not yet allocated')
+      call rti_abort('ens_copy4Dto3D: ens_in not yet allocated')
     end if
     if (.not.ens_out%allocated) then
-      call utl_abort('ens_copy4Dto3D: ens_out not yet allocated')
+      call rti_abort('ens_copy4Dto3D: ens_out not yet allocated')
     end if
 
     call gsv_copyMask(ens_in%statevector_work,ens_out%statevector_work)
@@ -484,7 +485,7 @@ CONTAINS
     numStepIn  =  ens_in%statevector_work%numStep
     numStepOut =  ens_out%statevector_work%numStep
 
-    if (numStepOut /= 1) call utl_abort('ens_copy4Dto3D: output ensemble must have only 1 timestep')
+    if (numStepOut /= 1) call rti_abort('ens_copy4Dto3D: output ensemble must have only 1 timestep')
     if (numStepIn == 1) then
       write(*,*) 'ens_copy4Dto3D: WARNING: input ensemble only has 1 timestep, will simply copy.'
     end if
@@ -521,7 +522,7 @@ CONTAINS
       !$OMP END PARALLEL DO
 
     else
-      call utl_abort('ens_copy4Dto3D: Data type must be the same for both ensembleStatevectors')
+      call rti_abort('ens_copy4Dto3D: Data type must be the same for both ensembleStatevectors')
     end if
 
   end subroutine ens_copy4Dto3D
@@ -548,10 +549,10 @@ CONTAINS
     real(8)           :: scaleFactorIn, scaleFactorInOut
 
     if (.not.ens_in%allocated) then
-      call utl_abort('ens_add: ens_in not yet allocated')
+      call rti_abort('ens_add: ens_in not yet allocated')
     end if
     if (.not.ens_inOut%allocated) then
-      call utl_abort('ens_add: ens_inOut not yet allocated')
+      call rti_abort('ens_add: ens_inOut not yet allocated')
     end if
 
     lon1 = ens_inOut%statevector_work%myLonBeg
@@ -624,7 +625,7 @@ CONTAINS
       !$OMP END PARALLEL DO
 
     else
-      call utl_abort('ens_add: Data type must be the same for both ensembleStatevectors')
+      call rti_abort('ens_add: Data type must be the same for both ensembleStatevectors')
     end if
 
   end subroutine ens_add
@@ -646,7 +647,7 @@ CONTAINS
     integer           :: varLevIndex, stepIndex, latIndex, lonIndex, memberIndex
 
     if (.not.ens%allocated) then
-      call utl_abort('ens_zero: ens not yet allocated')
+      call rti_abort('ens_zero: ens not yet allocated')
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -725,7 +726,7 @@ CONTAINS
       if (present(memberIndex_opt)) then
         memberIndex = memberIndex_opt
       else
-        call utl_abort('ens_copyToStateWork: memberIndex_opt must be provided with dataType=member')
+        call rti_abort('ens_copyToStateWork: memberIndex_opt must be provided with dataType=member')
       end if
     case ('mean','stdDev')
       if (present(subEnsIndex_opt)) then
@@ -737,7 +738,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'Unsupported dataType: ', trim(dataType)
       write(*,*) '    please select either: member, mean or stdDev'
-      call utl_abort('ens_copyToStateWork')
+      call rti_abort('ens_copyToStateWork')
     end select
 
     if (ens%dataKind == 8) then
@@ -807,7 +808,7 @@ CONTAINS
       if (present(memberIndex_opt)) then
         memberIndex = memberIndex_opt
       else
-        call utl_abort('ens_copyFromStateWork: memberIndex_opt must be provided with dataType=member')
+        call rti_abort('ens_copyFromStateWork: memberIndex_opt must be provided with dataType=member')
       end if
     case ('mean','stdDev')
       if (present(subEnsIndex_opt)) then
@@ -819,7 +820,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'Unsupported dataType: ', trim(dataType)
       write(*,*) '    please select either: member, mean or stdDev'
-      call utl_abort('ens_copyToStateWork')
+      call rti_abort('ens_copyToStateWork')
     end select
 
     if (ens%dataKind == 8) then
@@ -973,7 +974,7 @@ CONTAINS
       if (ens%statevector_work%numVarLev /= statevector%numVarLev) then
         write(*,*) 'ens_copyEnsMean: numVarLev in ensemble    = ', ens%statevector_work%numVarLev
         write(*,*) 'ens_copyEnsMean: numVarLev in statevector = ', statevector%numVarLev
-        call utl_abort('ens_copyEnsMean: numVarLev not equal in ensemble and statevector')
+        call rti_abort('ens_copyEnsMean: numVarLev not equal in ensemble and statevector')
       end if
 
       sameVariableOrder = .true.
@@ -985,7 +986,7 @@ CONTAINS
       end do VarIndexLoop
       deallocate(varNamesInGsv)
       if (.not. sameVariableOrder) then
-        call utl_abort('ens_copyEnsMean: variables not the same in ensemble and statevector')
+        call rti_abort('ens_copyEnsMean: variables not the same in ensemble and statevector')
       end if
 
     end if
@@ -1061,7 +1062,7 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     if (.not. gsv_isAllocated(statevector)) then
-      call utl_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
+      call rti_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
     end if
 
     if (.not. allocated(ens%allLev_ensMean_r8)) then
@@ -1173,7 +1174,7 @@ CONTAINS
 
     if (present(stepIndexEns_opt)) then
       if (statevector%numStep /= 1) then
-        call utl_abort('ens_copyMember: When specifying stepIndexEns_opt, ' // &
+        call rti_abort('ens_copyMember: When specifying stepIndexEns_opt, ' // &
                        'statevector must have only 1 time step')
       end if
       numStepToCopy = 1
@@ -1182,7 +1183,7 @@ CONTAINS
       if (ens%statevector_work%numStep /= statevector%numStep) then
         write(*,*) 'numStep(ens)         = ', ens%statevector_work%numStep
         write(*,*) 'numStep(statevector) = ', statevector%numStep
-        call utl_abort('ens_copyMember: numStep of statevector not equal to that of ensemble')
+        call rti_abort('ens_copyMember: numStep of statevector not equal to that of ensemble')
       end if
       numStepToCopy = statevector%numStep
       stepIndexOffset = 0
@@ -1192,12 +1193,12 @@ CONTAINS
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
     if (.not. gsv_isAllocated(statevector)) then
-      call utl_abort('ens_copyMember: statevector not allocated')
+      call rti_abort('ens_copyMember: statevector not allocated')
     else
       if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
         write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
         write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
-        call utl_abort('ens_copyMember: mpi distibution not compatible')
+        call rti_abort('ens_copyMember: mpi distibution not compatible')
       end if
       nullify(varNamesInGsv)
       call gsv_varNamesList(varNamesInGsv, statevector)
@@ -1313,13 +1314,13 @@ CONTAINS
     logical          :: sameVariables
 
     if (.not. gsv_isAllocated(ens%statevector_work)) then
-      call utl_abort('ens_insertMember: ens not allocated')
+      call rti_abort('ens_insertMember: ens not allocated')
     end if
 
     if (statevector%mpi_distribution /= ens%statevector_work%mpi_distribution) then
       write(*,*) 'ens         mpi distibution = ', ens%statevector_work%mpi_distribution
       write(*,*) 'statevector mpi distibution = ', statevector%mpi_distribution
-      call utl_abort('ens_insertMember: mpi distibution not compatible')
+      call rti_abort('ens_insertMember: mpi distibution not compatible')
     end if
 
     numStep = ens%statevector_work%numStep
@@ -1521,7 +1522,7 @@ CONTAINS
     character(len=4), pointer,  intent(inout) :: varNames(:)
 
     if (associated(varNames)) then
-      call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
+      call rti_abort('ens_varNamesList: varNames must be NULL pointer on input')
     end if
 
     call gsv_varNamesList(varNames, ens%statevector_work)
@@ -1655,7 +1656,7 @@ CONTAINS
     integer                      :: offset
 
     if (.not. ens_varExist(ens,varName)) then
-      call utl_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
+      call rti_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
     end if
 
     offset=gsv_getOffsetFromVarName(ens%statevector_work,varName)
@@ -1842,7 +1843,7 @@ CONTAINS
         end do
         ierr   = fclos(kulin)
       else
-        call utl_abort('ens_computeMean: could not find file with sub-ensemble index list')
+        call rti_abort('ens_computeMean: could not find file with sub-ensemble index list')
       end if
     else
       ens%subEnsIndexList(:) = 1
@@ -1956,7 +1957,7 @@ CONTAINS
     if (containsScaledPerts) then
 
       if (ens%numSubEns /= 1) then
-        call utl_abort('ens_computeStdDev: sub-ensemble approach not compatible with scale perturbations')
+        call rti_abort('ens_computeStdDev: sub-ensemble approach not compatible with scale perturbations')
       end if
 
       ! Compute the ensemble StdDev from previously scale ensemble perturbations
@@ -2155,7 +2156,7 @@ CONTAINS
     real(8)  :: globalMean, globalMean_mpiglobal
 
     if ( .not. ens%statevector_work%hco%global ) then
-      call utl_abort('ens_removeGlobalMean: must never by applied to limited-area ensembles')
+      call rti_abort('ens_removeGlobalMean: must never by applied to limited-area ensembles')
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -2256,13 +2257,13 @@ CONTAINS
     else if ( present(recenteringCoeffScalar_opt) ) then
       recenteringCoeffArray(:,:) = recenteringCoeffScalar_opt
     else
-      call utl_abort('ens_recenter: Must specify recenteringCoeff_opt or recenteringCoeffScalar_opt')
+      call rti_abort('ens_recenter: Must specify recenteringCoeff_opt or recenteringCoeffScalar_opt')
     end if
 
     if ( present(scaleFactor_opt) ) then
       ! scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
       if ( any (abs(recenteringCoeffArray(:,:)  - 1.0D0) > 1.0D-5) ) then
-        call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
+        call rti_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
       end if
       scaleFactor = scaleFactor_opt
     else
@@ -2440,7 +2441,7 @@ CONTAINS
     call msg_memUsage('ens_readEnsemble')
 
     if ( .not. ens%allocated ) then
-      call utl_abort('ens_readEnsemble: ensemble object not allocated!')
+      call rti_abort('ens_readEnsemble: ensemble object not allocated!')
     end if
 
     !
@@ -2531,7 +2532,7 @@ CONTAINS
       ignoreDate = .false.
     end if
     if ( ignoreDate .and. (numStep > 1) ) then
-      call utl_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
+      call rti_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
     end if
 
     ! Set up hco and vco for ensemble files
@@ -3045,7 +3046,7 @@ CONTAINS
     call msg_memUsage('ens_writeEnsemble')
 
     if ( .not. ens%allocated ) then
-      call utl_abort('ens_writeEnsemble: ensemble object not allocated!')
+      call rti_abort('ens_writeEnsemble: ensemble object not allocated!')
     end if
 
     !- 1. Initial setup
@@ -3326,7 +3327,7 @@ CONTAINS
         if (present(etiketAppendMemberNumber_opt)) then
           if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
             if ( ensFileExtLength > ensFileExtLengthMax ) then
-              call utl_abort('ens_writeEnsemble: the ensemble file length ' // str(ensFileExtLength) // ' is greater than the maximum allowed of ' // str(ensFileExtLengthMax))
+              call rti_abort('ens_writeEnsemble: the ensemble file length ' // str(ensFileExtLength) // ' is greater than the maximum allowed of ' // str(ensFileExtLengthMax))
             end if
             write(ensFileExtLengthStr,"(I1)") ensFileExtLength
             write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
@@ -3467,7 +3468,7 @@ CONTAINS
     write(*,*) 'ens_applyMaskLAM: starting'
 
     if (.not.(ens_isAllocated(ensIncrement).and.(gsv_isAllocated(stateVectorAnalIncMask)))) then
-      call utl_abort('epp_applyMaskLAM: increment and mask must be avaliable.')
+      call rti_abort('epp_applyMaskLAM: increment and mask must be avaliable.')
     end if
 
     call gsv_getField(stateVectorAnalIncMask, analIncMask_ptr)

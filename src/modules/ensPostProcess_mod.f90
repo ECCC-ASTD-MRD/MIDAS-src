@@ -7,6 +7,7 @@ module ensPostProcess_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use verticalCoord_mod
@@ -146,7 +147,7 @@ contains
     else
       write(*,*) 'epp_postProcess: Unexpected combination of values for nstepobs, nstepobsinc = ', &
                  tim_nstepobs, tim_nstepobsinc
-      call utl_abort('epp_postProcess')
+      call rti_abort('epp_postProcess')
     end if
 
     ! Optional argument settings
@@ -228,7 +229,7 @@ contains
     !- Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namEnsPostProcModule, iostat = ierr)
-    if (ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
+    if (ierr /= 0) call rti_abort('epp_postProc: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml = namEnsPostProcModule)
     call utl_tmg_stop(181)
 
@@ -239,10 +240,10 @@ contains
 
     if (use4Drecentering3Densemble) then
       if (tim_nstepobsinc > 1) then
-        call utl_abort('epp_postProc: Not able to use 4D recentering analysis when ensemble is also 4D')
+        call rti_abort('epp_postProc: Not able to use 4D recentering analysis when ensemble is also 4D')
       end if
       if (tim_nstepobs == 1) then
-        call utl_abort('epp_postProc: Not able to use 4D recentering analysis when tim_nstepobs equal 1')
+        call rti_abort('epp_postProc: Not able to use 4D recentering analysis when tim_nstepobs equal 1')
       end if
     end if
 
@@ -254,19 +255,19 @@ contains
 
     if (writeSubSample) then
       if (.not.(ens_isAllocated(ensembleTrl).and.ens_isAllocated(ensembleAnl))) then
-        call utl_abort('epp_postProc: subSample can only be produced if both Anl and Trl ensembles available')
+        call rti_abort('epp_postProc: subSample can only be produced if both Anl and Trl ensembles available')
       end if
     end if
 
     if (writeSubSampleUnPert) then
       if (.not.ens_isAllocated(ensembleAnl)) then
-        call utl_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
+        call rti_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
       end if
     end if
 
     if (writeRawAnalStats) then
       if (.not.ens_isAllocated(ensembleAnl)) then
-        call utl_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
+        call rti_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
       end if
     end if
 
@@ -847,7 +848,7 @@ contains
             end if
           end do
           if (writeNetCDFInc) then
-            call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+            call rti_abort('epp_postProcess: output netCDF file requested but not required.')
           end if
         else
           call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -906,7 +907,7 @@ contains
         end do
 
         if (writeNetCDFensAnalysis) then
-          call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+          call rti_abort('epp_postProcess: output netCDF file requested but not required.')
         end if
 
       else
@@ -1612,7 +1613,7 @@ contains
     ! check if recentering analysis file exists
     inquire(file = recenterAnlFileName, exist = recenterAnlFileExists)
     if (.not. recenterAnlFileExists) then
-      call utl_abort('epp_hybridRecentering: The recentering analysis file does not exist')
+      call rti_abort('epp_hybridRecentering: The recentering analysis file does not exist')
     end if
 
     hco_ens => ens_getHco(ensembleAnl)
@@ -1631,7 +1632,7 @@ contains
       status = fnom(nulFile, './optiontable', 'FMT+SEQ+R/O', 0)
       read(nulFile,'(a)', IOSTAT = status) textLine
       if (status /= 0) then
-        call utl_abort('epp_hybridRecentering: unable to read optiontable file')
+        call rti_abort('epp_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
       if (mmpi_myid == 0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
@@ -1651,7 +1652,7 @@ contains
         write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens, 'MM')
         write(*,*) 'Provided values : '
         write(*,*) weightRecenter(1:vco_getNumLev(vco_ens, 'MM'))
-        call utl_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
+        call rti_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
       end if
       do memberIndex = 0, numMembers
         weightArray(:, memberIndex) = weightRecenter(:)
@@ -1670,7 +1671,7 @@ contains
     else if (trim(utl_fileType(recenterAnlFileName)) == 'FST') then
       localDateStamp = tim_getDateStamp()
     else
-      call utl_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
+      call rti_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
     end if
 
     call gsv_allocate(stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -1840,7 +1841,7 @@ contains
                                fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
       else
         write(*,*) 'vCode = ', vco%vcode
-        call utl_abort('epp_printRmsStats: Unknown vCode')
+        call rti_abort('epp_printRmsStats: Unknown vCode')
       end if
 
       ! set the variable name and pressure for each element of column
@@ -1880,7 +1881,7 @@ contains
 
     else
 
-      call utl_abort('epp_printRmsStats: Unknown type of levels')
+      call rti_abort('epp_printRmsStats: Unknown type of levels')
 
     end if
 
@@ -1902,7 +1903,7 @@ contains
       nulFile = 0
       ierr = fnom (nulFile, fileName, 'SEQ+R/W', 0)
       if (ierr /= 0) then
-        call utl_abort('epp_printRmsStats: Cannot open ascii output file')
+        call rti_abort('epp_printRmsStats: Cannot open ascii output file')
       end if
 
       varLevIndexCount = 0

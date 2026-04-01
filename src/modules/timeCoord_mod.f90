@@ -10,8 +10,10 @@ module timeCoord_mod
   use midasMpi_mod
   use varNameList_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -109,7 +111,7 @@ contains
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namtime, iostat = ierr)
-    if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
+    if (ierr /= 0) call rti_abort('tim_readNml: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namtime)
     ierr = fclos(nulnam)
 
@@ -167,7 +169,7 @@ contains
     call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
 
     if (status > 1) then
-      call utl_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
+      call rti_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
     end if
     if (status == 1) then
       write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
@@ -195,7 +197,7 @@ contains
       timePrint = (dateTimePrint - datePrint*100000000)
     else
       write(*,*) 'length of MIDAS_DATE = ', lengthValidDateStr
-      call utl_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
+      call rti_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
     end if
 
     ! convert to CMC dateStamp
@@ -264,7 +266,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
 
     if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
-      call utl_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
+      call rti_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
     end if
 
     initialized = .true.
@@ -318,7 +320,7 @@ contains
       ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)
       if (.not.fileExists) then
-        call utl_abort('tim_getDateStampFromFile: file not found '//trim(fileName))
+        call rti_abort('tim_getDateStampFromFile: file not found '//trim(fileName))
       end if
 
       ! Determine variable to use for the date (default is P0)
@@ -341,7 +343,7 @@ contains
         end do
 
         if (.not. foundVarNameInFile) then
-          call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
+          call rti_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
         end if
 
       end if
@@ -353,7 +355,7 @@ contains
       ierr = fstinl(nulFile,ini,inj,ink,-1,' ',-1,-1,-1,' ', &
                     trim(varNameForDate),ikeys,numdates,maxnumdates)
       if (ikeys(1) <= 0) then
-        call utl_abort('tim_getDateStampFromFile: Could not find variable ' //  &
+        call rti_abort('tim_getDateStampFromFile: Could not find variable ' //  &
                        trim(varNameForDate) // ' in the supplied file')
       end if
       write(*,*) 'tim_getDateStampFromFile: number of dates found = ', numDates
@@ -391,7 +393,7 @@ contains
 
       if (.not. foundWindow) then
         write(*,*) 'windowsPerDay, fileHour = ', windowsPerDay, fileHour
-        call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
+        call rti_abort('tim_getDateStampFromFile: could not determine assimilation window position')
       end if
 
       ! handle special case when window centered on hour 24
@@ -422,7 +424,7 @@ contains
     ! Arguments:
     integer, intent(in) :: datestamp_in
 
-    if (.not.initialized) call utl_abort('tim_setDateStamp: module not initialized')
+    if (.not.initialized) call rti_abort('tim_setDateStamp: module not initialized')
 
     datestamp = datestamp_in
 
@@ -439,7 +441,7 @@ contains
     ! Result:
     integer :: datestamp_out
 
-    if (.not.initialized) call utl_abort('tim_getDateStamp: module not initialized')
+    if (.not.initialized) call rti_abort('tim_getDateStamp: module not initialized')
 
     datestamp_out = datestamp
 
@@ -463,7 +465,7 @@ contains
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
 
-    if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
+    if (.not. initialized) call rti_abort('tim_getStampList: module not initialized')
 
     if (referenceDateStamp == -1) then
 
@@ -542,7 +544,7 @@ contains
     integer :: istobs    ! obs CMC date-time stamp
     real(8) :: dlhours   ! delta time from synop time
 
-    if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
+    if (.not. initialized) call rti_abort('tim_getStepObsIndex: module not initialized')
 
     ! Building observation stamp
     istobs = tim_yyyymmddhhToDatestamp(obsYYYMMDD, obsHHMM*10000)
@@ -628,7 +630,7 @@ contains
     mode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, printableTime, mode)
     if ( ierr < 0 ) then
-      call utl_abort('tim_dateStampToYYYYMMDDHHPrintable: Invalid datestamp when calling ''newdate'' with mode=-3: ' // trim(utl_str(datestamp)))
+      call rti_abort('tim_dateStampToYYYYMMDDHHPrintable: Invalid datestamp when calling ''newdate'' with mode=-3: ' // trim(utl_str(datestamp)))
     end if
 
     printableDate = prntdate(1)
@@ -747,7 +749,7 @@ contains
     mode = 3
     ierr = newdate(currentDateStamp, date_array, time, mode)
     if ( ierr < 0 ) then
-      call utl_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(datestamp)))
+      call rti_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(datestamp)))
     end if
 
   end function tim_yyyymmddhhToDatestampWithDateTime
@@ -866,7 +868,7 @@ contains
         end if
         write(*,*) 'tim_getValidDateTimeFromList: date from Min/Max = ', validDateMin, validDateMax
         write(*,*) 'tim_getValidDateTimeFromList: hour from Min/Max = ', validTimeMin, validTimeMax
-        if (validTimeMin /= validTimeMax) call utl_abort('validTimeMin/Max not equal')
+        if (validTimeMin /= validTimeMax) call rti_abort('validTimeMin/Max not equal')
         validTime = validTimeMin
         validDate = validDateMin
         deallocate(windowBoundaries)

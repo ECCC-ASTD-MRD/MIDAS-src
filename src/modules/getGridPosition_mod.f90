@@ -14,6 +14,7 @@ module getGridPosition_mod
   use message_mod
   use physicsFunctions_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -367,7 +368,7 @@ contains
 
     if (gdid /= gdidOld .and. gdidOld > 0) then
       write(*,*) 'gpos_xyfll_unstructGrid: gdid gdidOld = ', gdid, gdidOld
-      call utl_abort('gpos_xyfll_unstructGrid: only one grid expected. Change code!')
+      call rti_abort('gpos_xyfll_unstructGrid: only one grid expected. Change code!')
     end if
 
     ! create the kdtree on the first call
@@ -453,7 +454,7 @@ contains
                    grid_lon_rad(xIndex, yIndex) * MPC_DEGREES_PER_RADIAN_R8, &
                    grid_lat_rad(xIndex, yIndex) * MPC_DEGREES_PER_RADIAN_R8
       end do
-      call utl_abort('gpos_xyfll_unstructGrid: the parameter maxNumLocalGridPointsSearch must be increased')
+      call rti_abort('gpos_xyfll_unstructGrid: the parameter maxNumLocalGridPointsSearch must be increased')
     end if
 
     if (numLocalGridPointsFound < 4) then

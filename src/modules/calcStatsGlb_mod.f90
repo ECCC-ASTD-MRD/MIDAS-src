@@ -22,6 +22,7 @@ module calcStatsGlb_mod
   use calcHeightAndPressure_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use scaleDecomposition_mod
   use menetrierDiag_mod
   use fileNames_mod
@@ -125,7 +126,7 @@ module calcStatsGlb_mod
     vertWaveBandPeaks(:) = -1.0d0
 
     read(utl_flnml, nml=NAMCALCSTATS_GLB, iostat=ierr)
-    if (ierr /= 0) call utl_abort('csg_setup: Error reading namelist NAMCALCSTATS_GLB')
+    if (ierr /= 0) call rti_abort('csg_setup: Error reading namelist NAMCALCSTATS_GLB')
     if (mmpi_myid == 0) write(*,nml=NAMCALCSTATS_GLB)
 
     !- Setup horizontal grid
@@ -209,7 +210,7 @@ module calcStatsGlb_mod
       nHorizWaveBand = 1
     else if (nHorizWaveBand == 1) then
       write(*,*) 'You have specified only ONE horizWaveBandPeaks'
-      call utl_abort('calbmatrix_glb')
+      call rti_abort('calbmatrix_glb')
     else
       write(*,*)
       write(*,*) 'Horizontal waveBand decomposition is ACTIVATED'
@@ -219,7 +220,7 @@ module calcStatsGlb_mod
     do horizWaveBandIndex = 1, nHorizWaveBand-1
       if (horizWaveBandPeaks(horizWaveBandIndex)-horizWaveBandPeaks(horizWaveBandIndex+1) <= 0) then
         write(*,*) 'csg_setup: horizWaveBandPeaks are not in decreasing wavenumber order'
-        call utl_abort('calbmatrix_glb')
+        call rti_abort('calbmatrix_glb')
       end if
     end do
 
@@ -227,7 +228,7 @@ module calcStatsGlb_mod
     if (ntrunc < nj-1 .and. nHorizWaveBand > 1) then
        write(*,*) 'csg_setup: The truncation is not compatible with wave band decomposition'
        write(*,*) '                 ntrunc should = ', nj-1
-       call utl_abort('calbmatrix_glb')
+       call rti_abort('calbmatrix_glb')
     end if
 
     !
@@ -238,7 +239,7 @@ module calcStatsGlb_mod
       nVertWaveBand = 1
     else if (nVertWaveBand == 1) then
       write(*,*) 'You have specified only ONE horizWaveBandPeaks'
-      call utl_abort('calbmatrix_glb')
+      call rti_abort('calbmatrix_glb')
     else
       write(*,*)
       write(*,*) 'Vertical waveBand decomposition is ACTIVATED'
@@ -248,7 +249,7 @@ module calcStatsGlb_mod
     do vertWaveBandIndex = 1, nVertWaveBand-1
       if (vertWaveBandPeaks(vertWaveBandIndex)-vertWaveBandPeaks(vertWaveBandIndex+1) <= 0) then
         write(*,*) 'csg_setup: vertWaveBandPeaks are not in decreasing mode order'
-        call utl_abort('calbmatrix_glb')
+        call rti_abort('calbmatrix_glb')
       end if
     end do
 
@@ -302,7 +303,7 @@ module calcStatsGlb_mod
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namstate, iostat = ierr)
     call utl_tmg_stop(181)
-    if (ierr /= 0) call utl_abort('csg_setNomvar: Error reading namelist NAMSTATE')
+    if (ierr /= 0) call rti_abort('csg_setNomvar: Error reading namelist NAMSTATE')
     if (mmpi_myid == 0) write(*,nml=namstate)
 
     nullify(controlVarNames)
@@ -427,7 +428,7 @@ module calcStatsGlb_mod
     formulation='legacy'
 
     read(utl_flnml,nml=NAMCOMPUTEBHI, iostat=ierr)
-    if (ierr /= 0) call utl_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
+    if (ierr /= 0) call rti_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHI)
 
     select case(trim(formulation))
@@ -439,7 +440,7 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'csg_computeBhi: Unknown value of FORMULATION for Bhi computation: ',formulation
       write(*,*) 'Please select legacy or latbands'
-      call utl_abort('csg_computeBhi')
+      call rti_abort('csg_computeBhi')
     end select
 
   end subroutine csg_computeBhi
@@ -455,13 +456,13 @@ module calcStatsGlb_mod
     implicit none
 
     if (nvar3d /=4 .or. nvar2d /= 1) then
-      call utl_abort('csg_checkWeatherVars: Incorrect number of variables for legacy formulation')
+      call rti_abort('csg_checkWeatherVars: Incorrect number of variables for legacy formulation')
     else if (trim(nomvar3d(1,modelSpace)) /= 'UU' .or. &
               trim(nomvar3d(2,modelSpace)) /= 'VV' .or. &
               trim(nomvar3d(3,modelSpace)) /= 'TT' .or. &
               trim(nomvar3d(4,modelSpace)) /= 'LQ' .or. &
               trim(nomvar2d(1,modelSpace)) /= 'P0') then
-      call utl_abort('csg_checkForLegacyVars: Incorrect variables for legacy formulation')
+      call rti_abort('csg_checkForLegacyVars: Incorrect variables for legacy formulation')
     end if
 
   end subroutine csg_checkForLegacyVars
@@ -631,7 +632,7 @@ module calcStatsGlb_mod
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = NAMCOMPUTEBHILATBANDS, iostat = ierr)
       call utl_tmg_stop(181)
-      if (ierr /= 0) call utl_abort('csg_computeBhiLatBands: Error reading namelist NAMCOMPUTEBHILATBAND')
+      if (ierr /= 0) call rti_abort('csg_computeBhiLatBands: Error reading namelist NAMCOMPUTEBHILATBAND')
     end if
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHILATBANDS)
 
@@ -811,7 +812,7 @@ module calcStatsGlb_mod
     ctrlVarHumidity          = 'HU'
 
     read(utl_flnml,nml=NAMTOOLBOX, iostat=ierr)
-    if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
+    if (ierr /= 0) call rti_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
 
      if ( utl_isEqual(vertModesLengthScale(2),-1.d0) ) then
@@ -858,7 +859,7 @@ module calcStatsGlb_mod
       write(*,*) 'Computing Homogeneous and Isotropic Correlation'
 
       if (mmpi_nprocs > 1) then
-        call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
+        call rti_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
       end if
 
       call spectralFilter(ensPerts) ! INOUT
@@ -907,7 +908,7 @@ module calcStatsGlb_mod
       write(*,*) 'Estimating the optimal covariance localization radii'
 
       if (nHorizWaveBand > 1 .and. nVertWaveBand > 1) then
-        call utl_abort('csg_toolbox: cannot do horizontal AND vertical scale-decomposition')
+        call rti_abort('csg_toolbox: cannot do horizontal AND vertical scale-decomposition')
       end if
       call ens_allocate(ensPertsScaleDecomp(1), nEns, numStep, hco_ens, vco_ens, dateStampList)
 
@@ -994,7 +995,7 @@ module calcStatsGlb_mod
       write(*,*) 'Computing vertical modes spectra'
 
       if (nHorizWaveBand > 1 .or. nVertWaveBand > 1) then
-        call utl_abort('csg_toolbox: waveband decomposition cannot be use when TOOLBOX=VERTMODES_SPEC')
+        call rti_abort('csg_toolbox: waveband decomposition cannot be use when TOOLBOX=VERTMODES_SPEC')
       end if
 
       call vms_computeModesFromFunction(vco_ens, vertModesLengthScale(1), & ! IN
@@ -1009,7 +1010,7 @@ module calcStatsGlb_mod
       write(*,*) 'Computing vertical-scale decomposed ensemble perturbations'
 
       if (nVertWaveBand == 1) then
-        call utl_abort('csg_toolbox: please specify a vertical waveband decomposition when TOOLBOX=VERTMODES_WAVEBAND')
+        call rti_abort('csg_toolbox: please specify a vertical waveband decomposition when TOOLBOX=VERTMODES_WAVEBAND')
       end if
 
       call ens_allocate(ensPertsScaleDecomp(1), nEns, numStep, hco_ens, vco_ens, dateStampList)
@@ -1079,7 +1080,7 @@ module calcStatsGlb_mod
     case default
       write(*,*)
       write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
-      call utl_abort('csg_toolbox')
+      call rti_abort('csg_toolbox')
     end select
 
     !
@@ -1699,7 +1700,7 @@ module calcStatsGlb_mod
     else
        if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'writeStats: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
+          call rti_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex_opt
        outfilename='./bgcov_'//trim(wbnum)//'.fst'
@@ -2077,7 +2078,7 @@ module calcStatsGlb_mod
       ! Write vgrid descriptor object for the record !!
       status = vgd_write(vco_ens%vgrid,nulstats,'fst')
       if (status /= VGD_OK) then
-        call utl_abort('csg_writeGridDescriptors: ERROR with vgd_write')
+        call rti_abort('csg_writeGridDescriptors: ERROR with vgd_write')
       end if
 
       ! Write TH and MM
@@ -2227,7 +2228,7 @@ module calcStatsGlb_mod
         call gst_setID(gstID_nLevEns_T_P1)
       else
         write(*,*) 'spectralFilter: nlev = ',nlev
-        call utl_abort('spectralFilter: spectral transform not initialized for this number of levels')
+        call rti_abort('spectralFilter: spectral transform not initialized for this number of levels')
       end if
       call gst_reespe(spectralState,member)
       call gst_speree(spectralState,member)
@@ -3176,7 +3177,7 @@ module calcStatsGlb_mod
       if (nHorizWaveBand /= 1) then
         if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
+          call rti_abort('calbmatrix_glb')
         end if
         write(wbnum,'(I2.2)') waveBandIndex_opt
       end if
@@ -3383,7 +3384,7 @@ module calcStatsGlb_mod
     if (nHorizWaveBand /= 1) then
        if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
-          call utl_abort('calbmatrix_glb')
+          call rti_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
@@ -3547,7 +3548,7 @@ module calcStatsGlb_mod
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
     read(utl_flnml,nml=NAMHVCORREL_LOCAL,iostat=ierr)
-    if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
+    if (ierr /= 0) call rti_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
     if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
 
     blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint

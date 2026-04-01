@@ -12,6 +12,7 @@ module obsdbFiles_mod
   use obsSpaceData_mod
   use fSQLite
   use utilities_mod
+  use runtimeInfo_mod
   use clibInterfaces_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
@@ -113,10 +114,10 @@ contains
       nulfile = 0
       ierr = fnom(nulfile,'./flnml','FTN+SEQ+R/O',0)
       read(nulfile, nml=namobsdb, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('readNml (odbf): Error reading namelist')
+      if ( ierr /= 0 ) call rti_abort('readNml (odbf): Error reading namelist')
       ierr = fclos(nulfile)
       if (numElemIdList /= MPC_missingValue_INT) then
-        call utl_abort('readNml (odbf): check namobsdb namelist section: numElemIdList should be removed')
+        call rti_abort('readNml (odbf): check namobsdb namelist section: numElemIdList should be removed')
       end if
       numElemIdList = 0
       do elementIndex = 1, maxElementNumber
@@ -127,7 +128,7 @@ contains
     if ( mmpi_myid == 0 ) write(*, nml=namObsDb)
 
     if (numElemIdList==0) then
-      call utl_abort('odbf_setup: element list is empty')
+      call rti_abort('odbf_setup: element list is empty')
     end if
 
   end subroutine readNml
@@ -165,7 +166,7 @@ contains
 
     nulfile = 0
     ierr = fnom(nulfile,trim(obsDbColumnFile),'FTN+SEQ+R/O',0)
-    if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading ObsDBColumnTable file')
+    if ( ierr /= 0 ) call rti_abort('odbf_setup: Error reading ObsDBColumnTable file')
 
     ! Get number of rows in ObsDBColumnTable file
     headerTableRow = 0
@@ -380,19 +381,19 @@ contains
     ierr = fclos(nulfile)
 
     ! Check if the header, body and MIDAS table column names are read correctly
-    if (len(trim(headTableName)) == 0) call utl_abort('odbf_setup: headTableName is incorrectly defined or missing')
-    if (len(trim(obsHeadKeySqlName)) == 0) call utl_abort('odbf_setup: obsHeadKeySqlName is incorrectly defined or missing')
-    if (len(trim(headDateSqlName)) == 0) call utl_abort('odbf_setup: headDateSqlName is incorrectly defined or missing')
-    if (len(trim(bodyTableName)) == 0) call utl_abort('odbf_setup: bodyTableName is incorrectly defined or missing')
-    if (len(trim(obsBodyKeySqlName)) == 0) call utl_abort('odbf_setup: obsBodyKeySqlName is incorrectly defined or missing')
-    if (len(trim(midasBodyTableName)) == 0) call utl_abort('odbf_setup: midasBodyTableName is incorrectly defined or missing')
-    if (len(trim(midasBodyKeySqlName)) == 0) call utl_abort('odbf_setup: midasBodyKeySqlName is incorrectly defined or missing')
-    if (len(trim(midasHeadKeySqlName)) == 0) call utl_abort('odbf_setup: midasHeadKeySqlName is incorrectly defined or missing')
+    if (len(trim(headTableName)) == 0) call rti_abort('odbf_setup: headTableName is incorrectly defined or missing')
+    if (len(trim(obsHeadKeySqlName)) == 0) call rti_abort('odbf_setup: obsHeadKeySqlName is incorrectly defined or missing')
+    if (len(trim(headDateSqlName)) == 0) call rti_abort('odbf_setup: headDateSqlName is incorrectly defined or missing')
+    if (len(trim(bodyTableName)) == 0) call rti_abort('odbf_setup: bodyTableName is incorrectly defined or missing')
+    if (len(trim(obsBodyKeySqlName)) == 0) call rti_abort('odbf_setup: obsBodyKeySqlName is incorrectly defined or missing')
+    if (len(trim(midasBodyTableName)) == 0) call rti_abort('odbf_setup: midasBodyTableName is incorrectly defined or missing')
+    if (len(trim(midasBodyKeySqlName)) == 0) call rti_abort('odbf_setup: midasBodyKeySqlName is incorrectly defined or missing')
+    if (len(trim(midasHeadKeySqlName)) == 0) call rti_abort('odbf_setup: midasHeadKeySqlName is incorrectly defined or missing')
 
     do countRow = 1, numHeadMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(headMatchList(2,countRow)))
       if (.not. obsColumnIsValid) then
-        call utl_abort('odbf_setup: Column in Header Table does not exist in ObsSpaceData: ' // &
+        call rti_abort('odbf_setup: Column in Header Table does not exist in ObsSpaceData: ' // &
                        trim(headMatchList(2,countRow)))
       end if
     end do
@@ -400,7 +401,7 @@ contains
     do countRow = 1, numBodyMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(bodyMatchList(2,countRow)))
       if (.not. obsColumnIsValid) then
-        call utl_abort('odbf_setup: Column in Body Table does not exist in ObsSpaceData: ' // &
+        call rti_abort('odbf_setup: Column in Body Table does not exist in ObsSpaceData: ' // &
                        trim(bodyMatchList(2,countRow)))
       end if
     end do
@@ -408,7 +409,7 @@ contains
     do countRow = 1, numMidasBodyMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(midasBodyNamesList(2,countRow)))
       if (.not. obsColumnIsValid) then
-        call utl_abort('odbf_setup: Column in MIDAS Body Table does not exist in ObsSpaceData: ' // &
+        call rti_abort('odbf_setup: Column in MIDAS Body Table does not exist in ObsSpaceData: ' // &
                        trim(midasBodyNamesList(2,countRow)))
       end if
     end do
@@ -416,7 +417,7 @@ contains
     do countRow = 1, numMidasHeadMatch
       obsColumnIsValid = obs_isColumnNameValid(trim(midasHeadNamesList(2,countRow)))
       if (.not. obsColumnIsValid) then
-        call utl_abort('odbf_setup: Column in MIDAS Header Table does not exist in ObsSpaceData: ' // &
+        call rti_abort('odbf_setup: Column in MIDAS Header Table does not exist in ObsSpaceData: ' // &
                        trim(midasHeadNamesList(2,countRow)))
       end if
     end do
@@ -455,7 +456,7 @@ contains
     call mmpi_allReduce(validTime, validTimeRecv, mmpi_max)
 
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
-      call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
+      call rti_abort('odbf_getDateStamp: Error in getting valid date and time!')
     end if
 
     ! printable to stamp, validTime must be multiplied with 1e6 to
@@ -719,7 +720,7 @@ contains
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_readMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_readMidasBodyTable: fSQL_open')
+      call rti_abort('odbf_readMidasBodyTable: fSQL_open')
     end if
 
     ! read the contents of the MIDAS table, one column at a time
@@ -758,7 +759,7 @@ contains
       call fSQL_prepare(db, query , stmt, stat)
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'odbf_readMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_readMidasBodyTable: fSQL_prepare')
+        call rti_abort('odbf_readMidasBodyTable: fSQL_prepare')
       end if
 
       call fSQL_begin(db)
@@ -788,11 +789,11 @@ contains
                                mode=FSQL_REAL8, status=stat)
             if ( fSQL_error(stat) /= FSQL_OK ) then
               write(*,*) 'odbf_readMidasBodyTable: fSQL_get_many: ', fSQL_errmsg(stat)
-              call utl_abort('odbf_readMidasBodyTable: problem with fSQL_get_many')
+              call rti_abort('odbf_readMidasBodyTable: problem with fSQL_get_many')
             end if
             if (numRows /= 1 .or. numColumns /= 1) then
               write(*,*) 'odbf_readMidasBodyTable: numRows, numColumns =', numRows, numColumns
-              call utl_abort('odbf_readMidasBodyTable: sql query did not return 1 value')
+              call rti_abort('odbf_readMidasBodyTable: sql query did not return 1 value')
             end if
             call fSQL_fill_matrix(stmt, matdata_r8)
             call obs_bodySet_r(obsdat,obsSpaceColIndex,bodyIndex,matdata_r8(1,1))
@@ -801,11 +802,11 @@ contains
                                mode=FSQL_INT, status=stat)
             if ( fSQL_error(stat) /= FSQL_OK ) then
               write(*,*) 'odbf_readMidasBodyTable: fSQL_get_many: ', fSQL_errmsg(stat)
-              call utl_abort('odbf_readMidasBodyTable: problem with fSQL_get_many')
+              call rti_abort('odbf_readMidasBodyTable: problem with fSQL_get_many')
             end if
             if (numRows /= 1 .or. numColumns /= 1) then
               write(*,*) 'odbf_readMidasBodyTable: numRows, numColumns =', numRows, numColumns
-              call utl_abort('odbf_readMidasBodyTable: sql query did not return 1 value')
+              call rti_abort('odbf_readMidasBodyTable: sql query did not return 1 value')
             end if
             call fSQL_fill_matrix(stmt, matdata_int)
             call obs_bodySet_i(obsdat,obsSpaceColIndex,bodyIndex,matdata_int(1,1))
@@ -862,7 +863,7 @@ contains
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_getPrimaryKeys: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getPrimaryKeys: fSQL_open')
+      call rti_abort('odbf_getPrimaryKeys: fSQL_open')
     end if
 
     ! build the sqlite query for the HEADER primary key
@@ -952,7 +953,7 @@ contains
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_setSurfaceType: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_setSurfaceType: fSQL_open')
+      call rti_abort('odbf_setSurfaceType: fSQL_open')
     end if
 
     ! build the sqlite query
@@ -968,7 +969,7 @@ contains
     if (numRows /= numRowsHeadTable) then
       write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, &
                  ', numRowsHeadTable = ', numRowsHeadTable
-      call utl_abort('odbf_setSurfaceType: Number of rows found in mask query is ' // &
+      call rti_abort('odbf_setSurfaceType: Number of rows found in mask query is ' // &
                      'not equal to total number of rows in head table')
     end if
     allocate( columnValues(numRows, numColumns) )
@@ -1026,7 +1027,7 @@ contains
     call odbf_sqlNameFromObsSpaceName('STID', stIdSqlName)
     columnIndex = utl_findloc(headCharSqlNames(:), trim(stIdSqlName(1)))
     if (columnIndex == 0) then
-      call utl_abort('odbf_copyToObsSpaceHeadChar: Station ID column not found in sql table')
+      call rti_abort('odbf_copyToObsSpaceHeadChar: Station ID column not found in sql table')
     end if
     do headTableIndex = 1, numRowsHeadTable
       headIndex = headTableIndex + headIndexBegin - 1
@@ -1042,7 +1043,7 @@ contains
     call odbf_sqlNameFromObsSpaceName('ITY', codeTypeSqlName)
     columnIndex = utl_findloc(headCharSqlNames(:), trim(codeTypeSqlName(1)))
     if (columnIndex == 0) then
-      call utl_abort('odbf_copyToObsSpaceHeadChar: Obs type column not found in sql table')
+      call rti_abort('odbf_copyToObsSpaceHeadChar: Obs type column not found in sql table')
     end if
     do headTableIndex = 1, numRowsHeadTable
       headIndex = headTableIndex + headIndexBegin - 1
@@ -1054,7 +1055,7 @@ contains
       if (codeType == -1) then
         write(*,*) 'odbf_copyToObsSpaceHeadChar: obs type =', &
                    trim(headCharValues(headTableIndex,columnIndex))
-        call utl_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found')
+        call rti_abort('odbf_copyToObsSpaceHeadChar: codtyp for this obs type not found')
       end if
       call obs_headSet_i(obsdat, OBS_ITY, headIndex, codeType)
     end do ! do headTableIndex
@@ -1159,7 +1160,7 @@ contains
                                  headIndex, nint(headValues(headTableIndex,columnIndex)))
             end if
           else
-            call utl_abort('odbf_copyToObsSpaceHead: unknown data type for obs header column')
+            call rti_abort('odbf_copyToObsSpaceHead: unknown data type for obs header column')
           end if ! if (obs_columnDataType(obsColumnIndex) == 'real')
 
         end do headTable_loop
@@ -1230,7 +1231,7 @@ contains
       if (bodyColumnIndexObsValueList(obsValueIndex) == 0) then
         write(*,*) 'odbf_copyToObsSpaceBody: obsValueSqlName = ', &
                    trim(obsValueSqlNames(obsValueIndex))
-        call utl_abort('odbf_copyToObsSpaceBody: column with obs value not present')
+        call rti_abort('odbf_copyToObsSpaceBody: column with obs value not present')
       end if
       ! determine varNo for the observation value
       obsVarNoList(obsValueIndex) = odbf_varNoFromSqlName(obsValueSqlNames(obsValueIndex))
@@ -1261,7 +1262,7 @@ contains
                      obs_headPrimaryKey( obsdat, headIndex )
           write(*,*) 'odbf_copyToObsSpaceBody: same key in BODY table      = ', &
                      bodyHeadKey(bodyTableIndex)
-          call utl_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table ' // &
+          call rti_abort('odbf_copyToObsSpaceBody: Primary key of HEADER table ' // &
                          'not equal to value in BODY table')
         end if
 
@@ -1357,7 +1358,7 @@ contains
                                    bodyIndex, nint(bodyValues(bodyTableIndex,columnIndex)))
               end if
             else
-              call utl_abort('odbf_copyToObsSpaceBody: unknown data type for obs body column')
+              call rti_abort('odbf_copyToObsSpaceBody: unknown data type for obs body column')
             end if ! if (obs_columnDataType(obsColumnIndex(matchIndex))
 
           end if ! if (matchIndex == 0)
@@ -1519,7 +1520,7 @@ contains
 
     ! not found in either list, abort
     write(*,*) 'odbf_sqlNameFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
-    call utl_abort('odbf_sqlNameFromObsSpaceName: obsSpace name not found in matching list')
+    call rti_abort('odbf_sqlNameFromObsSpaceName: obsSpace name not found in matching list')
 
   end subroutine odbf_sqlNameFromObsSpaceName
 
@@ -1552,7 +1553,7 @@ contains
 
     ! not found, abort
     write(*,*) 'odbf_midasTabColFromObsSpaceName: requested obsSpace name = ', trim(obsSpaceName)
-    call utl_abort('odbf_midasTabColFromObsSpaceName: obsSpace name not found in midasSQLNamesList')
+    call rti_abort('odbf_midasTabColFromObsSpaceName: obsSpace name not found in midasSQLNamesList')
 
   end function odbf_midasTabColFromObsSpaceName
 
@@ -1583,7 +1584,7 @@ contains
     end if
 
     write(*,*) 'odbf_varNoFromSqlName: requested sqlName = ', trim(sqlName)
-    call utl_abort('odbf_varNoFromSqlName: not found in varNo list')
+    call rti_abort('odbf_varNoFromSqlName: not found in varNo list')
 
   end function odbf_varNoFromSqlName
 
@@ -1693,10 +1694,10 @@ contains
       ! Read the namelist for directives
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namObsDbMIDASHeaderUpdate, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasHeaderTable: Error reading namelist')
+      if ( ierr /= 0 ) call rti_abort('odbf_insertInMidasHeaderTable: Error reading namelist')
       call utl_tmg_stop(181)
       if ( numberUpdateItems /= MPC_missingValue_INT) then
-        call utl_abort('odbf_insertInMidasHeaderTable: check namObsDbMIDASHeaderUpdate namelist section: numberUpdateItems should be removed')
+        call rti_abort('odbf_insertInMidasHeaderTable: check namObsDbMIDASHeaderUpdate namelist section: numberUpdateItems should be removed')
       end if
       numberUpdateItems = 0
       do updateItemIndex = 1, maxItemNumber
@@ -1725,7 +1726,7 @@ contains
       call fSQL_open(db, trim(fileName), stat)
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'odbf_insertInMidasHeaderTable: fSQL_open: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_insertInMidasHeaderTable: fSQL_open')
+        call rti_abort('odbf_insertInMidasHeaderTable: fSQL_open')
       end if
 
       ! Obtain the max number of header rows per mpi task
@@ -1783,7 +1784,7 @@ contains
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasHeaderTable: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasHeaderTable: fSQL_open')
+      call rti_abort('odbf_insertInMidasHeaderTable: fSQL_open')
     end if
 
     tableInsertColumnList = ''
@@ -1797,7 +1798,7 @@ contains
     call fSQL_do_many(db, queryCreateTable, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasHeaderTable: Problem with fSQL_do_many')
+      call rti_abort('odbf_insertInMidasHeaderTable: Problem with fSQL_do_many')
     end if
 
     ! Prepare to insert into the table
@@ -1805,7 +1806,7 @@ contains
     call fSQL_prepare(db, queryInsertInTable, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasHeaderTable: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasHeaderTable: fSQL_prepare')
+      call rti_abort('odbf_insertInMidasHeaderTable: fSQL_prepare')
     end if
 
     call fSQL_begin(db)
@@ -1920,10 +1921,10 @@ contains
       ! Read the namelist for directives
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasBodyTable: Error reading namelist')
+      if ( ierr /= 0 ) call rti_abort('odbf_insertInMidasBodyTable: Error reading namelist')
       call utl_tmg_stop(181)
       if (numberUpdateItems /=  MPC_missingValue_INT) then
-        call utl_abort('odbf_insertInMidasBodyTable: check namObsDbMIDASBodyUpdate namelist section: numberUpdateItems should be removed')
+        call rti_abort('odbf_insertInMidasBodyTable: check namObsDbMIDASBodyUpdate namelist section: numberUpdateItems should be removed')
       end if
       numberUpdateItems = 0
       do updateItemIndex = 1, maxItemNumber
@@ -1962,7 +1963,7 @@ contains
       call fSQL_open(db, trim(fileName), stat)
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_insertInMidasBodyTable: fSQL_open')
+        call rti_abort('odbf_insertInMidasBodyTable: fSQL_open')
       end if
 
       ! Obtain the max number of body rows per mpi task
@@ -2042,7 +2043,7 @@ contains
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasBodyTable: fSQL_open '//fSQL_errmsg(stat) )
+      call rti_abort('odbf_insertInMidasBodyTable: fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     tableInsertColumnList = ''
@@ -2056,7 +2057,7 @@ contains
     call fSQL_do_many(db, queryCreateTable, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+      call rti_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
     end if
 
     ! Prepare to insert into the table
@@ -2064,7 +2065,7 @@ contains
     call fSQL_prepare(db, queryInsertInTable, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasBodyTable: fSQL_prepare')
+      call rti_abort('odbf_insertInMidasBodyTable: fSQL_prepare')
     end if
 
     ! updateItemList(:) columns are updated within the BODY2 loop
@@ -2159,7 +2160,7 @@ contains
     ! open the obsDB file
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
+      call rti_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
     end if
 
     ! create the new MIDAS table
@@ -2171,7 +2172,7 @@ contains
     write(*,*) myName//': query = ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort(myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat))
+      call rti_abort(myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat))
     end if
 
     ! close the obsDB file
@@ -2201,7 +2202,7 @@ contains
     ! open the obsDB file
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
+      call rti_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
     end if
 
     ! create the new MIDAS table
@@ -2213,7 +2214,7 @@ contains
     write(*,*) myName//': query = ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort(myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat))
+      call rti_abort(myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat))
     end if
 
     ! close the obsDB file
@@ -2265,7 +2266,7 @@ contains
       ! reading namelist variables
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml , nml=namObsDbClean, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
+      if ( ierr /= 0 ) call rti_abort('obdf_clean: Error reading namelist')
       call utl_tmg_stop(181)
     end if
     if ( mmpi_myid == 0 ) write(*, nml=namObsDbClean)
@@ -2280,7 +2281,7 @@ contains
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_open')
+      call rti_abort('odbf_clean: fSQL_open')
     end if
 
     ! Determine the number of rows in each table before cleaning
@@ -2306,7 +2307,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2318,7 +2319,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2329,7 +2330,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2340,7 +2341,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2351,7 +2352,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2363,7 +2364,7 @@ contains
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_clean: fSQL_prepare')
+      call rti_abort('odbf_clean: fSQL_prepare')
     end if
     call fSQL_exec_stmt(stmt)
 
@@ -2400,7 +2401,7 @@ contains
 
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_clean: Problem with fSQL_do_many')
+        call rti_abort('odbf_clean: Problem with fSQL_do_many')
       end if
     end if
 
@@ -2524,7 +2525,7 @@ contains
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'mergeTableInMidasTables: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('mergeTableInMidasTables: fSQL_open')
+      call rti_abort('mergeTableInMidasTables: fSQL_open')
     end if
 
     ! Combine midasTable + inputTable -> table_tmp
@@ -2539,7 +2540,7 @@ contains
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+      call rti_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
     end if
 
     ! Drop the midasTable
@@ -2549,7 +2550,7 @@ contains
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+      call rti_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
     end if
 
     ! Drop the inputTable
@@ -2558,7 +2559,7 @@ contains
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+      call rti_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
     end if
 
     ! Rename table_tmp -> midasTable
@@ -2568,7 +2569,7 @@ contains
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+      call rti_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
     end if
 
     ! close the obsDB file

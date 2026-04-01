@@ -7,6 +7,7 @@ module obsTimeInterp_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use timecoord_mod
   use obsSpaceData_mod
@@ -52,7 +53,7 @@ contains
     real(8)              :: stepObsIndex
     integer, save :: numWrites = 0
 
-    if ( .not.tim_initialized() ) call utl_abort('oti_timeBinning: timeCoord module not initialized')
+    if ( .not.tim_initialized() ) call rti_abort('oti_timeBinning: timeCoord module not initialized')
 
     allocate(idataass(ofl_numFamily,nStepObs+1))
     allocate(my_idataass(ofl_numFamily,nStepObs+1))
@@ -174,19 +175,19 @@ contains
     integer, save       :: numWrites = 0
 
     if ( associated(oti) ) then
-      call utl_abort('oti_setup: the supplied oti pointer is not null!')
+      call rti_abort('oti_setup: the supplied oti pointer is not null!')
     endif
 
     allocate(oti)
 
-    if ( .not.tim_initialized() ) call utl_abort('oti_setup: timeCoord module not initialized')
+    if ( .not.tim_initialized() ) call rti_abort('oti_setup: timeCoord module not initialized')
 
     if ( numStep > 1 .and. .not. present(interpType_opt) ) then
-      call utl_abort('oti_setup: interpType_opt must be specified when numStep > 1')
+      call rti_abort('oti_setup: interpType_opt must be specified when numStep > 1')
     end if
 
     if ( trim(interpType_opt) == 'LINEAR' .and. tim_fullyUseExtremeTimeBins) then
-      call utl_abort('oti_setup: LINEAR time interpolation is not compatible with ' // &
+      call rti_abort('oti_setup: LINEAR time interpolation is not compatible with ' // &
                      'tim_fullyUseExtremeTimeBins==.true.')
     end if
 
@@ -246,11 +247,11 @@ contains
           else if (trim(interpType_opt) == 'NEAREST') then
             if (nint(stepObsIndex) > numStep) then
               write(*,*) 'stepObsIndex = ', stepObsIndex
-              call utl_abort('oti_setup: stepObsIndex is too large!')
+              call rti_abort('oti_setup: stepObsIndex is too large!')
             end if
             call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
           else
-            call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType_opt))
+            call rti_abort('oti_setup: unknown interpolation type : ' // trim(interpType_opt))
           end if
         end if
       end if
@@ -297,7 +298,7 @@ contains
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
     if ( .not.associated(oti%timeInterpWeight) ) then
-      call utl_abort('oti_setupMpiGlobal: oti_setup must first be called')
+      call rti_abort('oti_setupMpiGlobal: oti_setup must first be called')
     end if
 
     numHeader = size(oti%timeInterpWeight,1)
@@ -382,7 +383,7 @@ contains
     logical :: allZero
 
     if ( .not.associated(oti%timeInterpWeight) ) then
-      call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
+      call rti_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
     end if
 
     allZero = all( utl_isEqual(oti%timeInterpWeight(headerIndex, :), 0.0d0) )
@@ -406,7 +407,7 @@ contains
     integer, save :: numWrites = 0
 
     if ( .not.associated(oti%timeInterpWeight) ) then
-      call utl_abort('oti_flagObsOutsideWindow: oti_setup must first be called')
+      call rti_abort('oti_flagObsOutsideWindow: oti_setup must first be called')
     end if
 
     do headerIndex = headerIndexBeg, headerIndexEnd

@@ -113,6 +113,7 @@ program midas_oMinusF
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
+  use runtimeInfo_mod
   use biasCorrectionSat_mod
   use ensembleObservations_mod
   use fileNames_mod
@@ -173,7 +174,7 @@ program midas_oMinusF
 
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namomf, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-OminusF: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-OminusF: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namomf)
   call utl_tmg_stop(181)
 
@@ -202,14 +203,14 @@ program midas_oMinusF
     write(*,*) 'Setting mode to ENSEMBLE'
     oMinusFmode = 'ensemble'
     if (includeMember0 .and. .not.member0FileExists) then
-      call utl_abort('oMinusF: Member 0 file not found, but includeMember0 is ' // &
+      call rti_abort('oMinusF: Member 0 file not found, but includeMember0 is ' // &
                      'true and ensemble mode is active')
     end if
   else
     write(*,*)
     write(*,*) 'trlFileName = ', trim(trlFileName)
     write(*,*) 'ensFileName = ', trim(ensFileName)
-    call utl_abort('oMinusF : did not find a trial/prog or ensemble file')
+    call rti_abort('oMinusF : did not find a trial/prog or ensemble file')
   end if
 
   !

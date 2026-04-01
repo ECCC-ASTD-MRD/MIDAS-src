@@ -9,10 +9,12 @@ module burpFiles_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use burpread_mod
   use bufr_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSubSpaceData_mod
   use burp_module
   use obsUtil_mod
@@ -451,7 +453,7 @@ contains
 
     ! open the burp file
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSubRead: Could not find/open BURP file: ' // trim(filename))
+    if (error /= 0) call rti_abort('brpf_obsSubRead: Could not find/open BURP file: ' // trim(filename))
 
     write(*,*) "brpf_obsSubRead: Reading file " // trim(filename)
     write(*,*) "brpf_obsSubRead: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
@@ -516,12 +518,12 @@ contains
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
                 if (varno_ivar >= 10000.and.varno_ivar < 16000) exit
              end do
-             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_obsSubRead: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar < 10000.or.varno_ivar >= 16000) call rti_abort('brpf_obsSubRead: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
 
-          if (nval > nlev) call utl_abort('brpf_obsSubRead: number of levels in the report (' // trim(utl_str(nval)) // &
+          if (nval > nlev) call rti_abort('brpf_obsSubRead: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -569,11 +571,11 @@ contains
                 end if
              end do
              if (present(numColumns_opt)) then
-               if (icol /= numColumns_opt) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
+               if (icol /= numColumns_opt) call rti_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') is not equal to the required number (' // trim(utl_str(numColumns_opt)) // &
                                          ') for STNID ' // rep_stnid )
              else
-               if (icol > nlev ) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
+               if (icol > nlev ) call rti_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') exceeds the maximum number (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
              end if
@@ -676,10 +678,10 @@ contains
       dim2=obsdata%dim2
     end if
 
-    if (size(varno) < dim2) call utl_abort('brpf_obsSubUpdate: Number of BUFR elements not sufficient. ' // &
+    if (size(varno) < dim2) call rti_abort('brpf_obsSubUpdate: Number of BUFR elements not sufficient. ' // &
                                            trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSubUpdate: Length of code string' // &
+    if (code_len < oss_obsdata_code_len()) call rti_abort('brpf_obsSubUpdate: Length of code string' // &
                                                           ' needs to be increased to ' // &
                                                           trim(utl_str(oss_obsdata_code_len())))
 
@@ -690,7 +692,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSubUpdate: Could not open BURP file: ' // trim(filename))
+    if (error /= 0) call rti_abort('brpf_obsSubUpdate: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)

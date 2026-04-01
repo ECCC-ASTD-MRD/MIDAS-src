@@ -6,6 +6,7 @@ module bgckOcean_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use columnData_mod
   use codtyp_mod
@@ -114,10 +115,10 @@ module bgckOcean_mod
       ! reading namelist variables
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namOceanBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
+      if (ierr /= 0) call rti_abort('ocebg_bgCheckSST: Error reading namelist')
       call utl_tmg_stop(181)
       if (nmonthsExceptionNH /=0) then
-        call utl_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
+        call rti_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
       do monthIndex = 1, 12
         if (monthExceptionNH(monthIndex) == '   ') exit
@@ -183,7 +184,7 @@ module bgckOcean_mod
         end do loop_month
         if (.not. checkMonth) then
           write(*,*) 'ocebg_bgCheckSST: month should be one of these: ',months(:)
-          call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
+          call rti_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
         end if
       end do
 
@@ -370,7 +371,7 @@ module bgckOcean_mod
       ! reading namelist variables
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
+      if (ierr /= 0) call rti_abort('ocebg_bgCheckSeaIce: Error reading namelist')
       call utl_tmg_stop(181)
       numStation = 0
       do stationIndex = 1, numStationMax
@@ -449,14 +450,14 @@ module bgckOcean_mod
             if (numberObs(swathIndex) <= maxPerSwath) then
               bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
             else
-              call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
+              call rti_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
             end if
 
           end if
 
         else
 
-          call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
+          call rti_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
 
         end if
 

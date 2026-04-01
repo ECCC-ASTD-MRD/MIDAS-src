@@ -10,6 +10,7 @@ module slantProfileLatLon_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
   use tovs_mod
@@ -390,7 +391,7 @@ contains
 
     else
 
-      call utl_abort('heightBilinearInterp: weightsSum smaller than 0.')
+      call rti_abort('heightBilinearInterp: weightsSum smaller than 0.')
 
     end if
 
@@ -426,7 +427,7 @@ contains
                             lonIndexVec(ipoint) > hco%ni )
 
       if ( latlonOutsideGrid ) &
-        call utl_abort('heightBilinearInterp: lat/lon outside the domain.')
+        call rti_abort('heightBilinearInterp: lat/lon outside the domain.')
 
       heightInterp_r4 = heightInterp_r4 + &
                     real(WeightVec(ipoint),4) * &

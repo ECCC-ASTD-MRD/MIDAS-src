@@ -9,6 +9,7 @@ module enkf_mod
   use omp_lib
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use linearAlgebra_mod
   use message_mod
   use mathPhysConstants_mod
@@ -229,11 +230,11 @@ contains
     numFullEns               = 0
 
     if ( .not. utl_isNamelistPresent('NAMLETKF','./flnml') ) then
-      call utl_abort('enkf_readNML: namletkf is missing in the namelist. ')
+      call rti_abort('enkf_readNML: namletkf is missing in the namelist. ')
     else
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namletkf, iostat=ierr)
-      if ( ierr /= 0) call utl_abort('enkf_readNML: Error reading namelist')
+      if ( ierr /= 0) call rti_abort('enkf_readNML: Error reading namelist')
       if ( mmpi_myid == 0 ) write(*,nml=namletkf)
       call utl_tmg_stop(181)
     end if
@@ -269,7 +270,7 @@ contains
         write(*,*) 'enkf_readNML: hLocalizePressure has',count(hLocalizePressure > 0.0d0),'positive values'
         write(*,*) 'enkf_readNML: hLocalize = ',hLocalize(:)
         write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
-        call utl_abort('enkf_readNML: hLocalize and hLocalizePressure inconsistency')
+        call rti_abort('enkf_readNML: hLocalize and hLocalizePressure inconsistency')
       endif
     end if
 
@@ -278,7 +279,7 @@ contains
       if ((hLocalizePressure(locIndex) >= hLocalizePressure(locIndex+1)) .and. &
            hLocalizePressure(locIndex+1) > 0.0d0) then
         write(*,*) 'enkf_readNML: hLocalizePressure = ',hLocalizePressure(:)
-        call utl_abort('enkf_readNML: hLocalizePressure does not decrease')
+        call rti_abort('enkf_readNML: hLocalizePressure does not decrease')
       end if
     enddo
 
@@ -308,11 +309,11 @@ contains
         trim(algorithm) /= 'LETKF-Gain'      .and. &
         trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
         trim(algorithm) /= 'CVLETKF-ME') then
-      call utl_abort('enkf_readNML: unknown LETKF algorithm: ' // trim(algorithm))
+      call rti_abort('enkf_readNML: unknown LETKF algorithm: ' // trim(algorithm))
     end if
 
     if (numRetainedEigen < 0) then
-      call utl_abort('enkf_readNML: numRetainedEigen should be ' // &
+      call rti_abort('enkf_readNML: numRetainedEigen should be ' // &
                      'equal or greater than zero')
     end if
 
@@ -455,7 +456,7 @@ contains
       myNumLatLonCalcMax = enkfNML%myNumLatLonSendFactor*ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
     else
       write(*,*) 'mpiDistribution = ', trim(enkfNML%mpiDistribution)
-      call utl_abort('enkf_LETKFanalyses: unknown mpiDistribution')
+      call rti_abort('enkf_LETKFanalyses: unknown mpiDistribution')
     end if
     myNumLatLonSendMax = ceiling(real(maxval(numProcsSendMpiGlobal))*real(myNumLatLonCalcMax))
     write(*,*) 'enkf_LETKFanalyses: myNumLatLonCalcMax, myNumLatLonSendMax = ',  &
@@ -719,7 +720,7 @@ contains
           else ! mpiDistribution is not MASTERWORKER and not ROUNDROBIN
 
             write(*,*) 'mpiDistribution = ', trim(enkfNML%mpiDistribution)
-            call utl_abort('enkf_LETKFanalyses: unknown value of mpiDistribution')
+            call rti_abort('enkf_LETKFanalyses: unknown value of mpiDistribution')
 
           end if MPI_DISTRIBUTION
 
@@ -730,7 +731,7 @@ contains
           if (latLonIndex > myNumLatLonCalcMax) then
             write(*,*) 'enkf_LETKFanalyses: We encountered more latLonIndex values on this mpi task than expected!'
             write(*,*) '                    You should probably increase the value of namelist variable: myNumLatLonSendFactor'
-            call utl_abort('enkf_LETKFanalyses: increase value of myNumLatLonSendFactor')
+            call rti_abort('enkf_LETKFanalyses: increase value of myNumLatLonSendFactor')
           end if
 
           ! The latitude/longitude index where I will now compute weights
@@ -763,7 +764,7 @@ contains
             nsize = nEnsGain * (enkfNML%nEns+1)
             numSend = numSend + 1
             if (numSend > myNumLatLonSendMax) then
-              call utl_abort('numSend larger than allowed limit')
+              call rti_abort('numSend larger than allowed limit')
             end if
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
                             nsize, mmpi_real8, procIndexSend-1, sendTag,  &
@@ -781,7 +782,7 @@ contains
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
         call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
-        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for IRECV')
+        if (ierr == mpi_err_in_status) call rti_abort('Error code return by mpi_waitAll for IRECV')
       end if
       call utl_tmg_stop(147)
 
@@ -795,12 +796,12 @@ contains
         if (any(weightsMembers(:,:,lonIndex,latIndex) < MPC_missingValue_R8)) then
           write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
           write(*,*) 'weightsMembers = ', weightsMembers(:,:,lonIndex,latIndex)
-          call utl_abort('Invalid weight value received!!!')
+          call rti_abort('Invalid weight value received!!!')
         end if
         if (any(weightsMean(:,:,lonIndex,latIndex) < MPC_missingValue_R8)) then
           write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
           write(*,*) 'weightsMean = ', weightsMean(:,:,lonIndex,latIndex)
-          call utl_abort('Invalid weight value received!!!')
+          call rti_abort('Invalid weight value received!!!')
         end if
       end do
       call utl_tmg_stop(148)
@@ -827,7 +828,7 @@ contains
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
-        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
+        if (ierr == mpi_err_in_status) call rti_abort('Error code return by mpi_waitAll for ISEND')
       end if
       call utl_tmg_stop(146)
       call utl_tmg_stop(132)
@@ -926,10 +927,10 @@ contains
          trim(enkfNML%algorithm) == 'CVLETKF-ME' ) then
       nEnsPerSubEns = enkfNML%nEns / enkfNML%numSubEns
       if ( (nEnsPerSubEns * enkfNML%numSubEns) /= enkfNML%nEns ) then
-        call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
+        call rti_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
       if (enkfNML%numSubEns <= 1) then
-        call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS)(-ME) algorithm, numSubEns must be greater than 1')
+        call rti_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS)(-ME) algorithm, numSubEns must be greater than 1')
       end if
       if (useModulatedEns) then
         nEnsPerSubEns_mod = nEnsPerSubEns * enkfNML%numRetainedEigen
@@ -1126,7 +1127,7 @@ contains
 
       else
 
-        call utl_abort('UNKNOWN LETKF ALGORITHM')
+        call rti_abort('UNKNOWN LETKF ALGORITHM')
 
       end if
 
@@ -2203,7 +2204,7 @@ contains
           levIndex2 = max(nLev_M,nLev_depth)
         else
           write(*,*) 'varLevel = ', varLevelFromVarLev(varLevIndex)
-          call utl_abort('enkf_LETKFanalyses: unknown varLevel')
+          call rti_abort('enkf_LETKFanalyses: unknown varLevel')
         end if
         levIndex2FromVarLevIndex(varLevIndex) = levIndex2
       end do
@@ -2445,9 +2446,9 @@ contains
     nLev_M = gsv_getNumLev(stateVectorMeanTrl, 'MM')
     nLev_depth = gsv_getNumLev(stateVectorMeanTrl, 'DP')
     if ( nLev_M > 0 .and. nLev_depth > 0 ) then
-      call utl_abort('enkf_computeVertLocation: both momentum and depth levels exist.')
+      call rti_abort('enkf_computeVertLocation: both momentum and depth levels exist.')
     else if ( nLev_M == 0 .and. nLev_depth == 0 ) then
-      call utl_abort('enkf_computeVertLocation: neither momentum nor depth levels exist.')
+      call rti_abort('enkf_computeVertLocation: neither momentum nor depth levels exist.')
     end if
     nLev_vertLocation = max(nLev_M, nLev_depth)
 
@@ -2763,7 +2764,7 @@ contains
 
     if (maxval(latLonTagmpiGlobal(:,:)) > (mmpi_maxTagValue - 2)) then
       write(*,*) 'maximum allowable tag value = ', mmpi_maxTagValue - 2
-      call utl_abort('enkf_LETKFgetMpiGlobalTags: mpi tag values exceeded max allowable value')
+      call rti_abort('enkf_LETKFgetMpiGlobalTags: mpi tag values exceeded max allowable value')
     end if
 
     deallocate(tagNeededMpiLocal)
@@ -3153,12 +3154,12 @@ contains
     if ( .not. beSilent ) write(*,*) 'enkf_getModulatedState: START'
 
     if ( stateVector_in%dataKind /= 4 ) then
-      call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
+      call rti_abort('enkf_getModulatedState: only dataKind=4 is implemented')
     end if
 
     nLev = stateVector_in%vco%nLev_M
     if ( enkfNML%vLocalize <= 0.0d0 .or. nLev <= 1 ) then
-      call utl_abort('enkf_getModulatedState: no vertical localization')
+      call rti_abort('enkf_getModulatedState: no vertical localization')
     end if
 
     ! Compute perturbation by subtracting ensMean
@@ -3313,7 +3314,7 @@ contains
         call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, &
                                profM_opt=pressureProfile)
       else
-        call utl_abort('getModulationFactor: Unknown value of vcode')
+        call rti_abort('getModulationFactor: Unknown value of vcode')
       end if
 
       call lfn_Setup(LocFunctionWanted='FifthOrder')
@@ -3333,7 +3334,7 @@ contains
                               tolerance, matrixRank)
       if ( matrixRank < enkfNML%numRetainedEigen ) then
         write(*,*) 'matrixRank=', matrixRank
-        call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
+        call rti_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
 
       ! Compute low-ranked vertical localization matrix
@@ -3399,7 +3400,7 @@ contains
     numPresValues = count(hLocalizePressure > 0.0d0)
 
     if ( hLocalize(1) < 0.0d0 ) then
-      call utl_abort('enkf_getLocalizationRadius: hLocalize(1) < 0.0d0')
+      call rti_abort('enkf_getLocalizationRadius: hLocalize(1) < 0.0d0')
     end if
 
     ! radius is constant

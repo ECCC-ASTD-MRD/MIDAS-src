@@ -34,6 +34,7 @@ module kdtree2_priority_queue_mod
   !: Purpose: Module used by the kdTree2_mod module.
   !
   use utilities_mod
+  use runtimeInfo_mod
   use kdtree2_precision_mod
   !
   ! maintain a priority queue (PQ) of data, pairs of 'priority/payload',
@@ -218,7 +219,7 @@ bigloop:  do
     if (a%heap_size .gt. 0) then
        e = a%elems(1)
     else
-       call utl_abort('kdtree2_mod-PQ_MAX: ERROR, heap_size < 1')
+       call rti_abort('kdtree2_mod-PQ_MAX: ERROR, heap_size < 1')
     endif
     return
   end subroutine pq_max
@@ -231,7 +232,7 @@ bigloop:  do
     if (a%heap_size .gt. 0) then
        pq_maxpri = a%elems(1)%dis
     else
-       call utl_abort('kdtrees_mod-PQ_MAX_PRI: ERROR, heapsize < 1')
+       call rti_abort('kdtrees_mod-PQ_MAX_PRI: ERROR, heapsize < 1')
     endif
     return
   end function pq_maxpri
@@ -258,7 +259,7 @@ bigloop:  do
        call heapify(a,1)
        return
     else
-       call utl_abort('kdtree2_mod-PQ_EXTRACT_MAX: error, attempted to pop non-positive PQ')
+       call rti_abort('kdtree2_mod-PQ_EXTRACT_MAX: error, attempted to pop non-positive PQ')
     end if
 
   end subroutine pq_extract_max
@@ -425,7 +426,7 @@ bigloop:  do
     integer           :: i
 
     if ((i .lt. 1) .or. (i .gt. a%heap_size)) then
-       call utl_abort('kdtree2_mod-PQ_DELETE: error, attempt to remove out of bounds element.')
+       call rti_abort('kdtree2_mod-PQ_DELETE: error, attempt to remove out of bounds element.')
     endif
 
     ! swap the item to be deleted with the last element
@@ -449,6 +450,7 @@ module kdTree2_mod
   !
   use omp_lib
   use utilities_mod
+  use runtimeInfo_mod
   use kdtree2_precision_mod
   use kdtree2_priority_queue_mod
   use earthConstants_mod
@@ -634,7 +636,7 @@ contains
        write (*,*) 'KD_TREE_TRANS: note, that new format is data(1:D,1:N)'
        write (*,*) 'KD_TREE_TRANS: with usually N >> D.   If N =approx= D, then a k-d tree'
        write (*,*) 'KD_TREE_TRANS: is not an appropriate data structure.'
-       call utl_abort('kdtree2_create: supplied array has no data')
+       call rti_abort('kdtree2_create: supplied array has no data')
     end if
 
     !$OMP PARALLEL PRIVATE(mythread)
@@ -1348,7 +1350,7 @@ contains
     mythread = omp_get_thread_num()
 
     if (size(sr(mythread)%results,1) .lt. n) then
-       call utl_abort('kdtrees_mod-validate_query_storage: not enough storage for results')
+       call rti_abort('kdtrees_mod-validate_query_storage: not enough storage for results')
     endif
 
     return

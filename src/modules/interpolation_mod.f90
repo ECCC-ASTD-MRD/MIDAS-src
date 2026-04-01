@@ -14,6 +14,7 @@ module interpolation_mod
   use horizontalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use kdTree2_mod
 
@@ -95,7 +96,7 @@ contains
       ! Read namelist NAMINT
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namint,iostat=ierr)
-      if (ierr /= 0) call utl_abort('int_readlNml: Error reading namelist NAMINT')
+      if (ierr /= 0) call rti_abort('int_readlNml: Error reading namelist NAMINT')
       if (mmpi_myid == 0) write(*,nml=namint)
       call utl_tmg_stop(181)
     end if
@@ -132,10 +133,10 @@ contains
     !- Error traps
     !
     if (.not.gsv_isAllocated(statevector_in)) then
-      call utl_abort('int_interp_gsv: gridStateVector_in not yet allocated')
+      call rti_abort('int_interp_gsv: gridStateVector_in not yet allocated')
     end if
     if (.not.gsv_isAllocated(statevector_out)) then
-      call utl_abort('int_interp_gsv: gridStateVector_out not yet allocated')
+      call rti_abort('int_interp_gsv: gridStateVector_out not yet allocated')
     end if
 
     !
@@ -224,7 +225,7 @@ contains
     end if
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_hInterp_gsv: The input and output statevectors are not on the same vertical levels.')
+      call rti_abort('int_hInterp_gsv: The input and output statevectors are not on the same vertical levels.')
     end if
 
     ! set the interpolation degree
@@ -278,7 +279,7 @@ contains
 
       if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
           statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('int_hInterp_gsv: The input or output statevector is not distributed by VarsLevs.')
+        call rti_abort('int_hInterp_gsv: The input or output statevector is not distributed by VarsLevs.')
       end if
 
       do stepIndex = 1, statevector_out%numStep
@@ -363,7 +364,7 @@ contains
       call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
                           checkModelTop_opt)
     else
-      call utl_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
+      call rti_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
     end if
 
     call msg('int_vInterp_gsv', 'END', verb_opt=2)
@@ -413,10 +414,10 @@ contains
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
-        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same vertical grid')
+        call rti_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same vertical grid')
       end if
       if ( .not. hco_equal(statevectorRef_opt%hco, statevector_in%hco) ) then
-        call utl_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same horizontal grid')
+        call rti_abort('vInterp_gsv_r8: The reference and input statevectors are not on the same horizontal grid')
       end if
       statevectorRef => statevectorRef_opt
     else
@@ -424,11 +425,11 @@ contains
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid')
+      call rti_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
-      call utl_abort('vInterp_gsv_r8: Incorrect value for dataKind. Only compatible with dataKind=8')
+      call rti_abort('vInterp_gsv_r8: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
@@ -725,7 +726,7 @@ contains
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
-        call utl_abort('vInterp_gsv_r4: reference must have input vertical structure')
+        call rti_abort('vInterp_gsv_r4: reference must have input vertical structure')
       end if
       statevectorRef => statevectorRef_opt
     else
@@ -733,11 +734,11 @@ contains
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
+      call rti_abort('vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 4 .or. gsv_getDataKind(statevector_out) /= 4 ) then
-      call utl_abort('vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+      call rti_abort('vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
@@ -1024,11 +1025,11 @@ contains
     call int_readNml()
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_tInterp_gsv: The input and output statevectors are not on the same vertical levels')
+      call rti_abort('int_tInterp_gsv: The input and output statevectors are not on the same vertical levels')
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_tInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
+      call rti_abort('int_tInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( statevector_in%numStep > statevector_out%numStep ) then
@@ -1088,7 +1089,7 @@ contains
         dateStampOut = statevector_out%dateStampList(stepIndexOut)
         call difdatr(dateStampOut, dateStampIn, deltaHourInOut)
         if ( deltaHourInOut < 0.0d0 ) then
-          call utl_abort('int_tInterp_gsv: deltaHourInOut should be greater or equal to 0')
+          call rti_abort('int_tInterp_gsv: deltaHourInOut should be greater or equal to 0')
         end if
 
         ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2)
@@ -1294,7 +1295,7 @@ contains
           hLike_in  => hLikeM_in(:, columnIndex)
           hLike_out => hLikeM_out(:, columnIndex)
         else
-          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+          call rti_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if
 
         varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
@@ -1342,7 +1343,7 @@ contains
                                     vcoOut_ptr, vcoIn_ptr ) ! IN
 
         if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
-          call utl_abort('int_vInterp_col: column_out is not a subsets of column_in!')
+          call rti_abort('int_vInterp_col: column_out is not a subsets of column_in!')
         end if
 
         ! Transfer the corresponding data
@@ -1365,7 +1366,7 @@ contains
       else if (col_getNumLev(column_out, 'DP') > 0) then
         call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
         if ( .not. all(utl_isEqual(vcoOut_ptr%depths(:), vcoIn_ptr%depths(:))) ) then
-          call utl_abort('int_vInterp_col: some depth levels not equal')
+          call rti_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels
           do columnIndex = 1, col_getNumCol(column_out)
@@ -1413,7 +1414,7 @@ contains
          trim(interpDegree) /= 'CUBIC' .and. &
          trim(interpDegree) /= 'NEAREST' ) then
 
-      call utl_abort('int_setezopt: invalid interpolation degree = '//trim(interpDegree))
+      call rti_abort('int_setezopt: invalid interpolation degree = '//trim(interpDegree))
     end if
 
     if ( present(extrapDegree_opt) ) then
@@ -1470,7 +1471,7 @@ contains
       if (stateVectorIn%hco%grtyp == 'Y') then
         ! for now, only comptable for real(4)
         if( gsv_getDataKind(stateVectorOut) /= 4 .or. gsv_getDataKind(stateVectorIn) /= 4) then
-          call utl_abort('int_hInterpScalar_gsv: cloudToGrid only implemented for real(4)')
+          call rti_abort('int_hInterpScalar_gsv: cloudToGrid only implemented for real(4)')
         end if
         ierr = int_sintCloudToGrid_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex)
         return
@@ -1540,7 +1541,7 @@ contains
 
     else
 
-      call utl_abort('int_hInterpScalar_gsv: not implemented for mixed dataKind')
+      call rti_abort('int_hInterpScalar_gsv: not implemented for mixed dataKind')
 
     end if
 
@@ -1816,7 +1817,7 @@ contains
                                  nfound=numLocalGridPointsFound, &
                                  nalloc=maxNumLocalGridPointsSearch, results=searchResults)
           if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-            call utl_abort('The parameter maxNumLocalGridPointsSearch must be increased')
+            call rti_abort('The parameter maxNumLocalGridPointsSearch must be increased')
           end if
           if (numLocalGridPointsFound == 0) then
             ! very far from a cloud location, assume it is land
@@ -1825,8 +1826,8 @@ contains
             gridIndex = searchResults(1)%idx
             lonIndexCloud = 1 + ((gridIndex-1)/njCloud)
             latIndexCloud = gridIndex - ((gridIndex-1)/njCloud)*njCloud
-            if(lonIndexCloud < 1 .or. lonIndexCloud > niCloud) call utl_abort('lonIndexCloud wrong')
-            if(latIndexCloud < 1 .or. latIndexCloud > njCloud) call utl_abort('latIndexCloud wrong')
+            if(lonIndexCloud < 1 .or. lonIndexCloud > niCloud) call rti_abort('lonIndexCloud wrong')
+            if(latIndexCloud < 1 .or. latIndexCloud > njCloud) call rti_abort('latIndexCloud wrong')
             maskGrid(lonIndexGrid,latIndexGrid) = maskCloud(lonIndexCloud,latIndexCloud)
           end if
 
@@ -1880,7 +1881,7 @@ contains
                  'Expecting 0 or 1 for the mask field at grid point: ' &
                  //str(lonIndexGrid)//', '//str(latIndexGrid)//', ' &
                  //str(maskGrid(lonIndexGrid,latIndexGrid)))
-            call utl_abort('int_sintCloudToGrid_gsv')
+            call rti_abort('int_sintCloudToGrid_gsv')
           end if
 
         end do
@@ -1896,7 +1897,7 @@ contains
            //new_line('')//'Number of grid points with extrapolated value in visible area: '//str(nextrap1))
 
       if ( nextrap1 > 0 ) then
-        call utl_abort('int_sintCloudToGrid_gsv: Values at some unmasked grid points were not assigned')
+        call rti_abort('int_sintCloudToGrid_gsv: Values at some unmasked grid points were not assigned')
       end if
     end if
 
@@ -2016,7 +2017,7 @@ contains
     ! check if special interpolation is required
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
       if (stateVectorIn%hco%grtyp == 'Y') then
-        call utl_abort('int_hInterpUV_gsv: cloudToGrid not implemented')
+        call rti_abort('int_hInterpUV_gsv: cloudToGrid not implemented')
       end if
     end if
 
@@ -2049,7 +2050,7 @@ contains
         ierr = ezuvint(UVout4(:,:,stepIndex),VVout4(:,:,levIndex,stepIndex), &
                        UVin4(:,:,stepIndex), VVin4(:,:,levIndex,stepIndex))
       else
-        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
+        call rti_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
     else if ( gsv_getDataKind(stateVectorOut) == 8 .and. gsv_getDataKind(stateVectorIn) == 8) then
@@ -2091,14 +2092,14 @@ contains
         UVout8(:,:,stepIndex)          = UUout4(:,:,1,1)
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
       else
-        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
+        call rti_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
       deallocate(UUin4,VVin4,UUout4,VVout4)
 
     else
 
-      call utl_abort('int_hInterpUV_gsv: not implemented for mixed dataKind')
+      call rti_abort('int_hInterpUV_gsv: not implemented for mixed dataKind')
 
     end if
 
@@ -2246,7 +2247,7 @@ contains
       ilenx = max(1,ni)
       ileny = max(1,nj)
     else
-      call utl_abort('VEZGDEF: Grid type not supported')
+      call rti_abort('VEZGDEF: Grid type not supported')
     end if
 
     allocate(bufax4(ilenx))

@@ -71,6 +71,7 @@ program midas_adjointTest
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -147,7 +148,7 @@ program midas_adjointTest
   else
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namadt, iostat=ierr)
-    if(ierr /= 0) call utl_abort('midas-adjointTest: Error reading namelist')
+    if(ierr /= 0) call rti_abort('midas-adjointTest: Error reading namelist')
     if( mmpi_myid == 0 ) write(*,nml=namadt)
     call utl_tmg_stop(181)
   end if
@@ -163,7 +164,7 @@ program midas_adjointTest
   write(*,*)' date= ',testdate,' stamp= ',dateStamp
   call tim_setDatestamp(dateStamp)
   if (tim_getDateStamp()==0) then
-    call utl_abort('midas-adjointTest: dateStamp was not set')
+    call rti_abort('midas-adjointTest: dateStamp was not set')
   end if
 
   !- 1.7 Constants
@@ -223,7 +224,7 @@ program midas_adjointTest
     !- 2.7 Height and pressure computation
     call check_calcHeightAndPressure
   else
-    call utl_abort('midas-adjointTest: inexistant test label ('//test//')')
+    call rti_abort('midas-adjointTest: inexistant test label ('//test//')')
   end if
 
   !
@@ -468,11 +469,11 @@ contains
 
     loc => ben_getLoc(1)
     if ( cvDim /= loc%cvDim ) then
-      call utl_abort('check_loc: cvDim /= loc%cvDim')
+      call rti_abort('check_loc: cvDim /= loc%cvDim')
     end if
     numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
     if ( numStepAmplitude /= 1 ) then
-      call utl_abort('check_loc: not yet adapted for localization advection')
+      call rti_abort('check_loc: not yet adapted for localization advection')
     end if
     amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 
@@ -604,11 +605,11 @@ contains
 !!$
 !!$    loc => ben_getLoc(1)
 !!$    if ( cvDim /= loc%cvDim ) then
-!!$      call utl_abort('check_loc: cvDim /= loc%cvDim')
+!!$      call rti_abort('check_loc: cvDim /= loc%cvDim')
 !!$    end if
 !!$    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
 !!$    if ( numStepAmplitude /= 1 ) then
-!!$      call utl_abort('check_loc: not yet adapted for localization advection')
+!!$      call rti_abort('check_loc: not yet adapted for localization advection')
 !!$    end if
 !!$    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 !!$

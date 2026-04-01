@@ -7,6 +7,7 @@ module bgckCSR_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use tovs_mod
   use obsErrors_mod
@@ -48,7 +49,7 @@ contains
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namcsr, iostat=ierr)
-    if (ierr /= 0) call utl_abort('csrbg_init: Error reading namelist')
+    if (ierr /= 0) call rti_abort('csrbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=namcsr)
     call utl_tmg_stop(181)
 
@@ -238,7 +239,7 @@ contains
       end if
     end do
 
-    if ( .not. sensorIndexFound ) call utl_abort('csrbg_readObsFromObsSpace: sensor Index not found')
+    if ( .not. sensorIndexFound ) call rti_abort('csrbg_readObsFromObsSpace: sensor Index not found')
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -297,7 +298,7 @@ contains
         exit
       end if
     end do
-    if ( .not. indexSatFound ) call utl_abort('csrbg_readObsFromObsSpace: Cloud Cover Limit Not' // &
+    if ( .not. indexSatFound ) call rti_abort('csrbg_readObsFromObsSpace: Cloud Cover Limit Not' // &
                                               'Found for ' // trim(burpFileSatId))
     ! compute data for QC
     call utl_reAllocate(topographicData, numObsToProcess)

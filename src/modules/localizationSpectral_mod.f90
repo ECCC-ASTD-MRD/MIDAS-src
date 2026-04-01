@@ -9,6 +9,7 @@ MODULE localizationSpectral_mod
   use midasMpi_mod
   use linearAlgebra_mod
   use utilities_mod
+  use runtimeInfo_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
   use localizationFunction_mod
@@ -94,7 +95,7 @@ CONTAINS
     if (.not. associated(lsp)) then
       allocate(lsp)
     else
-      call utl_abort('lsp_setup: supplied lsp must be null')
+      call rti_abort('lsp_setup: supplied lsp must be null')
     endif
 
     !
@@ -108,7 +109,7 @@ CONTAINS
     else
        write(*,*)
        write(*,*) 'locType = ', trim(locType)
-       call utl_abort('lsp_setup: unknown locType')
+       call rti_abort('lsp_setup: unknown locType')
     end if
 
     !- 2.2 Ensemble members and Levels
@@ -243,13 +244,13 @@ CONTAINS
     allocate(lsp%LhorizSqrt(0:lsp%nTrunc,lsp%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'lsp_setup: Problem allocating memory! id=9',ierr
-       call utl_abort('setupLocalizationMatrices')
+       call rti_abort('setupLocalizationMatrices')
     end if
 
     allocate(lsp%LvertSqrt(lsp%nLev,lsp%nLev),stat=ierr)
     if (ierr.ne.0 ) then
        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
-       call utl_abort('setupLocalizationMatrices')
+       call rti_abort('setupLocalizationMatrices')
     end if
 
     !
@@ -375,7 +376,7 @@ CONTAINS
         end do
         if (zpole.le.0.d0) then
           write(*,*)'POLE VALUE NEGATIVE IN setupGlobalSpectralHLoc levIndex=',levIndex
-          call utl_abort('setupGlobalSpectralHLoc')
+          call rti_abort('setupGlobalSpectralHLoc')
         end if
         do nIndex = 0, lsp%ntrunc
           lsp%LhorizSqrt(nIndex,levIndex) = lsp%LhorizSqrt(nIndex,levIndex)/zpole
@@ -529,7 +530,7 @@ CONTAINS
       do k = 1, lsp%nLev
          if ( gd(lsp%ni/2,lsp%nj/2,k) <= 0.d0 ) then
             write(*,*) 'setupLamSpectralHLoc: Problem in normalization ',gd(lsp%ni/2,lsp%nj/2,k)
-            call utl_abort('setupLamSpectralHLoc')
+            call rti_abort('setupLamSpectralHLoc')
          end if
          if ( mmpi_myid == 0 ) then
            write(*,*) 'setupLamSpectralHLoc: Normalization factor = ', k, gd(lsp%ni/2,lsp%nj/2,k), 1.d0 / gd(lsp%ni/2,lsp%nj/2,k)
@@ -693,7 +694,7 @@ CONTAINS
 
       if (dimIndex.gt.lsp%cvDim_mpilocal) then
         write(*,*) 'loc globalSpectralHLoc: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
-        call utl_abort('globalSpectralHLoc')
+        call rti_abort('globalSpectralHLoc')
       end if
 
     end do
@@ -736,7 +737,7 @@ CONTAINS
        end do
        if (dimIndex > lsp%cvDim_mpilocal ) then
           write(*,*) 'loc lamSpectralHLoc: dimIndex > cvDim! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
-          call utl_abort('lamSpectralHLoc')
+          call rti_abort('lamSpectralHLoc')
        end if
 
     end do
@@ -875,7 +876,7 @@ CONTAINS
 
        if (dimIndex.gt.lsp%cvDim_mpilocal) then
           write(*,*) 'loc globalSpectralHLocAd: dimIndex > cvDim_mpilocal! ',dimIndex,memberIndex,lsp%cvDim_mpilocal
-          call utl_abort('globalSpectralHLocAd')
+          call rti_abort('globalSpectralHLocAd')
        end if
 
     end do
@@ -919,7 +920,7 @@ CONTAINS
        end do
        if (dimIndex > lsp%cvDim_mpilocal ) then
           write(*,*) 'BEN: lamSpectralHLocAD: dimIndex > cvDim! ',dimIndex, memberIndex, lsp%cvDim_mpilocal
-          call utl_abort('lamSpectralHLocAd')
+          call rti_abort('lamSpectralHLocAd')
        end if
 
     end do
@@ -1040,13 +1041,13 @@ CONTAINS
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                      call utl_abort('lsp_reduceToMPILocal')
+                      call rti_abort('lsp_reduceToMPILocal')
                     end if
                     if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                      call utl_abort('lsp_reduceToMPILocal')
+                      call rti_abort('lsp_reduceToMPILocal')
                     end if
 
                   end if
@@ -1110,7 +1111,7 @@ CONTAINS
                   ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                   if ( ila_mpiglobal <= 0 ) then
                     write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
                   dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                        ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
@@ -1120,13 +1121,13 @@ CONTAINS
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
                   if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
 
                   cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
@@ -1257,13 +1258,13 @@ CONTAINS
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                      call utl_abort('lsp_reduceToMPILocal')
+                      call rti_abort('lsp_reduceToMPILocal')
                     end if
                     if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                       write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                      call utl_abort('lsp_reduceToMPILocal')
+                      call rti_abort('lsp_reduceToMPILocal')
                     end if
 
                   end if
@@ -1327,7 +1328,7 @@ CONTAINS
                   ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                   if ( ila_mpiglobal <= 0 ) then
                     write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
                   dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
                                        ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
@@ -1337,13 +1338,13 @@ CONTAINS
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
                   if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                     write(*,*)
                     write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                     write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                    call utl_abort('lsp_reduceToMPILocal')
+                    call rti_abort('lsp_reduceToMPILocal')
                   end if
 
                   cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
@@ -1500,13 +1501,13 @@ CONTAINS
                         write(*,*)
                         write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                        call utl_abort('lsp_expandToMPIGlobal')
+                        call rti_abort('lsp_expandToMPIGlobal')
                      end if
                      if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                         write(*,*)
                         write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                        call utl_abort('lsp_expandToMPIGlobal')
+                        call rti_abort('lsp_expandToMPIGlobal')
                      end if
 
                    end if
@@ -1564,7 +1565,7 @@ CONTAINS
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                          if ( ila_mpiglobal <= 0 ) then
                             write(*,*) 'lsp_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
 
                          dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
@@ -1575,13 +1576,13 @@ CONTAINS
                             write(*,*)
                             write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
                          if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
                             write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
 
                          cv_mpiglobal(dimIndex_mpiglobal) = cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1)
@@ -1727,13 +1728,13 @@ CONTAINS
                         write(*,*)
                         write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                        call utl_abort('lsp_expandToMPIGlobal')
+                        call rti_abort('lsp_expandToMPIGlobal')
                      end if
                      if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                         write(*,*)
                         write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                         write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                        call utl_abort('lsp_expandToMPIGlobal')
+                        call rti_abort('lsp_expandToMPIGlobal')
                      end if
 
                    end if
@@ -1791,7 +1792,7 @@ CONTAINS
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                          if ( ila_mpiglobal <= 0 ) then
                             write(*,*) 'lsp_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
 
                          dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
@@ -1802,13 +1803,13 @@ CONTAINS
                             write(*,*)
                             write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
                          if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
                             write(*,*)
                             write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_expandToMPIGlobal')
+                            call rti_abort('lsp_expandToMPIGlobal')
                          end if
 
                          cv_mpiglobal(dimIndex_mpiglobal) = cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1)
@@ -1841,7 +1842,7 @@ CONTAINS
     type(struct_lsp), pointer, intent(in) :: lsp
 
     if ( .not. lsp%initialized) then
-       call utl_abort('lsp_check: structure not initialized')
+       call rti_abort('lsp_check: structure not initialized')
     end if
 
   end subroutine lsp_check

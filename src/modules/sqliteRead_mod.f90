@@ -12,6 +12,7 @@ module sqliteRead_mod
   use obsSpaceData_mod
   use obsUtil_mod
   use utilities_mod
+  use runtimeInfo_mod
   use bufr_mod
   use ramDisk_mod
   use codtyp_mod
@@ -69,7 +70,7 @@ module sqliteRead_mod
 
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort('sqlr_readSqlite_avhrr: fSQL_open '//fSQL_errmsg(stat))
+      call rti_abort('sqlr_readSqlite_avhrr: fSQL_open '//fSQL_errmsg(stat))
     end if
 
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
@@ -248,7 +249,7 @@ module sqliteRead_mod
       case('TO')
         vertCoordType = obs_vcoChannel
       case default
-        call utl_abort('sqlr_readSqlite: unknown family '//trim(familyType))
+        call rti_abort('sqlr_readSqlite: unknown family '//trim(familyType))
     end select
 
     ! Set multiplying factor for vertical coordinate
@@ -272,43 +273,43 @@ module sqliteRead_mod
     select case(trim(familyType))
       case('TO')
         read(utl_flnml, nml = NAMSQLtovs, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLtovs')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLtovs')
         if (mmpi_myid == 0) write(*, nml = NAMSQLtovs)
       case('UA')
         read(utl_flnml, nml = NAMSQLua, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLua')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLua')
         if (mmpi_myid == 0) write(*, nml = NAMSQLua)
       case ('AI')
         read(utl_flnml, nml = NAMSQLai, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLai')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLai')
         if (mmpi_myid == 0) write(*, nml = NAMSQLai)
       case ('SW')
         read(utl_flnml, nml = NAMSQLsw, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsw')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsw')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsw)
       case ('PR')
         read(utl_flnml, nml = NAMSQLpr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
       case ('AL')
         read(utl_flnml, nml = NAMSQLal, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
       case ('RO')
         read(utl_flnml, nml = NAMSQLro, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
         if (mmpi_myid == 0) write(*, nml = NAMSQLro)
       case ('SF','GP','HY')
         read(utl_flnml, nml = NAMSQLsfc, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)
       case ('SC')
         read(utl_flnml, nml = NAMSQLsc, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
       case ('OS', 'SH')
         read(utl_flnml, nml = NAMSQLocean, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLocean')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLocean')
         if (mmpi_myid == 0) write(*, nml = NAMSQLocean)
         do rowIndex = 1, size(codtypInFileList,1)
           if (any(nint(codtypInFileList(rowIndex, 1)) == codtyp_sat(:))) then
@@ -320,19 +321,19 @@ module sqliteRead_mod
         end do
       case ('GL')
         read(utl_flnml, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('RA')
         read(utl_flnml, nml = NAMSQLradar, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
+        if (ierr /= 0) call rti_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLradar)
       case default
-        call utl_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
+        call rti_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
     end select
     call utl_tmg_stop(181)
 
     if ( numberElem /= MPC_missingValue_INT ) then
-      call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
+      call rti_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
     end if
     numberElem = count(transfer(listElem, 'a', len(listElem)) == ',') + 1
 
@@ -391,7 +392,7 @@ module sqliteRead_mod
     ! Open the sqlite file
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
+      call rti_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
     end if
 
     ! Read id_data and id_obs columns in the body table ("status" not set when getting integers)
@@ -409,7 +410,7 @@ module sqliteRead_mod
     call fSQL_finalize(stmt2)
 
     if (numberIDsRows /= numberBodyRows) then
-      call utl_abort('sqlr_readSqlite: number of body keys not equal to number of rows in bodyValues')
+      call rti_abort('sqlr_readSqlite: number of body keys not equal to number of rows in bodyValues')
     end if
 
     headerIndex  = obs_numHeader(obsdat)
@@ -485,7 +486,7 @@ module sqliteRead_mod
         call fSQL_get_row(stmt, finished)
         if (finished) then
           write(*,*) 'sqlr_readSqlite: problem reading header entry. Query:', trim(queryHeader)
-          call utl_abort('Problem with fSQL_get_row()')
+          call rti_abort('Problem with fSQL_get_row()')
         end if
 
         ! The query result is inserted into variables
@@ -849,7 +850,7 @@ module sqliteRead_mod
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
+      call rti_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     if ( obs_columnDataType(obsSpaceColIndexSource) == 'real' ) then
@@ -864,7 +865,7 @@ module sqliteRead_mod
     write(*,*) myName//': query = ', trim(query)
     call fSQL_do_many( db, query, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
+      call rti_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
     end if
 
     ! close the sqlite file
@@ -935,17 +936,17 @@ module sqliteRead_mod
     ! Read the namelist for directives
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namSQLUpdate, iostat = ierr)
-    if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
+    if (ierr /= 0) call rti_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
     call utl_tmg_stop(181)
     if (numberUpdateBodyItems /= MPC_missingValue_INT) then
-      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateBodyItems should be removed')
+      call rti_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateBodyItems should be removed')
     end if
     if (numberUpdateHeaderItems /= MPC_missingValue_INT) then
-      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateHeaderItems should be removed')
+      call rti_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateHeaderItems should be removed')
     end if
     if (numberUpdateItemsRadar /= MPC_missingValue_INT) then
-      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
+      call rti_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
     end if
 
     numberUpdateBodyItems = 0
@@ -989,7 +990,7 @@ module sqliteRead_mod
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
       if (.not. obs_isColumnNameValid(trim(item))) then
-        call utl_abort('sqlr_updateSqlite: updating column is invalid')
+        call rti_abort('sqlr_updateSqlite: updating column is invalid')
       end if
 
       updateBodyList(itemIndex) = obs_columnIndexFromName(item)
@@ -1023,7 +1024,7 @@ module sqliteRead_mod
       case('ETRU')
         columnName = 'truth_based_sim_emiss'
       case DEFAULT
-        call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
+        call rti_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select
 
       ! Check if column exist. If not, add column when corresponding
@@ -1076,7 +1077,7 @@ module sqliteRead_mod
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
       if (.not. obs_isColumnNameValid(item)) then
-        call utl_abort('sqlr_updateSqlite: updating column is invalid')
+        call rti_abort('sqlr_updateSqlite: updating column is invalid')
       end if
 
       updateHeaderList(itemIndex) = obs_columnIndexFromName(item)
@@ -1084,7 +1085,7 @@ module sqliteRead_mod
       case('ELEV')
         columnName = 'surf_elev'
       case DEFAULT
-        call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
+        call rti_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
       end select
 
       ! Check if column exist. If not, add column when corresponding
@@ -1366,11 +1367,11 @@ module sqliteRead_mod
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namSQLInsert, iostat = ierr)
-    if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
+    if (ierr /= 0) call rti_abort('sqlr_insertSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLInsert)
     call utl_tmg_stop(181)
     if (numberInsertItems /= MPC_missingValue_INT) then
-      call utl_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
+      call rti_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
     end if
     numberInsertItems = 0
     do itemIndex = 1, maxNumberInsertItems
@@ -1541,7 +1542,7 @@ module sqliteRead_mod
       ! read in the namelist namwritediag
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namSqlClean,iostat=ierr)
-      if (ierr /= 0) call utl_abort('sqlr_cleanSqlite: Error reading namelist')
+      if (ierr /= 0) call rti_abort('sqlr_cleanSqlite: Error reading namelist')
       call utl_tmg_stop(181)
     end if
     if (mmpi_myid == 0 .and. firstCall) then
@@ -1833,7 +1834,7 @@ module sqliteRead_mod
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlr_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'sqlr_getColumnValuesDate: fSQL_open' )
+      call rti_abort( 'sqlr_getColumnValuesDate: fSQL_open' )
     end if
 
     ! Get the date and time
@@ -1848,7 +1849,7 @@ module sqliteRead_mod
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlr_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('sqlr_getColumnValuesDate: problem with fSQL_get_many')
+      call rti_abort('sqlr_getColumnValuesDate: problem with fSQL_get_many')
     end if
     write(*,*) 'sqlr_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValuesStr(numRows,2) )

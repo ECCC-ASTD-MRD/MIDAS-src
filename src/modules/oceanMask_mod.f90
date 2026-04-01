@@ -14,6 +14,7 @@ module oceanMask_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use message_mod
@@ -74,7 +75,7 @@ module oceanMask_mod
       fileName = trim(inputFileName) // netcdfFileExtention
       inquire(file = trim(fileName), exist = fileExist)
       if (.not. fileExist) then
-        call utl_abort('ocm_readMaskFromFile: mandatory FST file does not exist: '//&
+        call rti_abort('ocm_readMaskFromFile: mandatory FST file does not exist: '//&
                        trim(fileName))
       end if
     else
@@ -94,11 +95,11 @@ module oceanMask_mod
     if (ierr >= 0) then
       maxkeys = fstouv(nulfile, 'RND+OLD')
     else
-      call utl_abort('ocm_readMaskFromFile problem opening input file')
+      call rti_abort('ocm_readMaskFromFile problem opening input file')
     end if
 
     if (nulfile == 0) then
-      call utl_abort('ocm_readMaskFromFile: unit number for input file not valid')
+      call rti_abort('ocm_readMaskFromFile: unit number for input file not valid')
     end if
 
     ! Read mask for all fields
@@ -113,7 +114,7 @@ module oceanMask_mod
 
         if (ikey < 0) then
           call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: ' // str(ip1))
-          call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
+          call rti_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
 
         do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
@@ -129,7 +130,7 @@ module oceanMask_mod
           ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
           call ocm_copyFromInt(oceanMask, mask, levIndex)
           if (ierr < 0) then
-            call utl_abort('ocm_readMaskFromFile: error when reading mask record')
+            call rti_abort('ocm_readMaskFromFile: error when reading mask record')
           end if
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
@@ -137,7 +138,7 @@ module oceanMask_mod
           call msg('ocm_readMaskFromFile', 'Mask is on a different horizontal grid')
           call msg('ocm_readMaskFromFile', 'ni = ' // str(ni_file) //','// str(hco%ni)// &
                                            ', nj = ' // str(nj_file)//','// str(hco%nj))
-          call utl_abort('ocm_readMaskFromFile: This is not allowed at the moment')
+          call rti_abort('ocm_readMaskFromFile: This is not allowed at the moment')
         end if
 
       end do lev_loop
@@ -150,7 +151,7 @@ module oceanMask_mod
                     -1, ' ', -1, -1, -1, '@@', ' ')
 
       if (ikey < 0) then
-        call utl_abort('ocm_readMaskFromFile: cannot find any mask in file ' // trim(fileName))
+        call rti_abort('ocm_readMaskFromFile: cannot find any mask in file ' // trim(fileName))
       end if
 
       do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
@@ -165,7 +166,7 @@ module oceanMask_mod
           ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
           call ocm_copyFromInt(oceanMask, mask, 1)
           if (ierr < 0) then
-            call utl_abort('ocm_readMaskFromFile: error when reading mask record')
+            call rti_abort('ocm_readMaskFromFile: error when reading mask record')
           end if
         end if
       else
@@ -174,7 +175,7 @@ module oceanMask_mod
         call msg('ocm_readMaskFromFile', 'Mask is on a different horizontal grid')
         call msg('ocm_readMaskFromFile', 'ni = ' // str(ni_file)//','//str(hco%ni)//&
                                          ', nj = '// str(nj_file)//','//str(hco%nj))
-        call utl_abort('ocm_readMaskFromFile: This is not allowed at the moment')
+        call rti_abort('ocm_readMaskFromFile: This is not allowed at the moment')
       end if
 
     end if
@@ -217,10 +218,10 @@ module oceanMask_mod
 
     ! do some basic checks
     if (.not.oceanMask%maskPresent .or. .not.associated(oceanMask%mask)) then
-      call utl_abort('ocm_farFromLand: mask is not allocated')
+      call rti_abort('ocm_farFromLand: mask is not allocated')
     end if
     if (levIndex < 0 .or. levIndex > oceanMask%nLev) then
-      call utl_abort('ocm_farFromLand: specified levIndex not valid')
+      call rti_abort('ocm_farFromLand: specified levIndex not valid')
     end if
 
     ni = oceanMask%hco%ni
@@ -259,7 +260,7 @@ module oceanMask_mod
                            nfound=numLocalGridPointsFound, &
                            nalloc=maxNumLocalGridPointsSearch, results=searchResults)
     if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-      call utl_abort('ocm_farFromLand: the parameter maxNumLocalGridPointsSearch must be increased')
+      call rti_abort('ocm_farFromLand: the parameter maxNumLocalGridPointsSearch must be increased')
     end if
     if (numLocalGridPointsFound == 0) then
       farFromLand = .true.
@@ -528,7 +529,7 @@ module oceanMask_mod
     end if
 
     if (minGridSpacing > 1.0d6) then
-      call utl_abort('ocm_computeMinGridSpacing: minGridSpacing is greater than 1000 km.')
+      call rti_abort('ocm_computeMinGridSpacing: minGridSpacing is greater than 1000 km.')
     end if
 
   end subroutine ocm_computeMinGridSpacing

@@ -9,6 +9,7 @@ module backgroundCheck_mod
   use obsSpaceData_mod
   use gps_mod
   use utilities_mod
+  use runtimeInfo_mod
   use columnData_mod
   use obsSpaceDiag_mod
   use verticalCoord_mod
@@ -231,7 +232,7 @@ module backgroundCheck_mod
               end if
               if ( ZOER < 1.0d-3 .and. obsVarno /= BUFR_NEZD ) then
                 write(*,*)' Problem for GP STNID ZOER= ' , stnid, ZOER
-                call utl_abort( myName//': PROBLEM WITH OER.')
+                call rti_abort( myName//': PROBLEM WITH OER.')
               end if
               IF ( ZFGE < 1.0d-3 ) then
                 write(*,*)' Problem for GP STNID FGE= ', stnid, ZFGE

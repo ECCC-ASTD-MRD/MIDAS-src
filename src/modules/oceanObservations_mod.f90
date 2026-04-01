@@ -6,6 +6,7 @@ module oceanObservations_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use codtyp_mod
   use gridStateVector_mod

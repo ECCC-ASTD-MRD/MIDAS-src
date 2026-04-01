@@ -118,6 +118,7 @@ program midas_ensembleH
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use stateToColumn_mod
   use obsFiles_mod
@@ -188,17 +189,17 @@ program midas_ensembleH
   call enkf_readNML(enkfNML)
 
   if (enkfNML%numRetainedEigen < 0) then
-    call utl_abort('midas-ensembleH: numRetainedEigen should be ' // &
+    call rti_abort('midas-ensembleH: numRetainedEigen should be ' // &
                    'equal or greater than zero')
   end if
 
   useModulatedEns = (enkfNML%numRetainedEigen > 0)
   if (useModulatedEns .and. enkfNML%vLocalize <= 0) then
-    call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
+    call rti_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
   end if
 
   if (useModulatedEns .and. enkfNML%numFullEns < enkfNML%nEns) then
-    call utl_abort('midas-ensembleH: For modulated ensembles the number of full ensembles is needed ' // &
+    call rti_abort('midas-ensembleH: For modulated ensembles the number of full ensembles is needed ' // &
                    'with numFullEns >= nEns')
   end if
 
@@ -311,7 +312,7 @@ program midas_ensembleH
     ensMeanFileName = trim(ensMeanFileName) // '_trialmean'
     inquire(file=trim(ensMeanFileName),exist=fileExists)
     if (.not. fileExists) then
-      call utl_abort('midas-ensembleH: the ensemble mean file does not exist')
+      call rti_abort('midas-ensembleH: the ensemble mean file does not exist')
     end if
     do stepIndex = 1, tim_nstepobs
       call gio_readFromFile(stateVectorMeanTrl4D, ensMeanFileName, ' ', ' ',  &

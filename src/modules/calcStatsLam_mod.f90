@@ -12,6 +12,7 @@ module calcStatsLam_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -197,7 +198,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'Unknown spectral weights TYPE : ', trim(SpectralWeights)
-      call utl_abort('csl_setup')
+      call rti_abort('csl_setup')
     end select
 
     !
@@ -263,7 +264,7 @@ contains
           write(*,*)
           write(*,*) '--- Momentum Control Variables = Vort-Div ---'
           bhi%momentumControlVar(1) = 'QR'
-          call utl_abort('Momentum Control Variables = Vort-Div not yest availble')
+          call rti_abort('Momentum Control Variables = Vort-Div not yest availble')
         else if ( trim(WindTransform) == 'UV') then
           write(*,*)
           write(*,*) '--- Momentum Control Variables = U-V ---'
@@ -271,7 +272,7 @@ contains
         else
           write(*,*)
           write(*,*) 'Wind Transform not available ', trim((WindTransform))
-          call utl_abort('csl_setup')
+          call rti_abort('csl_setup')
         end if
         bhi%controlVariable(varIndex)%nomvar(cv_bhi) = trim(bhi%momentumControlVar(1))
       else if ( bhi%controlVariable(varIndex)%nomvar(cv_model) == 'VV' ) then
@@ -284,7 +285,7 @@ contains
         else
           write(*,*)
           write(*,*) 'Wind Transform not available ', trim((WindTransform))
-          call utl_abort('csl_setup')
+          call rti_abort('csl_setup')
         end if
         bhi%controlVariable(varIndex)%nomvar(cv_bhi) = bhi%momentumControlVar(2)
       else
@@ -676,7 +677,7 @@ contains
        call bmd_localizationRadii(ensPerts, waveBandIndex_opt=1) ! IN
 
     case default
-       call utl_abort('csl_toolbox: Unknown TOOL '// trim(tool))
+       call rti_abort('csl_toolbox: Unknown TOOL '// trim(tool))
     end select
 
     !
@@ -1001,7 +1002,7 @@ contains
     do k = 1, bhi%nVarLev
       if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) < 0.d0 ) then
         write(*,*) 'NormalizePowerSpectrum: Problem in normalization ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
-        call utl_abort('aborting in NormalizePowerSpectrum')
+        call rti_abort('aborting in NormalizePowerSpectrum')
       end if
 
       if ( .not. utl_isEqual(GridState(hco_bhi%ni/2,hco_bhi%nj/2,k),0.d0) ) then

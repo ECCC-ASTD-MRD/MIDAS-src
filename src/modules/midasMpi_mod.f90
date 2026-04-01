@@ -11,6 +11,7 @@ module midasMpi_mod
   use omp_lib
   use rpn_comm
   use linearAlgebra_mod
+  use runtimeInfo_mod
   use utilities_mod
 
   implicit none
@@ -293,7 +294,7 @@ contains
     if (flag) then
       if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', maxTagValue
     else
-      call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
+      call rti_abort('mmpi_initialize: Could not obtain maximum tag value')
     end if
 
     mmpi_maxTagValue = int(maxTagValue)
@@ -338,7 +339,7 @@ contains
         ! Read namelist NAMMMPI
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=nammmpi, iostat=ierr)
-        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        if (ierr /= 0) call rti_abort('readNml (ens): Error reading namelist')
         call utl_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=nammmpi)
@@ -471,9 +472,9 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
 
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
+    if(ierr.ne.0) call rti_abort('mpi_getptopo: Error opening file ptopo_nml')
     read(nulnam,nml=ptopo,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
+    if(ierr.ne.0) call rti_abort('mpi_getptopo: Error reading namelist')
 
     write(*,nml=ptopo)
 
@@ -2788,7 +2789,7 @@ contains
         length = length/mmpi_npex
       else
         call mpi_comm_get_name(communicator, commName, nameLength, ierr)
-        call utl_abort('handleLengthWithRespectToCommunicator: cannot guess the size of the data for communicator='''// commName // '''')
+        call rti_abort('handleLengthWithRespectToCommunicator: cannot guess the size of the data for communicator='''// commName // '''')
       end if
     end if ! 'if ( .not. present(length_opt) ) then'
 
@@ -2813,7 +2814,7 @@ contains
 
     if (errCode /= MPI_SUCCESS) then
       call MPI_Error_string(errcode, errorMsg, resultlen, ierror)
-      call utl_abort('MPI error found in ' // context // ' : ' // trim(errorMsg))
+      call rti_abort('MPI error found in ' // context // ' : ' // trim(errorMsg))
     end if
   end subroutine handleMpiError
 

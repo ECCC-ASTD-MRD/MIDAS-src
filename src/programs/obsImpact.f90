@@ -176,6 +176,7 @@ program midas_obsImpact
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -254,7 +255,7 @@ program midas_obsImpact
     if (dateStampFromObs > 0) then
       call tim_setDatestamp(dateStampFromObs)
     else
-      call utl_abort('obsImpact: DateStamp was not set')
+      call rti_abort('obsImpact: DateStamp was not set')
     end if
   end if
   !

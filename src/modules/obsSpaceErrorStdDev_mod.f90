@@ -11,6 +11,7 @@ module obsSpaceErrorStdDev_mod
   use columnData_mod
   use bufr_mod
   use utilities_mod
+  use runtimeInfo_mod
   use earthConstants_mod
   use physicsFunctions_mod
   use MathPhysConstants_mod
@@ -141,7 +142,7 @@ module obsSpaceErrorStdDev_mod
 
     if ( .not. staticHBHT .and. .not. staticOMPE .and. .not. ensemble .and. &
          .not. staticHBHT_ch .and. .not. staticOMPE_ch ) &
-         call utl_abort('ose_computeStddev: no OmP std dev or sqrt(HBHT) was initialized')
+         call rti_abort('ose_computeStddev: no OmP std dev or sqrt(HBHT) was initialized')
 
     !- 2. Select/Blend HBHT.
 
@@ -163,7 +164,7 @@ module obsSpaceErrorStdDev_mod
       hybrid_mode = 'WEIGHTED_SUM' ! default value
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namhbht, iostat=ierr)
-      if ( ierr /= 0) call utl_abort('ose_computeStddev: Error reading namelist')
+      if ( ierr /= 0) call rti_abort('ose_computeStddev: Error reading namelist')
       if ( mmpi_myid == 0 ) write(*,nml=namhbht)
       call utl_tmg_stop(181)
 
@@ -184,7 +185,7 @@ module obsSpaceErrorStdDev_mod
           case default
             write(*,*)
             write(*,*) 'ose_computeStddev: Unknown hybrid_mode ', trim(hybrid_mode)
-            call utl_abort('ose_compute_HBHT')
+            call rti_abort('ose_compute_HBHT')
           end select
           call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_hybrid)
         end if
@@ -343,7 +344,7 @@ module obsSpaceErrorStdDev_mod
       shift_level = 0
     else
       write(*,*) 'Vcode_anl = ',Vcode_anl
-      call utl_abort('ose_compute_hbht_static: unknown vertical coordinate type!')
+      call rti_abort('ose_compute_hbht_static: unknown vertical coordinate type!')
     end if
 
     allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
@@ -368,7 +369,7 @@ module obsSpaceErrorStdDev_mod
       write(*,*) ' opened as unit file ',iulssf
       ierr =  fstouv(iulssf,'RND+OLD')
     ELSE
-      CALL utl_abort('HBHT_static:NO BACKGROUND STAT FILE!!')
+      CALL rti_abort('HBHT_static:NO BACKGROUND STAT FILE!!')
     ENDIF
 
     ! 2.1 Background error standard deviations
@@ -400,7 +401,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -422,7 +423,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
 
       do jlat = 1, hco_anl%nj
@@ -445,7 +446,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -468,7 +469,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -521,7 +522,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -547,7 +548,7 @@ module obsSpaceErrorStdDev_mod
       write(*,*) 'etiket         =', trim(CLETIKET)
       write(*,*) 'Found ni,nj,nk =', ini, inj, ink
       write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
-      call utl_abort('ose_compute_hbht_static')
+      call rti_abort('ose_compute_hbht_static')
     end if
     call gsv_getField(statevector,field_ptr,'P0')
     do jlev = 1, ink
@@ -571,7 +572,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -593,7 +594,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -615,7 +616,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -637,7 +638,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -660,7 +661,7 @@ module obsSpaceErrorStdDev_mod
           write(*,*) 'etiket         =', trim(cletiket)
           write(*,*) 'Found ni,nj,nk =', ini, inj, ink
           write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-          call utl_abort('ose_compute_hbht_static')
+          call rti_abort('ose_compute_hbht_static')
         end if
         do jlat = 1, hco_anl%nj
           do jlon = 1, hco_anl%ni
@@ -682,7 +683,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(CLETIKET)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       call gsv_getField(statevector,field_ptr,clnomvar)
       do jlev = 1, ink
@@ -717,7 +718,7 @@ module obsSpaceErrorStdDev_mod
         write(*,*) 'etiket         =', trim(cletiket)
         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-        call utl_abort('ose_compute_hbht_static')
+        call rti_abort('ose_compute_hbht_static')
       end if
       do jlat = 1, hco_anl%nj
         do jlon = 1, hco_anl%ni
@@ -978,7 +979,7 @@ module obsSpaceErrorStdDev_mod
               write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
               columnElem = col_getHeight(column,IK  ,INDEX_HEADER,'TH')
               write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
-              CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
+              CALL rti_abort('SETFGEFAM: First-guess stdev bad value')
             endif
           ENDIF
         ENDIF
@@ -1105,7 +1106,7 @@ module obsSpaceErrorStdDev_mod
           else
 
             write(*,*)"ERROR:  The family", cdfam, " is not supported by setfgefamz"
-            call utl_abort('setfgefamz')
+            call rti_abort('setfgefamz')
 
           end if
 
@@ -2010,7 +2011,7 @@ module obsSpaceErrorStdDev_mod
     if ( ierr == 0 ) then
       open(unit=nulstat, file=trim(AuxObsDataFileCH), status='OLD')
     else
-      call utl_abort('ose_readOmPstddev_auxfileCH: COULD NOT OPEN AUXILIARY FILE ' //  trim(AuxObsDataFileCH) )
+      call rti_abort('ose_readOmPstddev_auxfileCH: COULD NOT OPEN AUXILIARY FILE ' //  trim(AuxObsDataFileCH) )
     end if
 
     ! Read OmP error standard deviations for constituents or related directives if available.
@@ -2075,13 +2076,13 @@ module obsSpaceErrorStdDev_mod
 
       if ( icount+OmPstdCH%n_lvl(stnidIndex)*OmPstdCH%n_lat(stnidIndex)*OmPstdCH%n_month(stnidIndex) > isize ) then
          write(*,'(10X,"Max array size exceeded: ",I6)') isize
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: PROBLEM READING OBSERR STD DEV.')
+         CALL rti_abort('ose_readOmPstddev_auxfileHCHin: PROBLEM READING OBSERR STD DEV.')
       else if ( OmPstdCH%n_lat(stnidIndex) == 1 .and. OmPstdCH%n_month(stnidIndex) > 1 ) then
          write(*,'(10X,"Fails for stnid number: ",I6)') stnidIndex
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Cannot depend on month if not dependent on latitude')
+         CALL rti_abort('ose_readOmPstddev_auxfileHCHin: Cannot depend on month if not dependent on latitude')
       else if ( OmPstdCH%n_month(stnidIndex) /= 1 .and. OmPstdCH%n_month(stnidIndex) /= 12 ) then
          write(*,'(10X,"Fails for stnid number: ",I6)') stnidIndex
-         CALL utl_abort('ose_readOmPstddev_auxfileHCHin: Number of months must be 1 or 12')
+         CALL rti_abort('ose_readOmPstddev_auxfileHCHin: Number of months must be 1 or 12')
       end if
 
       ! disregard line of dashes
@@ -2265,7 +2266,7 @@ module obsSpaceErrorStdDev_mod
 
  10 if (ios.gt.0) then
       write(abortText,*) ios
-      call utl_abort('ose_readOmPstddev_auxfileCHin: PROBLEM READING OMP ERR STD DEV. - ' // &
+      call rti_abort('ose_readOmPstddev_auxfileCHin: PROBLEM READING OMP ERR STD DEV. - ' // &
                      'File read error message number: ' // trim(abortText) )
     end if
 

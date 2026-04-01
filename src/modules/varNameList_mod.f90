@@ -11,6 +11,7 @@ module varNameList_mod
   use bufr_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use MathPhysConstants_mod
 
   implicit none
@@ -146,7 +147,7 @@ module varNameList_mod
       end do
 
       if( listIndex <= 0 ) then
-        call utl_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
+        call rti_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
       end if
 
     end function vnl_varListIndex3d
@@ -177,7 +178,7 @@ module varNameList_mod
       end do
 
       if( listIndex <= 0 ) then
-        call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
+        call rti_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
       end if
 
     end function vnl_varListIndex2d
@@ -208,7 +209,7 @@ module varNameList_mod
       end do
 
       if(listIndex <= 0) then
-        call utl_abort('vnl_varListIndexOther: Unknown variable name! ' // varName)
+        call rti_abort('vnl_varListIndexOther: Unknown variable name! ' // varName)
       end if
 
     end function vnl_varListIndexOther
@@ -240,7 +241,7 @@ module varNameList_mod
       end do
 
       if(listIndex <= 0) then
-        call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
+        call rti_abort('vnl_varListIndex: Unknown variable name! ' // varName)
       end if
 
     end function vnl_varListIndex
@@ -369,7 +370,7 @@ module varNameList_mod
                 case(BUFR_NECH_PM10)
                   varname='AC'
                 case default
-                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                  call rti_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
                     utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
               end select
             else if (trim(modelName) == 'GEM') then
@@ -381,14 +382,14 @@ module varNameList_mod
                 case(BUFR_NECH_N2O)
                   varname='N2OL'
                 case default
-                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                  call rti_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
                     utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
               end select
             else
-              call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
+              call rti_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
             end if
           else
-            call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // utl_str(varNumber))
+            call rti_abort('vnl_varnameFromVarnum: Unknown variable number! ' // utl_str(varNumber))
           end if
       end select
 
@@ -507,7 +508,7 @@ module varNameList_mod
         varNumber=BUFR_NECH_PM10
 
       case default
-         call utl_abort('vnl_varnumFromVarName: Unknown variable name ' // trim(varName) )
+         call rti_abort('vnl_varnumFromVarName: Unknown variable name ' // trim(varName) )
       end select
 
     end function vnl_varnumFromVarname
@@ -543,7 +544,7 @@ module varNameList_mod
         if (utl_isNamelistPresent('namvnl','./flnml')) then
           call utl_tmg_start(181,'low-level--readNML')
           read (utl_flnml, nml = NAMVNL, iostat = ierr)
-          if ( ierr /= 0 ) call utl_abort('vnl_varLevelFromVarname: Error reading namelist')
+          if ( ierr /= 0 ) call rti_abort('vnl_varLevelFromVarname: Error reading namelist')
           if ( mmpi_myid == 0 ) write(*,nml=namvnl)
           call utl_tmg_stop(181)
         else
@@ -559,7 +560,7 @@ module varNameList_mod
         else if (varLevel == 'MM') then
           varLevel = 'SFMM'
         else
-          call utl_abort('vnl_varLevelFromVarname: something is wrong')
+          call rti_abort('vnl_varLevelFromVarname: something is wrong')
         end if
       end if
 
@@ -627,7 +628,7 @@ module varNameList_mod
       integer :: varIndex, numFound
 
       if (associated(varNames)) then
-        call utl_abort('vnl_varNamesFromExistList: varNames must be NULL pointer on input')
+        call rti_abort('vnl_varNamesFromExistList: varNames must be NULL pointer on input')
       end if
 
       numFound = 0
@@ -687,7 +688,7 @@ module varNameList_mod
       else if ( varNumber == BUFR_NECH_PM10 ) then
         varMass = 1.0d0 ! no scaling
       else
-        call utl_abort('vnl_varMassFromVarNum: Constituent id number ' // &
+        call rti_abort('vnl_varMassFromVarNum: Constituent id number ' // &
                        utl_str(varNumber) // ' not recognized' )
       end if
 
@@ -734,7 +735,7 @@ module varNameList_mod
       else if ( varName == 'AC' ) then
         varMass = 1.0d0 ! no scaling
       else
-        call utl_abort('vnl_varMassFromVarName: Molar mass not found for varName ' // &
+        call rti_abort('vnl_varMassFromVarName: Molar mass not found for varName ' // &
                        trim(varName) )
       end if
 
@@ -940,7 +941,7 @@ module varNameList_mod
 
       else
 
-        call utl_abort('vnl_varNamePresentInFile: unknown input file type: '//&
+        call rti_abort('vnl_varNamePresentInFile: unknown input file type: '//&
                        trim(utl_fileType(trim(fileName))))
       end if
 
@@ -971,7 +972,7 @@ module varNameList_mod
         else if (utl_varPresentInNetcdfFile('sshn', trim(fileName))) then
           varNameNetCDF = 'sshn'
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 
@@ -984,7 +985,7 @@ module varNameList_mod
         else if (utl_varPresentInNetcdfFile('tn', trim(fileName))) then
           varNameNetCDF = 'tn'      ! NEMO 3D ocean temperature field, restart
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 
@@ -995,7 +996,7 @@ module varNameList_mod
         else if (utl_varPresentInNetcdfFile('sn', trim(fileName))) then
           varNameNetCDF = 'sn'
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 
@@ -1006,7 +1007,7 @@ module varNameList_mod
         else if (utl_varPresentInNetcdfFile('un', trim(fileName))) then
           varNameNetCDF = 'un'
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 
@@ -1017,7 +1018,7 @@ module varNameList_mod
         else if (utl_varPresentInNetcdfFile('vn', trim(fileName))) then
           varNameNetCDF = 'vn'
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 
@@ -1026,7 +1027,7 @@ module varNameList_mod
         if (utl_varPresentInNetcdfFile('sss', trim(fileName))) then
           varNameNetCDF = 'sss'
         else
-          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+          call rti_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
                          'found in '//trim(fileName))
         end if
 

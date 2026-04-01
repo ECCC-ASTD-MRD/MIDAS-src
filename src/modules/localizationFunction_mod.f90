@@ -9,6 +9,7 @@ MODULE localizationFunction_mod
   !
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -51,7 +52,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Unsupported localization function : ', trim(LocFunctionWanted)
-      call utl_abort('lfn_setup')
+      call rti_abort('lfn_setup')
     end select
 
     initialized  = .true.
@@ -73,7 +74,7 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localization function module was NOT initialized'
-      call utl_abort('lfn_horizResponse')
+      call rti_abort('lfn_horizResponse')
     endif
 
     select case(trim(LocFunction))
@@ -88,7 +89,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-      call utl_abort('lfn_Response')
+      call rti_abort('lfn_Response')
     end select
 
   end function lfn_Response
@@ -108,7 +109,7 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localization function module was NOT initialized'
-      call utl_abort('lfn_gradient')
+      call rti_abort('lfn_gradient')
     endif
 
     select case(trim(LocFunction))
@@ -123,7 +124,7 @@ CONTAINS
     case default
       write(*,*)
       write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-      call utl_abort('lfn_gradient')
+      call rti_abort('lfn_gradient')
     end select
 
   end function lfn_gradient
@@ -602,7 +603,7 @@ CONTAINS
                 write(*,*) g(i), w(i), x(i), param 
              END DO
              gtginv = tiny(1.d0)
-             !call utl_abort('Lfn_Curvefit')
+             !call rti_abort('Lfn_Curvefit')
           end if
           
           ! 2.2.5  Find vector M (i.e. increment of PARAM)

@@ -161,6 +161,7 @@ program midas_dfs
   use mathPhysConstants_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -279,7 +280,7 @@ program midas_dfs
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = NAMDFS, iostat = ierr)
     call utl_tmg_stop(181)
-    if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
+    if (ierr /= 0) call rti_abort('midas-dfs: Error reading namelist')
   end if
 
   ! Longitudes in ObsSpaceData are positives
@@ -296,10 +297,10 @@ program midas_dfs
     nLevelsDfs = nLevelsDfs + 1
   end do
 
-  if (nLevelsDfs == 0) call utl_abort('midas-dfs: empty vertical coordinate list vCoordList !')
+  if (nLevelsDfs == 0) call rti_abort('midas-dfs: empty vertical coordinate list vCoordList !')
 
   if (doChannelSelection .and. familyType /= 'TO') then
-    call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
+    call rti_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
 
   selectSpecificObservationsFromList = .not. all( utl_isEqual(latList(:),   MPC_missingValue_R8) .and. &
@@ -392,7 +393,7 @@ contains
       if (dateStampFromObs > 0) then
         call tim_setDatestamp(dateStampFromObs)
       else
-        call utl_abort('dfs_setup: dateStamp was not set')
+        call rti_abort('dfs_setup: dateStamp was not set')
       end if
     end if
 
@@ -1085,7 +1086,7 @@ contains
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
         write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
-        call utl_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input R and HBHt matrices.')
+        call rti_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input R and HBHt matrices.')
       end if
       if (nChannelsOut_opt < 1) then
         nChannelsOut = nChannelsIn

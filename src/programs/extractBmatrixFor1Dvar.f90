@@ -81,6 +81,7 @@ program midas_extractBmatrixFor1Dvar
   use verticalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
 
   implicit none
@@ -142,7 +143,7 @@ program midas_extractBmatrixFor1Dvar
   ! Read the parameters from NAMEXTRACT
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namextract, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-extractBmatrix: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-extractBmatrix: Error reading namelist')
   write(*, nml=namextract)
   call utl_tmg_stop(181)
 
@@ -152,7 +153,7 @@ program midas_extractBmatrixFor1Dvar
   end do
 
   if ( nLonLatPos == 0 ) then
-    call utl_abort('midas-extractBmatrix: You should specify at least one lonlat position !')
+    call rti_abort('midas-extractBmatrix: You should specify at least one lonlat position !')
   end if
 
   ! Decompose extractdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
@@ -171,7 +172,7 @@ program midas_extractBmatrixFor1Dvar
   if (tim_getDateStamp() == 0) then
     call tim_setDatestamp(dateStamp)
   else
-    call utl_abort('midas-extractBmatrix: Code changes needed to use dateStamp from env variable')
+    call rti_abort('midas-extractBmatrix: Code changes needed to use dateStamp from env variable')
   end if
   ! Initialize variables of the model states
   call gsv_setup
@@ -215,7 +216,7 @@ program midas_extractBmatrixFor1Dvar
       write(*,*)
       write(*,*) 'odd number of nstepobsinc a required for obs place in the middle of the analysis window '
       write(*,*) 'tim_nstepobsinc = ', tim_nstepobsinc
-      call utl_abort('midas-extractBmatrix')
+      call rti_abort('midas-extractBmatrix')
     end if
    stepBinExtractIndex = (tim_nstepobsinc+1)/2
   case ('last')
@@ -223,7 +224,7 @@ program midas_extractBmatrixFor1Dvar
   case default
     write(*,*)
     write(*,*) 'Unsupported stepBinExtract : ', trim(stepBinExtract)
-    call utl_abort('midas-extractBmatrix')
+    call rti_abort('midas-extractBmatrix')
   end select
 
   allocate(controlVector(cvm_nvadim))

@@ -12,6 +12,7 @@ module obsErrors_mod
   use codtyp_mod
   use bufr_mod
   use utilities_mod
+  use runtimeInfo_mod
   use earthConstants_mod
   use physicsFunctions_mod
   use gps_mod
@@ -264,7 +265,7 @@ contains
     if (utl_isNamelistPresent('namoer','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = NAMOER, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_setObsErrors: Error reading namelist')
+      if (ierr /= 0) call rti_abort('oer_setObsErrors: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namoer)
       call utl_tmg_stop(181)
     else
@@ -413,7 +414,7 @@ contains
     !
     ilutov = 0
     IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
-    if (IER < 0) call utl_abort ('oer_readObsErrorsTOVS: Problem opening file stats_tovs')
+    if (IER < 0) call rti_abort ('oer_readObsErrorsTOVS: Problem opening file stats_tovs')
 
     !
     !     3. Read number of satellites
@@ -425,7 +426,7 @@ contains
 
     if (inumsat > tvs_maxNumberOfSensors) then
       write(*,'(A)') ' Number of sensors in stats_tovs file is greater than maximum allowed (tvs_maxNumberOfSensors)'
-      call utl_abort('oer_readObsErrorsTOVS')
+      call rti_abort('oer_readObsErrorsTOVS')
     end if
 
     !
@@ -464,11 +465,11 @@ contains
 
       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
 
-      if (IPLATFORM(JL) == -1) call utl_abort ('oer_readObsErrorsTOVS: Unknown platform!')
+      if (IPLATFORM(JL) == -1) call rti_abort ('oer_readObsErrorsTOVS: Unknown platform!')
 
       IINSTRUMENT(JL) = tvs_getInstrumentId(CINSTR)
 
-      if (IINSTRUMENT(JL) == -1) call utl_abort ('oer_readObsErrorsTOVS: Unknown instrument!')
+      if (IINSTRUMENT(JL) == -1) call rti_abort ('oer_readObsErrorsTOVS: Unknown instrument!')
 
       do JI = 1, NUMCHNIN(JL)
         read(ILUTOV,*) ICHNIN(JI,JL), TOVERRIN(ICHNIN(JI,JL),1,JL), TOVERRIN(ICHNIN(JI,JL),2,JL), IUTILST(ICHNIN(JI,JL),JL), tovsObsInflation(ICHNIN(JI,JL),JL)
@@ -481,7 +482,7 @@ contains
     if (tvs_mwAllskyAssim) then
       ilutov2 = 10
       IER =  FNOM(ILUTOV2,'stats_tovs_symmetricObsErr','SEQ+FMT',0)
-      if (IER < 0) call utl_abort ('oer_readObsErrorsTOVS: Problem opening symmetricObsErr file.')
+      if (IER < 0) call rti_abort ('oer_readObsErrorsTOVS: Problem opening symmetricObsErr file.')
 
       read(ILUTOV2,*)
       read(ILUTOV2,*) INUMSAT2
@@ -510,19 +511,19 @@ contains
           if (wordCount == 3) then
             instrumId = IINSTRUMENT(JL)
             if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
-              call utl_abort ('oer_readObsErrorsTOVS: provide new stats_tovs_symmetricObsErr file for all-sky TT/HU.')
+              call rti_abort ('oer_readObsErrorsTOVS: provide new stats_tovs_symmetricObsErr file for all-sky TT/HU.')
             end if
             read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL)
           else if (wordCount == 4) then
             read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
           else
-            call utl_abort ('oer_readObsErrorsTOVS: incorrect number of words in stats_tovs_symmetricObsErr file.')
+            call rti_abort ('oer_readObsErrorsTOVS: incorrect number of words in stats_tovs_symmetricObsErr file.')
           end if
         end if
 
         if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) then
           write(*,*) 'ISATID2=', ISATID2, ', NUMCHNIN2=', NUMCHNIN2
-          call utl_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
+          call rti_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
         end if
 
         do JI = 1, 3
@@ -532,7 +533,7 @@ contains
         IPLATFORM2 = tvs_getPlatformId(CPLATF)
         IINSTRUMENT2 = tvs_getInstrumentId(CINSTR)
         if (IPLATFORM2 /= IPLATFORM(JL) .or. IINSTRUMENT2 /= IINSTRUMENT(JL)) &
-          call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
+          call rti_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
           ! If reading the old style stats_tovs_symmetricObsErr, then the all-sky parameters are available only for AMSUA.
@@ -557,7 +558,7 @@ contains
           end if
 
           if (ICHNIN2(JI) /= ICHNIN(JI,JL)) &
-            call utl_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
+            call rti_abort ('oer_readObsErrorsTOVS: problem with ICHNIN2 in symmetricObsErr')
 
         end do
         read(ILUTOV2,*)
@@ -565,7 +566,7 @@ contains
       end do
 
       IER = FCLOS(ILUTOV2)
-      if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+      if (IER /= 0) call rti_abort ('oer_readObsErrorsTOVS')
 
     end if
 
@@ -634,11 +635,11 @@ contains
       ISAT =  utl_findloc(ISATID(:), tvs_satellites(JL))
       if (IPLF == 0 .OR. ISAT == 0) THEN
         write(*,'(A,I3)') 'oer_readObsErrorsTOVS: Observation errors not defined for sensor #', JL
-        call utl_abort ('oer_readObsErrorsTOVS')
+        call rti_abort ('oer_readObsErrorsTOVS')
       end if
       if (NUMCHN(JL) == 0) THEN
         write(*,'(A,I3)') 'oer_readObsErrorsTOVS: Problem setting errors for sensor #', JL
-        call utl_abort ('oer_readObsErrorsTOVS')
+        call rti_abort ('oer_readObsErrorsTOVS')
       end if
     end do
 
@@ -677,7 +678,7 @@ contains
     !       --------------
     !
     IER = FCLOS(ILUTOV)
-    if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+    if (IER /= 0) call rti_abort ('oer_readObsErrorsTOVS')
 
     ! Check all-sky channel numbers in useStateDepSigmaObs and all-sky channel numbers from NAMTOV match
     call tvs_checkAllskyChanNum(useStateDepSigmaObs(:,:))
@@ -850,7 +851,7 @@ contains
       if (instrumentNamesInflateErrAllskyTt(sensorIndex) /= '***UNDEFINED***') then
         if (instrumentIdsInflateErrAllskyTt(sensorIndex) == -1) then
           write(*,*) sensorIndex, instrumentNamesInflateErrAllskyTt(sensorIndex)
-          call utl_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky TT')
+          call rti_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky TT')
         end if
       else
         numInstrumInflateErrAllskyTt = sensorIndex - 1
@@ -864,7 +865,7 @@ contains
       if (instrumentNamesInflateErrAllskyHu(sensorIndex) /= '***UNDEFINED***') then
         if (instrumentIdsInflateErrAllskyHu(sensorIndex) == -1) then
           write(*,*) sensorIndex, instrumentNamesInflateErrAllskyHu(sensorIndex)
-          call utl_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky Hu')
+          call rti_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky Hu')
         end if
       else
         numInstrumInflateErrAllskyHu = sensorIndex - 1
@@ -910,7 +911,7 @@ contains
       write(*,*) 'oer_readObsErrorsCONV: reads observation errors in obserr'
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('oer_readObsErrorsCONV: NO OBSERVATION STAT FILE FOUND!!')
+      call rti_abort('oer_readObsErrorsCONV: NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     ! Read observation errors from file obserr for conventional data
@@ -921,7 +922,7 @@ contains
       write(*,*) ' opened as unit file ',nulstat
       open(unit=nulstat, file='obserr', status='OLD')
     else
-      call utl_abort('oer_readObsErrorsCONV: COULD NOT OPEN FILE obserr!!!')
+      call rti_abort('oer_readObsErrorsCONV: COULD NOT OPEN FILE obserr!!!')
     end if
 
     write(*, '(A)') ' '
@@ -1051,7 +1052,7 @@ contains
       write(*,*) 'oer_readObsErrorsICE: reads observation errors in ',fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort('oer_readObsErrorsICE: NO OBSERVATION STAT FILE FOUND!!')
+      call rti_abort('oer_readObsErrorsICE: NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     ! Read observation errors from file
@@ -1062,7 +1063,7 @@ contains
       write(*,*) ' opened as unit file ',nulstat
       open(unit=nulstat, file=fileName, status='OLD')
     else
-      call utl_abort('oer_readObsErrorsICE: COULD NOT OPEN FILE '//fileName//'!!!')
+      call rti_abort('oer_readObsErrorsICE: COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
     if (mmpi_myid == 0) write(*, '(A)') ' '
@@ -1128,11 +1129,11 @@ contains
     if (utl_isNamelistPresent('namOceanObsErrors','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = namOceanObsErrors, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_readObsErrorsOcean: Error reading namelist')
+      if (ierr /= 0) call rti_abort('oer_readObsErrorsOcean: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml = namOceanObsErrors)
       call utl_tmg_stop(181)
       if (numberOceanDatasets /= MPC_missingValue_INT) then
-        call utl_abort('oer_readObsErrorsOcean: check namOceanObsErrors '// &
+        call rti_abort('oer_readObsErrorsOcean: check namOceanObsErrors '// &
                        'namelist section: numberOceanDatasets should be removed')
       end if
       numberOceanDatasets = 0
@@ -1147,7 +1148,7 @@ contains
         numberOceanDatasets = numberOceanDatasets + 1
       end do
     else
-       call utl_abort('oer_readObsErrorsOcean: namOceanObsErrors is missing in the namelist.')
+       call rti_abort('oer_readObsErrorsOcean: namOceanObsErrors is missing in the namelist.')
     end if
 
   end subroutine oer_readObsErrorsOcean
@@ -1172,7 +1173,7 @@ contains
       write(*,*) myName//': reads observation errors in ', fileName
       write(*,*) '--------------------------------------------------------'
     else
-      call utl_abort(myName//': NO OBSERVATION STAT FILE FOUND!!')
+      call rti_abort(myName//': NO OBSERVATION STAT FILE FOUND!!')
     end if
 
     nulstat=0
@@ -1182,7 +1183,7 @@ contains
       write(*,*) myName//' opened as unit file ',nulstat
       open(unit=nulstat, file=fileName, status='OLD')
     else
-      call utl_abort(myName//': COULD NOT OPEN FILE '//fileName//'!!!')
+      call rti_abort(myName//': COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
     read(nulstat, *)    xstd_hydro(1)
@@ -1452,13 +1453,13 @@ contains
               if (surfaceObsTypeNumber >= 5) then
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(icodtyp, 5))
               else
-                call utl_abort('oer_fillObsErrors: observation error missing for visibility')
+                call rti_abort('oer_fillObsErrors: observation error missing for visibility')
               end if
             else if (ityp == bufr_gust) then
               if (surfaceObsTypeNumber >= 6) then
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sf(icodtyp, 6))
               else
-                call utl_abort('oer_fillObsErrors: observation error missing for wind gust')
+                call rti_abort('oer_fillObsErrors: observation error missing for wind gust')
               end if
             else if (ityp == BUFR_NEFS) then ! SAR wind speed
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 2.0d0)
@@ -1600,7 +1601,7 @@ contains
                 write(*,'(a,i5,3a,2i5)') 'oer_fillObsErrors: unsupported ocean data, codtype ', codeType,', cstnid ', &
                                          cstnid,' found in ocean datasets, where oceanDataParams(indexDataset)%codeType: ', &
                                          oceanDataParams(indexDataset)%codeType, indexDataset
-                call utl_abort('oer_fillObsErrors: unsupported codeType!')
+                call rti_abort('oer_fillObsErrors: unsupported codeType!')
               end if
 
             else if (codeType == codtyp_get_codtyp('satob')) then
@@ -1609,7 +1610,7 @@ contains
               if (utl_isEqual(solarZenith, MPC_missingValue_R8)) then
                 write(*,*) 'oer_fillObsErrors: Solar zenith value is missing for satellite SST data ', &
                            cstnid, ', headerIndex: ', headerIndex,', bodyIndex: ', bodyIndex
-                call utl_abort('oer_fillObsErrors: Solar zenith value is missing!')
+                call rti_abort('oer_fillObsErrors: Solar zenith value is missing!')
               end if
 
               unsupportedSensor = .true.
@@ -1627,13 +1628,13 @@ contains
 
               if(unsupportedSensor) then
                 write(*,'(3a)') 'oer_fillObsErrors: unsupported satellite SST data sensor ', cstnid,' found in sensor_loop!'
-                call utl_abort('oer_fillObsErrors: unsupported satellite SST data sensor!')
+                call rti_abort('oer_fillObsErrors: unsupported satellite SST data sensor!')
               end if
 
             else
 
               write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found!'
-              call utl_abort('oer_fillObsErrors: unsupported codeType!')
+              call rti_abort('oer_fillObsErrors: unsupported codeType!')
 
             end if
 
@@ -1650,7 +1651,7 @@ contains
               case('DMSP16','DMSP17','DMSP18')
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(2))
               case DEFAULT
-                call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
+                call rti_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
               end select
             else if (cstnid == 'GCOM-W1') then
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(3))
@@ -1663,7 +1664,7 @@ contains
                  ! For now just put a large positive value
                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 1000.0)
               else
-                 call utl_abort('oer_fillObsErrors: UNKNOWN varno: '// trim(utl_str(ityp)) // 'station id: '//cstnid)
+                 call rti_abort('oer_fillObsErrors: UNKNOWN varno: '// trim(utl_str(ityp)) // 'station id: '//cstnid)
               end if
             else if (cstnid == 'noaa-19') then
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(5))
@@ -1678,7 +1679,7 @@ contains
             else if (index(cstnid,'RCM') == 1) then
               ! For RCM, obs-error comes from SQLite file
             else
-              call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
+              call rti_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if
 
             !***********************************************************************
@@ -1695,7 +1696,7 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsStdDevError)
             else
               write(*,*) 'oer_fillObsErrors: unsupported codeType for hydro data found in the observations: ', codeType
-              call utl_abort('oer_fillObsErrors: unsupported codeType')
+              call rti_abort('oer_fillObsErrors: unsupported codeType')
             end if
 
           else if (cfam == 'RA') then
@@ -1708,7 +1709,7 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, 1.0D0)
             else
               write(*,*) 'varnum = ', ityp
-              call utl_abort('oer_fillObsErrors: unknown varnum for RA family')
+              call rti_abort('oer_fillObsErrors: unknown varnum for RA family')
             end if
 
           else
@@ -1737,7 +1738,7 @@ contains
             write(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
                  ityp, obsPPP, obsOER
 
-            call utl_abort('oer_fillObsErrors: PROBLEM OBSERR VARIANCE.')
+            call rti_abort('oer_fillObsErrors: PROBLEM OBSERR VARIANCE.')
 
           end if
 
@@ -1822,7 +1823,7 @@ contains
       call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
-        call utl_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
+        call rti_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
       end if
 
       if (chanIsAllskyTt) then
@@ -1845,7 +1846,7 @@ contains
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
                     ', clwFG=', clwFG, ', channelNumber=', channelNumber_withOffset
-          call utl_abort('computeCloudPredictor: not usable to define obs error with CLW')
+          call rti_abort('computeCloudPredictor: not usable to define obs error with CLW')
         end if
 
       else if (chanIsAllskyHu) then
@@ -1868,7 +1869,7 @@ contains
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: siObs=', siObs, &
                     ', siFG=', siFG, ', channelNumber=', channelNumber_withOffset
-          call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
+          call rti_abort('computeCloudPredictor: not usable to define obs error with SI')
         end if
       end if
 
@@ -2135,7 +2136,7 @@ contains
       end if
     end if
 
-    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
+    if (chanIsAllskyTt .and. chanIsAllskyHu) call rti_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
 
   end subroutine oer_chanIsAllsky
 
@@ -2230,7 +2231,7 @@ contains
       do levelIndex = 1, numLevels
 
         obsIndex = obsIndex + 1
-        if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
+        if (obsIndex > obsCount) call rti_abort('readOerFromObsFileForSW: Something went wrong')
         uu_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=uuIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
         vv_oer(obsIndex) = (burp_get_tblval(blkoer, NELE_IND=vvIndex, NVAL_IND=numValues, NT_IND=levelIndex, IOSTAT=error) - 4096)/10.0
 
@@ -2256,7 +2257,7 @@ contains
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEUU) then
           obsIndex = obsIndex + 1
-          if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
+          if (obsIndex > obsCount) call rti_abort('readOerFromObsFileForSW: Something went wrong')
           call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,uu_oer(obsIndex))
         end if
       end do
@@ -2270,7 +2271,7 @@ contains
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == BUFR_NEVV) then
           obsIndex = obsIndex + 1
-          if (obsIndex > obsCount) call utl_abort('readOerFromObsFileForSW: Something went wrong')
+          if (obsIndex > obsCount) call rti_abort('readOerFromObsFileForSW: Something went wrong')
           call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,vv_oer(obsIndex))
         end if
       end do
@@ -2386,7 +2387,7 @@ contains
         end if
         if (isat == nsats) then
           write(*,*) cstnid
-          call utl_abort('oer_sw: not supported satname')
+          call rti_abort('oer_sw: not supported satname')
         end if
       end do LOOP_QI
 
@@ -2775,7 +2776,7 @@ contains
                 end select
               end do
             else
-              call utl_abort('oer_setErrGPSro: Invalid value for gps_roError')
+              call rti_abort('oer_setErrGPSro: Invalid value for gps_roError')
             endif
           else
             if (trim(gps_roError) == 'DYNAMIC') then
@@ -3099,14 +3100,14 @@ contains
                  ZZTD*1000.D0, ZTDOER*1000.D0, zlev, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
           end if
         ELSE
-          call utl_abort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
+          call rti_abort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
         end if
       end if
 
        !
     end do  HEADER
 
-    !      IF (DEBUG) call utl_abort('******DEBUG STOP*******')
+    !      IF (DEBUG) call rti_abort('******DEBUG STOP*******')
 
     IF (.not.ldata) call gps_setNumZTD(0)
 
@@ -3282,7 +3283,7 @@ contains
     IF (IERR .EQ. 0) THEN
       open(unit=nulstat, file=trim(chemAuxObsDataFile), status='OLD')
     ELSE
-      CALL utl_abort('chm_read_obs_err_stddev_file: COULD NOT OPEN AUXILIARY FILE ' // trim(chemAuxObsDataFile))
+      CALL rti_abort('chm_read_obs_err_stddev_file: COULD NOT OPEN AUXILIARY FILE ' // trim(chemAuxObsDataFile))
     ENDIF
 
     ! Read error standard deviations for constituents if available.
@@ -3345,7 +3346,7 @@ contains
 
       if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
         write(*,'(10X,"Max array size exceeded: ",I6)') isize
-        CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
+        CALL rti_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
       end if
 
       ! disregard line of dashes
@@ -3416,7 +3417,7 @@ contains
 
 10  if (ios.gt.0) then
       WRITE(*,*) 'File read error message number: ',ios
-      CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
+      CALL rti_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')
     end if
 
     CLOSE(UNIT=NULSTAT)
@@ -3479,7 +3480,7 @@ contains
           end do
        end if
        write(*,*)
-       call utl_abort('chm_obs_err_stddev_index: Check section I of the auxiliary file.')
+       call rti_abort('chm_obs_err_stddev_index: Check section I of the auxiliary file.')
     ELSE
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
@@ -3597,7 +3598,7 @@ contains
        case(4)
           obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
        case default
-          call utl_abort('chm_get_obs_err_stddev: std_type = ' // trim(utl_str(chm_std%std_type(ISTNID))) // &
+          call rti_abort('chm_get_obs_err_stddev: std_type = ' // trim(utl_str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
 
@@ -3609,10 +3610,10 @@ contains
 
        select case(stat)
        case(1)
-          call utl_abort("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
+          call rti_abort("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
                        ", nlev = " // trim(utl_str(nlev)) // ", varno = " // trim(utl_str(varno)))
        case(2)
-          call utl_abort("chm_get_obs_err_stddev: Report not found for STNID = " // trim(cstnid) // &
+          call rti_abort("chm_get_obs_err_stddev: Report not found for STNID = " // trim(cstnid) // &
                        ", nlev = " // trim(utl_str(nlev)) // ", varno = " // trim(utl_str(varno)))
        end select
 
@@ -3628,7 +3629,7 @@ contains
        case(4)
           obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*sigma)**2)
        case default
-          call utl_abort('chm_get_obs_err_stddev: std_type = ' // trim(utl_str(chm_std%std_type(ISTNID))) // &
+          call rti_abort('chm_get_obs_err_stddev: std_type = ' // trim(utl_str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
 
@@ -3699,7 +3700,7 @@ contains
       case('sensorType')
         value = oceanDataParams(itemIndex)%sensorType
       case default
-        call utl_abort('oer_getOceanDataParam_char: invalid item '//(trim(item)))
+        call rti_abort('oer_getOceanDataParam_char: invalid item '//(trim(item)))
     end select
 
   end function oer_getOceanDataParam_char
@@ -3724,7 +3725,7 @@ contains
         case('codeType')
           value = oceanDataParams(itemIndex_opt)%codeType
         case default
-          call utl_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
+          call rti_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
       end select
     else
       select case(trim(item))
@@ -3733,7 +3734,7 @@ contains
         case('numberOceanDatasets')
           value = numberOceanDatasets
         case default
-          call utl_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
+          call rti_abort('oer_getOceanDataParam_int: invalid item '//(trim(item)))
       end select
 
     end if
@@ -3761,7 +3762,7 @@ contains
       case('nightError')
         value = oceanDataParams(itemIndex)%nightError
       case default
-        call utl_abort('oer_getOceanDataParam_R8: invalid item '//(trim(item)))
+        call rti_abort('oer_getOceanDataParam_R8: invalid item '//(trim(item)))
     end select
 
   end function oer_getOceanDataParam_R8

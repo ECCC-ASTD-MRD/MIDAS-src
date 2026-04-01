@@ -11,6 +11,7 @@ module climatologies_mod
   use presProfileOperators_mod
   use obsSubSpaceData_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use timeCoord_mod
 
@@ -152,7 +153,7 @@ contains
     else
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namclimatology, iostat=ierr)
-      if (ierr /= 0) call utl_abort('clm_readFields: Error reading namelist NAMCLIMATOLOGY')
+      if (ierr /= 0) call rti_abort('clm_readFields: Error reading namelist NAMCLIMATOLOGY')
       call utl_tmg_stop(181)
     end if
     if (mmpi_myid == 0) write(*,nml=namclimatology)
@@ -174,7 +175,7 @@ contains
     maxNumFields = maxNumFields - 1
 
     if ( maxNumTypes > 2 ) then
-      call utl_abort('clm_readFields: Allowed max number of fields per constituent is 2')
+      call rti_abort('clm_readFields: Allowed max number of fields per constituent is 2')
     end if
 
     allocate(climatFields(0:maxNumConstituents,maxNumTypes))
@@ -215,7 +216,7 @@ contains
           fname = trim(climatSourceFileDefault)
           inquire(file=trim(fname),exist=fileExists)
           if (.not.fileExists) then
-            call utl_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
+            call rti_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
           end if
         end if
       else
@@ -226,7 +227,7 @@ contains
         fname = trim(climatSourceFileDefault)
         inquire(file=trim(fname),exist=fileExists)
         if (.not.fileExists) then
-          call utl_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
+          call rti_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
         end if
       end if
 
@@ -236,11 +237,11 @@ contains
             vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
           climVarName = 'O3'
           if (fieldDimension(varIndex) /= 2) then
-            call utl_abort('clm_readFields: Invalid field dimension for ' // trim(varName) // &
+            call rti_abort('clm_readFields: Invalid field dimension for ' // trim(varName) // &
                            ' in ' // trim(fname))
           end if
         else
-          call utl_abort('clm_readFields: Invalid climatology file ' // trim(fname) // &
+          call rti_abort('clm_readFields: Invalid climatology file ' // trim(fname) // &
                          ' for ' // trim(varName))
         end if
       else
@@ -267,13 +268,13 @@ contains
 
       constituentId = vnl_varnumFromVarName(varName,'CH')
       if (constituentId /=0 .and. numFields(varIndex) > 1) then
-        call utl_abort('clm_readFields: numFields > 1 only allowed for ozone currently')
+        call rti_abort('clm_readFields: numFields > 1 only allowed for ozone currently')
       end if
       ! Set interpolation approach
       nearestNeighbourInterp(constituentId) = nearNeighbourInterp(varIndex)
 
       if ( fieldDimension(varIndex) <= 1 .and. numFields(varIndex) > 1 ) then
-        call utl_abort('clm_readFields: Separate strato and tropo input ' &
+        call rti_abort('clm_readFields: Separate strato and tropo input ' &
             // 'climatologies only for 2D and 3D fields')
       end if
 
@@ -286,7 +287,7 @@ contains
         if ( sourceIndex == 2 ) then
           ! Not currently applied. Standin for eventual use.
           etiket = '            '
-          call utl_abort('clm_readFields: numFields=2 case tbc')
+          call rti_abort('clm_readFields: numFields=2 case tbc')
         else
           etiket = '            '
         end if
@@ -296,7 +297,7 @@ contains
           ! Mixing ratio set later by the constant in climatScaling
           ! Currently assumed to be relevant only for GHGs
 
-          if ( .not.clm_isGHG(trim(varName)) ) call utl_abort('clm_readFields: Needs to be a GHG')
+          if ( .not.clm_isGHG(trim(varName)) ) call rti_abort('clm_readFields: Needs to be a GHG')
 
           if (trim(climVarName) == '') climVarName = varName
           allocate(array1(1,1,1),lvls(1),xlat(1),xlong(1))
@@ -337,7 +338,7 @@ contains
               lvls(1:nkeys) = climatLevels(varIndex,1:nkeys)
               vertCoordKind = 2
             else
-              call utl_abort('clm_readFields: Missing set up for levels')
+              call rti_abort('clm_readFields: Missing set up for levels')
             end if
           end if
 
@@ -534,11 +535,11 @@ contains
     logical, allocatable :: success(:)
 
     if (.not.present(climatProfileSet_opt) .and. .not.present(climatProfile_opt)) then
-      call utl_abort('clm_setColumn: Missing output array argument.')
+      call rti_abort('clm_setColumn: Missing output array argument.')
     end if
 
     if (.not.allocated(climatFields)) then
-      call utl_abort('clm_setColumn: Climatologies not set.')
+      call rti_abort('clm_setColumn: Climatologies not set.')
     end if
     if (climatFields(constituentId,1)%nlat == 0 .or. &
         climatFields(constituentId,1)%nlon == 0 .or. &
@@ -558,11 +559,11 @@ contains
       ! Account for relative difference in pressure of dry air and humid air.
 
       !if ( .not. present(hu_opt) ) then
-      !  call utl_abort('clm_setColumn: Missing HU for determining ' // &
+      !  call rti_abort('clm_setColumn: Missing HU for determining ' // &
       !               'mixing ratio in dry air ')
       !end if
       !if ( any(hu_opt <= 0.0d0) ) then
-      !  call utl_abort('clm_setColumn: Invalid HU for determining ' // &
+      !  call rti_abort('clm_setColumn: Invalid HU for determining ' // &
       !                 'mixing ratio in dry air density')
       !end if
 
@@ -604,7 +605,7 @@ contains
       else if (climatFields(constituentId,1)%vertCoordKind == 1) then
         pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa
       else
-        call utl_abort('clm_setColumn: Cannot handle vertical coordinate of kind ' &
+        call rti_abort('clm_setColumn: Cannot handle vertical coordinate of kind ' &
             // trim(utl_str(climatFields(constituentId,1)%vertCoordKind)))
       end if
 
@@ -634,11 +635,11 @@ contains
         ! (i.e. for combining distinct lower and middle atmosphere sources)
 
         if ( .not. present(tt_opt) ) then
-          call utl_abort('clm_setColumn: Missing TT for determining ' // &
+          call rti_abort('clm_setColumn: Missing TT for determining ' // &
               'tropopause pressure')
         end if
         if ( any(tt_opt <= 0.0d0) ) then
-          call utl_abort('clm_setColumn: Invalid TT for determining ' // &
+          call rti_abort('clm_setColumn: Invalid TT for determining ' // &
               'tropopause pressure')
         end if
 
@@ -657,7 +658,7 @@ contains
         end if
 
         if (tropo_press <= 0) then
-          call utl_abort('clm_setColumn: Invalid tropopause level')
+          call rti_abort('clm_setColumn: Invalid tropopause level')
         end if
         ! Set vertical levels of reference.
         ! Convert to pressure coordinate if needed
@@ -689,7 +690,7 @@ contains
         else if (climatFields(constituentId,2)%vertCoordKind == 1) then
           pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa
         else
-          call utl_abort('clm_setColumn: Cannot handle vertical ' // &
+          call rti_abort('clm_setColumn: Cannot handle vertical ' // &
               'coordinate of kind ' // trim(utl_str(climatFields(constituentId,2)%vertCoordKind)))
         end if
 
@@ -743,7 +744,7 @@ contains
     climatProfileSet_opt%nrep = climatProfileSet_opt%nrep+1
 
     if (climatProfileSet_opt%nrep > maxsize) then
-      call utl_abort('clm_setColumn: Reach max size of array ' // &
+      call rti_abort('clm_setColumn: Reach max size of array ' // &
           trim(utl_str(maxsize)) )
     end if
 
@@ -777,7 +778,7 @@ contains
 
     profile = oss_obsdata_get_array1d(climatProfileSet,code,status)
     if (status > 0) then
-      call utl_abort("clm_getColumn: Code not found - " // trim(code))
+      call rti_abort("clm_getColumn: Code not found - " // trim(code))
     end if
 
   end function clm_getColumn
@@ -842,7 +843,7 @@ contains
 
     inquire(file=climScaling,exist=fileExists)
     if ( .not. fileExists ) then
-      call utl_abort('clm_getUnitsScaling: Did not find file climatScaling' )
+      call rti_abort('clm_getUnitsScaling: Did not find file climatScaling' )
     end if
 
     nulunScaling = 0
@@ -903,7 +904,7 @@ contains
         end if
       end do
     case default
-      call utl_abort('clm_getUnitsScaling: GHG scaling factor not found for ' &
+      call rti_abort('clm_getUnitsScaling: GHG scaling factor not found for ' &
           // trim(varName) )
     end select
 
@@ -917,7 +918,7 @@ contains
     end if
 
 20  if (iosScaling > 0) then
-      call utl_abort('clm_getUnitsScaling: READING PROBLEM.' // &
+      call rti_abort('clm_getUnitsScaling: READING PROBLEM.' // &
           ' File read error message number: ' // trim(utl_str(iosScaling)))
     end if
 

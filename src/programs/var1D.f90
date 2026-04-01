@@ -132,6 +132,7 @@ program midas_var1D
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -240,7 +241,7 @@ program midas_var1D
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=NAM1DVAR, iostat=ierr)
     call utl_tmg_stop(181)
-    if(ierr.ne.0) call utl_abort('midas-var1D: Error reading namelist')
+    if(ierr.ne.0) call rti_abort('midas-var1D: Error reading namelist')
   end if
 
   if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
@@ -256,7 +257,7 @@ program midas_var1D
     if (dateStampFromObs > 0) then
       call tim_setDatestamp(dateStampFromObs)
     else
-      call utl_abort('midas-var1D: DateStamp was not set')
+      call rti_abort('midas-var1D: DateStamp was not set')
     end if
   end if
 
@@ -329,7 +330,7 @@ program midas_var1D
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'midas-var1D: Problem allocating memory for ''controlVectorIncr''',ierr
-    call utl_abort('aborting in VAR1D')
+    call rti_abort('aborting in VAR1D')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   call msg_memUsage('midas-var1D')
