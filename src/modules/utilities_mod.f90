@@ -7,7 +7,6 @@ module utilities_mod
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use omp_lib
   use netcdf
-  use rmn_date
   use rmn_fst98
   use clibInterfaces_mod
   use randomNumber_mod
@@ -585,7 +584,7 @@ contains
 
 
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
-                           cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind, &
+                           cdvar,knmaxlev,kinmpg,kip1style,kip1kind, &
                            ktrials,koutmpg)
     !
     !:Purpose:  Get 3D grid parameters for a specific trial field
@@ -595,7 +594,6 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(out) :: kstampv
     integer,          intent(in)  :: knmaxlev
     integer,          intent(out) :: knlev
     integer,          intent(out) :: kgid
@@ -612,13 +610,11 @@ contains
     character(len=*), intent(out) :: cdetiket
 
     ! Locals:
-    integer :: ini,inj,ink,jlev,ier
+    integer :: k,ini,inj,ink,jlev,ier
     integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf
     integer :: iextra1, iextra2, iextra3, iig12, iig22
     integer :: iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4
-    integer :: inpas,inpas2, iswa, iubc, iip2, iip3
-    integer :: ipmode,idate2(2),idate3,idatefull
-    integer :: k,ier1
+    integer :: ipmode,inpas,inpas2, iswa, iubc, iip2, iip3
     real(4) :: zlev_r4
     character(len=12) :: cletiket
     character(len=4)  :: clnomvar
@@ -647,9 +643,6 @@ contains
        end if
        !
        if(knlev > 0 ) then
-          ier1   = newdate(kstampv,idate2,idate3,-3)
-
-          idatefull = idate2(1)*100 + idate3/1000000
           idateo = MPC_missingValue_INT
           ideet = MPC_missingValue_INT
           inpas = MPC_missingValue_INT
@@ -708,7 +701,7 @@ contains
                   '****** Unit ', kinmpg &
                   ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3' &
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
-                  ,'for variable ',cdvar,' and datev, ',kstampv
+                  ,'for variable ',cdvar
              call utl_abort('GETFLDPRM2')
           end if
        end do
@@ -735,9 +728,8 @@ contains
           ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1, &
                ' ',cdvar,ikeys, knlev, knmaxlev)
        end do
-       write(*,*) 'Error - getfldprm2: no record found at time ' &
-            ,idatefull,' for field ',cdvar,' but',knlev, &
-            ' records found in unit ',kinmpg(k)
+       write(*,*) 'Error - getfldprm2: no record found for field ', cdvar, &
+                  ' but', knlev, ' records found in unit ', kinmpg(k)
        call utl_abort('GETFLDPRM2')
     end if
     !

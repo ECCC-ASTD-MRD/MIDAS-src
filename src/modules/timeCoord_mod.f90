@@ -11,6 +11,7 @@ module timeCoord_mod
   use varNameList_mod
   use utilities_mod
   use message_mod
+  use utilities_mod
 
   implicit none
   save

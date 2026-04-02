@@ -1104,7 +1104,7 @@ CONTAINS
     nulbgsts(1) = nulbgst
 
     call utl_getfldprm(IP1S, IP2, IP3, INLEV, CLETIKET, CLTYPVAR, ITGGID,  &
-                       clnomvar, idateo, inmxlev, nulbgsts, ip1style, ip1kind,  &
+                       clnomvar, inmxlev, nulbgsts, ip1style, ip1kind,  &
                        ntrials, koutmpg)
     ip1 = ip1s(1)
 
