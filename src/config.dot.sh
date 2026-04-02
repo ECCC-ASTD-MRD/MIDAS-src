@@ -242,11 +242,11 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading rpn/code-tools/20251217/env/${__compiler}"
     . r.load.dot rpn/code-tools/20251217/env/${__compiler}
 
-    echo "... loading eccc/mrd/rpn/libs/20260316-beta"
-    . r.load.dot eccc/mrd/rpn/libs/20260316-beta
+    echo "... loading eccc/mrd/rpn/libs/20260401-beta"
+    . r.load.dot eccc/mrd/rpn/libs/20260401-beta
 
-    echo "... loading eccc/mrd/rpn/utils/20260316-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
-    . r.load.dot eccc/mrd/rpn/utils/20260316-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
+    echo "... loading eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
+    . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
     echo "... loading eccc/cmd/cmda/libs/20251009-beta/${COMP_ARCH}"
     . ssmuse-sh -d eccc/cmd/cmda/libs/20251009-beta/${COMP_ARCH}

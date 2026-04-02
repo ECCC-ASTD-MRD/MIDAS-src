@@ -69,10 +69,10 @@ echo "tty -s || set +x" >> load_env.dot
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.dot
     echo . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0 >> load_env.dot
-    echo echo loading eccc/mrd/rpn/libs/20260316-beta >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/libs/20260316-beta >> load_env.dot
-    echo echo loading eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
-    echo . r.load.dot eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20260401-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/libs/20260401-beta >> load_env.dot
+    echo echo loading eccc/mrd/rpn/utils/20260401-beta >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/utils/20260401-beta >> load_env.dot
 
     ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
     ## because the programs are not compiled statically with this

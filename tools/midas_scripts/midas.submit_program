@@ -156,8 +156,8 @@ case "${env}" in
     main)
         _compiler_=inteloneapi-2025.1.0
         ssm_to_load="rpn/code-tools/20251217/env/${_compiler_}                               \
-                     eccc/mrd/rpn/libs/20260316-beta                                         \
-                     eccc/mrd/rpn/utils/20260316-beta                                        \
+                     eccc/mrd/rpn/libs/20260401-beta                                         \
+                     eccc/mrd/rpn/utils/20260401-beta                                        \
                      main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${_compiler_}/01"
         ;;
     *)
