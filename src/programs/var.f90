@@ -333,7 +333,7 @@ program midas_var
 
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
-    call utl_writeStatus(clmsg)
+    call rti_writeStatus(clmsg)
   end if
 
   varMode='analysis'
@@ -656,7 +656,7 @@ program midas_var
 
   if (mmpi_myid == 0) then
     clmsg = 'REBM_DONE'
-    call utl_writeStatus(clmsg)
+    call rti_writeStatus(clmsg)
   end if
 
   ! write the Hessian
@@ -687,7 +687,7 @@ program midas_var
 
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_END'
-    call utl_writeStatus(clmsg)
+    call rti_writeStatus(clmsg)
   end if
 
   call rti_printTime()

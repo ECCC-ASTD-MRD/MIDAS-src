@@ -157,7 +157,7 @@ program midas_oMinusF
   call rti_printTime()
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('VAR3D_BEG')
+    call rti_writeStatus('VAR3D_BEG')
   endif
 
   ! Read the namelists
@@ -269,7 +269,7 @@ program midas_oMinusF
   call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('VAR3D_END')
+    call rti_writeStatus('VAR3D_END')
   endif
 
 end program midas_oMinusF

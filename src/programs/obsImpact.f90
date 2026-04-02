@@ -225,7 +225,7 @@ program midas_obsImpact
   call rti_printTime()
 
   if (mmpi_myid == 0) then
-    call utl_writeStatus('VAR3D_BEG')
+    call rti_writeStatus('VAR3D_BEG')
   end if
 
   ! Read the namelists
@@ -386,7 +386,7 @@ program midas_obsImpact
   istamp = exfin('OBSIMPACT','FIN','NON')
 
   if (mmpi_myid == 0) then
-    call utl_writeStatus('VAR3D_END')
+    call rti_writeStatus('VAR3D_END')
   endif
 
   call rti_printTime()

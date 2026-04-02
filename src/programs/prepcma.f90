@@ -178,7 +178,7 @@ program midas_prepcma
   call rti_tmg_start(0,'Main')
   call rti_printTime()
 
-  if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
+  if ( mmpi_myid == 0 ) call rti_writeStatus('PREPCMA_BEG')
 
   call utl_readNml()
 
@@ -392,7 +392,7 @@ program midas_prepcma
   call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('PREPCMA_END')
+    call rti_writeStatus('PREPCMA_END')
   end if
 
 contains

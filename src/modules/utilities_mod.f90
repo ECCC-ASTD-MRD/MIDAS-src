@@ -17,22 +17,20 @@ module utilities_mod
   private
 
   ! Public procedures
-  public :: utl_readNml, utl_flnml, utl_flnml_static
-  public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
+  public :: utl_readNml, utl_flnml, utl_flnml_static, utl_isNamelistPresent
+  public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr, utl_readFstField
   public :: utl_unitConvMultFactor_r8, utl_unitConvMultFactor_r4
-  public :: utl_writeStatus, utl_getfldprm
+  public :: utl_getfldprm
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
-  public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
-  public :: utl_readFstField
+  public :: utl_get_stringId, utl_get_Id
   public :: utl_reAllocate
   public :: utl_heapsort1d, utl_heapsort2d
   public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_findloc, utl_findlocs
+  public :: utl_findloc, utl_findlocs, utl_medianIndex
   public :: utl_randomOrderInt, utl_cosDegrees
-  public :: utl_medianIndex
-  public :: utl_fileType, utl_checkNetCDFstatus
+  public :: utl_copyFile, utl_fileType, utl_checkNetCDFstatus
   public :: utl_varPresentInNetcdfFile
 
   ! module interfaces
@@ -484,30 +482,6 @@ contains
     end select
 
   end function utl_unitConvMultFactor_r8
-
-  !--------------------------------------------------------------------------
-  ! utl_writeStatus
-  !--------------------------------------------------------------------------
-  subroutine utl_writeStatus(cmsg)
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: cmsg
-
-    ! Locals:
-    INTEGER :: iulstatus, ierr
-    character(len=22):: clmsg
-    ! external definitions
-    integer, external :: fnom, fclos
-
-    clmsg='VAR3D_STATUS='//cmsg
-    iulstatus = 0
-    IERR =  FNOM(iulstatus,'VAR3D_STATUS.dot','SEQ+FMT',0)
-    rewind (iulstatus)
-    WRITE(iulstatus,'(a22)') clmsg
-    ierr = fclos(iulstatus)
-
-  end subroutine utl_writeStatus
 
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
                            cdvar,knmaxlev,kinmpg,kip1style,kip1kind, &

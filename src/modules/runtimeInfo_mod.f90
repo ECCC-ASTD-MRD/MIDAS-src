@@ -16,6 +16,7 @@ module runtimeInfo_mod
   ! Public routines
   public :: rti_abort, rti_printTime
   public :: rti_tmg_start, rti_tmg_stop
+  public :: rti_writeStatus
 
 contains
 
@@ -154,5 +155,32 @@ contains
     call tmg_stop(blockIndex)
 
   end subroutine rti_tmg_stop
+
+  !--------------------------------------------------------------------------
+  ! rti_writeStatus
+  !--------------------------------------------------------------------------
+  subroutine rti_writeStatus(cmsg)
+    !
+    !:Purpose: Create the file 'VAR3D_STATUS.dot' and write content to it
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: cmsg
+
+    ! Locals:
+    integer :: iulstatus, ierr
+    character(len=22):: clmsg
+    ! external definitions
+    integer, external :: fnom, fclos
+
+    clmsg = 'VAR3D_STATUS='//cmsg
+    iulstatus = 0
+    ierr = fnom(iulstatus, 'VAR3D_STATUS.dot', 'SEQ+FMT', 0)
+    rewind (iulstatus)
+    WRITE(iulstatus,'(a22)') clmsg
+    ierr = fclos(iulstatus)
+
+  end subroutine rti_writeStatus
 
 end module runtimeInfo_mod
