@@ -7,6 +7,9 @@ module runtimeInfo_mod
   !
   use mpi_f08
   use omp_lib
+#ifdef __INTEL_LLVM_COMPILER
+  use ifcore, only: tracebackqq
+#endif
 
   implicit none
 
@@ -32,6 +35,12 @@ contains
     write(6,9000) message
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
     flush(6)
+
+#ifdef __INTEL_LLVM_COMPILER
+    ! We must provide a 'user_exit_code'.  With only 'status', the
+    ! code aborts rightaway with the chance to run 'mpi_abort' after.
+    call tracebackqq(user_exit_code=-1, status=ierr)
+#endif
 
     call mpi_abort(mpi_comm_world, 1, ierr)
 
