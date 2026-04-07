@@ -62,7 +62,7 @@ ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::rand
 
 add_executable(pseudoOceanIceObs pseudoOceanIceObs.f90)
 target_link_libraries(pseudoOceanIceObs PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burpmodule random hpcoperf)
+${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
 add_executable(randomPert randomPert.f90)
 target_link_libraries(randomPert PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas random::random)
