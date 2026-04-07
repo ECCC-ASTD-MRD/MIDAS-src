@@ -87,7 +87,7 @@ CONTAINS
     else
       write(*,*)
       write(*,*) 'Vcode = ', loc%vco%Vcode
-      call rti_abort('loc_setup: unknown Vcode') 
+      call rti_abort('loc_setup: unknown Vcode')
     end if
 
     select case (trim(loc%locType))
@@ -104,7 +104,7 @@ CONTAINS
     end select
 
     loc%cvDim = cvDim_out
-    loc%nEnsOverDimension = nEnsOverDimension 
+    loc%nEnsOverDimension = nEnsOverDimension
 
     !
     !- 3.  Ending
@@ -207,7 +207,7 @@ CONTAINS
     end select
 
   end subroutine loc_reduceToMPILocal
- 
+
   !--------------------------------------------------------------------------
   ! loc_reduceToMPILocal_r4
   !--------------------------------------------------------------------------
@@ -231,7 +231,7 @@ CONTAINS
     end select
 
   end subroutine loc_reduceToMPILocal_r4
- 
+
   !--------------------------------------------------------------------------
   ! loc_expandToMPIGlobal
   !--------------------------------------------------------------------------
@@ -244,7 +244,7 @@ CONTAINS
     real(8),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
-    
+
     select case (trim(loc%locType))
     case('spectral')
       call lsp_expandToMPIGlobal(loc%lsp, cv_mpilocal,  & ! IN
@@ -267,7 +267,7 @@ CONTAINS
     real(4),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
-    
+
     select case (trim(loc%locType))
     case('spectral')
       call lsp_expandToMPIGlobal_r4(loc%lsp, cv_mpilocal, & ! IN
