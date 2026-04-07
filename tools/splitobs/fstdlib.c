@@ -194,7 +194,7 @@ int padtime(char* argv) {
   tim = atoi(timstr);
 
   mode = 3;
-  f77name(newdate)(&datev,&dat,&tim,&mode);  /* printable to CMCstamp */
+  newdate_c(&datev,&dat,&tim,&mode);  /* printable to CMCstamp */
 
   return datev;
 
