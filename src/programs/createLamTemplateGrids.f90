@@ -37,7 +37,8 @@ program midas_createLamTemplateGrids
   !
   !           - **Computation:**
   !
-  !             - Adjust the demanded extension zone to ensure that the exteded grid is compatible with fast FFT
+  !             - Adjust the demanded extension zone to ensure that the extended grid is compatible with fast FFT
+  !               and of even dimensions
   !
   !             - Define and write the analysis grids
   !
@@ -88,13 +89,29 @@ program midas_createLamTemplateGrids
   !
   !- 2. Create LAM template grids
   !
+
+  ! Find the x dimension >= ni_ext_adjusted compatible with fast FFT
   ni_ext = hco_inputFile%ni + grd_ext_x
   ni_ext_adjusted = ni_ext
   call lst_nFFT(ni_ext_adjusted)
+
+  ! Make sure that the x dimension is even
+  do while (mod(ni_ext_adjusted,2) /= 0)
+    ni_ext_adjusted = ni_ext_adjusted + 1
+    call lst_nFFT(ni_ext_adjusted)
+  end do
+  
+  ! Find the y dimension >= nj_ext_adjusted compatible with fast FFT
   nj_ext = hco_inputFile%nj + grd_ext_y
   nj_ext_adjusted = nj_ext
   call lst_nFFT(nj_ext_adjusted)
 
+  ! Make sure that the y dimension is even
+  do while (mod(nj_ext_adjusted,2) /= 0)
+    nj_ext_adjusted = nj_ext_adjusted + 1
+    call lst_nFFT(nj_ext_adjusted)
+  end do
+  
   grd_ext_x_adjusted = ni_ext_adjusted - hco_inputFile%ni
   grd_ext_y_adjusted = nj_ext_adjusted - hco_inputFile%nj
 
