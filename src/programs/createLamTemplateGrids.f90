@@ -45,12 +45,15 @@ program midas_createLamTemplateGrids
   !           --
   !
   !:Options: No namelist is needed for this program. The needed info is provided by 3 program calling arguments
-  !          * -inputFile : The FST file containing the P0 on the desired core analysis grid
-  !          * -grd_ext_x : The minimum extension in x direction 
-  !          * -grd_ext_y : The minimum extension in y direction
+  !
+  !          - ``-inputFile`` : The FST file containing the P0 on the desired core analysis grid
+  !
+  !          - ``-grd_ext_x`` : The minimum extension in x direction
+  !
+  !          - ``-grd_ext_y`` : The minimum extension in y direction
   !
   !
- 
+
   use version_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -100,7 +103,7 @@ program midas_createLamTemplateGrids
     ni_ext_adjusted = ni_ext_adjusted + 1
     call lst_nFFT(ni_ext_adjusted)
   end do
-  
+
   ! Find the y dimension >= nj_ext_adjusted compatible with fast FFT
   nj_ext = hco_inputFile%nj + grd_ext_y
   nj_ext_adjusted = nj_ext
@@ -111,14 +114,14 @@ program midas_createLamTemplateGrids
     nj_ext_adjusted = nj_ext_adjusted + 1
     call lst_nFFT(nj_ext_adjusted)
   end do
-  
+
   grd_ext_x_adjusted = ni_ext_adjusted - hco_inputFile%ni
   grd_ext_y_adjusted = nj_ext_adjusted - hco_inputFile%nj
 
   write(*,*)
   write(*,'(A,I4,I4)') '           Requested extension zone ', grd_ext_x, grd_ext_y
   write(*,'(A,I4,I4)') ' Fast FFT compatible extension zone ', grd_ext_x_adjusted, grd_ext_y_adjusted
-  
+
   call lgt_createLamTemplateGrids('./analysisgrid', hco_inputFile, vco_inputFile, & ! IN
                                   grd_ext_x_adjusted, grd_ext_y_adjusted)           ! IN
 
@@ -129,7 +132,7 @@ program midas_createLamTemplateGrids
   write(*,*) '--------------------------------'
   write(*,*) '> ENDING createLamTemplateGrids '
   write(*,*) '--------------------------------'
-  
+
 end program midas_createLamTemplateGrids
 
 !----------------------------------------------------------------------
@@ -140,7 +143,7 @@ subroutine get_inputArguments(inputFileName, grd_ext_x, grd_ext_y)
   ! :Purpose: To read program calling arguments
   !
   use utilities_mod
-  
+
   implicit none
 
   ! Arguments:
@@ -153,7 +156,7 @@ subroutine get_inputArguments(inputFileName, grd_ext_x, grd_ext_y)
 
   character(len=24)  :: arg(nArguments)
   character(len=256) :: argDefaultValue1(nArguments)
-  character(len=256) :: argDefaultValue2(nArguments) 
+  character(len=256) :: argDefaultValue2(nArguments)
 
   !- Program argument...
   !  names
