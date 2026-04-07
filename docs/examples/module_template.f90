@@ -8,7 +8,10 @@ module verticalCoord_mod
   use mathPhysConstants_mod
   use vGrid_Descriptors
   use utilities_mod
+  use runtimeInfo_mod
+
   implicit none
+
   private
 
   ! public derived type
@@ -49,7 +52,7 @@ module verticalCoord_mod
     statusSum = statusSum + status
 
     if(statusSum /= 0 ) then
-      call utl_abort('vco_allocate: problem with allocate in vco')
+      call rti_abort('vco_allocate: problem with allocate in vco')
     end if
 
   end subroutine vco_allocate
@@ -71,7 +74,7 @@ module verticalCoord_mod
     write(*,*) '                   ip1             = ', ip1
 
     if ( associated(vco) ) then
-      call utl_abort('vco_setupManual: the supplied vco pointer is not null!')
+      call rti_abort('vco_setupManual: the supplied vco pointer is not null!')
     end if
 
     allocate(vco)
