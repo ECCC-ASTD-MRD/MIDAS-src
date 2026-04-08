@@ -35,6 +35,22 @@ midas_build:
   tags:
     - ${RUNNER_TAG}
 
+createLamTemplateGrids_tests:
+   stage: test
+   parallel:
+     matrix:
+       - RUNNER_TAG: hpcr-u3
+   script:
+     - version=$(./midas.version)
+     - cd tools/createLamTemplateGrids
+     - ./test.sh ${MIDAS_ABS}/${version}/midas-createLamTemplateGrids_${ORDENV_PLAT}-${version}.Abs
+   only:
+     - main
+     - v_4.1
+     - tags
+   tags:
+     - ${RUNNER_TAG}
+
 monitor_tests:
    stage: test
    parallel:
@@ -43,7 +59,7 @@ monitor_tests:
    script:
      - version=$(./midas.version)
      - cd tools/monitor
-     - ./test.sh ${MIDAS_ABS}/${version}/midas.monitor-$(../../midas.version).Abs
+     - ./test.sh ${MIDAS_ABS}/${version}/midas.monitor-${version}.Abs
    only:
      - main
      - v_4.1

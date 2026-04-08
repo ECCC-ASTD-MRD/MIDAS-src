@@ -9,6 +9,9 @@ ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::rand
 add_executable(calcStats calcStats.f90)
 target_link_libraries(calcStats PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas random::random)
 
+add_executable(createLamTemplateGrids createLamTemplateGrids.f90)
+target_link_libraries(createLamTemplateGrids PRIVATE rmn::rmn-ompi vgrid::vgrid midas random::random)
+
 add_executable(dfs dfs.f90)
 target_link_libraries(dfs PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas random::random
 ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp)
@@ -77,15 +80,15 @@ ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
 add_executable(var var.f90)
 target_link_libraries(var PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid  midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
+  ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
 add_executable(var1D var1D.f90)
 target_link_libraries(var1D PRIVATE MPI::MPI_Fortran  rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas
-${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
+  ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp::burp random::random)
 
-set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats dfs diagBmatrix diagHBHt energyNorm ensembleH
-ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF prepcma pseudoOceanIceObs
-randomPert sstBias sstTrial var var1D)
+set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats createLamTemplateGrids dfs diagBmatrix diagHBHt
+  energyNorm ensembleH ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF
+  prepcma pseudoOceanIceObs randomPert sstBias sstTrial var var1D)
 
 foreach(prog ${PROJECT_PROGRAMS})
   set_target_properties(${prog} PROPERTIES

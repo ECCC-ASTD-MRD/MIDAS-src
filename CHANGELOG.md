@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added new standalone program (`createLamTemplateGrids`) to generate LAM analysis grids (#1158 and !1086)
  * Added the computation of pseudo sea-ice concentration observations (#1142 and !1074)
  * Added namelist variable `writeAsciiRmsStats` in `namEnsPostProcModule` (#1153 and !1082)
  * Added a checkbox in the MR for documentation update (#785 and !1081)

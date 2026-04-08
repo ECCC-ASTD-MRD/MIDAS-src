@@ -19,7 +19,7 @@ module lamSpectralTransform_mod
   public :: struct_lst
 
   ! Public procedures
-  public :: lst_Setup, lst_Laplacian, lst_VarTransform
+  public :: lst_Setup, lst_Laplacian, lst_VarTransform, lst_nFFT
   public :: lst_ReshapeTrunc ! only for standalone tests
 
   type :: struct_lst
@@ -152,9 +152,9 @@ contains
     end if
 
     nfact_lon = lst%ni
-    call ngfft(nfact_lon) ! INOUT
+    call lst_nFFT(nfact_lon) ! INOUT
     nfact_lat = lst%nj
-    call ngfft(nfact_lat) ! INOUT
+    call lst_nFFT(nfact_lat) ! INOUT
 
     if (nfact_lon /= lst%ni .or. nfact_lat /= lst%nj) then
       if (nfact_lon /= lst%ni) then
@@ -1216,7 +1216,7 @@ contains
 
     !- 1.2 Fast or Slow Fourier Transform ?
     nfact = n
-    call ngfft(nfact) ! INOUT
+    call lst_nFFT(nfact) ! INOUT
 
     if (nfact == n) then
        call setfft8(n) ! IN
@@ -1320,7 +1320,7 @@ contains
 
     !- 1.2 Fast or Slow Fourier Transform ?
     nfact = n
-    call ngfft(nfact) ! INOUT
+    call lst_nFFT(nfact) ! INOUT
 
     if (nfact == n) then
        call setfft8(n) ! IN
@@ -2336,9 +2336,9 @@ contains
   end subroutine lst_Laplacian
 
   !--------------------------------------------------------------------------
-  !   NGFFT
+  ! lst_nFFT
   !--------------------------------------------------------------------------
-  subroutine ngfft(n)
+  subroutine lst_nFFT(n)
     implicit none
 
     ! Arguments:
@@ -2361,6 +2361,6 @@ contains
 4   i = i/k(j)
     if (i /= 1) go to 2
 
-  end subroutine ngfft
-
+  end subroutine lst_nFFT
+  
 end module lamSpectralTransform_mod

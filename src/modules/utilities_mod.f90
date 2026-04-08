@@ -2123,7 +2123,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_isNamelistPresent
   !--------------------------------------------------------------------------
-  function utl_isNamelistPresent(namelistSectionName, namelistFileName) result(found)
+  function utl_isNamelistPresent(namelistSectionName, namelistFileName, failMode_opt) result(found)
     !
     !:Purpose: To find if a namelist name tag is present in a namelist file
     !
@@ -2132,22 +2132,37 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: namelistSectionName
     character(len=*), intent(in) :: namelistFileName
+    character(len=*), optional, intent(in) :: failMode_opt
     ! Result:
     logical :: found
 
     ! Locals:
     integer :: unit, fnom, fclos, ierr, positionBeg, positionEnd
-    character(len=1000) :: line
+    character(len=1000) :: line, failMode
     character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
     character(len=:), pointer :: nameListStr_ptr
 
+    ! Set action if namelist is missing
+    if (present(failMode_opt)) then
+      failMode = failMode_opt
+    else
+      failMode = 'ABORT'
+    end if
+    
     ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
     if (.not. namelistExist) then
-      call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
+      if (trim(failMode) == 'ABORT') then
+        call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
+      else
+        write(*,*)
+        write(*,*) 'utl_isNamelistPresent: WARNING, namelist file is missing : ' // namelistFileName
+        found = .false.
+        return
+      end if
     end if
-
+    
     ! Ensure namelist section name is all in upper case
     namelistSectionNameUpper = namelistSectionName
     ierr = clib_toUpper(namelistSectionNameUpper)
