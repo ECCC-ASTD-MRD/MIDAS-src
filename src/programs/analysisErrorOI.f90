@@ -8,11 +8,11 @@ program midas_analysisErrorOI
   !
   !:Algorithm: The Optimal Interpolation (OI) is a data assimilation approach
   !            where both the state and its estimated error are computed using
-  !            observations while taking into account the specified 
+  !            observations while taking into account the specified
   !            uncertainties for both the observations and the background
   !            state (i.e. the R and B covariance matrices, respectively).
   !            The computations are done independently at each analysis grid
-  !            point with only local observations, those that have a 
+  !            point with only local observations, those that have a
   !            significant influence on the analysis at the grid point
   !            location. Here the code only implements the calculation to
   !            update the diagonal of the B covariance matrix.
@@ -76,7 +76,7 @@ program midas_analysisErrorOI
   !
   !          * The relevant namelist blocks used to configure the
   !            analysis-error calculation are listed in the following table:
-  ! 
+  !
   !======================== ================== ==============================================================
   ! Module                   Namelist           Description of what is controlled
   !======================== ================== ==============================================================
@@ -111,12 +111,12 @@ program midas_analysisErrorOI
   use obsFiles_mod
   use innovation_mod
   use obsErrors_mod
-  use obsFilter_mod  
+  use obsFilter_mod
   use analysisErrorOI_mod
 
   implicit none
 
-  integer :: istamp, exdb, exfin
+  integer :: istamp
   integer :: dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   character(len=*), parameter :: myName = 'analysisErrorOI'
@@ -125,6 +125,9 @@ program midas_analysisErrorOI
   type(struct_columnData), target :: trlColumnOnAnlLev
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
+
+  ! external definitions
+  integer, external :: exdb, exfin
 
   istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
@@ -232,7 +235,7 @@ program midas_analysisErrorOI
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl)
 
   ! Now write out the observation data files
-  if ( .not. obsf_filesSplit() ) then 
+  if ( .not. obsf_filesSplit() ) then
     call msg(myName,'reading/writing global observation files')
     call obs_expandToMpiGlobal(obsSpaceData)
     if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)

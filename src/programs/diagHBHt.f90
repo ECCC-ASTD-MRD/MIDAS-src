@@ -167,7 +167,7 @@ program midas_diagHBHt
 
   implicit none
 
-  integer :: istamp,exdb,exfin
+  integer :: istamp
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -182,6 +182,9 @@ program midas_diagHBHt
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
+
+  ! external definitions
+  integer, external :: exdb, exfin
 
   istamp = exdb('diagHBHt','DEBUT','NON')
 

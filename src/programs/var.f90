@@ -276,7 +276,7 @@ program midas_var
 
   implicit none
 
-  integer :: istamp, exdb, exfin
+  integer :: istamp
   integer :: ierr, dateStampFromObs
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -309,6 +309,9 @@ program midas_var
   logical :: deallocInterpInfoNL
 
   integer, parameter :: maxNumOuterLoopIter = 15
+
+  ! external definitions
+  integer, external :: exdb, exfin
 
   ! namelist variables
   integer :: numOuterLoopIterations                    ! number of outer loop iterations (default=1)

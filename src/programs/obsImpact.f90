@@ -121,7 +121,7 @@ program midas_obsImpact
   !                                       :math:`\hat{v}=B_{t}^{T/2}*C*e_{t}^{fa}` (in HFSR mode).
   !                                In the purely ensemble mode (EFSO or EFSR), it computes
   !                                       :math:`\hat{a}=A_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` (in EFSO mode), or
-  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*e_{t}^{fa}` (in EFSR mode) 
+  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*e_{t}^{fa}` (in EFSR mode)
   !                                where :math:`A_{t}^{1/2}` is the forecast ensemble perturbations valid at time :math:`t`
   !                                (with model-space localization applied) initialized from the analysis ensemble valid at time 0,
   !                                and the minimization is skipped.
@@ -131,17 +131,17 @@ program midas_obsImpact
   !
   !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*\hat{a}` (in HFSO or HFSR) or :math:`A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
-  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` (in HFSO or HFSR)
   !                                                                     or :math:`H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``rmat_RsqrtInverseAllObs``: Multiply by the inverse of the observation error variances
-  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` (in HFSO or HFSR)
   !                                                 or :math:`R^{-1}*H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``obs_bodySet_r``: Multiply the resulting sensitivity value by the innovation and put
   !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` so it can be stored in
-  !                                  the observation files. In FSR modes, :math:`\partial{e^f}/\partial{y^o}` 
-  !                                  is stored in column ``OBS_FSR``, which are to be multiplied with OmA residual in post-process to yield FSR. 
+  !                                  the observation files. In FSR modes, :math:`\partial{e^f}/\partial{y^o}`
+  !                                  is stored in column ``OBS_FSR``, which are to be multiplied with OmA residual in post-process to yield FSR.
   !
   !             - ``sumFSO``: Print out the FSOI value, including total and the one from each obs family.
   !
@@ -195,7 +195,7 @@ program midas_obsImpact
 
   implicit none
 
-  integer :: istamp,exdb,exfin,dateStampFromObs
+  integer :: istamp, dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -211,6 +211,9 @@ program midas_obsImpact
   type(struct_vco),        pointer :: vco_trl => null()
   type(struct_hco),        pointer :: hco_core => null()
   logical             :: allocHeightSfc
+
+  ! external definitions
+  integer, external :: exdb, exfin
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
 

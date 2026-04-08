@@ -127,7 +127,6 @@ program midas_pseudoOceanIceObs
 
   implicit none
 
-  integer, external :: exdb, exfin
   integer :: ierr, istamp
 
   type(struct_hco), pointer   :: hco_anl => null()
@@ -147,6 +146,9 @@ program midas_pseudoOceanIceObs
   character(len=100)          :: outputFileNameSIC       ! name of the file containing the generated SIC observations
   real(8)                     :: iceFractionThresholdSIC ! consider no ice condition below this threshold
   real(8)                     :: seaIceBand              ! band in km around the ice edge where to put pseudo SIC observations
+
+  ! external definitions
+  integer, external :: exdb, exfin
 
   namelist /pseudoSSTobs/ iceFractionThresholdSST, outputSST, outputFreshWaterST, seaiceThinning, &
                           outputFileNameSST, seaWaterThreshold, useSalinity, computeSSTobs
