@@ -30,7 +30,7 @@ which maestro 1>/dev/null 2>&1 || {
     ${SEQ_MAESTRO_SHORTCUT}
 }
 
-__rmnlib_version__=20260202
+__rmnlib_version__=20260401-beta
 if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
     __cmdiutils_version__=2.9
 elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then

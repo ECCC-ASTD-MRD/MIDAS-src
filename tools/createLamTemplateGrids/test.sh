@@ -12,7 +12,7 @@ referenceFile=${3:-${CREATELAMGRIDS_UNITTEST_DATABASE}/analysisgrid}
 
 echo "Testing program '${createLAMgrids_PGM}'"
 
-. r.load.dot eccc/mrd/rpn/utils/20260202
+. r.load.dot eccc/mrd/rpn/utils/20260401-beta
 . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0
 . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/inteloneapi-2025.1.0/01
 

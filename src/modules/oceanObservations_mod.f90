@@ -68,7 +68,7 @@ module oceanObservations_mod
     real(8), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
     type(struct_obs)     :: obsData
 
-    call utl_tmg_start(185,'--oobs_pseudoSST')
+    call rti_tmg_start(185,'--oobs_pseudoSST')
 
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -217,7 +217,7 @@ module oceanObservations_mod
     end if
 
     write(*,*) 'oobs_pseudoSST: done'
-    call utl_tmg_stop(185)
+    call rti_tmg_stop(185)
 
   end subroutine oobs_pseudoSST
 
@@ -264,12 +264,12 @@ module oceanObservations_mod
     integer, allocatable :: queueLonIndex(:), queueLatIndex(:), queueDistance(:)
     integer :: queueHead, queueTail
 
-    call utl_tmg_start(186,'--oobs_pseudoSIC')
+    call rti_tmg_start(186,'--oobs_pseudoSIC')
 
     if (mmpi_myid /= 0) then
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
       call sqlr_writePseudoOceanIceObs(obsData, 'GL', outputFileName)
-      call utl_tmg_stop(186)
+      call rti_tmg_stop(186)
       return
     end if
 
@@ -520,7 +520,7 @@ module oceanObservations_mod
 
     call ocm_deallocate(oceanMask)
     call gsv_deallocate(stateVector_ice)
-    call utl_tmg_stop(186)
+    call rti_tmg_stop(186)
 
   end subroutine oobs_pseudoSIC
 

@@ -238,11 +238,11 @@ program midas_pseudoOceanIceObs
     call rti_tmg_stop(181)
 
     ! Read the SIC namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSICobs, iostat = ierr)
     if (ierr /= 0) call rti_abort('pseudoOceanIceObs_setup: Error reading SIC namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSICobs)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if (computeSSTobs) then
       write(*,*) ''
