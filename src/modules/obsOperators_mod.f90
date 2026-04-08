@@ -2238,9 +2238,9 @@ contains
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
 
-      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
-      listFamily(2) = 'PR' ! Dew point difference           burf_nees
-      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) bufr_radvel
+      listFamily(2) = 'PR' ! Dew point difference           bufr_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               bufr_neal
       ! Loop over all family
       FAMILY: do familyIndex=1, NUMFAMILY
 
@@ -3208,9 +3208,9 @@ contains
       integer, parameter :: NUMFAMILY=3
       character(len=2) :: listFamily(NUMFAMILY), cfam
      
-      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
-      listFamily(2) = 'PR' ! Dew point difference           burf_nees
-      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) bufr_radvel
+      listFamily(2) = 'PR' ! Dew point difference           bufr_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               bufr_neal
       
       ! Loop over all families
       FAMILY: do familyIndex = 1, NUMFAMILY

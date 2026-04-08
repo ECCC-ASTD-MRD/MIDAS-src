@@ -130,7 +130,7 @@ module backgroundCheck_mod
 
     ! Locals:
     real(8) :: averageFGE, averageOER
-    integer :: obsFlag, burfCode, headerIndex, codeType, bodyIndex, obsCount
+    integer :: obsFlag, bufrCode, headerIndex, codeType, bodyIndex, obsCount
     integer :: numberObs, numberObsRejected, INZOBS, INZREJ
     integer :: INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
     real(8) :: oer,omp,fge,omper,bgchk,var,lev,lat,lon,sop
@@ -188,15 +188,15 @@ module backgroundCheck_mod
           bodyIndex = obs_getBodyIndex(obsData)
           if (bodyIndex < 0) exit BODY
 
-          burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+          bufrCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
           LLOK = (obs_bodyElem_i(obsData, OBS_ASS, bodyIndex) == obs_assimilated)
           if (LLOK) then
             numberObs = numberObs + 1
             if (obsFamily == 'GP') then
-              if (burfCode == BUFR_NEZD) INZOBS = INZOBS+1
-              if (burfCode == BUFR_NEPS) INPOBS = INPOBS+1
-              if (burfCode == BUFR_NETS) INTOBS = INTOBS+1
-              if (burfCode == BUFR_NESS) INDOBS = INDOBS+1
+              if (bufrCode == BUFR_NEZD) INZOBS = INZOBS+1
+              if (bufrCode == BUFR_NEPS) INPOBS = INPOBS+1
+              if (bufrCode == BUFR_NETS) INTOBS = INTOBS+1
+              if (bufrCode == BUFR_NESS) INDOBS = INDOBS+1
             end if
             var = obs_bodyElem_r(obsData, OBS_VAR, bodyIndex)
             lev = obs_bodyElem_r(obsData, OBS_PPP, bodyIndex)              
@@ -217,30 +217,30 @@ module backgroundCheck_mod
             fge = obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex)
             ! NOTE: For GB-GPS ZTD observations (GP family), fge is not the FGE but
             !       rather Std(O-P) set in s/r SETERRGPSGB.
-            if (obsFamily == 'GP' .and. burfCode == BUFR_NEZD) then
+            if (obsFamily == 'GP' .and. bufrCode == BUFR_NEZD) then
               if (omper <= 0.0d0 .and. fge > 0.0d0) omper = fge
             end if
               
             ! Observation and background error adjustments
             if (obsFamily == 'GP') then
               ! Protect against error std dev values that are too small
-              if (burfCode == BUFR_NEZD) then
+              if (bufrCode == BUFR_NEZD) then
                 oer = oer / gps_gb_YZDERRWGT
               else
                 oer = oer / gps_gb_YSFERRWGT
               end if
-              if (oer < 1.0d-3 .and. burfCode /= BUFR_NEZD) then
-                write(*,*)' Problem for GP STNID oer= ' , stnid, oer
+              if (oer < 1.0d-3 .and. bufrCode /= BUFR_NEZD) then
+                write(*,*)' Problem for GP with stnid, oer= ', stnid, oer
                 call utl_abort(myName//': PROBLEM WITH OER.')
               end if
               IF (fge < 1.0d-3) then
-                write(*,*)' Problem for GP STNID FGE= ', stnid, fge
+                write(*,*)' Problem for GP with stnid, fge= ', stnid, fge
                 fge=1.0d-3
               end if
               if (omper > 0.0d0 .and. omper < 1.0d-3) omper = 1.0d-3
             else if (obsFamily == 'CH') then
               if (fge**2 + oer**2 < 1.0d-60) then
-                write(*,*) ' Problem for STNID FGE oer=',  stnid, fge, oer
+                write(*,*) ' Problem for CH with stnid, fge, oer=', stnid, fge, oer
                 fge=1.0d30
                 oer=1.0d-30
               end if
@@ -248,7 +248,7 @@ module backgroundCheck_mod
             else ! default
               if (fge < 0.0d0) fge = 0.0d0
               if (fge**2 + oer**2 < 1.0d-5)then
-                write(*,*) ' Problem for STNID FGE oer=', stnid, fge, oer
+                write(*,*) ' Problem with stnid, fge, oer=', stnid, fge, oer
                 fge=1.0d-5
                 oer=1.0d-5
               end if
@@ -266,8 +266,8 @@ module backgroundCheck_mod
 
             !- UPDATE QUALITY CONTROL FLAGS, based on zbgchk
             ! (ELEMENT FLAGS + GLOBAL HEADER FLAGS)
-            burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
-            if(burfCode == bufr_nees .and. obs_bodyElem_i(obsData, OBS_XTR, bodyIndex) == 0) then
+            bufrCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+            if(bufrCode == bufr_nees .and. obs_bodyElem_i(obsData, OBS_XTR, bodyIndex) == 0) then
               averageFGE = averageFGE + fge * fge
               averageOER = averageOER + oer * oer
               obsCount   = obsCount + 1
@@ -275,11 +275,11 @@ module backgroundCheck_mod
 
             ! Set flag level
             codeType = obs_headElem_i(obsData, OBS_ITY, headerIndex)
-            obsFlag = setFlag(obsFamily,codeType,burfCode,bgchk)
+            obsFlag = setFlag(obsFamily,codeType,bufrCode,bgchk)
 
             ! CONVERT ZTD VALUES FROM M TO MM FOR PRINTOUT
             LLZD = .FALSE.
-            if (obsFamily == 'GP' .and. burfCode == BUFR_NEZD) then
+            if (obsFamily == 'GP' .and. bufrCode == BUFR_NEZD) then
               var = var * 1000.0D0
               oer = oer * 1000.0D0
               fge = fge * 1000.0D0
@@ -292,19 +292,19 @@ module backgroundCheck_mod
             if (obsFlag >= 2 .or. (LLZD .and. gps_gb_LTESTOP)) then
               if (obsFamily /= 'CH') then 
                 write(*,122)  &
-                   stnid, lat, lon, codeType, burfCode, lev, var, oer,  &
+                   stnid, lat, lon, codeType, bufrCode, lev, var, oer,  &
                    fge, omp, sop, bgchk, obsFlag
               else 
                 write(*,124)  &
-                   stnid, lat, lon, codeType, burfCode, lev, var, oer,  &
+                   stnid, lat, lon, codeType, bufrCode, lev, var, oer,  &
                    fge, omp, sop, bgchk, obsFlag
               end if
               if (obsFlag >= 2) numberObsRejected = numberObsRejected + 1
               if (obsFlag >= 2 .and. obsFamily == 'GP') then
-                if (burfCode == BUFR_NEZD) INZREJ = INZREJ+1
-                if (burfCode == BUFR_NEPS) INPREJ = INPREJ+1
-                if (burfCode == BUFR_NETS) INTREJ = INTREJ+1
-                if (burfCode == BUFR_NESS) INDREJ = INDREJ+1
+                if (bufrCode == BUFR_NEZD) INZREJ = INZREJ+1
+                if (bufrCode == BUFR_NEPS) INPREJ = INPREJ+1
+                if (bufrCode == BUFR_NETS) INTREJ = INTREJ+1
+                if (bufrCode == BUFR_NESS) INDREJ = INDREJ+1
               end if
             end if
 
@@ -346,21 +346,21 @@ module backgroundCheck_mod
         headerIndex     = obs_bodyElem_i(obsData, OBS_HIND, bodyIndex)
         bodyIndex_start = obs_headElem_i(obsData, OBS_RLN, headerIndex)
 
-        burfCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
+        bufrCode = obs_bodyElem_i(obsData, OBS_VNM, bodyIndex)
         lev  = obs_bodyElem_r(obsData, OBS_PPP, bodyIndex)
 
         found_u = .false.
         found_v = .false.
 
-        if (burfCode == BUFR_NEUU) then
+        if (bufrCode == BUFR_NEUU) then
       
           bodyIndex_u = bodyIndex
           found_u = .true.
 
           do i_oth = bodyIndex_start, bodyIndex
-            burfCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
+            bufrCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
             zslev = obs_bodyElem_r(obsData, OBS_PPP, i_oth)
-            if (burfCode == BUFR_NEVV .and. zslev == lev) then
+            if (bufrCode == BUFR_NEVV .and. zslev == lev) then
               bodyIndex_v = i_oth
               found_v = .true.
             end if
@@ -372,9 +372,9 @@ module backgroundCheck_mod
           found_v = .true.
  
           do i_oth = bodyIndex_start, bodyIndex
-            burfCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
+            bufrCode = obs_bodyElem_i(obsData, OBS_VNM, i_oth)
             zslev = obs_bodyElem_r(obsData, OBS_PPP, i_oth)
-            if (burfCode == BUFR_NEUU .and. zslev == lev) then
+            if (bufrCode == BUFR_NEUU .and. zslev == lev) then
               bodyIndex_u = i_oth
               found_u = .true.
             end if
@@ -623,7 +623,7 @@ module backgroundCheck_mod
     real(8), pointer :: threshold_ptr(:)
 
     !- Dropsonde-dependent thresholds
-    if (codeType == 37) then
+    if (codeType == codtyp_get_codtyp('tempdrop')) then
       ! dropsondes
       uvCrit(1) = uvCritDropSonde(1)
       uvCrit(2) = uvCritDropSonde(2)
