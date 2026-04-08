@@ -80,6 +80,7 @@ module bufr_mod
  integer, parameter :: bufr_riverFlow   = 23040
  integer, parameter :: bufr_cloudInSeg  = 20081
  integer, parameter :: bufr_radvel      = 21014 ! Doppler velocity (Radial Wind)
+ integer, parameter :: bufr_iceBogus    = 20209 ! Bogus (pseudo) ice concentration
 
  !
  ! Table C-14: (for Code Table 08046)

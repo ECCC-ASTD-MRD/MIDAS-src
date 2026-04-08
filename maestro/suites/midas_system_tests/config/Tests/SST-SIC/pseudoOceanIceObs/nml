@@ -1,0 +1,41 @@
+ &NAMTIME
+  dstepobs      = 24.0d0
+  dstepobsinc   = 24.0d0
+  dwindowsize   = 48.0d0
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMDIMO
+   NMXOBS=2500000,
+   NDATAMX=2500000
+/
+ &NAMFILT
+  NLIST(1)=22042,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &pseudoSSTobs
+   computeSSTobs           = .true.
+   iceFractionThresholdSST = 0.2
+   outputSST               = 271.35
+   outputFreshWaterST      = 273.15
+   seaiceThinning          = 1
+   outputFileNameSST       = 'obsos_pseudo'
+   seaWaterThreshold       = 0.1
+   useSalinity             = .true.
+/
+ &pseudoSICobs
+   computeSICobs           = .true.
+   outputFileNameSIC       = 'obsgl_pseudo'
+   iceFractionThresholdSIC = 0.2
+   seaIceBand              = 75.0d0
+/      
+ &NAMSQLsfc
+   listElem="22042"
+   sqlNull=" and obsvalue is not null "  
+/

@@ -28,7 +28,7 @@ module sqliteRead_mod
   ! Public procedures
   public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
   public :: sqlr_cleanSqlite, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
-  public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
+  public :: sqlr_writePseudoOceanIceObs
   public :: sqlr_getColumnValuesDate
 
   contains
@@ -1607,11 +1607,14 @@ module sqliteRead_mod
   end subroutine sqlr_cleanSqlite
 
   !--------------------------------------------------------------------------
-  ! sqlr_writePseudoSSTobs
+  ! sqlr_writePseudoOceanIceObs
   !--------------------------------------------------------------------------
-  subroutine sqlr_writePseudoSSTobs(obsData, obsFamily, instrumentFileName)
+  subroutine sqlr_writePseudoOceanIceObs(obsData, obsFamily, instrumentFileName)
     !
-    ! :Purpose: To write the obsSpaceData content into SQLite format files
+    ! :Purpose: This subroutine performs two tasks:
+    !           1. creates an empty SQLite file for pseudo SST or SIC observations;
+    !           2. writes the obsSpaceData content into this file, if number of headers 
+    !              in the provided obsDate structure is larger than zero.
     !
     implicit none
 
@@ -1633,7 +1636,7 @@ module sqliteRead_mod
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
 
-    write(*,*) 'sqlr_writePseudoSSTobs: starting...'
+    write(*,*) 'sqlr_writePseudoOceanIceObs: starting...'
 
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call sqlu_getInitialIdObsData(obsData, obsFamily, idObs, idData)
@@ -1649,12 +1652,19 @@ module sqliteRead_mod
       if (headerIndex < 0) exit HEADERCOUNT
       numHeaders = numHeaders + 1
     end do HEADERCOUNT
-    if (numHeaders == 0) return
+
+    if (numHeaders == 0) then
+      write(*,*) 'sqlr_writePseudoOceanIceObs: no observations found, creating empty SQLite file.'
+    end if
+
+    !--------------------------------------
+    ! Create empty SQLite file
+    !--------------------------------------
 
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') then
-      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! The program may be slow creating many sqlite files in the same directory.'
-      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! Please, use the ram disk option prior to MIDAS run!'
+      write(*,*) 'sqlr_writePseudoOceanIceObs: WARNING! The program may be slow creating many sqlite files in the same directory.'
+      write(*,*) 'sqlr_writePseudoOceanIceObs: WARNING! Please, use the ram disk option prior to MIDAS run!'
     end if
 
     if (obs_mpiLocal(obsData)) then
@@ -1666,10 +1676,9 @@ module sqliteRead_mod
       fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)
     end if
 
-
-    write(*,*) 'sqlr_writePseudoSSTobs: Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writePseudoSSTobs: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writePseudoOceanIceObs: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
@@ -1679,189 +1688,124 @@ module sqliteRead_mod
                   &an_error real, fg_error real, obs_error real);'
 
     call fSQL_do_many(db, queryCreate, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_do_many with query: '//trim(queryCreate))
 
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Data   = ', trim(queryData)
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writePseudoOceanIceObs: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    call sqlu_handleError(stat, 'sqlr_writePseudoOceanIceObs: fSQL_prepare:')
 
-    numberInsertions = 0
+    !--------------------
+    ! Write observations
+    !--------------------
 
-    call obs_set_current_header_list(obsData, obsFamily)
-    HEADER: do
+    if (numHeaders > 0) then
+    
+      numberInsertions = 0
 
-      headerIndex = obs_getHeaderIndex(obsData)
-      if (headerIndex < 0) exit HEADER
+      call obs_set_current_header_list(obsData, obsFamily)
+      HEADER: do
 
-      codeType  = obs_headElem_i(obsData, OBS_ITY, headerIndex)
-      obsRln    = obs_headElem_i(obsData, OBS_RLN, headerIndex)
-      obsNlv    = obs_headElem_i(obsData, OBS_NLV, headerIndex)
-      idStation = obs_elem_c    (obsData, 'STID' , headerIndex)
-      altitude  = real(obs_headElem_r(obsData, OBS_ALT, headerIndex), 4)
-      lon       = real(obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
-      lat       = real(obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
-      if (lon > 180.) lon = lon - 360.
-      date      = obs_headElem_i(obsData, OBS_DAT, headerIndex)
-      time      = obs_headElem_i(obsData, OBS_ETM, headerIndex) * 100
+        headerIndex = obs_getHeaderIndex(obsData)
+        if (headerIndex < 0) exit HEADER
 
-      idObs = idObs + 1
-      call fSQL_bind_param(stmtHeader, param_index = 1, int_var  = idObs)
-      call fSQL_bind_param(stmtHeader, param_index = 2, char_var = idStation)
-      call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat)
-      call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon)
-      call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date)
-      call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time)
-      call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType)
-      call fSQL_bind_param(stmtHeader, param_index = 8, real_var = altitude)
-      call fSQL_bind_param(stmtHeader, param_index = 9, int_var = obsStatus)
-      call fSQL_exec_stmt (stmtHeader)
+        codeType  = obs_headElem_i(obsData, OBS_ITY, headerIndex)
+        obsRln    = obs_headElem_i(obsData, OBS_RLN, headerIndex)
+        obsNlv    = obs_headElem_i(obsData, OBS_NLV, headerIndex)
+        idStation = obs_elem_c    (obsData, 'STID' , headerIndex)
+        altitude  = real(obs_headElem_r(obsData, OBS_ALT, headerIndex), 4)
+        lon       = real(obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
+        lat       = real(obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, 4)
+        if (lon > 180.) lon = lon - 360.
+        date      = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+        time      = obs_headElem_i(obsData, OBS_ETM, headerIndex) * 100
 
-      BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
+        idObs = idObs + 1
+        call fSQL_bind_param(stmtHeader, param_index = 1, int_var  = idObs)
+        call fSQL_bind_param(stmtHeader, param_index = 2, char_var = idStation)
+        call fSQL_bind_param(stmtHeader, param_index = 3, real_var = lat)
+        call fSQL_bind_param(stmtHeader, param_index = 4, real_var = lon)
+        call fSQL_bind_param(stmtHeader, param_index = 5, int_var  = date)
+        call fSQL_bind_param(stmtHeader, param_index = 6, int_var  = time)
+        call fSQL_bind_param(stmtHeader, param_index = 7, int_var  = codeType)
+        call fSQL_bind_param(stmtHeader, param_index = 8, real_var = altitude)
+        call fSQL_bind_param(stmtHeader, param_index = 9, int_var = obsStatus)
+        call fSQL_exec_stmt (stmtHeader)
 
-        obsVarno      = obs_bodyElem_i(obsData, OBS_VNM , bodyIndex)
-        obsFlag       = obs_bodyElem_i(obsData, OBS_FLG , bodyIndex)
-        obsValue      = real(obs_bodyElem_r(obsData, OBS_VAR , bodyIndex), 4)
-        OMA           = real(obs_bodyElem_r(obsData, OBS_OMA , bodyIndex), 4)
-        OMP           = real(obs_bodyElem_r(obsData, OBS_OMP , bodyIndex), 4)
-        OER           = real(obs_bodyElem_r(obsData, OBS_OER , bodyIndex), 4)
-        FGE           = real(obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex), 4)
-        PPP           = real(obs_bodyElem_r(obsData, OBS_PPP , bodyIndex), 4)
-        ASS           = obs_bodyElem_i(obsData, OBS_ASS , bodyIndex)
+        BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
 
-        ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error
-        idData = idData + 1
-        call fSQL_bind_param(stmtData, param_index = 1, int_var  = idData)
-        call fSQL_bind_param(stmtData, param_index = 2, int_var  = idObs)
-        call fSQL_bind_param(stmtData, param_index = 3, int_var  = obsVarno)
-        call fSQL_bind_param(stmtData, param_index = 4, real_var = PPP)
-        call fSQL_bind_param(stmtData, param_index = 5)
-        call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
-        call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
-        if (utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R)) then
-          call fSQL_bind_param(stmtData, param_index = 8)
-          call fSQL_bind_param(stmtData, param_index = 9)
-        else
-          call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
-          call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
-        end if
-        if (utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) then
-          call fSQL_bind_param(stmtData, param_index = 10)
-        else
-          call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
-        end if
-        if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
-          call fSQL_bind_param(stmtData, param_index = 11)
-        else
-          call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
-        end if
-        if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
-          call fSQL_bind_param(stmtData, param_index = 12)
-        else
-          call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)
-        end if
-        call fSQL_exec_stmt (stmtData)
+          obsVarno = obs_bodyElem_i(obsData, OBS_VNM , bodyIndex)
+          obsFlag  = obs_bodyElem_i(obsData, OBS_FLG , bodyIndex)
+          obsValue = real(obs_bodyElem_r(obsData, OBS_VAR , bodyIndex), 4)
+          OMA      = real(obs_bodyElem_r(obsData, OBS_OMA , bodyIndex), 4)
+          OMP      = real(obs_bodyElem_r(obsData, OBS_OMP , bodyIndex), 4)
+          OER      = real(obs_bodyElem_r(obsData, OBS_OER , bodyIndex), 4)
+          FGE      = real(obs_bodyElem_r(obsData, OBS_HPHT, bodyIndex), 4)
+          PPP      = real(obs_bodyElem_r(obsData, OBS_PPP , bodyIndex), 4)
+          ASS      = obs_bodyElem_i(obsData, OBS_ASS, bodyIndex)
 
-        numberInsertions = numberInsertions + 1
+          ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error
+          idData = idData + 1
+          call fSQL_bind_param(stmtData, param_index = 1, int_var  = idData)
+          call fSQL_bind_param(stmtData, param_index = 2, int_var  = idObs)
+          call fSQL_bind_param(stmtData, param_index = 3, int_var  = obsVarno)
+          call fSQL_bind_param(stmtData, param_index = 4, real_var = PPP)
+          call fSQL_bind_param(stmtData, param_index = 5)
+          call fSQL_bind_param(stmtData, param_index = 6, real_var = obsValue)
+          call fSQL_bind_param(stmtData, param_index = 7, int_var  = obsFlag)
+          if (utl_isEqual(real(OMA, pre_obsReal), obs_missingValue_R)) then
+            call fSQL_bind_param(stmtData, param_index = 8)
+            call fSQL_bind_param(stmtData, param_index = 9)
+          else
+            call fSQL_bind_param(stmtData, param_index = 8, real_var = OMA)
+            call fSQL_bind_param(stmtData, param_index = 9, real_var = OMA)
+          end if
+          if (utl_isEqual(real(OMP, pre_obsReal), obs_missingValue_R)) then
+            call fSQL_bind_param(stmtData, param_index = 10)
+          else
+            call fSQL_bind_param(stmtData, param_index = 10, real_var = OMP)
+          end if
+          if (utl_isEqual(real(FGE, pre_obsReal), obs_missingValue_R)) then
+            call fSQL_bind_param(stmtData, param_index = 11)
+          else
+            call fSQL_bind_param(stmtData, param_index = 11, real_var = FGE)
+          end if
+          if (utl_isEqual(real(OER, pre_obsReal), obs_missingValue_R)) then
+            call fSQL_bind_param(stmtData, param_index = 12)
+          else
+            call fSQL_bind_param(stmtData, param_index = 12, real_var = OER)
+          end if
+          call fSQL_exec_stmt (stmtData)
 
-      end do BODY
+          numberInsertions = numberInsertions + 1
 
-    end do HEADER
+        end do BODY
 
-    call fSQL_finalize(stmtData)
+      end do HEADER
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily, &
-               ', number of insertions: ', numberInsertions
+      call fSQL_finalize(stmtData)
+
+      write(*,*) 'sqlr_writePseudoOceanIceObs: Observation Family: ', obsFamily, &
+                 ', number of insertions: ', numberInsertions
+
+    end if ! write observations
+
+    !--------------------
+    ! Close file (even if empty)
+    !--------------------
 
     call fSQL_commit(db)
     call fSQL_close(db, stat)
 
-  end subroutine sqlr_writePseudoSSTobs
-
-  !--------------------------------------------------------------------------
-  ! sqlr_writeEmptyPseudoSSTobsFile
-  !--------------------------------------------------------------------------
-  subroutine sqlr_writeEmptyPseudoSSTobsFile(obsData, obsFamily, instrumentFileName)
-    !
-    ! :Purpose: to generate an empty SQLite SST pseudo obs file for mpi tasks,
-    !           with no sea-ice on them.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_obs) , intent(inout) :: obsData
-    character(len=*) , intent(in)    :: obsFamily
-    character(len=*) , intent(in)    :: instrumentFileName
-
-    ! Locals:
-    type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat                      ! type for error status
-    character(len = 512)   :: queryCreate
-    character(len = 512)   :: queryHeader, queryData
-    integer                :: idObs, idData
-    character(len=30)      :: fileNameExtention
-    character(len=256)     :: fileName, fileNameDir
-    character(len=4)       :: cmyidx, cmyidy
-
-    ! determine initial idData,idObs to ensure unique values across mpi tasks
-    call sqlu_getInitialIdObsData(obsData, obsFamily, idObs, idData)
-
-    fileNameDir = trim(ram_getRamDiskDir())
-    if (fileNameDir == ' ') &
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
-
-    if (obs_mpiLocal(obsData)) then
-      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-      fileNameExtention  = trim(cmyidx) // '_' // trim(cmyidy)
-    else
-      if (mmpi_myid > 0) return
-      fileNameExtention = ' '
-    end if
-
-    fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
-
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Creating file: ', trim(fileName)
-    call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
-
-    ! Create the tables HEADER and DATA
-    queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
-                  &codtyp integer, date integer, time integer, elev real, status integer); &
-                  &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
-                  &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                  &an_error real, fg_error real, obs_error real);'
-
-    call fSQL_do_many(db, queryCreate, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
-
-    queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
-    queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-                &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
-
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Data   = ', trim(queryData)
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Header = ', trim(queryHeader)
-
-    call fSQL_begin(db)
-    call fSQL_prepare(db, queryData, stmtData, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
-    call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
-
-    call fSQL_commit(db)
-    call fSQL_close(db, stat)
-
-  end subroutine sqlr_writeEmptyPseudoSSTobsFile
+  end subroutine sqlr_writePseudoOceanIceObs
 
   !--------------------------------------------------------------------------
   ! sqlr_getColumnValuesDate
