@@ -61,7 +61,7 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##
 
 ## default: make all
-__target= #all
+__target=all
 __abs_exist_list=${__abs_all}
 
 __fresh_build_directory=--no-fresh
