@@ -31,6 +31,7 @@ contains
     character(len=*), intent(in) :: message
 
     ! Locals:
+    logical :: isMPIInitialized
     integer :: ierr
 
     write(6,9000) message
@@ -43,7 +44,12 @@ contains
     call tracebackqq(user_exit_code=-1, status=ierr)
 #endif
 
-    call mpi_abort(mpi_comm_world, 1, ierr)
+    call mpi_initialized(isMPIInitialized)
+    if ( isMPIInitialized ) then
+      call mpi_abort(mpi_comm_world, 1, ierr)
+    else
+      error stop -1
+    end if
 
   end subroutine rti_abort
 
