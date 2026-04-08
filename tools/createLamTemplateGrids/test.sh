@@ -16,9 +16,9 @@ echo "Testing program '${createLAMgrids_PGM}'"
 . r.load.dot rpn/code-tools/20251217/env/inteloneapi-2025.1.0
 . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/inteloneapi-2025.1.0/01
 
-${createLAMgrids_PGM} $inputFile -grd_ext_x 280 -grd_ext_y 280
+${createLAMgrids_PGM} ${inputFile} -grd_ext_x 280 -grd_ext_y 280
 
-fstcomp -a ./analysisgrid -b $referenceFile -n 2>&1 | tee fstcomp.list
+fstcomp -a ./analysisgrid -b ${referenceFile} -n 2>&1 | tee fstcomp.list
 
 cat fstcomp.list | grep -vE '^[*] [*] [*] | FSTCOMP |^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | grep -v "No comparison possible:" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 
