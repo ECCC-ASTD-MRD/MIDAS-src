@@ -2627,7 +2627,7 @@ contains
     integer :: profileIndex, levelIndex
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
-    integer :: ierr,day,month,year,ijour,itime
+    integer :: day,month,year,ijour,itime
     integer :: allocStatus
     integer, allocatable :: sensorHeaderIndexes(:)
     type(struct_vco), pointer :: vco
@@ -2734,10 +2734,6 @@ contains
     Vcode = vco % Vcode
 
     call tim_dateStampToYYYYMMDDHH(datestamp,ijour,itime)
-    if (ierr < 0) then
-      write(*,*) 'Invalid datestamp ',datestamp,ijour,itime,ierr
-      call rti_abort('tvs_fillProfiles')
-    end if
     year= ijour / 10000
     month = mod(ijour / 100,100)
     day = mod(ijour,100)
