@@ -74,33 +74,10 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Locals:
-    integer :: lengthFstOptions, status
-    character(len=256) :: fstOptions
 
     if (initialized) return
 
     call readNml()
-
-    !
-    !- Determine if 'FST_OPTIONS' is alreadu defined
-    !
-    status = 0
-    call get_environment_variable('FST_OPTIONS',fstOptions,lengthFstOptions,status,.true.)
-
-    if (status.gt.1) then
-      write(*,*) 'gio_setup: Problem when getting the environment variable '
-    end if
-    if (status.eq.1) then
-      write(*,*) 'gio_setup: The environment variable FST_OPTIONS has not been detected!'
-      fstOptions = 'FST_OPTIONS=BACKEND=' // outputFormat
-    else
-      write(*,*)
-      write(*,*) 'gio_setup: The environment variable FST_OPTIONS has correctly been detected with value ''' // trim(fstOptions) // ''''
-      fstOptions = 'FST_OPTIONS=' // trim(fstOptions) // ';BACKEND=' // outputFormat
-    end if
-
-    write(*,*) 'gio_setup: Setting environment variable ''' // trim(fstOptions) // ''''
-    status = clib_putenv(fstOptions)
 
     initialized = .true.
 
@@ -1811,7 +1788,7 @@ module gridStateVectorFileIO_mod
         end if
 
         call msg('gio_writeToFile', 'File name = ' // trim(fileNameTMp))
-        success = fstFiles(thread) % open(trim(fileNameTmp), 'R/W')
+        success = fstFiles(thread) % open(trim(fileNameTmp), 'R/W+' // outputFormat)
         if (.not. success) then
           call rti_abort('gio_writeToFile: problem opening output file ' // trim(fileNameTmp))
         end if
@@ -2442,7 +2419,7 @@ module gridStateVectorFileIO_mod
       ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
       ! So to avoid reopening and reclosing the same file each iteration, we create a 'fstFile' handle
       ! that will be used later in 'appendMpiDistributedFile_XDF'
-      success = fstFile%open(trim(fileName), options = 'R/W')
+      success = fstFile%open(trim(fileName), options = 'R/W+' // outputFormat)
       if (.not. success) then
         call rti_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
       end if
