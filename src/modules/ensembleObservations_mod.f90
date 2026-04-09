@@ -178,7 +178,7 @@ CONTAINS
               numSimCodTyp(obsfamIndex) = numSimCodTyp(obsfamIndex) + 1
               if (.not. allocated(simCodTyp)) then
                 allocate(simCodTyp(numSimObsFam,codtyp_maxNumber))
-                simCodTyp(:,:) = -999
+                simCodTyp(:,:) = MPC_missingValue_INT
               end if
               ! store CodTyp for simulated obs family
               simCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(simCodTypName(obsfamIndex,codtypIndex))
@@ -190,7 +190,7 @@ CONTAINS
               numSimVarNum(obsfamIndex) = numSimVarNum(obsfamIndex) + 1
               if (.not. allocated(simVarNum)) then
                 allocate(simVarNum(numSimObsFam,vnl_numvarmax))
-                simVarNum(:,:) = -999
+                simVarNum(:,:) = MPC_missingValue_INT
               end if
               ! store VarNum for simulated obs family
               simVarNum(obsfamIndex,varnumIndex) = vnl_varnumFromVarName(simVarName(obsfamIndex,varnumIndex))
@@ -207,7 +207,7 @@ CONTAINS
               numPsvCodTyp(obsfamIndex) = numPsvCodTyp(obsfamIndex) + 1
               if (.not. allocated(psvCodTyp)) then
                 allocate(psvCodTyp(numPsvObsFam,codtyp_maxNumber))
-                psvCodTyp(:,:) = -999
+                psvCodTyp(:,:) = MPC_missingValue_INT
               end if
               ! store CodTyp for passive obs family
               psvCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(psvCodTypName(obsfamIndex,codtypIndex))
@@ -219,7 +219,7 @@ CONTAINS
               numPsvVarNum(obsfamIndex) = numPsvVarNum(obsfamIndex) + 1
               if (.not. allocated(PsvVarNum)) then
                 allocate(psvVarNum(numPsvObsFam,vnl_numvarmax))
-                psvVarNum(:,:) = -999
+                psvVarNum(:,:) = MPC_missingValue_INT
               end if
               ! store VarNum for passive obs family
               psvVarNum(obsfamIndex,varnumIndex) = vnl_varnumFromVarName(psvVarName(obsfamIndex,varnumIndex))

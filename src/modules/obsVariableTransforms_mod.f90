@@ -40,7 +40,7 @@ module obsVariableTransforms_mod
   type(struct_transform) :: transform(nTransformSupported)
 
   integer                :: nSkippedBufrCodes    = 0
-  integer                :: skippedBufrCodes(50) = -999
+  integer                :: skippedBufrCodes(50) = MPC_missingValue_INT
 
   logical                :: initialized = .false.
 

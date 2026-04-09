@@ -440,7 +440,7 @@ contains
         end if
         if (cvm_subVectorExists('B_ENS')) lpert_ens=.true.
 
-        ivco = -999
+        ivco = MPC_missingValue_INT
         my_innovStd(:,:,:) = 0.0d0
         my_bmatHiStd(:,:,:) = 0.0d0
         my_bmatEnStd(:,:,:) = 0.0d0

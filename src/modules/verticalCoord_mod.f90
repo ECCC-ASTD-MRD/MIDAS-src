@@ -11,6 +11,7 @@ module verticalCoord_mod
   use varNameList_mod
   use utilities_mod
   use netcdf
+  use mathPhysConstants_mod, only: MPC_missingValue_INT
 
   implicit none
   private
@@ -833,7 +834,7 @@ contains
     ! Locals:
     integer :: varListIndex
 
-    nlev = -999
+    nlev = MPC_missingValue_INT
     if (varLevel == 'MM') then
       nlev = vco%nlev_M
     else if (varLevel == 'TH') then

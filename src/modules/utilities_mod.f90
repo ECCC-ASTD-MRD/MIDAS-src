@@ -648,19 +648,19 @@ contains
           ier1   = newdate(kstampv,idate2,idate3,-3)
 
           idatefull = idate2*100 + idate3/1000000
-          idateo = -9999
-          ideet = -9999
-          inpas = -9999
+          idateo = MPC_missingValue_INT
+          ideet = MPC_missingValue_INT
+          inpas = MPC_missingValue_INT
           cdetiket = '-9999999'
           clgrtyp = '-'
-          kip2 = -9999
-          kip3 = -9999
+          kip2 = MPC_missingValue_INT
+          kip3 = MPC_missingValue_INT
           cdtypvar = '-'
-          idatyp = -9999
-          iig1 = -9999
-          iig2 = -9999
-          iig3 = -9999
-          iig4 = -9999
+          idatyp = MPC_missingValue_INT
+          iig1 = MPC_missingValue_INT
+          iig2 = MPC_missingValue_INT
+          iig3 = MPC_missingValue_INT
+          iig4 = MPC_missingValue_INT
           llflag = .true.
           koutmpg = kinmpg(k)
           exit
@@ -673,20 +673,20 @@ contains
                ink,inbits,idatyp2, kip1s(jlev),iip2, iip3, &
                cltypvar,clnomvar,cletiket,clgrtyp2, iig12, iig22,iig32 &
                ,iig42,iswa,ilng,idltf,iubc,iextra1, iextra2, iextra3)
-          llflag = (llflag.and.(idateo.eq.idateo2.or.idateo.eq.-9999))
-          llflag = (llflag.and.(ideet.eq.ideet2.or.ideet.eq.-9999))
-          llflag = (llflag.and.(inpas.eq.inpas2.or.inpas.eq.-9999))
+          llflag = (llflag.and.(idateo.eq.idateo2.or.idateo.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(ideet.eq.ideet2.or.ideet.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(inpas.eq.inpas2.or.inpas.eq.MPC_missingValue_INT))
           !          llflag = (llflag.and.(cdetiket.eq.cletiket.or.cdetiket.eq.
           !     &         '-9999999'))
           llflag = (llflag.and.(clgrtyp.eq.clgrtyp2.or.clgrtyp.eq.'-'))
-          llflag = (llflag.and.(kip2.eq.iip2.or.kip2.eq.-9999))
-          llflag = (llflag.and.(kip3.eq.iip3.or.kip3.eq.-9999))
+          llflag = (llflag.and.(kip2.eq.iip2.or.kip2.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(kip3.eq.iip3.or.kip3.eq.MPC_missingValue_INT))
           llflag = (llflag.and.(cdtypvar.eq.cltypvar.or.cdtypvar.eq.'-'))
-          llflag = (llflag.and.(idatyp.eq.idatyp2.or.idatyp.eq.-9999))
-          llflag = (llflag.and.(iig1.eq.iig12.or.iig1.eq.-9999))
-          llflag = (llflag.and.(iig2.eq.iig22.or.iig2.eq.-9999))
-          llflag = (llflag.and.(iig3.eq.iig32.or.iig3.eq.-9999))
-          llflag = (llflag.and.(iig4.eq.iig42.or.iig4.eq.-9999))
+          llflag = (llflag.and.(idatyp.eq.idatyp2.or.idatyp.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(iig1.eq.iig12.or.iig1.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(iig2.eq.iig22.or.iig2.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(iig3.eq.iig32.or.iig3.eq.MPC_missingValue_INT))
+          llflag = (llflag.and.(iig4.eq.iig42.or.iig4.eq.MPC_missingValue_INT))
           if (llflag) then
              idateo = idateo2
              ideet = ideet2
@@ -1273,8 +1273,8 @@ contains
 
       if (allocated(xlat_opt)) deallocate(xlat_opt,xlong_opt)
       allocate(xlat_opt(nj),xlong_opt(ni),buffer(ni*nj,1))
-      xlat_opt(:)=-999.
-      xlong_opt(:)=-999.
+      xlat_opt(:)=MPC_missingValue_R8
+      xlong_opt(:)=MPC_missingValue_R8
 
       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &
            datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &

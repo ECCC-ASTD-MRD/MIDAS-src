@@ -1691,8 +1691,8 @@ contains
     obsDate(:) = -1
     trajFlags(:,:) = -1
     obsFlags(:,:) = 0
-    obsValues(:,:) = -999.0
-    oMinusB(:,:) = -999.0
+    obsValues(:,:) = MPC_missingValue_R4
+    oMinusB(:,:) = MPC_missingValue_R4
 
     ! Fill in the arrays for each profile
     levStnIndex = 0
@@ -2409,8 +2409,8 @@ contains
       if ( minDeltaP1 < 1.0 .and. minDeltaP2 < 1.0 ) then
         do varIndex = 2, 4, 2
 
-          if ( .not. (utl_isEqual(obsValues(varIndex,levStnIndex1),-999.0) .or. &
-                      utl_isEqual(obsValues(varIndex,levStnIndex2),-999.0)) ) then
+          if ( .not. (utl_isEqual(obsValues(varIndex,levStnIndex1),MPC_missingValue_R4) .or. &
+                      utl_isEqual(obsValues(varIndex,levStnIndex2),MPC_missingValue_R4)) ) then
             valSum = valSum + abs(obsValues(varIndex,levStnIndex1) - &
                                   obsValues(varIndex,levStnIndex2))
             numSum = numSum + 1
@@ -2529,7 +2529,7 @@ contains
             presLowerTacBufr(varIndex,raobFormatIndex) = 1000.0
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
-              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),MPC_missingValue_R4) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2545,7 +2545,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),MPC_missingValue_R4) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then
@@ -2587,7 +2587,7 @@ contains
             do levStnIndex = obsLevOffset(thisStationIndex)+1, &
                              obsLevOffset(thisStationIndex+1)
 
-              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),-999.0) .and. &
+              condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex),MPC_missingValue_R4) .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
                                              fullSetOfRejectFlags)
               if ( condition ) then
@@ -2605,7 +2605,7 @@ contains
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
 
-                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),-999.0) .and. &
+                condition = .not. utl_isEqual(oMinusB(varIndex,levStnIndex2),MPC_missingValue_R4) .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
                                                fullSetOfRejectFlags)
                 if ( condition ) then

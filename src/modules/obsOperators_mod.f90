@@ -1606,7 +1606,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
        !      (2) Ps observation is missing or out of normal range
        !      (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
        llrej = .false.
-       zpomp = -9999.0D0
+       zpomp = MPC_missingValue_R8
        if ( analysisMode ) then
           llrej = ( zpwmod < zpwmin )
           if ( gps_gb_lassmet .and. lfsl ) then
