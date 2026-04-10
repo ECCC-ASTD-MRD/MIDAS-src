@@ -3458,7 +3458,7 @@ int which_btyp(int btyp) {
    *             print 'btyp_obs=%d btyp=%d et on ne splitte pas' % (btyp_obs,btyp)
    *
    * Pour avoir la fonction 'btyp' qui aide a demeler tous ces aspects, on fait
-   *     . ssmuse-sh -d /ssm/net/cmda/base/master
+   *     . ssmuse-sh -d eccc/cmd/cmda/utils/${version}
    *
    ***************************************************************************/
 int btypAssociated(int btyp_obs, int btyp) {

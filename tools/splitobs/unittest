@@ -41,7 +41,7 @@ grid_800x400=${GRIDS}/analysis_grid_prototype_glb_800x400_south-to-north
 
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20260401-beta
 RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20260401-beta
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20251009-beta
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20260401-beta
 SQLITE3_SSM_DOMAIN=eccc/cmd/cmds/ext/20250808
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}

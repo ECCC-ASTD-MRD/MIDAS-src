@@ -248,8 +248,8 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
-    echo "... loading eccc/cmd/cmda/libs/20251009-beta/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/20251009-beta/${COMP_ARCH}
+    echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
+    . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
 
     echo "... loading hdf5-netcdf4"
     if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
