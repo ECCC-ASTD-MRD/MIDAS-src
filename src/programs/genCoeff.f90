@@ -84,7 +84,6 @@ program midas_genCoeff
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#genCoeff>`_
   !          that can affect the ``genCoeff`` program.
   !
-  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use codePrecision_mod

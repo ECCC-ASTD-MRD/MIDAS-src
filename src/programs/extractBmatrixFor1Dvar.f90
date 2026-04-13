@@ -66,7 +66,7 @@ program midas_extractBmatrixFor1Dvar
   !              *  ``varNameExtract`` name of the variable to extract or ``all`` to extract everything in namstate
   !              *  ``stepBinExtract`` should be one of ``first``, ``middle`` or ``last`` to define when in the assimilation window the B matrix is valid
   !
-  use rmn_fst98
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use message_mod

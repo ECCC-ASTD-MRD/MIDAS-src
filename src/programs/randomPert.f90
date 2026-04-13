@@ -103,8 +103,6 @@ program midas_randomPert
   !           ``&NAMBDIFF`` for diffusion correlations and ``&NAMBCHM`` for homogeneous
   !           and isotropic chemical constituents covariances.
   !
-  use rmn_fst98
-  use rmn_date
   use midasMpi_mod
   use version_mod
   use ramDisk_mod

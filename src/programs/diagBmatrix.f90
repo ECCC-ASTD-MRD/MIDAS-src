@@ -89,7 +89,7 @@ program midas_diagBmatrix
   ! Other **B** matrix modules   various      weight and other parameters for each type of **B** matrix
   !======================== ============ ==============================================================
   !
-  use rmn_fst98
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use message_mod
