@@ -711,7 +711,6 @@ contains
 
     ! Constants:
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    integer,          parameter :: ndaysM(12) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
 
     ! Locals:
     logical :: verbose
@@ -724,16 +723,7 @@ contains
 
     call tim_dateStampToYYYYMMDDHHOnly(dateStamp, prnttime, dd, mm, yyyy, verbose_opt = .false.)
 
-    ! Leap year for February
-    ! !!! THIS IS A VERY BAD PRACTICE !!!
-
-    ! A developer should never use such logic on dates but should rely
-    ! on a library that manages dates correctly.
-    if ( mm == 2 .and. (mod(yyyy,4)==0 .and. mod(yyyy,100)/=0) ) then
-      ndays = 29
-    else
-      ndays = ndaysM(mm)
-    end if
+    ndays = tim_numberOfDaysInMonth(dateStamp,yyyy,mm,dd,prnttime)
 
     if(verbose) then
       write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', dateStamp
@@ -796,7 +786,7 @@ contains
     ! Locals:
     integer :: date
 
-    date = year * 10000 + month * 100 + day
+    date = tim_dateFromYYYYMMDD(year, month, day)
 
     currentDateStamp = tim_yyyymmddhhToDatestampWithDateTime(date, time)
 
@@ -951,5 +941,73 @@ contains
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
   end subroutine tim_getSecondsSinceReferenceDate
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_numberOfDaysInMonth
+  !----------------------------------------------------------------------------------------
+  function tim_numberOfDaysInMonth(dateStamp,yyyy,mm,dd,time) result(ndays)
+    !
+    ! :Purpose: Compute the number of days in the month given by 'dateStamp'
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: dateStamp ! datetimestamp in CMC format
+    integer, intent(in) :: yyyy      ! year extracted from 'datestamp'
+    integer, intent(in) :: mm        ! month extracted from 'datestamp'
+    integer, intent(in) :: dd        ! day of month extracted from 'datestamp'
+    integer, intent(in) :: time      ! time extracted from 'datestamp' in format 'HHMM'
+    ! Results:
+    integer :: ndays
+
+    ! Locals:
+    integer :: nextdate_year, nextdate_month, nextdate
+    integer :: newdate, hours
+
+    ! To compute the number of days in the month, we will compute the
+    ! time difference between 'datestamp' and the date in one month from 'datestamp'
+
+    if (mm == 12) then
+      nextdate_year = yyyy+1
+      nextdate_month = 1
+    else
+      nextdate_year = yyyy
+      nextdate_month = mm + 1
+    end if
+
+    !! Build the new date from 'nextdate_year', 'nextdate_month' and 'dd'
+    nextdate = tim_dateFromYYYYMMDD(nextdate_year, nextdate_month, dd)
+    !! Compute a new datetimestamp from 'nextdate' and original 'time'
+    newdate = tim_yyyymmddhhToDatestampWithDateTime(nextdate, time)
+    !! Get the numbers of hours between 'dateStamp' and 'newdate'
+    call tim_getHoursSinceReferenceDate(newdate, dateStamp, hours)
+
+    !! From the number of hours, transform into the number of days
+    ndays = hours/24
+
+  end function tim_numberOfDaysInMonth
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateFromYYYYMMDD
+  !----------------------------------------------------------------------------------------
+  function tim_dateFromYYYYMMDD(year,month,day) result(date)
+    !
+    ! :Purpose: Transform the separate 'yyyy', 'mm' and 'dd' to an
+    !           integer representing this information
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: year  ! year extracted from 'datestamp'
+    integer, intent(in) :: month ! month extracted from 'datestamp'
+    integer, intent(in) :: day   ! day of month extracted from 'datestamp'
+
+    ! Results:
+    integer :: date
+
+    date = year * 10000 + month * 100 + day
+
+  end function tim_dateFromYYYYMMDD
 
 end module timeCoord_mod
