@@ -473,7 +473,7 @@ module bgckOcean_mod
         call msg('ocebg_bgCheckSeaIce', 'Timespan:')
         call tim_dateStampToYYYYMMDDHH(minDateStamp(swathIndex), prntdate, prnttime)
         call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
-        call tim_dateStampToYYYYMMDDHH(swathIndex, prntdate, prnttime)
+        call tim_dateStampToYYYYMMDDHH(maxDateStamp(swathIndex), prntdate, prnttime)
         call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
 
         write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
