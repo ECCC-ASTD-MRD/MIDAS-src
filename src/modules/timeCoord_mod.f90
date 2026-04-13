@@ -619,9 +619,9 @@ contains
     logical, optional, intent(in)  :: verbose_opt   ! allows to write the output information
 
     ! Locals:
-    character(len=8)            :: yyyymmdd
-    integer                     :: mode, ierr, prntdate(2)
-    logical                     :: verbose = .true.
+    character(len=8) :: yyyymmdd
+    integer          :: mode, ierr, prntdate(2)
+    logical          :: verbose
 
     mode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, printableTime, mode)
@@ -632,7 +632,11 @@ contains
     printableDate = prntdate(1)
     write(yyyymmdd,'(i8)') printableDate
 
-    if (present(verbose_opt)) verbose = verbose_opt
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
 
     if(verbose) then
       write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', printableDate
