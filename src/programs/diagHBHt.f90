@@ -167,8 +167,6 @@ program midas_diagHBHt
 
   implicit none
 
-  integer :: istamp
-
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
@@ -182,11 +180,6 @@ program midas_diagHBHt
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
-
-  ! external definitions
-  integer, external :: exdb, exfin
-
-  istamp = exdb('diagHBHt','DEBUT','NON')
 
   call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
 
@@ -259,8 +252,6 @@ program midas_diagHBHt
   call obs_finalize(obsSpaceData)
 
   ! 3. Job termination
-
-  istamp = exfin('diagHBHt','FIN','NON')
 
   call rti_tmg_stop(0)
   call rti_printTime()

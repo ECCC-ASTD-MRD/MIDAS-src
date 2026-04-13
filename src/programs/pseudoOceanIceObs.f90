@@ -127,7 +127,7 @@ program midas_pseudoOceanIceObs
 
   implicit none
 
-  integer :: ierr, istamp
+  integer :: ierr
 
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
@@ -147,14 +147,9 @@ program midas_pseudoOceanIceObs
   real(8)                     :: iceFractionThresholdSIC ! consider no ice condition below this threshold
   real(8)                     :: seaIceBand              ! band in km around the ice edge where to put pseudo SIC observations
 
-  ! external definitions
-  integer, external :: exdb, exfin
-
   namelist /pseudoSSTobs/ iceFractionThresholdSST, outputSST, outputFreshWaterST, seaiceThinning, &
                           outputFileNameSST, seaWaterThreshold, useSalinity, computeSSTobs
   namelist /pseudoSICobs/ outputFileNameSIC, computeSICobs, iceFractionThresholdSIC, seaIceBand
-
-  istamp = exdb('pseudoOceanIceObs','DEBUT','NON')
 
   call ver_printNameAndVersion('pseudoOceanIceObs','Generation of pseudo SST observations')
 
@@ -190,9 +185,6 @@ program midas_pseudoOceanIceObs
   end if
 
   ! 3. Job termination
-
-  istamp = exfin('pseudoOceanIceObs','FIN','NON')
-
   call rti_printTime()
   call rti_tmg_stop(0)
 
@@ -200,7 +192,7 @@ program midas_pseudoOceanIceObs
 
   call mmpi_finalize
 
-  contains
+contains
 
   subroutine pseudoOceanIceObs_setup()
     !

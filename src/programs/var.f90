@@ -276,7 +276,6 @@ program midas_var
 
   implicit none
 
-  integer :: istamp
   integer :: ierr, dateStampFromObs
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -310,9 +309,6 @@ program midas_var
 
   integer, parameter :: maxNumOuterLoopIter = 15
 
-  ! external definitions
-  integer, external :: exdb, exfin
-
   ! namelist variables
   integer :: numOuterLoopIterations                    ! number of outer loop iterations (default=1)
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
@@ -321,8 +317,6 @@ program midas_var
   logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
-
-  istamp = exdb('VAR','DEBUT','NON')
 
   call ver_printNameAndVersion('var','Variational Assimilation')
 
@@ -686,8 +680,6 @@ program midas_var
   call obs_finalize(obsSpaceData)
 
   ! Job termination
-  istamp = exfin('VAR','FIN','NON')
-
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_END'
     call rti_writeStatus(clmsg)

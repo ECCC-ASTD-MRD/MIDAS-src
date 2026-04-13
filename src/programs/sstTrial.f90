@@ -80,8 +80,7 @@ program midas_sstTrial
 
   implicit none
 
-  integer, external :: exdb, exfin
-  integer :: ierr, istamp
+  integer :: ierr
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
@@ -93,8 +92,6 @@ program midas_sstTrial
   character(len=10) :: etiketAnalysis    ! etiket in the analysis file for grid setup
   integer           :: datestampClim(nmonthsClim) ! datestamps of input climatology fields
   real(8)           :: alphaClim         ! scaling factor to relax towards climatology
-
-  istamp = exdb('SSTTRIAL','DEBUT','NON')
 
   call ver_printNameAndVersion('SSTtrial','SST trial preparation')
 
@@ -123,14 +120,12 @@ program midas_sstTrial
                            nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
 
   ! 3. Job termination
-
-  istamp = exfin('SSTTRIAL','FIN','NON')
   call rti_tmg_stop(0)
   call rti_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 
-  contains
+contains
 
   !----------------------------------------------------------------------------------------
   ! SSTtrial_setup

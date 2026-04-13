@@ -195,7 +195,7 @@ program midas_obsImpact
 
   implicit none
 
-  integer :: istamp, dateStampFromObs
+  integer :: dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -211,11 +211,6 @@ program midas_obsImpact
   type(struct_vco),        pointer :: vco_trl => null()
   type(struct_hco),        pointer :: hco_core => null()
   logical             :: allocHeightSfc
-
-  ! external definitions
-  integer, external :: exdb, exfin
-
-  istamp = exdb('OBSIMPACT','DEBUT','NON')
 
   call ver_printNameAndVersion('obsImpact','Calculation of observation impact')
 
@@ -386,8 +381,6 @@ program midas_obsImpact
   !
   !- 3. Job termination
   !
-  istamp = exfin('OBSIMPACT','FIN','NON')
-
   if (mmpi_myid == 0) then
     call rti_writeStatus('VAR3D_END')
   endif

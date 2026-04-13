@@ -156,7 +156,6 @@ program midas_var1D
 
   implicit none
 
-  integer :: istamp
   integer :: ierr, dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -179,9 +178,6 @@ program midas_var1D
   logical            :: allocHeightSfc
   character(len=9)   :: obsColumnMode
 
-  ! external definitions
-  integer, external :: exdb, exfin
-
   ! Namelist variables:
   logical :: simBgAndObs            ! Simulate Background and Observation
   integer :: simBgSeed              ! Random seed used to generate background perturbation sampling
@@ -192,7 +188,6 @@ program midas_var1D
   real(8) :: inflateEmissErr        ! Option to inflate the emissivity error stdev in B-Matrix when simulating background in idealized framework
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, simEmissSeed, useSimObsErr, numSamplesHBHT
   NAMELIST /NAM1DVAR/ inflateEmissErr
-  istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
   obsColumnMode = 'ALL'
 
@@ -436,8 +431,6 @@ program midas_var1D
   call obs_finalize(obsSpaceData)
 
   ! Job termination
-  istamp = exfin('VAR1D','FIN','NON')
-
   call rti_printTime()
   call rti_tmg_stop(0)
 

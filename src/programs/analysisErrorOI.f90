@@ -116,7 +116,6 @@ program midas_analysisErrorOI
 
   implicit none
 
-  integer :: istamp
   integer :: dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   character(len=*), parameter :: myName = 'analysisErrorOI'
@@ -125,11 +124,6 @@ program midas_analysisErrorOI
   type(struct_columnData), target :: trlColumnOnAnlLev
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
-
-  ! external definitions
-  integer, external :: exdb, exfin
-
-  istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
   call ver_printNameAndVersion('analysisErrorOI', 'Program to calculate the analysis-error standard deviation using OI.')
 
@@ -251,7 +245,6 @@ program midas_analysisErrorOI
   !
   ! 3. Job termination
   !
-  istamp = exfin('ANALYSISERROROI','FIN','NON')
 
   call rti_printTime()
   call rti_tmg_stop(0)
