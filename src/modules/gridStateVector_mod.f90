@@ -5,7 +5,6 @@ module gridStateVector_mod
   !:Purpose: The grid-point state vector and related information.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
-  use omp_lib
   use codePrecision_mod
   use midasMpi_mod
   use earthConstants_mod
