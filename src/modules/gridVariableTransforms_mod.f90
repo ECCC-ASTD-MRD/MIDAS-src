@@ -11,6 +11,8 @@ module gridVariableTransforms_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+  use runtimeInfo_mod
+  use utilities_mod
   use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -21,12 +23,8 @@ module gridVariableTransforms_mod
   use lamAnalysisGridTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use utilities_mod
-  use runtimeInfo_mod
   use varNameList_mod
   use calcHeightAndPressure_mod
-  use utilities_mod
-  use runtimeInfo_mod
   use humiditylimits_mod
   use getGridPosition_mod
   use message_mod
