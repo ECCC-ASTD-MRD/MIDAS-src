@@ -148,14 +148,14 @@ contains
   end subroutine tim_readNml
 
 
-  subroutine tim_getDateStampFromEnvVar(dateStamp)
+  function tim_getDateStampFromEnvVar() result(dateStamp)
     !
     !:Purpose: Determine the date from the environment variable 'MIDAS_DATE'.
     !
     implicit none
 
-    ! Arguments:
-    integer, intent(out) :: dateStamp ! datetime stamp extracted from environment variable 'MIDAS_DATE'
+    ! Result:
+    integer :: dateStamp ! datetime stamp extracted from environment variable 'MIDAS_DATE'
 
     ! Locals:
     integer    :: lengthValidDateStr, status
@@ -168,8 +168,10 @@ contains
     if (status > 1) then
       call rti_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
     end if
+
     if (status == 1) then
       write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
+      dateStamp = 0
       return
     end if
 
@@ -202,7 +204,7 @@ contains
 
     write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
 
-  end subroutine tim_getDateStampFromEnvVar
+  end function tim_getDateStampFromEnvVar
 
 
   subroutine tim_setup(fileNameForDate_opt)
@@ -227,8 +229,7 @@ contains
     end if
 
     ! First try to set dateStamp from MIDAS_DATE
-    dateStampEnvVar = 0
-    call tim_getDateStampFromEnvVar(dateStampEnvVar)
+    dateStampEnvVar = tim_getDateStampFromEnvVar()
 
     ! Possibly set the datestamp (except when set later from burp files)
     if (dateStampEnvVar /= 0) then
