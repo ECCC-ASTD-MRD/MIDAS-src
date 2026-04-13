@@ -127,15 +127,16 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
     __run_cmake=stop
 fi
 
+__supported_compilers="'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0', 'gnu-15.2.0'"
 if [ "${__compiler}" = list ]; then
     echo "The compiler supported are 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0' and 'gnu-15.2.0'."
+    echo "The supported compilers are ${__supported_compilers}."
     __run_cmake=stop
 elif [ "${__compiler}" != inteloneapi-2022.1.2 -a "${__compiler}" != gnu-14.2.0 -a "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
-    echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0' are." >&2
+    echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only ${__supported_compilers} are." >&2
     __status=false
     __run_cmake=stop
 fi
-typeset -r __compiler
 
 if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
     echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
@@ -300,7 +301,7 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${__compiler}" = gnu-14.2.0 ]; then
         ## This is needed for CMake to find the library
-        export f90sqlite_installdir=/home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}/${ORDENV_PLAT}
+        export f90sqlite_INSTALLDIR=/home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}/${ORDENV_PLAT}
 
         ## Loading the compiler affects 'ORDENV_PLAT' and for the
         ## rest, we need to use the original value.
@@ -311,17 +312,19 @@ if [ "${__run_cmake}" != stop ]; then
         . r.load.dot /home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}
     elif [ "${__compiler}" = gnu-15.2.0 ]; then
         ## This is needed for CMake to find the library
-        export f90sqlite_installdir=/home/martn/ssm/f90sqlite_1.5-gnu-15.2.0_rhel-9-amd64-64
+        echo "... providing path for f90sqlite, hdf5 and netcdf to CMake"
+        export f90sqlite_INSTALLDIR=/home/mad001/ssm/f90sqlite_1.5-gnu-15.2.0_rhel-9-amd64-64
+        export hdf5_INSTALLDIR=/home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64
+        export netcdf_INSTALLDIR=/home/mad001/ssm/netcdf-fortran_4.6.2-gnu-15.2.0_rhel-9-amd64-64
 
         ## Loading the compiler affects 'ORDENV_PLAT' and for the
         ## rest, we need to use the original value.
         export ORDENV_PLAT=${__original_ordenv_plat__}
         unset __original_ordenv_plat__
 
-        echo "... loading perftools, udfsqlite and f90sqlite for ${COMP_ARCH}"
+        echo "... loading perftools, and udfsqlite for ${COMP_ARCH}"
         . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/perftools_2.1-gnu-15.2.0_rhel-9-amd64-64
         . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/udfsqlite_1.19-gnu-15.2.0_rhel-9-amd64-64
-        . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/f90sqlite_1.5-gnu-15.2.0_rhel-9-amd64-64
     else
         echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
         . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
@@ -349,8 +352,9 @@ if [ "${__run_cmake}" != stop ]; then
         __rttovdebug__=
     fi
     if [ "${__compiler}" = gnu-15.2.0 ]; then
-      echo "... loading /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/rttov_13-gnu-15.2.0__rhel-9-amd64-64"
-      . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/rttov_13-gnu-15.2.0__rhel-9-amd64-64
+      echo "... providing path for rttov to CMake"
+      export rttov_INSTALLDIR=/home/mad001/code/rttov13/rttov-17/installdir
+      #. ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/code/rttov13/rttov-17/installdir
     else
       export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
       __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}

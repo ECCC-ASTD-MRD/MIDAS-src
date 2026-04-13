@@ -97,6 +97,13 @@ if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 foreach(prog ${PROJECT_PROGRAMS})
+  target_link_directories(${prog} PUBLIC $ENV{f90sqlite_INSTALLDIR}/lib)
+  target_link_directories(${prog} PUBLIC $ENV{rttov_INSTALLDIR}/lib)
+  target_link_directories(${prog} PUBLIC $ENV{hd5_INSTALLDIR}/lib)
+  target_link_directories(${prog} PUBLIC $ENV{netcdf_INSTALLDIR}/lib/lib64)
+endforeach()
+
+foreach(prog ${PROJECT_PROGRAMS})
 
   set_target_properties(${prog} PROPERTIES
     POSITION_INDEPENDENT_CODE ON

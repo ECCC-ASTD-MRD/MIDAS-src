@@ -10,7 +10,13 @@ if(DEFINED ENV{rttov_INSTALLDIR})
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/include)
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/mod)
 endif()
-target_include_directories(midas PUBLIC $ENV{f90sqlite_installdir}/include)
+target_include_directories(midas PUBLIC $ENV{f90sqlite_INSTALLDIR}/include)
+if(DEFINED ENV{hdf5_INSTALLDIR})
+  target_include_directories(midas PUBLIC $ENV{hdf5_INSTALLDIR}/include)
+endif()
+if(DEFINED ENV{netcdf_INSTALLDIR})
+  target_include_directories(midas PUBLIC $ENV{netcdf_INSTALLDIR}/include)
+endif()
 
 target_link_libraries(midas PUBLIC
   rmn::rmn-ompi
