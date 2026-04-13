@@ -3,7 +3,9 @@ module runtimeInfo_mod
   !
   ! MODULE runtimeInfo_mod (prefix='rti' category='8. Low-level utilities and constants')
   !
-  !:Purpose: Store and print the MIDAS version number for display in the listing.
+  !:Purpose: Collection of routines to help manage the runtime
+  !          information of MIDAS programs like reporting the abort
+  !          and printing timings.
   !
   use mpi_f08
   use omp_lib
@@ -40,7 +42,8 @@ contains
 
 #ifdef __INTEL_LLVM_COMPILER
     ! We must provide a 'user_exit_code'.  With only 'status', the
-    ! code aborts rightaway with the chance to run 'mpi_abort' after.
+    ! code aborts rightaway without the chance to run 'mpi_abort'
+    ! after.
     call tracebackqq(user_exit_code=-1, status=ierr)
 #endif
 
