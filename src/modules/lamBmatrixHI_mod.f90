@@ -281,17 +281,17 @@ contains
     !- 1.  How Many Control Variables do we have?
     !
     dateo  = -1
-    etiket = 'NLEV'
     ip1    = -1
     ip2    = -1
     ip3    = -1
     typvar = ' '
+
     nomvar = 'CVL'
+    etiket = 'NLEV'
 
     key = fstinf( iu_bstats,                                  & ! IN
                   ni, nj, nk,                                 & ! OUT
-                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
-
+                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar) ! IN
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Unable to find variable =',nomvar
@@ -313,13 +313,10 @@ contains
     nomvar = 'CVN'
 
     etiket = 'MODEL'
-    key = fstlir_s(ControlModelVarnameList,                     & ! OUT
-                   iu_bstats,                                   & ! IN
-                   ni, nj, nlev,                                & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
-                   lngstr = 4)
-    ! We use 'lngstr = 4' because 'ControlModelVarnameList' is declared as 'character(len=4) :: ControlModelVarnameList(bhi%nControlVariable)'
-
+    key = fstlir(ControlModelVarnameList,                     & ! OUT
+                 iu_bstats,                                   & ! IN
+                 ni, nj, nlev,                                & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar, nomvar)
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -327,12 +324,10 @@ contains
     end if
 
     etiket = 'B_HI'
-    key = fstlir_s(ControlBhiVarnameList,                       & ! OUT
-                   iu_bstats,                                   & ! IN
-                   ni, nj, nlev,                                & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
-                   lngstr = 4)
-    ! We use 'lngstr = 4' because 'ControlBhiVarnameList' is declared as 'character(len=4) :: ControlVarGridTypeList(bhi%nControlVariable)'
+    key = fstlir(ControlBhiVarnameList,                       & ! OUT
+                 iu_bstats,                                   & ! IN
+                 ni, nj, nlev,                                & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar, nomvar)
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -343,10 +338,10 @@ contains
     nomvar = 'CVL'
 
     etiket = 'NLEV'
-    key = fstlir  (ControlVarNlevList,                         & ! OUT
-                   iu_bstats,                                  & ! IN
-                   ni, nj, nlev,                               & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+    key = fstlir(ControlVarNlevList,                         & ! OUT
+                 iu_bstats,                                  & ! IN
+                 ni, nj, nlev,                               & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
@@ -354,13 +349,10 @@ contains
     end if
 
     etiket = 'LEVTYPE'
-    key = fstlir_s(ControlVarGridTypeList,                      & ! OUT
-                   iu_bstats,                                   & ! IN
-                   ni, nj, nlev,                                & ! OUT
-                   dateo, etiket, ip1, ip2, ip3, typvar,nomvar, & ! IN
-                   lngstr = 2)
-    ! We use 'lngstr = 2' because 'ControlVarGridTypeList' is declared as 'character(len=2) :: ControlVarGridTypeList(bhi%nControlVariable)'
-
+    key = fstlir(ControlVarGridTypeList,                      & ! OUT
+                 iu_bstats,                                   & ! IN
+                 ni, nj, nlev,                                & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar, nomvar)
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
