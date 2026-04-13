@@ -623,6 +623,12 @@ contains
     integer          :: mode, ierr, prntdate(2)
     logical          :: verbose
 
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
+
     mode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, printableTime, mode)
     if ( ierr < 0 ) then
@@ -631,12 +637,6 @@ contains
 
     printableDate = prntdate(1)
     write(yyyymmdd,'(i8)') printableDate
-
-    if (present(verbose_opt)) then
-      verbose = verbose_opt
-    else
-      verbose = .true.
-    end if
 
     if(verbose) then
       write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', printableDate
@@ -666,9 +666,13 @@ contains
     ! Locals:
     character(len=8) :: yyyymmdd
     integer          :: date
-    logical          :: verbose = .True.
+    logical          :: verbose
 
-    if (present(verbose_opt)) verbose = verbose_opt
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
 
     call tim_dateStampToYYYYMMDDHHPrintable(dateStamp, date, time, verbose_opt = .false.)
     write(yyyymmdd,'(i8)') date
@@ -705,16 +709,26 @@ contains
     integer,           intent(out) :: yyyy        ! year extracted from 'datestamp'
     logical, optional, intent(in)  :: verbose_opt ! allows to write the output information
 
-    ! Locals:
+    ! Constants:
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    integer                     :: ndaysM(12) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
-    logical                     :: verbose = .True.
+    integer,          parameter :: ndaysM(12) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
 
-    if (present(verbose_opt)) verbose = verbose_opt
+    ! Locals:
+    logical :: verbose
+
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
 
     call tim_dateStampToYYYYMMDDHHOnly(dateStamp, prnttime, dd, mm, yyyy, verbose_opt = .false.)
 
     ! Leap year for February
+    ! !!! THIS IS A VERY BAD PRACTICE !!!
+
+    ! A developer should never use such logic on dates but should rely
+    ! on a library that manages dates correctly.
     if ( mm == 2 .and. (mod(yyyy,4)==0 .and. mod(yyyy,100)/=0) ) then
       ndays = 29
     else
