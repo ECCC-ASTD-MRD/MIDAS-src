@@ -602,7 +602,7 @@ contains
                   ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3' &
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
                   ,'for variable ',cdvar
-             call rti_abort('GETFLDPRM2')
+             call rti_abort('utl_getfldprm')
           end if
        end do
        !
@@ -628,9 +628,9 @@ contains
           ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1, &
                ' ',cdvar,ikeys, knlev, knmaxlev)
        end do
-       write(*,*) 'Error - getfldprm2: no record found for field ', cdvar, &
+       write(*,*) 'Error - utl_getfldprm: no record found for field ', cdvar, &
                   ' but', knlev, ' records found in unit ', kinmpg(k)
-       call rti_abort('GETFLDPRM2')
+       call rti_abort('utl_getfldprm')
     end if
     !
   end subroutine utl_getfldprm
