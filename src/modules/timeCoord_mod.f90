@@ -150,12 +150,12 @@ contains
 
   subroutine tim_getDateStampFromEnvVar(dateStamp)
     !
-    !:Purpose: Determine the date from the environment variable MIDAS_DATE.
+    !:Purpose: Determine the date from the environment variable 'MIDAS_DATE'.
     !
     implicit none
 
     ! Arguments:
-    integer, intent(inout) :: dateStamp
+    integer, intent(out) :: dateStamp ! datetime stamp extracted from environment variable 'MIDAS_DATE'
 
     ! Locals:
     integer    :: lengthValidDateStr, status
@@ -163,7 +163,7 @@ contains
     character(len=256) :: validDateStr
 
     status = 0
-    call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
+    call get_environment_variable('MIDAS_DATE', validDateStr, lengthValidDateStr, status, .true.)
 
     if (status > 1) then
       call rti_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
@@ -213,7 +213,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), optional, intent(in) :: fileNameForDate_opt
+    character(len=*), optional, intent(in) :: fileNameForDate_opt ! Optional Input file name to the the datetimestamp from
 
     ! Locals:
     integer :: prntdate, prnttime
@@ -275,7 +275,7 @@ contains
     implicit none
 
     ! Result:
-    logical initialized_out
+    logical initialized_out ! Return if the module has been initialized or not
 
     initialized_out = initialized
 
@@ -289,8 +289,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*),           intent(in) :: fileName
-    character(len=*), optional, intent(in) :: varNameForDate_opt
+    character(len=*),           intent(in) :: fileName           ! File used to estimate the valid date
+    character(len=*), optional, intent(in) :: varNameForDate_opt ! Optional 'nomvar' to use to find the valid date
     ! Result:
     integer :: dateStamp_out
 
@@ -416,7 +416,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: datestamp_in
+    integer, intent(in) :: datestamp_in ! set the internal 'datestamp' value in 'timeCoord_mod' module
 
     if (.not.initialized) call rti_abort('tim_setDateStamp: module not initialized')
 
@@ -433,7 +433,7 @@ contains
     implicit none
 
     ! Result:
-    integer :: datestamp_out
+    integer :: datestamp_out ! get the internal 'datestamp' value in 'timeCoord_mod' module
 
     if (.not.initialized) call rti_abort('tim_getDateStamp: module not initialized')
 
@@ -612,9 +612,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: dateStamp
-    integer,           intent(out) :: printableDate, printableTime
-    logical, optional, intent(in)  :: verbose_opt
+    integer,           intent(in)  :: dateStamp     ! datetimestamp in CMC format
+    integer,           intent(out) :: printableDate ! date extracted from 'datestamp' in format 'YYYYMMDD'
+    integer,           intent(out) :: printableTime ! time extracted from 'datestamp' in format 'HHMMSS'
+    logical, optional, intent(in)  :: verbose_opt   ! allows to write the output information
 
     ! Locals:
     character(len=8)            :: yyyymmdd
@@ -650,9 +651,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: dateStamp
-    integer,           intent(out) :: time, dd, mm, yyyy
-    logical, optional, intent(in)  :: verbose_opt
+    integer,           intent(in)  :: dateStamp   ! datetimestamp in CMC format
+    integer,           intent(out) :: time        ! time extracted from 'datestamp' in format 'HHMM'
+    integer,           intent(out) :: dd          ! day of month extracted from 'datestamp'
+    integer,           intent(out) :: mm          ! month extracted from 'datestamp'
+    integer,           intent(out) :: yyyy        ! year extracted from 'datestamp'
+    logical, optional, intent(in)  :: verbose_opt ! allows to write the output information
 
     ! Locals:
     character(len=8) :: yyyymmdd
@@ -688,9 +692,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: dateStamp
-    integer,           intent(out) :: prnttime, dd, mm, ndays, yyyy
-    logical, optional, intent(in)  :: verbose_opt
+    integer,           intent(in)  :: dateStamp   ! datetimestamp in CMC format
+    integer,           intent(out) :: prnttime    ! time extracted from 'datestamp' in format 'HHMM'
+    integer,           intent(out) :: dd          ! day of month extracted from 'datestamp'
+    integer,           intent(out) :: mm          ! month extracted from 'datestamp'
+    integer,           intent(out) :: ndays       ! number of days in that month
+    integer,           intent(out) :: yyyy        ! year extracted from 'datestamp'
+    logical, optional, intent(in)  :: verbose_opt ! allows to write the output information
 
     ! Locals:
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -732,7 +740,7 @@ contains
     integer, intent(in)  :: time ! time as an integer in format HHMMSShh
 
     ! Result:
-    integer :: currentDateStamp
+    integer :: currentDateStamp ! datetimestamp in CMC format computed from 'date' and 'time'
 
     ! Locals:
     integer :: mode, ierr
@@ -779,13 +787,16 @@ contains
   ! tim_getValidDateTimeFromList
   !----------------------------------------------------------------------------------------
   subroutine tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
+    !
+    !:Purpose: From a collection of datetimes, find the assimilation window valid date and time
+    !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: headDateValues(:)
-    integer, intent(in)  :: headTimeValues(:)
-    integer, intent(out) :: validDate
-    integer, intent(out) :: validTime
+    integer, intent(in)  :: headDateValues(:) ! Array of dates (format 'YYYYDDMM') coherent with 'headTimeValues'
+    integer, intent(in)  :: headTimeValues(:) ! Array of time (format 'HHMMSS') coherent with 'headDateValues'
+    integer, intent(out) :: validDate         ! Assimilation window valid date
+    integer, intent(out) :: validTime         ! Assimilation window valid time
 
     ! Locals:
     integer                 :: numDates, numWindowsPerDay, windowIndex
@@ -880,13 +891,13 @@ contains
   !----------------------------------------------------------------------------------------
   subroutine tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
     !
-    ! :Purpose: to compute number of hours between current and reference date.
+    ! :Purpose: to compute number of hours between current and reference date
     !
     implicit none
 
     integer, intent(in)  :: currentDateStamp ! current datestamp
-    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
-    integer, intent(out) :: numberHours
+    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in 'namEnsPostProcModule' namelist
+    integer, intent(out) :: numberHours      ! number of hours between current and reference date
 
     ! Locals:
     integer :: refDateStamp
@@ -910,9 +921,9 @@ contains
     !
     implicit none
 
-    integer, intent(in)  :: currentDateStamp ! current datestamp
-    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
-    integer(8), intent(out) :: numberSeconds
+    integer,    intent(in)  :: currentDateStamp ! current datestamp
+    integer,    intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in 'namEnsPostProcModule' namelist
+    integer(8), intent(out) :: numberSeconds    ! number of seconds between current and reference date
 
     ! Locals:
     integer :: numberHours
