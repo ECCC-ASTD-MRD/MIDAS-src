@@ -70,10 +70,13 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     if [ "${UnitTest_compiler}" = gnu-14.2.0 ]; then
         echo echo ... loading gnu 14.2.0 compiler >> load_env.dot
         echo export MODULEPATH=/home/sidr000/modules:\${MODULEPATH}  >> load_env.dot
-        echo . r.load.dot rpn/code-tools/20251217/env/exp/gnu-14.2.0 >> load_env.dot
+        echo . r.load.dot rpn/code-tools/20260219/env/exp/gnu-14.2.0 >> load_env.dot
+    elif [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+        echo echo ... loading gnu 15.2.0 compiler >> load_env.dot
+        echo . r.load.dot rpn/code-tools/20260219/env/exp/gnu-15.2.0 >> load_env.dot
     else
-        echo echo loading rpn/code-tools/20251217/env/${UnitTest_compiler}  >> load_env.dot
-        echo . r.load.dot rpn/code-tools/20251217/env/${UnitTest_compiler}  >> load_env.dot
+        echo echo loading rpn/code-tools/20260219/env/${UnitTest_compiler}  >> load_env.dot
+        echo . r.load.dot rpn/code-tools/20260219/env/${UnitTest_compiler}  >> load_env.dot
     fi
 
     echo echo loading eccc/mrd/rpn/libs/20260316-beta  >> load_env.dot
@@ -134,7 +137,8 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     ## library.
     if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
-        echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
+        #echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
+        echo . ssmuse-sh -x /home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64>> load_env.dot ## DBG
 
         echo 'set -x'                                                        >> load_env.dot
         echo '[[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10      ' >> load_env.dot
