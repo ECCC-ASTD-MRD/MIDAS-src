@@ -48,8 +48,8 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="96mem_ppp"/>
-      <FAMILY  name="96mem_ppp">
+      <SUBMITS sub_name="tropicalCyclone"/>
+      <FAMILY  name="tropicalCyclone">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>

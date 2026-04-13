@@ -1,0 +1,311 @@
+ &NAMBHI
+   NTRUNC  = 270,
+   SCALEFACTOR = 100*0.0D0
+   READWRITE_SQRT = .true.
+/
+ &NAMBEN
+   NTRUNC  = 80,
+   NENS = 96
+   SCALEFACTOR=0.01D0,0.04D0,0.09D0,0.16D0,0.50D0,100*1.0D0
+   ENSPATHNAME='./ensemble/'
+   HORIZLOCALIZATIONTYPE = 'ScaleDependent'
+   HORIZWAVEBANDPEAKS = 80,20,4
+   HLOCALIZE = 1000.0,2400.0,3800.0
+   VLOCALIZE = 2.0d0,2.0d0,2.0d0
+   huMinValue = 2.5D-6
+   hInterpolationDegree  = 'CUBIC'
+   INCLUDEANLVAR(1) = 'UU'
+   INCLUDEANLVAR(2) = 'VV'
+   INCLUDEANLVAR(3) = 'TT'
+   INCLUDEANLVAR(4) = 'HU'
+   INCLUDEANLVAR(5) = 'P0'
+   INCLUDEANLVAR(6) = 'TG'
+/
+ &NAMBCHM
+   NTRUNC  = 270,
+   SCALEFACTOR(1,1:100) = 100*1.0D0
+   STDDEVMODE = 'GD3D'
+   READWRITE_SQRT = .true.
+   getPhysSpaceStats=.true.
+   getPhysSpaceHCorrel=.true.
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 35,
+   NSIMMAX  = 110,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC=.TRUE.,
+   NWOQCV=5
+/
+ &NAMINC
+   hInterpolationDegree = 'CUBIC'
+   etiket_rehm = '${EXP_ETIKET}'
+   etiket_rebm = '${EXP_ETIKET}'
+   etiket_anlm = '${EXP_ETIKET}'
+/
+ &NAMDIMO
+   NMXOBS=100000,
+   NDATAMX=8000000,
+/
+ &NAMTIME
+  DSTEPOBS = 0.25d0
+  DSTEPOBSINC = 1.0d0
+/
+ &NAMFILT
+  NLIST(1)=10004,
+  NLIST(2)=10051,
+  NLIST(3)=12004,
+  NLIST(4)=11215,
+  NLIST(5)=11216,
+  NLIST(6)=12203,
+  NLIST(7)=12001,
+  NLIST(8)=12192,
+  NLIST(9)=11003,
+  NLIST(10)=11004,
+  NLIST(11)=10194,
+  NLIST(12)=12062,
+  NLIST(13)=12063,
+  NLIST(14)=12163,
+  NLIST(15)=15036,
+  NLIST(16)=15031,
+  NLIST(17)=15198,
+  NLIST(18)=15199,
+  NLIST(19)=15008,
+  NLIST(20)=15207,
+  NLIST(21)=15208,
+  NLIST(22)=15230,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=11,
+  RLIMLVHU=70.D0,
+/
+ &NAMRMAT
+   rmat_lnonDiagR=.true.
+/
+ &NAMSTATE
+   addHeightSfcOffset=.false.
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
+   ANLVAR(8)   ='IWCR'
+   ANLVAR(9)   ='CLDR'   
+   ANLVAR(10)  ='O3L'
+/
+ &NAMS2C
+   SLANTPATH_TO_NL   = .TRUE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .TRUE.,
+   calcHeightPressIncrOnColumn=.TRUE.,
+/
+ &NAMTOV   
+   CSATID(1)        = 'METOP-2',
+   CINSTRUMENTID(1) = 'IASI',
+   CSATID(2)        = 'NOAA15',
+   CINSTRUMENTID(2) = 'AMSUA',
+   CSATID(3)        = 'NOAA16',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'AQUA',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'NOAA18',
+   CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'NOAA15',
+   CINSTRUMENTID(6) = 'AMSUB',
+   CSATID(7)        = 'NOAA16',
+   CINSTRUMENTID(7) = 'AMSUB',
+   CSATID(8)        = 'NOAA17',
+   CINSTRUMENTID(8) = 'AMSUB',
+   CSATID(9)        = 'NOAA18',
+   CINSTRUMENTID(9) = 'MHS',
+   CSATID(10)        = 'DMSP16',
+   CINSTRUMENTID(10) = 'SSMIS',
+   CSATID(11)        = 'GOES13',
+   CINSTRUMENTID(11) = 'GOESIMAGER',
+   CSATID(12)        = 'MSG2',
+   CINSTRUMENTID(12) = 'SEVIRI',
+   CSATID(13)        = 'METEOSAT7',
+   CINSTRUMENTID(13) = 'MVIRI',
+   CSATID(14)        = 'METOP-2',
+   CINSTRUMENTID(14) = 'AMSUA',
+   CSATID(15)       = 'METOP-2',
+   CINSTRUMENTID(15) = 'MHS',
+   CSATID(16)        = 'NOAA19',
+   CINSTRUMENTID(16) = 'AMSUA',
+   CSATID(17)        = 'NOAA19',
+   CINSTRUMENTID(17) = 'MHS',
+   CSATID(18)        = 'METOP-1',
+   CINSTRUMENTID(18) = 'IASI',
+   CSATID(19)        = 'DMSP17',
+   CINSTRUMENTID(19) = 'SSMIS',
+   CSATID(20)        = 'DMSP18',
+   CINSTRUMENTID(20) = 'SSMIS',
+   CSATID(21)        = 'GOES15',
+   CINSTRUMENTID(21) = 'GOESIMAGER',
+   CSATID(22)        = 'MSG3',
+   CINSTRUMENTID(22) = 'SEVIRI',
+   CSATID(23)        = 'MTSAT1',
+   CINSTRUMENTID(23) = 'GMSMTSAT',
+   CSATID(24)        = 'MTSAT2',
+   CINSTRUMENTID(24) = 'GMSMTSAT',
+   CSATID(25)        = 'METOP-1',
+   CINSTRUMENTID(25) = 'AMSUA',
+   CSATID(26)        = 'METOP-1',
+   CINSTRUMENTID(26) = 'MHS',
+   CSATID(27)        = 'NPP',
+   CINSTRUMENTID(27) = 'ATMS',
+   CSATID(28)        = 'NPP',
+   CINSTRUMENTID(28) = 'CRIS',
+   CSATID(29)        = 'HMWARI-8',
+   CINSTRUMENTID(29) = 'AHI',
+   CSATID(30)        = 'MSG1',
+   CINSTRUMENTID(30) = 'SEVIRI',
+   CSATID(31)        = 'MSG4',
+   CINSTRUMENTID(31) = 'SEVIRI',
+   CSATID(32)        = 'HMWARI-9',
+   CINSTRUMENTID(32) = 'AHI',
+   CSATID(33)        = 'GOES16',
+   CINSTRUMENTID(33) = 'ABI',
+   CSATID(34)        = 'NOAA20',
+   CINSTRUMENTID(34) = 'ATMS',
+   CSATID(35)        = 'NPP',
+   CINSTRUMENTID(35) = 'CRISFSR',
+   CSATID(36)        = 'NOAA20',
+   CINSTRUMENTID(36) = 'CRISFSR',
+   CSATID(37)        = 'METOP-3',
+   CINSTRUMENTID(37) = 'AMSUA',
+   CSATID(38)        = 'METOP-3',
+   CINSTRUMENTID(38) = 'MHS',
+   CSATID(39)        = 'GOES17',
+   CINSTRUMENTID(39) = 'ABI',
+   CSATID(40)        = 'FY3-3',
+   CINSTRUMENTID(40) = 'MWHS2',
+   CSATID(41)        = 'METOP-3',
+   CINSTRUMENTID(41) = 'IASI',
+   CSATID(42)        = 'GOES18',
+   CINSTRUMENTID(42) = 'ABI',
+   CSATID(43)        = 'NOAA21',
+   CINSTRUMENTID(43) = 'ATMS',
+   CSATID(44)        = 'NOAA21',
+   CINSTRUMENTID(44) = 'CRISFSR',
+   CSATID(45)        = 'FY3-4',
+   CINSTRUMENTID(45) = 'MWHS2',
+   CSATID(46)        = 'FY3-5',
+   CINSTRUMENTID(46) = 'MWHS2',
+   LDBGTOV    = .FALSE.,
+   CRTMODL    = 'RTTOV',
+   instrumentNamesUsingCLW(1) = 'amsua'
+   instrumentNamesUsingCLW(2) = 'atms'
+   instrumentNamesUsingHydrometeors(1) = 'mhs'
+   channelsUsingHydrometeors(1,1:5)=1,2,3,4,5
+   mwInstrumUsingCLW_tl = .true.
+   mwInstrumUsingHydrometeors_tl = .true.
+   cloudScaleFactor = 0.5D0
+   mwAllskyAssim = .true.
+   userDefinedDoAzimuthCorrection = .true.
+/
+ &NAMCODTYP
+   cnames(1)='crisfsr',
+   icod(1)=202,
+/
+&NAMGPSRO
+   LEVELGPSRO = 2,
+   SURFMIN    = 1000.D0,
+   HSFMIN     = 1000.D0,
+   HTPMAX     = 40000.D0,
+   HTPMAXER   = 40000.D0,
+   BGCKBAND   = 0.05D0,
+   gpsroError = 'DYNAMIC',
+/
+ &NAMGPSGB
+   DZMIN       = 2.0D0,
+   DZMAX       = 1000.0D0,
+   YZTDERR     = 0.0D0,
+   LASSMET     = .TRUE.,
+   LLBLMET     = .TRUE.,
+   YSFERRWGT   = 1.00D0,
+   YZDERRWGT   = 1.00D0,
+   LBEVIS      = .TRUE.,
+   IREFOPT     = 1,
+   L1OBS       = .FALSE.,
+   LTESTOP     = .FALSE.,
+   IZTDOP      = 1,
+/
+ &NAMBURP_FILTER_SFC
+  BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
+  LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035,40026
+/
+ &NAMBURP_FILTER_CONV
+  UA_HIGH_PRECISION_TT_ES=.true.,
+  READ_QI_GA_MT_SW=.true.,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMADDTOBURP
+  addBtClearToBurp=.false.,
+  btClearElementId=12164, 
+  clwFgElementId = 13231,
+  siFgElementId=13091,
+/
+ &NAMBURP_FILTER_TOVS
+  BLISTELEMENTS=12163
+/
+ &NAMBURP_FILTER_CHM_SFC
+  BLISTELEMENTS_SFC=15198,15208,8090 
+/
+ &NAMBURP_FILTER_CHM
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
+/
+ &NAMPHY
+  saturationCurve='Tetens_2018'
+/
+ &NAMOER
+  NEW_OER_SW=.true.
+  mwAllskyTtInflateByOmp = .true.
+  mwAllskyTtInflateByClwDiff = .true.
+  readOldSymmetricObsErrFile = .false.
+  dropSondeWindDynamic = 'huber'
+  dropSondeWindSameUVerror = .true.
+  dropSondeWindTransitionFactor = 1.d0
+  dropSondePsurfDynamic = 'huber'
+  dropSondePsurfTransitionFactor = 1.d0
+/
+ &NAMVARQC
+  dropSondeWind = .false.
+  dropSondePsurf = .false.
+/
+ &NAMBGCKCONV
+  NEW_BGCK_SW=.true.
+/
+ &NAMBURP_UPDATE
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  BITEMLIST(4)='FGE',
+  TYPE_RESUME='POSTALT',
+  copyOERblockFromInputFile = .false.
+/
+ &NAMCHEM 
+  MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
+  assim_all=.false.
+  assim_num=5
+  assim_stnid(1)='22*94700'  ! OMPS-NM on NPP and NOAA-20
+  assim_nlev(1)=1            ! OMPS Total column
+  assim_stnid(2)='AUROMI00'  ! OMI on AURA
+  assim_stnid(3)='R2494700'  ! OMPSNP NPP with 6 layers
+  assim_stnid(4)='78538700'  ! MLS on AURA
+  assim_stnid(5)='06412500'  ! TROPOMI on S5P
+  operatorSubType(1,1)='78538700'
+  operatorSubType(2,1)='wgtAvg'
+  operatorSubType(1,2)='AUROMI00'
+  operatorSubType(2,2)='genOper'
+  operatorSubType(1,3)='22*94700'
+  operatorSubType(2,3)='genOper'
+  operatorSubType(1,4)='06412500'
+  operatorSubType(2,4)='genOper'
+/    

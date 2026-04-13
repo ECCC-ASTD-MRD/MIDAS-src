@@ -1,23 +1,21 @@
  &namObsSelection
    doThinning = .true.
 /
- &thin_raobs
-   verticalThinningES = .true.
-   ecmwfRejetsES = .true.
-   toleranceFactor = 1.8
-/
  &thin_aircraft
    deltmax = 90
 /
  &thin_gbgps
    deltemps = 8
    deldist = 50
-   rejectNoZTDScore = .true.
+   rejectNoZTDScore = .false.
 /
  &thin_gpsro
    heightMin     = 0.0d0
    heightMax     = 40000.0d0
    heightSpacing = 830.0d0
+/
+ &thin_raobs
+   toleranceFactor = 1.8
 /
  &thin_satwind
    deltemps = 6
@@ -27,11 +25,14 @@
    deltax = 100
    deltmax = 90
 /
+ &thin_surface
+   doThinning   = .true.
+   step         = 6.0d0
+   deltmax      = 180
+   useBlackList = .false.
+/
  &NAMBHI
    SCALEFACTOR   = 100*1.0D0
-/
- &NAMBEN
-   SCALEFACTOR   = 100*0.0D0
 /
  &NAMMIN
    LVARQC=.FALSE.,
@@ -50,6 +51,7 @@
 /
  &NAMTIME
   DSTEPOBS = 0.25D0
+  DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
    NLIST(1)=11003,
@@ -75,17 +77,16 @@
    NLISTFLG(5)=-4,
    NLISTFLG(6)=-5,
    NLISTFLG(7)=-6,
-   NLISTFLG(8)=-7,
    RLIMLVHU=70.,
 /
  &NAMDIMO
-   NMXOBS=200000,
+   NMXOBS=400000,
    NDATAMX=2000000,
 /
-&NAMGEM
+ &NAMGEM
   rprefinc= 80000.0
   rptopinc= 10.0
-  rcoefinc= 1.6     
+  rcoefinc= 1.6
   vlev(01)= 0.125E-03
   vlev(02)= 0.221E-03
   vlev(03)= 0.382E-03
@@ -167,12 +168,18 @@
   vlev(79)= 0.995E+00
   vlev(80)= 0.100E+01
 /
- &NAMGPSRO
-  SURFMIN  = 1000.D0,
-  HSFMIN   = 1000.D0,
-  HTPMAX   = 70000.D0,
-  BGCKBAND = 0.05D0,
-  gpsroError = 'DYNAMIC',
+ &NAMTOV
+/
+&NAMGPSRO
+   SURFMIN    = 1000.D0,
+   HSFMIN     = 1000.D0,
+   HTPMAX     = 70000.D0,
+   HTPMAXER   = 40000.D0,
+   BGCKBAND   = 0.05D0,
+   gpsroError = 'DYNAMIC',
+/
+ &NAMS2C
+   SLANTPATH_RO_NL   = .FALSE.,
 /
  &NAMGPSGB
    DZMIN      = 2.0D0,
@@ -203,16 +210,37 @@
   BLISTELEMENTS=12163
 /
  &NAMPHY
-  saturationCurve='Tetens_2018a'
+  saturationCurve='Tetens_2018'
 /
  &NAMOER
   NEW_OER_SW=.true.
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.
+  uvCritDropSonde = 25.d0,500.d0,1000.d0
+  swCritDropSonde = 25.d0,500.d0,1000.d0
+  psCritDropSonde = 100.d0,1000.d0,1500.d0
+/
+ &NAMBEN
+  NENS = 256
+  SCALEFACTOR=0.01D0,0.04D0,0.09D0,0.16D0,0.50D0,100*1.0D0
+  ENSPATHNAME='./ensemble/'
+  huMinValue = 2.5D-6
+  hInterpolationDegree  = 'CUBIC'
+/
+ &NAMHBHT
+  hybrid_mode='MAX_VALUE'
+  HBHTens_codeTypeList = 37
+/
+ &NAMBIASCONV
+  aiBiasActive=.true.,
+  gpBiasActive=.true.,
+  aiRevOnly=.false.,
+  gpRevOnly=.false.
 /
  &NAMBURP_UPDATE
   BITEMLIST(1)='OMP',
   BITEMLIST(2)='OER',
+  BITEMLIST(3)='FGE',
   TYPE_RESUME='BGCKALT'
 /
