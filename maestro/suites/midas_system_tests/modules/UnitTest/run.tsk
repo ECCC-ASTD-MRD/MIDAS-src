@@ -130,6 +130,13 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         ##         "prte_silence_shared_fs" MCA param to "1".
         ##         ------------------------------------------------
         echo export PRTE_MCA_prte_silence_shared_fs=1 >> load_env.dot
+    elif [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+        ## Back to original values
+        echo export ORDENV_PLAT=${ORDENV_PLAT}         >> load_env.dot
+
+        ## We need to add the path to MKL shared objects
+        MKLROOT=/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest ## TODO use intel 2025
+        echo export LD_LIBRARY_PATH=${MKLROOT}/lib/intel64:\${LD_LIBRARY_PATH} >> load_env.dot
     fi
 
     ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
@@ -137,8 +144,11 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     ## library.
     if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
-        #echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
-        echo . ssmuse-sh -x /home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64>> load_env.dot ## DBG
+        if [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+          echo . ssmuse-sh -x /home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64>> load_env.dot ## TODO replace with dedicated SSM
+        else
+          echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
+        fi
 
         echo 'set -x'                                                        >> load_env.dot
         echo '[[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10      ' >> load_env.dot
