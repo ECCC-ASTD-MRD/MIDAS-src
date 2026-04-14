@@ -63,9 +63,10 @@ contains
     my_inumheader(:,:) = 0
 
     do headerIndex = 1, obs_numheader(obsSpaceData)
-      call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &
-           obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
-           obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex),nstepobs)
+      stepObsIndex = tim_getStepObsIndex(tim_getDatestamp(),                               &
+                                         obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+                                         obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), &
+                                         nstepobs)
       if (stepObsIndex > 0.0d0) then
         stepIndex = nint(stepObsIndex)
         bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
@@ -203,9 +204,10 @@ contains
     do headerIndex = headerIndexBeg, headerIndexEnd
 
       ! building floating point step index
-      call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-                               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
-                               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
+      stepObsIndex = tim_getStepObsIndex(tim_getDatestamp(),                               &
+                                         obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+                                         obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), &
+                                         numStep)
 
       ! leave all weights zero if obs time is out of range, otherwise set weights
       if (.not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1)) then

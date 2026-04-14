@@ -548,23 +548,25 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_getStepObsIndex
   !----------------------------------------------------------------------------------------
-  subroutine tim_getStepObsIndex(dnstepobs, referenceDateStamp, obsYYYMMDD, obsHHMM, numStep)
+  function tim_getStepObsIndex(referenceDateStamp, obsYYYMMDD, obsHHMM, numStep) result(dnstepobs)
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
     integer, intent(in)  :: referenceDateStamp ! Synop CMC date-time stamp
     integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
     integer, intent(in)  :: obsHHMM            ! Obs time HHMM
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
+    ! Result:
+    real(8) :: dnstepobs ! number of stepobs from reference time
+
     ! Locals:
-    real(8) :: dddt      ! delta time in hours
-    integer :: istobs    ! obs CMC date-time stamp
-    real(8) :: dlhours   ! delta time from synop time
+    real(8) :: dddt    ! delta time in hours
+    integer :: istobs  ! obs CMC date-time stamp
+    real(8) :: dlhours ! delta time from synop time
 
     if (.not. initialized) call rti_abort('tim_getStepObsIndex: module not initialized')
 
@@ -627,7 +629,7 @@ contains
       endif
     end if
 
-  end subroutine tim_getStepObsIndex
+  end function tim_getStepObsIndex
 
   !----------------------------------------------------------------------------------------
   ! tim_dateStampToYYYYMMDDHHPrintable

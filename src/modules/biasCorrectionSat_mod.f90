@@ -1188,9 +1188,10 @@ contains
         iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
 
-        call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-             obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-             obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), tim_nstepobs)
+        stepObsIndex =  tim_getStepObsIndex(tim_getDatestamp(),                                 &
+                                            obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                            obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), &
+                                            tim_nstepobs)
 
         timeIndex = nint(stepObsIndex)
         if  (timeIndex < 0) cycle HEADER1
@@ -1244,9 +1245,10 @@ contains
           iSensor = tvs_lsensor(headerIndex)
           if (iSensor /= sensorIndex) cycle HEADER2
 
-          call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-               obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-               obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), tim_nstepobs)
+          stepObsIndex =  tim_getStepObsIndex(tim_getDatestamp(),                                 &
+                                              obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                              obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), &
+                                              tim_nstepobs)
 
           timeIndex = nint(stepObsIndex)
           if  (timeIndex < 0) cycle HEADER2

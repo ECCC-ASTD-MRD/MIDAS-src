@@ -1122,8 +1122,8 @@ contains
       obsDate(obsIndex) = obs_headElem_i(obsdat, obs_dat, headerIndex)
       obsTime(obsIndex) = obs_headElem_i(obsdat, obs_etm, headerIndex)
 
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate(obsIndex), obsTime(obsIndex), numStep)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate(obsIndex), &
+                                            obsTime(obsIndex), numStep)
       obsStepIndex(obsIndex) = nint(obsStepIndex_r8)
       if (numStep > 1) then
         obsDelT(obsIndex) = nint(60.0 * step * (obsStepIndex_r8 - real(obsStepIndex(obsIndex))))
@@ -1858,8 +1858,8 @@ contains
     do stationIndex = 1, numStation
 
       ! Calculate the stepIndex corresponding to the launch time
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate(stationIndex), obsTime(stationIndex), tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate(stationIndex), &
+                                            obsTime(stationIndex), tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
       if (obsStepIndex < 0) then
         obsStepIndex = (tim_nstepobs+1)/2
@@ -3338,8 +3338,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! thisStnIdNoaa==TRUE means obs has collocated GPS met (Psfc) observations
@@ -3718,8 +3717,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! obs is outside time window
@@ -3960,8 +3958,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! find layer (assumes 1 level only per headerIndex)
@@ -4859,8 +4856,7 @@ contains
       ! find time difference
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
       delMinutes = abs(nint(60.0 * tim_dstepobs * abs(real(obsStepIndex) - obsStepIndex_r8)))
 
@@ -5510,8 +5506,7 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      stepObsIndex(headerIndex) = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
 
       ! Associate each observation to a grid point
       obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -6041,8 +6036,8 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
-           obsDate, obsTime, tim_nstepobs)
+      stepObsIndex(headerIndex) = tim_getStepObsIndex(tim_getDatestamp(), obsDate, &
+                                                      obsTime, tim_nstepobs)
       stepObsIndexint(headerIndex) = nint(stepObsIndex(headerIndex))
 
       ! Reject obs if it is close to the region border (only for region based)
@@ -6781,8 +6776,7 @@ contains
       ! calcul de la bin temporelle dans laquelle se trouve l'observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
       obsDelMinutes(headerIndex) = nint( 60.0 * tim_dstepobs *  &
            abs(real(obsStepIndex(headerIndex)) - obsStepIndex_r8) )
@@ -7195,14 +7189,12 @@ contains
                 (obsLonIndex(headerIndex) - 0.5)
 
       ! spatial separation
-      obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-                                 latLength / 90.
+      obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * latLength / 90.
 
       ! calcul de la bin temporelle dans laquelle se trouve l'observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! check if distance too far from box center
@@ -7735,8 +7727,7 @@ contains
       if ( lonBinIndex > numGridLons(latBinIndex) ) lonBinIndex = numGridLons(latBinIndex)
 
       ! Determine the time bin index
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       timeBinIndex = nint(obsStepIndex_r8)
       delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - obsStepIndex_r8))
 
@@ -8215,7 +8206,7 @@ contains
       ! find time difference
       obsDate = obs_headElem_i(obsdat, obs_dat, headerIndex)
       obsTime = obs_headElem_i(obsdat, obs_etm, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, numTimesteps)
       obsStepIndex = nint(obsStepIndex_r8)
 
       ! reject observations that are outside the assimilation window
@@ -8642,8 +8633,7 @@ contains
 
         ! Print some diagnostics
         if (writeDiagnostics) then
-          call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                   obsDate, obsTime, tim_nstepobs)
+          obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
           write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                                  channel, headerIndex, obsLonInDeg(headerIndex),  &
                                  obsLatInDeg(headerIndex), obsStepIndex_r8
@@ -8752,8 +8742,7 @@ contains
             ! Write some diagnostics
             if (writeDiagnostics) then
               call tim_dateStampToYYYYMMDDHH(obsDateStampMpi(headerIndex2), obsDate, obsTime)
-              call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                       obsDate, obsTime, tim_nstepobs)
+              obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
               write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
                                      headerIndex, headerIndex2, &
                                      obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
@@ -9060,8 +9049,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
 
       ! TimePenalty (lower is better)
