@@ -22,8 +22,8 @@ module timeCoord_mod
   ! Public module variables
   real(8), public, protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   integer, public, protected :: tim_nstepobs, tim_nstepobsinc
-  character(len=6), public, protected :: tim_referenceTime
   logical, public, protected :: tim_fullyUseExtremeTimeBins
+  character(len=6), public, protected :: tim_referenceTime
 
   ! Public module procedures
   public :: tim_setup, tim_initialized
@@ -54,6 +54,9 @@ module timeCoord_mod
 
 contains
 
+  !----------------------------------------------------------------------------------------
+  ! tim_readNml
+  !----------------------------------------------------------------------------------------
   subroutine tim_readNml()
     !
     ! :Purpose: Read the namelist block NAMTIME.
@@ -148,6 +151,9 @@ contains
   end subroutine tim_readNml
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getDateStampFromEnvVar
+  !----------------------------------------------------------------------------------------
   function tim_getDateStampFromEnvVar() result(dateStamp)
     !
     !:Purpose: Determine the date from the environment variable 'MIDAS_DATE'.
@@ -207,6 +213,9 @@ contains
   end function tim_getDateStampFromEnvVar
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_setup
+  !----------------------------------------------------------------------------------------
   subroutine tim_setup(fileNameForDate_opt)
     !
     ! :Purpose: Setup of obs time window size and related trial field
@@ -272,6 +281,9 @@ contains
   end subroutine tim_setup
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_initialized
+  !----------------------------------------------------------------------------------------
   function tim_initialized() result(initialized_out)
     implicit none
 
@@ -283,6 +295,9 @@ contains
   end function tim_initialized
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getDatestampFromFile
+  !----------------------------------------------------------------------------------------
   function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp_out)
     !
     ! :Purpose: to extract the dateStamp from the supplied file.
@@ -409,6 +424,9 @@ contains
   end function tim_getDateStampFromFile
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_setDatestamp
+  !----------------------------------------------------------------------------------------
   subroutine tim_setDatestamp(datestamp_in)
     !
     ! :Purpose: to control access to the minimization object.  Sets the date
@@ -426,6 +444,9 @@ contains
   end subroutine tim_setDatestamp
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getDatestamp
+  !----------------------------------------------------------------------------------------
   function tim_getDatestamp() result(datestamp_out)
     !
     ! :Purpose: to control access to the minimization object.  Returns the date
@@ -443,6 +464,9 @@ contains
   end function tim_getDatestamp
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getStampList
+  !----------------------------------------------------------------------------------------
   subroutine tim_getStampList(dateStampList, numStep, referenceDateStamp)
     !
     ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
@@ -521,6 +545,9 @@ contains
   end subroutine tim_getStampList
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getStepObsIndex
+  !----------------------------------------------------------------------------------------
   subroutine tim_getStepObsIndex(dnstepobs, referenceDateStamp, obsYYYMMDD, obsHHMM, numStep)
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
