@@ -15,6 +15,7 @@ module obsSpaceErrorStdDev_mod
   use MathPhysConstants_mod
   use stateToColumn_mod
   use gridStateVector_mod
+  use gridVariableTransforms_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use bmatrixhi_mod
@@ -108,12 +109,13 @@ module obsSpaceErrorStdDev_mod
     logical :: staticHBHT_ch   = .false.
     logical :: staticOMPE_ch   = .false.
     logical :: ensemble = .false.
-    integer :: index_body
+    integer :: index_body, headerIndex, codeType
     integer :: ierr
-
+    integer :: HBHTens_codeTypeList(codtyp_maxNumber)
+    
     ! Namelist variables:
     character(len=12) :: hybrid_mode ! can be 'WEIGHTED_SUM' or 'MAX_VALUE'
-    NAMELIST /NAMHBHT/hybrid_mode
+    NAMELIST /NAMHBHT/hybrid_mode, HBHTens_codeTypeList
 
     ! set the module variable hco_anl
     hco_anl => hco_anl_in
@@ -137,7 +139,7 @@ module obsSpaceErrorStdDev_mod
     call ose_compute_hbht_ensemble( columnTrlOnAnlIncLev,      & 
                                     obsSpaceData, &
                                     ensemble )                               
-    
+
     if ( .not. staticHBHT .and. .not. staticOMPE .and. .not. ensemble .and. &
          .not. staticHBHT_ch .and. .not. staticOMPE_ch ) &
          call utl_abort('ose_computeStddev: no OmP std dev or sqrt(HBHT) was initialized')
@@ -160,6 +162,7 @@ module obsSpaceErrorStdDev_mod
     else if ( staticHBHT .and. ensemble ) then
       ! Read Namelist first
       hybrid_mode = 'WEIGHTED_SUM' ! default value
+      HBHTens_codeTypeList(:) = -1 ! deftaul values
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namhbht, iostat=ierr)
       if ( ierr /= 0) call utl_abort('ose_computeStddev: Error reading namelist')
@@ -170,7 +173,14 @@ module obsSpaceErrorStdDev_mod
       write(*,*) 'ose_computeStddev: Using hybrid approach (blend of B_static and B_ensemble) in mode = ', trim(hybrid_mode)
 
       do index_body = 1, obs_numBody(obsSpaceData)
-        HBHT_static = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
+        headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, index_body)
+        codeType    = obs_headElem_i(obsSpaceData, OBS_ITY , headerIndex)
+        if (.not. any(HBHTens_codeTypeList == codeType)) then
+          ! HBHT = HBHT_static, already in OBS_HPHT
+          cycle
+        end if
+
+        HBHT_static   = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         if ( HBHT_static <= 0.0d0 ) then
           call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_ensemble)
@@ -796,7 +806,7 @@ module obsSpaceErrorStdDev_mod
 
     ! Locals:
     type(struct_columnData) :: column
-    type(struct_gsv)        :: statevector
+    type(struct_gsv)        :: statevector, statevectorRef
     type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: HBHT_ens(:)
     integer :: memberIndex, index_body
@@ -827,11 +837,18 @@ module obsSpaceErrorStdDev_mod
 
     !- 1.3 Create a gridstatevector to store the ensemble perturbations
     call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-      mpi_local_opt=.true., allocHeight_opt=.false., allocPressure_opt=.false.)
+                      mpi_local_opt=.true., allocHeight_opt=.true., allocPressure_opt=.true.)
 
+    ! as well as a reference statevector (the ensemble mean)
+    call gsv_allocate(statevectorRef, tim_nstepobsinc, hco_anl, vco_anl, &
+                      mpi_local_opt=.true., allocHeight_opt=.true., allocPressure_opt=.true.)
+    call ben_getEnsMean(statevectorRef, 'ConstantValue')
+    call gvt_setup(hco_anl, hco_anl, vco_anl)
+    call gvt_setupRefFromStateVector(statevectorRef, 'height') 
+    
     !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)
-    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
+    call col_allocate(column, col_getNumCol(columnTrlOnAnlIncLev))
 
     !- 1.5 Create a working a array to sum H ensPert HT
     allocate(HBHT_ens(obs_numBody(obsSpaceData)))
@@ -857,7 +874,7 @@ module obsSpaceErrorStdDev_mod
       call s2c_tl( statevector,           &
                    column,                &
                    columnTrlOnAnlIncLev, obsSpaceData )
-                   
+
       !- 2.3 Interpolation to observation space
       !         obsSpaceData - OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
       call oop_Htl( column, columnTrlOnAnlIncLev, &

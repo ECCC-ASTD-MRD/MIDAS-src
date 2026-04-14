@@ -198,17 +198,17 @@ contains
     ! Initialize obsSpaceData body columns to 'missing'
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
 
-      if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_HPHT))  call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_WORK))  call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
-      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
+      if (obs_columnActive_RB(obsdat, OBS_OMA) ) call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMA0)) call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP) ) call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP6)) call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OER) ) call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HAHT)) call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGI)) call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_ZHA )) call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TSEM)) call obs_bodySet_r(obsdat, OBS_TSEM, bodyIndex, missingValue)
@@ -221,7 +221,7 @@ contains
     ! for all ZTD data (element 15031)
     if ( trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
-      call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd)
     end if
 
     numHeader = obs_numHeader(obsdat)
