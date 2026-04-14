@@ -753,7 +753,7 @@ contains
 
     call tim_dateStampToYYYYMMDDHHOnly(dateStamp, prnttime, dd, mm, yyyy, verbose_opt = .false.)
 
-    ndays = tim_numberOfDaysInMonth(dateStamp,yyyy,mm,dd,prnttime)
+    ndays = tim_numberOfDaysInMonth(dateStamp)
 
     if(verbose) then
       write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', dateStamp
@@ -979,7 +979,7 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_numberOfDaysInMonth (private)
   !----------------------------------------------------------------------------------------
-  function tim_numberOfDaysInMonth(dateStamp,yyyy,mm,dd,time) result(ndays)
+  function tim_numberOfDaysInMonth(dateStamp) result(ndays)
     !
     ! :Purpose: Compute the number of days in the month given by 'dateStamp'
     !
@@ -987,30 +987,33 @@ contains
 
     ! Arguments:
     integer, intent(in) :: dateStamp ! datetimestamp in CMC format
-    integer, intent(in) :: yyyy      ! year extracted from 'datestamp'
-    integer, intent(in) :: mm        ! month extracted from 'datestamp'
-    integer, intent(in) :: dd        ! day of month extracted from 'datestamp'
-    integer, intent(in) :: time      ! time extracted from 'datestamp' in format 'HHMM'
     ! Results:
     integer :: ndays
 
     ! Locals:
     integer :: nextdate_year, nextdate_month, nextdate
     integer :: newdate, hours
+    integer :: year  ! year extracted from 'datestamp'
+    integer :: month ! month extracted from 'datestamp'
+    integer :: day   ! day of month extracted from 'datestamp'
+    integer :: time  ! time extracted from 'datestamp' in format 'HHMM'
 
     ! To compute the number of days in the month, we will compute the
     ! time difference between 'datestamp' and the date in one month from 'datestamp'
 
-    if (mm == 12) then
-      nextdate_year = yyyy+1
+    ! Find the 'year', 'month', 'day' and 'time' from 'dateStamp'
+    call tim_dateStampToYYYYMMDDHHOnly(dateStamp, time, day, month, year, verbose_opt = .false.)
+
+    if (month == 12) then
+      nextdate_year = year+1
       nextdate_month = 1
     else
-      nextdate_year = yyyy
-      nextdate_month = mm + 1
+      nextdate_year = year
+      nextdate_month = month + 1
     end if
 
-    !! Build the new date from 'nextdate_year', 'nextdate_month' and 'dd'
-    nextdate = tim_dateFromYYYYMMDD(nextdate_year, nextdate_month, dd)
+    !! Build the new date from 'nextdate_year', 'nextdate_month' and 'day'
+    nextdate = tim_dateFromYYYYMMDD(nextdate_year, nextdate_month, day)
     !! Compute a new datetimestamp from 'nextdate' and original 'time'
     newdate = tim_yyyymmddhhToDatestampWithDateTime(nextdate, time)
     !! Get the numbers of hours between 'dateStamp' and 'newdate'
