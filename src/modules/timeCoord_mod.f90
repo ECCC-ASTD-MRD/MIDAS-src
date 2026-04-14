@@ -29,7 +29,7 @@ module timeCoord_mod
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
-  public :: tim_yyyymmddhhToDatestamp, tim_getHoursBetweenDates, tim_getSecondsSinceReferenceDate
+  public :: tim_yyyymmddhhToDatestamp, tim_getHoursBetweenDates, tim_getSecondsBetweenDates
 
   ! Private variables
   character(len=4) :: varNameForDate
@@ -955,9 +955,9 @@ contains
   end function tim_getHoursBetweenDates
 
   !----------------------------------------------------------------------------------------
-  ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
+  ! tim_getSecondsBetweenDates(currentDate, referenceDate)
   !----------------------------------------------------------------------------------------
-  subroutine tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDate, numberSeconds)
+  subroutine tim_getSecondsBetweenDates(currentDateStamp, referenceDate, numberSeconds)
     !
     ! :Purpose: to compute number of seconds in integer(8) between current and reference date.
     !
@@ -973,7 +973,7 @@ contains
     numberHours = tim_getHoursBetweenDates(currentDateStamp, referenceDate)
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
-  end subroutine tim_getSecondsSinceReferenceDate
+  end subroutine tim_getSecondsBetweenDates
 
 
   !----------------------------------------------------------------------------------------
