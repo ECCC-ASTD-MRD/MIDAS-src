@@ -54,8 +54,91 @@ module timeCoord_mod
 
 contains
 
+
   !----------------------------------------------------------------------------------------
-  ! tim_readNml
+  ! tim_setup
+  !----------------------------------------------------------------------------------------
+  subroutine tim_setup(fileNameForDate_opt)
+    !
+    ! :Purpose: Setup of obs time window size and related trial field
+    !           time step for OmP determination.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), optional, intent(in) :: fileNameForDate_opt ! Optional Input file name to the the datetimestamp from
+
+    ! Locals:
+    integer :: prntdate, prnttime
+    integer :: dateStampEnvVar
+
+    call tim_readNml()
+
+    if (initialized) then
+      write(*,*) 'tim_setup: already initialized, just return'
+      return
+    end if
+
+    ! First try to set dateStamp from MIDAS_DATE
+    dateStampEnvVar = tim_getDateStampFromEnvVar()
+
+    ! Possibly set the datestamp (except when set later from burp files)
+    if (dateStampEnvVar /= 0) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
+      write(*,*) 'tim_setup: ====================================================='
+      dateStamp = dateStampEnvVar
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', datestamp
+    else if (present(fileNameForDate_opt)) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
+      write(*,*) 'tim_setup: ====================================================='
+      datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', datestamp
+    else
+      write(*,*) 'tim_setup: =========================================================='
+      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
+      write(*,*) 'tim_setup: =========================================================='
+    end if
+
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs          = ', tim_dstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs          = ', tim_nstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
+
+    if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
+      call rti_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
+    end if
+
+    initialized = .true.
+
+  end subroutine tim_setup
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_initialized
+  !----------------------------------------------------------------------------------------
+  function tim_initialized() result(initialized_out)
+    implicit none
+
+    ! Result:
+    logical initialized_out ! Return if the module has been initialized or not
+
+    initialized_out = initialized
+
+  end function tim_initialized
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_readNml (private)
   !----------------------------------------------------------------------------------------
   subroutine tim_readNml()
     !
@@ -152,7 +235,7 @@ contains
 
 
   !----------------------------------------------------------------------------------------
-  ! tim_getDateStampFromEnvVar
+  ! tim_getDateStampFromEnvVar (private)
   !----------------------------------------------------------------------------------------
   function tim_getDateStampFromEnvVar() result(dateStamp)
     !
@@ -211,88 +294,6 @@ contains
     write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
 
   end function tim_getDateStampFromEnvVar
-
-
-  !----------------------------------------------------------------------------------------
-  ! tim_setup
-  !----------------------------------------------------------------------------------------
-  subroutine tim_setup(fileNameForDate_opt)
-    !
-    ! :Purpose: Setup of obs time window size and related trial field
-    !           time step for OmP determination.
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*), optional, intent(in) :: fileNameForDate_opt ! Optional Input file name to the the datetimestamp from
-
-    ! Locals:
-    integer :: prntdate, prnttime
-    integer :: dateStampEnvVar
-
-    call tim_readNml()
-
-    if (initialized) then
-      write(*,*) 'tim_setup: already initialized, just return'
-      return
-    end if
-
-    ! First try to set dateStamp from MIDAS_DATE
-    dateStampEnvVar = tim_getDateStampFromEnvVar()
-
-    ! Possibly set the datestamp (except when set later from burp files)
-    if (dateStampEnvVar /= 0) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
-      write(*,*) 'tim_setup: ====================================================='
-      dateStamp = dateStampEnvVar
-      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
-      write(*,*) 'tim_setup: printdate = ', prntdate
-      write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
-    else if (present(fileNameForDate_opt)) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
-      write(*,*) 'tim_setup: ====================================================='
-      datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
-      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
-      write(*,*) 'tim_setup: printdate = ', prntdate
-      write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
-    else
-      write(*,*) 'tim_setup: =========================================================='
-      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
-      write(*,*) 'tim_setup: =========================================================='
-    end if
-
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs          = ', tim_dstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs          = ', tim_nstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
-
-    if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
-      call rti_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
-    end if
-
-    initialized = .true.
-
-  end subroutine tim_setup
-
-
-  !----------------------------------------------------------------------------------------
-  ! tim_initialized
-  !----------------------------------------------------------------------------------------
-  function tim_initialized() result(initialized_out)
-    implicit none
-
-    ! Result:
-    logical initialized_out ! Return if the module has been initialized or not
-
-    initialized_out = initialized
-
-  end function tim_initialized
 
 
   !----------------------------------------------------------------------------------------
@@ -976,7 +977,7 @@ contains
 
 
   !----------------------------------------------------------------------------------------
-  ! tim_numberOfDaysInMonth
+  ! tim_numberOfDaysInMonth (private)
   !----------------------------------------------------------------------------------------
   function tim_numberOfDaysInMonth(dateStamp,yyyy,mm,dd,time) result(ndays)
     !
@@ -1021,7 +1022,7 @@ contains
   end function tim_numberOfDaysInMonth
 
   !----------------------------------------------------------------------------------------
-  ! tim_dateFromYYYYMMDD
+  ! tim_dateFromYYYYMMDD (private)
   !----------------------------------------------------------------------------------------
   function tim_dateFromYYYYMMDD(year,month,day) result(date)
     !
