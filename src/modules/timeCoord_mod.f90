@@ -33,7 +33,7 @@ module timeCoord_mod
 
   ! Private variables
   character(len=4) :: varNameForDate
-  integer :: datestamp = 0  ! datestamp is usually the centre of time window
+  integer :: tim_datestamp = 0  ! datestamp is usually the centre of time window
   logical :: initialized = .false.
 
   ! module interfaces
@@ -87,20 +87,20 @@ contains
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
       write(*,*) 'tim_setup: ====================================================='
-      dateStamp = dateStampEnvVar
-      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      tim_dateStamp = dateStampEnvVar
+      call tim_dateStampToYYYYMMDDHH(tim_datestamp, prntdate, prnttime)
       write(*,*) 'tim_setup: printdate = ', prntdate
       write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
+      write(*,*) 'tim_setup: datestamp = ', tim_datestamp
     else if (present(fileNameForDate_opt)) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
       write(*,*) 'tim_setup: ====================================================='
-      datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
-      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
+      tim_datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
+      call tim_dateStampToYYYYMMDDHH(tim_datestamp, prntdate, prnttime)
       write(*,*) 'tim_setup: printdate = ', prntdate
       write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
+      write(*,*) 'tim_setup: datestamp = ', tim_datestamp
     else
       write(*,*) 'tim_setup: =========================================================='
       write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
@@ -299,7 +299,7 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_getDatestampFromFile
   !----------------------------------------------------------------------------------------
-  function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp_out)
+  function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp)
     !
     ! :Purpose: to extract the dateStamp from the supplied file.
     !
@@ -308,8 +308,9 @@ contains
     ! Arguments:
     character(len=*),           intent(in) :: fileName           ! File used to estimate the valid date
     character(len=*), optional, intent(in) :: varNameForDate_opt ! Optional 'nomvar' to use to find the valid date
+
     ! Result:
-    integer :: dateStamp_out
+    integer :: dateStamp
 
     ! Locals:
     integer :: nulFile, ierr
@@ -375,20 +376,20 @@ contains
                     typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
       leadTimeInHours = real(ideet*inpas,8)/3600.0d0
-      call incdatr(dateStamp_out, dateStamp_origin, leadTimeInHours)
+      call incdatr(dateStamp, dateStamp_origin, leadTimeInHours)
 
       ierr = fstfrm(nulFile)
       ierr = fclos(nulFile)
 
     end if
 
-    call mmpi_bcast(dateStamp_out)
+    call mmpi_bcast(dateStamp)
 
     if (tim_referenceTime == 'middle') then
       ! Modify date to ensure that it corresponds to the middle of the window
       ! Note: For this, we have to assume that the date in the file
       !       does NOT correspond to the final time of the window
-      call tim_dateStampToYYYYMMDDHH(datestamp_out, prntdate, prnttime)
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
       fileHour = real(prnttime,8)/1000000.0d0
       windowsPerDay = nint(24.0d0 / tim_windowsize)
       foundWindow = .false.
@@ -410,16 +411,16 @@ contains
       ! handle special case when window centered on hour 24
       if (nint(middleHour) == 24) then
         ! add 24h to dateStamp and recompute prntdate
-        dateStamp_tmp = dateStamp_out
-        call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
-        call tim_dateStampToYYYYMMDDHH(datestamp_out, prntdate, prnttime)
+        dateStamp_tmp = dateStamp
+        call incdatr(dateStamp, dateStamp_tmp, 24.0d0)
+        call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
 
         ! subtract 24h from middleHour
         middleHour = 0.0d0
       end if
 
       prnttime = nint(middleHour) * 1000000
-      datestamp_out = tim_yyyymmddhhToDatestamp(prntdate, prnttime)
+      datestamp = tim_yyyymmddhhToDatestamp(prntdate, prnttime)
     end if
 
   end function tim_getDateStampFromFile
@@ -428,7 +429,7 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_setDatestamp
   !----------------------------------------------------------------------------------------
-  subroutine tim_setDatestamp(datestamp_in)
+  subroutine tim_setDatestamp(datestamp)
     !
     ! :Purpose: to control access to the minimization object.  Sets the date
     !           of the window centre of analysis validity to the indicated value.
@@ -436,11 +437,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: datestamp_in ! set the internal 'datestamp' value in 'timeCoord_mod' module
+    integer, intent(in) :: datestamp ! set the internal 'tim_datestamp' value in 'timeCoord_mod' module
 
     if (.not.initialized) call rti_abort('tim_setDateStamp: module not initialized')
 
-    datestamp = datestamp_in
+    tim_datestamp = datestamp
 
   end subroutine tim_setDatestamp
 
@@ -448,7 +449,7 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_getDatestamp
   !----------------------------------------------------------------------------------------
-  function tim_getDatestamp() result(datestamp_out)
+  function tim_getDatestamp() result(datestamp)
     !
     ! :Purpose: to control access to the minimization object.  Returns the date
     !           of the window centre of analysis validity.
@@ -456,11 +457,11 @@ contains
     implicit none
 
     ! Result:
-    integer :: datestamp_out ! get the internal 'datestamp' value in 'timeCoord_mod' module
+    integer :: datestamp ! get the internal 'tim_datestamp' value in 'timeCoord_mod' module
 
     if (.not.initialized) call rti_abort('tim_getDateStamp: module not initialized')
 
-    datestamp_out = datestamp
+    datestamp = tim_datestamp
 
   end function tim_getDatestamp
 
@@ -790,7 +791,7 @@ contains
     mode = 3
     ierr = newdate(currentDateStamp, date_array, time, mode)
     if ( ierr < 0 ) then
-      call rti_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(datestamp)))
+      call rti_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(currentDateStamp)))
     end if
 
   end function tim_yyyymmddhhToDatestampWithDateTime
