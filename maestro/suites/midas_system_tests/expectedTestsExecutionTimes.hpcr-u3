@@ -111,7 +111,7 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/var1D/tskinTest 	224.824 93.2235 0.414651 166 789 1141
 /Tests/var/EnVar/24mem_xc40 	396.004 28.3005 0.0714652 368 537 714
 /Tests/var/EnVar/2D_ppp 	15.8917 5.24344 0.329947 9 128 9348
-/Tests/var/EnVar/96mem_ppp 	214.742 54.5975 0.254247 161 565 1016
+/Tests/var/EnVar/tropicalCyclone 	214.742 54.5975 0.254247 161 565 1016
 /Tests/var/EnVar/96mem_ppp_sqlite 	229.924 68.6125 0.298413 165 570 965
 /Tests/var/EnVar/biFourier_xc40 	256.041 49.2882 0.192501 201 618 756
 /Tests/var/EnVar/gdps 	954.89 226.771 0.237484 853 3695 182
