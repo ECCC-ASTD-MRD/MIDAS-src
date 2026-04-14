@@ -29,7 +29,7 @@ module timeCoord_mod
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
-  public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate, tim_getSecondsSinceReferenceDate
+  public :: tim_yyyymmddhhToDatestamp, tim_getHoursBetweenDates, tim_getSecondsSinceReferenceDate
 
   ! Private variables
   character(len=4) :: varNameForDate
@@ -896,17 +896,20 @@ contains
   end subroutine tim_getValidDateTimeFromList
 
   !----------------------------------------------------------------------------------------
-  ! tim_getHoursSinceReferenceDate(currentDate, referenceDate)
+  ! tim_getHoursBetweenDates(currentDate, referenceDate)
   !----------------------------------------------------------------------------------------
-  subroutine tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
+  function tim_getHoursBetweenDates(currentDateStamp, referenceDate) result(numberHours)
     !
     ! :Purpose: to compute number of hours between current and reference date
     !
     implicit none
 
+    ! Arguments:
     integer, intent(in)  :: currentDateStamp ! current datestamp
     integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in 'namEnsPostProcModule' namelist
-    integer, intent(out) :: numberHours      ! number of hours between current and reference date
+
+    ! Results:
+    integer :: numberHours      ! number of hours between current and reference date
 
     ! Locals:
     integer :: refDateStamp
@@ -919,7 +922,7 @@ contains
     call difdat(currentDateStamp, refDateStamp, numberHours)
     write(*,*) 'tim_getHoursSinceReferenceDate: difference in hours: ', numberHours
 
-  end subroutine tim_getHoursSinceReferenceDate
+  end function tim_getHoursBetweenDates
 
   !----------------------------------------------------------------------------------------
   ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
@@ -937,7 +940,7 @@ contains
     ! Locals:
     integer :: numberHours
 
-    call tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
+    numberHours = tim_getHoursBetweenDates(currentDateStamp, referenceDate)
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
   end subroutine tim_getSecondsSinceReferenceDate
@@ -981,7 +984,7 @@ contains
     !! Compute a new datetimestamp from 'nextdate' and original 'time'
     newdate = tim_yyyymmddhhToDatestampWithDateTime(nextdate, time)
     !! Get the numbers of hours between 'dateStamp' and 'newdate'
-    call tim_getHoursSinceReferenceDate(newdate, dateStamp, hours)
+    hours = tim_getHoursBetweenDates(newdate, dateStamp)
 
     !! From the number of hours, transform into the number of days
     ndays = hours/24
