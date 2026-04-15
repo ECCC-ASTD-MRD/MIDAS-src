@@ -6,11 +6,13 @@ module calcStatsLam_mod
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -196,7 +198,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'Unknown spectral weights TYPE : ', trim(SpectralWeights)
-      call utl_abort('csl_setup')
+      call rti_abort('csl_setup')
     end select
 
     !
@@ -262,7 +264,7 @@ contains
           write(*,*)
           write(*,*) '--- Momentum Control Variables = Vort-Div ---'
           bhi%momentumControlVar(1) = 'QR'
-          call utl_abort('Momentum Control Variables = Vort-Div not yest availble')
+          call rti_abort('Momentum Control Variables = Vort-Div not yest availble')
         else if ( trim(WindTransform) == 'UV') then
           write(*,*)
           write(*,*) '--- Momentum Control Variables = U-V ---'
@@ -270,7 +272,7 @@ contains
         else
           write(*,*)
           write(*,*) 'Wind Transform not available ', trim((WindTransform))
-          call utl_abort('csl_setup')
+          call rti_abort('csl_setup')
         end if
         bhi%controlVariable(varIndex)%nomvar(cv_bhi) = trim(bhi%momentumControlVar(1))
       else if ( bhi%controlVariable(varIndex)%nomvar(cv_model) == 'VV' ) then
@@ -283,7 +285,7 @@ contains
         else
           write(*,*)
           write(*,*) 'Wind Transform not available ', trim((WindTransform))
-          call utl_abort('csl_setup')
+          call rti_abort('csl_setup')
         end if
         bhi%controlVariable(varIndex)%nomvar(cv_bhi) = bhi%momentumControlVar(2)
       else
@@ -675,7 +677,7 @@ contains
        call bmd_localizationRadii(ensPerts, waveBandIndex_opt=1) ! IN
 
     case default
-       call utl_abort('csl_toolbox: Unknown TOOL '// trim(tool))
+       call rti_abort('csl_toolbox: Unknown TOOL '// trim(tool))
     end select
 
     !
@@ -1000,7 +1002,7 @@ contains
     do k = 1, bhi%nVarLev
       if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) < 0.d0 ) then
         write(*,*) 'NormalizePowerSpectrum: Problem in normalization ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
-        call utl_abort('aborting in NormalizePowerSpectrum')
+        call rti_abort('aborting in NormalizePowerSpectrum')
       end if
 
       if ( .not. utl_isEqual(GridState(hco_bhi%ni/2,hco_bhi%nj/2,k),0.d0) ) then
@@ -1263,7 +1265,7 @@ contains
     real(8), allocatable :: vertCorrel_local(:,:)
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, ier
-    integer :: fstouv, fnom, fstfrm, fclos, iunstats
+    integer :: iunstats
 
     write(*,*)
     write(*,*) 'calcVertCorrel: Starting...'
@@ -1768,8 +1770,7 @@ contains
     type(struct_gsv), intent(in) :: statevector_stdDev
 
     ! Locals:
-    integer   :: ier, fstouv, fnom, fstfrm, fclos
-    integer   :: iunstats
+    integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov.fst'
 
     write(*,*)
@@ -1824,8 +1825,7 @@ contains
     real(8),          intent(in) :: HorizScale(bhi%nVarLev)
 
     ! Locals:
-    integer   :: ier, fstouv, fnom, fstfrm, fclos
-    integer   :: iunstats
+    integer   :: ier, iunstats
     character(len=24) :: fileName = './bgcov_diag.fst'
 
     write(*,*)
@@ -1888,7 +1888,7 @@ contains
     ! Locals:
     real(4), allocatable :: work2d(:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr, totwvnb
+    integer :: ier, totwvnb
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -1955,7 +1955,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr
+    integer :: ier
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2016,7 +2016,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4)   :: work(1)
-    integer   :: ier, fstecr
+    integer   :: ier
     integer   :: var, k, kgdim
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
@@ -2089,7 +2089,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:,:)
     real(4) :: work(1)
-    integer :: ier, fstecr, var
+    integer :: ier, var
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -2150,7 +2150,7 @@ contains
     integer, intent(in) :: iun
 
     ! Locals:
-    integer :: ier, fstecr, fstecr_s
+    integer :: ier
     real(4) :: work(1)
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
@@ -2202,30 +2202,30 @@ contains
     nj       =  bhi%nControlVariable
     datyp    =  7 ! Character
 
-    ier = fstecr_s(ControlModelVarnameList, work, npak, &
-         iun, dateo, deet, npas, ni, nj, 1, ip1,    &
-         ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+    ier = fstecr(ControlModelVarnameList, work, npak,           &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,        &
+                 ip2, ip3, typvar, nomvar, 'MODEL', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
-    ier = fstecr_s(ControlBhiVarnameList, work, npak, &
-         iun, dateo, deet, npas, ni, nj, 1, ip1,    &
-         ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+    ier = fstecr(ControlBhiVarnameList, work, npak,            &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,       &
+                 ip2, ip3, typvar, nomvar, 'B_HI', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
     nomvar   = 'CVL'
     ni       =  2  ! 2 Characters
-    ier = fstecr_s(ControlVarGridTypeList, work, npak, &
-         iun, dateo, deet, npas, ni, nj, 1, ip1,    &
-         ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+    ier = fstecr(ControlVarGridTypeList, work, npak,              &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,          &
+                 ip2, ip3, typvar, nomvar, 'LEVTYPE', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
     datyp    =  2 ! Integer
     ni       =  bhi%nControlVariable
     nj       =  1
-    ier = fstecr(ControlVarNlevList, work, npak, &
-         iun, dateo, deet, npas, ni, nj, 1, ip1,    &
-         ip2, ip3, typvar, nomvar, 'NLEV', grtyp, ig1, &
-         ig2, ig3, ig4, datyp, .true.)
+    ier = fstecr(ControlVarNlevList, work, npak,               &
+                 iun, dateo, deet, npas, ni, nj, 1, ip1,       &
+                 ip2, ip3, typvar, nomvar, 'NLEV', grtyp, ig1, &
+                 ig2, ig3, ig4, datyp, .true.)
 
   end subroutine writeControlVarInfo
 

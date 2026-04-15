@@ -5,6 +5,7 @@ module fileNames_mod
   !:Purpose: Routines related to file names.
   !
   use utilities_mod
+  use runtimeInfo_mod
   use clibInterfaces_mod
   use ramDisk_mod
   use timeCoord_mod
@@ -24,7 +25,7 @@ contains
   subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
                              ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
                              copyToRamDisk_opt, resetFileInfo_opt, fileMemberIndex1_opt)
-    ! :Purpose: Return the filename of an ensemble member. Will also call routine in 
+    ! :Purpose: Return the filename of an ensemble member. Will also call routine in
     !           ramdisk_mod module that will copy the file (if shouldExist_opt is true)
     !           to the ram disk. If the memberIndex_opt is not specified, the filename
     !           is returned without the member index extension (used to read deterministic
@@ -81,7 +82,7 @@ contains
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= clib_ok) then
         if (shouldExist) then
-          call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
+          call rti_abort('fln_ensFileName: reached maximum number of files or no file is available')
         else
           write(*,*) 'fln_ensFileName: reached maximum number of files or no file is available'
           ensFileName='missing'
@@ -92,7 +93,7 @@ contains
       ensFileName = trim(fileList(1))
       totalLength = len_trim(ensFileName)
       if (totalLength == 0) then
-        call utl_abort('fln_ensFileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
+        call rti_abort('fln_ensFileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
       end if
 
       ! find number of digits used to identify ensemble member index
@@ -103,7 +104,7 @@ contains
       end do
 
       if (ensembleFileExtLength == 0) then
-        call utl_abort('fln_ensFileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
+        call rti_abort('fln_ensFileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
       end if
 
       ! find the last '/' in the file name to get the basename of the file
@@ -130,7 +131,7 @@ contains
     end if
 
     MEMBERINDEX: if (present(memberIndex_opt)) then
-      
+
       write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
       write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') &
           memberIndex_opt + fileMemberIndex1 - 1
@@ -141,15 +142,15 @@ contains
       else
         ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
       end if
-      
+
     else
-    
+
       if (present(ensFileNamePrefix_opt)) then
         ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName)
       else
         ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName)
       end if
-      
+
     end if MEMBERINDEX
 
     write(*,*) 'fln_ensFileName: ensFileName = ', trim(ensFileName)
@@ -181,13 +182,12 @@ contains
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
 
     ! Locals:
-    integer :: imode, ierr, hours, prntdate, prnttime, newdate
+    integer :: hours, prntdate, prnttime
     character(len=4)  :: ensNumber
     character(len=10) :: dateStrAnl
 
     ! Set the printable date for analysis related file names
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, prntdate, prnttime, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, prntdate, prnttime)
     hours = prnttime/1000000
     write(dateStrAnl,'(i10.10)') prntdate*100 + hours
 
@@ -253,9 +253,9 @@ contains
     integer,          optional, intent(in)  :: memberIndex_opt
     character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
-    
+
     ! Locals:
-    integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl
+    integer :: hours, prntdate, prnttime, dateStampTrl
     character(len=4)  :: ensNumber
     character(len=3)  :: leadTimeStr
     character(len=10) :: dateStrTrl
@@ -263,10 +263,9 @@ contains
     ! Compute the datestamp for the origin time of the trial forecasts
     call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
     write(*,*) 'fln_ensTrlFileName: trial dateStamp: ', dateStampTrl
-     
+
     ! Set the printable date for trial related file names
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStampTrl, prntdate, prnttime, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStampTrl, prntdate, prnttime)
     hours = prnttime/1000000
     write(dateStrTrl,'(i10.10)') prntdate*100 + hours
 

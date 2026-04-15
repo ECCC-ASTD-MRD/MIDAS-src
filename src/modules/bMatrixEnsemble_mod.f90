@@ -7,6 +7,8 @@ module bMatrixEnsemble_mod
   !           ensemble covariance matrix. This module works for both global and
   !           limited-area applications.
   !
+  use omp_lib
+  use rmn_fnom
   use midasMpi_mod
   use message_mod
   use fileNames_mod
@@ -20,6 +22,7 @@ module bMatrixEnsemble_mod
   use mathPhysConstants_mod
   use gridVariableTransforms_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use advection_mod
   use gridBinning_mod
@@ -27,6 +30,7 @@ module bMatrixEnsemble_mod
   use lamAnalysisGridTransforms_mod
   use calcHeightAndPressure_mod
   use scaleDecomposition_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -165,8 +169,6 @@ module bMatrixEnsemble_mod
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
-  integer, external    :: omp_get_thread_num
-
 CONTAINS
 
   !--------------------------------------------------------------------------
@@ -187,9 +189,8 @@ CONTAINS
     integer, allocatable,       intent(out) :: cvDimPerInstance(:)
 
     ! Locals:
-    integer        :: fnom, fclos, ierr
+    integer        :: ierr, nulnam = 0
     integer        :: cvDimStorage(nInstanceMax)
-    integer        :: nulnam = 0
     ! Namelist variables
     integer             :: nEns                                   ! number of ensemble members
     real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables
@@ -241,7 +242,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
-    call utl_tmg_start(54,'----B_ENS_Setup')
+    call rti_tmg_start(54,'----B_ENS_Setup')
 
     !- Set the module mode
     if ( present(mode_opt) ) then
@@ -252,7 +253,7 @@ CONTAINS
       else
         write(*,*)
         write(*,*) 'mode = ', trim(mode_opt)
-        call utl_abort('ben_setup: unknown mode')
+        call rti_abort('ben_setup: unknown mode')
       end if
     else
       ben_mode = 'Analysis'
@@ -310,7 +311,7 @@ CONTAINS
         if (nInstance >= 1) then
           exit instanceLoop
         else
-          call utl_abort('ben_setup: Error reading the first instance namelist')
+          call rti_abort('ben_setup: Error reading the first instance namelist')
         end if
       end if
 
@@ -330,17 +331,17 @@ CONTAINS
       end if
 
       if (nInstance > nInstanceMax) then
-        call utl_abort('ben_setup: the number of instance exceed the maximum currently allowed')
+        call rti_abort('ben_setup: the number of instance exceed the maximum currently allowed')
       end if
 
       if (trim(ben_mode) == 'BackgroundCheck' .and. nInstance > 1) then
-        call utl_abort('ben_setup: the background check mode is not compatible with multiple instance')
+        call rti_abort('ben_setup: the background check mode is not compatible with multiple instance')
       end if
 
       if ( utl_isEqual(huMinValue,MPC_missingValue_R8) .and. &
            gsv_varExist(varName='HU') .and. &
            (ctrlVarHumidity == 'LQ') ) then
-        call utl_abort('ben_setup: the value of huMinValue must be specified in namelist NAMBEN')
+        call rti_abort('ben_setup: the value of huMinValue must be specified in namelist NAMBEN')
       end if
 
       !- Transfer the info to the structure
@@ -404,7 +405,7 @@ CONTAINS
     allocate(cvDimPerInstance(nInstance))
     cvDimPerInstance(:) = cvDimStorage(1:nInstance)
 
-    call utl_tmg_stop(54)
+    call rti_tmg_stop(54)
 
   end subroutine ben_setup
 
@@ -431,15 +432,15 @@ CONTAINS
     real(8), pointer :: HeightSfc(:,:)
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
-    integer        :: levIndex, jvar, ierr
+    integer        :: levIndex, jvar
     integer        :: horizWaveBandIndex, vertWaveBandIndex, stepIndex
     integer        :: hLocalizeIndex, vLocalizeIndex
-    character(len=256) :: ensFileName
-    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
+    integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
     logical        :: scaleDecompositionNeeded = .false.
-    character(len=32)   :: direction, directionEnsPerts, directionAnlInc
-    character(len=32)   :: decompositionMode, filterResponseFunctionMode
+    character(len=32)  :: direction, directionEnsPerts, directionAnlInc
+    character(len=32)  :: decompositionMode, filterResponseFunctionMode
+    character(len=256) :: ensFileName
 
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
 
@@ -452,7 +453,7 @@ CONTAINS
     !- 1.1 Number of time step bins
     bEns(instanceIndex)%numStep = tim_nstepobsinc
     if (bEns(instanceIndex)%numStep /= 1.and.bEns(instanceIndex)%numStep /= 3.and.bEns(instanceIndex)%numStep /= 5.and.bEns(instanceIndex)%numStep /= 7) then
-      call utl_abort('ben_setupOneInstance: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
+      call rti_abort('ben_setupOneInstance: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
 
     !- 1.2 FSO-related options
@@ -476,11 +477,11 @@ CONTAINS
           else
             idate = bEns(instanceIndex)%ensDateOfValidity/100
             itime = (bEns(instanceIndex)%ensDateOfValidity-idate*100)*1000000
-            ierr = newdate(ensDateStampOfValidity, idate, itime, 3)
+            ensDateStampOfValidity = tim_yyyymmddhhToDatestamp(idate, itime)
           end if
           bEns(instanceIndex)%dateStampList(:) = ensDateStampOfValidity
         else
-          call utl_abort('ben_setupOneInstance: A single date of validity cannot be specified for numStep > 1')
+          call rti_abort('ben_setupOneInstance: A single date of validity cannot be specified for numStep > 1')
         end if
       end if
     end if
@@ -562,7 +563,7 @@ CONTAINS
 
     if (bEns(instanceIndex)%vco_anl%Vcode /= bEns(instanceIndex)%vco_ens%Vcode) then
       write(*,*) 'ben_setupOneInstance: vco_anl%Vcode = ', bEns(instanceIndex)%vco_anl%Vcode, ', vco_ens%Vcode = ', bEns(instanceIndex)%vco_ens%Vcode
-      call utl_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
+      call rti_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
     end if
     bEns(instanceIndex)%nLevEns_M  = bEns(instanceIndex)%vco_ens%nLev_M
     bEns(instanceIndex)%nLevEns_T  = bEns(instanceIndex)%vco_ens%nLev_T
@@ -577,7 +578,7 @@ CONTAINS
     if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
       if ( (bEns(instanceIndex)%nLevEns_T /= (bEns(instanceIndex)%nLevEns_M+1)) .and. (bEns(instanceIndex)%nLevEns_T /= 1 .or. bEns(instanceIndex)%nLevEns_M /= 1) ) then
         write(*,*) 'ben_setupOneInstance: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
-        call utl_abort('ben_setupOneInstance: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
+        call rti_abort('ben_setupOneInstance: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       end if
     else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001 .or. &
              bEns(instanceIndex)%vco_anl%Vcode == 2001) then
@@ -585,20 +586,20 @@ CONTAINS
            bEns(instanceIndex)%nLevEns_T /= 0 .and. &
            bEns(instanceIndex)%nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
-        call utl_abort('ben_setupOneInstance: Vcode=(5005, 21001 or 2001), nLevEns_T must equal nLevEns_M!')
+        call rti_abort('ben_setupOneInstance: Vcode=(5005, 21001 or 2001), nLevEns_T must equal nLevEns_M!')
       end if
     else if (bEns(instanceIndex)%vco_anl%Vcode == 0) then
       if ( bEns(instanceIndex)%nLevEns_T /= 0 .and. bEns(instanceIndex)%nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T, bEns(instanceIndex)%nLevEns_M
-        call utl_abort('ben_setupOneInstance: surface-only case (Vcode=0), bEns(instanceIndex)%nLevEns_T and nLevEns_M must equal 0!')
+        call rti_abort('ben_setupOneInstance: surface-only case (Vcode=0), bEns(instanceIndex)%nLevEns_T and nLevEns_M must equal 0!')
       end if
     else
       write(*,*) 'vco_anl%Vcode = ',bEns(instanceIndex)%vco_anl%Vcode
-      call utl_abort('ben_setupOneInstance: unknown vertical coordinate type!')
+      call rti_abort('ben_setupOneInstance: unknown vertical coordinate type!')
     end if
 
     if (bEns(instanceIndex)%nLevEns_M.gt.bEns(instanceIndex)%nLevInc_M) then
-      call utl_abort('ben_setupOneInstance: ensemble has more levels than increment - not allowed!')
+      call rti_abort('ben_setupOneInstance: ensemble has more levels than increment - not allowed!')
     end if
 
     if (bEns(instanceIndex)%nLevEns_M.lt.bEns(instanceIndex)%nLevInc_M) then
@@ -661,7 +662,7 @@ CONTAINS
       if (bEns(instanceIndex)%scaleFactor(1) > 0.0d0) then
         bEns(instanceIndex)%scaleFactor_SF = sqrt(bEns(instanceIndex)%scaleFactor(1))
       else
-        call utl_abort('ben_setupOneInstance: with vCode == 0, the scale factor should never be equal to 0')
+        call rti_abort('ben_setupOneInstance: with vCode == 0, the scale factor should never be equal to 0')
       end if
     end if
 
@@ -697,7 +698,7 @@ CONTAINS
         end if
 
         if ( bEns(instanceIndex)%nHorizWaveBandForFiltering <= 1 ) then
-          call utl_abort('ben_setupOneInstance: nHorizWaveBandForFiltering <= 1')
+          call rti_abort('ben_setupOneInstance: nHorizWaveBandForFiltering <= 1')
         end if
         ! You must provide nHorizWaveBand wavenumbers in decreasing order
         ! e.g. For a 3 wave bands decomposition...
@@ -711,7 +712,7 @@ CONTAINS
         ! Make sure that the wavenumbers are in the correct (decreasing) order
         do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBandForFiltering-1
           if ( bEns(instanceIndex)%horizWaveBandPeaks(horizWaveBandIndex)-bEns(instanceIndex)%horizWaveBandPeaks(horizWaveBandIndex+1) <= 0 ) then
-            call utl_abort('ben_setupOneInstance: horizWaveBandPeaks are not in decreasing wavenumber order')
+            call rti_abort('ben_setupOneInstance: horizWaveBandPeaks are not in decreasing wavenumber order')
           end if
         end do
 
@@ -719,19 +720,19 @@ CONTAINS
           ! Make sure that we have valid localization length scales for each wave bands
           do  horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand
             if ( bEns(instanceIndex)%hLocalize(horizWaveBandIndex) <= 0.0d0 ) then
-              call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
+              call rti_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
             end if
             if (trim(bEns(instanceIndex)%vertLocalizationType) /= 'ScaleDependent') then
               if ( bEns(instanceIndex)%vLocalize(horizWaveBandIndex) <= 0.0d0 .and. &
                    (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
-                call utl_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
+                call rti_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
               end if
             end if
           end do
 
           ! Make sure the truncation is compatible with the horizWaveBandPeaks
           if ( bEns(instanceIndex)%nTrunc < bEns(instanceIndex)%horizWaveBandPeaks(1) ) then
-            call utl_abort('ben_setupOneInstance: The truncation is not compatible with the your scale-dependent localization')
+            call rti_abort('ben_setupOneInstance: The truncation is not compatible with the your scale-dependent localization')
           end if
 
         else ! ScaleDependentWithSpectralLoc
@@ -740,17 +741,17 @@ CONTAINS
               bEns(instanceIndex)%horizWaveBandIndexSelected > count(bEns(instanceIndex)%horizWaveBandPeaks >= 0)) then
             write(*,*) 'ben_setupOneInstance: horizWaveBandIndexSelected = ', bEns(instanceIndex)%horizWaveBandIndexSelected
             write(*,*) 'ben_setupOneInstance: number of waveBands   = ', count(bEns(instanceIndex)%horizWaveBandPeaks >= 0)
-            call utl_abort('ben_setupOneInstance: The selected waveBand index is not valid')
+            call rti_abort('ben_setupOneInstance: The selected waveBand index is not valid')
           end if
 
           ! Make sure we have only ONE localization length scales for the selected waveBand index
           if ( bEns(instanceIndex)%hLocalize(2) > 0.0d0 .or. bEns(instanceIndex)%vLocalize(2) > 0.0d0 ) then
-            call utl_abort('ben_setupOneInstance: only a single localization length scale must be provided with SDLwSL')
+            call rti_abort('ben_setupOneInstance: only a single localization length scale must be provided with SDLwSL')
           end if
         end if
 
       case default
-        call utl_abort('ben_setupOneInstance: Invalid mode for horizLocalizationType')
+        call rti_abort('ben_setupOneInstance: Invalid mode for horizLocalizationType')
       end select
 
       !- Vertical Localization
@@ -779,19 +780,19 @@ CONTAINS
         ! Make sure that the wavenumbers are in the correct (decreasing) order
         do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand-1
           if ( bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex)-bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex+1) <= 0 ) then
-            call utl_abort('ben_setupOneInstance: vertWaveBandPeaks are not in decreasing wavenumber order')
+            call rti_abort('ben_setupOneInstance: vertWaveBandPeaks are not in decreasing wavenumber order')
           end if
         end do
 
         ! Make sure that we have valid localization length scales for each wave bands
         do  vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand
           if ( bEns(instanceIndex)%vLocalize(vertWaveBandIndex) <= 0.0d0 ) then
-            call utl_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
+            call rti_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
           end if
           !if (trim(bEns(instanceIndex)%horizLocalizationType) /= 'ScaleDependent') then
           !  if ( bEns(instanceIndex)%hLocalize(vertWaveBandIndex) <= 0.0d0 .and. &
           !       (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
-          !    call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
+          !    call rti_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
           !  end if
           !end if
         end do
@@ -802,7 +803,7 @@ CONTAINS
         end if
 
       case default
-        call utl_abort('ben_setupOneInstance: Invalid mode for vertLocalizationType')
+        call rti_abort('ben_setupOneInstance: Invalid mode for vertLocalizationType')
       end select
 
       ! Setup the localization
@@ -882,7 +883,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'Unknown humidity control variable'
       write(*,*) 'Should be LQ or LU, found = ', bEns(instanceIndex)%ctrlVarHumidity
-      call utl_abort('ben_setupOneInstance')
+      call rti_abort('ben_setupOneInstance')
     end if
 
     !
@@ -894,7 +895,7 @@ CONTAINS
       if (trim(bEns(instanceIndex)%includeAnlVar(jvar)) == '') exit
       if (.not.gsv_varExist(varName = trim(bEns(instanceIndex)%includeAnlVar(jvar)))) then
         write(*,*) 'ben_setupOneInstance: This variable is not a member of ANLVAR: ', trim(bEns(instanceIndex)%includeAnlVar(jvar))
-        call utl_abort('ben_setupOneInstance: Invalid variable in includeAnlVar')
+        call rti_abort('ben_setupOneInstance: Invalid variable in includeAnlVar')
       else
         bEns(instanceIndex)%numIncludeAnlVar = bEns(instanceIndex)%numIncludeAnlVar+1
       end if
@@ -907,7 +908,7 @@ CONTAINS
       end do
     end if
 
-    if (bEns(instanceIndex)%numIncludeAnlVar == 0) call utl_abort('ben_setupOneInstance: Ensembles not being requested for any variable')
+    if (bEns(instanceIndex)%numIncludeAnlVar == 0) call rti_abort('ben_setupOneInstance: Ensembles not being requested for any variable')
 
     bEns(instanceIndex)%ensShouldNotContainLQvarName=.false.
     if (bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. .not. bEns(instanceIndex)%ensContainsFullField) then
@@ -915,7 +916,7 @@ CONTAINS
       ! to be able to read LQ perturbations
       do jvar = 1, bEns(instanceIndex)%numIncludeAnlVar
         if (bEns(instanceIndex)%includeAnlVar(jvar) == 'LQ')  then
-          call utl_abort('ben_setup: LQ must not be present in ANLVAR in this case')
+          call rti_abort('ben_setup: LQ must not be present in ANLVAR in this case')
         end if
         if (bEns(instanceIndex)%includeAnlVar(jvar) == 'HU')  then
           bEns(instanceIndex)%includeAnlVar(jvar) = 'LQ'
@@ -981,7 +982,7 @@ CONTAINS
                                   binRealThreshold_opt=bEns(instanceIndex)%footprintTopoThreshold)                   ! IN
         call gbi_deallocate(gbi_landSeaTopo)
       else
-        call utl_abort('ben_setupOneInstance: Invalid variance smoothing type = '//trim(bEns(instanceIndex)%varianceSmoothing))
+        call rti_abort('ben_setupOneInstance: Invalid variance smoothing type = '//trim(bEns(instanceIndex)%varianceSmoothing))
       end if
 
       call gsv_power(bEns(instanceIndex)%statevector_ensStdDev, 0.5d0) ! Variance -> StdDev
@@ -1010,14 +1011,14 @@ CONTAINS
         bEns(instanceIndex)%dateStampListAdvectedFields(1) = tim_getDatestamp()
         bEns(instanceIndex)%dateStampListAdvectedFields(2) = bEns(instanceIndex)%dateStampList(bEns(instanceIndex)%numStep)
         delT_hour = bEns(instanceIndex)%fsoLeadTime/real(bEns(instanceIndex)%numStepAdvectFSOFcst-1,8) ! time between winds
-        call utl_tmg_start(55,'------B_ENS_SetupAdvecFSO')
+        call rti_tmg_start(55,'------B_ENS_SetupAdvecFSO')
         call adv_setup( bEns(instanceIndex)%adv_amplitudeFSOFcst,                                                     & ! OUT
                         'fromFirstTimeIndex', bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,               & ! IN
                         bEns(instanceIndex)%numStepAmplitudeFSOFcst, bEns(instanceIndex)%dateStampListAdvectedFields, & ! IN
                         bEns(instanceIndex)%numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst_M,                   & ! IN
                         'MMLevsOnly',                                                                                 & ! IN
                         steeringFlowFilename_opt=trim(bEns(instanceIndex)%ensPathName)//'/forecast_for_advection' )     ! IN
-        call utl_tmg_stop(55)
+        call rti_tmg_stop(55)
         deallocate(advectFactorFSOFcst_M)
       end if
     else
@@ -1047,7 +1048,7 @@ CONTAINS
       call ens_copyEnsMean(bEns(instanceIndex)%ensPerts(1,1), & ! IN
                            statevector_ensMean4D  )             ! OUT
 
-      call utl_tmg_start(56,'------B_ENS_SetupAdvecAnl')
+      call rti_tmg_start(56,'------B_ENS_SetupAdvecAnl')
 
       select case(trim(bEns(instanceIndex)%advectTypeAssimWindow))
       case ('amplitude')
@@ -1066,7 +1067,7 @@ CONTAINS
         case default
           write(*,*)
           write(*,*) 'Unsupported starting timeIndex : ', trim(bEns(instanceIndex)%advectStartTimeIndexAssimWindow)
-          call utl_abort('ben_setupOneInstance')
+          call rti_abort('ben_setupOneInstance')
         end select
         call adv_setup( bEns(instanceIndex)%adv_amplitudeAssimWindow,                                                     & ! OUT
                         direction, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                              & ! IN
@@ -1092,7 +1093,7 @@ CONTAINS
         case default
           write(*,*)
           write(*,*) 'Unsupported starting timeIndex : ', trim(bEns(instanceIndex)%advectStartTimeIndexAssimWindow)
-          call utl_abort('ben_setupOneInstance')
+          call rti_abort('ben_setupOneInstance')
         end select
 
         call adv_setup( bEns(instanceIndex)%adv_ensPerts,                                                              & ! OUT
@@ -1110,10 +1111,10 @@ CONTAINS
       case default
         write(*,*)
         write(*,*) 'Unsupported advectTypeAssimWindow : ', trim(bEns(instanceIndex)%advectTypeAssimWindow)
-        call utl_abort('ben_setupOneInstance')
+        call rti_abort('ben_setupOneInstance')
       end select
 
-      call utl_tmg_stop(56)
+      call rti_tmg_stop(56)
 
       deallocate(advectFactorAssimWindow_M)
 
@@ -1430,7 +1431,7 @@ CONTAINS
             multFactor = bEns(instanceIndex)%scaleFactor_DP(1)
           else
             write(*,*) 'varName = ', varName, ', varLevel = ', vnl_varLevelFromVarname(varName)
-            call utl_abort('setupEnsemble: unknown varLevel')
+            call rti_abort('setupEnsemble: unknown varLevel')
           end if
 
           multFactor = multFactor/sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-bEns(instanceIndex)%numSubEns))
@@ -1484,7 +1485,7 @@ CONTAINS
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
-      call utl_abort('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
+      call rti_abort('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
     end if
 
     if ( present(horizWaveBandIndexWanted_opt) ) then
@@ -1643,7 +1644,7 @@ CONTAINS
     end if
 
     if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
-      call utl_abort('ben_getEnsMean : Invalid value for upwardExtrapolationMethod')
+      call rti_abort('ben_getEnsMean : Invalid value for upwardExtrapolationMethod')
     end if
 
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
@@ -1851,12 +1852,12 @@ CONTAINS
       do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
 
         ! 2.1 Compute the ensemble amplitudes
-        call utl_tmg_start(60,'------LocSpectral_TL')
+        call rti_tmg_start(60,'------LocSpectral_TL')
         call loc_Lsqrt(bEns(instanceIndex)%locStorage(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                        controlVector_in,                                                     & ! IN
                        ensAmplitude_ptr,                                                     & ! OUT
                        amp3dStepIndex)                                                         ! IN
-        call utl_tmg_stop(60)
+        call rti_tmg_stop(60)
 
         ! 2.2 Advect the amplitudes
         if      (bEns(instanceIndex)%advectAmplitudeFSOFcst     .and. useFSOFcst) then
@@ -2014,12 +2015,12 @@ CONTAINS
         end if
 
         ! 2.1 Compute the ensemble amplitudes
-        call utl_tmg_start(64,'------LocSpectral_AD')
+        call rti_tmg_start(64,'------LocSpectral_AD')
         call loc_LsqrtAd(bEns(instanceIndex)%locStorage(horizWaveBandIndex,vertWaveBandIndex), & ! IN
                          ensAmplitude_ptr,                                                     & ! IN
                          controlVector_out,                                                    & ! OUT
                          amp3dStepIndex)                                                         ! IN
-        call utl_tmg_stop(64)
+        call rti_tmg_stop(64)
 
       end do ! Loop on vertical WaveBand
     end do ! Loop on horizontal WaveBand
@@ -2063,7 +2064,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMember'
 
-    call utl_tmg_start(58,'------AddMem_TL')
+    call rti_tmg_start(58,'------AddMem_TL')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2171,7 +2172,7 @@ CONTAINS
           ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
         else
-          call utl_abort('ben_addEnsMember: incompatible vcode')
+          call rti_abort('ben_addEnsMember: incompatible vcode')
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -2193,11 +2194,11 @@ CONTAINS
 
         write(*,*) 'variable name = ', varName
         write(*,*) 'varLevel      = ', vnl_varLevelFromVarname(varName)
-        call utl_abort('ben_addEnsMember: unknown value of varLevel')
+        call rti_abort('ben_addEnsMember: unknown value of varLevel')
 
       end if
 
-      call utl_tmg_start(59,'--------AddMemInner_TL')
+      call rti_tmg_start(59,'--------AddMemInner_TL')
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,vertWaveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
@@ -2222,7 +2223,7 @@ CONTAINS
       end do ! latIndex
       !$OMP END PARALLEL DO
 
-      call utl_tmg_stop(59)
+      call rti_tmg_stop(59)
 
       ! compute increment level from amplitude/member level
       if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -2236,7 +2237,7 @@ CONTAINS
       else if (vnl_varLevelFromVarname(varName) == 'DP') then
         topLevOffset = 1
       else
-        call utl_abort('ben_addEnsMember: unknown value of varLevel')
+        call rti_abort('ben_addEnsMember: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2258,7 +2259,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_out2)
 
-    call utl_tmg_stop(58)
+    call rti_tmg_stop(58)
 
   end subroutine addEnsMember
 
@@ -2294,7 +2295,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
 
-    call utl_tmg_start(62,'------AddMem_AD')
+    call rti_tmg_start(62,'------AddMem_AD')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2342,7 +2343,7 @@ CONTAINS
       else if (varLevel == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
       else
-        call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
+        call rti_abort('ben_addEnsMemberAd: unknown value of varLevel')
       end if
       lev2 = lev - 1 + topLevOffset
 
@@ -2378,7 +2379,7 @@ CONTAINS
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 
-          if (omp_get_thread_num() == 0) call utl_tmg_start(63,'--------AddMemInner_AD')
+          if (omp_get_thread_num() == 0) call rti_tmg_start(63,'--------AddMemInner_AD')
           ensAmplitude_MT(:,:) = 0.0d0
           do stepIndex = stepBeg, stepEnd
             stepIndex2 = stepIndex - stepBeg + 1
@@ -2394,7 +2395,7 @@ CONTAINS
                 increment_in2(stepIndex2,lonIndex,latIndex) * dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
-          if (omp_get_thread_num() == 0) call utl_tmg_stop(63)
+          if (omp_get_thread_num() == 0) call rti_tmg_stop(63)
 
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
@@ -2456,7 +2457,7 @@ CONTAINS
                    ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
             else
-              call utl_abort('ben_addEnsMemberAd: incompatible vcode')
+              call rti_abort('ben_addEnsMemberAd: incompatible vcode')
             end if
 
           else if (varLevel == 'SF') then
@@ -2471,7 +2472,7 @@ CONTAINS
                  ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           else
-            call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
+            call rti_abort('ben_addEnsMemberAd: unknown value of varLevel')
           end if
 
         end do ! lonIndex
@@ -2483,7 +2484,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_in2)
 
-    call utl_tmg_stop(62)
+    call rti_tmg_stop(62)
 
   end subroutine addEnsMemberAd
 
@@ -2541,7 +2542,7 @@ CONTAINS
     else
       write(*,*)
       write(*,*) 'mode = ', trim(mode)
-      call utl_abort('EnsembleDiagnostic: unknown mode')
+      call rti_abort('EnsembleDiagnostic: unknown mode')
     end if
 
     if ( mmpi_myid == 0 ) write(*,*)
@@ -2898,7 +2899,7 @@ CONTAINS
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (locIndex < 1 .or. locIndex > (bEns(instanceIndex)%nHorizWaveBand*bEns(instanceIndex)%nVertWaveBand)) then
-      call utl_abort('ben_getLoc: invalid locIndex')
+      call rti_abort('ben_getLoc: invalid locIndex')
     end if
 
     locIndexTemp=1

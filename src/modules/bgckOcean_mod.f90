@@ -4,8 +4,10 @@ module bgckOcean_mod
   !
   !:Purpose: to perform ocean data background check.
   !
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use columnData_mod
   use codtyp_mod
@@ -112,12 +114,12 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namOceanBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
-      call utl_tmg_stop(181)
+      if (ierr /= 0) call rti_abort('ocebg_bgCheckSST: Error reading namelist')
+      call rti_tmg_stop(181)
       if (nmonthsExceptionNH /=0) then
-        call utl_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
+        call rti_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
       do monthIndex = 1, 12
         if (monthExceptionNH(monthIndex) == '   ') exit
@@ -168,7 +170,7 @@ module bgckOcean_mod
     call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
 
     if (checkWinds) then
-      call utl_tmg_start(122, '--checkWindsForSST')
+      call rti_tmg_start(122, '--checkWindsForSST')
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
       call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
       call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
@@ -183,7 +185,7 @@ module bgckOcean_mod
         end do loop_month
         if (.not. checkMonth) then
           write(*,*) 'ocebg_bgCheckSST: month should be one of these: ',months(:)
-          call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
+          call rti_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
         end if
       end do
 
@@ -204,7 +206,7 @@ module bgckOcean_mod
         end do
       end do
       call gsv_deallocate(stateVectorAmplFactor)
-      call utl_tmg_stop(122)
+      call rti_tmg_stop(122)
     end if
 
     ! Convert FGE stateVector to column object
@@ -343,14 +345,12 @@ module bgckOcean_mod
     real(8)              :: OmP, deltaHours
     integer              :: numberObsRejected
     character(len=obs_stnidLength) :: cstnid
-    integer, external    :: newdate
-    integer              :: imode, prntdate, prnttime
+    integer              :: prntdate, prnttime
     integer, parameter   :: numStationMax = 20              ! maximum number of 'idStation' values
     integer              :: numStation, unitRMSD
     character(len=22)    :: fileName
     integer              :: hour, day, monthNumber
     integer              :: yyyy, ndays, minute
-    integer, external    :: fclos
 
     ! Namelist variables: (local)
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
@@ -369,10 +369,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
-      call utl_tmg_stop(181)
+      if (ierr /= 0) call rti_abort('ocebg_bgCheckSeaIce: Error reading namelist')
+      call rti_tmg_stop(181)
       numStation = 0
       do stationIndex = 1, numStationMax
         if (trim(idStation(stationIndex)) == 'null') exit
@@ -409,8 +409,7 @@ module bgckOcean_mod
         obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
         obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
 
-        imode = 3 ! printable to stamp
-        ierr = newdate(obsDateStamp, obsDate, obsTime*10000, imode)
+        obsDateStamp = tim_yyyymmddhhToDatestamp(obsDate, obsTime*10000)
 
         do swathIndex=1, nSwath
 
@@ -451,14 +450,14 @@ module bgckOcean_mod
             if (numberObs(swathIndex) <= maxPerSwath) then
               bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
             else
-              call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
+              call rti_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
             end if
 
           end if
 
         else
 
-          call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
+          call rti_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
 
         end if
 
@@ -472,10 +471,9 @@ module bgckOcean_mod
 
         call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//str(swathIndex))
         call msg('ocebg_bgCheckSeaIce', 'Timespan:')
-        imode = -3 ! stamp to printable
-        ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
+        call tim_dateStampToYYYYMMDDHH(minDateStamp(swathIndex), prntdate, prnttime)
         call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
-        ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
+        call tim_dateStampToYYYYMMDDHH(maxDateStamp(swathIndex), prntdate, prnttime)
         call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
 
         write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)

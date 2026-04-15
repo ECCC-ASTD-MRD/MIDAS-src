@@ -6,11 +6,13 @@ module verticalCoord_mod
   !           The derived type includes a pointer to the associated VGRID
   !           descriptor.
   !
+  use netcdf
+  use rmn_fst98
   use midasMpi_mod
+  use runtimeInfo_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod
-  use netcdf
   use mathPhysConstants_mod, only: MPC_missingValue_INT
 
   implicit none
@@ -98,7 +100,6 @@ contains
     integer :: nultemplate,ierr
     integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
-    integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: fileExists, atmFieldFound, sfcFieldFound, oceanFieldFound, netCdfFormat
@@ -113,7 +114,7 @@ contains
     character(len=2) :: varKind
 
     if ( associated(vco) ) then
-      call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
+      call rti_abort('vco_setupFromFile: the supplied vco pointer is not null!')
     end if
 
     allocate(vco)
@@ -138,7 +139,7 @@ contains
     inquire(file=templatefile,exist=fileExists)
     if ( .not. fileExists )then
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templateFile)
-      call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
+      call rti_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     end if
 
     ! Check if file is in NetCDF format
@@ -162,13 +163,13 @@ contains
         ierr =  fstouv(nultemplate, 'RND+OLD')
       else
         write(*,*) 'vco_setupFromFile: Template File = ', trim(templateFile)
-        call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
+        call rti_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
       end if
 
       ierr = fstinl(nultemplate, ini, inj, ink, -1, etiket, -1, -1, -1, ' ', &
                     ' ', ikeys, numRecords, maxNumRecords)
       if (ikeys(1) <= 0) then
-        call utl_abort('vco_setupFromFile: Could not find any records in the supplied file')
+        call rti_abort('vco_setupFromFile: Could not find any records in the supplied file')
       end if
       if (.not. beSilent) then
         write(*,*) 'vco_setupFromFile: number of records found = ', numRecords
@@ -204,7 +205,7 @@ contains
         ! something else was found, abort (not sure abort is necessary)
         write(*,*) 'vco_setupFromFile: found record with unknown vertical coordinate'
         write(*,*) 'varName = ', trim(nomvar), ' typvar = ', typvar, ' ip1 = ', ip1
-        call utl_abort('vco_setupFromFile: found a non-surface field')
+        call rti_abort('vco_setupFromFile: found a non-surface field')
 
       end do record_loop
 
@@ -224,7 +225,7 @@ contains
     else if (sfcFieldFound) then
       call vco_setupSfcFromFile(vco, beSilent)
     else
-      call utl_abort('vco_setupFromFile: could not setup vco from template file')
+      call rti_abort('vco_setupFromFile: could not setup vco from template file')
     end if
 
     write(*,*) ''
@@ -251,7 +252,6 @@ contains
 
     ! Locals:
     integer :: Vcode, jlev, nlevMatched, stat, nultemplate, ierr, ikey
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: vgd_nlev_M, vgd_nlev_T, ip1_sfc
     integer :: ni, nj, nk, varListIndex, IP1kind
     integer, pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
@@ -268,7 +268,7 @@ contains
       ierr = fstouv(nultemplate,'RND+OLD')
     else
       write(*,*) 'vco_setupAtmFromFile: Template File = ', trim(templatefile)
-      call utl_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE!')
+      call rti_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
     ! Try creating vgrid descriptor
@@ -276,7 +276,7 @@ contains
     if (stat == VGD_OK) then
       vco%vgridPresent = .true.
     else
-      call utl_abort('vco_setupAtmFromFile: !! record exists, but not able to create descriptor object')
+      call rti_abort('vco_setupAtmFromFile: !! record exists, but not able to create descriptor object')
     end if
 
     ! Print out vertical structure
@@ -284,17 +284,17 @@ contains
       flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
       if (stat /= VGD_OK)then
-        call utl_abort('vco_setupAtmFromFile: ERROR with vgd_print')
+        call rti_abort('vco_setupAtmFromFile: ERROR with vgd_print')
       end if
     end if
 
     ! Get version of the vertical coordinate
     stat = vgd_get(vco%vgrid, key = 'ig_1 - vertical coord code', value = Vcode)
     if ( stat /= VGD_OK ) then
-      call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
+      call rti_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
     if (Vcode /= 2001 .and. Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 21001) then
-      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 2001, 5002, 5005, and 21001 supported.')
+      call rti_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 2001, 5002, 5005, and 21001 supported.')
     end if
     vco%Vcode = Vcode
 
@@ -355,7 +355,7 @@ contains
       write(*,*)
       write(*,*) 'nlev_T           = ',vco%nlev_T
       write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
-      call utl_abort('vco_setupAtmFromFile: nlev_T is greater than vco_maxNumLevels!')
+      call rti_abort('vco_setupAtmFromFile: nlev_T is greater than vco_maxNumLevels!')
     end if
 
     vco%nlev_M = 0
@@ -395,7 +395,7 @@ contains
       write(*,*)
       write(*,*) 'nlev_M           = ',vco%nlev_M
       write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
-      call utl_abort('vco_setupAtmFromFile: nlev_M is greater than vco_maxNumLevels!')
+      call rti_abort('vco_setupAtmFromFile: nlev_M is greater than vco_maxNumLevels!')
     end if
 
     do jlev = 1, maxNumOtherLevels
@@ -422,7 +422,7 @@ contains
     end do
 
     if (vco%nlev_M == 0 .and. vco%nlev_T == 0) then
-      call utl_abort('vco_setupAtmFromFile: they were no valid momentum and thermodynamic variables in the template file!')
+      call rti_abort('vco_setupAtmFromFile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if
 
     if (mmpi_myid == 0 .and. .not.beSilent) then
@@ -438,7 +438,7 @@ contains
       if (ikey > 0) then
         nlevMatched = nlevMatched + 1
         if (nlevMatched > vco%nlev_M) then
-          call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
+          call rti_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
         end if
         vco%ip1_M(nlevMatched) = vgd_ip1_M(jlev)
       end if
@@ -449,7 +449,7 @@ contains
     end if
     if (nlevMatched /= vco%nlev_M) then
       write(*,*) 'vco_setupAtmFromFile: nlevMatched = ', nlevMatched, ', nlev_M = ', vco%nlev_M
-      call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
+      call rti_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
     end if
 
     ! Match up ip1 values from file and vgrid for thermo levels
@@ -459,7 +459,7 @@ contains
       if (ikey > 0) then
         nlevMatched = nlevMatched + 1
         if (nlevMatched > vco%nlev_T) then
-          call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
+          call rti_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
         end if
         vco%ip1_T(nlevMatched) = vgd_ip1_T(jlev)
       end if
@@ -471,7 +471,7 @@ contains
     end if
     if (nlevMatched /= vco%nlev_T) then
       write(*,*) 'vco_setupAtmFromFile: nlevMatched = ', nlevMatched, ', nlev_T = ', vco%nlev_T
-      call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
+      call rti_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
     end if
 
     ! Check that ip1_sfc is present in vco%ip1
@@ -485,7 +485,7 @@ contains
       end do
       if (.not. ip1_found) then
         write(*,*) 'vco_setupAtmFromFile: Could not find IP1=',ip1_sfc
-        call utl_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
+        call rti_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
       else
         if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=', vco%ip1_sfc
       end if
@@ -521,7 +521,6 @@ contains
     integer :: nultemplate, ierr
     integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
-    integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     character(len=10) :: blk_S
     integer :: IP1kind
     real :: vertCoordValue
@@ -531,11 +530,12 @@ contains
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
-    character(len=2) :: typvar
-    character(len=4) :: nomvar
-    character(len=1) :: grtyp
-    character(len=4) :: varLevel
-    character(len=2) :: varKind
+    character(len=2)  :: typvar
+    character(len=4)  :: nomvar
+    character(len=1)  :: grtyp
+    character(len=4)  :: varLevel
+    character(len=2)  :: varKind
+    character(len=12) :: etiket_read
 
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromFile: found ocean fields in file: ', trim(templateFile)
@@ -554,19 +554,19 @@ contains
       ierr = fstouv(nultemplate, 'RND+OLD')
     else
       write(*,*) 'vco_setupOceanFromFile: Template File = ', trim(templatefile)
-      call utl_abort('vco_setupOceanFromFile: CANNOT OPEN TEMPLATE FILE!')
+      call rti_abort('vco_setupOceanFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
     ierr = fstinl(nultemplate, ini, inj, ink, -1, etiket, -1, -1, -1, ' ', &
                   ' ', ikeys, numRecords, maxNumRecords)
     if (ikeys(1) <= 0) then
-      call utl_abort('vco_setupOceanFromFile: Could not find any records ' //  &
+      call rti_abort('vco_setupOceanFromFile: Could not find any records ' //  &
                      'in the supplied file')
     end if
     record_loop: do recordIndex = 1, numRecords
       ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, &
                     ini, inj, ink, inbits, idatyp, ip1, ip2, ip3, &
-                    typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
+                    typvar, nomvar, etiket_read, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
 
       ! ignore any variables not present in varnamelist_mod
@@ -606,7 +606,7 @@ contains
     ! Check if ocean depth levels are in correct order (ascending in value)
     if (vco%nLev_depth > 1) then
       if (any(vco%depths(2:vco%nLev_depth) - vco%depths(1:(vco%nLev_depth-1)) < 0.0)) then
-        call utl_abort('vco_setupOceanFromFile: some depth levels not in ascending order')
+        call rti_abort('vco_setupOceanFromFile: some depth levels not in ascending order')
       end if
     end if
 
@@ -668,7 +668,7 @@ contains
         if (.not. beSilent) &
           write(*,*) 'vco_setupOceanFromNetCdfFile: SSS found in file: ', trim(templateFile)
       else
-        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST/SSS found in file: '//trim(templateFile))
+        call rti_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST/SSS found in file: '//trim(templateFile))
       end if
 
       if (.not. beSilent) &
@@ -721,7 +721,7 @@ contains
       enddo
 
       if (vco%nLev_depth < 0) then
-        call utl_abort('vco_setupOceanFromNetCdfFile: not able to find depth variable dimension in NetCDF file')
+        call rti_abort('vco_setupOceanFromNetCdfFile: not able to find depth variable dimension in NetCDF file')
       end if
 
       allocate(vco%depths(vco%nLev_depth))
@@ -750,7 +750,7 @@ contains
       ! Check if ocean depth levels are in correct order (ascending in value)
       if ( vco%nLev_depth > 1 ) then
         if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
-          call utl_abort('vco_setupOceanFromNetCdfFile: some depth levels not in ascending order')
+          call rti_abort('vco_setupOceanFromNetCdfFile: some depth levels not in ascending order')
         end if
       end if
 
@@ -844,14 +844,14 @@ contains
       nlev = 1
     else if (varLevel == 'OT') then
       if (.not. present(varName_opt)) then
-        call utl_abort('vco_getNumLev: varName must be specified for varLevel=OT')
+        call rti_abort('vco_getNumLev: varName must be specified for varLevel=OT')
       end if
       varListIndex = vnl_varListIndexOther(varName_opt)
       nlev = vco%nlev_Other(varListIndex)
     else if (varLevel == 'DP') then
       nlev = vco%nlev_depth
     else
-      call utl_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
+      call rti_abort('vco_getNumLev: Unknown variable type! ' // varLevel)
     end if
 
   end function vco_getNumLev
@@ -901,7 +901,7 @@ contains
       if (.not.associated(vco)) then
         allocate(vco)
       else
-        call utl_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
+        call rti_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
       end if
     end if
 

@@ -10,9 +10,9 @@ program midas_var1D
   !            observations are present. The B matrix can be either an explicit representation of
   !            the covariances produced by the program extractBmatrixFor1Dvar or from an ensemble
   !            (controlled by the namelists). The resulting analysis and analysis increment at the
-  !            observation locations/times are output in standard files on a "Y" grid. There is an 
+  !            observation locations/times are output in standard files on a "Y" grid. There is an
   !            option to conduct idealized simulation by simulating the background and observations
-  !            based on a prescribed true state, the background and observation error covariance 
+  !            based on a prescribed true state, the background and observation error covariance
   !            matrices.
   !
   !            --
@@ -26,7 +26,7 @@ program midas_var1D
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
-  ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar) 
+  ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar)
   ! ``Bmatrix_land.bin``                           In - 1DVar Bmatrix file over land (output from extractBmatrixFor1DVar)
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
   ! ``obserr``                                     In - Observation error statistics
@@ -44,8 +44,8 @@ program midas_var1D
   ! ``stats_tovs``                                 In - Observation error file for radiances
   ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
-  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
-  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
+  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format
   ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
   !============================================== ==============================================================
   !
@@ -73,7 +73,7 @@ program midas_var1D
   !               - Setup the gridStateVector module (initialize list of analyzed variables)
   !
   !               - Get horizontal and vertical grid descriptors from trial fields: ``inn_getHcoVcoFromTrlmFile``,
-  !                 and allocate a gridStateVector objects 
+  !                 and allocate a gridStateVector objects
   !
   !               - Read the trials: ``gio_readTrials``
   !
@@ -122,7 +122,7 @@ program midas_var1D
   !              * includeAnlVar list of variable for the B matrix
   !              * numIncludeAnlVar number of variables in  includeAnlVar (to be removed later)
   !
-  !           - The option to simulate the background and observations in idealized simulation controlled 
+  !           - The option to simulate the background and observations in idealized simulation controlled
   !             by namelist NAM1DVAR
   !
   !           --
@@ -132,13 +132,14 @@ program midas_var1D
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
   use obsSpaceData_mod
-  use columnData_mod  
+  use columnData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use controlVector_mod
@@ -152,10 +153,9 @@ program midas_var1D
   use var1D_mod
   use bMatrix1Dvar_mod
   use var1DIdealize_mod
- 
+
   implicit none
 
-  integer :: istamp, exdb, exfin
   integer :: ierr, dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -178,7 +178,6 @@ program midas_var1D
   logical            :: allocHeightSfc
   character(len=9)   :: obsColumnMode
 
-
   ! Namelist variables:
   logical :: simBgAndObs            ! Simulate Background and Observation
   integer :: simBgSeed              ! Random seed used to generate background perturbation sampling
@@ -189,7 +188,6 @@ program midas_var1D
   real(8) :: inflateEmissErr        ! Option to inflate the emissivity error stdev in B-Matrix when simulating background in idealized framework
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, simEmissSeed, useSimObsErr, numSamplesHBHT
   NAMELIST /NAM1DVAR/ inflateEmissErr
-  istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
   obsColumnMode = 'ALL'
 
@@ -200,8 +198,8 @@ program midas_var1D
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   write(*,*)
   write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
@@ -237,10 +235,10 @@ program midas_var1D
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=NAM1DVAR, iostat=ierr)
-    call utl_tmg_stop(181)
-    if(ierr.ne.0) call utl_abort('midas-var1D: Error reading namelist')
+    call rti_tmg_stop(181)
+    if(ierr.ne.0) call rti_abort('midas-var1D: Error reading namelist')
   end if
 
   if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
@@ -256,7 +254,7 @@ program midas_var1D
     if (dateStampFromObs > 0) then
       call tim_setDatestamp(dateStampFromObs)
     else
-      call utl_abort('midas-var1D: DateStamp was not set')
+      call rti_abort('midas-var1D: DateStamp was not set')
     end if
   end if
 
@@ -329,7 +327,7 @@ program midas_var1D
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'midas-var1D: Problem allocating memory for ''controlVectorIncr''',ierr
-    call utl_abort('aborting in VAR1D')
+    call rti_abort('aborting in VAR1D')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   call msg_memUsage('midas-var1D')
@@ -337,7 +335,7 @@ program midas_var1D
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                 stateVectorTrialHighRes )
-  
+
   ! Update model surface elevation into ObsSpaceData
   call var1D_UpdateObsElevation(columnTrlOnTrlLev, obsSpaceData)
 
@@ -346,10 +344,10 @@ program midas_var1D
     call col_setVco(columnTrlOnTrlLevTruth, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnTrlOnTrlLevTruth, col_getNumCol(columnTrlOnTrlLev), &
                       setToZero_opt=.true.)
-                      
+
     call col_copy(columnTrlOnTrlLev, columnTrlOnTrlLevTruth)
     call col_deallocate(columnTrlOnTrlLev)
-    
+
     if (numSamplesHBHT > 0) then
       call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs, inflateEmissErr)
     end if
@@ -357,10 +355,10 @@ program midas_var1D
     ! Simulate Background state columnTrlOnTrlLev
     call var1Di_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
                                         obsSpaceData, vco_anl, simBgSeed, inflateEmissErr)
-                                          
+
     call var1Di_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
                                     simObsSeed, simEmissSeed, useSimObsErr)
-  end if  
+  end if
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
@@ -418,7 +416,7 @@ program midas_var1D
   call bcs_finalize()
   ! Now write out the observation data files
   if (min_niter > 0) then
-    if ( .not. obsf_filesSplit() ) then 
+    if ( .not. obsf_filesSplit() ) then
       write(*,*) 'We read/write global observation files'
       call obs_expandToMpiGlobal(obsSpaceData)
       if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
@@ -433,10 +431,8 @@ program midas_var1D
   call obs_finalize(obsSpaceData)
 
   ! Job termination
-  istamp = exfin('VAR1D','FIN','NON')
-
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

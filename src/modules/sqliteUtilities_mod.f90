@@ -9,6 +9,7 @@ module sqliteUtilities_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
 
   implicit none
@@ -53,7 +54,7 @@ contains
     ! open the SQLite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//fSQL_errmsg(stat) )
+      call rti_abort( myName//fSQL_errmsg(stat) )
     end if
 
     upperColumnName = trim(columnName)
@@ -101,7 +102,7 @@ contains
     ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
+      call rti_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     upperTableName = trim(tableName)
@@ -153,7 +154,7 @@ contains
     ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
+      call rti_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
     end if
 
     ! read the column names
@@ -164,7 +165,7 @@ contains
                          'type="DOUBLE" or type="integer" or type="INTEGER" or ' // &
                          'type="INT" or type=""'
     else if (trim(dataType) /= 'all') then
-      call utl_abort( myName//': invalid dataType = ' // trim(dataType) )
+      call rti_abort( myName//': invalid dataType = ' // trim(dataType) )
     end if
     if (trim(dataType) == 'all') then
       query = 'select name from pragma_table_info("' // trim(tableName) // '");'
@@ -176,7 +177,7 @@ contains
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': problem with fSQL_get_many '//fSQL_errmsg(stat))
+      call rti_abort( myName//': problem with fSQL_get_many '//fSQL_errmsg(stat))
     end if
     allocate( charValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, charValues )
@@ -231,7 +232,7 @@ contains
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesNum: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'sqlu_getColumnValuesNum: fSQL_open' )
+      call rti_abort( 'sqlu_getColumnValuesNum: fSQL_open' )
     end if
 
     ! build the sqlite query
@@ -251,7 +252,7 @@ contains
                         real8_missing=MPC_missingValue_R8, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesNum: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('sqlu_getColumnValuesNum: problem with fSQL_get_many')
+      call rti_abort('sqlu_getColumnValuesNum: problem with fSQL_get_many')
     end if
     write(*,*) 'sqlu_getColumnValuesNum: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValues(numRows, numColumns) )
@@ -293,7 +294,7 @@ contains
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesChar: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'sqlu_getColumnValuesChar: fSQL_open' )
+      call rti_abort( 'sqlu_getColumnValuesChar: fSQL_open' )
     end if
 
     ! build the sqlite query
@@ -312,7 +313,7 @@ contains
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesChar: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('sqlu_getColumnValuesChar: problem with fSQL_get_many')
+      call rti_abort('sqlu_getColumnValuesChar: problem with fSQL_get_many')
     end if
     write(*,*) 'sqlu_getColumnValuesChar: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValues(numRows, numColumns) )
@@ -355,7 +356,7 @@ contains
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesDateStr: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'sqlu_getColumnValuesDateStr: fSQL_open' )
+      call rti_abort( 'sqlu_getColumnValuesDateStr: fSQL_open' )
     end if
 
     ! Get the date and time
@@ -372,7 +373,7 @@ contains
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesDateStr: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('sqlu_getColumnValuesDateStr: problem with fSQL_get_many')
+      call rti_abort('sqlu_getColumnValuesDateStr: problem with fSQL_get_many')
     end if
     write(*,*) 'sqlu_getColumnValuesDateStr: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValuesStr(numRows,2) )
@@ -492,7 +493,7 @@ contains
     if (fSQL_error(stat) == FSQL_OK) return
 
     write(*,*) trim(message), trim(fSQL_errmsg(stat))
-    call utl_abort(trim(message))
+    call rti_abort(trim(message))
 
   end subroutine sqlu_handleError
 

@@ -8,8 +8,11 @@ module midasMpi_mod
   !           specific to the MIDAS code.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use omp_lib
+  use rmn_fnom
   use rpn_comm
   use linearAlgebra_mod
+  use runtimeInfo_mod
   use utilities_mod
 
   implicit none
@@ -191,7 +194,6 @@ contains
 
     ! Locals:
     integer :: mythread, numthread
-    integer :: omp_get_thread_num, omp_get_num_threads
     integer :: ierr, numNodeMasters
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
     integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
@@ -291,7 +293,7 @@ contains
     if (flag) then
       if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', maxTagValue
     else
-      call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
+      call rti_abort('mmpi_initialize: Could not obtain maximum tag value')
     end if
 
     mmpi_maxTagValue = int(maxTagValue)
@@ -334,10 +336,10 @@ contains
         end if
       else
         ! Read namelist NAMMMPI
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=nammmpi, iostat=ierr)
-        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
-        call utl_tmg_stop(181)
+        if (ierr /= 0) call rti_abort('readNml (ens): Error reading namelist')
+        call rti_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*,nml=nammmpi)
 
@@ -454,8 +456,7 @@ contains
     integer, intent(out) :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
     ! Locals:
-    integer :: ierr
-    integer :: nulnam, fnom, fclos
+    integer :: ierr, nulnam
 
     ! Namelist variables
     namelist /ptopo/ npex, npey
@@ -463,20 +464,20 @@ contains
     npex=1
     npey=1
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
 
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
 
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
+    if(ierr.ne.0) call rti_abort('mpi_getptopo: Error opening file ptopo_nml')
     read(nulnam,nml=ptopo,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
+    if(ierr.ne.0) call rti_abort('mpi_getptopo: Error reading namelist')
 
     write(*,nml=ptopo)
 
     ierr=fclos(nulnam)
 
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
   end subroutine mmpi_getptopo
 
@@ -506,11 +507,11 @@ contains
     end if
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     call mmpi_allreduce(mmpi_myid, root, mmpi_min)
 
@@ -531,7 +532,7 @@ contains
 
     call mmpi_bcast(sendRecvValue, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumreal8scalar
 
@@ -561,11 +562,11 @@ contains
     end if
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendRecvVector)
 
@@ -588,7 +589,7 @@ contains
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_1d
 
@@ -610,11 +611,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendRecvVector,1)
     numElements2 = size(sendRecvVector,2)
@@ -631,7 +632,7 @@ contains
 
     call mmpi_bcast(sendRecvVector, procID_opt = root)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_2d
 
@@ -655,11 +656,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendVector)
 
@@ -675,7 +676,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_1d
 
@@ -699,11 +700,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -720,7 +721,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_2d
 
@@ -744,11 +745,11 @@ contains
     real(8), allocatable :: all_sendRecvVector(:,:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
+    call rti_tmg_start(171,'low-level--mpi_allreduce_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(171)
+    call rti_tmg_stop(171)
 
-    call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
+    call rti_tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -766,7 +767,7 @@ contains
     if ( mmpi_myid == ROOT ) recvVector(:,:,:) = sum(all_sendRecvVector(:,:,:,:),4)
     deallocate(all_sendRecvVector)
 
-    call utl_tmg_stop(170)
+    call rti_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
 
@@ -2785,7 +2786,7 @@ contains
         length = length/mmpi_npex
       else
         call mpi_comm_get_name(communicator, commName, nameLength, ierr)
-        call utl_abort('handleLengthWithRespectToCommunicator: cannot guess the size of the data for communicator='''// commName // '''')
+        call rti_abort('handleLengthWithRespectToCommunicator: cannot guess the size of the data for communicator='''// commName // '''')
       end if
     end if ! 'if ( .not. present(length_opt) ) then'
 
@@ -2810,7 +2811,7 @@ contains
 
     if (errCode /= MPI_SUCCESS) then
       call MPI_Error_string(errcode, errorMsg, resultlen, ierror)
-      call utl_abort('MPI error found in ' // context // ' : ' // trim(errorMsg))
+      call rti_abort('MPI error found in ' // context // ' : ' // trim(errorMsg))
     end if
   end subroutine handleMpiError
 

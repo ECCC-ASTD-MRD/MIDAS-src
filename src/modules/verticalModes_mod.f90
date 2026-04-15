@@ -9,9 +9,11 @@ module verticalModes_mod
   !           Therefore, capablity #2 behaves like a spectral transform but in the vertical
   !           dimension.
   !
+  use rmn_fst98
   use linearAlgebra_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -249,7 +251,7 @@ contains
     if (lengthScaleTop <= 0.d0 .or. lengthScaleBot <= 0.d0) then
       write(*,*) 'lengthScaleTop =', lengthScaleTop
       write(*,*) 'lengthScaleBot =', lengthScaleBot
-      call utl_abort('vms_computeModes: problem with the provided lengthScales')
+      call rti_abort('vms_computeModes: problem with the provided lengthScales')
     end if
 
     !
@@ -281,7 +283,7 @@ contains
       call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, & ! IN
                              profT_opt=vertLocation_TH)                ! OUT
     else
-      call utl_abort('vms_computeModes: Unknown value of vcode')
+      call rti_abort('vms_computeModes: Unknown value of vcode')
     end if
 
     do levIndex = 1, vco%nLev_M
@@ -369,7 +371,7 @@ contains
         write(*,*) 'varName    =', vModes%allVar3d(var3dIndex)%varName
         write(*,*) 'matrixRank =', matrixRank
         write(*,*) 'nLev       =', vModes%allVar3d(var3dIndex)%nLev
-        call utl_abort('vms_computeModes: vertical matrix is rank deficient')
+        call rti_abort('vms_computeModes: vertical matrix is rank deficient')
       end if
 
       !- Compute the inverse of the eigenVector matrix to go from grid point space
@@ -448,7 +450,7 @@ contains
         end do
       else
         write(*,*) trim(vModes%allVar3d(varIndex)%varName), vnl_varLevelFromVarName(varName)
-        call utl_abort('vms_transform: varName is not on momentum or thermodynamic levels')
+        call rti_abort('vms_transform: varName is not on momentum or thermodynamic levels')
       end if
     end if
 
@@ -459,11 +461,11 @@ contains
       do varIndex = 1, vModes%nVar3d
         write(*,*) ' ... ', trim(vModes%allVar3d(varIndex)%varName)
       end do
-      call utl_abort('vms_transform: could not match varName with any modes')
+      call rti_abort('vms_transform: could not match varName with any modes')
     end if
 
     if (nLev /= vModes%allVar3d(varIndexAssociated)%nLev) then
-      call utl_abort('vms_transform: the number of levels are not consistent')
+      call rti_abort('vms_transform: the number of levels are not consistent')
     end if
     nMode = nLev
 
@@ -513,7 +515,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-      call utl_abort('vms_transform')
+      call rti_abort('vms_transform')
     end select
 
   end subroutine vms_transform
@@ -532,12 +534,12 @@ contains
 
     ! Locals:
     integer :: var3dIndex, levIndex1, levIndex2
-    integer :: fstouv, fnom, fstfrm, fclos, iunstats, errorID
+    integer :: iunstats, errorID
     character(len=4), allocatable :: varName3d(:)
     character(len=128) :: outfilename
 
     if (.not. vModes%initialized) then
-      call utl_abort('vms_writeModes: The vModes structure is not initialized')
+      call rti_abort('vms_writeModes: The vModes structure is not initialized')
     end if
 
     if (mmpi_myid == 0) then
@@ -619,7 +621,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:,:)
     real(4) :: work
-    integer :: errorID, fstecr
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -681,7 +683,7 @@ contains
     ! Locals:
     real(4), allocatable :: workecr(:)
     real(4) :: work
-    integer :: errorID, fstecr
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -742,7 +744,7 @@ contains
 
     ! Locals:
     real(4) :: work
-    integer :: errorID, fstecr_s
+    integer :: errorID
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
@@ -772,9 +774,9 @@ contains
     datyp  = 7 ! Character
 
     !- Writing
-    errorID = fstecr_s(array, work, npak, iun, dateo, deet, npas, ni, nj, &
-                      nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,    &
-                      ig1, ig2, ig3, ig4, datyp, .true.)
+    errorID = fstecr(array, work, npak, iun, dateo, deet, npas, ni, nj, &
+                     nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,   &
+                     ig1, ig2, ig3, ig4, datyp, .true.)
 
   end subroutine writeArray1d_c4
 

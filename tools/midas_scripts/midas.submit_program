@@ -140,7 +140,7 @@ case "${env}" in
     4.1.2|4.1.3)
         ssm_to_load="rpn/code-tools/20250521/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20250604-beta eccc/mrd/rpn/utils/20250604-beta"
         ;;
-    main|4*)
+    4*)
         if [[ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]]; then
             _compiler_=inteloneapi-2022.1.2
         elif [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
@@ -152,6 +152,13 @@ case "${env}" in
         if [[ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]]; then
             ssm_to_load="${ssm_to_load} main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${_compiler_}/01"
         fi
+        ;;
+    main)
+        _compiler_=inteloneapi-2025.1.0
+        ssm_to_load="rpn/code-tools/20251217/env/${_compiler_}                               \
+                     eccc/mrd/rpn/libs/20260401-beta                                         \
+                     eccc/mrd/rpn/utils/20260401-beta                                        \
+                     main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${_compiler_}/01"
         ;;
     *)
         if [[ -n "${env}" ]]; then

@@ -8,11 +8,11 @@ program midas_analysisErrorOI
   !
   !:Algorithm: The Optimal Interpolation (OI) is a data assimilation approach
   !            where both the state and its estimated error are computed using
-  !            observations while taking into account the specified 
+  !            observations while taking into account the specified
   !            uncertainties for both the observations and the background
   !            state (i.e. the R and B covariance matrices, respectively).
   !            The computations are done independently at each analysis grid
-  !            point with only local observations, those that have a 
+  !            point with only local observations, those that have a
   !            significant influence on the analysis at the grid point
   !            location. Here the code only implements the calculation to
   !            update the diagonal of the B covariance matrix.
@@ -76,7 +76,7 @@ program midas_analysisErrorOI
   !
   !          * The relevant namelist blocks used to configure the
   !            analysis-error calculation are listed in the following table:
-  ! 
+  !
   !======================== ================== ==============================================================
   ! Module                   Namelist           Description of what is controlled
   !======================== ================== ==============================================================
@@ -98,6 +98,7 @@ program midas_analysisErrorOI
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -110,12 +111,11 @@ program midas_analysisErrorOI
   use obsFiles_mod
   use innovation_mod
   use obsErrors_mod
-  use obsFilter_mod  
+  use obsFilter_mod
   use analysisErrorOI_mod
 
   implicit none
 
-  integer :: istamp, exdb, exfin
   integer :: dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
   character(len=*), parameter :: myName = 'analysisErrorOI'
@@ -125,8 +125,6 @@ program midas_analysisErrorOI
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
 
-  istamp = exdb('ANALYSISERROROI','DEBUT','NON')
-
   call ver_printNameAndVersion('analysisErrorOI', 'Program to calculate the analysis-error standard deviation using OI.')
 
   ! MPI initialization
@@ -134,8 +132,8 @@ program midas_analysisErrorOI
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   varMode='analysis'
 
@@ -156,7 +154,7 @@ program midas_analysisErrorOI
   call tim_setup()
 
   if (tim_nstepobs > 1 .or. tim_nstepobsinc > 1) then
-    call utl_abort('analysisErrorOI: The program assumes only one time step.')
+    call rti_abort('analysisErrorOI: The program assumes only one time step.')
   end if
 
   !
@@ -167,7 +165,7 @@ program midas_analysisErrorOI
     if (dateStampFromObs > 0) then
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort('analysisErrorOI: DateStamp was not set')
+      call rti_abort('analysisErrorOI: DateStamp was not set')
     end if
   end if
 
@@ -231,7 +229,7 @@ program midas_analysisErrorOI
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl)
 
   ! Now write out the observation data files
-  if ( .not. obsf_filesSplit() ) then 
+  if ( .not. obsf_filesSplit() ) then
     call msg(myName,'reading/writing global observation files')
     call obs_expandToMpiGlobal(obsSpaceData)
     if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
@@ -247,10 +245,9 @@ program midas_analysisErrorOI
   !
   ! 3. Job termination
   !
-  istamp = exfin('ANALYSISERROROI','FIN','NON')
 
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

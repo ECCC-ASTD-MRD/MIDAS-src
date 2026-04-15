@@ -24,6 +24,7 @@ module bMatrix_mod
   use gridStateVector_mod
   use horizontalCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -75,7 +76,7 @@ contains
     character(len=3) :: bMatExtraLabel
     logical :: active
 
-    call utl_tmg_start(50,'--Bmatrix')
+    call rti_tmg_start(50,'--Bmatrix')
 
     !
     !- 1.  Get/Check the analysis grid info
@@ -154,7 +155,7 @@ contains
 
       case default
 
-        call utl_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
+        call rti_abort( 'bmat_setup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
 
       end select
 
@@ -209,10 +210,10 @@ contains
     !- 4. Check if the control vector has zero length (i.e. no B matrix is active)
     !
     if (cvm_nvadim_mpiglobal == 0) then
-      call utl_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
+      call rti_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
     end if
 
-    call utl_tmg_stop(50)
+    call rti_tmg_stop(50)
 
   end subroutine bmat_setup
 
@@ -241,7 +242,7 @@ contains
     type(struct_gsv) :: statevector_temp
     character(len=4), pointer :: varNames(:)
 
-    call utl_tmg_start(50,'--Bmatrix')
+    call rti_tmg_start(50,'--Bmatrix')
 
     !
     !- 1.  Set analysis increment to zero and allocate a temporary statevector
@@ -269,7 +270,7 @@ contains
       case ('HI')
 
         !- 2.1 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(52,'----B_HI_TL')
+        call rti_tmg_start(52,'----B_HI_TL')
         if ( globalGrid ) then
           call bhi_bsqrt( subVector,        &  ! IN
                           statevector_temp, &  ! OUT
@@ -279,35 +280,35 @@ contains
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call utl_tmg_stop(52)
+        call rti_tmg_stop(52)
 
       case ('CHM')
 
         !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call utl_tmg_start(68,'----B_CHM_TL')
+        call rti_tmg_start(68,'----B_CHM_TL')
         if ( globalGrid ) then
           call bchm_bsqrt( subVector,        &  ! IN
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call utl_tmg_stop(68)
+        call rti_tmg_stop(68)
 
       case ('DIFF')
 
         !- 2.3 Covariances modelled using a diffusion operator.
-        call utl_tmg_start(66,'----B_DIFF_TL')
+        call rti_tmg_start(66,'----B_DIFF_TL')
         call bdiff_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
-        call utl_tmg_stop(66)
+        call rti_tmg_stop(66)
 
       case ('ENS')
 
         !- 2.4 Flow-dependent Ensemble-Based
-        call utl_tmg_start(57,'----B_ENS_TL')
+        call rti_tmg_start(57,'----B_ENS_TL')
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
                         useFSOFcst_opt, stateVectorRef_opt )    ! IN
-        call utl_tmg_stop(57)
+        call rti_tmg_stop(57)
 
       end select
 
@@ -321,7 +322,7 @@ contains
 
     call gsv_deallocate( statevector_temp )
 
-    call utl_tmg_stop(50)
+    call rti_tmg_stop(50)
 
   end subroutine bmat_sqrtB
 
@@ -349,7 +350,7 @@ contains
     type(struct_gsv) :: statevector_temp
     character(len=4), pointer :: varNames(:)
 
-    call utl_tmg_start(50,'--Bmatrix')
+    call rti_tmg_start(50,'--Bmatrix')
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
@@ -375,36 +376,36 @@ contains
       case ('ENS')
 
         !- 2.1 Flow-dependent Ensemble-Based
-        call utl_tmg_start(61,'----B_ENS_AD')
+        call rti_tmg_start(61,'----B_ENS_AD')
 
         call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
                           subVector,                                   &  ! OUT
                           useFSOFcst_opt, stateVectorRef_opt )            ! IN
-        call utl_tmg_stop(61)
+        call rti_tmg_stop(61)
 
       case ('DIFF')
 
         !- 2.2 Covariances modelled using a diffusion operator.
-        call utl_tmg_start(67,'----B_DIFF_AD')
+        call rti_tmg_start(67,'----B_DIFF_AD')
         call bdiff_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
-        call utl_tmg_stop(67)
+        call rti_tmg_stop(67)
 
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call utl_tmg_start(69,'----B_CHM_AD')
+        call rti_tmg_start(69,'----B_CHM_AD')
         if ( globalGrid ) then
           call bchm_bsqrtad( statevector_temp, &  ! IN
                              subVector,        &  ! OUT
                              stateVectorRef_opt ) ! IN
         end if
-        call utl_tmg_stop(69)
+        call rti_tmg_stop(69)
 
       case ('HI')
 
         !- 2.4 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(53,'----B_HI_AD')
+        call rti_tmg_start(53,'----B_HI_AD')
         if ( globalGrid ) then
           call bhi_bsqrtad( statevector_temp, &  ! IN
                             subVector,        &  ! OUT
@@ -414,7 +415,7 @@ contains
                               subVector,        &  ! OUT
                               stateVectorRef_opt ) ! IN
         end if
-        call utl_tmg_stop(53)
+        call rti_tmg_stop(53)
 
       end select
 
@@ -422,7 +423,7 @@ contains
 
     call gsv_deallocate( statevector_temp )
 
-    call utl_tmg_stop(50)
+    call rti_tmg_stop(50)
 
   end subroutine bmat_sqrtBT
 
@@ -556,7 +557,7 @@ contains
       case ('DIFF')
 
         !- 2.3 Covariances modelled using a diffusion operator.
-        call utl_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
+        call rti_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
         !call bdiff_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')

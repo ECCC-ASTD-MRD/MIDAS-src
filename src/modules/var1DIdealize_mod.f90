@@ -14,6 +14,7 @@ module var1DIdealize_mod
     use obsSpaceData_mod
     use timeCoord_mod
     use utilities_mod
+    use runtimeInfo_mod
     use verticalCoord_mod
     use randomNumber_mod
     use bMatrix1Dvar_mod
@@ -200,7 +201,7 @@ module var1DIdealize_mod
         col_getNumCol(columnAnlLev) == col_getNumCol(columnPresRef))) then
       write(*,*) 'Column size columnAnlLev, columnTrlLev and columnPresRef', col_getNumCol(columnAnlLev), &
                   col_getNumCol(columnTrlLev), col_getNumCol(columnPresRef)
-      call utl_abort('var1Di_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef ' // &
+      call rti_abort('var1Di_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef ' // &
                       'do not have equal number of columns')
     end if
 
@@ -603,7 +604,7 @@ module var1DIdealize_mod
           ! Match tvs_channelnumber with the channel index in emissivity error std file
           matchChanIndex = FINDLOC(emissChanList, channelNumber, dim=1)
           if (matchChanIndex == 0) then
-            call utl_abort('var1Di_simulateEmissivity: Unable to find emissivity error for a channel')
+            call rti_abort('var1Di_simulateEmissivity: Unable to find emissivity error for a channel')
           end if
 
             emissErrStdPerChan = emissStdErr(matchChanIndex)
@@ -699,7 +700,7 @@ module var1DIdealize_mod
     real                            :: columnValue
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
-      call utl_abort('var1Di_estSigmaBObsSpace: The truth in observation space must computed stored ' // &
+      call rti_abort('var1Di_estSigmaBObsSpace: The truth in observation space must computed stored ' // &
                       'OBS_TRUO obsSpaceData column')
     end if
 
@@ -724,7 +725,7 @@ module var1DIdealize_mod
     call mmpi_allReduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, mmpi_lor)
 
     if (nonEmptyBodyColumn_mpiglobal) then
-      call utl_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')
+      call rti_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')
     end if
 
     ! Compute background Error in observation space
@@ -846,12 +847,9 @@ module var1DIdealize_mod
 
     ! Locals:
     integer           :: dateStamp, timePrint, datePrint
-    integer           :: ierr, imode
-    integer, external :: newdate
 
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     dateStamp = tim_getDateStamp()
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint/1000000
     datePrint =  datePrint*100 + timePrint
     randomSeed = (datePrint - 100000000*(datePrint/100000000)) + mmpi_myid

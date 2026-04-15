@@ -66,6 +66,7 @@ program midas_extractBmatrixFor1Dvar
   !              *  ``varNameExtract`` name of the variable to extract or ``all`` to extract everything in namstate
   !              *  ``stepBinExtract`` should be one of ``first``, ``middle`` or ``last`` to define when in the assimilation window the B matrix is valid
   !
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -80,6 +81,7 @@ program midas_extractBmatrixFor1Dvar
   use verticalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
 
   implicit none
@@ -93,7 +95,6 @@ program midas_extractBmatrixFor1Dvar
   real(8), allocatable :: controlVector(:)
   integer, parameter :: nmaxLevs = 100
   real(4) :: latitude, longitude
-  integer, external :: fclos, fnom, fstopc, newdate
   integer :: ierr
   integer :: varIndex, numVarLev, levIndex1, lonIndex, latIndex, levIndex2
   integer :: varLevIndex1, varLevIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
@@ -122,9 +123,8 @@ program midas_extractBmatrixFor1Dvar
   ! MPI, tmg initialization
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0, 'Main')
-  call utl_printTime()
-  ierr = fstopc('MSGLVL', 'ERRORS', 0)
+  call rti_tmg_start(0, 'Main')
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -139,11 +139,11 @@ program midas_extractBmatrixFor1Dvar
   lonlatExtract(:,:) = -1
 
   ! Read the parameters from NAMEXTRACT
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namextract, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-extractBmatrix: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-extractBmatrix: Error reading namelist')
   write(*, nml=namextract)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   nLonLatPos = 0
   do lonlatPosIndex = 1, size(lonlatExtract(:,lonColumn))
@@ -151,14 +151,14 @@ program midas_extractBmatrixFor1Dvar
   end do
 
   if ( nLonLatPos == 0 ) then
-    call utl_abort('midas-extractBmatrix: You should specify at least one lonlat position !')
+    call rti_abort('midas-extractBmatrix: You should specify at least one lonlat position !')
   end if
 
   ! Decompose extractdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
   ! and calculate date-time stamp
   idate = extractdate/100
   itime = (extractdate-idate*100)*1000000
-  ierr = newdate(dateStamp, idate, itime, 3)
+  dateStamp = tim_yyyymmddhhToDatestamp(idate, itime)
   write(datestr,'(i10.10)') extractdate
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',extractdate,' stamp= ',dateStamp
@@ -170,7 +170,7 @@ program midas_extractBmatrixFor1Dvar
   if (tim_getDateStamp() == 0) then
     call tim_setDatestamp(dateStamp)
   else
-    call utl_abort('midas-extractBmatrix: Code changes needed to use dateStamp from env variable')
+    call rti_abort('midas-extractBmatrix: Code changes needed to use dateStamp from env variable')
   end if
   ! Initialize variables of the model states
   call gsv_setup
@@ -214,7 +214,7 @@ program midas_extractBmatrixFor1Dvar
       write(*,*)
       write(*,*) 'odd number of nstepobsinc a required for obs place in the middle of the analysis window '
       write(*,*) 'tim_nstepobsinc = ', tim_nstepobsinc
-      call utl_abort('midas-extractBmatrix')
+      call rti_abort('midas-extractBmatrix')
     end if
    stepBinExtractIndex = (tim_nstepobsinc+1)/2
   case ('last')
@@ -222,7 +222,7 @@ program midas_extractBmatrixFor1Dvar
   case default
     write(*,*)
     write(*,*) 'Unsupported stepBinExtract : ', trim(stepBinExtract)
-    call utl_abort('midas-extractBmatrix')
+    call rti_abort('midas-extractBmatrix')
   end select
 
   allocate(controlVector(cvm_nvadim))
@@ -333,8 +333,8 @@ program midas_extractBmatrixFor1Dvar
   call msg_memUsage('midas-extractBmatrixFor1Dvar')
 
   ! MPI, tmg finalize
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 

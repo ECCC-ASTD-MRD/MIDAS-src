@@ -6,6 +6,7 @@ module scaleDecomposition_mod
   !           state vector
   !
   use utilities_mod
+  use runtimeInfo_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use ensembleStatevector_mod
@@ -138,21 +139,21 @@ contains
       if (horizWaveBandIndexSelected == 1) then
         nTrunc = -1 ! no truncation needed to extract the smallest scales
       else if (horizWaveBandIndexSelected == -1) then
-        call utl_abort('scd_horizontal: horizWaveBandIndexSelected_opt must be provided in Select mode')
+        call rti_abort('scd_horizontal: horizWaveBandIndexSelected_opt must be provided in Select mode')
       else
         nTrunc = horizWaveBandPeaks(horizWaveBandIndexSelected-1)
       end if
     else
       write(*,*)
       write(*,*) 'decomposition mode = ', trim(decompositionMode)
-      call utl_abort('scd_horizontal: unknown decomposition mode')
+      call rti_abort('scd_horizontal: unknown decomposition mode')
     end if
 
     if (trim(filterResponseFunctionMode) /= 'SumToOne'      .and. &
         trim(filterResponseFunctionMode) /= 'SquareSumToOne') then
       write(*,*)
       write(*,*) 'filter response function mode = ', trim(filterResponseFunctionMode)
-      call utl_abort('scd_horizontal: unknown filter response function mode')
+      call rti_abort('scd_horizontal: unknown filter response function mode')
     end if
     
     if (hco%global) then
@@ -502,7 +503,7 @@ contains
       vertWaveBandIndexLoopDirection = -1
     else if (trim(decompositionMode) == 'Select') then
       if (vertWaveBandIndexSelected == -1) then
-        call utl_abort('scd_vertical: vertWaveBandIndexSelected_opt must be provided in Select mode')
+        call rti_abort('scd_vertical: vertWaveBandIndexSelected_opt must be provided in Select mode')
       else if (vertWaveBandIndexSelected == 1) then
         mTrunc = -1 ! no truncation needed to extract the shallowest scales
       else
@@ -517,13 +518,13 @@ contains
     else
       write(*,*)
       write(*,*) 'decomposition mode = ', trim(decompositionMode)
-      call utl_abort('scd_vertical: unknown decomposition mode')
+      call rti_abort('scd_vertical: unknown decomposition mode')
     end if
 
     if (trim(decompositionType) /= 'Covariances' .and. trim(decompositionType) /= 'Correlations') then
       write(*,*)
       write(*,*) 'decomposition type = ', trim(decompositionType)
-      call utl_abort('scd_vertical: unknown decomposition type')
+      call rti_abort('scd_vertical: unknown decomposition type')
     end if
       
     nLev_M = ens_getNumLev(ensembleStateVector(1),'MM')
@@ -655,7 +656,7 @@ contains
               if (allocated(gridState4d)) deallocate(gridState4d)
               varNameForTransform = 'TT'
               if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
-                call utl_abort('scd_vertical: TT not available to expand TG')
+                call rti_abort('scd_vertical: TT not available to expand TG')
               end if
             else
               cycle ! varIndex
@@ -664,13 +665,13 @@ contains
             if (allocated(gridState4d)) deallocate(gridState4d)
             varNameForTransform = 'P_T'
             if (.not. ens_varExist(ensembleStateVector(1),varNameForTransform)) then
-              call utl_abort('scd_vertical: P_T not available to expand P0')
+              call rti_abort('scd_vertical: P_T not available to expand P0')
             end if
           else
             write(*,*)
             write(*,*) 'varname  = ', trim(varNamesList(varIndex))
             write(*,*) 'varlevel = ', vnl_varLevelFromVarName(trim(varNamesList(varIndex)))
-            call utl_abort('scd_vertical: variable not handle yet')
+            call rti_abort('scd_vertical: variable not handle yet')
           end if
           call expand2dto3d(gridStateVector_oneMember(1), gridState4d, nLev, &
                             varNamesList(varIndex), varNameForTransform,     &
@@ -975,7 +976,7 @@ contains
     if (mode /= 'scale' .and. mode /= 'unscale') then
       write(*,*)
       write(*,*) 'ensPertScaling: mode selected = ', mode
-      call utl_abort('ensPertScaling: mode can on be "scale" or "unscale"')
+      call rti_abort('ensPertScaling: mode can on be "scale" or "unscale"')
     end if
     
     call gsv_getField(statevector_ensScaling,norm_ptr4d_r8,varName_opt=varName)
@@ -1223,7 +1224,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'Error:  Unknown TGhandling ', trim(TGhandling)
-      call utl_abort('scaleDecomposition : adhocTGdecomposition')
+      call rti_abort('scaleDecomposition : adhocTGdecomposition')
     end select
 
     if (trim(decompositionMode) == 'Split') then

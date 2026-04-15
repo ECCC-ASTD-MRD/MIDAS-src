@@ -10,6 +10,7 @@ module slantProfileLatLon_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
   use tovs_mod
@@ -71,11 +72,11 @@ contains
       maxNumIteration = 1
 
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = namSlantPath, iostat = ierr)
       if (ierr /= 0) write(*,*) 'slp_calcLatLonTovs: namSlantPath is missing in the namelist. The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = namSlantPath)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
 
     nlev_M = size(height3D_M_r4,3)
@@ -390,7 +391,7 @@ contains
 
     else
 
-      call utl_abort('heightBilinearInterp: weightsSum smaller than 0.')
+      call rti_abort('heightBilinearInterp: weightsSum smaller than 0.')
 
     end if
 
@@ -426,7 +427,7 @@ contains
                             lonIndexVec(ipoint) > hco%ni )
 
       if ( latlonOutsideGrid ) &
-        call utl_abort('heightBilinearInterp: lat/lon outside the domain.')
+        call rti_abort('heightBilinearInterp: lat/lon outside the domain.')
 
       heightInterp_r4 = heightInterp_r4 + &
                     real(WeightVec(ipoint),4) * &

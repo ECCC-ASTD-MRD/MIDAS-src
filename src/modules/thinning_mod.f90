@@ -8,6 +8,7 @@ module thinning_mod
   !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
+  use rmn_fnom
   use midasMpi_mod
   use message_mod
   use bufr_mod
@@ -21,6 +22,7 @@ module thinning_mod
   use codtyp_mod
   use physicsFunctions_mod
   use utilities_mod
+  use runtimeInfo_mod
   use kdTree2_mod
   use satWind_mod
   use obsFlags_mod
@@ -47,7 +49,6 @@ module thinning_mod
                                                   flg_09rejBgck, &
                                                   flg_08rejBlackL, &
                                                   flg_02erroneous]
-  integer, external :: newdate
 contains
 
   !--------------------------------------------------------------------------
@@ -87,11 +88,11 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_surface', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_surface, iostat = ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
+      if (ierr /= 0) call rti_abort('thn_thinSurface: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_surface)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
@@ -101,9 +102,9 @@ contains
 
     if (.not. doThinning) return
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSurface
 
@@ -139,11 +140,11 @@ contains
 
     ! Read the namelist for Radiosonde observations (if it exists)
     if (utl_isNamelistPresent('thin_raobs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_raobs, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
+      if (ierr /= 0) call rti_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
@@ -151,9 +152,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, toleranceFactor)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinRaobs
 
@@ -185,11 +186,11 @@ contains
 
     ! Read the namelist for Aircraft observations (if it exists)
     if (utl_isNamelistPresent('thin_aircraft','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_aircraft, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
+      if (ierr /= 0) call rti_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aircraft)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
@@ -197,9 +198,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_aircraft)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinAircraft
 
@@ -233,11 +234,11 @@ contains
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_satwind, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
+      if (ierr /= 0) call rti_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatWinds: Namelist block thin_satwind is missing in the namelist.'
@@ -245,9 +246,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSatWinds
 
@@ -285,11 +286,11 @@ contains
 
     ! Read the namelist for GpsRo observations (if it exists)
     if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_gpsro, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
+      if (ierr /= 0) call rti_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gpsro)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinGpsRo: Namelist block thin_gpsro is missing in the namelist.'
@@ -297,9 +298,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, gpsroVarNo)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinGpsRo
 
@@ -337,11 +338,11 @@ contains
 
     ! Read the namelist for GbGps observations (if it exists)
     if (utl_isNamelistPresent('thin_gbgps','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_gbgps, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
+      if (ierr /= 0) call rti_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
@@ -349,9 +350,9 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected, rejectNoZTDScore)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinGbGps
 
@@ -383,11 +384,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_aladin','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_aladin, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading thin_aladin namelist')
+      if (ierr /= 0) call rti_abort('thn_thinAladin: Error reading thin_aladin namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aladin)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAladin: Namelist block thin_aladin is missing in the namelist.'
@@ -396,9 +397,9 @@ contains
     end if
 
     if (keepNthVertical > 0) then
-      call utl_tmg_start(114,'--ObsThinning')
+      call rti_tmg_start(114,'--ObsThinning')
       call thn_keepNthObs(obsdat, 'AL', keepNthVertical)
-      call utl_tmg_stop(114)
+      call rti_tmg_stop(114)
     end if
 
   end subroutine thn_thinAladin
@@ -433,11 +434,11 @@ contains
 
     ! Read the namelist for CSR observations (if it exists)
     if (utl_isNamelistPresent('thin_csr','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_csr, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading thin_csr namelist')
+      if (ierr /= 0) call rti_abort('thn_thinCSR: Error reading thin_csr namelist')
       if (mmpi_myid == 0) write(*,nml=thin_csr)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinCSR: Namelist block thin_csr is missing in the namelist.'
@@ -446,9 +447,9 @@ contains
     end if
 
     call msg_memUsage('thn_thinCSR')
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
     call msg_memUsage('thn_thinCSR')
 
   end subroutine thn_thinCSR
@@ -483,11 +484,11 @@ contains
 
     ! Read the namelist for Scat observations (if it exists)
     if (utl_isNamelistPresent('thin_scat','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_scat, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinScat: Error reading thin_scat namelist')
+      if (ierr /= 0) call rti_abort('thn_thinScat: Error reading thin_scat namelist')
       if (mmpi_myid == 0) write(*,nml=thin_scat)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinScat: Namelist block thin_scat is missing in the namelist.'
@@ -496,9 +497,9 @@ contains
     end if
 
     call msg_memUsage('thn_thinScat')
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
     call msg_memUsage('thn_thinScat')
 
   end subroutine thn_thinScat
@@ -541,11 +542,11 @@ contains
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_tovs, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading thin_tovs namelist')
+      if (ierr /= 0) call rti_abort('thn_thinTovs: Error reading thin_tovs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
@@ -556,20 +557,20 @@ contains
     if (trim(thinningTechnique) == 'grid-based') then
       write(*,*) 'Using grid-based thinning: delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
-        call utl_abort('thn_thinTovs: Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
+        call rti_abort('thn_thinTovs: Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
       end if
     else
       if (trim(thinningTechnique) == 'distance-dependent') then
         write(*,*) 'Using distance-dependent thinning: minDist = ',minDist
         if (minDist < 0.0) then
-          call utl_abort('thn_thinTovs: Set a positive value for minDist in the namelist THIN_TOVS')
+          call rti_abort('thn_thinTovs: Set a positive value for minDist in the namelist THIN_TOVS')
         end if
       else
-        call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
+        call rti_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
       end if
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
 
     ! AMSU-A observations
     call msg_memUsage('thn_thinTovs')
@@ -620,7 +621,7 @@ contains
     call thn_superObs(obsdat, 'TO', codtyp_get_codtyp('ssmis'), bufr_nbt3)
 
     call msg_memUsage('thn_thinTovs')
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinTovs
 
@@ -657,11 +658,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_hyper','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_hyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading thin_hyper namelist')
+      if (ierr /= 0) call rti_abort('thn_thinHyper: Error reading thin_hyper namelist')
       if (mmpi_myid == 0) write(*,nml=thin_hyper)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
@@ -669,7 +670,7 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_hyper)
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('airs'))
@@ -683,7 +684,7 @@ contains
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('crisfsr'))
     call msg_memUsage('thn_thinHyper')
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinHyper
 
@@ -729,11 +730,11 @@ contains
 
     ! Read the namelist for CH family observations (if it exists)
     if (utl_isNamelistPresent('thin_CH','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_CH, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinCH: Error reading thin_CH namelist')
+      if (ierr /= 0) call rti_abort('thn_thinCH: Error reading thin_CH namelist')
       if (mmpi_myid == 0) write(*,nml=thin_CH)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       if (mmpi_myid == 0) then
         write(*,*)
@@ -747,18 +748,18 @@ contains
       if (trim(stnidList(stnIdIndex)) == '') exit STNIDLOOP
       write(*,*) 'Thinning for StnId ',trim(stnidList(stnIdIndex))
       if (trim(methodList(stnIdIndex)) == 'byDistance') then
-        call utl_tmg_start(114,'--ObsThinning')
+        call rti_tmg_start(114,'--ObsThinning')
         call thn_CHfamByDistance(obsdat, deltemps(stnIdIndex), deldist(stnIdIndex), &
                                  maxSunList(stnIdIndex), stnIdList(stnIdIndex))
-        call utl_tmg_stop(114)
+        call rti_tmg_stop(114)
       else if (trim(methodList(stnIdIndex)) == 'byNthLevel' .and. &
                keepNthVertical(stnIdIndex) > 1) then
-        call utl_tmg_start(114,'--ObsThinning')
+        call rti_tmg_start(114,'--ObsThinning')
         call thn_keepNthObs(obsdat, 'CH', keepNthVertical(stnIdIndex), &
                              stnId_opt = stnIdList(stnIdIndex))
-        call utl_tmg_stop(114)
+        call rti_tmg_stop(114)
       else
-        call utl_abort('thn_thinCH: Thinning method not recognized ' // &
+        call rti_abort('thn_thinCH: Thinning method not recognized ' // &
                        'or identified for ' //  stnIdList(stnIdIndex))
       end if
     end do STNIDLOOP
@@ -780,7 +781,7 @@ contains
 
     ! Locals:
     integer :: headerIndex, bodyIndex, headerSkip, keepCount
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: nulnam, ierr
     ! Namelist variables
     integer :: preThinPercent    ! percentage of obs to keep after pre-thinning
 
@@ -794,9 +795,9 @@ contains
     if (utl_isNamelistPresent('thin_preThin', './flnml')) then
       nulnam = 0
       ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
-      if (ierr /= 0) call utl_abort('thn_preThinning: Error opening file flnml')
+      if (ierr /= 0) call rti_abort('thn_preThinning: Error opening file flnml')
       read(nulnam,nml = thin_preThin, iostat = ierr)
-      if (ierr /= 0) call utl_abort('thn_preThinning: Error reading namelist')
+      if (ierr /= 0) call rti_abort('thn_preThinning: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_preThin)
       ierr = fclos(nulnam)
     else
@@ -1121,13 +1122,13 @@ contains
       obsDate(obsIndex) = obs_headElem_i(obsdat, obs_dat, headerIndex)
       obsTime(obsIndex) = obs_headElem_i(obsdat, obs_etm, headerIndex)
 
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate(obsIndex), obsTime(obsIndex), numStep)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate(obsIndex), &
+                                            obsTime(obsIndex), numStep)
       obsStepIndex(obsIndex) = nint(obsStepIndex_r8)
       if (numStep > 1) then
         obsDelT(obsIndex) = nint(60.0 * step * (obsStepIndex_r8 - real(obsStepIndex(obsIndex))))
       else
-        ierr = newdate(obsDateStamp, obsDate(obsIndex), obsTime(obsIndex) * 10000, 3)
+        obsDateStamp = tim_yyyymmddhhToDatestamp(obsDate(obsIndex), obsTime(obsIndex)*10000)
         ! Difference (in hours) between obs time
         call difdatr(obsDateStamp, tim_getDateStamp(), deltaHours)
         obsDelT(obsIndex) = nint(60.0 * deltaHours)
@@ -1153,7 +1154,7 @@ contains
       open (unit = nulfile, file = blackListFileName, status = 'OLD', iostat = ierr)
       if (ierr /= 0) then
         write(*,*) 'Cannot open blacklist file ', trim(blackListFileName)
-        call utl_abort('thn_surfaceInTime')
+        call rti_abort('thn_surfaceInTime')
       end if
       read(nulfile, iostat = istat, fmt = '(i6)') numRowBlacklist
       write(*,*) 'thn_surfaceInTime: Number of stations in blacklist: ', numRowBlacklist
@@ -1583,7 +1584,6 @@ contains
     type(struct_hco), pointer :: hco_sfc
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
-    integer :: ezgdef, ezsint, ezdefset, ezsetopt
     integer :: ierr, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
     integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex, obsStepIndex
@@ -1614,6 +1614,8 @@ contains
     integer :: countAcc_tt, countRej_tt, countAccMpi_tt, countRejMpi_tt
     integer :: countAcc_es, countRej_es, countAccMpi_es, countRejMpi_es
     integer, parameter :: numVars=5, numTraj=2, maxNumLev=300
+    ! external definitions
+    integer, external :: ezgdef, ezsint, ezdefset, ezsetopt
 
     ! Namelist variables:
     real(8) :: rprefinc        ! parameter for defining fixed set of model levels for vertical thinning
@@ -1797,11 +1799,11 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namgem, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
+      if (ierr /= 0) call rti_abort('thn_radiosonde: Error reading namgem namelist')
       if (numlev /= MPC_missingValue_INT) then
-        call utl_abort('thn_radiosonde: check NAMGEM namelist section: numlev should be removed')
+        call rti_abort('thn_radiosonde: check NAMGEM namelist section: numlev should be removed')
       end if
       numlev = 0
       do levIndex = 1, maxNumLev
@@ -1809,9 +1811,9 @@ contains
         numlev = numlev + 1
       end do
       if (mmpi_myid == 0) write(*,nml=namgem)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
-      call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
+      call rti_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
     end if
 
     ! Read the trial surface pressure
@@ -1856,8 +1858,8 @@ contains
     do stationIndex = 1, numStation
 
       ! Calculate the stepIndex corresponding to the launch time
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate(stationIndex), obsTime(stationIndex), tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate(stationIndex), &
+                                            obsTime(stationIndex), tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
       if (obsStepIndex < 0) then
         obsStepIndex = (tim_nstepobs+1)/2
@@ -2350,7 +2352,7 @@ contains
           end if
         else
           write(*,*) 'numStnid >= ',maxNumStnid
-          call utl_abort('raobs_check_duplicated_stations')
+          call rti_abort('raobs_check_duplicated_stations')
         end if
 
       end if
@@ -3336,8 +3338,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! thisStnIdNoaa==TRUE means obs has collocated GPS met (Psfc) observations
@@ -3378,7 +3379,7 @@ contains
         ztdScore = 999.0
       end if
       if (ztdObsFlag == -1) then
-        call utl_abort('thn_gbGpsByDistance: ztd not found')
+        call rti_abort('thn_gbGpsByDistance: ztd not found')
       end if
 
       ! ZTD quality estimate using monitoring zdscore and the formal error
@@ -3716,8 +3717,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! obs is outside time window
@@ -3958,8 +3958,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! find layer (assumes 1 level only per headerIndex)
@@ -4005,11 +4004,11 @@ contains
                 quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
               end if
             case default
-              call utl_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
+              call rti_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
           end select
           exit LOOP_QI
         end if
-        if (satIndex == size(SWname)) call utl_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
+        if (satIndex == size(SWname)) call rti_abort('thn_satWindsByDistance: cannot find matched satellite from the namelist')
       end do LOOP_QI
 
       ! find observation flags (assumes 1 level only per headerIndex)
@@ -4083,7 +4082,7 @@ contains
         end if
         numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
       else
-        call utl_abort('thn_satWindsByDistance: numStnId too large')
+        call rti_abort('thn_satWindsByDistance: numStnId too large')
       end if
     end do HEADER
 
@@ -4295,7 +4294,7 @@ contains
       do stnIdIndex = 1, numStnId
         if (stnidList(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
       end do
-      if (stnIdIndexFound == nullValue) call utl_abort('stnid not found in list')
+      if (stnIdIndexFound == nullValue) call rti_abort('stnid not found in list')
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER3
 
@@ -4747,13 +4746,13 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namgem, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
+      if (ierr /= 0) call rti_abort('thn_aircraftByBoxes: Error reading namgem namelist')
       if (mmpi_myid == 0) write(*,nml=namgem)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       if (numlev /= MPC_missingValue_INT) then
-        call utl_abort('thn_aircraftByBoxes: check NAMGEM namelist section: numlev should be removed')
+        call rti_abort('thn_aircraftByBoxes: check NAMGEM namelist section: numlev should be removed')
       end if
       numlev = 0
       do levIndex = 1, maxLev
@@ -4761,7 +4760,7 @@ contains
         numlev = numlev + 1
       end do
     else
-      call utl_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
+      call rti_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
     end if
 
     ! Setup thinning grid parameters
@@ -4857,8 +4856,7 @@ contains
       ! find time difference
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
       delMinutes = abs(nint(60.0 * tim_dstepobs * abs(real(obsStepIndex) - obsStepIndex_r8)))
 
@@ -5508,8 +5506,7 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      stepObsIndex(headerIndex) = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
 
       ! Associate each observation to a grid point
       obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
@@ -5548,7 +5545,7 @@ contains
       hiscan   = mxscanssmis
     else
       write(*,*) 'codtyp = ', codtyp
-      call utl_abort('thn_tovsFilt: Invalid codtyp')
+      call rti_abort('thn_tovsFilt: Invalid codtyp')
     end if
 
     countQc = 0
@@ -5867,7 +5864,7 @@ contains
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
 
-    if ( mmpi_nprocs < tim_nstepobs) call utl_abort('thn_tovsfilt_dd: Number of processors are less than tim_nstepobs.')
+    if ( mmpi_nprocs < tim_nstepobs) call rti_abort('thn_tovsfilt_dd: Number of processors are less than tim_nstepobs.')
 
     nreg = mmpi_nprocs
 
@@ -5886,7 +5883,7 @@ contains
         write(*,*) 'Doing time bin based MPI parallelization, flg_mpi = ',flg_mpi
       else
         write(*,*) 'flg_mpi should be 1 or 2. Invalid value for flg_mpi = ',flg_mpi
-        call utl_abort('thn_tovsFilt_dd: Invalid flg_mpi')
+        call rti_abort('thn_tovsFilt_dd: Invalid flg_mpi')
       end if
     end if
 
@@ -5973,7 +5970,7 @@ contains
       hiscan   = mxscanssmis
     else
       write(*,*) 'codtyp = ', codtyp
-      call utl_abort('thn_tovsFilt_dd: Invalid codtyp')
+      call rti_abort('thn_tovsFilt_dd: Invalid codtyp')
     end if
 
     write(*,*) ''
@@ -6039,8 +6036,8 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
-           obsDate, obsTime, tim_nstepobs)
+      stepObsIndex(headerIndex) = tim_getStepObsIndex(tim_getDatestamp(), obsDate, &
+                                                      obsTime, tim_nstepobs)
       stepObsIndexint(headerIndex) = nint(stepObsIndex(headerIndex))
 
       ! Reject obs if it is close to the region border (only for region based)
@@ -6212,12 +6209,12 @@ contains
 
     if (nreg<2) then
       write(*,*) 'nreg = ',nreg
-      call utl_abort('make_regions: ERROR : nreg should be atleast 2.')
+      call rti_abort('make_regions: ERROR : nreg should be atleast 2.')
     end if
 
     if (mod(nreg,2)>0) then
       write(*,*) 'nreg = ',nreg
-      call utl_abort('make_regions: ERROR : nreg should be even.')
+      call rti_abort('make_regions: ERROR : nreg should be even.')
     else
       nreg2 = nreg/2
     end if
@@ -6289,7 +6286,7 @@ contains
     ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
     if (i>nreg) then
       write(*,*) 'i, ireg = ',i,ireg
-      call utl_abort('isCloseBorder: ERROR i>nreg in isCloseBorder()')
+      call rti_abort('isCloseBorder: ERROR i>nreg in isCloseBorder()')
     end if
 
     ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
@@ -6354,7 +6351,7 @@ contains
     character(len=*), intent(in)    :: rarsDetectionCriterium
 
     ! Locals:
-    integer :: ierr, lenStnId, headerIndex, headerIndex1, headerIndex2
+    integer :: lenStnId, headerIndex, headerIndex1, headerIndex2
     integer :: numHeader, numHeaderMaxMpi, charIndex, headerIndexBeg, headerIndexEnd
     integer :: obsDate, obsTime
     real(8) :: obsLatInRad, obsLonInRad
@@ -6377,7 +6374,6 @@ contains
     integer, parameter        :: centreOrigGlobal_amsu(3)  = (/53, 74, 160/)
     integer, parameter        :: centreOrigGlobal_mwhs2(3) = (/39, 74, 160/)
     integer                   :: centreOrigGlobal(3)
-    integer, external         :: newdate
 
     write(*,*) 'thn_removeRarsDuplicates: start'
 
@@ -6424,7 +6420,7 @@ contains
         rarsCriterium(headerIndex) = obs_headElem_i(obsdat, OBS_ORI, headerIndex)
         isGlobal(headerIndex) = any(centreOrigGlobal(:) == rarsCriterium(headerIndex))
       else
-        call utl_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
+        call rti_abort('thn_removeRarsDuplicates: unknown rarsDetectionCriterium ' // trim(rarsDetectionCriterium) )
       end if
       ! Station ID converted to integer array
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
@@ -6435,7 +6431,7 @@ contains
       ! Date stamp for each observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime*10000+2900, 3)
+      obsDateStamp(headerIndex) = tim_yyyymmddhhToDatestamp(obsDate, obsTime*10000+2900)
 
       ! Field of View for each observation
       obsFov(headerIndex) = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -6468,10 +6464,10 @@ contains
                              nfound=numFoundSearch, nalloc=maxNumSearch, &
                              results=searchResults)
       if (numFoundSearch >= maxNumSearch) then
-        call utl_abort('thn_removeRarsDuplicates: the parameter maxNumSearch must be increased')
+        call rti_abort('thn_removeRarsDuplicates: the parameter maxNumSearch must be increased')
       end if
       if (numFoundSearch == 0) then
-        call utl_abort('thn_removeRarsDuplicates: no match found. This should not happen!!!')
+        call rti_abort('thn_removeRarsDuplicates: no match found. This should not happen!!!')
       end if
 
       ! Loop over all of these nearby locations
@@ -6728,7 +6724,7 @@ contains
         end if
         numObsStnIdInMpi(stnIdIndexFound) = numObsStnIdInMpi(stnIdIndexFound) + 1
       else
-        call utl_abort('thn_scatByLatLonBoxes: numStnId too large')
+        call rti_abort('thn_scatByLatLonBoxes: numStnId too large')
       end if
     end do HEADER2
 
@@ -6780,8 +6776,7 @@ contains
       ! calcul de la bin temporelle dans laquelle se trouve l'observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
       obsDelMinutes(headerIndex) = nint( 60.0 * tim_dstepobs *  &
            abs(real(obsStepIndex(headerIndex)) - obsStepIndex_r8) )
@@ -6963,7 +6958,7 @@ contains
       do stnIdIndex = 1, numStnId
         if (stnidList(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
       end do
-      if (stnIdIndexFound == -1) call utl_abort('stnid not found in list')
+      if (stnIdIndexFound == -1) call rti_abort('stnid not found in list')
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER5
 
@@ -7194,14 +7189,12 @@ contains
                 (obsLonIndex(headerIndex) - 0.5)
 
       ! spatial separation
-      obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * &
-                                 latLength / 90.
+      obsDistance(headerIndex) = thn_separation(obsLon,obsLat,gridLon,gridLat) * latLength / 90.
 
       ! calcul de la bin temporelle dans laquelle se trouve l'observation
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
 
       ! check if distance too far from box center
@@ -7264,7 +7257,7 @@ contains
           end if
         end do BODY2
         if ( utl_isEqual(obsCloud(channelIndex, headerIndex),-1.0) ) then
-          call utl_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
+          call rti_abort('thn_csrByLatLonBoxes: could not find cloud fraction in obsSpaceData')
         end if
       end do CHANNELS
 
@@ -7593,7 +7586,7 @@ contains
       end if
 
       if ( numStnId >= numStnIdMax ) then
-        call utl_abort('thn_hyperByLatLonBoxes: numStnId too large')
+        call rti_abort('thn_hyperByLatLonBoxes: numStnId too large')
       end if
 
     end do HEADER4
@@ -7734,8 +7727,7 @@ contains
       if ( lonBinIndex > numGridLons(latBinIndex) ) lonBinIndex = numGridLons(latBinIndex)
 
       ! Determine the time bin index
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       timeBinIndex = nint(obsStepIndex_r8)
       delMinutes = nint(60.0 * tim_dstepobs * abs(real(timeBinIndex) - obsStepIndex_r8))
 
@@ -7883,7 +7875,7 @@ contains
           if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
         end do
         if ( stnIdIndexFound == -1 ) then
-          call utl_abort('thn_hyperByLatLonBoxes: Problem with stnId')
+          call rti_abort('thn_hyperByLatLonBoxes: Problem with stnId')
         end if
         numObsStnId(stnIdIndexFound) = numObsStnId(stnIdIndexFound) + 1
         countHeader = countHeader + 1
@@ -8010,11 +8002,11 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_satSST', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_satSST, iostat = ierr)
-      if (ierr /= 0) call utl_abort('thn_thinSatSST: Error reading namelist')
+      if (ierr /= 0) call rti_abort('thn_thinSatSST: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_satSST)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'
@@ -8038,7 +8030,7 @@ contains
       end do
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
 
     ! Do thinning for each type of SST satellite data as identified by 'stid'
     do dataSetSSTIndex = 1, numberDataSetSST
@@ -8051,7 +8043,7 @@ contains
     call thn_superObs(obsdat, 'OS', codtyp_get_codtyp('satob'), bufr_sst)
     call msg_memUsage('thn_thinSatSST')
 
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinSatSST
 
@@ -8214,7 +8206,7 @@ contains
       ! find time difference
       obsDate = obs_headElem_i(obsdat, obs_dat, headerIndex)
       obsTime = obs_headElem_i(obsdat, obs_etm, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, numTimesteps)
       obsStepIndex = nint(obsStepIndex_r8)
 
       ! reject observations that are outside the assimilation window
@@ -8419,7 +8411,7 @@ contains
     integer              :: bodyIndex, bodyIndexGoodObs, bodyIndexSuperObs
     integer              :: channel, channelIndex, numChannels
     integer              :: numGoodObs, numSuperObs, numThinObs, numAverageObs, numAverageObsMean
-    integer              :: obsDate, obsTime, imode, ierr
+    integer              :: ierr, obsDate, obsTime
     real(8)              :: obsLonInRad, obsLatInRad, refDeltaHours, obsValueSuper, obsStepIndex_r8
     logical              :: checkChannel
     logical, save        :: firstCall = .true.
@@ -8447,7 +8439,7 @@ contains
 
     ! This first version is only designed to work to radiance observations
     if (trim(obsFamily) /= 'TO' .and. trim(obsFamily) /= 'OS') then
-      call utl_abort('thn_superObs: Currently only radiance and SST observations are supported')
+      call rti_abort('thn_superObs: Currently only radiance and SST observations are supported')
     end if
 
     ! Return immediately if no namelist is present - no superobing is done
@@ -8522,15 +8514,15 @@ contains
       writeDiagnostics = .false.
 
       ! Read the namelist for super observations
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = thin_superObs, iostat = ierr)
-      if (ierr /= 0) call utl_abort('thn_superObs: Error reading namelist')
+      if (ierr /= 0) call rti_abort('thn_superObs: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_superObs)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
       firstCall = .false.
 
       if (trim(averageType) /= 'average') then
-        call utl_abort('thn_superObs: Only averageType="average" is implemented')
+        call rti_abort('thn_superObs: Only averageType="average" is implemented')
       end if
 
     end if
@@ -8608,7 +8600,7 @@ contains
         if (numGoodObs == 0) then
           cycle HEADER1
         else if (numGoodObs > 1) then
-          call utl_abort('thn_superObs: Multiple observations for this headerIndex')
+          call rti_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
 
         ! Lat and Lon for each observation and 3D position
@@ -8631,18 +8623,17 @@ contains
         ! Observed value
         obsValue(headerIndex) = obs_bodyElem_r(obsdat, obs_var, bodyIndexGoodObs)
 
-        ! Datastamp of observation
+        ! Datestamp of observation
         obsDate = obs_headElem_i(obsDat, obs_dat, headerIndex)
-        obsTime = obs_headElem_i(obsDat, obs_etm, headerIndex)
-        ierr = newdate(obsDateStamp(headerIndex), obsDate, obsTime * 10000, 3)
+        obsTime  = obs_headElem_i(obsDat, obs_etm, headerIndex)
+        obsDateStamp(headerIndex) = tim_yyyymmddhhToDatestamp(obsDate, obsTime*10000)
 
         ! Station ID
         obsStnId(headerIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
 
         ! Print some diagnostics
         if (writeDiagnostics) then
-          call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                   obsDate, obsTime, tim_nstepobs)
+          obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
           write(200+mmpi_myid,*) obsFamily, codtyp, obs_elem_c(obsdat, 'STID', headerIndex), elementID,  &
                                  channel, headerIndex, obsLonInDeg(headerIndex),  &
                                  obsLatInDeg(headerIndex), obsStepIndex_r8
@@ -8706,7 +8697,7 @@ contains
         if (numSuperObs == 0) then
           cycle HEADER2
         else if (numSuperObs > 1) then
-          call utl_abort('thn_superObs: Multiple observations for this headerIndex')
+          call rti_abort('thn_superObs: Multiple observations for this headerIndex')
         end if
 
         ! Lat and Lon for reference observation and 3D position
@@ -8720,10 +8711,10 @@ contains
                                nfound=numFoundSearch, nalloc=maxNumSearch, &
                                results=searchResults)
         if (numFoundSearch >= maxNumSearch) then
-          call utl_abort('thn_superObs: the parameter maxNumSearch must be increased')
+          call rti_abort('thn_superObs: the parameter maxNumSearch must be increased')
         end if
         if (numFoundSearch == 0) then
-          call utl_abort('thn_superObs: no match found. This should not happen!!!')
+          call rti_abort('thn_superObs: no match found. This should not happen!!!')
         end if
 
         ! Loop over all of the found nearby locations (includes ref position)
@@ -8750,10 +8741,8 @@ contains
 
             ! Write some diagnostics
             if (writeDiagnostics) then
-              imode = -3 ! stamp to printable
-              ierr = newdate(obsDateStampMpi(headerIndex2), obsDate, obsTime, imode)
-              call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                                       obsDate, obsTime, tim_nstepobs)
+              call tim_dateStampToYYYYMMDDHH(obsDateStampMpi(headerIndex2), obsDate, obsTime)
+              obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
               write(100+mmpi_myid,*) obsFamily, codtyp, elementID, channel, &
                                      headerIndex, headerIndex2, &
                                      obsLonInDeg(headerIndex) , obsLatInDeg(headerIndex), &
@@ -8768,7 +8757,7 @@ contains
           obsValueSuper = obsValueSuper / real(numAverageObs,8)
           call obs_bodySet_r(obsdat, obs_var, bodyIndexSuperObs, obsValueSuper)
         else
-          call utl_abort('thn_superObs: numAverageObs not positive')
+          call rti_abort('thn_superObs: numAverageObs not positive')
         end if
 
         ! Accumulate diagnostic statistics
@@ -8914,11 +8903,11 @@ contains
 
     ! Read the namelist for Ice observations (if it exists)
     if (utl_isNamelistPresent('thin_ice','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=thin_ice, iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_thinIce: Error reading thin_ice namelist')
+      if (ierr /= 0) call rti_abort('thn_thinIce: Error reading thin_ice namelist')
       if (mmpi_myid == 0) write(*,nml=thin_ice)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       if (mmpi_myid == 0) then
         write(*,*)
@@ -8944,11 +8933,11 @@ contains
       end if
     end if
 
-    call utl_tmg_start(114,'--ObsThinning')
+    call rti_tmg_start(114,'--ObsThinning')
     do dataSetIndex = 1, numberDataSet
       call thn_byDistance(obsData, deldist(dataSetIndex), dataSet(dataSetIndex))
     end do
-    call utl_tmg_stop(114)
+    call rti_tmg_stop(114)
 
   end subroutine thn_thinIce
 
@@ -9060,8 +9049,7 @@ contains
       ! get step bin
       obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
-      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
-                               obsDate, obsTime, tim_nstepobs)
+      obsStepIndex_r8 = tim_getStepObsIndex(tim_getDatestamp(), obsDate, obsTime, tim_nstepobs)
       obsStepIndex = nint(obsStepIndex_r8)
 
       ! TimePenalty (lower is better)
@@ -9112,10 +9100,10 @@ contains
       call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, nfound=numFoundSearch, &
                              nalloc=maxNumSearch, results=searchResults)
       if (numFoundSearch >= maxNumSearch) then
-        call utl_abort('thn_byDistance: the parameter maxNumSearch must be increased')
+        call rti_abort('thn_byDistance: the parameter maxNumSearch must be increased')
       end if
       if (numFoundSearch == 0) then
-        call utl_abort('thn_byDistance: no match found. This should not happen!!!')
+        call rti_abort('thn_byDistance: no match found. This should not happen!!!')
       end if
 
       if (numFoundSearch == 1) cycle OBS_LOOP

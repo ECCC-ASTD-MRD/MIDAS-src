@@ -7,6 +7,7 @@ MODULE ensembleObservations_mod
   !           nearest observations within the local volume.
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
+  use rmn_fnom
   use midasMpi_mod
   use kdTree2_mod
   use message_mod
@@ -20,6 +21,7 @@ MODULE ensembleObservations_mod
   use randomNumber_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use earthConstants_mod
   use bufr_mod
   use codePrecision_mod
@@ -155,10 +157,10 @@ CONTAINS
 
     ! read namelist
     if (utl_isNamelistPresent('namensobs','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namensobs, iostat=ierr)
-      if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
-      call utl_tmg_stop(181)
+      if (ierr /= 0) call rti_abort('eob_init: Error reading namelist namensobs')
+      call rti_tmg_stop(181)
       do obsfamIndex = 1, ofl_numFamily
         if (trim(simObsFamily(obsfamIndex)) /= '') then
           numSimObsFam = numSimObsFam + 1
@@ -384,7 +386,7 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObs ! eob object to be modified
 
     if ( .not.ensObs%allocated ) then
-      call utl_abort('eob_zero: this object is not allocated')
+      call rti_abort('eob_zero: this object is not allocated')
     end if
 
     ensObs%lat(:)           = 0.0d0
@@ -423,7 +425,7 @@ CONTAINS
     if ( trim(typeVertCoord) /= 'logPressure' .and. &
          trim(typeVertCoord) /= 'depth' ) then
       write(*,*) 'eob_setTypeVertCoord: typeVertCoord = ', trim(typeVertCoord)
-      call utl_abort('eob_setTypeVertCoord: Unknown type of vertical coordinate')
+      call rti_abort('eob_setTypeVertCoord: Unknown type of vertical coordinate')
     end if
 
     ensObs%typeVertCoord = typeVertCoord
@@ -449,11 +451,11 @@ CONTAINS
     integer :: obsIndex, obsCleanIndex, numObsClean
 
     if (ensObs%mpiglobal) then
-      call utl_abort('eob_clean: Cannot be called with an mpiglobal object')
+      call rti_abort('eob_clean: Cannot be called with an mpiglobal object')
     end if
 
     if (ensObs%firstMember==0) then
-      call utl_abort('eob_clean: Cannot be called when firstMember is 0')
+      call rti_abort('eob_clean: Cannot be called when firstMember is 0')
     end if
 
     call eob_setAssFlag(ensObs)
@@ -513,10 +515,10 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObsOut  ! output eob object
 
     if (ensObsIn%mpiglobal) then
-      call utl_abort('eob_copy: Cannot be called with an mpiglobal object')
+      call rti_abort('eob_copy: Cannot be called with an mpiglobal object')
     end if
     if (ensObsIn%firstMember==0) then
-      call utl_abort('eob_copy: Cannot be called when firstMember is 0')
+      call rti_abort('eob_copy: Cannot be called when firstMember is 0')
     end if
 
     ensObsOut%lat(:)           = ensObsIn%lat(:)
@@ -574,14 +576,14 @@ CONTAINS
     call msg_memUsage('eob_allGather')
 
     if (ensObs%mpiglobal) then
-      call utl_abort('eob_allGather: Input eob object is already mpiglobal')
+      call rti_abort('eob_allGather: Input eob object is already mpiglobal')
     end if
     if (ensObs%firstMember == 0) then
-      call utl_abort('eob_allGather: Cannot be called when firstMember is 0')
+      call rti_abort('eob_allGather: Cannot be called when firstMember is 0')
     end if
 
-    call utl_tmg_start(10,'--Observations')
-    call utl_tmg_start(24,'----Eob_AllGather')
+    call rti_tmg_start(10,'--Observations')
+    call rti_tmg_start(24,'----Eob_AllGather')
 
     ! refresh assimilation flag and then clean ensObs before communicating and writing
     call eob_setAssFlag(ensObs)
@@ -591,7 +593,7 @@ CONTAINS
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
-      call utl_abort('eob_allGather: output ensObs object must not be already allocated')
+      call rti_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
                       fileMemberIndex1_opt=ensObs%fileMemberIndex1, allocYb_opt=.false.)
@@ -784,8 +786,8 @@ CONTAINS
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
-    call utl_tmg_stop(24)
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(24)
+    call rti_tmg_stop(10)
 
     write(*,*) 'eob_allGather: finished'
     call msg_memUsage('eob_allGather')
@@ -818,14 +820,13 @@ CONTAINS
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
-    integer :: fnom, fclos
     logical :: fileExists
 
     if (.not. ensObs%allocated) then
-      call utl_abort('eob_writeToFiles: this object is not allocated')
+      call rti_abort('eob_writeToFiles: this object is not allocated')
     end if
     if (ensObs%firstMember == 0) then
-      call utl_abort('eob_writeToFiles: Cannot be called when firstMember is 0')
+      call rti_abort('eob_writeToFiles: Cannot be called when firstMember is 0')
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
@@ -842,7 +843,7 @@ CONTAINS
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       inquire(file=trim(fileName),exist=fileExists)
       if ( fileExists ) then
-        call utl_abort('eob_writeToFiles: file should not exist')
+        call rti_abort('eob_writeToFiles: file should not exist')
       end if
 
       unitNum = 0
@@ -868,7 +869,7 @@ CONTAINS
     write(*,*) 'eob_writeToFiles: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
     if (fileExists) then
-      call utl_abort('eob_writeToFiles: file should not exist')
+      call rti_abort('eob_writeToFiles: file should not exist')
     end if
 
     unitNum = 0
@@ -915,7 +916,7 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs), assFlagFrom1File(ensObs%numObs)
     integer :: assFlagFromAllFiles(ensObs%numObs)
     integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
-    integer :: numMembersFromFile, fnom, fclos
+    integer :: numMembersFromFile
     integer :: fileIndex, numMembersAlreadyRead
     integer, allocatable :: memberIndexFromFile(:)
     logical :: fileExists
@@ -926,10 +927,10 @@ CONTAINS
     character(len=30)  :: fileNameExtention
 
     if ( .not. ensObs%allocated ) then
-      call utl_abort('eob_readFromFiles: this object is not allocated')
+      call rti_abort('eob_readFromFiles: this object is not allocated')
     end if
     if (ensObs%firstMember == 0) then
-      call utl_abort('eob_readFromFiles: Cannot be called when firstMember is 0')
+      call rti_abort('eob_readFromFiles: Cannot be called when firstMember is 0')
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
@@ -953,14 +954,14 @@ CONTAINS
         inquire(file=trim(fileName),exist=fileExists)
         if (.not. fileExists) then
           write(*,*) 'fileName=', fileName
-          call utl_abort('eob_readFromFiles: file does not exist')
+          call rti_abort('eob_readFromFiles: file does not exist')
         end if
 
         unitNum = 0
         ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
         read(unitNum) numMembersFromFile, numObsFromFile
         if (ensObs%numObs /= numObsFromFile) then
-          call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
+          call rti_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
         end if
 
         read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
@@ -973,7 +974,7 @@ CONTAINS
             maxval(abs(obsValueFromFile(:) - ensObs%obsValue(:))) > 1.0d-7 .or. &
             .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
 
-          call utl_abort('eob_readFromFiles: obsInfo file do not match ensObs')
+          call rti_abort('eob_readFromFiles: obsInfo file do not match ensObs')
         end if
 
         ! Read assimilation flag for of all files and apply a "logical or" to get the value
@@ -1017,7 +1018,7 @@ CONTAINS
       inquire(file=trim(fileName),exist=fileExists)
       if (.not. fileExists) then
         write(*,*) 'fileName=', fileName
-        call utl_abort('eob_readFromFiles: file does not exist')
+        call rti_abort('eob_readFromFiles: file does not exist')
       end if
 
       unitNum = 0
@@ -1110,7 +1111,7 @@ CONTAINS
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numObsFoundSearch,&
                            nalloc=maxNumLocalObsSearch, results=searchResults)
     if (numObsFoundSearch > maxNumLocalObsSearch) then
-      call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
+      call rti_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
     ! searchResults is an array of maxNumLocalObsSearch observations.
@@ -1145,7 +1146,7 @@ CONTAINS
         sortValue(localObsIndex) = locFun(localObsIndex) * &
                                    sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
       else
-        call utl_abort('eob_getLocalBodyIndices: localObsSorting has unknown value:'//trim(localObsSorting))
+        call rti_abort('eob_getLocalBodyIndices: localObsSorting has unknown value:'//trim(localObsSorting))
       endif
     end do
     ! sort observations by sortValue
@@ -1361,7 +1362,7 @@ CONTAINS
       endif
     end do MAXNUM_LOOP
     if (physVarIndex > physVarMax) then
-      call utl_abort('midas-letkf: physVarMax exceeded in eobOut. Increase physVarMax in eob_getLocalBodyIndices().')
+      call rti_abort('midas-letkf: physVarMax exceeded in eobOut. Increase physVarMax in eob_getLocalBodyIndices().')
     endif
 
     if (selectedObs) then
@@ -1411,7 +1412,7 @@ CONTAINS
 
     ! Locals:
     character(len=50)   :: outfilename          ! filename for the output
-    integer             :: fclos, funit, ierr
+    integer             :: funit, ierr
     integer             :: codTyp, physVarIndex
     logical             :: file_exists
     real(8)             :: distMax, distMean, locFun, obsErr, ensSpread
@@ -1524,7 +1525,7 @@ CONTAINS
         end if
       end do
     else
-      call utl_abort('eob_writeOutput: localSelectionOutput value should be 1 or 2.')
+      call rti_abort('eob_writeOutput: localSelectionOutput value should be 1 or 2.')
     endif
 
     ierr = fclos(funit)
@@ -1784,7 +1785,7 @@ CONTAINS
         else if (ensObs%typeVertCoord == 'depth') then
           ensObs%vertLocation(obsIndex) = 0.0D0
         else
-          call utl_abort('eob_setVertLocation: unknown typeVertCoord:' // trim(ensObs%typeVertCoord))
+          call rti_abort('eob_setVertLocation: unknown typeVertCoord:' // trim(ensObs%typeVertCoord))
         end if
 
       else if (varNumber(obsIndex) == BUFR_NEZD) then
@@ -1793,7 +1794,7 @@ CONTAINS
         if (ensObs%typeVertCoord == 'logPressure') then
           ensObs%vertLocation(obsIndex) = log(0.7D0 * sfcPres_ptr(1,headerIndex))
         else
-          call utl_abort('eob_setVertLocation: ZTD obs only compatible with logPressure coordinate')
+          call rti_abort('eob_setVertLocation: ZTD obs only compatible with logPressure coordinate')
         end if
 
       else if (obsPPP(obsIndex) > 0.0d0 .and. obsVcoCode(obsIndex)==2) then
@@ -1802,7 +1803,7 @@ CONTAINS
         if (ensObs%typeVertCoord == 'logPressure') then
           ensObs%vertLocation(obsIndex) = log(obsPPP(obsIndex))
         else
-          call utl_abort('eob_setVertLocation: pressure obs only compatible with logPressure coordinate')
+          call rti_abort('eob_setVertLocation: pressure obs only compatible with logPressure coordinate')
         end if
 
       else if(obsVcoCode(obsIndex) == 1 .and. .not.bufr_isOceanObs(varNumber(obsIndex))) then
@@ -1812,7 +1813,7 @@ CONTAINS
           if (ensObs%assFlag(obsIndex) == 0) cycle OBS_LOOP
           ! otherwise, abort
           write(*,*) 'eob_setVertLocation: varNum = ', varNumber(obsIndex)
-          call utl_abort('eob_setVertLocation: height level obs only compatible with logPressure coordinate')
+          call rti_abort('eob_setVertLocation: height level obs only compatible with logPressure coordinate')
         end if
 
         ! all height level observations (not including surface obs)
@@ -1846,7 +1847,7 @@ CONTAINS
       else if(tvs_isIdBurpTovs(codType(obsIndex))) then
 
         if (ensObs%typeVertCoord /= 'logPressure') then
-          call utl_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
+          call rti_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
         end if
 
         sensorIndex = tvs_lsensor(headerIndex)
@@ -1872,7 +1873,7 @@ CONTAINS
                varNumber(obsIndex) == bufr_sprof) then
 
         if (ensObs%typeVertCoord /= 'depth') then
-          call utl_abort('eob_setVertLocation: Ocean obs only compatible with ocean depth coordinate')
+          call rti_abort('eob_setVertLocation: Ocean obs only compatible with ocean depth coordinate')
         end if
 
         ! Ocean observations
@@ -1883,7 +1884,7 @@ CONTAINS
 
         write(*,*) 'eob_setLatLonPresObs: ERROR! cannot compute pressure for this observation: ',  &
                    obsPPP(obsIndex), varNumber(obsIndex), obsVcoCode(obsIndex)
-        call utl_abort('eob_setVertLocation')
+        call rti_abort('eob_setVertLocation')
 
       end if
 
@@ -1924,7 +1925,7 @@ CONTAINS
 
     if (memberIndex < ensObs%firstMember .or. memberIndex > ensObs%numMembers) then
       write(*,*) 'memberIndex = ', memberIndex
-      call utl_abort('eob_setYb: memberIndex value is invalid')
+      call rti_abort('eob_setYb: memberIndex value is invalid')
     end if
 
     ! get the Y-HX value from obsSpaceData
@@ -1949,7 +1950,7 @@ CONTAINS
     integer         , intent(in)     :: obsColumnName ! name of obs column to get the value
 
     if ( .not. associated(ensObs%Ya_r4) ) then
-      call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
+      call rti_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
     end if
 
     ! get the Y-HX value from obsSpaceData
@@ -2075,12 +2076,12 @@ CONTAINS
     real(4) :: meanRandPert, sigObs
 
     if (ensObs%mpiglobal) then
-      call utl_abort('eob_calcRandPert: Input eob object must not already be mpiglobal')
+      call rti_abort('eob_calcRandPert: Input eob object must not already be mpiglobal')
     end if
 
     call rng_setup(abs(randomSeed))
     if ( associated(ensObs%randPert_r4) ) then
-      call utl_abort('eob_calcRandPert: ensObs%randPert_r4 must not be already allocated')
+      call rti_abort('eob_calcRandPert: ensObs%randPert_r4 must not be already allocated')
     end if
 
     allocate(ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs))
@@ -2497,13 +2498,13 @@ CONTAINS
       end do
     else
       if (.not. present(maxNumMembersPerGroup_opt)) then
-        call utl_abort('getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
+        call rti_abort('getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
       end if
 
       ! divide members into groups
       numMembersPerGroup = ensObs%numMembers / numGroupsToDivideMembers
       if (numMembersPerGroup > maxNumMembersPerGroup_opt) then
-        call utl_abort('getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
+        call rti_abort('getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
       end if
 
       memberIndex = 0
@@ -2587,10 +2588,9 @@ CONTAINS
     real(8), intent(inout) :: maxLnP        ! computed log pressure of maximum
 
     ! Locals:
-    external :: dgesv
     integer, parameter :: N=3
-    integer :: info
     integer, parameter :: lda=N, ldb=N, nrhs=1
+    integer :: info
     integer :: ipiv(N)
     real(8) :: A(lda,N),B(ldb,nrhs)
     integer :: index1, index2

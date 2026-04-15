@@ -13,6 +13,7 @@ module sstBias_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use codtyp_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -298,7 +299,7 @@ module sstBias_mod
                                    nfound = ndataFoundGridLoc(lonIndex, latIndex), &
                                    nalloc = maxPointsSearch, results = searchResults)
             if (ndataFoundGridLoc(lonIndex, latIndex) > maxPointsSearch) &
-            call utl_abort('sstb_getGriddedObs: the parameter maxPointsSearch must be increased')
+            call rti_abort('sstb_getGriddedObs: the parameter maxPointsSearch must be increased')
 
             if (ndataFoundGridLoc(lonIndex, latIndex) > 0) then
               do localObsIndex = 1, ndataFoundGridLoc(lonIndex, latIndex)
@@ -397,7 +398,7 @@ module sstBias_mod
     else if (dayOrNight == 'night') then
       extension = 'N'
     else
-      call utl_abort('sstb_getGriddedBias: wrong extension: '//trim(extension))
+      call rti_abort('sstb_getGriddedBias: wrong extension: '//trim(extension))
     end if
 
     POSITIVEOBSNUMBER: if (nobsLoc > 0) then
@@ -643,14 +644,14 @@ module sstBias_mod
     bgTermZeroBias = 1.0d0
 
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namSSTbiasEstimate, iostat = ierr )
-    if (ierr /= 0) call utl_abort('readNml (sstb): Error reading namelist')
+    if (ierr /= 0) call rti_abort('readNml (sstb): Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if (numberSensors /= MPC_missingValue_INT) then
-      call utl_abort('readNml (sstb): check namSSTbiasEstimate namelist section: numberSensors should be removed')
+      call rti_abort('readNml (sstb): check namSSTbiasEstimate namelist section: numberSensors should be removed')
     end if
 
     numberSensors = 0
@@ -658,7 +659,7 @@ module sstBias_mod
       if (trim(sensorList(sensorIndex))=='') exit
       numberSensors = numberSensors + 1
     end do
-    if (numberSensors == 0) call utl_abort('readNml (sstb): check namSSTbiasEstimate namelist section: empty sensorList')
+    if (numberSensors == 0) call rti_abort('readNml (sstb): check namSSTbiasEstimate namelist section: empty sensorList')
 
     if (mmpi_myid == 0) then
       write(*,*)
@@ -712,7 +713,7 @@ module sstBias_mod
         else if (trim(listProducts(productIndex)) == 'night') then
           extension = 'N'
         else
-          call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension))
+          call rti_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension))
         end if
 
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &
@@ -759,7 +760,7 @@ module sstBias_mod
     else if (trim(dayOrNight) == 'night') then
       extension = 'N'
     else
-      call utl_abort('sstb_getBiasFromPreviousState: wrong extension: '//trim(extension))
+      call rti_abort('sstb_getBiasFromPreviousState: wrong extension: '//trim(extension))
     end if
 
     ! read previous bias estimation

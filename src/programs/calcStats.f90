@@ -15,7 +15,7 @@ program midas_calcStats
   !                         are available and controlled controlled by ``NAMCOMPUTEBHI``: 1) the legacy CVT formulation
   !                         described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein,
   !                         and 2) the latbands CVT formulation which can also be run globally and, contrary to the
-  !                         legacy formulation, does not impose balance operators. (2) is not restricted to the standard 
+  !                         legacy formulation, does not impose balance operators. (2) is not restricted to the standard
   !                         weather fields and provides additional options controlled by ``NAMCOMPUTEBHILATBANDS``.
   !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
   !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
@@ -31,8 +31,8 @@ program midas_calcStats
   !                applications.
   !            ---
   !
-  !            Vertical coordinates input for the atmospheric case (i.e., when !! is provided): When the ensemble  
-  !            files do not include TT and UU, then TH and MM records are required at least in the ensemble member 
+  !            Vertical coordinates input for the atmospheric case (i.e., when !! is provided): When the ensemble
+  !            files do not include TT and UU, then TH and MM records are required at least in the ensemble member
   !            file with suffix $NNNN=0001 in order to set the vertical coordinates. Alternatively, if stats
   !            are not to be generated for TT an HU, TT and UU can be provided as substitutes for TH and MM
   !            in the file with $NNNN=0001.
@@ -75,7 +75,6 @@ program midas_calcStats
   ! ``calcstatslam_mod``     ``mode-dependent``  Too many to be listed here
   !======================== ============ ==============================================================
   !
- 
   use midasMpi_mod
   use version_mod
   use fileNames_mod
@@ -84,6 +83,7 @@ program midas_calcStats
   use calcStatsGlb_mod
   use calcStatsLam_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -96,8 +96,6 @@ program midas_calcStats
 
   character(len=256), parameter :: enspathname = 'ensemble'
 
-  integer           :: fstopc
-  integer           :: ierr
   character(len=256) :: ensFileName
   character(len=4), pointer :: anlVar(:)
 
@@ -114,14 +112,13 @@ program midas_calcStats
   !
   !- 1.  Initilization
   !
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI and TMG
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -139,10 +136,10 @@ program midas_calcStats
   nens              = 96                ! default value
   ip2               = -1                ! default value
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read (utl_flnml, nml=namens)
   write(*, nml=namens)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
@@ -161,10 +158,10 @@ program midas_calcStats
   !- 1.5 Read NAMCONF namelist to find the mode
   mode  = 'BHI'  ! default value
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read (utl_flnml, nml=namconf)
   write(*, nml=namconf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !
   !- 2. Select and launch the appropriate mode
@@ -194,7 +191,7 @@ program midas_calcStats
   case default
      write(*,*)
      write(*,*) 'Unknown value of MODE in global mode: ',mode
-     call utl_abort('midas-calcstats')
+     call rti_abort('midas-calcstats')
   end select
 
   !
@@ -208,9 +205,9 @@ program midas_calcStats
 
   !
   !- 4.  MPI, tmg finalize
-  !  
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  !
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize

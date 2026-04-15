@@ -5,9 +5,11 @@ module bgckMicrowave_mod
   !:Purpose: Perform background check and quality control for all microwave
   !          satellite radiance observations: AMSU-A, AMSU-B/MHS, ATMS, MWHS2.
   !
+  use rmn_fst98
   use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use tovs_mod
   use obsErrors_mod
@@ -197,11 +199,11 @@ contains
     useSiDiffForAllskyQc                = .false.
     skipTestArr(:)                      = .false.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
-    if (ierr /= 0) call utl_abort('mwbg_init: Error reading namelist')
+    if (ierr /= 0) call rti_abort('mwbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=nambgck)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     mwbg_debug = debug
     mwbg_clwQcThreshold = real(clwQcThreshold,8)
@@ -511,7 +513,7 @@ contains
 
     !check consistency between mwbg_chanRejectForTopoFilter and mwbg_altitudeThreshForTopoFilter
     if ( size(mwbg_altitudeThreshForTopoFilter) /= size(mwbg_chanRejectForTopoFilter) ) then
-      call utl_abort('ABORT: amsuABTest1TopographyCheck, no consistency between channel List and altitude list ')
+      call rti_abort('ABORT: amsuABTest1TopographyCheck, no consistency between channel List and altitude list ')
     end if
 
     numFilteringTest =  size(mwbg_altitudeThreshForTopoFilter)
@@ -3361,7 +3363,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
-      if (chanIsAllskyTt) call utl_abort('Mwhs2Test4RogueCheck: all-sky TT does not exist for MWHS2.')
+      if (chanIsAllskyTt) call rti_abort('Mwhs2Test4RogueCheck: all-sky TT does not exist for MWHS2.')
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
@@ -4096,8 +4098,8 @@ contains
     integer, save  ::  gdgl                ! glace interpolation param
     real(4), save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
     logical, save  :: firstCall = .true.   ! If .true. we read GL, MT and MG
-    integer :: gdllsval, IUNGEO
-    integer :: ier, irec, ezqkdef, ezsetopt, FSTINF,FSTPRM,FCLOS, FSTLIR,FSTFRM, FNOM, FSTOUV
+    integer :: IUNGEO
+    integer :: ier, irec
     integer :: NI, NJ, NK, IG1, IG2, IG3, IG4, IDUM1, IDUM2, IDUM3, IDUM4, IDUM5, IDUM6, IDUM7, IDUM8
     integer :: IDUM9, IDUM10, IDUM11, IDUM12, IDUM13, IDUM14, IDUM15, IDUM16, IDUM17, IDUM18
     integer :: NLAT, NLON, boxPointIndex, latIndex, lonIndex, boxPointNum
@@ -4109,6 +4111,8 @@ contains
     real(4) :: XLAT, XLON, obsLat, obsLon
     real(4), allocatable :: ZLATBOX(:), ZLONBOX(:), MGINTBOX(:), MTINTBOX(:), GLINTBOX(:)
     logical :: readGlaceMask
+    ! external definitions
+    integer, external :: ezsetopt, ezqkdef, gdllsval
 
     ! lat/lon
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
@@ -4144,7 +4148,7 @@ contains
         IER = FSTLIR(MT,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
            ' ',CLNOMVAR)
       else
-        call utl_abort ('bgckMicrowave_mod: ERREUR: LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE')
+        call rti_abort ('bgckMicrowave_mod: ERREUR: LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE')
       end if
 
       IER = FSTPRM(IREC, IDUM1, IDUM2, IDUM3, IDUM4, &
@@ -4161,7 +4165,7 @@ contains
         ! MG
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MG')
         if (IREC < 0) then
-          call utl_abort ('bgckMicrowave_mod: ERREUR: LE MASQUE TERRE-MER EST INEXISTANT')
+          call rti_abort ('bgckMicrowave_mod: ERREUR: LE MASQUE TERRE-MER EST INEXISTANT')
         end if
 
         if(allocated(MG)) deallocate(MG)
@@ -4180,7 +4184,7 @@ contains
         ! GL
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','GL')
         if (IREC < 0) then
-          call utl_abort ('bgckMicrowave_mod: ERREUR: LE CHAMP GLACE DE MER EST INEXISTANT')
+          call rti_abort ('bgckMicrowave_mod: ERREUR: LE CHAMP GLACE DE MER EST INEXISTANT')
         end if
 
         if(allocated(GL)) deallocate(GL)
@@ -4237,16 +4241,16 @@ contains
     ier = ezsetopt('INTERP_DEGREE','LINEAR')
     ier = gdllsval(gdmt,mtintbox,mt,ZLATBOX,ZLONBOX,boxPointNum)
     if (ier < 0) then
-      call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MT')
+      call rti_abort ('bgckMicrowave_mod: ERROR in the interpolation of MT')
     end if
     if(readGlaceMask) then
       ier = gdllsval(gdmg,mgintbox,mg,ZLATBOX,ZLONBOX,boxPointNum)
       if (ier < 0) then
-        call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MG')
+        call rti_abort ('bgckMicrowave_mod: ERROR in the interpolation of MG')
       end if
       ier = gdllsval(gdgl,glintbox,gl,ZLATBOX,ZLONBOX,boxPointNum)
       if (ier < 0) then
-        call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of GL')
+        call rti_abort ('bgckMicrowave_mod: ERROR in the interpolation of GL')
       end if
     end if
 
@@ -4395,13 +4399,10 @@ contains
     real(4), allocatable       :: mgintob(:), lgintob(:)
     real(4), allocatable       :: zlatbox(:), zlonbox(:)
     real(4) :: mgintrp, lgintrp
-    ! RMNLIB interpolating functions:
-    integer :: ezsetopt, ezqkdef
-    integer :: gdllsval, gdid, gdidlg
-    ! Define FORTRAN FST functions:
-    integer, external :: fstinf, fstprm, fstlir, fnom, fclos
-    integer, external :: fstouv, fstfrm
+    integer :: gdid, gdidlg
     integer :: idum1, idum2, idum3
+    ! external definitions
+    integer, external :: ezsetopt, ezqkdef, gdllsval
 
     obsLat = real(obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex),4)
     obsLon = real(obs_headElem_r(obsSpaceData, OBS_LON, headerIndex),4)
@@ -4439,7 +4440,7 @@ contains
       ! Read MG field.
       key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
       if ( key <  0 ) then
-        call utl_abort('atmsMwhs2landIceMask: The MG field is MISSING')
+        call rti_abort('atmsMwhs2landIceMask: The MG field is MISSING')
       end if
 
       call utl_reAllocate(mg, ni*nj)
@@ -4458,7 +4459,7 @@ contains
       if ( key <  0 ) then
         key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'GL')
         if ( key <  0 ) then
-          call utl_abort('atmsMwhs2landIceMask: The LG or GL field is MISSING')
+          call rti_abort('atmsMwhs2landIceMask: The LG or GL field is MISSING')
         end if
       else
         llg = .true.
@@ -5400,14 +5401,14 @@ contains
     if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
         ((utl_isEqual(cloudLiquidWaterPathObs, mwbg_realMissing) .and. .not. utl_isEqual(cloudLiquidWaterPathFG, mwbg_realMissing)) .or. &
          (.not. utl_isEqual(cloudLiquidWaterPathObs, mwbg_realMissing) .and. utl_isEqual(cloudLiquidWaterPathFG, mwbg_realMissing)))) then
-      call utl_abort('mwbg_nrlFilterAtms: cloudLiquidWaterPath[Obs/FG] not consistent for all-sky TT')
+      call rti_abort('mwbg_nrlFilterAtms: cloudLiquidWaterPath[Obs/FG] not consistent for all-sky TT')
     end if
 
     ! check for consistency scatIndexOverWater[Obs/FG] in all-sky HU
     if (instrumentIsAllskyHu .and. &
         ((utl_isEqual(scatIndexOverWaterObs, mwbg_realMissing) .and. .not. utl_isEqual(scatIndexOverWaterFG, mwbg_realMissing)) .or. &
          (.not. utl_isEqual(scatIndexOverWaterObs, mwbg_realMissing) .and. utl_isEqual(scatIndexOverWaterFG, mwbg_realMissing)))) then
-      call utl_abort('mwbg_nrlFilterAtms: scatIndexOverWater[Obs/FG] not consistent for all-sky HU')
+      call rti_abort('mwbg_nrlFilterAtms: scatIndexOverWater[Obs/FG] not consistent for all-sky HU')
     end if
 
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
@@ -5604,7 +5605,7 @@ contains
     if (instrumentIsAllskyHu .and. &
         ((utl_isEqual(scatIndexOverWaterObs, mwbg_realMissing) .and. .not. utl_isEqual(scatIndexOverWaterFG, mwbg_realMissing)) .or. &
          (.not. utl_isEqual(scatIndexOverWaterObs, mwbg_realMissing) .and. utl_isEqual(scatIndexOverWaterFG, mwbg_realMissing)))) then
-      call utl_abort('mwbg_nrlFilterMwhs2: scatIndexOverWater[Obs/FG] not consistent for all-sky HU')
+      call rti_abort('mwbg_nrlFilterMwhs2: scatIndexOverWater[Obs/FG] not consistent for all-sky HU')
     end if
 
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
@@ -6268,7 +6269,7 @@ contains
     instrumentIsAllskyTt = tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
     instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
     if (instrumentIsAllskyTt) then
-      call utl_abort('mwbg_reviewAllCritforFinalFlagsMwhs2: all-sky TT does not exist for MWHS2')
+      call rti_abort('mwbg_reviewAllCritforFinalFlagsMwhs2: all-sky TT does not exist for MWHS2')
     end if
 
     ! Allocation
@@ -6522,11 +6523,10 @@ contains
     integer               :: headerIndex              ! header Index
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype
-    integer, external     :: exdb, exfin, fnom, fclos
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
 
-    call utl_tmg_start(118,'--BgckMicrowave')
+    call rti_tmg_start(118,'--BgckMicrowave')
     mwDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
@@ -6577,7 +6577,7 @@ contains
       end if
 
       sensorIndexFound = ifTovsExist(headerIndex, sensorIndex, obsSpaceData)
-      if (.not. sensorIndexFound) call utl_abort('midas-bgckMW: sensor Index not found')
+      if (.not. sensorIndexFound) call rti_abort('midas-bgckMW: sensor Index not found')
 
       ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       call mwbg_readGeophysicFieldsAndInterpolate(instName, headerIndex, obsSpaceData)
@@ -6597,7 +6597,7 @@ contains
 
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
-        call utl_abort('midas-bgckMW: unknown instName')
+        call rti_abort('midas-bgckMW: unknown instName')
       end if
 
       ! STEP 3: Accumuler Les statistiques sur les rejets
@@ -6607,7 +6607,7 @@ contains
     ! STEP 4: Print the statistics in listing file
     call mwbg_qcStats(instName, sensorIndex, tvs_satelliteName(1:tvs_nsensors), .TRUE.)
 
-    call utl_tmg_stop(118)
+    call rti_tmg_stop(118)
 
   end subroutine mwbg_bgCheckMW
 

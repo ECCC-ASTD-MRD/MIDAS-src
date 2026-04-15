@@ -5,6 +5,7 @@ module ramDisk_mod
   !:Purpose: To control the file manipulations/enquiries on the RAM disk.
   !
   use utilities_mod
+  use runtimeInfo_mod
   use clibInterfaces_mod
 
   implicit none
@@ -120,7 +121,7 @@ contains
           return
         else
           write(*,*) 'ram_fullWorkingPath: file name = ', trim(fileName2)
-          call utl_abort('ram_fullWorkingPath: this file cannot be found on disk.')
+          call rti_abort('ram_fullWorkingPath: this file cannot be found on disk.')
         end if
       end if
     end if
@@ -138,7 +139,7 @@ contains
         else
           write(*,*) 'ram_fullWorkingPath: file name          = ', trim(fileName2)
           write(*,*) 'ram_fullWorkingPath: ram disk directory = ', trim(ram_disk_dir)
-          call utl_abort('ram_fullWorkingPath: this file cannot be found.')
+          call rti_abort('ram_fullWorkingPath: this file cannot be found.')
         end if
       else
 
@@ -148,11 +149,11 @@ contains
             status = clib_dirname(trim(filename2),subDirectory)
             status = clib_mkdir_r(trim(ram_disk_dir) // '/' // trim(subDirectory))
             if ( status /= clib_ok ) then
-              call utl_abort('ram_fullWorkingPath: problem with mkdir')
+              call rti_abort('ram_fullWorkingPath: problem with mkdir')
             end if
             status = clib_isdir(trim(ram_disk_dir) // '/' // trim(subDirectory))
             if ( status /= clib_ok ) then
-              call utl_abort('ram_fullWorkingPath: problem with checking existence of directory')
+              call rti_abort('ram_fullWorkingPath: problem with checking existence of directory')
             end if
           end if
 

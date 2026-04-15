@@ -9,10 +9,12 @@ module columnData_mod
   !           locations.
   !
   use midasMpi_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use verticalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -101,20 +103,20 @@ contains
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namstate,iostat=ierr)
-    if(ierr /= 0) call utl_abort('col_setup: Error reading namelist')
+    if(ierr /= 0) call rti_abort('col_setup: Error reading namelist')
     if(mmpi_myid == 0) write(*,nml=namstate)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     col_rhumin = rhumin
     col_minValVarKindCH(:)=minValVarKindCH(:)
 
     if( varneed('Z_T') .or. varneed('Z_M') ) then
-      call utl_abort('col_setup: height can not be specified as analysis variable in namelist!')
+      call rti_abort('col_setup: height can not be specified as analysis variable in namelist!')
     end if
     if( varneed('P_T') .or. varneed('P_M') ) then
-      call utl_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
+      call rti_abort('col_setup: pressure can not be specified as analysis variable in namelist!')
     end if
 
     numVar3D    = 0
@@ -288,7 +290,7 @@ contains
     column%numCol = numCol
 
     if(.not.column%vco%initialized) then
-      call utl_abort('col_allocate: VerticalCoord has not been initialized!')
+      call rti_abort('col_allocate: VerticalCoord has not been initialized!')
     end if
 
     allocate(column%varOffset(vnl_numvarmax))
@@ -303,7 +305,7 @@ contains
         column%varNumLev(varIndex) = col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
         iloc = iloc + column%varNumLev(varIndex)
         if (column%varNumLev(varIndex) <= 0) then
-          call utl_abort('col_allocate: Number of levels is invalid for varName = ' // &
+          call rti_abort('col_allocate: Number of levels is invalid for varName = ' // &
                          trim(vnl_varNameList(varIndex)))
         end if
       end if
@@ -323,14 +325,14 @@ contains
         column%varNumLev(varIndex) = col_getNumLev(column,'OT',vnl_varNameListOther(varIndex2))
         iloc = iloc + column%varNumLev(varIndex)
         if (column%varNumLev(varIndex) <= 0) then
-          call utl_abort('col_allocate: Number of levels is invalid for varName = ' // &
+          call rti_abort('col_allocate: Number of levels is invalid for varName = ' // &
                          trim(vnl_varNameListOther(varIndex2)))
         end if
       end if
     end do
 
     if (iloc == 0) then
-      call utl_abort('col_allocate: Nothing to allocate')
+      call rti_abort('col_allocate: Nothing to allocate')
     end if
 
     column%numVarLev = iloc
@@ -516,7 +518,7 @@ contains
     end do
 
     write(*,*) 'col_getLevFromVarLev: varLevIndex out of range: ', varLevIndex
-    call utl_abort('col_getLevFromVarLev')
+    call rti_abort('col_getLevFromVarLev')
 
   end function col_getLevFromVarLev
 
@@ -550,7 +552,7 @@ contains
     end do
 
     write(*,*) 'col_getVarNameFromVarLev: varLevIndex out of range: ', varLevIndex
-    call utl_abort('col_getVarNameFromVarLev')
+    call rti_abort('col_getVarNameFromVarLev')
 
   end function col_getVarNameFromVarLev
 
@@ -578,7 +580,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getPressure: headerIndex out of range')
+      call rti_abort('col_getPressure: headerIndex out of range')
     end if
 
     ptExist = col_varExist(column,'P_T')
@@ -590,7 +592,7 @@ contains
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
     else
-      call utl_abort('col_getPressure: Unknown variable type: ' // varLevel)
+      call rti_abort('col_getPressure: Unknown variable type: ' // varLevel)
     end if
 
   end function col_getPressure
@@ -618,29 +620,29 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getHeight: headerIndex out of range')
+      call rti_abort('col_getHeight: headerIndex out of range')
     end if
 
     if (varLevel == 'TH') then
       if (.not. col_varExist(column,'Z_T') ) then
-        call utl_abort('col_getHeight: Z_T not found!')
+        call rti_abort('col_getHeight: Z_T not found!')
       end if
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
       height = column%all(ilev1+ilev-1,headerIndex)
     else if (varLevel == 'MM') then
       if (.not. col_varExist(column,'Z_M') ) then
-        call utl_abort('col_getHeight: Z_M not found!')
+        call rti_abort('col_getHeight: Z_M not found!')
       end if
       ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
       height = column%all(ilev1+ilev-1,headerIndex)
     else if (varLevel == 'SF' ) then
       height = column%heightSfc(headerIndex)
     else
-      call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
+      call rti_abort('col_getHeight: unknown varLevel! ' // varLevel)
     end if
 
   end function col_getHeight
-  
+
   !---------------------------------------------------------------------------
   ! col_getDepth
   !---------------------------------------------------------------------------
@@ -663,15 +665,15 @@ contains
 
     ! Result:
     real(8) :: depth
-    
+
     if (varLevel == 'DP') then
       ! Check that at least one relevant ocean variable exists
       if (.not. col_varExist(column, 'TM') .and. .not. col_varExist(column, 'SALW')) then
-        call utl_abort('col_getDepth: neither TM nor SALW found!')
-      end if    
+        call rti_abort('col_getDepth: neither TM nor SALW found!')
+      end if
       depth = column%vco%depths(levelIndex)
     else
-      call utl_abort('col_getDepth: unknown varLevel! ' // varLevel)
+      call rti_abort('col_getDepth: unknown varLevel! ' // varLevel)
     end if
 
   end function col_getDepth
@@ -695,13 +697,13 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getHeightLS: headerIndex out of range')
+      call rti_abort('col_getHeightLS: headerIndex out of range')
     end if
 
     if (varLevel == 'SF' ) then
       heightLS = column%heightSfcLS(headerIndex)
     else
-      call utl_abort('col_getHeightLS: unknown varLevel! ' // varLevel)
+      call rti_abort('col_getHeightLS: unknown varLevel! ' // varLevel)
     end if
 
   end function col_getHeightLS
@@ -722,7 +724,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_setHeightSfc: headerIndex out of range')
+      call rti_abort('col_setHeightSfc: headerIndex out of range')
     end if
 
     column%heightSfc(headerIndex) = height
@@ -745,7 +747,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_setHeightSfcLS: headerIndex out of range')
+      call rti_abort('col_setHeightSfcLS: headerIndex out of range')
     end if
 
     column%heightSfcLS(headerIndex) = heightLS
@@ -773,7 +775,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getOltv: headerIndex out of range')
+      call rti_abort('col_getOltv: headerIndex out of range')
     end if
 
     value = column%oltv(varIndex, levIndex, headerIndex)
@@ -800,7 +802,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_setOltv: headerIndex out of range')
+      call rti_abort('col_setOltv: headerIndex out of range')
     end if
 
     column%oltv(varIndex, levIndex, headerIndex) = value
@@ -833,7 +835,7 @@ contains
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
+          call rti_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
         end if
       else
         ! No variable name specified, return full columns
@@ -870,7 +872,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getColumn: headerIndex out of range')
+      call rti_abort('col_getColumn: headerIndex out of range')
     end if
 
     if(present(varName_opt)) then
@@ -879,7 +881,7 @@ contains
         ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
         onecolumn => column%all(ilev1:ilev2,headerIndex)
       else
-        call utl_abort('col_getColumn: Unknown variable name! ' // varName_opt)
+        call rti_abort('col_getColumn: Unknown variable name! ' // varName_opt)
       end if
     else
       onecolumn => column%all(:,headerIndex)
@@ -910,18 +912,18 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getElem: headerIndex out of range')
+      call rti_abort('col_getElem: headerIndex out of range')
     end if
 
     if(present(varName_opt)) then
       if(.not.col_varExist(column,varName_opt)) then
-        call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
+        call rti_abort('col_getElem: Unknown variable name! ' // varName_opt)
       end if
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
       if (ilev > column%numVarLev .or. ilev < 1) then
         write(*,*) 'varsLevs index = ', ilev
-        call utl_abort('col_getElem: varsLevs index out of range')
+        call rti_abort('col_getElem: varsLevs index out of range')
       end if
       value = column%all(ilev,headerIndex)
     end if
@@ -945,7 +947,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_getLat: headerIndex out of range')
+      call rti_abort('col_getLat: headerIndex out of range')
     end if
 
     value = column%lat(headerIndex)
@@ -968,7 +970,7 @@ contains
 
     if (headerIndex > column%numCol .or. headerIndex < 1) then
       write(*,*) 'headerIndex = ', headerIndex
-      call utl_abort('col_setLat: headerIndex out of range')
+      call rti_abort('col_setLat: headerIndex out of range')
     end if
 
     column%lat(headerIndex) = value
@@ -1108,27 +1110,27 @@ contains
     real(8), pointer                        :: ptrColIn(:,:)
 
     if (columnInout%numVarLev /= columnIn%numVarLev) then
-      call utl_abort('col_add: Number of levels in columnIn and columnInout are not equal')
+      call rti_abort('col_add: Number of levels in columnIn and columnInout are not equal')
     end if
 
     if (columnInout%numCol /= columnIn%numCol) then
-      call utl_abort('col_add: Number of columns in columnIn and columnInout are not equal')
+      call rti_abort('col_add: Number of columns in columnIn and columnInout are not equal')
     end if
 
     if (.not. columnIn%allocated) then
-      call utl_abort('col_add: columnIn is not allocated')
+      call rti_abort('col_add: columnIn is not allocated')
     end if
 
     if (.not. columnInout%allocated) then
-      call utl_abort('col_add: columnInout is not allocated')
+      call rti_abort('col_add: columnInout is not allocated')
     end if
 
     if (any(columnIn%varNumLev(:) /= columnInout%varNumLev(:))) then
-      call utl_abort('col_add: varNumLev in columnIn and columnInout are not equal')
+      call rti_abort('col_add: varNumLev in columnIn and columnInout are not equal')
     end if
 
     if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnInout))) then
-      call utl_abort('col_add: Vco in columnIn and columnInout are not equal')
+      call rti_abort('col_add: Vco in columnIn and columnInout are not equal')
     end if
 
     ptrColInOut => columnInout%all
@@ -1156,27 +1158,27 @@ contains
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
     if (columnOut%numVarLev /= columnIn%numVarLev) then
-      call utl_abort('col_copy: Number of levels in columnIn and columnOut are not equal')
+      call rti_abort('col_copy: Number of levels in columnIn and columnOut are not equal')
     end if
 
     if (columnOut%numCol /= columnIn%numCol) then
-      call utl_abort('col_copy: Number of columns in columnIn and columnOut are not equal')
+      call rti_abort('col_copy: Number of columns in columnIn and columnOut are not equal')
     end if
 
     if (.not. columnIn%allocated) then
-      call utl_abort('col_copy: columnIn is not allocated')
+      call rti_abort('col_copy: columnIn is not allocated')
     end if
 
     if (.not. columnOut%allocated) then
-      call utl_abort('col_copy: columnOut is not allocated')
+      call rti_abort('col_copy: columnOut is not allocated')
     end if
 
     if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) then
-      call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
+      call rti_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
     end if
 
     if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) then
-      call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
+      call rti_abort('col_copy: Vco in columnIn and columnOut are not equal')
     end if
 
     ! Copy content
@@ -1206,15 +1208,15 @@ contains
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
     if (columnOut%numCol /= columnIn%numCol) then
-      call utl_abort('col_copyLat: Number of columns in columnIn and columnOut are not equal')
+      call rti_abort('col_copyLat: Number of columns in columnIn and columnOut are not equal')
     end if
 
     if (.not. columnIn%allocated) then
-      call utl_abort('col_copyLat: columnIn is not allocated')
+      call rti_abort('col_copyLat: columnIn is not allocated')
     end if
 
     if (.not. columnOut%allocated) then
-      call utl_abort('col_copyLat: columnOut is not allocated')
+      call rti_abort('col_copyLat: columnOut is not allocated')
     end if
 
     ! Copy latitude
@@ -1236,15 +1238,15 @@ contains
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
     if (columnOut%numCol /= columnIn%numCol) then
-      call utl_abort('col_copyHeightSfc: Number of columns in columnIn and columnOut are not equal')
+      call rti_abort('col_copyHeightSfc: Number of columns in columnIn and columnOut are not equal')
     end if
 
     if (.not. columnIn%allocated) then
-      call utl_abort('col_copyHeightSfc: columnIn is not allocated')
+      call rti_abort('col_copyHeightSfc: columnIn is not allocated')
     end if
 
     if (.not. columnOut%allocated) then
-      call utl_abort('col_copyHeightSfc: columnOut is not allocated')
+      call rti_abort('col_copyHeightSfc: columnOut is not allocated')
     end if
 
     ! Copy surface height

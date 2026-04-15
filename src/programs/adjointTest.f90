@@ -71,6 +71,7 @@ program midas_adjointTest
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -106,7 +107,6 @@ program midas_adjointTest
 
   integer :: ierr, cvDim
   integer :: idate, itime, dateStamp
-  integer, external :: newdate
 
   character(len=20) :: test     ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   integer           :: testdate ! yyyymmddhh date
@@ -125,8 +125,8 @@ program midas_adjointTest
 
   !- 1.2 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   !- 1.3 read in the namelists
   call utl_readNml()
@@ -146,11 +146,11 @@ program midas_adjointTest
                  //'The default values will be taken.'
     end if
   else
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namadt, iostat=ierr)
-    if(ierr /= 0) call utl_abort('midas-adjointTest: Error reading namelist')
+    if(ierr /= 0) call rti_abort('midas-adjointTest: Error reading namelist')
     if( mmpi_myid == 0 ) write(*,nml=namadt)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
   end if
 
   !- 1.6 Temporal grid and set dateStamp from env variable
@@ -159,12 +159,12 @@ program midas_adjointTest
   ! and calculate date-time stamp
   idate = testdate/100
   itime = (testdate-idate*100)*1000000
-  ierr = newdate(dateStamp, idate, itime, 3)
+  dateStamp = tim_yyyymmddhhToDatestamp(idate, itime)
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',testdate,' stamp= ',dateStamp
   call tim_setDatestamp(dateStamp)
   if (tim_getDateStamp()==0) then
-    call utl_abort('midas-adjointTest: dateStamp was not set')
+    call rti_abort('midas-adjointTest: dateStamp was not set')
   end if
 
   !- 1.7 Constants
@@ -224,7 +224,7 @@ program midas_adjointTest
     !- 2.7 Height and pressure computation
     call check_calcHeightAndPressure
   else
-    call utl_abort('midas-adjointTest: inexistant test label ('//test//')')
+    call rti_abort('midas-adjointTest: inexistant test label ('//test//')')
   end if
 
   !
@@ -232,8 +232,8 @@ program midas_adjointTest
   !
   write(*,*)
   write(*,*) '> midas-adjointTest: Ending'
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call mmpi_finalize
@@ -469,11 +469,11 @@ contains
 
     loc => ben_getLoc(1)
     if ( cvDim /= loc%cvDim ) then
-      call utl_abort('check_loc: cvDim /= loc%cvDim')
+      call rti_abort('check_loc: cvDim /= loc%cvDim')
     end if
     numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
     if ( numStepAmplitude /= 1 ) then
-      call utl_abort('check_loc: not yet adapted for localization advection')
+      call rti_abort('check_loc: not yet adapted for localization advection')
     end if
     amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 
@@ -605,11 +605,11 @@ contains
 !!$
 !!$    loc => ben_getLoc(1)
 !!$    if ( cvDim /= loc%cvDim ) then
-!!$      call utl_abort('check_loc: cvDim /= loc%cvDim')
+!!$      call rti_abort('check_loc: cvDim /= loc%cvDim')
 !!$    end if
 !!$    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
 !!$    if ( numStepAmplitude /= 1 ) then
-!!$      call utl_abort('check_loc: not yet adapted for localization advection')
+!!$      call rti_abort('check_loc: not yet adapted for localization advection')
 !!$    end if
 !!$    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 !!$

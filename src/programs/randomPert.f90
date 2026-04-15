@@ -103,7 +103,6 @@ program midas_randomPert
   !           ``&NAMBDIFF`` for diffusion correlations and ``&NAMBCHM`` for homogeneous
   !           and isotropic chemical constituents covariances.
   !
-
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
@@ -118,6 +117,7 @@ program midas_randomPert
   use timeCoord_mod
   use randomNumber_mod
   use utilities_mod
+  use runtimeInfo_mod
   use gridVariableTransforms_mod
 
   implicit none
@@ -134,10 +134,10 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:), fieldInterp(:,:,:)
 
-  integer :: fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
-  integer :: imode, ierr
-  integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
+  integer :: ierr
+  integer :: dateStamp, datePrevious, dateStampPrevious
   integer :: datePrint, timePrint, randomSeed
+  integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
   integer :: n_grid_point, n_grid_point_glb
 
   integer :: latPerPEa, latPerPEmaxa, myLatBega, myLatEnda
@@ -186,11 +186,9 @@ program midas_randomPert
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call rti_tmg_start(0,'Main')
   call msg_memUsage('midas-randomPert')
-  call utl_printTime()
-
-  ierr = fstopc('MSGLVL','ERRORS',0)
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -216,11 +214,11 @@ program midas_randomPert
   previousDateFraction = -1.0
 
   !- 1.2 Read the namelist
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namenkf, iostat=ierr)
-  if(ierr /= 0) call utl_abort('midas-randomPert: Error reading namelist')
+  if(ierr /= 0) call rti_abort('midas-randomPert: Error reading namelist')
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   if (readEnsMean) then
     typvarOut = 'A'
@@ -229,7 +227,7 @@ program midas_randomPert
   end if
 
   if (previousDateFraction > 1.0) then
-    call utl_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
+    call rti_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
   end if
 
   call msg_memUsage('midas-randomPert')
@@ -252,12 +250,11 @@ program midas_randomPert
       dateStamp = tim_getDatestampFromFile(ensMeanFileName)
       call tim_setDatestamp(dateStamp)
     else
-      call utl_abort('midas-randomPert: DateStamp must be set through env variable')
+      call rti_abort('midas-randomPert: DateStamp must be set through env variable')
     end if
   end if
   dateStamp = tim_getDateStamp()
-  imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-  ierr = newdate(dateStamp, datePrint, timePrint, imode)
+  call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
   write(dateString, '(I10)') datePrint*100 + timePrint/1000000
   if( mmpi_myid == 0 ) then
     write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
@@ -325,10 +322,9 @@ program midas_randomPert
     ! If "seed" namelist value is -999, set random seed using the date
     dateStamp = tim_getDateStamp()
     if (dateStamp == -1) then
-      call utl_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
+      call rti_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
     end if
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     timePrint = timePrint/1000000
     datePrint =  datePrint*100 + timePrint
     ! Remove the century, keeping 2 digits of the year
@@ -588,8 +584,7 @@ program midas_randomPert
 
     ! determine dateStamp of previous date
     call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStampPrevious, datePrint, timePrint)
     datePrevious =  datePrint*100 + timePrint/1000000
     write(datePreviousString, '(I10)') datePrevious
     write(*,*) 'midas-randomPert: previous date, stamp = ', datePrevious, dateStampPrevious
@@ -768,8 +763,8 @@ program midas_randomPert
   deallocate(controlVector_mpiglobal)
 
   call msg_memUsage('midas-randomPert')
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   !
   !- 6.  MPI, tmg finalize

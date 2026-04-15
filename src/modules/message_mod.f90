@@ -7,6 +7,7 @@ module message_mod
   use midasMpi_mod
   use clibInterfaces_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
 
   implicit none
@@ -130,8 +131,9 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer            :: pgmUsageMb
-    integer(8)         :: fasttmpUsageMb
+    integer    :: pgmUsageMb
+    integer(8) :: fasttmpUsageMb
+    ! external definitions
     integer, external  :: get_max_rss
 
     pgmUsageMb = get_max_rss()/1024
@@ -282,11 +284,11 @@ module message_mod
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
                 mpiAll_opt=.false., verb_opt=msg_ALWAYS)
     else
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nammsg, iostat=ierr)
-      if (ierr /= 0) call utl_abort('msg_readNml: Error reading namelist NAMMSG')
+      if (ierr /= 0) call rti_abort('msg_readNml: Error reading namelist NAMMSG')
       if (mmpi_myid == 0) write(*,nml=nammsg)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     end if
     msg_NML = verbosity
     call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)

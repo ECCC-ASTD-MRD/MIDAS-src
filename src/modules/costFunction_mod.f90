@@ -9,6 +9,7 @@ module costFunction_mod
   use rttov_const, only : inst_name, platform_name
   use tovs_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obserrors_mod
   use codtyp_mod
 
@@ -390,10 +391,10 @@ contains
 
       else
         ! Reading the namelist
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namcfn, iostat=ierr)
-        if ( ierr /= 0) call utl_abort('costfunction_mod: Error reading namelist')
-        call utl_tmg_stop(181)
+        if ( ierr /= 0) call rti_abort('costfunction_mod: Error reading namelist')
+        call rti_tmg_stop(181)
 
         call sortChannelNumbersInNml
       end if

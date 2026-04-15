@@ -4,7 +4,9 @@ MODULE biasCorrectionConv_mod
   !
   !:Purpose: Performs bias correction for conventional observations.
   !
+  use rmn_fnom
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use MathPhysConstants_mod
   use midasMpi_mod
@@ -63,7 +65,6 @@ MODULE biasCorrectionConv_mod
   character(len=8), parameter  :: aiBcFile = "ai_bcors", gpBcFile = "gp_bcors"
   character(len=14), parameter :: uaBcFileStype = "ua_bcors_stype", uaBcFileStn = "ua_bcors_stn"
 
-  integer, external    :: fnom, fclos, newdate
 
   ! Namelist variables
   logical :: aiBiasActive ! Control if bias correction is applied to aircraft data
@@ -128,11 +129,11 @@ CONTAINS
     uaNlatBands  = 1        ! UA: Number of latitude bands in ua_bcors_stype file (1 or 5): 1 = no bands (global biases).
     ! read in the namelist NAMBIASCONV
     if ( utl_isNamelistPresent('nambiasconv','./flnml') ) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nambiasconv, iostat=ierr)
-      if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
+      if ( ierr /= 0 )  call rti_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
       if ( mmpi_myid == 0 ) write(*,nml=nambiasconv)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcc_readconfig: NAMBIASCONV section is missing in the namelist. The default values will be used.'
@@ -148,12 +149,12 @@ CONTAINS
         nlNbSondes = MPC_missingValue_INT
         nlSondeTypes(:)   = 'empty'
         nlSondeCodes(:,:) = MPC_missingValue_INT
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namsondetypes, iostat=ierr)
-        if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
-        call utl_tmg_stop(181)
+        if ( ierr /= 0 )  call rti_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
+        call rti_tmg_stop(181)
         if (nlNbSondes /= MPC_missingValue_INT) then
-          call utl_abort('bcc_readConfig: check namsondetypes namelist section, you should remove nlNbSondes')
+          call rti_abort('bcc_readConfig: check namsondetypes namelist section, you should remove nlNbSondes')
         end if
         nlNbSondes = 0
         do sondeIndex = 1, nSondesMax
@@ -163,10 +164,10 @@ CONTAINS
         if ( mmpi_myid == 0 ) write(*,nml=namsondetypes)
       else
         write(*,*)
-        call utl_abort('bcc_readconfig: NAMSONDETYPES section is missing in the namelist!')
+        call rti_abort('bcc_readconfig: NAMSONDETYPES section is missing in the namelist!')
       end if
-      if ( nlNbSondes > nSondesMax ) call utl_abort('bcc_readconfig: Number of sonde types in namelist exceeds nSondesMax!')
-      if ( nlNbSondes <= 0 )         call utl_abort('bcc_readconfig: Number of sonde types in namelist <= 0!')
+      if ( nlNbSondes > nSondesMax ) call rti_abort('bcc_readconfig: Number of sonde types in namelist exceeds nSondesMax!')
+      if ( nlNbSondes <= 0 )         call rti_abort('bcc_readconfig: Number of sonde types in namelist <= 0!')
       allocate( rsTypes(nlNbSondes) )
       do sondeIndex = 1, nlNbSondes
         rsTypes(sondeIndex)%name     = nlSondeTypes(sondeIndex)
@@ -316,7 +317,7 @@ CONTAINS
          corrProfileStypeDay(:)   = tdCorrections(sondeTypeIndex,latband,biasProfileCategory+1,:)
       end if
     else
-      call utl_abort('bcc_GetUACorrection: Unsupported varName '//varName)
+      call rti_abort('bcc_GetUACorrection: Unsupported varName '//varName)
     end if
 
     corr = MPC_missingValue_R8
@@ -484,7 +485,7 @@ CONTAINS
         end if
       end do
     else
-      call utl_abort('bcc_StationIndex: array uaStations not allocated!')
+      call rti_abort('bcc_StationIndex: array uaStations not allocated!')
     end if
 
   end function bcc_StationIndex
@@ -511,7 +512,7 @@ CONTAINS
     if ( allocated(rsTypes) ) then
       ntypes = nlNbSondes
     else
-      call utl_abort('bcc_SondeIndex: array rsTypes not allocated!')
+      call rti_abort('bcc_SondeIndex: array rsTypes not allocated!')
     end if
 
     SondeIndex = -1
@@ -549,7 +550,7 @@ CONTAINS
     if ( allocated(rsTypes) ) then
       ntypes = nlNbSondes
     else
-      call utl_abort('bcc_GetSondeType: array rsTypes not allocated!')
+      call rti_abort('bcc_GetSondeType: array rsTypes not allocated!')
     end if
 
     if ( sondeTypeCode == 190 .or. sondeTypeCode == 192 ) then      ! NCAR dropsonde (BUFR only)
@@ -583,19 +584,16 @@ CONTAINS
     !
 
     !    lat,  lon  = obsSpaceData header column OBS_LAT, OBS_LON (radians)
-    !    date, time = obsSpaceData header column OBS_DAT (yyyymmdd), OBS_ETM (hhmm)  -or-
-    !       datestamp = tim_getDatestamp()   -- date stamp for central (analysis) time
-    !       ier  = newdate(datestamp,date,time,-3)
-    !       time = time/10000
+    !    date, time = obsSpaceData header column OBS_DAT (yyyymmdd), OBS_ETM (hhmm)
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: date          ! yyyymmdd
-    integer, intent(in)  :: time          ! hhmm
-    real(8), intent(in)  :: lat           ! radians
-    real(8), intent(in)  :: lon           ! radians
-    real(8), intent(out) :: solarElev     ! degrees
+    integer, intent(in)  :: date      ! yyyymmdd
+    integer, intent(in)  :: time      ! hhmm
+    real(8), intent(in)  :: lat       ! radians
+    real(8), intent(in)  :: lon       ! radians
+    real(8), intent(out) :: solarElev ! degrees
 
     ! Locals:
     integer :: days(13) = (/0,31,28,31,30,31,30,31,31,30,31,30,31/)
@@ -737,11 +735,11 @@ CONTAINS
     nulcoeff = 0
     ierr = fnom(nulcoeff, biasEstimateFile, 'FMT+R/O', 0)
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readAIBiases: unable to open airplanes bias correction file ' // biasEstimateFile )
+      call rti_abort('bcc_readAIBiases: unable to open airplanes bias correction file ' // biasEstimateFile )
     end if
     read (nulcoeff, '(i5)', iostat=ierr ) nbAircrafts
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readAIBiases: error 1 while reading airplanes bias correction file ' // biasEstimateFile )
+      call rti_abort('bcc_readAIBiases: error 1 while reading airplanes bias correction file ' // biasEstimateFile )
     end if
 
     allocate( AIttCorrections(nAircraftMax,nPhases,nLevels) )
@@ -754,7 +752,7 @@ CONTAINS
         do levelIndex=1,5
           read (nulcoeff, *, iostat=ierr) stationId, biasEstimate
           if ( ierr /= 0 ) then
-            call utl_abort('bcc_readAIBiases: error 2 while reading airplanes bias correction file ' // biasEstimateFile )
+            call rti_abort('bcc_readAIBiases: error 2 while reading airplanes bias correction file ' // biasEstimateFile )
           end if
           if ( utl_isEqual(biasEstimate, aiMissingValue) ) then
             correctionValue = MPC_missingValue_R8
@@ -771,7 +769,7 @@ CONTAINS
 
     ! Check for bulk bias corrections at start of file
     if ( aircraftIds(1) /= "BULKBCORS" ) then
-      call utl_abort('bcc_readAIBiases: Bulk bias corrections are missing in bias correction file!' )
+      call rti_abort('bcc_readAIBiases: Bulk bias corrections are missing in bias correction file!' )
     end if
 
   end subroutine bcc_readAIBiases
@@ -880,7 +878,7 @@ CONTAINS
                   phaseIndex = phaseDescentIndex
                 case default
                   write(*,*) 'bcc_applyAIBcor: codtyp=', codtyp
-                  call utl_abort('bcc_applyAIBcor: unknown codtyp')
+                  call rti_abort('bcc_applyAIBcor: unknown codtyp')
               end select
 
               if ( levelIndex /= 0 ) then
@@ -985,11 +983,11 @@ CONTAINS
     nulcoeff = 0
     ierr = fnom(nulcoeff, biasEstimateFile, 'FMT+R/O', 0)
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readGPBiases: unable to open GB-GPS bias correction file ' // biasEstimateFile )
+      call rti_abort('bcc_readGPBiases: unable to open GB-GPS bias correction file ' // biasEstimateFile )
     end if
     read (nulcoeff, '(i5)', iostat=ierr ) nbGpStations
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readGPBiases: error 1 while reading GB-GPS bias correction file ' // biasEstimateFile )
+      call rti_abort('bcc_readGPBiases: error 1 while reading GB-GPS bias correction file ' // biasEstimateFile )
     end if
 
     allocate( ztdCorrections(nStationMaxGP) )
@@ -1000,7 +998,7 @@ CONTAINS
     do stationIndex=1,nbGpStations
        read (nulcoeff, *, iostat=ierr) stationId, biasEstimate
        if ( ierr /= 0 ) then
-          call utl_abort('bcc_readGPBiases: error 2 while reading GB-GPS bias correction file ' // biasEstimateFile )
+          call rti_abort('bcc_readGPBiases: error 2 while reading GB-GPS bias correction file ' // biasEstimateFile )
        end if
        if ( .not. utl_isEqual(biasEstimate, gpMissingValue) ) ztdCorrections(stationIndex) = -1.0D0*(biasEstimate/1000.0D0)  ! mm to m
        gpsStations(stationIndex) = stationId
@@ -1156,7 +1154,7 @@ CONTAINS
     nulcoeff = 0
     ierr = fnom(nulcoeff, biasCorrectionFileName, 'FMT+R/O', 0)
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readUABcorStype: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
+      call rti_abort('bcc_readUABcorStype: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
     end if
 
     maxGroups = nGroups*2
@@ -1180,14 +1178,14 @@ CONTAINS
         read (nulcoeff, *, iostat=ierr) sondeType, latBand
       end if
       if ( ierr /= 0 ) then
-        call utl_abort('bcc_readUABcorStype: error reading sondeType, latBand in radiosonde bias correction file ' // biasCorrectionFileName )
+        call rti_abort('bcc_readUABcorStype: error reading sondeType, latBand in radiosonde bias correction file ' // biasCorrectionFileName )
       end if
       if ( trim(sondeType) == 'END' ) exit main_loop
       sondeTypeIndex = bcc_SondeIndex(sondeType)
-      if ( sondeTypeIndex < 0 ) call utl_abort('bcc_readUABcorStype: Unknown sonde type '//sondeType)
+      if ( sondeTypeIndex < 0 ) call rti_abort('bcc_readUABcorStype: Unknown sonde type '//sondeType)
       if ( latBand < 0 .or. latBand > uaNlatBands ) then
         write(*,*) 'sondeType, latband = ',  sondeType, latBand
-        call utl_abort('bcc_readUABcorStype: Latitude band out of range 0-5!')
+        call rti_abort('bcc_readUABcorStype: Latitude band out of range 0-5!')
       end if
       ! Skip sondeType/latband 0 (globe) if present
       if ( latBand == 0 ) then
@@ -1204,7 +1202,7 @@ CONTAINS
         do levelIndex = 1, nMandLevs
           read (nulcoeff, *, iostat=ierr) ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
           if ( ierr /= 0 ) then
-            call utl_abort('bcc_readUABcorStype: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
+            call rti_abort('bcc_readUABcorStype: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
           if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
           if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
@@ -1273,7 +1271,7 @@ CONTAINS
     nulcoeff = 0
     ierr = fnom(nulcoeff, biasCorrectionFileName, 'FMT+R/O', 0)
     if ( ierr /= 0 ) then
-      call utl_abort('bcc_readUABcorStn: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
+      call rti_abort('bcc_readUABcorStn: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
     end if
 
     maxGroups = nGroups*2
@@ -1294,11 +1292,11 @@ CONTAINS
 
       read (nulcoeff, *, iostat=ierr) station, sondeType, nProfs
       if ( ierr /= 0 ) then
-        call utl_abort('bcc_readUABcorStn: error reading station line in radiosonde bias correction file ' // biasCorrectionFileName )
+        call rti_abort('bcc_readUABcorStn: error reading station line in radiosonde bias correction file ' // biasCorrectionFileName )
       end if
       if ( trim(station) == 'END' ) exit main_loop
       typeIndex = bcc_SondeIndex(sondeType)
-      if ( typeIndex < 0 ) call utl_abort('bcc_readUABcorStn: Unknown sonde type '//sondeType//' not in rsTypes defined in namelist')
+      if ( typeIndex < 0 ) call rti_abort('bcc_readUABcorStn: Unknown sonde type '//sondeType//' not in rsTypes defined in namelist')
 
       ! If new station, add station to uaStations array.
       ! Assumes entries for the same station and different types are consecutive in bcor file
@@ -1321,7 +1319,7 @@ CONTAINS
         do levelIndex = 1, nMandLevs
           read (nulcoeff, *, iostat=ierr) ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
           if ( ierr /= 0 ) then
-            call utl_abort('bcc_readUABcorStn: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
+            call rti_abort('bcc_readUABcorStn: error reading corrections in radiosonde bias correction file ' // biasCorrectionFileName )
           end if
           if ( utl_isEqual(ttBiasNight, uaMissingValue) ) ttBiasNight = MPC_missingValue_R8
           if ( utl_isEqual(ttBiasDay,   uaMissingValue) ) ttBiasDay   = MPC_missingValue_R8
@@ -1506,7 +1504,7 @@ CONTAINS
           latBand = bcc_LatBand(lat)
           if ( latBand == -1 ) then
             write(*,*) "uaNlatBands = ", uaNlatBands
-            call utl_abort("bcc_applyUABcor: uaNlatBands must equal 1 or 5")
+            call rti_abort("bcc_applyUABcor: uaNlatBands must equal 1 or 5")
           end if
         end if
 

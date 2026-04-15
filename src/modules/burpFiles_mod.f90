@@ -9,15 +9,18 @@ module burpFiles_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use burpread_mod
   use bufr_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSubSpaceData_mod
   use burp_module
   use obsUtil_mod
   use obsVariableTransforms_mod
   use obsFlags_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -40,7 +43,7 @@ contains
     character(len=*), intent(in)  :: burpFileName
 
     ! Locals:
-    integer :: ier, inblks, nulburp, fnom, fclos, numblks
+    integer :: ier, inblks, nulburp, numblks
     logical :: isExist_L
     integer :: ktime, kdate, kdate_recv, ktime_recv, ihandl, ilong
     integer :: itime, iflgs, idburp, ilat, ilon, idx, idy
@@ -48,10 +51,12 @@ contains
     integer :: insup, inxaux
     integer, allocatable :: ibuf(:)
     integer :: inrecs
-    integer :: istampobs, inewhh, newdate, nresume, ivals
+    integer :: istampobs, inewhh, nresume, ivals
     real(8) :: delhh
     character(len=9) :: clstnid
     integer, parameter :: sup(1) = (/0/)
+    ! external definitions
+    integer, external :: mrbhdr, mrfget
 
     !
     !- Get the date from the burp files
@@ -113,14 +118,14 @@ contains
     kdate = kdate_recv
     ktime = ktime_recv
     if (nresume >= 1 ) then
-      ier = newdate(datestamp,kdate,ktime*10000,3)
+      datestamp = tim_yyyymmddhhToDatestamp(kdate,ktime*10000)
     else
       ! Assumes 6-hour windows with reference times being synoptic times.
       ! Does not require kdate and ktime to be from a resume record.
-      ier = newdate(istampobs,kdate,ktime*10000,3)
+      istampobs = tim_yyyymmddhhToDatestamp(kdate,ktime*10000)
       delhh = 3.0d0
       call incdatr (datestamp, istampobs, delhh)
-      ier = newdate(datestamp,kdate,inewhh,-3)
+      call tim_dateStampToYYYYMMDDHH(datestamp,kdate,inewhh)
       ktime = ktime/100
       if (ktime >= 21 .or. ktime < 3) then
         ktime = 0
@@ -131,7 +136,7 @@ contains
       else
         ktime = 18
       end if
-      ier = newdate(datestamp,kdate,ktime*1000000,3)
+      datestamp = tim_yyyymmddhhToDatestamp(kdate,ktime*1000000)
       ktime = ktime*100
     end if
 
@@ -247,7 +252,7 @@ contains
     ! Locals:
     integer :: headerIndex
 
-    call utl_tmg_start(12,'----UpdateBurpFile')
+    call rti_tmg_start(12,'----UpdateBurpFile')
 
     write(*,*)
     write(*,*) 'brpf_updateFile: Starting'
@@ -267,7 +272,7 @@ contains
     write(*,*) 'brpf_updateFile: Done'
     write(*,*)
 
-    call utl_tmg_stop(12)
+    call rti_tmg_stop(12)
 
   end subroutine brpf_updateFile
 
@@ -447,7 +452,7 @@ contains
 
     ! open the burp file
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSubRead: Could not find/open BURP file: ' // trim(filename))
+    if (error /= 0) call rti_abort('brpf_obsSubRead: Could not find/open BURP file: ' // trim(filename))
 
     write(*,*) "brpf_obsSubRead: Reading file " // trim(filename)
     write(*,*) "brpf_obsSubRead: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
@@ -512,12 +517,12 @@ contains
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
                 if (varno_ivar >= 10000.and.varno_ivar < 16000) exit
              end do
-             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_obsSubRead: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar < 10000.or.varno_ivar >= 16000) call rti_abort('brpf_obsSubRead: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
 
-          if (nval > nlev) call utl_abort('brpf_obsSubRead: number of levels in the report (' // trim(utl_str(nval)) // &
+          if (nval > nlev) call rti_abort('brpf_obsSubRead: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -565,11 +570,11 @@ contains
                 end if
              end do
              if (present(numColumns_opt)) then
-               if (icol /= numColumns_opt) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
+               if (icol /= numColumns_opt) call rti_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') is not equal to the required number (' // trim(utl_str(numColumns_opt)) // &
                                          ') for STNID ' // rep_stnid )
              else
-               if (icol > nlev ) call utl_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
+               if (icol > nlev ) call rti_abort('brpf_obsSubRead: number of columns (' // trim(utl_str(icol)) // &
                                          ') exceeds the maximum number (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
              end if
@@ -672,10 +677,10 @@ contains
       dim2=obsdata%dim2
     end if
 
-    if (size(varno) < dim2) call utl_abort('brpf_obsSubUpdate: Number of BUFR elements not sufficient. ' // &
+    if (size(varno) < dim2) call rti_abort('brpf_obsSubUpdate: Number of BUFR elements not sufficient. ' // &
                                            trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSubUpdate: Length of code string' // &
+    if (code_len < oss_obsdata_code_len()) call rti_abort('brpf_obsSubUpdate: Length of code string' // &
                                                           ' needs to be increased to ' // &
                                                           trim(utl_str(oss_obsdata_code_len())))
 
@@ -686,7 +691,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_obsSubUpdate: Could not open BURP file: ' // trim(filename))
+    if (error /= 0) call rti_abort('brpf_obsSubUpdate: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)

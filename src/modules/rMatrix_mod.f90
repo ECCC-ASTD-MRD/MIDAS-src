@@ -5,11 +5,13 @@ module rMatrix_mod
   !:Purpose:  Module to handle non-diagonal observation-error covariance
   !           matrices for assimilation of radiances.
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use midasMpi_mod
   use rttovInterfaces_mod
   use rttov_const, only: errorstatus_success
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use tovs_mod
   use mathPhysConstants_mod
@@ -64,11 +66,11 @@ contains
     rmat_estElevMax = mpc_missingvalue_r8
 
     ! Read the parameters from NAMRMAT
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namrmat, iostat=ierr)
-    if (ierr /= 0) call utl_abort('rmat_init: Error reading namelist')
+    if (ierr /= 0) call rti_abort('rmat_init: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namrmat)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(headerEnd))
@@ -107,7 +109,7 @@ contains
        call rmat_readCMatrixByFileName(filename,Rcorr_inst(sensor_id), ichan )
     else
       write(*,*) "Unknown instrument ",instrument(:)
-      call utl_abort("rmat_read_C_matrix")
+      call rti_abort("rmat_read_C_matrix")
     end if
 
   end subroutine rmat_readCMatrix
@@ -123,7 +125,6 @@ contains
 
     ! Locals:
     integer :: i, j, iu, ierr, count, ich, nchn, nch
-    integer, external :: fnom, fclos
     real(8) :: x
     integer, allocatable :: foundChanIndex(:)
 
@@ -136,7 +137,7 @@ contains
     ierr = fnom(iu,trim(infile),'FTN+SEQ+R/O',0)
     if (ierr /= 0) then
       write(*,*) "Cannot open " // trim(infile)
-      call utl_abort("rmat_readCMatrixByFileName")
+      call rti_abort("rmat_readCMatrixByFileName")
     end if
 
     write(*,*) "rmat_readCMatrixByFileName: Reading " // trim(infile)
@@ -148,7 +149,7 @@ contains
       if(nchn > nch) then
         write(*,*) "Not enough channels in " // trim(infile)
         write(*,*) nchn, nch
-        call utl_abort("rmat_readCMatrixByFileName")
+        call rti_abort("rmat_readCMatrixByFileName")
       end if
     end if
     allocate(foundChanIndex(nch))
@@ -228,7 +229,7 @@ contains
 
       if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
         write(*,*) "invalid sensor_id",sensor_id,size(Rcorr_inst)
-        call utl_abort('rmat_RsqrtInverseOneObs')
+        call rti_abort('rmat_RsqrtInverseOneObs')
       end if
 
       foundChanIndex(:) = -1
@@ -244,7 +245,7 @@ contains
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
         write(*,*) foundChanIndex(:)
-        call utl_abort('rmat_RsqrtInverseOneObs')
+        call rti_abort('rmat_RsqrtInverseOneObs')
       end if
       R_tovs(headerIndex)%nchans = nsubset
       allocate(R_tovs(headerIndex)%listChans(nsubset))
@@ -256,9 +257,9 @@ contains
         end do
       end do
       ! Calculation of R**-1/2
-      call utl_tmg_start(20,'----RmatMatSqrt')
+      call rti_tmg_start(20,'----RmatMatSqrt')
       call linalg_matSqrt(Rsub,nsubset,-1.d0,.false.)
-      call utl_tmg_stop(20)
+      call rti_tmg_stop(20)
       allocate(R_tovs(headerIndex)%Rmat(nsubset,nsubset))
       do j=1,nsubset
         do i=1,nsubset
@@ -267,13 +268,13 @@ contains
       end do
     end if
 
-    call utl_tmg_start(21,'----RmatMatMult')
+    call rti_tmg_start(21,'----RmatMatMult')
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
     ! Optimized symetric matrix vector product from Blas
     call dsymv("L", nsubset, alpha, R_tovs(headerIndex)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
-    call utl_tmg_stop(21)
+    call rti_tmg_stop(21)
 
   end subroutine rmat_RsqrtInverseOneObs
 
@@ -387,7 +388,7 @@ contains
     allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
       write(*,*) 'invalid sensor_id', sensor_id,size(Rcorr_inst)
-      call utl_abort('rmat_Rsqrt')
+      call rti_abort('rmat_Rsqrt')
     end if
 
     ! Check error correlation for all channels are available
@@ -405,7 +406,7 @@ contains
       write(*,*) 'Missing information for some channel !'
       write(*,*) list_sub(:)
       write(*,*) foundChanIndex(:)
-      call utl_abort('rmat_Rsqrt')
+      call rti_abort('rmat_Rsqrt')
     end if
 
     do chanIndex2 = 1, nsubset
@@ -454,7 +455,7 @@ contains
     nSubset = size(list_sub)
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
       write(*,*) 'invalid sensor_id', sensor_id,size(Rcorr_inst)
-      call utl_abort('rmat_getRMatrix')
+      call rti_abort('rmat_getRMatrix')
     end if
 
     ! Check error correlation for all channels are available
@@ -472,7 +473,7 @@ contains
       write(*,*) 'Missing information for some channel !'
       write(*,*) list_sub(:)
       write(*,*) foundChanIndex(:)
-      call utl_abort('rmat_getRMatrix')
+      call rti_abort('rmat_getRMatrix')
     end if
 
     do chanIndex2 = 1, nSubset
@@ -717,7 +718,7 @@ contains
 
       do ichan = 1, numchan
         if (estR(sensorIndex)%Rmat(ichan, ichan) < 0.0d0) then
-          call utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
+          call rti_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
         end if
         obsErrStdev(sensorIndex, ichan) = SQRT(estR(sensorIndex)%Rmat(ichan, ichan))
       end do
@@ -793,7 +794,6 @@ contains
     integer :: sensorIndex
     character (len=64) :: filename
     integer :: err, iunit, numChan, chanIndex1, chanIndex2
-    integer, external :: fnom, fclos
 
     SENSOR: do sensorIndex = 1, tvs_nsensors
       if (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSOR
@@ -802,7 +802,7 @@ contains
       call rttov_coeffname (err, tvs_listSensors(:,sensorIndex), coeffname=filename, filetype='Cmat')
       if (err /= errorstatus_success) then
         write(*,*) 'Unknown instrument ', tvs_listSensors(:,sensorIndex)
-        call utl_abort('rmat_writeRCorrFile')
+        call rti_abort('rmat_writeRCorrFile')
       end if
 
       numChan = Rcorr_inst(sensorIndex)%nchans

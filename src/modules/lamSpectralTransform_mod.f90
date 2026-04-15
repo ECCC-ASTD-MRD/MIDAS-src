@@ -10,6 +10,7 @@ module lamSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -122,7 +123,7 @@ contains
     if (verbose) write(*,*) 'Entering lst_Setup'
 
     if (lst%allocated) then
-       call utl_abort('lst_setup: this structure is already allocated')
+       call rti_abort('lst_setup: this structure is already allocated')
     end if
 
     kreftype = 'MAX' ! hardwired
@@ -148,7 +149,7 @@ contains
                   ' dimensions be EVEN. Fields MUST be periodic' , &
                   ' but the last colum and row MUST NOT BE a '   , &
                   ' repetition of the first colum and row. '
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end if
 
     nfact_lon = lst%ni
@@ -165,7 +166,7 @@ contains
         write(*,*) 'Error: A fast transform cannot be used in Y'
         write(6,6140) lst%nj, nfact_lat
       end if
-      call utl_abort('lst_setup')
+      call rti_abort('lst_setup')
     end if
 
 6130 FORMAT('N = ni = ', I4,' the nearest factorizable N = ',I4)
@@ -236,7 +237,7 @@ contains
 
        ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
        if (.not.present(maxlevels_opt)) then
-          call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
+          call rti_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
        ! 2D MPI decomposition: split levels across npex
        call mmpi_setup_levels(maxlevels_opt,                          & ! IN
@@ -245,7 +246,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: MpiMode Unknown ', trim(MpiMode)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     write(*,*)
@@ -374,7 +375,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Unknown KREFTYPE in lst_setup : ', trim(kreftype)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     kMax = nint(lst_totalWaveNumber(lst%mmax,lst%nmax,mref,nref,kref))
@@ -385,7 +386,7 @@ contains
       if (ktrunc_in > 0) then
         lst%ktrunc = ktrunc_in
       else
-        call utl_abort('lst_setup: invalid truncation')
+        call rti_abort('lst_setup: invalid truncation')
       end if
     end if
 
@@ -538,7 +539,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: gridDataOrder Unknown ', trim(gridDataOrder_opt)
-       call utl_abort('lst_setup')
+       call rti_abort('lst_setup')
     end select
 
     !
@@ -573,7 +574,7 @@ contains
             i = 2*m+2
             j = 2*n+2
          else
-            call utl_abort('lst_Setup: Error in NormFactor')
+            call rti_abort('lst_Setup: Error in NormFactor')
          end if
 
          if (i == 1 .or. j == 1) then
@@ -768,7 +769,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     allocate(Step1(ni_l+nip_l,nj_l+njp_l,kStart:kEnd))
@@ -878,7 +879,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -1001,7 +1002,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     allocate(Step1(kStart:kEnd,ni_l+nip_l,nj_l+njp_l))
@@ -1111,7 +1112,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     if (trim(TransformDirection) == 'GridPointToSpectral') then
@@ -1176,7 +1177,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d'
-    call utl_tmg_start(151,'low-level--lst_fft')
+    call rti_tmg_start(151,'low-level--lst_fft')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1187,7 +1188,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -1211,7 +1212,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -1221,7 +1222,7 @@ contains
     if (nfact == n) then
        call setfft8(n) ! IN
     else
-       call utl_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
+       call rti_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case (trim(TransformAxe))
@@ -1248,7 +1249,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
   end subroutine lst_transform1d
 
@@ -1280,7 +1281,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d_kij'
-    call utl_tmg_start(151,'low-level--lst_fft')
+    call rti_tmg_start(151,'low-level--lst_fft')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1291,7 +1292,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -1315,7 +1316,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
-       call utl_abort('lst_VarTransform')
+       call rti_abort('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -1325,7 +1326,7 @@ contains
     if (nfact == n) then
        call setfft8(n) ! IN
     else
-       call utl_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
+       call rti_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case (trim(TransformAxe))
@@ -1352,7 +1353,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
   end subroutine lst_transform1d_kij
 
@@ -1376,7 +1377,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1404,7 +1405,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev
 
@@ -1428,7 +1429,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1467,7 +1468,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev_kij
 
@@ -1491,7 +1492,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do levIndex = lst%myLevBeg, lst%myLevEnd
@@ -1519,7 +1520,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1543,7 +1544,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -1582,7 +1583,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1605,7 +1606,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1654,7 +1655,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LatToM
 
@@ -1677,7 +1678,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1726,7 +1727,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LatToM_kij
 
@@ -1749,7 +1750,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1798,7 +1799,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat
 
@@ -1821,7 +1822,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mmpi_npey-1)
@@ -1870,7 +1871,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -1894,7 +1895,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mmpi_npex-1)
@@ -1932,7 +1933,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_LevToN
 
@@ -1956,7 +1957,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mmpi_npex-1)
@@ -1994,7 +1995,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_LevToN_kij
 
@@ -2018,7 +2019,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -2061,7 +2062,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_NToLev
 
@@ -2085,7 +2086,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mmpi_npex-1)
@@ -2128,7 +2129,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_NToLev_kij
 
@@ -2192,7 +2193,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_ReshapeTrunc: Unknown Direction', trim(Direction)
-      call utl_abort('lst_ReshapeTrunc')
+      call rti_abort('lst_ReshapeTrunc')
     end select
 
   end subroutine lst_ReshapeTrunc
@@ -2257,7 +2258,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_ReshapeTrunc_kij: Unknown Direction', trim(Direction)
-      call utl_abort('lst_ReshapeTrunc_kij')
+      call rti_abort('lst_ReshapeTrunc_kij')
     end select
 
   end subroutine lst_ReshapeTrunc_kij
@@ -2296,7 +2297,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'lst_Laplacian: Error: Mode Unknown ', trim(Mode)
-      call utl_abort('lst_Laplacian')
+      call rti_abort('lst_Laplacian')
     end select
 
     !

@@ -113,6 +113,7 @@ program midas_oMinusF
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
+  use runtimeInfo_mod
   use biasCorrectionSat_mod
   use ensembleObservations_mod
   use fileNames_mod
@@ -152,11 +153,11 @@ program midas_oMinusF
 
   !- 1.2 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('VAR3D_BEG')
+    call rti_writeStatus('VAR3D_BEG')
   endif
 
   ! Read the namelists
@@ -171,11 +172,11 @@ program midas_oMinusF
   nEns           = 20
   includeMember0 = .false.
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namomf, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-OminusF: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-OminusF: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namomf)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- 1.4 Set mode
   trlFileName = 'trlm'
@@ -202,14 +203,14 @@ program midas_oMinusF
     write(*,*) 'Setting mode to ENSEMBLE'
     oMinusFmode = 'ensemble'
     if (includeMember0 .and. .not.member0FileExists) then
-      call utl_abort('oMinusF: Member 0 file not found, but includeMember0 is ' // &
+      call rti_abort('oMinusF: Member 0 file not found, but includeMember0 is ' // &
                      'true and ensemble mode is active')
     end if
   else
     write(*,*)
     write(*,*) 'trlFileName = ', trim(trlFileName)
     write(*,*) 'ensFileName = ', trim(ensFileName)
-    call utl_abort('oMinusF : did not find a trial/prog or ensemble file')
+    call rti_abort('oMinusF : did not find a trial/prog or ensemble file')
   end if
 
   !
@@ -261,14 +262,14 @@ program midas_oMinusF
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
   call eob_deallocate(ensObs)
 
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('VAR3D_END')
+    call rti_writeStatus('VAR3D_END')
   endif
 
 end program midas_oMinusF

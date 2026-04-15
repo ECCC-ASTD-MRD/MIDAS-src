@@ -121,7 +121,7 @@ program midas_obsImpact
   !                                       :math:`\hat{v}=B_{t}^{T/2}*C*e_{t}^{fa}` (in HFSR mode).
   !                                In the purely ensemble mode (EFSO or EFSR), it computes
   !                                       :math:`\hat{a}=A_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` (in EFSO mode), or
-  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*e_{t}^{fa}` (in EFSR mode) 
+  !                                       :math:`\hat{a}=A_{t}^{T/2}*C*e_{t}^{fa}` (in EFSR mode)
   !                                where :math:`A_{t}^{1/2}` is the forecast ensemble perturbations valid at time :math:`t`
   !                                (with model-space localization applied) initialized from the analysis ensemble valid at time 0,
   !                                and the minimization is skipped.
@@ -131,17 +131,17 @@ program midas_obsImpact
   !
   !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*\hat{a}` (in HFSO or HFSR) or :math:`A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
-  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` (in HFSO or HFSR)
   !                                                                     or :math:`H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``rmat_RsqrtInverseAllObs``: Multiply by the inverse of the observation error variances
-  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` (in HFSO or HFSR) 
+  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` (in HFSO or HFSR)
   !                                                 or :math:`R^{-1}*H*A^{1/2}*\hat{a}` (in EFSO or EFSR) .
   !
   !             - ``obs_bodySet_r``: Multiply the resulting sensitivity value by the innovation and put
   !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` so it can be stored in
-  !                                  the observation files. In FSR modes, :math:`\partial{e^f}/\partial{y^o}` 
-  !                                  is stored in column ``OBS_FSR``, which are to be multiplied with OmA residual in post-process to yield FSR. 
+  !                                  the observation files. In FSR modes, :math:`\partial{e^f}/\partial{y^o}`
+  !                                  is stored in column ``OBS_FSR``, which are to be multiplied with OmA residual in post-process to yield FSR.
   !
   !             - ``sumFSO``: Print out the FSOI value, including total and the one from each obs family.
   !
@@ -176,6 +176,7 @@ program midas_obsImpact
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -194,7 +195,7 @@ program midas_obsImpact
 
   implicit none
 
-  integer :: istamp,exdb,exfin,dateStampFromObs
+  integer :: dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -211,8 +212,6 @@ program midas_obsImpact
   type(struct_hco),        pointer :: hco_core => null()
   logical             :: allocHeightSfc
 
-  istamp = exdb('OBSIMPACT','DEBUT','NON')
-
   call ver_printNameAndVersion('obsImpact','Calculation of observation impact')
 
   ! MPI initilization
@@ -220,11 +219,11 @@ program midas_obsImpact
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   if (mmpi_myid == 0) then
-    call utl_writeStatus('VAR3D_BEG')
+    call rti_writeStatus('VAR3D_BEG')
   end if
 
   ! Read the namelists
@@ -254,7 +253,7 @@ program midas_obsImpact
     if (dateStampFromObs > 0) then
       call tim_setDatestamp(dateStampFromObs)
     else
-      call utl_abort('obsImpact: DateStamp was not set')
+      call rti_abort('obsImpact: DateStamp was not set')
     end if
   end if
   !
@@ -382,14 +381,12 @@ program midas_obsImpact
   !
   !- 3. Job termination
   !
-  istamp = exfin('OBSIMPACT','FIN','NON')
-
   if (mmpi_myid == 0) then
-    call utl_writeStatus('VAR3D_END')
+    call rti_writeStatus('VAR3D_END')
   endif
 
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

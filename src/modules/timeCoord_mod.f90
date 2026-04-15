@@ -5,10 +5,15 @@ module timeCoord_mod
   !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
+  use rmn_fst98
+  use rmn_date
   use midasMpi_mod
   use varNameList_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
+  use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -17,22 +22,124 @@ module timeCoord_mod
   ! Public module variables
   real(8), public, protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   integer, public, protected :: tim_nstepobs, tim_nstepobsinc
-  character(len=6), public, protected :: tim_referenceTime
   logical, public, protected :: tim_fullyUseExtremeTimeBins
+  character(len=6), public, protected :: tim_referenceTime
 
   ! Public module procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
-  public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate, tim_getSecondsSinceReferenceDate
+  public :: tim_yyyymmddhhToDatestamp, tim_getHoursBetweenDates, tim_getSecondsBetweenDates
 
   ! Private variables
   character(len=4) :: varNameForDate
-  integer :: datestamp = 0  ! datestamp is usually the centre of time window
+  integer :: tim_datestamp = 0  ! datestamp is usually the centre of time window
   logical :: initialized = .false.
+
+  ! module interfaces
+  ! -----------------
+
+  ! general interface for tim_dateStampToYYYYMMDDHH
+  interface tim_dateStampToYYYYMMDDHH
+    module procedure tim_dateStampToYYYYMMDDHHWithDaysInMonth
+    module procedure tim_dateStampToYYYYMMDDHHOnly
+    module procedure tim_dateStampToYYYYMMDDHHPrintable
+  end interface tim_dateStampToYYYYMMDDHH
+
+  ! general interface for tim_yyyymmddhhToDatestamp
+  interface tim_yyyymmddhhToDatestamp
+    module procedure tim_yyyymmddhhToDatestampWithyyyymmddhh
+    module procedure tim_yyyymmddhhToDatestampWithDateTime
+  end interface tim_yyyymmddhhToDatestamp
 
 contains
 
+
+  !----------------------------------------------------------------------------------------
+  ! tim_setup
+  !----------------------------------------------------------------------------------------
+  subroutine tim_setup(fileNameForDate_opt)
+    !
+    ! :Purpose: Setup of obs time window size and related trial field
+    !           time step for OmP determination.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), optional, intent(in) :: fileNameForDate_opt ! Optional Input file name to the the datetimestamp from
+
+    ! Locals:
+    integer :: prntdate, prnttime
+    integer :: dateStampEnvVar
+
+    call tim_readNml()
+
+    if (initialized) then
+      write(*,*) 'tim_setup: already initialized, just return'
+      return
+    end if
+
+    ! First try to set dateStamp from MIDAS_DATE
+    dateStampEnvVar = tim_getDateStampFromEnvVar()
+
+    ! Possibly set the datestamp (except when set later from burp files)
+    if (dateStampEnvVar /= 0) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
+      write(*,*) 'tim_setup: ====================================================='
+      tim_dateStamp = dateStampEnvVar
+      call tim_dateStampToYYYYMMDDHH(tim_datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', tim_datestamp
+    else if (present(fileNameForDate_opt)) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
+      write(*,*) 'tim_setup: ====================================================='
+      tim_datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
+      call tim_dateStampToYYYYMMDDHH(tim_datestamp, prntdate, prnttime)
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', tim_datestamp
+    else
+      write(*,*) 'tim_setup: =========================================================='
+      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
+      write(*,*) 'tim_setup: =========================================================='
+    end if
+
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs          = ', tim_dstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs          = ', tim_nstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
+
+    if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
+      call rti_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
+    end if
+
+    initialized = .true.
+
+  end subroutine tim_setup
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_initialized
+  !----------------------------------------------------------------------------------------
+  function tim_initialized() result(initialized_out)
+    implicit none
+
+    ! Result:
+    logical initialized_out ! Return if the module has been initialized or not
+
+    initialized_out = initialized
+
+  end function tim_initialized
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_readNml (private)
+  !----------------------------------------------------------------------------------------
   subroutine tim_readNml()
     !
     ! :Purpose: Read the namelist block NAMTIME.
@@ -58,7 +165,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: firstCall = .true.
-    integer :: nulnam, fnom, fclos
+    integer :: nulnam
 
     ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)
@@ -87,7 +194,7 @@ contains
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namtime, iostat = ierr)
-    if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
+    if (ierr /= 0) call rti_abort('tim_readNml: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namtime)
     ierr = fclos(nulnam)
 
@@ -127,30 +234,33 @@ contains
   end subroutine tim_readNml
 
 
-  subroutine tim_getDateStampFromEnvVar(dateStamp)
+  !----------------------------------------------------------------------------------------
+  ! tim_getDateStampFromEnvVar (private)
+  !----------------------------------------------------------------------------------------
+  function tim_getDateStampFromEnvVar() result(dateStamp)
     !
-    !:Purpose: Determine the date from the environment variable MIDAS_DATE.
+    !:Purpose: Determine the date from the environment variable 'MIDAS_DATE'.
     !
     implicit none
 
-    ! Arguments:
-    integer, intent(inout) :: dateStamp
+    ! Result:
+    integer :: dateStamp ! datetime stamp extracted from environment variable 'MIDAS_DATE'
 
     ! Locals:
-    integer    :: lengthValidDateStr, status, imode, ierr
+    integer    :: lengthValidDateStr, status
     integer(8) :: dateTimePrint, datePrint, timePrint
     character(len=256) :: validDateStr
-    integer    :: newdate
 
     status = 0
-    call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
+    call get_environment_variable('MIDAS_DATE', validDateStr, lengthValidDateStr, status, .true.)
 
     if (status > 1) then
-      call utl_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
+      call rti_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
     end if
+
     if (status == 1) then
       write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
-      !call utl_abort('tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has not been detected!')
+      dateStamp = 0
       return
     end if
 
@@ -175,115 +285,38 @@ contains
       timePrint = (dateTimePrint - datePrint*100000000)
     else
       write(*,*) 'length of MIDAS_DATE = ', lengthValidDateStr
-      call utl_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
+      call rti_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
     end if
 
     ! convert to CMC dateStamp
-    imode = 3 ! printable to stamp
-    ierr = newdate(datestamp, int(datePrint,4), int(timePrint,4), imode)
+    datestamp = tim_yyyymmddhhToDatestamp(int(datePrint,4), int(timePrint,4))
 
     write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
 
-  end subroutine tim_getDateStampFromEnvVar
+  end function tim_getDateStampFromEnvVar
 
 
-  subroutine tim_setup(fileNameForDate_opt)
-    !
-    ! :Purpose: Setup of obs time window size and related trial field
-    !           time step for OmP determination.
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*), optional, intent(in) :: fileNameForDate_opt
-
-    ! Locals:
-    integer :: ierr, newdate, imode, prntdate, prnttime
-    integer :: dateStampEnvVar
-
-    call tim_readNml()
-
-    if (initialized) then
-      write(*,*) 'tim_setup: already initialized, just return'
-      return
-    end if
-
-    ! First try to set dateStamp from MIDAS_DATE
-    dateStampEnvVar = 0
-    call tim_getDateStampFromEnvVar(dateStampEnvVar)
-
-    ! Possibly set the datestamp (except when set later from burp files)
-    if (dateStampEnvVar /= 0) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
-      write(*,*) 'tim_setup: ====================================================='
-      dateStamp = dateStampEnvVar
-      imode = -3 ! stamp to printable
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ', prntdate
-      write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
-    else if (present(fileNameForDate_opt)) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
-      write(*,*) 'tim_setup: ====================================================='
-      datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
-      imode = -3 ! stamp to printable
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ', prntdate
-      write(*,*) 'tim_setup: printtime = ', prnttime
-      write(*,*) 'tim_setup: datestamp = ', datestamp
-    else
-      write(*,*) 'tim_setup: =========================================================='
-      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
-      write(*,*) 'tim_setup: =========================================================='
-    end if
-
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs          = ', tim_dstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs          = ', tim_nstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
-
-    if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
-      call utl_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
-    end if
-
-    initialized = .true.
-
-  end subroutine tim_setup
-
-
-  function tim_initialized() result(initialized_out)
-    implicit none
-
-    ! Result:
-    logical initialized_out
-
-    initialized_out = initialized
-
-  end function tim_initialized
-
-
-  function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp_out)
+  !----------------------------------------------------------------------------------------
+  ! tim_getDatestampFromFile
+  !----------------------------------------------------------------------------------------
+  function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp)
     !
     ! :Purpose: to extract the dateStamp from the supplied file.
     !
     implicit none
 
     ! Arguments:
-    character(len=*),           intent(in) :: fileName
-    character(len=*), optional, intent(in) :: varNameForDate_opt
+    character(len=*),           intent(in) :: fileName           ! File used to estimate the valid date
+    character(len=*), optional, intent(in) :: varNameForDate_opt ! Optional 'nomvar' to use to find the valid date
+
     ! Result:
-    integer :: dateStamp_out
+    integer :: dateStamp
 
     ! Locals:
     integer :: nulFile, ierr
     integer, parameter :: maxNumDates = 2000
     integer :: numDates, ikeys(maxNumDates), varIndex
-    integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
-    integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
+    integer :: prntdate, prnttime, windowIndex, windowsPerDay, dateStamp_tmp
     logical :: fileExists, foundWindow, foundVarNameInFile
     real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
@@ -299,7 +332,7 @@ contains
       ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)
       if (.not.fileExists) then
-        call utl_abort('tim_getDateStampFromFile: file not found '//trim(fileName))
+        call rti_abort('tim_getDateStampFromFile: file not found '//trim(fileName))
       end if
 
       ! Determine variable to use for the date (default is P0)
@@ -322,7 +355,7 @@ contains
         end do
 
         if (.not. foundVarNameInFile) then
-          call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
+          call rti_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
         end if
 
       end if
@@ -334,7 +367,7 @@ contains
       ierr = fstinl(nulFile,ini,inj,ink,-1,' ',-1,-1,-1,' ', &
                     trim(varNameForDate),ikeys,numdates,maxnumdates)
       if (ikeys(1) <= 0) then
-        call utl_abort('tim_getDateStampFromFile: Could not find variable ' //  &
+        call rti_abort('tim_getDateStampFromFile: Could not find variable ' //  &
                        trim(varNameForDate) // ' in the supplied file')
       end if
       write(*,*) 'tim_getDateStampFromFile: number of dates found = ', numDates
@@ -343,21 +376,20 @@ contains
                     typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
       leadTimeInHours = real(ideet*inpas,8)/3600.0d0
-      call incdatr(dateStamp_out, dateStamp_origin, leadTimeInHours)
+      call incdatr(dateStamp, dateStamp_origin, leadTimeInHours)
 
       ierr = fstfrm(nulFile)
       ierr = fclos(nulFile)
 
     end if
 
-    call mmpi_bcast(dateStamp_out)
+    call mmpi_bcast(dateStamp)
 
     if (tim_referenceTime == 'middle') then
       ! Modify date to ensure that it corresponds to the middle of the window
       ! Note: For this, we have to assume that the date in the file
       !       does NOT correspond to the final time of the window
-      imode = -3 ! stamp to printable, time is HHMMSShh
-      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+      call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
       fileHour = real(prnttime,8)/1000000.0d0
       windowsPerDay = nint(24.0d0 / tim_windowsize)
       foundWindow = .false.
@@ -373,31 +405,31 @@ contains
 
       if (.not. foundWindow) then
         write(*,*) 'windowsPerDay, fileHour = ', windowsPerDay, fileHour
-        call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
+        call rti_abort('tim_getDateStampFromFile: could not determine assimilation window position')
       end if
 
       ! handle special case when window centered on hour 24
       if (nint(middleHour) == 24) then
         ! add 24h to dateStamp and recompute prntdate
-        dateStamp_tmp = dateStamp_out
-        call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
-        imode = -3 ! stamp to printable, only prntdate will be used
-        ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+        dateStamp_tmp = dateStamp
+        call incdatr(dateStamp, dateStamp_tmp, 24.0d0)
+        call tim_dateStampToYYYYMMDDHH(datestamp, prntdate, prnttime)
 
         ! subtract 24h from middleHour
         middleHour = 0.0d0
       end if
 
       prnttime = nint(middleHour) * 1000000
-      imode = 3 ! printable to stamp
-      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
-
+      datestamp = tim_yyyymmddhhToDatestamp(prntdate, prnttime)
     end if
 
   end function tim_getDateStampFromFile
 
 
-  subroutine tim_setDatestamp(datestamp_in)
+  !----------------------------------------------------------------------------------------
+  ! tim_setDatestamp
+  !----------------------------------------------------------------------------------------
+  subroutine tim_setDatestamp(datestamp)
     !
     ! :Purpose: to control access to the minimization object.  Sets the date
     !           of the window centre of analysis validity to the indicated value.
@@ -405,16 +437,19 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: datestamp_in
+    integer, intent(in) :: datestamp ! set the internal 'tim_datestamp' value in 'timeCoord_mod' module
 
-    if (.not.initialized) call utl_abort('tim_setDateStamp: module not initialized')
+    if (.not.initialized) call rti_abort('tim_setDateStamp: module not initialized')
 
-    datestamp = datestamp_in
+    tim_datestamp = datestamp
 
   end subroutine tim_setDatestamp
 
 
-  function tim_getDatestamp() result(datestamp_out)
+  !----------------------------------------------------------------------------------------
+  ! tim_getDatestamp
+  !----------------------------------------------------------------------------------------
+  function tim_getDatestamp() result(datestamp)
     !
     ! :Purpose: to control access to the minimization object.  Returns the date
     !           of the window centre of analysis validity.
@@ -422,15 +457,18 @@ contains
     implicit none
 
     ! Result:
-    integer :: datestamp_out
+    integer :: datestamp ! get the internal 'tim_datestamp' value in 'timeCoord_mod' module
 
-    if (.not.initialized) call utl_abort('tim_getDateStamp: module not initialized')
+    if (.not.initialized) call rti_abort('tim_getDateStamp: module not initialized')
 
-    datestamp_out = datestamp
+    datestamp = tim_datestamp
 
   end function tim_getDatestamp
 
 
+  !----------------------------------------------------------------------------------------
+  ! tim_getStampList
+  !----------------------------------------------------------------------------------------
   subroutine tim_getStampList(dateStampList, numStep, referenceDateStamp)
     !
     ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
@@ -444,11 +482,11 @@ contains
 
     ! Locals:
     integer :: stepIndex
-    integer :: ierr, newdate, imode, prntdate, prnttime
+    integer :: prntdate, prnttime
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
 
-    if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
+    if (.not. initialized) call rti_abort('tim_getStampList: module not initialized')
 
     if (referenceDateStamp == -1) then
 
@@ -500,9 +538,8 @@ contains
     end if ! datestamp is specified or not
 
     call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
-    imode = -3
     do stepIndex = 1, numStep
-      ierr = newdate(dateStampList(stepIndex), prntdate, prnttime, imode)
+      call tim_dateStampToYYYYMMDDHH(dateStampList(stepIndex), prntdate, prnttime)
       write(*,*) stepIndex, dateStampList(stepIndex), prntdate, prnttime / 1000000, 'h'
     end do
     call msg('tim_getStampList', 'Completed')
@@ -510,32 +547,33 @@ contains
   end subroutine tim_getStampList
 
 
-  subroutine tim_getStepObsIndex(dnstepobs, referenceDateStamp, obsYYYMMDD, obsHHMM, numStep)
+  !----------------------------------------------------------------------------------------
+  ! tim_getStepObsIndex
+  !----------------------------------------------------------------------------------------
+  function tim_getStepObsIndex(referenceDateStamp, obsYYYMMDD, obsHHMM, numStep) result(dnstepobs)
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
     integer, intent(in)  :: referenceDateStamp ! Synop CMC date-time stamp
     integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
     integer, intent(in)  :: obsHHMM            ! Obs time HHMM
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
-    ! Locals:
-    integer :: newdate, istat, imode
-    real(8) :: dddt      ! delta time in hours
-    integer :: istobs    ! obs CMC date-time stamp
-    integer :: itobs     ! obs time HHMMSShh
-    real(8) :: dlhours   ! delta time from synop time
+    ! Result:
+    real(8) :: dnstepobs ! number of stepobs from reference time
 
-    if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
+    ! Locals:
+    real(8) :: dddt    ! delta time in hours
+    integer :: istobs  ! obs CMC date-time stamp
+    real(8) :: dlhours ! delta time from synop time
+
+    if (.not. initialized) call rti_abort('tim_getStepObsIndex: module not initialized')
 
     ! Building observation stamp
-    imode = 3 ! printable to stamp
-    itobs = obsHHMM * 10000
-    istat = newdate(istobs, obsYYYMMDD, itobs, imode)
+    istobs = tim_yyyymmddhhToDatestamp(obsYYYMMDD, obsHHMM*10000)
 
     ! Difference (in hours) between obs time and reference time
     call difdatr(istobs, referenceDateStamp, dlhours)
@@ -593,12 +631,12 @@ contains
       endif
     end if
 
-  end subroutine tim_getStepObsIndex
+  end function tim_getStepObsIndex
 
   !----------------------------------------------------------------------------------------
-  ! tim_dateStampToYYYYMMDDHH
+  ! tim_dateStampToYYYYMMDDHHPrintable
   !----------------------------------------------------------------------------------------
-  subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
+  subroutine tim_dateStampToYYYYMMDDHHPrintable(dateStamp, printableDate, printableTime, verbose_opt)
     !
     ! :Purpose: to get day (DD), month (MM), number of days in this month
     !           and year (YYYY) from dateStamp
@@ -606,61 +644,206 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: dateStamp
-    integer,           intent(inout) :: prnttime, dd, mm, ndays, yyyy
-    logical, optional, intent(in)    :: verbose_opt
+    integer,           intent(in)  :: dateStamp     ! datetimestamp in CMC format
+    integer,           intent(out) :: printableDate ! date extracted from 'datestamp' in format 'YYYYMMDD'
+    integer,           intent(out) :: printableTime ! time extracted from 'datestamp' in format 'HHMMSS'
+    logical, optional, intent(in)  :: verbose_opt   ! allows to write the output information
 
     ! Locals:
-    character(len=8)            :: yyyymmdd
-    character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    integer                     :: ndaysM(12)
-    integer                     :: imode, ierr, newdate, prntdate
-    logical                     :: verbose = .True.
+    character(len=8) :: yyyymmdd
+    integer          :: mode, ierr, prntdate(2)
+    logical          :: verbose
 
-    ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
 
-    imode = -3 ! stamp to printable
-    ierr = newdate(dateStamp, prntdate, prnttime, imode)
-    write(yyyymmdd,'(i8)') prntdate
-    read (yyyymmdd(7:8), '(i2)') dd
-    read (yyyymmdd(5:6), '(i2)') mm
-    read (yyyymmdd(1:4), '(i4)') yyyy
+    mode = -3 ! stamp to printable
+    ierr = newdate(dateStamp, prntdate, printableTime, mode)
+    if ( ierr < 0 ) then
+      call rti_abort('tim_dateStampToYYYYMMDDHHPrintable: Invalid datestamp when calling ''newdate'' with mode=-3: ' // trim(utl_str(datestamp)))
+    end if
 
-    ! leap year
-    if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
-    ndays = ndaysM(mm)
-
-    if (present(verbose_opt)) verbose = verbose_opt
+    printableDate = prntdate(1)
+    write(yyyymmdd,'(i8)') printableDate
 
     if(verbose) then
-      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', prntdate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', printableDate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', printableTime
+    end if
+
+  end subroutine tim_dateStampToYYYYMMDDHHPrintable
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateStampToYYYYMMDDHHOnly
+  !----------------------------------------------------------------------------------------
+  subroutine tim_dateStampToYYYYMMDDHHOnly(dateStamp, time, dd, mm, yyyy, verbose_opt)
+    !
+    ! :Purpose: to get day (DD), month (MM), number of days in this month
+    !           and year (YYYY) from dateStamp
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in)  :: dateStamp   ! datetimestamp in CMC format
+    integer,           intent(out) :: time        ! time extracted from 'datestamp' in format 'HHMM'
+    integer,           intent(out) :: dd          ! day of month extracted from 'datestamp'
+    integer,           intent(out) :: mm          ! month extracted from 'datestamp'
+    integer,           intent(out) :: yyyy        ! year extracted from 'datestamp'
+    logical, optional, intent(in)  :: verbose_opt ! allows to write the output information
+
+    ! Locals:
+    character(len=8) :: yyyymmdd
+    integer          :: date
+    logical          :: verbose
+
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
+
+    call tim_dateStampToYYYYMMDDHHPrintable(dateStamp, date, time, verbose_opt = .false.)
+    write(yyyymmdd,'(i8)') date
+    read (yyyymmdd(1:4), '(i4)') yyyy
+    read (yyyymmdd(5:6), '(i2)') mm
+    read (yyyymmdd(7:8), '(i2)') dd
+
+    if(verbose) then
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date  = ', yyyymmdd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: year  = ', yyyy
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: month = ', mm
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: day   = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time  = ', time
+    end if
+
+  end subroutine tim_dateStampToYYYYMMDDHHOnly
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateStampToYYYYMMDDHHWithDaysInMonth
+  !----------------------------------------------------------------------------------------
+  subroutine tim_dateStampToYYYYMMDDHHWithDaysInMonth(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
+    !
+    ! :Purpose: to get day (DD), month (MM), number of days in this month
+    !           and year (YYYY) from dateStamp
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in)  :: dateStamp   ! datetimestamp in CMC format
+    integer,           intent(out) :: prnttime    ! time extracted from 'datestamp' in format 'HHMM'
+    integer,           intent(out) :: dd          ! day of month extracted from 'datestamp'
+    integer,           intent(out) :: mm          ! month extracted from 'datestamp'
+    integer,           intent(out) :: ndays       ! number of days in that month
+    integer,           intent(out) :: yyyy        ! year extracted from 'datestamp'
+    logical, optional, intent(in)  :: verbose_opt ! allows to write the output information
+
+    ! Constants:
+    character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    ! Locals:
+    logical :: verbose
+
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else
+      verbose = .true.
+    end if
+
+    call tim_dateStampToYYYYMMDDHHOnly(dateStamp, prnttime, dd, mm, yyyy, verbose_opt = .false.)
+
+    ndays = tim_numberOfDaysInMonth(dateStamp)
+
+    if(verbose) then
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', dateStamp
       write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
       write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)'
       write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
       write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
     end if
 
-  end subroutine tim_dateStampToYYYYMMDDHH
+  end subroutine tim_dateStampToYYYYMMDDHHWithDaysInMonth
+
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestampWithDateTime
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestampWithDateTime(date, time) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: date ! date as an integer in format yyyymmdd
+    integer, intent(in)  :: time ! time as an integer in format HHMMSShh
+
+    ! Result:
+    integer :: currentDateStamp ! datetimestamp in CMC format computed from 'date' and 'time'
+
+    ! Locals:
+    integer :: mode, ierr
+    integer :: date_array(2)
+
+    date_array(:) = date
+
+    mode = 3
+    ierr = newdate(currentDateStamp, date_array, time, mode)
+    if ( ierr < 0 ) then
+      call rti_abort('tim_yyyymmddhhToDatestampWithDateTime: Invalid datestamp when calling ''newdate'' with mode=3: ' // trim(utl_str(currentDateStamp)))
+    end if
+
+  end function tim_yyyymmddhhToDatestampWithDateTime
+
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestampWithyyyymmddhh
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestampWithyyyymmddhh(year, month, day, time) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
+    integer, intent(in)  :: month ! month number in [1,12]
+    integer, intent(in)  :: day   ! day number to compute dateStamp
+    integer, intent(in)  :: time  ! time as an integer in format HHMMSShh
+
+    ! Result:
+    integer :: currentDateStamp
+
+    ! Locals:
+    integer :: date
+
+    date = tim_dateFromYYYYMMDD(year, month, day)
+
+    currentDateStamp = tim_yyyymmddhhToDatestampWithDateTime(date, time)
+
+  end function tim_yyyymmddhhToDatestampWithyyyymmddhh
 
   !----------------------------------------------------------------------------------------
   ! tim_getValidDateTimeFromList
   !----------------------------------------------------------------------------------------
   subroutine tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
+    !
+    !:Purpose: From a collection of datetimes, find the assimilation window valid date and time
+    !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: headDateValues(:)
-    integer, intent(in)  :: headTimeValues(:)
-    integer, intent(out) :: validDate
-    integer, intent(out) :: validTime
+    integer, intent(in)  :: headDateValues(:) ! Array of dates (format 'YYYYDDMM') coherent with 'headTimeValues'
+    integer, intent(in)  :: headTimeValues(:) ! Array of time (format 'HHMMSS') coherent with 'headDateValues'
+    integer, intent(out) :: validDate         ! Assimilation window valid date
+    integer, intent(out) :: validTime         ! Assimilation window valid time
 
     ! Locals:
     integer                 :: numDates, numWindowsPerDay, windowIndex
     integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax
     integer(8)              :: dateTimeMin, dateTimeMax, timeMin, timeMax, dateMin, dateMax
     integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
-    integer                 :: ier, imode
-    integer                 :: newdate, dateStampIn, dateStampOut
+    integer                 :: dateStampIn, dateStampOut
 
     call tim_readNml()
 
@@ -711,11 +894,9 @@ contains
         validTimeMin = nint((windowBoundaries(windowBoundaryMin) + 60.0*tim_windowSize/2.0)/60.0)
         if (validTimeMin >= 24) then
           validTimeMin = 0
-          imode = 3
-          ier = newdate(dateStampIn, int(dateMin,4), validTimeMin, imode)
+          dateStampIn = tim_yyyymmddhhToDatestamp(int(dateMin,4), validTimeMin)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
-          imode = -3
-          ier = newdate(dateStampOut, validDateMin, validTimeMin, imode)
+          call tim_dateStampToYYYYMMDDHH(dateStampOut, validDateMin, validTimeMin)
           validTimeMin = 0
         else
           validDateMin = int(dateMin,4)
@@ -723,18 +904,16 @@ contains
         validTimeMax = nint((windowBoundaries(windowBoundaryMax) + 60.0*tim_windowSize/2.0)/60.0)
         if (validTimeMax >= 24) then
           validTimeMax = 0
-          imode = 3
-          ier = newdate(dateStampIn, int(dateMax,4), validTimeMax, imode)
+          dateStampIn = tim_yyyymmddhhToDatestamp(int(dateMax,4), validTimeMax)
           call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
-          imode = -3
-          ier = newdate(dateStampOut, validDateMax, validTimeMax, imode)
+          call tim_dateStampToYYYYMMDDHH(dateStampOut, validDateMax, validTimeMax)
           validTimeMax = 0
         else
           validDateMax = int(dateMax,4)
         end if
         write(*,*) 'tim_getValidDateTimeFromList: date from Min/Max = ', validDateMin, validDateMax
         write(*,*) 'tim_getValidDateTimeFromList: hour from Min/Max = ', validTimeMin, validTimeMax
-        if (validTimeMin /= validTimeMax) call utl_abort('validTimeMin/Max not equal')
+        if (validTimeMin /= validTimeMax) call rti_abort('validTimeMin/Max not equal')
         validTime = validTimeMin
         validDate = validDateMin
         deallocate(windowBoundaries)
@@ -748,90 +927,124 @@ contains
   end subroutine tim_getValidDateTimeFromList
 
   !----------------------------------------------------------------------------------------
-  ! tim_yyyymmddhhToDatestamp
+  ! tim_getHoursBetweenDates(currentDate, referenceDate)
   !----------------------------------------------------------------------------------------
-  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
+  function tim_getHoursBetweenDates(currentDateStamp, referenceDate) result(numberHours)
     !
-    !:Purpose: compute datestamp from year, month day and hour.
+    ! :Purpose: to compute number of hours between current and reference date
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
-    integer, intent(in)  :: month ! month number in [1,12]
-    integer, intent(in)  :: day   ! day number to compute dateStamp
-    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
-
-    ! Result:
-    integer :: currentDateStamp
-
-    ! Locals:
-    integer :: imode, ierr
-    integer :: printableDate
-    integer, external :: newdate
-
-    printableDate = year * 10000 + month * 100 + day
-
-    imode = 3
-    ierr = newdate(currentDateStamp, printableDate, hour, imode)
-
-  end function tim_yyyymmddhhToDatestamp
-
-  !----------------------------------------------------------------------------------------
-  ! tim_getHoursSinceReferenceDate(currentDate, referenceDate)
-  !----------------------------------------------------------------------------------------
-  subroutine tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
-    !
-    ! :Purpose: to compute number of hours between current and reference date.
-    !
-    implicit none
-
     integer, intent(in)  :: currentDateStamp ! current datestamp
-    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
-    integer, intent(out) :: numberHours
+    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in 'namEnsPostProcModule' namelist
+
+    ! Results:
+    integer :: numberHours      ! number of hours between current and reference date
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, newdate
+    integer :: refDateStamp
 
     write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate
-    imode = 3
-    ierr = newdate(refDateStamp, referenceDate, 0, imode)
+    refDateStamp = tim_yyyymmddhhToDatestamp(referenceDate, 0)
     write(*,*) 'tim_getHoursSinceReferenceDate: reference datestamp: ', refDateStamp
 
     ! Difference (in hours) between current date and reference date
     call difdat(currentDateStamp, refDateStamp, numberHours)
     write(*,*) 'tim_getHoursSinceReferenceDate: difference in hours: ', numberHours
 
-  end subroutine tim_getHoursSinceReferenceDate
+  end function tim_getHoursBetweenDates
 
   !----------------------------------------------------------------------------------------
-  ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
+  ! tim_getSecondsBetweenDates(currentDate, referenceDate)
   !----------------------------------------------------------------------------------------
-  subroutine tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDate, numberSeconds)
+  subroutine tim_getSecondsBetweenDates(currentDateStamp, referenceDate, numberSeconds)
     !
     ! :Purpose: to compute number of seconds in integer(8) between current and reference date.
     !
     implicit none
 
-    integer, intent(in)  :: currentDateStamp ! current datestamp
-    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
-    integer(8), intent(out) :: numberSeconds
+    integer,    intent(in)  :: currentDateStamp ! current datestamp
+    integer,    intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in 'namEnsPostProcModule' namelist
+    integer(8), intent(out) :: numberSeconds    ! number of seconds between current and reference date
 
     ! Locals:
-    integer :: ierr, imode, refDateStamp, newdate
-    real(8) :: numberHours
+    integer :: numberHours
 
-    write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate
-    imode = 3
-    ierr = newdate(refDateStamp, referenceDate, 0, imode)
-    write(*,*) 'tim_getSecondsSinceReferenceDate: reference datestamp: ', refDateStamp
-
-    ! Difference (in hours) between current date and reference date
-    call difdatr(currentDateStamp, refDateStamp, numberHours)
-    write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
-
+    numberHours = tim_getHoursBetweenDates(currentDateStamp, referenceDate)
     numberSeconds = int(numberHours * 3600.0d0 , 8)
 
-  end subroutine tim_getSecondsSinceReferenceDate
+  end subroutine tim_getSecondsBetweenDates
+
+
+  !----------------------------------------------------------------------------------------
+  ! tim_numberOfDaysInMonth (private)
+  !----------------------------------------------------------------------------------------
+  function tim_numberOfDaysInMonth(dateStamp) result(ndays)
+    !
+    ! :Purpose: Compute the number of days in the month given by 'dateStamp'
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: dateStamp ! datetimestamp in CMC format
+    ! Results:
+    integer :: ndays
+
+    ! Locals:
+    integer :: nextdate_year, nextdate_month, nextdate
+    integer :: newdate, hours
+    integer :: year  ! year extracted from 'datestamp'
+    integer :: month ! month extracted from 'datestamp'
+    integer :: day   ! day of month extracted from 'datestamp'
+    integer :: time  ! time extracted from 'datestamp' in format 'HHMM'
+
+    ! To compute the number of days in the month, we will compute the
+    ! time difference between 'datestamp' and the date in one month from 'datestamp'
+
+    ! Find the 'year', 'month', 'day' and 'time' from 'dateStamp'
+    call tim_dateStampToYYYYMMDDHHOnly(dateStamp, time, day, month, year, verbose_opt = .false.)
+
+    if (month == 12) then
+      nextdate_year = year+1
+      nextdate_month = 1
+    else
+      nextdate_year = year
+      nextdate_month = month + 1
+    end if
+
+    !! Build the new date from 'nextdate_year', 'nextdate_month' and 'day'
+    nextdate = tim_dateFromYYYYMMDD(nextdate_year, nextdate_month, day)
+    !! Compute a new datetimestamp from 'nextdate' and original 'time'
+    newdate = tim_yyyymmddhhToDatestampWithDateTime(nextdate, time)
+    !! Get the numbers of hours between 'dateStamp' and 'newdate'
+    hours = tim_getHoursBetweenDates(newdate, dateStamp)
+
+    !! From the number of hours, transform into the number of days
+    ndays = hours/24
+
+  end function tim_numberOfDaysInMonth
+
+  !----------------------------------------------------------------------------------------
+  ! tim_dateFromYYYYMMDD (private)
+  !----------------------------------------------------------------------------------------
+  function tim_dateFromYYYYMMDD(year,month,day) result(date)
+    !
+    ! :Purpose: Transform the separate 'yyyy', 'mm' and 'dd' to an
+    !           integer representing this information
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: year  ! year extracted from 'datestamp'
+    integer, intent(in) :: month ! month extracted from 'datestamp'
+    integer, intent(in) :: day   ! day of month extracted from 'datestamp'
+
+    ! Results:
+    integer :: date
+
+    date = year * 10000 + month * 100 + day
+
+  end function tim_dateFromYYYYMMDD
 
 end module timeCoord_mod

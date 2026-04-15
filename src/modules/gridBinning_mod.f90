@@ -11,6 +11,7 @@ module gridBinning_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use utilities_mod
+  use runtimeInfo_mod
   use horizontalCoord_mod
   use timeCoord_mod
 
@@ -79,7 +80,7 @@ contains
     !      grid point
     !
     if (.not. gsv_isAllocated(statevector_template)) then
-      call utl_abort('gbi_setup: the input template statevector was not allocated')
+      call rti_abort('gbi_setup: the input template statevector was not allocated')
     end if
 
     mpi_local = statevector_template%mpi_local
@@ -208,7 +209,7 @@ contains
       call gsv_deallocate(statevector_landSeaTopo)
 
     case default
-      call utl_abort('gbi_setup : Invalid Binning Strategy : '//trim(BinningStrategy))
+      call rti_abort('gbi_setup : Invalid Binning Strategy : '//trim(BinningStrategy))
     end select
 
     !

@@ -11,6 +11,7 @@ module oceanBackground_mod
   use verticalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -18,9 +19,6 @@ module oceanBackground_mod
 
   ! Public functions/subroutines
   public :: obgd_computeSSTrial
-
-  ! External functions
-  integer, external :: fnom, fclos
 
   contains
 
@@ -176,17 +174,17 @@ module oceanBackground_mod
     ! Difference (in hours) between the 15th of the current and neighbour months
     call difdatr(dataStampMonth, dataStampNeighbourMonth, numberHours)
     if (utl_isEqual(numberHours, 2.d0**30)) then
-      call utl_abort('obgd_getClimatology: difdatr received invalid arguments: '//&
+      call rti_abort('obgd_getClimatology: difdatr received invalid arguments: '//&
                                            char(dataStampMonth)//' and '//&
                                            char(dataStampNeighbourMonth))
     end if
     ! safe check: the number of hours cannot be greater than 31 days * 24h = 744h
     if (abs(numberHours) > 744.d0) then
-      call utl_abort('obgd_getClimatology: number of hours between two months exceeds 744h!')
+      call rti_abort('obgd_getClimatology: number of hours between two months exceeds 744h!')
     end if
     ! safe check: the number of hours cannot be equal to zero
     if (utl_isEqual(numberHours, 0.d0)) then
-      call utl_abort('obgd_getClimatology: number of hours between two neighbour months is zero!')
+      call rti_abort('obgd_getClimatology: number of hours between two neighbour months is zero!')
     end if
 
     ! computing weight for linear interpolation of climatology in time

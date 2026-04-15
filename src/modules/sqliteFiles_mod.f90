@@ -9,6 +9,7 @@ module sqliteFiles_mod
   use mathPhysConstants_mod
   use fSQLite
   use utilities_mod
+  use runtimeInfo_mod
   use codePrecision_mod
   use sqliteRead_mod
   use obsSpaceData_mod
@@ -45,8 +46,7 @@ module sqliteFiles_mod
 
     ! Locals:
     logical              :: fileExists
-    integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer              :: newdate
+    integer              :: validTime, validDate, validDateRecv, validTimeRecv
     integer, allocatable :: headDateValues(:), headTimeValues(:)
 
     validDate = MPC_missingValue_INT
@@ -67,9 +67,9 @@ module sqliteFiles_mod
       write(*,*) 'sqlf_getDateStamp: WARNING: Error in getting valid date and time!'
       dateStamp = 0
     else
-      ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
-      imode = 3
-      ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
+      ! printable to stamp, validTime must be multiplied with 1e6 to
+      ! respect the expected time format by 'tim_yyyymmddhhToDatestamp'
+      dateStamp = tim_yyyymmddhhToDatestamp(validDateRecv, validTimeRecv*1000000)
       write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDateRecv
       write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTimeRecv
       write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp
@@ -153,7 +153,7 @@ module sqliteFiles_mod
     character(len=*), parameter :: myName = 'sqlf_updateFile'
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call utl_tmg_start(13,'----UpdateSqliteFile')
+    call rti_tmg_start(13,'----UpdateSqliteFile')
     write(*,*) myName//' Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
@@ -174,7 +174,7 @@ module sqliteFiles_mod
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call utl_tmg_stop(13)
+    call rti_tmg_stop(13)
 
   end subroutine sqlf_updateFile
 

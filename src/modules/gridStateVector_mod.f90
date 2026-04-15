@@ -15,6 +15,7 @@ module gridStateVector_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use physicsFunctions_mod
   use localizationFunction_mod
@@ -161,7 +162,7 @@ module gridStateVector_mod
 
     varIndex = vnl_varListIndex(varName)
     if (.not. statevector%varExistList(varIndex)) then
-      call utl_abort('gsv_getOffsetFromVarName: specified varName does not exist in stateVector: ' // trim(varName))
+      call rti_abort('gsv_getOffsetFromVarName: specified varName does not exist in stateVector: ' // trim(varName))
     end if
     offset=statevector%varOffset(varIndex)
 
@@ -195,7 +196,7 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getVarNameFromVarLev: varLevIndex out of range: '//str(varLevIndex))
+    call rti_abort('gsv_getVarNameFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
   end function gsv_getVarNameFromVarLev
 
@@ -228,7 +229,7 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getLevFromVarLev: varLevIndex out of range: '//str(varLevIndex))
+    call rti_abort('gsv_getLevFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
   end function gsv_getLevFromVarLev
 
@@ -259,7 +260,7 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getMpiIdFromVarLev: varLevIndex out of range: '//str(varLevIndex))
+    call rti_abort('gsv_getMpiIdFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
   end function gsv_getMpiIdFromVarLev
 
@@ -324,7 +325,7 @@ module gridStateVector_mod
     character(len=4) :: varName
 
     if (associated(varNames)) then
-      call utl_abort('gsv_varNamesList: varNames must be NULL pointer on input')
+      call rti_abort('gsv_varNamesList: varNames must be NULL pointer on input')
     end if
 
     !
@@ -543,16 +544,16 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namstate,iostat=ierr)
-    if (ierr /= 0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
+    if (ierr /= 0) call rti_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mmpi_myid.eq.0) write(*,nml=namstate)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
 
-    if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
+    if (varneed('Z_T') .or. varneed('Z_M')) call rti_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
     if (varneed('P_T') .or. varneed('P_M')) then
       write(*,*)
       write(*,*) 'gsv_setup: WARNING: Pressure as an analysis variable is not fully supported. Be careful!'
@@ -616,7 +617,7 @@ module gridStateVector_mod
 
     ! Check value for ANLTIME_BIN
     if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
-      call utl_abort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist')
+      call rti_abort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist')
     end if
 
     initialized = .true.
@@ -720,7 +721,7 @@ module gridStateVector_mod
     logical :: beSilent, allocPressure, allocHeight, allocHeightSfc, uuExist, vvExist
     integer :: verbLevel
 
-    call utl_tmg_start(168, 'low-level--gsv_allocate')
+    call rti_tmg_start(168, 'low-level--gsv_allocate')
 
     if (.not. initialized) then
       call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
@@ -738,7 +739,7 @@ module gridStateVector_mod
     statevector%vco => vco_ptr
 
     if (.not.statevector%vco%initialized) then
-       call utl_abort('statevector_allocate: VerticalCoord has not been initialized!')
+       call rti_abort('statevector_allocate: VerticalCoord has not been initialized!')
     end if
 
     if (statevector%allocated) then
@@ -749,8 +750,8 @@ module gridStateVector_mod
     if (present(dataKind_opt)) statevector%dataKind = dataKind_opt
 
     if (present(varNames_opt)) then
-      if (present(allocHeight_opt)) call utl_abort('gsv_allocate: to allocate Z_T/Z_M, set them in varNames_opt')
-      if (present(allocPressure_opt)) call utl_abort('gsv_allocate: to allocate P_T/P_M, set them in varNames_opt')
+      if (present(allocHeight_opt)) call rti_abort('gsv_allocate: to allocate Z_T/Z_M, set them in varNames_opt')
+      if (present(allocPressure_opt)) call rti_abort('gsv_allocate: to allocate P_T/P_M, set them in varNames_opt')
     end if
 
     if (present(varNames_opt)) then
@@ -830,14 +831,14 @@ module gridStateVector_mod
       call msg('gsv_allocate',' number of longitudes is not evenly divisible at this subSample level'&
                //' ni='//str(statevector%ni)// ', horizSubSample = '&
                //str(statevector%horizSubSample))
-      call utl_abort('gsv_allocate')
+      call rti_abort('gsv_allocate')
     end if
 
     if (statevector%nj * statevector%horizSubSample /= statevector%hco%nj) then
       call msg('gsv_allocate','number of latitudes is not evenly divisible at this subSample level'&
                //' nj='//str(statevector%nj)//', horizSubSample = '&
                //str(statevector%horizSubSample))
-      call utl_abort('gsv_allocate')
+      call rti_abort('gsv_allocate')
     end if
 
     statevector%numStep=numStep
@@ -852,7 +853,7 @@ module gridStateVector_mod
       if (trim(mpi_distribution_opt) .ne. 'Tiles'    .and. &
           trim(mpi_distribution_opt) .ne. 'VarsLevs' .and. &
           trim(mpi_distribution_opt) .ne. 'None') then
-        call utl_abort('gsv_allocate: Unknown value of mpi_distribution: ' // trim(mpi_distribution_opt))
+        call rti_abort('gsv_allocate: Unknown value of mpi_distribution: ' // trim(mpi_distribution_opt))
       end if
       statevector%mpi_distribution = mpi_distribution_opt
     else
@@ -901,7 +902,7 @@ module gridStateVector_mod
                            vnl_varNameList(varIndex))
         iloc = iloc + statevector%varNumLev(varIndex)
         if (statevector%varNumLev(varIndex) <= 0) then
-          call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+          call rti_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
                          trim(vnl_varNameList(varIndex)))
         end if
       end do
@@ -916,7 +917,7 @@ module gridStateVector_mod
                              vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
           iloc = iloc + statevector%varNumLev(varIndex)
           if (statevector%varNumLev(varIndex) <= 0) then
-            call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+            call rti_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
                            trim(vnl_varNameList(varIndex)))
           end if
         end if
@@ -939,7 +940,7 @@ module gridStateVector_mod
                               vnl_varNameList(varIndex))
           iloc = iloc + statevector%varNumLev(varIndex)
           if (statevector%varNumLev(varIndex) <= 0) then
-            call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+            call rti_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
                            trim(vnl_varNameList(varIndex)))
           end if
         end if
@@ -948,7 +949,7 @@ module gridStateVector_mod
     end if
 
     if (iloc == 0) then
-      call utl_abort('gsv_allocate:  Nothing to allocate')
+      call rti_abort('gsv_allocate:  Nothing to allocate')
     end if
 
     statevector%numVarLev = iloc
@@ -1059,11 +1060,11 @@ module gridStateVector_mod
     case ('LAST')
        statevector%anltime=numStep
     case default
-      call utl_abort('gsv_allocate: unsupported value for ANLTIME_BIN = '//trim(ANLTIME_BIN))
+      call rti_abort('gsv_allocate: unsupported value for ANLTIME_BIN = '//trim(ANLTIME_BIN))
     end select
 
     if (present(dateStamp_opt) .and. present(dateStampList_opt)) then
-      call utl_abort('gsv_allocate: Either dateStamp or dateStampList should be presented but not both')
+      call rti_abort('gsv_allocate: Either dateStamp or dateStampList should be presented but not both')
     else if (present(dateStampList_opt)) then
       allocate(statevector%dateStampList(numStep))
       do stepIndex = 1, numStep
@@ -1138,10 +1139,10 @@ module gridStateVector_mod
         end if
       end if
     else
-      call utl_abort('gsv_allocate: unknown value of datakind')
+      call rti_abort('gsv_allocate: unknown value of datakind')
     end if
     if (ierr.ne.0) then
-      call utl_abort('gsv_allocate: Problem allocating memory! id=1 '//str(ierr))
+      call rti_abort('gsv_allocate: Problem allocating memory! id=1 '//str(ierr))
     end if
 
     if (allocHeightSfc) then
@@ -1177,7 +1178,7 @@ module gridStateVector_mod
 
     statevector%allocated=.true.
 
-    call utl_tmg_stop(168)
+    call rti_tmg_stop(168)
 
   end subroutine gsv_allocate
 
@@ -1315,7 +1316,7 @@ module gridStateVector_mod
         call msg('gsv_checkMpiDistribution','WARNING: bad choice of mpi topology!', mpiAll_opt=.false.)
       end if
 
-      if (abortOnMpiImbalance) call utl_abort('gsv_checkMpiDistribution: Please choose a better mpi topology')
+      if (abortOnMpiImbalance) call rti_abort('gsv_checkMpiDistribution: Please choose a better mpi topology')
     end if
 
   end subroutine gsv_checkMpiDistribution
@@ -1341,7 +1342,7 @@ module gridStateVector_mod
     else if (trim(UV_in) == 'VV') then
       UV_out = 'UU  '
     else
-      call utl_abort('complementaryUVname: invalid input, UV_in = '//trim(UV_in))
+      call rti_abort('complementaryUVname: invalid input, UV_in = '//trim(UV_in))
     end if
   end function complementaryUVname
 
@@ -1389,13 +1390,13 @@ module gridStateVector_mod
 
     ! Test the compatibility of the modifications
     if (.not. gsv_varExist(statevector,oldVarName)) then
-      call utl_abort('gsv_modifyVarName: the varName to replace does not exist '//trim(oldVarName))
+      call rti_abort('gsv_modifyVarName: the varName to replace does not exist '//trim(oldVarName))
     end if
     if (gsv_varExist(statevector,newVarName)) then
-      call utl_abort('gsv_modifyVarName: the varName to add already exist '//trim(oldVarName))
+      call rti_abort('gsv_modifyVarName: the varName to add already exist '//trim(oldVarName))
     end if
     if (vnl_varLevelFromVarname(newVarName) /= vnl_varLevelFromVarname(oldVarName)) then
-      call utl_abort('gsv_modifyVarName: the level type are different')
+      call rti_abort('gsv_modifyVarName: the level type are different')
     end if
 
     ! Find  varIndex_oldVarName & varIndex_newVarName
@@ -1432,7 +1433,7 @@ module gridStateVector_mod
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lat1,lat2,lon1,lon2,k1,k2,k1UV,k2UV
 
     if (.not.statevector%allocated) then
-      call utl_abort('gsv_zero: gridStateVector not yet allocated')
+      call rti_abort('gsv_zero: gridStateVector not yet allocated')
     end if
 
     lon1=statevector%myLonBeg
@@ -1504,7 +1505,7 @@ module gridStateVector_mod
       end if
 
     else
-      call utl_abort('gsv_zero: unknown value of datakind')
+      call rti_abort('gsv_zero: unknown value of datakind')
     end if
 
   end subroutine gsv_zero
@@ -1528,17 +1529,17 @@ module gridStateVector_mod
     integer           :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_add: stateVector_in not yet allocated')
+      call rti_abort('gsv_add: stateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_add: stateVector_inout not yet allocated')
+      call rti_abort('gsv_add: stateVector_inout not yet allocated')
     end if
     if ( statevector_in%myVarLevBeg /= statevector_inout%myVarLevBeg .or. &
          statevector_in%myVarLevEnd /= statevector_inout%myVarLevEnd ) then
-      call utl_abort('gsv_add: myVarLevBeg/myVarLevEnd of stateVector_in/inout do not match')
+      call rti_abort('gsv_add: myVarLevBeg/myVarLevEnd of stateVector_in/inout do not match')
     end if
     if ( statevector_in%numStep /= statevector_inout%numStep ) then
-      call utl_abort('gsv_add: numStep of stateVector_in/inout do not match')
+      call rti_abort('gsv_add: numStep of stateVector_in/inout do not match')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1613,7 +1614,7 @@ module gridStateVector_mod
       end if
 
     else
-      call utl_abort('gsv_add: Data type must be the same for both statevectors')
+      call rti_abort('gsv_add: Data type must be the same for both statevectors')
     end if
 
   end subroutine gsv_add
@@ -1639,10 +1640,10 @@ module gridStateVector_mod
     logical :: inv
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_schurProduct: gridStateVector_inout not yet allocated')
+      call rti_abort('gsv_schurProduct: gridStateVector_inout not yet allocated')
     end if
 
     if (present(inv_opt)) then
@@ -1697,7 +1698,7 @@ module gridStateVector_mod
       end do
 
     else
-      call utl_abort('gsv_schurProduct: Data type must be the same for both statevectors')
+      call rti_abort('gsv_schurProduct: Data type must be the same for both statevectors')
     end if
 
   end subroutine gsv_schurProduct
@@ -1749,7 +1750,7 @@ module gridStateVector_mod
 
     ! asserting grid structure consistency
     if ( .not. hco_equal(gsv_getHco(statevector_in),gsv_getHco(statevector_out)) ) then
-      call utl_abort('gsv_copy: horizontal structure inconsistency')
+      call rti_abort('gsv_copy: horizontal structure inconsistency')
     end if
 
     if (present(allowVcoMismatch_opt)) then
@@ -1759,7 +1760,7 @@ module gridStateVector_mod
     end if
     if ( .not. vco_equal(gsv_getVco(statevector_in),gsv_getVco(statevector_out)) ) then
       if ( .not. allowVcoMismatch) then
-        call utl_abort('gsv_copy: vertical structure inconsistency')
+        call rti_abort('gsv_copy: vertical structure inconsistency')
       end if
     end if
 
@@ -1767,28 +1768,28 @@ module gridStateVector_mod
     if (present(allowTimeMismatch_opt)) then
       if (allowTimeMismatch_opt) then
         if (statevector_in%numStep < statevector_out%numStep) then
-          call utl_abort('gsv_copy: numStep_in less than numStep_out, which is not allowed')
+          call rti_abort('gsv_copy: numStep_in less than numStep_out, which is not allowed')
         end if
         if (statevector_in%numStep /= statevector_out%numStep) then
           timeMismatch = .true.
         end if
       else
         if (statevector_in%numStep /= statevector_out%numStep) then
-          call utl_abort('gsv_copy: numStep_in not equal to numStep_out')
+          call rti_abort('gsv_copy: numStep_in not equal to numStep_out')
         end if
       end if
     end if
 
     if (present(stepIndexOut_opt) .and. present(allowTimeMismatch_opt)) then
-      call utl_abort('gsv_copy: Cannot specify both stepIndexOut_opt ' //  &
+      call rti_abort('gsv_copy: Cannot specify both stepIndexOut_opt ' //  &
                      'and allowTimeMismatch_opt in the same call')
     end if
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copy: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_copy: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copy: gridStateVector_out not yet allocated')
+      call rti_abort('gsv_copy: gridStateVector_out not yet allocated')
     end if
 
     if (statevector_in%mpi_distribution == 'VarsLevs') allowVarMismatch = .false.
@@ -1816,7 +1817,7 @@ module gridStateVector_mod
     else if (.not. varMismatch) then
       gsvCopyType = 'varLevIndex'
     else
-      call utl_abort('gsv_copy: varMismatch and allowVarMismatch do not agree! Aborting.')
+      call rti_abort('gsv_copy: varMismatch and allowVarMismatch do not agree! Aborting.')
     end if
 
     call msg('gsv_copy', 'gsvCopyType='//gsvCopyType &
@@ -2125,7 +2126,7 @@ module gridStateVector_mod
       end if
 
     else
-      call utl_abort('gsv_copy: Unknown data types')
+      call rti_abort('gsv_copy: Unknown data types')
     end if
 
     deallocate(varNameListCommon)
@@ -2183,10 +2184,10 @@ module gridStateVector_mod
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStepIn, numStepOut
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copy4Dto3D: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_copy4Dto3D: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copy4Dto3D: gridStateVector_out not yet allocated')
+      call rti_abort('gsv_copy4Dto3D: gridStateVector_out not yet allocated')
     end if
 
     lon1 = statevector_in%myLonBeg
@@ -2198,7 +2199,7 @@ module gridStateVector_mod
     numStepIn  =  statevector_in%numStep
     numStepOut =  statevector_out%numStep
 
-    if (numStepOut /= 1) call utl_abort('gsv_copy4Dto3D: output statevector must have only 1 timestep')
+    if (numStepOut /= 1) call rti_abort('gsv_copy4Dto3D: output statevector must have only 1 timestep')
     if (numStepIn == 1) then
       call msg('gsv_copy4Dto3D', 'WARNING: input statevector only has 1 timestep, will simply copy.')
     end if
@@ -2238,7 +2239,7 @@ module gridStateVector_mod
       !$OMP END PARALLEL DO
 
     else
-      call utl_abort('gsv_copy4Dto3D: Data type must be the same for both statevectors')
+      call rti_abort('gsv_copy4Dto3D: Data type must be the same for both statevectors')
     end if
 
   end subroutine gsv_copy4Dto3D
@@ -2257,25 +2258,25 @@ module gridStateVector_mod
     type(struct_gsv), intent(inout) :: statevector_out
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_copyHeightSfc: gridStateVector_out not yet allocated')
+      call rti_abort('gsv_copyHeightSfc: gridStateVector_out not yet allocated')
     end if
 
     if ( .not. hco_equal(gsv_getHco(statevector_in), gsv_getHco(statevector_out))) then
-      call utl_abort('gsv_copyHeightSfc: inconsistent horizontal structure')
+      call rti_abort('gsv_copyHeightSfc: inconsistent horizontal structure')
     end if
 
     if (.not. associated(statevector_in%HeightSfc)) then
-      call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_in not allocated')
+      call rti_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_in not allocated')
     end if
     if (.not. associated(statevector_out%HeightSfc)) then
-      call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_out not allocated')
+      call rti_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_out not allocated')
     end if
 
     if (statevector_out%mpi_distribution /= statevector_in%mpi_distribution) then
-      call utl_abort('gsv_copyHeightSfc: inconsistent mpi_distribution')
+      call rti_abort('gsv_copyHeightSfc: inconsistent mpi_distribution')
     end if
 
     statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
@@ -2306,13 +2307,13 @@ module gridStateVector_mod
     real(4) :: paddingValue_r4
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_hPad: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_hPad: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_hPad: gridStateVector_out not yet allocated')
+      call rti_abort('gsv_hPad: gridStateVector_out not yet allocated')
     end if
     if (statevector_in%mpi_local .or. statevector_out%mpi_local) then
-       call utl_abort('gsv_hPad: both gridStateVectors must be NO MPI')
+       call rti_abort('gsv_hPad: both gridStateVectors must be NO MPI')
     end if
 
     lonBeg_in=statevector_in%myLonBeg
@@ -2326,10 +2327,10 @@ module gridStateVector_mod
         lonEnd_in > statevector_out%myLonEnd .or. &
         latBeg_in > statevector_out%myLatBeg .or. &
         latEnd_in > statevector_out%myLatEnd) then
-      call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in')
+      call rti_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in')
     end if
     if (kBeg /= statevector_out%myVarLevBeg .or. kEnd /= statevector_out%myVarLevEnd) then
-      call utl_abort('gsv_hPad: Vertical levels are not compatible')
+      call rti_abort('gsv_hPad: Vertical levels are not compatible')
     end if
 
     ! copy over some time related parameters
@@ -2404,7 +2405,7 @@ module gridStateVector_mod
       !$OMP END PARALLEL DO
 
     else
-      call utl_abort('gsv_hPad: Data type must be the same for both statevectors')
+      call rti_abort('gsv_hPad: Data type must be the same for both statevectors')
     end if
 
   end subroutine gsv_hPad
@@ -2429,7 +2430,7 @@ module gridStateVector_mod
     real(8) :: gd_r8_tmp
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_power: gridStateVector_inout not yet allocated')
+      call rti_abort('gsv_power: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -2523,7 +2524,7 @@ module gridStateVector_mod
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_scale: gridStateVector_inout not yet allocated')
+      call rti_abort('gsv_scale: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -2586,7 +2587,7 @@ module gridStateVector_mod
     character(len=4) :: varLevel
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated')
+      call rti_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -2664,7 +2665,7 @@ module gridStateVector_mod
     integer :: stepIndex,lonIndex,varLevIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_3dto4d: statevector not yet allocated')
+      call rti_abort('gsv_3dto4d: statevector not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -2770,7 +2771,7 @@ module gridStateVector_mod
     real(8), allocatable :: gd2d_tmp(:,:)
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_3dto4dAdj: statevector not yet allocated')
+      call rti_abort('gsv_3dto4dAdj: statevector not yet allocated')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -2850,7 +2851,7 @@ module gridStateVector_mod
     integer :: ierr, varLevIndex
 
     if (.not.statevector%allocated) then
-      call utl_abort('gsv_deallocate: gridStateVector not yet allocated')
+      call rti_abort('gsv_deallocate: gridStateVector not yet allocated')
     end if
 
     statevector%allocated=.false.
@@ -2936,7 +2937,7 @@ module gridStateVector_mod
     real(4), pointer,           intent(inout) :: field_r4(:,:,:,:)
     character(len=*), optional, intent(in)    :: varName_opt
 
-    if (statevector%dataKind /= 4) call utl_abort('gsv_getFieldWrapper_r4: wrong dataKind')
+    if (statevector%dataKind /= 4) call rti_abort('gsv_getFieldWrapper_r4: wrong dataKind')
     call gsv_getField_r48(statevector, field_r4_opt = field_r4, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r4
@@ -2953,7 +2954,7 @@ module gridStateVector_mod
     real(8), pointer,           intent(inout) :: field_r8(:,:,:,:)
     character(len=*), optional, intent(in)    :: varName_opt
 
-    if (statevector%dataKind /= 8) call utl_abort('gsv_getFieldWrapper_r8: wrong dataKind')
+    if (statevector%dataKind /= 8) call rti_abort('gsv_getFieldWrapper_r8: wrong dataKind')
     call gsv_getField_r48(statevector, field_r8_opt = field_r8, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r8
@@ -2980,7 +2981,7 @@ module gridStateVector_mod
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
-        call utl_abort('gsv_getField_r48: cannot specify a varName for VarsLevs mpi distribution')
+        call rti_abort('gsv_getField_r48: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
@@ -2991,7 +2992,7 @@ module gridStateVector_mod
           field_r8_opt(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
         end if
       else
-        call utl_abort('gsv_getField_r48: Unknown variable name! ' // varName_opt)
+        call rti_abort('gsv_getField_r48: Unknown variable name! ' // varName_opt)
       end if
     else
       if (gsv_getDataKind(statevector) == 4) then
@@ -3027,12 +3028,12 @@ module gridStateVector_mod
     k1=statevector%myVarLevBeg
 
     if (.not. associated(statevector%gd3d_r8)) then
-      call utl_abort('gsv_getField3D_r8: data with type r8 not allocated')
+      call rti_abort('gsv_getField3D_r8: data with type r8 not allocated')
     end if
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
-        call utl_abort('gsv_getField3D_r8: cannot specify a varName for VarsLevs mpi distribution')
+        call rti_abort('gsv_getField3D_r8: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
@@ -3043,7 +3044,7 @@ module gridStateVector_mod
           field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
         end if
       else
-        call utl_abort('gsv_getField3D_r8: Unknown variable name! ' // varName_opt)
+        call rti_abort('gsv_getField3D_r8: Unknown variable name! ' // varName_opt)
       end if
     else
       if (present(stepIndex_opt)) then
@@ -3079,12 +3080,12 @@ module gridStateVector_mod
     k1=statevector%myVarLevBeg
 
     if (.not. associated(statevector%gd3d_r4)) then
-      call utl_abort('gsv_getField3D_r4: data with type r4 not allocated')
+      call rti_abort('gsv_getField3D_r4: data with type r4 not allocated')
     end if
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
-        call utl_abort('gsv_getField3D_r4: cannot specify a varName for VarsLevs mpi distribution')
+        call rti_abort('gsv_getField3D_r4: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName_opt)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
@@ -3095,7 +3096,7 @@ module gridStateVector_mod
           field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
         end if
       else
-        call utl_abort('gsv_getField3D_r4: Unknown variable name! ' // varName_opt)
+        call rti_abort('gsv_getField3D_r4: Unknown variable name! ' // varName_opt)
       end if
     else
       if (present(stepIndex_opt)) then
@@ -3163,12 +3164,12 @@ module gridStateVector_mod
 
     if (gsv_getDataKind(statevector) == 4) then
       if (.not. associated(statevector%gdUV(varLevIndex)%r4)) then
-        call utl_abort('gsv_getFieldUV_r48: data with type r4 not allocated')
+        call rti_abort('gsv_getFieldUV_r48: data with type r4 not allocated')
       end if
       field_r4_opt(lon1:,lat1:,1:) => statevector%gdUV(varLevIndex)%r4(:,:,:)
     else
       if (.not. associated(statevector%gdUV(varLevIndex)%r8)) then
-        call utl_abort('gsv_getFieldUV_r48: data with type r8 not allocated')
+        call rti_abort('gsv_getFieldUV_r48: data with type r8 not allocated')
       end if
       field_r8_opt(lon1:,lat1:,1:) => statevector%gdUV(varLevIndex)%r8(:,:,:)
     end if
@@ -3237,7 +3238,7 @@ module gridStateVector_mod
     lon1 = statevector%myLonBeg
     lat1 = statevector%myLatBeg
 
-    if (.not. statevector%heightSfcPresent) call utl_abort('gsv_getHeightSfc: data not allocated')
+    if (.not. statevector%heightSfcPresent) call rti_abort('gsv_getHeightSfc: data not allocated')
 
     if (associated(statevector%HeightSfc)) then
       field(lon1:,lat1:) => statevector%HeightSfc(:,:)
@@ -3268,7 +3269,7 @@ module gridStateVector_mod
     lat1 = statevector%myLatBeg
 
     if (.not. stateVector%heightSfcLsPresent) then
-      call utl_abort('gsv_getHeightSfcLs: data not allocated')
+      call rti_abort('gsv_getHeightSfcLs: data not allocated')
     end if
 
     if (associated(statevector%HeightSfcLs)) then
@@ -3301,14 +3302,14 @@ module gridStateVector_mod
         if (stepIndex_opt.gt.0.and.stepIndex_opt.le.statevector%numStep) then
           dateStamp=statevector%dateStampList(stepIndex_opt)
         else
-          call utl_abort('gsv_getDateStamp: requested step is out of range! Step=' &
+          call rti_abort('gsv_getDateStamp: requested step is out of range! Step=' &
                //str(stepIndex_opt)//',numStep='//str(statevector%numStep))
         end if
       else
         dateStamp=statevector%dateStamp3D
       end if
     else
-      call utl_abort('gsv_getDateStamp: dateStampList was not created during allocation!')
+      call rti_abort('gsv_getDateStamp: dateStampList was not created during allocation!')
     end if
 
   end function gsv_getDateStamp
@@ -3393,14 +3394,14 @@ module gridStateVector_mod
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
 
     if (statevector_in%mpi_distribution /= 'VarsLevs') then
-      call utl_abort('gsv_transposeVarsLevsToTiles: input statevector must have VarsLevs mpi distribution')
+      call rti_abort('gsv_transposeVarsLevsToTiles: input statevector must have VarsLevs mpi distribution')
     end if
 
     if (statevector_out%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeVarsLevsToTiles: out statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeVarsLevsToTiles: out statevector must have Tiles mpi distribution')
     end if
 
-    call utl_tmg_start(164,'low-level--gsv_varsLevsToTiles')
+    call rti_tmg_start(164,'low-level--gsv_varsLevsToTiles')
 
     inKind = statevector_in%dataKind
     outKind = statevector_out%dataKind
@@ -3638,7 +3639,7 @@ module gridStateVector_mod
     statevector_out%deet = statevector_in%deet
     statevector_out%etiket = statevector_in%etiket
 
-    call utl_tmg_stop(164)
+    call rti_tmg_stop(164)
 
   end subroutine gsv_transposeVarsLevsToTiles
 
@@ -3688,11 +3689,11 @@ module gridStateVector_mod
     end if
 
     if (statevector_in%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution')
     end if
 
     if (statevector_out%mpi_distribution /= 'VarsLevs') then
-      call utl_abort('gsv_transposeTilesToVarsLevs: out statevector must have VarsLevs mpi distribution')
+      call rti_abort('gsv_transposeTilesToVarsLevs: out statevector must have VarsLevs mpi distribution')
     end if
 
     inKind = statevector_in%dataKind
@@ -3704,9 +3705,9 @@ module gridStateVector_mod
     end if
 
     if (sendrecvKind == 4) then
-      call utl_tmg_start(165,'low-level--gsv_tilesToVarsLevs_r4')
+      call rti_tmg_start(165,'low-level--gsv_tilesToVarsLevs_r4')
     else
-      call utl_tmg_start(166,'low-level--gsv_tilesToVarsLevs_r8')
+      call rti_tmg_start(166,'low-level--gsv_tilesToVarsLevs_r8')
     end if
 
     maxkCount = maxval(statevector_out%allVarLevCount(:))
@@ -3761,7 +3762,7 @@ module gridStateVector_mod
         end do
         !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 before alltoall mpi comm')
+        call rti_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
       if (mmpi_nprocs > 1) then
@@ -3824,7 +3825,7 @@ module gridStateVector_mod
         end do
         !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 after alltoall mpi comm')
+        call rti_abort('gsv_transposeTilesToVarsLevs: Incompatible mix of real 4 and 8 after alltoall mpi comm')
       end if
 
       ! send copy of wind component to task that has other component
@@ -3996,9 +3997,9 @@ module gridStateVector_mod
     end if
 
     if (sendrecvKind == 4) then
-      call utl_tmg_stop(165)
+      call rti_tmg_stop(165)
     else
-      call utl_tmg_stop(166)
+      call rti_tmg_stop(166)
     end if
 
   end subroutine gsv_transposeTilesToVarsLevs
@@ -4032,14 +4033,14 @@ module gridStateVector_mod
     real(4), allocatable :: gdUV_r4(:,:,:), gd_r4(:,:,:)
     real(8), allocatable :: gdUV_r8(:,:,:), gd_r8(:,:,:)
 
-    call utl_tmg_start(167,'low-level--gsv_tilesToVarsLevsAD')
+    call rti_tmg_start(167,'low-level--gsv_tilesToVarsLevsAD')
 
     if (statevector_in%mpi_distribution /= 'VarsLevs') then
-      call utl_abort('gsv_transposeTilesToVarsLevsAd: input statevector must have VarsLevs mpi distribution')
+      call rti_abort('gsv_transposeTilesToVarsLevsAd: input statevector must have VarsLevs mpi distribution')
     end if
 
     if (statevector_out%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeTilesToVarsLevsAd: out statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeTilesToVarsLevsAd: out statevector must have Tiles mpi distribution')
     end if
 
     inKind = statevector_in%dataKind
@@ -4050,7 +4051,7 @@ module gridStateVector_mod
     else if (inKind == 8 .and. outKind == 8) then
       sendrecvKind = 8
     else
-      call utl_abort('gsv_transposeTilesToVarsLevsAd: input and output must have same dataKind')
+      call rti_abort('gsv_transposeTilesToVarsLevsAd: input and output must have same dataKind')
     end if
 
     do stepIndex = 1, statevector_out%numStep
@@ -4250,7 +4251,7 @@ module gridStateVector_mod
         end do
         !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 before alltoall mpi comm')
+        call rti_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 before alltoall mpi comm')
       end if
 
       if (mmpi_nprocs > 1) then
@@ -4304,7 +4305,7 @@ module gridStateVector_mod
         end do
         !$OMP END PARALLEL DO
       else
-        call utl_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 after alltoall mpi comm')
+        call rti_abort('gsv_transposeTilesToVarsLevsAd: Incompatible mix of real 4 and 8 after alltoall mpi comm')
       end if
 
     end do ! stepIndex
@@ -4387,7 +4388,7 @@ module gridStateVector_mod
     ! Copy over the mask, if it exists
     call gsv_copyMask(statevector_in, statevector_out)
 
-    call utl_tmg_stop(167)
+    call rti_tmg_stop(167)
 
   end subroutine gsv_transposeTilesToVarsLevsAd
 
@@ -4458,7 +4459,7 @@ module gridStateVector_mod
         call msg('gsv_horizSubSample', &
                              'original subsample level='//str(statevector_in%horizSubSample) &
              //new_line('')//'new      subsample level='//str(statevector_out%horizSubSample))
-        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
+        call rti_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
 
@@ -4504,7 +4505,7 @@ module gridStateVector_mod
         call msg('gsv_horizSubSample', &
                              'original subsample level='//str(statevector_in%horizSubSample) &
              //new_line('')//'new      subsample level='//str(statevector_out%horizSubSample))
-        call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
+        call rti_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
 
@@ -4559,10 +4560,10 @@ module gridStateVector_mod
     real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
     real(4), pointer     :: field_in_r4(:,:,:,:), field_out_r4(:,:,:,:)
 
-    call utl_tmg_start(162,'low-level--gsv_stepToVarsLevs')
+    call rti_tmg_start(162,'low-level--gsv_stepToVarsLevs')
 
     if (statevector_VarsLevs%mpi_distribution /= 'VarsLevs') then
-      call utl_abort('gsv_transposeStepToVarsLevs: output statevector must have VarsLevs mpi distribution')
+      call rti_abort('gsv_transposeStepToVarsLevs: output statevector must have VarsLevs mpi distribution')
     end if
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
@@ -4573,7 +4574,7 @@ module gridStateVector_mod
     ! first do surface height, just need to copy over on task 0, assuming task 0 read a file
     if (mmpi_myid == 0 .and. stateVector_VarsLevs%heightSfcPresent) then
       if (.not.stateVector_1step_r4%allocated) then
-        call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
+        call rti_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
       end if
       stateVector_VarsLevs%HeightSfc(:,:) = stateVector_1step_r4%HeightSfc(:,:)
       if (stateVector_VarsLevs%heightSfcLsPresent) then
@@ -4651,7 +4652,7 @@ module gridStateVector_mod
           varLevIndex2 = varLevIndex + stateVector_VarsLevs%allVarLevBeg(procIndex) - 1
           if (varLevIndex2 <= stateVector_VarsLevs%allVarLevEnd(procIndex)) then
             if(procIndex > numVarLevToSend) then
-              call utl_abort('gsv_transposeStepToVarsLevs: ERROR with numVarLevToSend? '&
+              call rti_abort('gsv_transposeStepToVarsLevs: ERROR with numVarLevToSend? '&
                    //'procIndex='//str(procIndex) &
                    //', numVarLevToSend = '//str(numVarLevToSend))
             end if
@@ -4673,7 +4674,7 @@ module gridStateVector_mod
 
         stepIndex = stepIndex + 1
         if (stepIndex > stateVector_VarsLevs%numStep) then
-          call utl_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
+          call rti_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
         end if
 
         ! all tasks copy the received step data into correct slot
@@ -4722,7 +4723,7 @@ module gridStateVector_mod
 
           stepIndex = stepIndex + 1
           if (stepIndex > stateVector_VarsLevs%numStep) then
-            call utl_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
+            call rti_abort('gsv_transposeStepToVarsLevs: stepIndex > numStep')
           end if
 
           ! all tasks copy the received step data into correct slot
@@ -4752,7 +4753,7 @@ module gridStateVector_mod
     call msg_memUsage('gsv_transposeStepToVarsLevs')
     call msg('gsv_transposeStepToVarsLevs','END', verb_opt=2)
 
-    call utl_tmg_stop(162)
+    call rti_tmg_stop(162)
 
   end subroutine gsv_transposeStepToVarsLevs
 
@@ -4792,10 +4793,10 @@ module gridStateVector_mod
 
     call mmpi_barrier(doAlways_opt=.false.)
 
-    call utl_tmg_start(163,'low-level--gsv_stepToTiles')
+    call rti_tmg_start(163,'low-level--gsv_stepToTiles')
 
     if (statevector_tiles%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
     end if
 
     call msg('gsv_transposeStepToTiles','START', verb_opt=2)
@@ -4882,7 +4883,7 @@ module gridStateVector_mod
     else if (stateVector_tiles%dataKind == 8) then
       call gsv_getField(stateVector_tiles,field_out_r8_ptr)
     else
-      call utl_abort('gsv_transposeStepToTiles: stateVector_tiles%dataKind not real 4 or 8')
+      call rti_abort('gsv_transposeStepToTiles: stateVector_tiles%dataKind not real 4 or 8')
     end if
 
     varLevIndex_Loop: do varLevIndex = 1, stateVector_tiles%numVarLev
@@ -4931,7 +4932,7 @@ module gridStateVector_mod
                                            stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1), &
                                            varLevIndex, 1), (/ nsize /))
             else
-              call utl_abort('gsv_stepToTiles: unexpected combination of real kinds')
+              call rti_abort('gsv_stepToTiles: unexpected combination of real kinds')
             end if
           end do
         end do
@@ -4956,7 +4957,7 @@ module gridStateVector_mod
         stepCount = stepCount + 1
         stepIndex = stepIndex + 1
         if (stepIndex > stateVector_tiles%numStep) then
-          call utl_abort('gsv_transposeStepToTiles: stepIndex > numStep')
+          call rti_abort('gsv_transposeStepToTiles: stepIndex > numStep')
         end if
         if (sendrecvKind == 4 .and. stateVector_tiles%dataKind == 4) then
           field_out_r4_ptr(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
@@ -4997,7 +4998,7 @@ module gridStateVector_mod
       ! prepare data to send from task 0
       if (mmpi_myid == 0) then
         if (.not. stateVector_1step%allocated) then
-          call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
+          call rti_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfc')
         end if
 
         allocate(gd_send_height(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mmpi_nprocs))
@@ -5040,7 +5041,7 @@ module gridStateVector_mod
         ! prepare data to send from task 0
         if (mmpi_myid == 0) then
           if (.not. stateVector_1step%allocated) then
-            call utl_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfcLs')
+            call rti_abort('gsv_transposeStepToVarsLevs: Problem with HeightSfcLs')
           end if
 
           gd_send_height(:,:,:) = 0.0d0
@@ -5086,7 +5087,7 @@ module gridStateVector_mod
 
     call msg('gsv_transposeStepToTiles','END', verb_opt=2)
 
-    call utl_tmg_stop(163)
+    call rti_tmg_stop(163)
 
   end subroutine gsv_transposeStepToTiles
 
@@ -5123,7 +5124,7 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
 
     if (statevector_tiles%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeTilesToStep: input statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeTilesToStep: input statevector must have Tiles mpi distribution')
     end if
 
     call mmpi_barrier(doAlways_opt=.false.)
@@ -5225,7 +5226,7 @@ module gridStateVector_mod
         stepCount = stepCount + 1
         stepIndex = stepIndex + 1
         if (stepIndex > stateVector_tiles%numStep) then
-          call utl_abort('gsv_transposeTilesToStep: stepIndex > numStep')
+          call rti_abort('gsv_transposeTilesToStep: stepIndex > numStep')
         end if
 
         if (sendrecvKind == 4 .and. stateVector_tiles%dataKind == 4) then
@@ -5244,7 +5245,7 @@ module gridStateVector_mod
                                stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd,  &
                                varLevIndex, stepIndex)
         else
-          call utl_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
+          call rti_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
         end if
 
       end do ! procIndex
@@ -5309,7 +5310,7 @@ module gridStateVector_mod
           !$OMP END PARALLEL DO
 
         else
-          call utl_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
+          call rti_abort('gsv_transposeTilesToStep: unexpected combination of real kinds')
         end if
 
       end if
@@ -5445,12 +5446,12 @@ module gridStateVector_mod
     real(8), pointer     :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
 
     if (stateVector_tiles%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeTilesToMpiGlobal: input statevector must have Tiles mpi distribution')
+      call rti_abort('gsv_transposeTilesToMpiGlobal: input statevector must have Tiles mpi distribution')
     end if
 
     if (stateVector_mpiGlobal%allocated) then
       if (stateVector_mpiGlobal%numStep /= stateVector_tiles%numStep) then
-        call utl_abort('gsv_transposeTilesToMpiGlobal: input and output ' // &
+        call rti_abort('gsv_transposeTilesToMpiGlobal: input and output ' // &
                        'stateVectors must have same numStep')
       end if
     end if
@@ -5659,10 +5660,10 @@ module gridStateVector_mod
     integer          :: k1,k2
 
     if (.not.stateVector_a%allocated) then
-      call utl_abort('gsv_dotProduct: gridStateVector_in not yet allocated')
+      call rti_abort('gsv_dotProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_b%allocated) then
-      call utl_abort('gsv_dotProduct: gridStateVector_inout not yet allocated')
+      call rti_abort('gsv_dotProduct: gridStateVector_inout not yet allocated')
     end if
 
     lon1 = stateVector_a%myLonBeg
@@ -5865,7 +5866,6 @@ module gridStateVector_mod
     type(struct_gsv), target  :: stateVector_varsLevs
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, latIndex2, lonIndex2
     integer :: myBinInteger, gridIndex, gridIndex2
-    integer, external :: omp_get_thread_num
     integer, allocatable :: subGridIndex(:)
     real(8), allocatable :: smoothedField(:,:)
     real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance, weight, sumWeight
@@ -5883,7 +5883,7 @@ module gridStateVector_mod
     real(kdkind)              :: searchRadiusSquared
     real(kdkind)              :: refPosition(3)
 
-    call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
+    call rti_tmg_start(169, 'low-level--gsv_smoothHorizontal')
 
     if (horizontalScale <= 0.0d0) then
       call msg('gsv_smoothHorizontal', 'specified scale <= 0, returning')
@@ -5905,7 +5905,7 @@ module gridStateVector_mod
       if (present(binRealThreshold_opt)) then
         binRealThreshold = binRealThreshold_opt
       else
-        call utl_abort('gsv_smoothHorizontal: a binRealThreshold_opt value must be provided with binReal_opt')
+        call rti_abort('gsv_smoothHorizontal: a binRealThreshold_opt value must be provided with binReal_opt')
       end if
     else
       binRealTest = .false.
@@ -5918,7 +5918,7 @@ module gridStateVector_mod
     end if
     if (horizSmoothShape /= 'tophat' .and. &
         horizSmoothShape /= 'gaussian') then
-      call utl_abort('gsv_smoothHorizontal: Invalid value of horizSmoothShape: ' // trim(horizSmoothShape))
+      call rti_abort('gsv_smoothHorizontal: Invalid value of horizSmoothShape: ' // trim(horizSmoothShape))
     end if
     if (horizSmoothShape == 'gaussian') then
       call lfn_Setup('FifthOrder')
@@ -6039,10 +6039,10 @@ module gridStateVector_mod
                                    results=searchResults)                 ! OUT
 
             if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-              call utl_abort('gsv_smoothHorizontal: The parameter maxNumLocalGridPointsSearch must be increased')
+              call rti_abort('gsv_smoothHorizontal: The parameter maxNumLocalGridPointsSearch must be increased')
             end if
             if (numLocalGridPointsFound == 0) then
-              call utl_abort('gsv_smoothHorizontal: No nearby grid points found. This should not happen.')
+              call rti_abort('gsv_smoothHorizontal: No nearby grid points found. This should not happen.')
             end if
 
             sumWeight = 0.0D0
@@ -6121,7 +6121,7 @@ module gridStateVector_mod
       call gsv_deallocate(statevector_varsLevs)
     end if
 
-    call utl_tmg_stop(169)
+    call rti_tmg_stop(169)
 
   end subroutine gsv_smoothHorizontal
 

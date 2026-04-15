@@ -1,24 +1,24 @@
 program midas_sstBias
   !
-  !:Purpose: Main program to compute Sea Surface Temperature (SST) 
+  !:Purpose: Main program to compute Sea Surface Temperature (SST)
   !          satellite observations bias estimate.
-  !          
+  !
   !          ---
   !
   !:Algorithm: The bias estimation of SST satellite observations is computed
   !            with respect to insitu observations that are considered unbiased.
   !            The bias estimation is produced for each sensor separately
   !            for day and night time.
-  !  
+  !
   !            --
   !
-  !            First, each dataset is put on a regular grid using a small 
+  !            First, each dataset is put on a regular grid using a small
   !            search radius (of ~25 km). It is currently a 1800x900 Gaussian grid.
   !            Second, the bias estimation at every gridpoint is computed as
   !            an average difference between satellite and insitu observations
   !            between all collocated valid satellite and insitu observations
   !            within a larger search radius (of ~1500km).
-  !            
+  !
   !            --
   !
   !            The resulting bias estimation :math:`B_{a}(k)` at point :math:`k`
@@ -43,7 +43,7 @@ program midas_sstBias
   ! ``searchRadius``                                           In - 'Large' search radius field to compute biases
   ! ``trlm_01``                                                In - Background state of the bias estimation
   ! ``satellite_bias.fst``                                     Out - Bias estimations
-  ! ``auxOutput.fst``                                          Out - Auxiliary output (optional): 
+  ! ``auxOutput.fst``                                          Out - Auxiliary output (optional):
   !                                                            number of observations and weight fields
   !=========================================================== ========================================================
   !
@@ -65,14 +65,14 @@ program midas_sstBias
   !
   !             - ``ocm_readMaskFromFile`` get the land-ocean mask
   !
-  !             - ``oobs_computeObsData`` compute pseudo observation values 
+  !             - ``oobs_computeObsData`` compute pseudo observation values
   !                and their coordinates and save them in SQLite files.
   !
   !             - ``sstb_getGriddedObs`` get all datasets on a regular grid
   !
   !             - ``sstb_getGriddedBias`` compute bias estimation for each sensor,
   !                for day time or night time on a regular grid,
-  !                and save the results into an output standard file.  
+  !                and save the results into an output standard file.
   !           --
   !
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#sstbias>`_
@@ -81,18 +81,18 @@ program midas_sstBias
   !          * The use of ``SSTbias`` program is controlled by the namelist block
   !            ``&namSSTbiasEstimate`` read by the ``SSTbias`` program.
   !
-  !              * ``iceFractionThreshold`` the sea-ice fraction threshold to define 
+  !              * ``iceFractionThreshold`` the sea-ice fraction threshold to define
   !                the presence of ice
   !
-  !              * ``searchRadius`` horizontal search radius for observation gridding 
+  !              * ``searchRadius`` horizontal search radius for observation gridding
   !
   !              * ``maxBias`` max allowed insitu-satellite difference in degrees
   !
-  !              * ``numberPointsBG`` :math:`N_{b}`, number of points to compute 
+  !              * ``numberPointsBG`` :math:`N_{b}`, number of points to compute
   !                the background bias estimation
   !
-  !              * ``sensorList`` name of sensor 
-  ! 
+  !              * ``sensorList`` name of sensor
+  !
   !              *  ``weightMin`` minimum value of weight
   !
   !              *  ``weightMax`` maximum value of weight
@@ -102,11 +102,12 @@ program midas_sstBias
   !              *  ``bgTermZeroBias`` background term to zero bias
   !
   !           --
-  !   
+  !
   use midasMpi_mod
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -119,21 +120,16 @@ program midas_sstBias
   use innovation_mod
   use sstBias_mod
   use columnData_mod
-  
+
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos
-  integer :: istamp
-
+  integer                     :: dateStampFromObs
   type(struct_obs), target    :: obsSpaceData
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
+  type(struct_columnData)     :: column
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES'
   character(len=48),parameter :: varMode        = 'analysis'
-  type(struct_columnData)     :: column                  ! column data
-  integer                     :: dateStampFromObs
-  
-  istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
   call ver_printNameAndVersion('SSTbias','SST Bias Estimation')
 
@@ -142,8 +138,8 @@ program midas_sstBias
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   ! 1. Top level setup
 
@@ -158,7 +154,7 @@ program midas_sstBias
 
   ! Do initial set up
   call SSTbias_setup('VAR') ! obsColumnMode
-  
+
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl)
 
   ! Deallocate copied obsSpaceData
@@ -167,10 +163,8 @@ program midas_sstBias
 
   ! 3. Job termination
 
-  istamp = exfin('SSTBIAS','FIN','NON')
-
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -186,10 +180,10 @@ program midas_sstBias
 
     ! Arguments:
     character(len=*), intent(in)  :: obsColumnMode
-    
+
     ! Locals:
     character(len=*), parameter :: gridFile = './analysisgrid'
-    
+
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
     write(*,*) '-- Starting subroutine SSTbias_setup --'
@@ -200,7 +194,7 @@ program midas_sstBias
     !
     call tim_setup()
 
-    !     
+    !
     !- Initialize observation file names and set dateStamp
     !
     call obsf_setup(dateStampFromObs, varMode)
@@ -209,7 +203,7 @@ program midas_sstBias
         ! use dateStamp from obs if not set by env variable
         call tim_setDateStamp(dateStampFromObs)
       else
-        call utl_abort('SSTbias_setup: DateStamp was not set')
+        call rti_abort('SSTbias_setup: DateStamp was not set')
       end if
     end if
 
@@ -231,7 +225,7 @@ program midas_sstBias
     if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'GRID' ) ! IN
 
-    !     
+    !
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
     call vco_SetupFromFile(vco_anl, & ! OUT
@@ -251,7 +245,7 @@ program midas_sstBias
     call col_allocate(column, obs_numHeader(obsSpaceData))
 
     if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: done.'
-    
+
   end subroutine SSTbias_setup
 
 end program midas_sstBias

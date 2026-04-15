@@ -15,6 +15,7 @@ module increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
@@ -89,10 +90,10 @@ CONTAINS
              mpiAll_opt=.false.)
       else
         ! Reading the namelist
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=naminc, iostat=ierr)
-        if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
-        call utl_tmg_stop(181)
+        if ( ierr /= 0) call rti_abort('readNameList: Error reading namelist')
+        call rti_tmg_stop(181)
       end if
       if ( mmpi_myid == 0 ) write(*,nml=naminc)
     end if
@@ -137,14 +138,14 @@ CONTAINS
     call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
     call msg_memUsage('inc_computeHighResAnalysis')
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(81,'----ComputeHighResAnalysis')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(81,'----ComputeHighResAnalysis')
 
     ! Set/Read values for the namelist NAMINC
     call readNameList
 
     if ( gsv_isAllocated(stateVectorPsfcHighRes) ) then
-      call utl_abort('inc_computeHighResAnalysis: '&
+      call rti_abort('inc_computeHighResAnalysis: '&
                       //'stateVectorPsfcHighRes should not be allocated yet')
     end if
 
@@ -314,8 +315,8 @@ CONTAINS
     if ( gsv_isAllocated(statevectorRef) ) call gsv_deallocate(statevectorRef)
     if ( gsv_isAllocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
 
-    call utl_tmg_stop(81)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(81)
+    call rti_tmg_stop(80)
 
     call msg('inc_computeHighResAnalysis', 'END', verb_opt=2)
 
@@ -349,8 +350,8 @@ CONTAINS
     call msg('inc_analPostProcessing', 'START', verb_opt=2)
     call msg_memUsage('inc_analPostProcessing')
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(82,'----AnalPostProcessing')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(82,'----AnalPostProcessing')
 
     ! Re-read trials to make stateVectorTrial with degraded timesteps available
     hco_trl => gsv_getHco(stateVectorUpdateHighRes)
@@ -443,8 +444,8 @@ CONTAINS
       call gvt_transform(stateVectorAnal, 'CH_bounds')
     end if
 
-    call utl_tmg_stop(82)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(82)
+    call rti_tmg_stop(80)
 
     call msg('inc_analPostProcessing', 'END', verb_opt=2)
 
@@ -488,8 +489,8 @@ CONTAINS
     call msg('inc_writeIncAndAnalHighRes', 'START', verb_opt=2)
     call msg_memUsage('inc_writeIncAndAnalHighRes')
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(83,'----WriteIncAndAnalHighRes')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(83,'----WriteIncAndAnalHighRes')
 
     numStep = tim_nstepobsinc
     hco_trl => gsv_getHco(stateVectorTrial)
@@ -632,8 +633,8 @@ CONTAINS
     call gsv_deallocate(stateVectorIncHighRes)
     call gsv_deallocate(stateVectorTrial)
 
-    call utl_tmg_stop(83)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(83)
+    call rti_tmg_stop(80)
 
     call msg('inc_writeIncAndAnalHighRes', 'END', verb_opt=2)
 
@@ -653,8 +654,8 @@ CONTAINS
     type(struct_gsv), intent(inout) :: statevector_incr ! stateVector object with resulting increment
     integer,          intent(in)    :: nvadim_mpilocal  ! mpi local dimension of control vector
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(84,'----GetIncrement')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(84,'----GetIncrement')
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB( incr_cv, nvadim_mpilocal, statevector_incr )
@@ -671,8 +672,8 @@ CONTAINS
       end if
     end if
 
-    call utl_tmg_stop(84)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(84)
+    call rti_tmg_stop(80)
 
   end subroutine inc_getIncrement
 
@@ -699,8 +700,8 @@ CONTAINS
 
     call msg('inc_writeIncrement', 'START', verb_opt=2)
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(85,'----WriteIncrement')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(85,'----WriteIncrement')
 
     numStep = tim_nstepobsinc
 
@@ -793,8 +794,8 @@ CONTAINS
 
     end if local
 
-    call utl_tmg_stop(85)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(85)
+    call rti_tmg_stop(80)
 
     call msg('inc_writeIncrement', 'END', verb_opt=2)
 
@@ -820,8 +821,8 @@ CONTAINS
 
     call msg('inc_writeAnalysis', 'START', verb_opt=2)
 
-    call utl_tmg_start(80,'--Increment')
-    call utl_tmg_start(86,'----WriteAnalysis')
+    call rti_tmg_start(80,'--Increment')
+    call rti_tmg_start(86,'----WriteAnalysis')
 
     !
     !- Set/Read values for the namelist NAMINC
@@ -848,8 +849,8 @@ CONTAINS
       end if
     end do
 
-    call utl_tmg_stop(86)
-    call utl_tmg_stop(80)
+    call rti_tmg_stop(86)
+    call rti_tmg_stop(80)
 
     call msg('inc_writeAnalysis', 'END', verb_opt=2)
   end subroutine inc_writeAnalysis
@@ -886,14 +887,14 @@ CONTAINS
 
     ! Error traps
     if ( .not. gsv_isAllocated(statevector_in) ) then
-      call utl_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
+      call rti_abort('inc_interpolateAndAdd: gridStateVector_in not yet allocated! Aborting.')
     end if
     if ( .not. gsv_isAllocated(statevector_inout) ) then
-      call utl_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
+      call rti_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
     end if
     if ( present(statevectorRef_opt) ) then
       if ( statevector_in%numstep /= statevectorRef_opt%numstep) then
-        call utl_abort('inc_interpolateAndAdd: statevector_in and statevectorRef_opt numstep inconsistent')
+        call rti_abort('inc_interpolateAndAdd: statevector_in and statevectorRef_opt numstep inconsistent')
       end if
     end if
 

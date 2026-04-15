@@ -15,6 +15,7 @@ module obsFlags_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -139,7 +140,7 @@ contains
 
     if (.not. isValid) then
       write(*,*) 'Supplied bit number is: ', bitNumber
-      call utl_abort('bitNumberIsValidScalar (flg): This value is not valid. Ensure using flag variables defined in obsFlags_mod.')
+      call rti_abort('bitNumberIsValidScalar (flg): This value is not valid. Ensure using flag variables defined in obsFlags_mod.')
     end if
 
   end subroutine checkBitNumberIsValidScalar
@@ -163,7 +164,7 @@ contains
 
     if (.not. isValid) then
       write(*,*) 'Supplied bit numbers are: ', bitNumbers(:)
-      call utl_abort('bitNumberIsValidArray (flg): This value is not valid. Ensure using flag variables defined in obsFlags_mod.')
+      call rti_abort('bitNumberIsValidArray (flg): This value is not valid. Ensure using flag variables defined in obsFlags_mod.')
     end if
 
   end subroutine checkBitNumberIsValidArray
@@ -283,7 +284,7 @@ contains
       end do
     else
       write(*,*) 'booleanOper = ***', trim(booleanOper), '***'
-      call utl_abort('flg_flagsAreOnFromObsData: Only OR is implemented so far')
+      call rti_abort('flg_flagsAreOnFromObsData: Only OR is implemented so far')
     end if
 
   end function flg_flagsAreOnFromObsData
@@ -321,7 +322,7 @@ contains
       end do
     else
       write(*,*) 'booleanOper = ***', trim(booleanOper), '***'
-      call utl_abort('flg_flagsAreOnFromFlagInt: Only OR is implemented so far')
+      call rti_abort('flg_flagsAreOnFromFlagInt: Only OR is implemented so far')
     end if
 
   end function flg_flagsAreOnFromFlagInt

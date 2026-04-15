@@ -1736,7 +1736,7 @@ int main(int argc, char** argv) {
                     }
                   }
                 } /* for (i=0;i<opt.npex*opt.npey;i++) */
-              } 
+              }
               else {
                 App_Log(APP_ERROR,"Fonction main: Erreur dans le traitement de l'enregistrement a "
                         "l'adresse %d (%d rapport) et le bloc %d (btyp=%d, nval=%d).  Le nval est different "
@@ -2652,7 +2652,7 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
 
   /* On doit incrementer l'heure de recherche pour la date de validite en fonction de fst.dateo et fst.npas, fst.deet */
   forecast = ((double) fst.npas*fst.deet)/3600; /* prevision en heures */
-  f77name(incdatr)(&datev,&fst.dateo,&forecast);
+  incdatr_c(&datev,&fst.dateo,&forecast);
 
   key = c_fstinf(iun,&fst.ni,&fst.nj,&fst.nk,datev,fst.etiket,
                  fst.ip1,fst.ip2,fst.ip3,fst.typvar,fst.nomvar);
@@ -3458,7 +3458,7 @@ int which_btyp(int btyp) {
    *             print 'btyp_obs=%d btyp=%d et on ne splitte pas' % (btyp_obs,btyp)
    *
    * Pour avoir la fonction 'btyp' qui aide a demeler tous ces aspects, on fait
-   *     . ssmuse-sh -d /ssm/net/cmda/base/master
+   *     . ssmuse-sh -d eccc/cmd/cmda/utils/${version}
    *
    ***************************************************************************/
 int btypAssociated(int btyp_obs, int btyp) {

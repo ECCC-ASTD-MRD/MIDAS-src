@@ -144,6 +144,7 @@ program midas_diagHBHt
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
@@ -166,9 +167,6 @@ program midas_diagHBHt
 
   implicit none
 
-  integer :: istamp,exdb,exfin
-  integer :: ierr
-
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
@@ -183,8 +181,6 @@ program midas_diagHBHt
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
 
-  istamp = exdb('diagHBHt','DEBUT','NON')
-
   call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
 
   ! MPI initilization
@@ -192,8 +188,8 @@ program midas_diagHBHt
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   varMode='analysis'
 
@@ -257,10 +253,8 @@ program midas_diagHBHt
 
   ! 3. Job termination
 
-  istamp = exfin('diagHBHt','FIN','NON')
-
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -304,7 +298,7 @@ contains
       if (dateStampFromObs > 0) then
         call tim_setDatestamp(dateStampFromObs)
       else
-        call utl_abort('var_setup: dateStamp was not set')
+        call rti_abort('var_setup: dateStamp was not set')
       end if
     end if
 
@@ -406,7 +400,6 @@ contains
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
     integer :: index_body, local_dimension, jj, dateprnt, timeprnt, nrandseed, istat
-    integer ,external :: newdate
     real(8) ,external :: gasdev
 
     !
@@ -440,7 +433,7 @@ contains
     allocate(local_random_vector(cvm_nvadim),stat =istat )
 
     !- Initialize random number generator
-    ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
+    call tim_dateStampToYYYYMMDDHH(tim_getDatestamp(), dateprnt, timeprnt)
     nrandseed=100*dateprnt + int(timeprnt/100.0)
     write(*,*) 'diagHBHt: Random seed set to ',nrandseed
     call rng_setup(nrandseed)
@@ -451,7 +444,7 @@ contains
     call msg_memUsage('midas-diagHBHt')
     !- Extract only the subvector for this processor
     call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
-         random_vector)      ! IN
+                               random_vector)          ! IN
     local_dimension = size(local_random_vector)
     !- Transform to control variables in physical space
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)

@@ -6,6 +6,7 @@ module controlVector_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -50,7 +51,7 @@ contains
     integer :: dimVector_mpiglobal
 
     if ( numVectors == maxNumVectors ) then
-      call utl_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
+      call rti_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
     end if
 
     call mmpi_allReduce(dimVector, dimVector_mpiglobal, mmpi_sum)
@@ -62,7 +63,7 @@ contains
 
     if ( any(cvm_vector(:)%label == label) ) then
       write(*,*) 'cvm_setupSubVector: label = ', trim(label)
-      call utl_abort('cvm_setupSubVector: this label is already present')
+      call rti_abort('cvm_setupSubVector: this label is already present')
     end if
 
     cvm_vector(numVectors)%label = label
@@ -168,7 +169,7 @@ contains
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
 
     if( subVectorIndex < 0 ) then
-      call utl_abort('cvm_getSubVector: invalid subVector label')
+      call rti_abort('cvm_getSubVector: invalid subVector label')
     end if
 
     indexBeg = cvm_vector(subVectorIndex)%subVectorBeg
@@ -193,7 +194,7 @@ contains
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
 
     if( subVectorIndex < 0 ) then
-      call utl_abort('cvm_getSubVector_r4: invalid subVector label')
+      call rti_abort('cvm_getSubVector_r4: invalid subVector label')
     end if
 
     indexBeg = cvm_vector(subVectorIndex)%subVectorBeg
@@ -218,7 +219,7 @@ contains
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
 
     if( subVectorIndex < 0 ) then
-      call utl_abort('cvm_getSubVector_mpiglobal: invalid subVector label')
+      call rti_abort('cvm_getSubVector_mpiglobal: invalid subVector label')
     end if
 
     indexBeg = cvm_vector(subVectorIndex)%subVectorBeg_mpiglobal
@@ -243,7 +244,7 @@ contains
     subVectorIndex = cvm_indexFromLabel(subVectorLabel)
 
     if( subVectorIndex < 0 ) then
-      call utl_abort('cvm_getSubVector_mpiglobal_r4: invalid subVector label')
+      call rti_abort('cvm_getSubVector_mpiglobal_r4: invalid subVector label')
     end if
 
     indexBeg = cvm_vector(subVectorIndex)%subVectorBeg_mpiglobal

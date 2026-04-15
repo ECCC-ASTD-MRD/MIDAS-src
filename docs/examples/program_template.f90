@@ -3,17 +3,22 @@ program main_midasprogramtemplate
   !
   !:Purpose: Include here a short description of the purpose of the program
 
+  use rmn_fnom
+  use rmn_date
   use midasMpi_mod
+  use version_mod
+  use message_mod
   use mathPhysConstants_mod
+  use runtimeInfo_mod
   use controlVector_mod
   use gridStateVector_mod
   use bmatrix_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use randomNumber_mod
-  use utilities_mod
+  use lamAnalysisGridTransforms_mod
+
   implicit none
 
   type(struct_gsv) :: statevector
@@ -22,24 +27,18 @@ program main_midasprogramtemplate
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
 
-  integer :: fclos,fnom,newdate,nstamp
+  integer :: nstamp
   integer :: ierr,status
-  integer :: jmem,i,j,k,nkgdim
-  integer :: idate,itime,ndate,nulnam,cvDim_local
-  integer :: get_max_rss
-  integer :: LatPerPE, myLatBeg, myLatEnd
-  integer :: LonPerPE, myLonBeg, myLonEnd
+  integer :: nkgdim
+  integer :: idate,itime,ndate,nulnam
+  integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+  integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
 
   real(8), allocatable :: controlVector(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
-  real(8), allocatable :: avg_pturb_var(:)
-  real(8), allocatable :: avg_pturb_var_glb(:)
-  real(8), allocatable :: pturb_var(:,:,:)
 
   character(len=10) :: cldate
-  character(len=3)  :: clmember
-  character(len=25) :: clfiname
   character(len=12) :: etiket
 
   ! namelist variables
@@ -49,12 +48,7 @@ program main_midasprogramtemplate
 
   namelist /NAMENKF/nens, seed, date
 
-  write(*,'(/,' //                                            &
-            '3(" *****************"),/,' //                   &
-            '14x,"-- START OF MAIN MAIN_MIDASPROGRAMTEMPLATE --",/,' //   &
-            '14x,"-- Generation of random perturbations --",/, ' //  &
-            '14x,"-- VAR Revision number ",a," --",/,' //  &
-            '3(" *****************"))') top_crevision
+  call ver_printNameAndVersion('midas-programtemplate','Example program to show how to use the MIDAS library')
 
   !
   !- 0. MPI, tmg initialization
@@ -62,7 +56,7 @@ program main_midasprogramtemplate
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_MIDASPROGRAMTEMPLATE')
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 1. Set/Read values for the namelist NAMENKF
@@ -77,14 +71,14 @@ program main_midasprogramtemplate
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namenkf, iostat=ierr)
-  if(ierr /= 0) call utl_abort('main_midasprogramtemplate: Error reading namelist')
+  if(ierr /= 0) call rti_abort('main_midasprogramtemplate: Error reading namelist')
   write(*,nml=namenkf)
   ierr = fclos(nulnam)
 
   ndate = date
   write(cldate,'(I10)') ndate
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 2.  Initialization
@@ -94,7 +88,7 @@ program main_midasprogramtemplate
   !      calculate date-time stamp for postproc.ftn
   idate = ndate/100
   itime = (ndate-idate*100)*1000000
-  ierr = newdate(nstamp, idate, itime, 3)
+  nstamp = tim_yyyymmddhhToDatestamp(idate, itime)
   write(*,*)' idate= ',idate,' time= ',itime
   write(*,*)' date= ',ndate,' stamp= ',nstamp
 
@@ -113,18 +107,18 @@ program main_midasprogramtemplate
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis')
 
   if (hco_anl%global) then
-    call agd_SetupFromHCO(hco_anl)
+    call lgt_SetupFromHCO(hco_anl)
   else
     !- Initialized the core (Non-Extended) analysis grid
     call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore')
     !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO(hco_anl, hco_core)
+    call lgt_setupFromHCO(hco_anl, hco_core)
   end if
 
-  call mmpi_setup_latbands(hco_anl % nj,                & ! IN
-                           latPerPE, myLatBeg, myLatEnd ) ! OUT
-  call mmpi_setup_lonbands(hco_anl % ni,                & ! IN
-                           lonPerPE, myLonBeg, myLonEnd ) ! OUT
+  call mmpi_setup_latbands(hco_anl%nj,                  & ! IN
+                           latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
+  call mmpi_setup_lonbands(hco_anl%ni,                  & ! IN
+                           lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
   !- 2.4 Initialize the vertical coordinate from the statistics file
   if (hco_anl % global) then
@@ -135,9 +129,8 @@ program main_midasprogramtemplate
   call vco_SetupFromFile(vco_anl, './bgcov', etiket)
 
   !- 2.5 Initialize the B_hi matrix
-  call bmat_setup(hco_anl, vco_anl)
-
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call bmat_setup(hco_anl, hco_core, vco_anl)
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 3. Memory allocations
@@ -145,19 +138,19 @@ program main_midasprogramtemplate
 
   !- 3.1 Allocate the statevector
   call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
-                    dateStamp=nstamp, mpi_local=.true.)
-  nkgdim = statevector%nk
+                    dateStamp_opt=nstamp, mpi_local_opt=.true.)
+  nkgdim = statevector%numVarLev
   allocate(ensemble_r4(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim,nEns))
 
   !- 3.2 Allocate auxillary variables
   allocate(gdmean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim), STAT=status)
   if (status /= 0) then
-    call utl_abort('main_midasprogramtemplate: PROBLEM WITH ALLOCATING OF GDMEAN')
+    call rti_abort('midas-programtemplate: PROBLEM WITH ALLOCATING OF GDMEAN')
   end if
 
   allocate(controlVector(cvm_nvadim))
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 4. Compute an ensemble of random perturbations
@@ -179,13 +172,13 @@ program main_midasprogramtemplate
   !
   deallocate(gdmean,STAT=status)
   if (status /= 0) then
-    call utl_abort('main_midasprogramtemplate: PROBLEM WITH DEALLOCATE OF GDMEAN')
+    call rti_abort('midas-programtemplate: PROBLEM WITH DEALLOCATE OF GDMEAN')
   end if
 
   deallocate(ensemble_r4)
   deallocate(controlVector)
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 6.  MPI, tmg finalize
@@ -193,13 +186,13 @@ program main_midasprogramtemplate
   call tmg_terminate(mmpi_myid, 'TMG_MIDASPROGRAMTEMPLATE' )
   call mmpi_finalize
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-programtemplate')
 
   !
   !- 7.  Ending
   !
   write(*,*) ' --------------------------------'
-  write(*,*) ' MAIN_MIDASPROGRAMTEMPLATE ENDS'
+  write(*,*) ' MIDAS-PROGRAMTEMPLATE ENDS'
   write(*,*) ' --------------------------------'
 
 end program main_midasprogramtemplate

@@ -7,6 +7,7 @@ module innovation_mod
   !           the subroutine that reads in the gridded high-res background state
   !           from standard files.
   !
+  use rmn_fnom
   use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -19,6 +20,7 @@ module innovation_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use obsFilter_mod
   use gps_mod
@@ -69,13 +71,13 @@ contains
 
     ! Locals:
     character(len=20) :: nameDimFile
-    integer :: ierr, fnom, fclos, unitDimFile, mxstn, mxobs
+    integer :: ierr, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
 
     write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
     !
     !- Setup de the mode
@@ -118,9 +120,9 @@ contains
     !
     !- Read the observations from files
     !
-    call utl_tmg_start(11,'----ReadObsFiles')
+    call rti_tmg_start(11,'----ReadObsFiles')
     call obsf_readFiles(obsSpaceData)
-    call utl_tmg_stop(11)
+    call rti_tmg_stop(11)
 
     !
     !- Initialize GPS processing
@@ -183,7 +185,7 @@ contains
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine inn_setupobs
 
@@ -223,11 +225,11 @@ contains
     numObsBatches     = 20
 
     if (utl_isNamelistPresent('naminn','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=naminn, iostat=ierr)
-      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
+      if (ierr /= 0) call rti_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=naminn)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'
@@ -461,7 +463,7 @@ contains
 
     logical, save :: lgpdata = .false.
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
     if (present(beSilent_opt)) then
       beSilent = beSilent_opt
@@ -543,7 +545,7 @@ contains
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
-    call utl_tmg_start(17,'----ObsOper_NL')
+    call rti_tmg_start(17,'----ObsOper_NL')
 
     ! Radiosondes
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
@@ -634,7 +636,7 @@ contains
                                      destObsColumn, analysisMode_opt=analysisMode)
     end if
 
-    call utl_tmg_stop(17)
+    call rti_tmg_stop(17)
 
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
@@ -657,7 +659,7 @@ contains
       write(*,*) '--Done subroutine inn_computeInnovation--'
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine inn_computeInnovation
 
@@ -682,7 +684,8 @@ contains
     real    :: xpos_r4, ypos_r4
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
-    integer :: gdxyfll
+    ! external definitions
+    integer, external :: gdxyfll
 
     !
     !- Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
@@ -751,11 +754,11 @@ contains
        end do
     case ('LATLONTILESBALANCED')
        !- Distribute by latitude/longitude tiles, but with simple & cheap balancing for obs_ipc (1 send or recv):
-       call utl_abort('setObsMpiStrategy: Sorry, LATLONTILESBALANCED no longer available')
+       call rti_abort('setObsMpiStrategy: Sorry, LATLONTILESBALANCED no longer available')
     case default
        write(*,*)
        write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
-       call utl_abort('setObsMpiStrategy')
+       call rti_abort('setObsMpiStrategy')
     end select
 
   end subroutine setObsMpiStrategy

@@ -5,6 +5,7 @@ module obsSpaceDiag_mod
   !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
+  use rmn_fnom
   use midasMpi_mod
   use codePrecision_mod
   use bufr_mod
@@ -26,6 +27,7 @@ module obsSpaceDiag_mod
   use randomNumber_mod
   use obsOperators_mod
   use utilities_mod
+  use runtimeInfo_mod
   use physicsfunctions_mod
   use obsSubSpaceData_mod
   use obsfiles_mod
@@ -177,8 +179,7 @@ contains
 
     ! Locals:
     logical :: nmlExists,anlm_mod
-    integer :: ierr
-    integer :: dateprnt,timeprnt,newdate
+    integer :: dateprnt,timeprnt
 
     if (present(analysisMode_opt)) then
        anlm_mod = analysisMode_opt
@@ -187,7 +188,7 @@ contains
     end if
 
     call osd_setup(nmlExists)
-    ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
+    call tim_dateStampToYYYYMMDDHH(tim_getDatestamp(),dateprnt,timeprnt)
     dateprnt=dateprnt*100+timeprnt/1000000
 
     ! Perform diagnostics based on OmP (and OmA if available)
@@ -229,7 +230,7 @@ contains
     integer, allocatable :: counts(:,:,:)
     real(8), allocatable :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
     integer, allocatable :: my_counts(:,:,:)
-    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
+    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,ivco,ivco_recv,iseed,jj,jlev,jvar
     integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
     real(8), pointer         :: cvBhi(:), cvBen(:), cvBchm(:)
@@ -462,7 +463,7 @@ contains
             else if(latIndex > maxLat .or. lonIndex > maxLon .or. verticalIndex > maxVertical) then
                write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
                           ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
-               call utl_abort('osd_calcInflation')
+               call rti_abort('osd_calcInflation')
             endif
 
             ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
@@ -699,17 +700,17 @@ contains
       return
     else
       ! read namosd namelist
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namosd, iostat=ierr)
-      if(ierr /= 0) call utl_abort('osd_setup: Error reading namelist')
-      call utl_tmg_stop(181)
+      if(ierr /= 0) call rti_abort('osd_setup: Error reading namelist')
+      call rti_tmg_stop(181)
 
       nmlExists = .true.
     endif
 
     if(mmpi_myid == 0) write(*,nml=namosd)
     if (numFamily /= MPC_missingValue_INT) then
-      call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
+      call rti_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
     end if
     numFamily = 0
     do familyIndex = 1, ofl_numFamily
@@ -717,7 +718,7 @@ contains
        numFamily = numFamily + 1
     end do
     if (numElement /= MPC_missingValue_INT) then
-      call utl_abort('osd_setup: check NAMOSD namelist section: numElement should be removed')
+      call rti_abort('osd_setup: check NAMOSD namelist section: numElement should be removed')
     end if
     numElement = 0
     do elementIndex = 1, ofl_numFamily
@@ -726,9 +727,9 @@ contains
     end do
     do familyIndex = 1, numFamily
       if ( .not. ofl_isFamilyTypeInList(familyList(familyIndex)) ) &
-          call utl_abort('osd_setup: Specified family '//familyList(familyIndex)//' was not recognized')
+          call rti_abort('osd_setup: Specified family '//familyList(familyIndex)//' was not recognized')
       obsspace_diagn_filename(familyIndex) ='obsspace_diag_'//familyList(familyIndex)//'_'
-      if (diagn_num(familyIndex) > max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
+      if (diagn_num(familyIndex) > max_cfg_size) call rti_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
     end do
 
   end subroutine osd_setup
@@ -1560,7 +1561,6 @@ contains
     character(len=256), optional, intent(in)    :: label_opt
 
     ! Locals:
-    integer, external :: fclos
     real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
     real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
     real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0
@@ -1786,7 +1786,7 @@ contains
        end if
 
     case default
-       call utl_abort("osd_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
+       call rti_abort("osd_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
     end select
 
 

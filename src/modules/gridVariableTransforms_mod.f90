@@ -6,10 +6,13 @@ module gridVariableTransforms_mod
   !           from gridStateVector(s). Outputs are also placed in a
   !           gridStateVector.
   !
+  use rmn_fst98
   use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+  use runtimeInfo_mod
+  use utilities_mod
   use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -20,10 +23,8 @@ module gridVariableTransforms_mod
   use lamAnalysisGridTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use utilities_mod
   use varNameList_mod
   use calcHeightAndPressure_mod
-  use utilities_mod
   use humiditylimits_mod
   use getGridPosition_mod
   use message_mod
@@ -186,10 +187,10 @@ CONTAINS
           varKindCHTrialsInitialized(varIndex) = .true.
 
         else
-          call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
+          call rti_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
         end if
       else
-        call utl_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
+        call rti_abort('gvt_setupRefFromTrialFiles: unknown variable ='//trim(varName))
       end if
     end select
 
@@ -222,7 +223,7 @@ CONTAINS
     if ( present(stateVectorRef_opt) ) then
       if ( .not. hco_equal(stateVectorRef_opt%hco, stateVector%hco) .or. &
            .not. vco_equal(stateVectorRef_opt%vco, stateVector%vco) ) then
-        call utl_abort('gvt_transform: stateVectorRef_opt not on same grid as stateVector')
+        call rti_abort('gvt_transform: stateVectorRef_opt not on same grid as stateVector')
       end if
     end if
 
@@ -242,206 +243,206 @@ CONTAINS
 
     case ('UVtoVortDiv')
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for UVtoVortDiv, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for UVtoVortDiv, the option statevectorOut_opt is not yet available')
       end if
       call UVtoVortDiv_gsv(statevector)
 
     case ('VortDivToPsiChi')
       if (.not. gsv_varExist(statevector,'QR') .or. &
           .not. gsv_varExist(statevector,'DD') ) then
-        call utl_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for VortDivToPsiChi, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for VortDivToPsiChi, the option statevectorOut_opt is not yet available')
       end if
       call VortDivToPsiChi_gsv(statevector)
 
     case ('UVtoPsiChi')
       if (.not. gsv_varExist(statevector,'PP') .or. &
           .not. gsv_varExist(statevector,'CC') ) then
-        call utl_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for UVToPsiChi, variables PP and CC must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for UVToPsiChi, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for UVToPsiChi, the option statevectorOut_opt is not yet available')
       end if
       call UVtoPsiChi_gsv(statevector)
 
     case ('LQtoHU')
       if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for LQtoHU, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for LQtoHU, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for LQtoHU, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU(statevector)
 
     case ('HUtoLQ')
       if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for HUtoLQ, variable HU must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for HUtoLQ, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for HUtoLQ, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for HUtoLQ, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_gsv(statevector)
 
     case ('LQtoHU_tlm')
       if ( .not. gsv_varExist(statevector,'HU') .and. &
            .not. gsv_varExist(statevector,'LQ') ) then
-        call utl_abort('gvt_transform: for LQtoHU_tlm, variable HU or LQ must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for LQtoHU_tlm, variable HU or LQ must be allocated in gridstatevector')
       end if
       if ( gsv_varExist(statevector,'HU') .and. &
            gsv_varExist(statevector,'LQ') ) then
-        call utl_abort('gvt_transform: for LQtoHU_tlm, only one of HU and LQ must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for LQtoHU_tlm, only one of HU and LQ must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for LQtoHU_tlm, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector, stateVectorRef_opt)
 
     case ('HUtoLQ_tlm')
       if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for HUtoLQ_tlm, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for HUtoLQ_tlm, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for HUtoLQ_tlm, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector, stateVectorRef_opt)
 
     case ('LQtoHU_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for LQtoHU_ad, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for LQtoHU_ad, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for LQtoHU_ad, the option statevectorOut_opt is not yet available')
       end if
       call LQtoHU_tlm(statevector, stateVectorRef_opt) ! self-adjoint
 
     case ('HUtoLQ_ad')
       if ( .not. gsv_varExist(statevector,'HU') ) then
-        call utl_abort('gvt_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for HUtoLQ_ad, variable HU must be allocated in gridstatevector')
       end if
       if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for HUtoLQ_ad, the option statevectorOut_opt is not yet available')
       end if
       call HUtoLQ_tlm(statevector, stateVectorRef_opt) ! self-adjoint
 
     case ('LPRoPR')
       if ( .not. gsv_varExist(statevector,'PR') ) then
-        call utl_abort('gvt_transform: for LPRtoPR, variable PR must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for LPRtoPR, variable PR must be allocated in gridstatevector')
       end if
       call LPRtoPR_gsv(statevector, statevectorOut_opt,  &
                        allowOverWrite_opt=allowOverWrite_opt)
 
     case ('PRtoLPR')
       if ( .not. gsv_varExist(statevector,'PR') ) then
-        call utl_abort('gvt_transform: for PRtoLPR, variable PR must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for PRtoLPR, variable PR must be allocated in gridstatevector')
       end if
       call PRtoLPR_gsv(statevector, statevectorOut_opt)
 
     case ('LVIStoVIS')
       if (present(statevectorOut_opt)) then
         if ( .not. gsv_varExist(statevector,'LVIS')) then
-          call utl_abort('gvt_transform: for LVIStoVIS, variable LVIS must be allocated in gridstatevector IN')
+          call rti_abort('gvt_transform: for LVIStoVIS, variable LVIS must be allocated in gridstatevector IN')
         end if
         if ( .not. gsv_varExist(statevectorOut_opt,'VIS')) then
-          call utl_abort('gvt_transform: for LVIStoVIS, variable VIS must be allocated in gridstatevector OUT')
+          call rti_abort('gvt_transform: for LVIStoVIS, variable VIS must be allocated in gridstatevector OUT')
         end if
         call LVIStoVIS(statevector, statevectorOut_opt=statevectorOut_opt)
       else
         if (.not. gsv_varExist(statevector,'VIS') .or. &
             .not. gsv_varExist(statevector,'LVIS') ) then
-          call utl_abort('gvt_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
+          call rti_abort('gvt_transform: for LVIStoVIS, variables LVIS and VIS must be allocated in gridstatevector')
         end if
         call LVIStoVIS(statevector)
       end if
 
     case ('ZandP_nl')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for ZandP_nl, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for ZandP_nl, the option statevectorOut_opt is not yet available')
       end if
       call czp_calcZandP_nl(stateVector)
 
     case ('ZandP_tl')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for ZandP_tl, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for ZandP_tl, the option statevectorOut_opt is not yet available')
       end if
       call ZandP_tl(stateVector)
 
     case ('ZandP_ad')
       if ( present(statevectorOut_opt) ) then
-        call utl_abort('gvt_transform: for ZandP_ad, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for ZandP_ad, the option statevectorOut_opt is not yet available')
       end if
       call ZandP_ad(stateVector)
 
     case ('expCH_tlm')
       if ( .not. gsv_varKindExist('CH')  ) then
-        call utl_abort('gvt_transform: for expCH_tlm, variables of CH kind must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for expCH_tlm, variables of CH kind must be allocated in gridstatevector')
       else if ( .not.present(varName_opt) ) then
-        call utl_abort('gvt_transform: for expCH_tlm, missing variable name')
+        call rti_abort('gvt_transform: for expCH_tlm, missing variable name')
       else  if ( .not. gsv_varExist(statevector,trim(varName_opt)) ) then
-        call utl_abort('gvt_transform: for expCH_tlm, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for expCH_tlm, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
-        call utl_abort('gvt_transform: Invalid kind of varName for expCH_tlm')
+        call rti_abort('gvt_transform: Invalid kind of varName for expCH_tlm')
       else if ( .not. present(statevectorRef_opt)) then
-        call utl_abort('gvt_transform: for expCH_tlm, the option statevectorRef_opt must be present')
+        call rti_abort('gvt_transform: for expCH_tlm, the option statevectorRef_opt must be present')
       else if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for expCH_tlm, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for expCH_tlm, the option statevectorOut_opt is not yet available')
       end if
       call expCH_tlm(statevector, varName_opt, stateVectorRef_opt)
 
    case ('expCH_ad')
       if ( .not. gsv_varKindExist('CH')  ) then
-        call utl_abort('gvt_transform: for expCH_ad, variables of CH kind must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for expCH_ad, variables of CH kind must be allocated in gridstatevector')
       else if ( .not.present(varName_opt) ) then
-        call utl_abort('gvt_transform: for expCH_ad missing variable name')
+        call rti_abort('gvt_transform: for expCH_ad missing variable name')
       else  if ( .not. gsv_varExist(statevector,trim(varName_opt)) ) then
-        call utl_abort('gvt_transform: for expCH_ad, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for expCH_ad, variable '//trim(varName_opt)//' must be allocated in gridstatevector')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
-        call utl_abort('gvt_transform: Invalid kind of varName for expCH_ad')
+        call rti_abort('gvt_transform: Invalid kind of varName for expCH_ad')
       else if ( .not. present(statevectorRef_opt)) then
-        call utl_abort('gvt_transform: for expCH_ad, the option statevectorRef_opt must be present')
+        call rti_abort('gvt_transform: for expCH_ad, the option statevectorRef_opt must be present')
       else if (present(statevectorOut_opt)) then
-        call utl_abort('gvt_transform: for expCH_ad, the option statevectorOut_opt is not yet available')
+        call rti_abort('gvt_transform: for expCH_ad, the option statevectorOut_opt is not yet available')
       end if
       call expCH_tlm(statevector, varName_opt, stateVectorRef_opt) ! self-adjoint
 
     case ('CH_bounds')
       if ( .not. gsv_varKindExist('CH')  ) then
-        call utl_abort('gvt_transform: for CH_bounds, variables of CH kind must be allocated in gridstatevector')
+        call rti_abort('gvt_transform: for CH_bounds, variables of CH kind must be allocated in gridstatevector')
       end if
       call CH_bounds(statevector)
 
     case ('oceanIceContinuous')
       if (.not. present(statevectorRef_opt)) then
-        call utl_abort('gvt_transform: for gvt_oceanIceContinuous, the option statevectorRef_opt must be present')
+        call rti_abort('gvt_transform: for gvt_oceanIceContinuous, the option statevectorRef_opt must be present')
       end if
       if (.not.present(varName_opt)) then
-        call utl_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
+        call rti_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
       end if
       call gvt_oceanIceContinuous(statevector, stateVectorRef_opt, varName_opt)
 
     case ('SSTSpread')
       if (.not.present(varName_opt)) then
-        call utl_abort('gvt_transform: for gvt_SSTSpread, missing variable name')
+        call rti_abort('gvt_transform: for gvt_SSTSpread, missing variable name')
       end if
       if (.not.present(maxBoxSize_opt)) then
-        call utl_abort('gvt_transform: for gvt_SSTSpread, missing max box size')
+        call rti_abort('gvt_transform: for gvt_SSTSpread, missing max box size')
       end if
       if (.not.present(subgrid_opt)) then
-        call utl_abort('gvt_transform: for gvt_SSTSpread, missing subgrid')
+        call rti_abort('gvt_transform: for gvt_SSTSpread, missing subgrid')
       end if
       call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
 
     case ('iceLimits')
       if (.not.present(spreadIceIncOverLakes_opt)) then
-        call utl_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
+        call rti_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
       end if
       call gvt_iceLimits(statevector, spreadIceIncOverLakes_opt)
 
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
-      call utl_abort('gvt_transform')
+      call rti_abort('gvt_transform')
     end select
 
   end subroutine gvt_transform_gsv
@@ -482,13 +483,13 @@ CONTAINS
       call calcZandP_nl_ens(ens)
     case ('logCH')
       if ( .not.present(varName_opt) ) then
-        call utl_abort('gvt_transform: for logCH missing variable name')
+        call rti_abort('gvt_transform: for logCH missing variable name')
       else if ( vnl_varKindFromVarname(trim(varName_opt)) /= 'CH' ) then
-        call utl_abort('gvt_transform: Invalid kind of varName for logCH')
+        call rti_abort('gvt_transform: Invalid kind of varName for logCH')
       end if
       call logCH_ens(ens,varName_opt)
     case default
-      call utl_abort('gvt_transform_ens: Unsupported function '//trim(transform))
+      call rti_abort('gvt_transform_ens: Unsupported function '//trim(transform))
     end select
 
   end subroutine gvt_transform_ens
@@ -510,18 +511,18 @@ CONTAINS
     select case ( trim(varName) )
     case ('HU')
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
-        call utl_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHU transform at higher level')
+        call rti_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHU transform at higher level')
       end if
       statevector_ptr => stateVectorRefHU
 
     case ('height')
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHeight) ) then
-        call utl_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHeight transform at higher level')
+        call rti_abort('gvt_getStateVectorTrial: do trials to stateVectorRefHeight transform at higher level')
       end if
       statevector_ptr => stateVectorRefHeight
 
     case default
-      call utl_abort('gvt_getStateVectorTrial: unknown variable ='//trim(varName))
+      call rti_abort('gvt_getStateVectorTrial: unknown variable ='//trim(varName))
     end select
 
   end function gvt_getStateVectorTrial
@@ -562,7 +563,7 @@ CONTAINS
     select case ( trim(varName) )
     case ('HU')
       if ( .not. present(applyLimitOnHU_opt) ) then
-        call utl_abort('gvt_setupRefFromStateVector: applyLimitOnHU_opt for RefHU missing')
+        call rti_abort('gvt_setupRefFromStateVector: applyLimitOnHU_opt for RefHU missing')
       end if
 
       if ( .not. gsv_isAllocated(stateVectorRefHU) ) then
@@ -842,14 +843,14 @@ CONTAINS
     else if ( gsv_varExist(statevector,'LQ') ) then
       varName = 'LQ'
     else
-      call utl_abort('LQtoHU_tlm: either HU or LQ must be part of stateVector')
+      call rti_abort('LQtoHU_tlm: either HU or LQ must be part of stateVector')
     end if
 
     if ( present(statevectorRef_opt) ) then
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
-        call utl_abort('LQtoHU_tlm: do trials to stateVectorRefHU transform at higher level')
+        call rti_abort('LQtoHU_tlm: do trials to stateVectorRefHU transform at higher level')
       end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
@@ -922,7 +923,7 @@ CONTAINS
       call gsv_getField(stateVectorRef_opt,hu_trial,'HU')
     else
       if ( .not. gsv_containsNonZeroValues(stateVectorRefHU) ) then
-        call utl_abort('HUtoLQ_tlm: do trials to stateVectorRefHU transform at higher level')
+        call rti_abort('HUtoLQ_tlm: do trials to stateVectorRefHU transform at higher level')
       end if
       call gsv_getField(stateVectorRefHU,hu_trial,'HU')
     end if
@@ -1004,10 +1005,10 @@ CONTAINS
     if (overWriteNeeded) then
       if(present(allowOverWrite_opt)) then
         if (.not.allowOverWrite_opt) then
-          call utl_abort('LPRtoPR_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
+          call rti_abort('LPRtoPR_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
         end if
       else
-        call utl_abort('LPRtoPR_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
+        call rti_abort('LPRtoPR_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
       end if
     end if
 
@@ -1132,10 +1133,10 @@ CONTAINS
     if (overWriteNeeded) then
       if(present(allowOverWrite_opt)) then
         if (.not.allowOverWrite_opt) then
-          call utl_abort('LPRtoPR_ens: allowOverWrite_opt is false, but PR not present in ensemble')
+          call rti_abort('LPRtoPR_ens: allowOverWrite_opt is false, but PR not present in ensemble')
         end if
       else
-        call utl_abort('LPRtoPR_ens: allowOverWrite_opt not specified, but PR not present in ensemble')
+        call rti_abort('LPRtoPR_ens: allowOverWrite_opt not specified, but PR not present in ensemble')
       end if
     end if
 
@@ -1289,10 +1290,10 @@ CONTAINS
     if (overWriteNeeded) then
       if(present(allowOverWrite_opt)) then
         if (.not.allowOverWrite_opt) then
-          call utl_abort('LVIStoVIS_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
+          call rti_abort('LVIStoVIS_gsv: allowOverWrite_opt is false, but PR not present in stateVector')
         end if
       else
-        call utl_abort('LVIStoVIS_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
+        call rti_abort('LVIStoVIS_gsv: allowOverWrite_opt not specified, but PR not present in stateVector')
       end if
     end if
 
@@ -1442,7 +1443,7 @@ CONTAINS
     nlev_M =  gsv_getNumLev  (statevector,'MM')
 
     if (  statevector%hco%global ) then
-      call utl_abort('UVtoVortDiv_gsv: global mode not available')
+      call rti_abort('UVtoVortDiv_gsv: global mode not available')
     else
       do stepIndex = 1, statevector%numStep
         call lgt_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
@@ -1498,7 +1499,7 @@ CONTAINS
     nlev_M =  gsv_getNumLev  (statevector,'MM')
 
     if ( statevector%hco%global ) then
-      call utl_abort('vortDivToPsiChi_gsv: global mode not available')
+      call rti_abort('vortDivToPsiChi_gsv: global mode not available')
     else
       if (firstTime) then
         call lst_Setup(lst_lapl,                                & ! OUT
@@ -1708,7 +1709,7 @@ CONTAINS
     hco_ens => ens_getHco(ens)
 
     if (hco_ens%global ) then
-      call utl_abort('gvt_UVtoVortDiv_ens: global mode not yet available')
+      call rti_abort('gvt_UVtoVortDiv_ens: global mode not yet available')
     end if
 
     !
@@ -1876,7 +1877,7 @@ CONTAINS
     else
       varIndex = vnl_varListIndex(varName)
       if ( .not. varKindCHTrialsInitialized(varIndex) ) then
-        call utl_abort('expCH_tlm: do trials to stateVectorRefChem transform at higher level')
+        call rti_abort('expCH_tlm: do trials to stateVectorRefChem transform at higher level')
       end if
       call gsv_getField(stateVectorTrialvarKindCH(varIndex),var_trial,&
                         trim(varName))
@@ -1987,7 +1988,7 @@ CONTAINS
 
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
-      call utl_abort('gvt_oceanIceContinuous: 3D mask present - this case not properly handled')
+      call rti_abort('gvt_oceanIceContinuous: 3D mask present - this case not properly handled')
     end if
 
     ! allocate statevector for single time steps
@@ -2007,7 +2008,7 @@ CONTAINS
                           stateVectorRef%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/outputVarName/))
       else
-        call utl_abort('gvt_oceanIceContinuous: unrecognized variable name: '//trim(outputVarName))
+        call rti_abort('gvt_oceanIceContinuous: unrecognized variable name: '//trim(outputVarName))
       end if
     end if
 
@@ -2177,7 +2178,7 @@ CONTAINS
           write(*,*) 'gvt_oceanIceContinuous: Field max value = ', maxval(analysis_ptr(:,:,levIndex,stepIndex))
 
           if(maxAbsCorr > 1.0) then
-            call utl_abort('gvt_oceanIceContinuous: Unstable algorithm !')
+            call rti_abort('gvt_oceanIceContinuous: Unstable algorithm !')
           end if
 
         end do
@@ -2236,17 +2237,17 @@ CONTAINS
       latIndexBeg = stateVector%hco%nj / 2 + 1
       latIndexEnd = stateVector%hco%nj
     else
-      call utl_abort('gvt_SSTSpread: unknown subgrid: '//trim(subgrid))
+      call rti_abort('gvt_SSTSpread: unknown subgrid: '//trim(subgrid))
     end if
 
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
-      call utl_abort('gvt_SSTSpread: 3D mask present - this case not properly handled')
+      call rti_abort('gvt_SSTSpread: 3D mask present - this case not properly handled')
     end if
 
     ! abort if 3D variable is present
     if( gsv_getNumLev(stateVector, vnl_varLevelFromVarname(variableName)) > 1) then
-      call utl_abort('gvt_SSTSpread: 3D variable present - this case not properly handled')
+      call rti_abort('gvt_SSTSpread: 3D variable present - this case not properly handled')
     end if
 
     ! allocate statevector
@@ -2256,7 +2257,7 @@ CONTAINS
                           stateVector%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/variableName/))
       else
-        call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))
+        call rti_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))
       end if
     end if
 
@@ -2406,8 +2407,6 @@ CONTAINS
     character(len=1) :: grtyp
     character(len=12) :: etiket
 
-    integer, external :: fnom,fstouv,fstfrm,fclos
-
     call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
 
     if (.not. spreadIceIncOverLakes) then
@@ -2419,18 +2418,18 @@ CONTAINS
 
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
-      call utl_abort('gvt_iceLimits: 3D mask present - this case not properly handled')
+      call rti_abort('gvt_iceLimits: 3D mask present - this case not properly handled')
     end if
 
     ! abort if 3D variable is present
     if( gsv_getNumLev(stateVector, vnl_varLevelFromVarname(variableName)) > 1) then
-      call utl_abort('gvt_iceLimits: 3D variable present - this case not properly handled')
+      call rti_abort('gvt_iceLimits: 3D variable present - this case not properly handled')
     end if
 
     ! allocate statevector
     if (mmpi_myid < stateVector%numStep) then
       if (stateVector%numStep > mmpi_nprocs) then
-        call utl_abort('gvt_iceLimits: number of time steps ('//trim(utl_str(stateVector%numStep))// &
+        call rti_abort('gvt_iceLimits: number of time steps ('//trim(utl_str(stateVector%numStep))// &
                        ') is larger than mpi tasks ('//trim(utl_str(mmpi_nprocs))//')')
       end if
       call gsv_allocate(stateVector_1step, 1, stateVector%hco, &
@@ -2458,7 +2457,7 @@ CONTAINS
       grtyp = ' '
       ikey = utl_fstlir_r4( area, std_unit, nii, njj, nkk, dateo, etiket, ip1, ip2, ip3, grtyp, 'AREA')
       if (ikey <= 0) then
-        call utl_abort('gvt_iceLimits: field AREA not found in file RPN file modelgrid')
+        call rti_abort('gvt_iceLimits: field AREA not found in file RPN file modelgrid')
       end if
 
       ierr = fstfrm(std_unit)
@@ -2606,7 +2605,7 @@ CONTAINS
 
               iter = iter + 1
               if (iter > 100) then
-                call utl_abort('gvt_iceLimits: Too many iterations.')
+                call rti_abort('gvt_iceLimits: Too many iterations.')
               end if
 
             end do EXCESSLOOP
@@ -2694,7 +2693,7 @@ CONTAINS
     pfac = mpc_rgas_dry_air_r8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
 
     if (.not. gsv_isAllocated(statevector_inout)) then
-      call utl_abort('gvt_energyNorm: gridStateVector_inout not yet allocated')
+      call rti_abort('gvt_energyNorm: gridStateVector_inout not yet allocated')
     end if
 
     nLev_M = gsv_getNumLev(statevector_inout,'MM')

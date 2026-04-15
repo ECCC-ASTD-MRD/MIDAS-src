@@ -14,6 +14,7 @@ module obsFilter_mod
   use tovs_mod
   use gps_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use physicsFunctions_mod
   use codtyp_mod
@@ -146,16 +147,16 @@ contains
     useEnkfTopoFilt = .false.
     rejectGZforAnalysis = .true.
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml,nml=namfilt,iostat=ierr)
-    if(ierr /= 0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
+    if(ierr /= 0) call rti_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
     if(mmpi_myid == 0) write(*,nml=namfilt)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     filt_rlimlvhu    = rlimlvhu
 
     if (nelems /= MPC_missingValue_INT) then
-      call utl_abort('filt_setup: check NAMFILT namelist section; NELEMS should be removed')
+      call rti_abort('filt_setup: check NAMFILT namelist section; NELEMS should be removed')
     end if
     filt_nelems = 0
     do elementIndex = 1, nelemsMax
@@ -166,7 +167,7 @@ contains
     end do
 
     if (nflags /= MPC_missingValue_INT) then
-      call utl_abort('filt_setup: check NAMFILT namelist section; NFLAGS should be removed')
+      call rti_abort('filt_setup: check NAMFILT namelist section; NFLAGS should be removed')
     end if
     filt_nflags = 0
     do flagIndex = 1, nflagsMax
@@ -197,7 +198,7 @@ contains
     !- Set values for altDiffMax
     !
     if (nelems_altDiffMax /= MPC_missingValue_INT) then
-      call utl_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
+      call rti_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
     end if
     do elem = 1, numElem
       if ( list_altDiffMax(elem) /= MPC_missingValue_INT .and. .not. utl_isEqual(value_altDiffMax(elem), MPC_missingValue_R8) ) then
@@ -206,7 +207,7 @@ contains
           altDiffMax(elemIndex) = value_altDiffMax(elem)
           write(*,*) ' filt_setup: altDiffMax value for ', elemList(elemIndex), ' is set to ', altDiffMax(elemIndex)
         else
-          call utl_abort('filt_setup: Error in value setting for altDiffMax')
+          call rti_abort('filt_setup: Error in value setting for altDiffMax')
         end if
       end if
     end do
@@ -267,7 +268,7 @@ contains
     integer :: idburp, ivnm, refValue, iknt, iknt_mpiglobal, ilansea
     logical :: llok, llrej, llbogus
 
-    call utl_tmg_start(22,'----ObsFiltSuprep')
+    call rti_tmg_start(22,'----ObsFiltSuprep')
 
     if(mmpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
@@ -361,10 +362,10 @@ contains
 
     ! abort if there is no data to be assimilated
     if (iknt_mpiglobal == 0 ) then
-       call utl_abort('filt_suprep: No data to be assimilated')
+       call rti_abort('filt_suprep: No data to be assimilated')
     end if
 
-    call utl_tmg_stop(22)
+    call rti_tmg_stop(22)
 
   end subroutine filt_suprep
 
@@ -752,7 +753,7 @@ contains
     real(8) :: obsPressure, pressureDiff
 
     if (obsFamily /= 'AI' .and. obsFamily /= 'SW') then
-      call utl_abort('filt_topoAISW: only AI and SW family are handled by this routine. You ask for '//obsFamily)
+      call rti_abort('filt_topoAISW: only AI and SW family are handled by this routine. You ask for '//obsFamily)
     end if
 
     if ( .not.beSilent ) then
@@ -1319,11 +1320,11 @@ end subroutine filt_topoAISW
       maxRangeInterp = -1.0D0
 
       if ( utl_isNamelistPresent('namradvel', './flnml') ) then
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namradvel, iostat=ierr)
-        if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+        if ( ierr /= 0 ) call rti_abort('oop_raDvel_nl: Error reading namelist namradvel')
         if ( .not. beSilent ) write(*,nml=namradvel)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       else if ( .not. beSilent ) then
         write(*,*)
         write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
@@ -1704,13 +1705,13 @@ end subroutine filt_topoAISW
       listPlatformIce(:) = '1234567890ab'
 
       if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read (utl_flnml, nml = namPlatformIce, iostat = ierr)
-        if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
+        if ( ierr /= 0 ) call rti_abort('filt_iceConcentration: Error reading namelist')
         if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
         if (nPlatformIce /= MPC_missingValue_INT) then
-          call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
+          call rti_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
         end if
         nPlatformIce = 0
         do platformIndex = 1, maxPlatformIce
@@ -1727,7 +1728,7 @@ end subroutine filt_topoAISW
     if ( nPlatformIce < 1 ) return
 
     if ( nPlatformIce > maxPlatformIce ) then
-      call utl_abort('filt_setup: too many elements for listPlatformIce')
+      call rti_abort('filt_setup: too many elements for listPlatformIce')
     end if
 
     if (.not. beSilent) then
@@ -2026,7 +2027,7 @@ end subroutine filt_topoAISW
 
       if (nobslev > 1 .and. obsAltitude > previousAltitude) then
         ! Requires obs profiles ordered from top to bottom.
-        call utl_abort('filt_topoChemistry: Profile not ordered from top ' // &
+        call rti_abort('filt_topoChemistry: Profile not ordered from top ' // &
                        'to bottom for ' // &
                        obs_elem_c(obsSpaceData,'STID',headerIndex))
       end if
@@ -2138,7 +2139,7 @@ end subroutine filt_topoAISW
       obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
       if (nobslev > 1 .and.  obsPressure < previousPressure) then
         ! Requires obs profiles ordered from top to bottom.
-        call utl_abort('filt_topoChemistry: Profile not ordered from top ' // &
+        call rti_abort('filt_topoChemistry: Profile not ordered from top ' // &
                        'to bottom for ' // &
                        obs_elem_c(obsSpaceData,'STID',headerIndex))
       end if

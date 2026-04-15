@@ -6,12 +6,14 @@ module lamAnalysisGridTransforms_mod
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
+  use rmn_fst98
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use Vgrid_Descriptors
 
   implicit none
@@ -112,7 +114,7 @@ contains
       write(*,*) 'lgt_SetupFromHCO: At least one hco structure was not initilzed'
       write(*,*) 'hco_core = ', hco_core%initialized
       write(*,*) 'hco_ext = ', hco_ext%initialized
-      call utl_abort('lgt_SetupFromHCO: abort')
+      call rti_abort('lgt_SetupFromHCO: abort')
     end if
 
     if ( (hco_core%global) .or.  &
@@ -162,7 +164,7 @@ contains
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO')
+        call rti_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -175,7 +177,7 @@ contains
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO')
+        call rti_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -189,7 +191,7 @@ contains
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO')
+        call rti_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -202,7 +204,7 @@ contains
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('lgt_SetupFromHCO')
+        call rti_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -410,11 +412,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('lgt_PsiChiToUV: Not compatible with global grid')
+      call rti_abort('lgt_PsiChiToUV: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
+      call rti_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -504,11 +506,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('lgt_PsiChiToUVAdj: Not compatible with global grid')
+      call rti_abort('lgt_PsiChiToUVAdj: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
+      call rti_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -773,16 +775,16 @@ contains
     real(8) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( hco_ext%global ) then
-      call utl_abort('lgt_Mach: Not compatible with global grid')
+      call rti_abort('lgt_Mach: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('lgt_Mach: AnalysisGrid not initialized')
+      call rti_abort('lgt_Mach: AnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call utl_abort('lgt_Mach: Invalid Dimensions')
+      call rti_abort('lgt_Mach: Invalid Dimensions')
     end if
 
     !$OMP PARALLEL
@@ -864,16 +866,16 @@ contains
     real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( hco_ext%global ) then
-      call utl_abort('lgt_Mach_r4: Not compatible with global grid')
+      call rti_abort('lgt_Mach_r4: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('lgt_Mach_r4: AnalysisGrid not initialized')
+      call rti_abort('lgt_Mach_r4: AnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call utl_abort('lgt_Mach_r4 : Invalid Dimensions')
+      call rti_abort('lgt_Mach_r4 : Invalid Dimensions')
     end if
 
     !$OMP PARALLEL
@@ -955,11 +957,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('lgt_UVToVortDiv: Not compatible with global grid')
+      call rti_abort('lgt_UVToVortDiv: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('lgt_UVToVortDiv: AnalysisGrid not initialized')
+      call rti_abort('lgt_UVToVortDiv: AnalysisGrid not initialized')
     endif
 
     allocate(uimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -1028,7 +1030,7 @@ contains
     ! Locals:
     integer :: ni_ext, nj_ext, i, j, lev, ni, nj, nk
     integer :: iun = 0
-    integer :: ier, fnom, fstouv, fstfrm, fclos, fstecr
+    integer :: ier
     real(8), allocatable :: Field2d(:,:)
     real(8), allocatable :: lat_ext(:)
     real(8), allocatable :: lon_ext(:)
@@ -1209,7 +1211,7 @@ contains
       status = vgd_write(vco%vgrid,iun,'fst')
 
       if ( status /= VGD_OK ) then
-        call utl_abort('createLamTemplateGrids: ERROR with vgd_write')
+        call rti_abort('createLamTemplateGrids: ERROR with vgd_write')
       end if
 
       !- 4.2 Write a dummy 2D field for each MM and TH levels

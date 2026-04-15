@@ -6,34 +6,31 @@ module utilities_mod
   !
   use mpi_f08 ! this is the Fortran 2008 MPI library module
   use netcdf
+  use rmn_fst98
   use clibInterfaces_mod
+  use runtimeInfo_mod
   use randomNumber_mod
   use mathPhysConstants_mod
-  use omp_lib
 
   implicit none
   save
   private
 
   ! Public procedures
-  public :: utl_readNml, utl_flnml, utl_flnml_static
-  public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
+  public :: utl_readNml, utl_flnml, utl_flnml_static, utl_isNamelistPresent
+  public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr, utl_readFstField
   public :: utl_unitConvMultFactor_r8, utl_unitConvMultFactor_r4
-  public :: utl_writeStatus, utl_getfldprm, utl_abort
-  public :: utl_printTime
+  public :: utl_getfldprm
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
-  public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
-  public :: utl_readFstField
+  public :: utl_get_stringId, utl_get_Id
   public :: utl_reAllocate
-  public :: utl_heapsort2d
-  public :: utl_heapsort1d
+  public :: utl_heapsort1d, utl_heapsort2d
   public :: utl_isEqual
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
-  public :: utl_copyFile, utl_findloc, utl_findlocs
+  public :: utl_findloc, utl_findlocs, utl_medianIndex
   public :: utl_randomOrderInt, utl_cosDegrees
-  public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
-  public :: utl_fileType, utl_checkNetCDFstatus
+  public :: utl_copyFile, utl_fileType, utl_checkNetCDFstatus
   public :: utl_varPresentInNetcdfFile
 
   ! module interfaces
@@ -48,7 +45,7 @@ module utilities_mod
     module procedure utl_resize_3d_real
   end interface utl_resize
 
-  ! interface for conversion to a left-justified string (useful for calls to utl_abort)
+  ! interface for conversion to a left-justified string (useful for calls to rti_abort)
   interface utl_str
     module procedure utl_int2str
     module procedure utl_float2str
@@ -128,7 +125,7 @@ contains
     ! would introduce a circular dependency.
     call mpi_comm_rank(mpi_comm_world, myid, ierr)
     if ( ierr /= 0 ) then
-      call utl_abort('MPI error raised in mpi_comm_rank called from utl_readNml')
+      call rti_abort('MPI error raised in mpi_comm_rank called from utl_readNml')
     end if
 
     ! First read the file flnml which must exist
@@ -151,7 +148,7 @@ contains
         write(*,*) '============END   CONTENTS OF FLNML================'
       end if
     else
-      call utl_abort('utl_readNml: The file "flnml" is not accessible')
+      call rti_abort('utl_readNml: The file "flnml" is not accessible')
     end if
 
     ! Check for and remove comments
@@ -242,7 +239,6 @@ contains
     ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer4(:)
-    integer :: fstluk, fstinf
 
     !     Get field dimensions and allow memory for REAL copy of fld8.
     key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
@@ -294,7 +290,6 @@ contains
     ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer_r4(:)
-    integer :: fstluk, fstinf
 
     !     Get field dimensions.
     key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
@@ -359,7 +354,6 @@ contains
     real(4) :: work
     integer :: ikey, jk1, jk2, jk3
     real(4), allocatable :: buffer4(:,:,:)
-    integer :: fstecr
 
     allocate(buffer4(ni,nj,nk))
 
@@ -398,7 +392,7 @@ contains
     real(4) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+      call rti_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
@@ -452,7 +446,7 @@ contains
     real(8) :: multFactor
 
     if (trim(direction) /= 'toFSTfile' .and. trim(direction) /= 'fromFSTfile' ) then
-      call utl_abort('utl_unitConvMultFactor: invalid direction ' // direction )
+      call rti_abort('utl_unitConvMultFactor: invalid direction ' // direction )
     end if
 
     ! Multiplicative factor for data conversion
@@ -489,102 +483,8 @@ contains
 
   end function utl_unitConvMultFactor_r8
 
-  !--------------------------------------------------------------------------
-  ! utl_writeStatus
-  !--------------------------------------------------------------------------
-  subroutine utl_writeStatus(cmsg)
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: cmsg
-
-    ! Locals:
-    INTEGER :: iulstatus,fnom,fclos, ierr
-    character(len=22):: clmsg
-
-    clmsg='VAR3D_STATUS='//cmsg
-    iulstatus = 0
-    IERR =  FNOM(iulstatus,'VAR3D_STATUS.dot','SEQ+FMT',0)
-    rewind (iulstatus)
-    WRITE(iulstatus,'(a22)') clmsg
-    ierr = fclos(iulstatus)
-
-  end subroutine utl_writeStatus
-
-  !--------------------------------------------------------------------------
-  ! utl_printTime
-  !--------------------------------------------------------------------------
-  subroutine utl_printTime(reset_opt)
-    !
-    !:Purpose: Print the elapsed time in the listing. Use of the optional
-    !          argument `reset_opt=.true.` resets the accumulator to zero.
-    !
-    implicit none
-
-    ! Arguments:
-    logical, optional, intent(in) :: reset_opt ! Allow user to reset the accumulator
-
-    ! Locals:
-    real(8), save :: startTime = -1.0d0
-    real(8), save :: accumulatedStart = -1.0d0
-    real(8), save :: previousTime = -1.0d0
-    real(8)       :: currentTime
-    logical, save :: firstCall = .true.
-    logical       :: reset
-    character(len=8)  :: dateString
-    character(len=10) :: timeString
-
-    if (present(reset_opt)) then
-      reset = reset_opt
-    else
-      reset = .false.
-    end if
-
-    currentTime = omp_get_wtime()
-
-    if (startTime < 0.0d0) then
-      startTime = currentTime
-    end if
-
-    if (previousTime < 0.0d0) then
-      previousTime = currentTime
-    end if
-
-    if (accumulatedStart < 0.0d0 .or. reset) then
-      accumulatedStart = currentTime
-    end if
-
-    ! Also get the actual date and time
-    call date_and_time(dateString, timeString)
-
-    if (firstCall) then
-      write(*,'(A,A)') &
-           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
-           'First call, counters initialized'
-    end if
-
-    if (reset .and. .not.firstCall) then
-      write(*,'(A,A)') &
-           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
-           'Accumulator reset'
-    end if
-
-    if (.not. firstCall) then
-      write(*,'(A,A,f10.4,A,A,f10.4,A,A,f10.4,A)') &
-           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
-                          'deltaT = ', (currentTime - previousTime), ' s, ', &
-                          'accumT = ', (currentTime - accumulatedStart), ' s, ', &
-                          'totalT = ', (currentTime - startTime), ' s'
-    end if
-
-    previousTime = currentTime
-    firstCall = .false.
-
-  end subroutine utl_printTime
-
-
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
-                           cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind, &
+                           cdvar,knmaxlev,kinmpg,kip1style,kip1kind, &
                            ktrials,koutmpg)
     !
     !:Purpose:  Get 3D grid parameters for a specific trial field
@@ -594,7 +494,6 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(out) :: kstampv
     integer,          intent(in)  :: knmaxlev
     integer,          intent(out) :: knlev
     integer,          intent(out) :: kgid
@@ -607,26 +506,25 @@ contains
     integer,          intent(out) :: koutmpg
     integer,          intent(in)  :: kinmpg(ktrials)
     character(len=*), intent(out) :: cdtypvar
-    character(len=*), intent(out) :: cdvar
+    character(len=*), intent(in)  :: cdvar
     character(len=*), intent(out) :: cdetiket
 
     ! Locals:
-    integer :: fstinl,fstprm,ezqkdef,newdate
-    integer :: ini,inj,ink,jlev,ier
+    integer :: k,ini,inj,ink,jlev,ier
     integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf
     integer :: iextra1, iextra2, iextra3, iig12, iig22
     integer :: iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4
-    integer :: inpas,inpas2, iswa, iubc, iip2, iip3
-    integer :: ipmode,idate2,idate3,idatefull
-    integer :: k,ier1
+    integer :: ipmode,inpas,inpas2, iswa, iubc, iip2, iip3
     real(4) :: zlev_r4
     character(len=12) :: cletiket
-    character(len=4) :: clnomvar
-    character(len=3) :: clnomvar_3
-    character(len=2) :: cltypvar
-    character(len=1) :: clgrtyp2,clgrtyp,clstring
+    character(len=4)  :: clnomvar
+    character(len=3)  :: clnomvar_3
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp2,clgrtyp,clstring
     logical :: llflag
     integer :: ikeys(knmaxlev)
+    ! external definitions
+    integer, external :: ezqkdef
 
     knlev = 0
 
@@ -645,9 +543,6 @@ contains
        end if
        !
        if(knlev > 0 ) then
-          ier1   = newdate(kstampv,idate2,idate3,-3)
-
-          idatefull = idate2*100 + idate3/1000000
           idateo = MPC_missingValue_INT
           ideet = MPC_missingValue_INT
           inpas = MPC_missingValue_INT
@@ -706,8 +601,8 @@ contains
                   '****** Unit ', kinmpg &
                   ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3' &
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
-                  ,'for variable ',cdvar,' and datev, ',kstampv
-             call utl_abort('GETFLDPRM2')
+                  ,'for variable ',cdvar
+             call rti_abort('utl_getfldprm')
           end if
        end do
        !
@@ -733,31 +628,13 @@ contains
           ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1, &
                ' ',cdvar,ikeys, knlev, knmaxlev)
        end do
-       write(*,*) 'Error - getfldprm2: no record found at time ' &
-            ,idatefull,' for field ',cdvar,' but',knlev, &
-            ' records found in unit ',kinmpg(k)
-       call utl_abort('GETFLDPRM2')
+       write(*,*) 'Error - utl_getfldprm: no record found for field ', cdvar, &
+                  ' but', knlev, ' records found in unit ', kinmpg(k)
+       call rti_abort('utl_getfldprm')
     end if
     !
   end subroutine utl_getfldprm
 
-
-  subroutine utl_abort(message)
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: message
-
-    ! Locals:
-    integer :: ierr
-
-    write(6,9000) message
-9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
-    flush(6)
-
-    call mpi_abort(mpi_comm_world, 1, ierr)
-
-  end subroutine utl_abort
 
   subroutine utl_open_asciifile(filename,unit)
     !
@@ -786,7 +663,7 @@ contains
 
     ier = utl_open_file(unit,trim(filename),trim(mode))
 
-    if (ier.ne.0) call utl_abort('utl_open_messagefile: Error associating unit number')
+    if (ier.ne.0) call rti_abort('utl_open_messagefile: Error associating unit number')
 
   end subroutine utl_open_asciifile
 
@@ -807,7 +684,6 @@ contains
 
     ! Locals:
     character(len=10) :: position,action
-    integer :: fnom
 
     if (index(mode,'APPEND').gt.0) then
        position = 'APPEND'
@@ -881,7 +757,7 @@ contains
 
   character(len=20) function utl_int2str(i)
     !
-    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine rti_abort.
     !
     implicit none
 
@@ -896,7 +772,7 @@ contains
 
   character(len=20) function utl_float2str(x)
     !
-    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine rti_abort.
     !
     implicit none
 
@@ -1096,7 +972,7 @@ contains
     elemId=0
     if (NListSize.gt.Nmax-1) then
        write(*,*) 'utl_get_stringId: NListSize > Nmax-1 (', NListSize, '>', Nmax-1, ')'
-       call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')
+       call rti_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
        if (nobslev.eq.1) then
           cstring=trim(cstringin)//'U'
@@ -1157,7 +1033,7 @@ contains
 
     elemId=0
     if (NListSize.gt.Nmax-1) then
-       call utl_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')
+       call rti_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')
     else if (NListSize.gt.0) then
        do i=1,NListSize
           if (id.eq.IdList(i)) then
@@ -1222,7 +1098,6 @@ contains
     real(8), allocatable, optional, intent(out) :: xlong_opt(:)
 
     ! Locals:
-    integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
     real(4) :: lvl_r4
     logical :: Exists
     character(len=1) :: string
@@ -1246,7 +1121,7 @@ contains
     iun = 0
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
-      call utl_abort('utl_readFstField: Did not find file ' // trim(fname))
+      call rti_abort('utl_readFstField: Did not find file ' // trim(fname))
     else
       ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
       ier=fstouv(iun,'RND+OLD')
@@ -1256,13 +1131,13 @@ contains
     ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys)
 
     if(ier.lt.0.or.nkeys.eq.0) then
-      call utl_abort('utl_readFstField: Search field missing ' // trim(varName) // &
+      call rti_abort('utl_readFstField: Search field missing ' // trim(varName) // &
            ' from file ' // trim(fname) // '. IPs and etiket: ' // &
            utl_str(iip1) // ', ' // utl_str(iip2) // ', ' // utl_str(iip3) // &
            ',  ' // trim(etiketi) // '.')
     else if (nk.gt.1) then
       if (nkeys > 1 .or. present(kind_opt) .or. present(lvls_opt) ) then
-        call utl_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
+        call rti_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
              ' for ' // trim(varName) // ' of file ' // trim(fname))
       end if
     end if
@@ -1308,7 +1183,7 @@ contains
              ig1, ig2, ig3, ig4 ) ! IN
 
         if ( .not. utl_isEqual(xlat1_4, xlat2_4) .or. .not. utl_isEqual(xlon1_4,xlon2_4) ) &
-             call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
+             call rti_abort('utl_readFstField: Cannot currently handle rotated grid')
 
       else if (trim(clgrtyp) == 'B') then
 
@@ -1359,7 +1234,7 @@ contains
 
       else if (trim(clgrtyp) /= 'G') then
 
-        call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
+        call rti_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
 
       end if
 
@@ -1452,7 +1327,7 @@ contains
       else
         write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
         write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-        call utl_abort('utl_fileType: unknown file type')
+        call rti_abort('utl_fileType: unknown file type')
       end if
     end select
 
@@ -1942,7 +1817,7 @@ contains
     integer :: ileft,iright
 
     if (size(rvalues) /= size(rvalues)) then
-      call utl_abort('utl_heapsort1d: input arrays have different sizes.')
+      call rti_abort('utl_heapsort1d: input arrays have different sizes.')
     endif
     nsize  = size(rvalues)
     ileft  = nsize/2+1
@@ -2137,7 +2012,7 @@ contains
     logical :: found
 
     ! Locals:
-    integer :: unit, fnom, fclos, ierr, positionBeg, positionEnd
+    integer :: unit, ierr, positionBeg, positionEnd
     character(len=1000) :: line, failMode
     character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
@@ -2149,12 +2024,12 @@ contains
     else
       failMode = 'ABORT'
     end if
-    
+
     ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
     if (.not. namelistExist) then
       if (trim(failMode) == 'ABORT') then
-        call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
+        call rti_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
       else
         write(*,*)
         write(*,*) 'utl_isNamelistPresent: WARNING, namelist file is missing : ' // namelistFileName
@@ -2162,7 +2037,7 @@ contains
         return
       end if
     end if
-    
+
     ! Ensure namelist section name is all in upper case
     namelistSectionNameUpper = namelistSectionName
     ierr = clib_toUpper(namelistSectionNameUpper)
@@ -2310,7 +2185,7 @@ contains
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
-    call utl_tmg_start(175,'low-level--utl_copyFile')
+    call rti_tmg_start(175,'low-level--utl_copyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
@@ -2371,16 +2246,16 @@ contains
     else
       status = -1
       if (numChar == 0) then
-        call utl_abort('utl_copyFile: ERROR, zero bytes copied')
+        call rti_abort('utl_copyFile: ERROR, zero bytes copied')
       else
         ! Note: If 'numChar' becomes negative then it means it got bigger
         !       than the maximum integer the 'integer' type and so the
         !       variable 'numChar' wraps around and becomes negative.
-        call utl_abort('utl_copyFile: ERROR, overflow detected since number of bytes copied is negative!')
+        call rti_abort('utl_copyFile: ERROR, overflow detected since number of bytes copied is negative!')
       end if
     end if
 
-    call utl_tmg_stop(175)
+    call rti_tmg_stop(175)
 
   end function utl_copyFile
 
@@ -2655,54 +2530,6 @@ contains
   end subroutine utl_randomOrderInt
 
   !--------------------------------------------------------------------------
-  ! utl_tmg_start
-  !--------------------------------------------------------------------------
-  subroutine utl_tmg_start(blockIndex, blockLabel)
-    !
-    !:Purpose: Wrapper for rpnlib subroutine tmg_start
-    !
-    implicit none
-
-    ! Arguments:
-    integer,          intent(in) :: blockIndex
-    character(len=*), intent(in) :: blockLabel
-
-    ! Locals:
-    integer            :: labelLength
-    integer, parameter :: labelPaddedLength = 40
-    character(len=labelPaddedLength) :: blockLabelPadded
-
-    ! only the first thread does the timing
-    if (omp_get_thread_num() > 0) return
-
-    blockLabelPadded = '........................................'
-    labelLength = min(len_trim(blockLabel), labelPaddedLength)
-    blockLabelPadded(1:labelLength) = blockLabel(1:labelLength)
-
-    call tmg_start(blockIndex, blockLabelPadded)
-
-  end subroutine utl_tmg_start
-
-  !--------------------------------------------------------------------------
-  ! utl_tmg_stop
-  !--------------------------------------------------------------------------
-  subroutine utl_tmg_stop(blockIndex)
-    !
-    !:Purpose: Wrapper for rpnlib subroutine tmg_stop
-    !
-    implicit none
-
-    ! Arguments:
-    integer,          intent(in) :: blockIndex
-
-    ! only the first thread does the timing
-    if (omp_get_thread_num() > 0) return
-
-    call tmg_stop(blockIndex)
-
-  end subroutine utl_tmg_stop
-
-  !--------------------------------------------------------------------------
   ! utl_medianIndex
   !--------------------------------------------------------------------------
   function utl_medianIndex(inputVector) result(medianIndex)
@@ -2780,7 +2607,7 @@ contains
       end if
 
       write(*,*) 'nf90 error status: ', trim(nf90_strerror(status))
-      call utl_abort(trim(errorMessage))
+      call rti_abort(trim(errorMessage))
 
     end if
 

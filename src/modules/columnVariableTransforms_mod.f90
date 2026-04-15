@@ -7,8 +7,10 @@ module columnVariableTransforms_mod
   !
   use columnData_mod
   use utilities_mod
+  use runtimeInfo_mod
   use calcHeightAndPressure_mod
   use utilities_mod
+  use runtimeInfo_mod
   
   implicit none
   save
@@ -37,20 +39,20 @@ CONTAINS
 
     case ('ZandP_tl')
       if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+        call rti_abort('cvt_transform: columnRefOnIncLev_opt required')
       end if
       call czp_calcZandP_tl(columnInc, columnRefOnIncLev_opt)
 
     case ('ZandP_ad')
       if (.not. present(columnRefOnIncLev_opt)) then
-        call utl_abort('cvt_transform: columnRefOnIncLev_opt required')
+        call rti_abort('cvt_transform: columnRefOnIncLev_opt required')
       end if
       call czp_calcZandP_ad(columnInc, columnRefOnIncLev_opt)
 
     case default
       write(*,*)
       write(*,*) 'Unsupported function : ', trim(transform)
-      call utl_abort('cvt_transform')
+      call rti_abort('cvt_transform')
     end select
 
   end subroutine cvt_transform

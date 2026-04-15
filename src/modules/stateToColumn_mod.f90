@@ -19,6 +19,7 @@ module stateToColumn_mod
   use obsTimeInterp_mod
   use windRotation_mod
   use utilities_mod
+  use runtimeInfo_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use slantProfileLatLon_mod
@@ -237,10 +238,10 @@ contains
     else
 
       ! reading namelist variables
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = nams2c, iostat = ierr)
-      if ( ierr /= 0 ) call utl_abort('readNml (s2c): Error reading namelist')
-      call utl_tmg_stop(181)
+      if ( ierr /= 0 ) call rti_abort('readNml (s2c): Error reading namelist')
+      call rti_tmg_stop(181)
 
     end if
 
@@ -249,7 +250,7 @@ contains
     ! Check for invalid combinations of namelist variables
 
     if (trim(mpiMode) /= '2DFIELDS' .and. trim(mpiMode) /= 'TILES') then
-      call utl_abort('readNml (s2c): invalid value of mpiMode = '//trim(mpiMode))
+      call rti_abort('readNml (s2c): invalid value of mpiMode = '//trim(mpiMode))
     end if
 
     write(*,*) 'readNml (s2c): FINISHED'
@@ -372,9 +373,9 @@ contains
       write(*,*) 'setupInterpInfoTiles (s2c): Compute interpolation weights and indices for my obs'
       call msg_memUsage('setupInterpInfoTiles')
     end if
-    call utl_tmg_start(33,'------s2c_SetupWeights')
+    call rti_tmg_start(33,'------s2c_SetupWeights')
     call getMyInterpWeights(intInfo, stateVector)
-    call utl_tmg_stop(33)
+    call rti_tmg_stop(33)
 
     if (.not. beSilent) then
       write(*,*) 'setupInterpInfoTiles (s2c): Figure out which extra grid points I need (i.e. halo)'
@@ -385,9 +386,9 @@ contains
       write(*,*) 'setupInterpInfoTiles (s2c): Adjust lat/lonIndexDepot for halo locations'
       call msg_memUsage('setupInterpInfoTiles')
     end if
-    call utl_tmg_start(33,'------s2c_SetupWeights')
+    call rti_tmg_start(33,'------s2c_SetupWeights')
     call getMyLatLonIndexHalo(intInfo, stateVector)
-    call utl_tmg_stop(33)
+    call rti_tmg_stop(33)
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -617,7 +618,7 @@ contains
 
             ! Lat-lon of halo grid point
             if (haloIndex > size(intInfo%myHaloLatIndex)) then
-              call utl_abort('getMyHalo (s2c): temporary allocation size for halo not big enough')
+              call rti_abort('getMyHalo (s2c): temporary allocation size for halo not big enough')
             end if
             intInfo%myHaloLatIndex(haloIndex) = intInfo%latIndexDepot(depotIndex)
             intInfo%myHaloLonIndex(haloIndex) = intInfo%lonIndexDepot(depotIndex)
@@ -665,7 +666,7 @@ contains
             ! Add this horizontal location to the halo
             haloIndex = haloIndex + 1
             if (haloIndex > intInfo%myHaloSize) then
-              call utl_abort('getMyHalo (s2c): haloIndex is too big')
+              call rti_abort('getMyHalo (s2c): haloIndex is too big')
             end if
 
             ! Lat-lon of halo grid point
@@ -869,7 +870,7 @@ contains
         else
 
           write(*,*) 'footPrintRadius_r4 = ', footPrintRadius_r4
-          call utl_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
+          call rti_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
 
         end if
         depotSize = depotSize + numGridpt
@@ -913,7 +914,7 @@ contains
         else
 
           write(*,*) 'footPrintRadius_r4 = ', footPrintRadius_r4
-          call utl_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
+          call rti_abort('getMyInterpWeights (s2c): this type of interpolation not implemented')
 
         end if
 
@@ -995,7 +996,7 @@ contains
       if ( stateVector%oceanMask%maskPresent ) then
         ! abort if 3D mask is present, since we may not handle this situation correctly
         if ( stateVector%oceanMask%nLev > 1 ) then
-          call utl_abort('getMyInterpWeightsBilinear (s2c): 3D mask present - this case not properly handled')
+          call rti_abort('getMyInterpWeightsBilinear (s2c): 3D mask present - this case not properly handled')
         end if
         ! Handle periodicity in longitude for ocean mask value
         if (lonIndexP1 == stateVector%ni + 1) then
@@ -1018,7 +1019,7 @@ contains
       dldx = real(xpos_r4,8) - real(lonIndex,8)
       dldy = real(ypos_r4,8) - real(latIndex,8)
       if (NNInterpForCloudVars) then
-        call utl_abort('getMyInterpWeightsBilinear (s2c): NNInterpForCloudVars true is not supported')
+        call rti_abort('getMyInterpWeightsBilinear (s2c): NNInterpForCloudVars true is not supported')
       end if
 
       if ( mask(leftIndex ,bottomIndex) ) then
@@ -1115,7 +1116,7 @@ contains
       latIndexCentre = nint(ypos_r4)
 
       if ( subGridIndex == 3 ) then
-        call utl_abort('getMyInterpWeightsFootprint: two subGrids involved is not supported')
+        call rti_abort('getMyInterpWeightsFootprint: two subGrids involved is not supported')
       end if
 
       ! Return if observation is not on the grid, or masked.
@@ -1125,7 +1126,7 @@ contains
       if ( stateVector%oceanMask%maskPresent ) then
         ! abort if 3D mask is present, since we may not handle this situation correctly
         if ( stateVector%oceanMask%nLev > 1 ) then
-          call utl_abort('getMyInterpWeightsFootprint: 3D mask present - this case not properly handled')
+          call rti_abort('getMyInterpWeightsFootprint: 3D mask present - this case not properly handled')
         end if
 
         if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
@@ -1139,14 +1140,14 @@ contains
         if ( associated(tree_nl) ) then
           tree => tree_nl
         else
-          call utl_abort('getMyInterpWeightsFootprint: tree_nl is not allocated!')
+          call rti_abort('getMyInterpWeightsFootprint: tree_nl is not allocated!')
         end if
       else if ( intInfo%inputStateVectorType == 'tl' .or. &
            intInfo%inputStateVectorType == 'ad' ) then
         if ( associated(tree_tlad) ) then
           tree => tree_tlad
         else
-          call utl_abort('getMyInterpWeightsFootprint: tree_tlad is not allocated!')
+          call rti_abort('getMyInterpWeightsFootprint: tree_tlad is not allocated!')
         end if
       end if
       call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
@@ -1155,7 +1156,7 @@ contains
                              results=searchResults)
 
       if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
-        call utl_abort('getMyInterpWeightsFootprint: the parameter maxNumLocalGridptsSearch must be increased')
+        call rti_abort('getMyInterpWeightsFootprint: the parameter maxNumLocalGridptsSearch must be increased')
       else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
         write(*,*) 'getMyInterpWeightsFootprint: Warning! For TOVS headerIndex=', myHeaderIndex, &
                    ' number of grid points found within footprint radius=', fpr, ' is less than ', &
@@ -1174,7 +1175,7 @@ contains
         gridIndex = searchResults(resultsIndex)%idx
         if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
           write(*,*) 'getMyInterpWeightsFootprint: gridIndex=', gridIndex
-          call utl_abort('getMyInterpWeightsFootprint: gridIndex out of bound.')
+          call rti_abort('getMyInterpWeightsFootprint: gridIndex out of bound.')
         end if
 
         latIndex = (gridIndex - 1) / statevector%hco%ni + 1
@@ -1182,7 +1183,7 @@ contains
         if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
              latIndex < 1 .or. latIndex > statevector%hco%nj ) then
           write(*,*) 'getMyInterpWeightsFootprint: lonIndex=', lonIndex, ',latIndex=', latIndex
-          call utl_abort('getMyInterpWeightsFootprint: lonIndex/latIndex out of bound.')
+          call rti_abort('getMyInterpWeightsFootprint: lonIndex/latIndex out of bound.')
         end if
 
         if ( stateVector%oceanMask%maskPresent ) then
@@ -1243,11 +1244,11 @@ contains
       logical :: lake(statevector%ni,statevector%nj)
 
       if ( stateVector%hco%grtyp == 'U' ) then
-        call utl_abort('getMyInterpWeightsLake (s2c): Yin-Yang grid not supported')
+        call rti_abort('getMyInterpWeightsLake (s2c): Yin-Yang grid not supported')
       end if
 
       if ( .not.stateVector%oceanMask%maskPresent ) then
-        call utl_abort('getMyInterpWeightsLake (s2c): Only compatible when mask present')
+        call rti_abort('getMyInterpWeightsLake (s2c): Only compatible when mask present')
       end if
 
       numGridpt = 0
@@ -1264,7 +1265,7 @@ contains
       latIndexCentre = nint(ypos_r4)
 
       if ( subGridIndex == 3 ) then
-        call utl_abort('getMyInterpWeightsLake (s2c): two subGrids involved is not supported')
+        call rti_abort('getMyInterpWeightsLake (s2c): two subGrids involved is not supported')
       end if
 
       gridptCount = 0
@@ -1353,7 +1354,7 @@ contains
       real(4) :: xpos_r4, ypos_r4
 
       if ( stateVector%hco%grtyp == 'U' ) then
-        call utl_abort('getMyInterpWeightsNearestNeighbor (s2c): Yin-Yang grid not supported')
+        call rti_abort('getMyInterpWeightsNearestNeighbor (s2c): Yin-Yang grid not supported')
       end if
 
       numGridpt = 0
@@ -1608,7 +1609,7 @@ contains
         ! Check returned value of subGridIndex
         if (intInfo%yourObsSubGridIndex(varLevIndex,headerIndex) /=1 .and.  &
             intInfo%yourObsSubGridIndex(varLevIndex,headerIndex) /=2) then
-          call utl_abort('getMyInterpObs (s2c): invalid value of subGridIndex')
+          call rti_abort('getMyInterpObs (s2c): invalid value of subGridIndex')
         end if
 
       end do
@@ -1885,7 +1886,7 @@ contains
 
       ! Check returned value of subGridIndex
       if (subGridIndex /=1 .and. subGridIndex /=2) then
-        call utl_abort('getObsTileMpiId (s2c): invalid value of subGridIndex')
+        call rti_abort('getObsTileMpiId (s2c): invalid value of subGridIndex')
       end if
 
       ! Use findloc to find the tile id in X, Y directions and global tile id
@@ -2019,7 +2020,7 @@ contains
 
       else
 
-        call utl_abort('getObsLatLon (s2c): only "nl" supported so far')
+        call rti_abort('getObsLatLon (s2c): only "nl" supported so far')
 
       end if
 
@@ -2094,13 +2095,13 @@ contains
           end if
 
           ! calculate lat/lon along the line of sight
-          call utl_tmg_start(32,'------s2c_Slant')
+          call rti_tmg_start(32,'------s2c_Slant')
           call slp_calcLatLonTovs(obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                   height3D_T_r4, height3D_M_r4,               & ! IN
                                   latLev_T, lonLev_T,                         & ! OUT
                                   latLev_M, lonLev_M,                         & ! OUT
                                   latLev_S, lonLev_S             )              ! OUT
-          call utl_tmg_stop(32)
+          call rti_tmg_stop(32)
 
         else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
           if (firstHeaderSlantPathRO) then
@@ -2110,13 +2111,13 @@ contains
           end if
 
           ! Calculate lat/lon along the GPSRO obs
-          call utl_tmg_start(32,'------s2c_Slant')
+          call rti_tmg_start(32,'------s2c_Slant')
           call slp_calcLatLonRO(obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                 height3D_T_r4, height3D_M_r4,               & ! IN
                                 latLev_T, lonLev_T,                         & ! OUT
                                 latLev_M, lonLev_M,                         & ! OUT
                                 latLev_S, lonLev_S                          ) ! OUT
-          call utl_tmg_stop(32)
+          call rti_tmg_stop(32)
         else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
           if ( firstHeaderSlantPathRA ) then
             write(*,*) 'getObsLatLon (s2c): start slant-path for RADAR. ', &
@@ -2163,7 +2164,7 @@ contains
             intInfo%yourObsLat(varLevIndex,headerIndex) = latLev_S
             intInfo%yourObsLon(varLevIndex,headerIndex) = lonLev_S
           else
-            call utl_abort('getObsLatLon (s2c): unknown value of varLevel')
+            call rti_abort('getObsLatLon (s2c): unknown value of varLevel')
           end if
 
         end do
@@ -2300,9 +2301,9 @@ contains
     type(real48_3d)       :: myHaloValues_r48
     type(real48_2d)       :: myColumnData
 
-    call utl_tmg_start(36,'------s2c_barrier_NL')
+    call rti_tmg_start(36,'------s2c_barrier_NL')
     call mmpi_barrier
-    call utl_tmg_stop(36)
+    call rti_tmg_stop(36)
 
     if (.not. beSilent) then
       write(*,*) 'nlTiles (s2c): Starting'
@@ -2330,16 +2331,16 @@ contains
     end if
 
     if (.not. interpInfoTiles_nl%initialized) then
-      call utl_tmg_stop(34)
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_stop(34)
+      call rti_tmg_start(31,'----s2c_Setups')
 
       ! distribute obs over the lat-lon tiles and set interpolation weights
       call setupInterpInfoTiles(interpInfoTiles_nl, obsSpaceData, stateVector, &
                                 column, timeInterpType, rejectOutsideObs, &
                                 inputStateVectorType = 'nl', beSilent=beSilent)
 
-      call utl_tmg_stop(31)
-      call utl_tmg_start(34,'----s2c_NL')
+      call rti_tmg_stop(31)
+      call rti_tmg_start(34,'----s2c_NL')
     else
       if (.not. beSilent) then
         write(*,*) 'nlTiles (s2c): using existing setup of interpInfoTiles_nl'
@@ -2354,10 +2355,10 @@ contains
     end if
 
     ! Do interpolation to compute myColumnData from stateVector and myHaloValues
-    call utl_tmg_start(35,'------s2c_NL_Hinterp')
+    call rti_tmg_start(35,'------s2c_NL_Hinterp')
     call tileToColumn(stateVector, myHaloValues_r48, interpInfoTiles_nl,  &
                       myColumnData, beSilent)
-    call utl_tmg_stop(35)
+    call rti_tmg_stop(35)
 
     ! Send columns to the original mpi tasks and put in column object
     call sendRecvColumns(myColumnData, column, interpInfoTiles_nl, beSilent)
@@ -2416,13 +2417,13 @@ contains
 
     if ( .not. interpInfoTiles_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(38)
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_stop(38)
+      call rti_tmg_start(31,'----s2c_Setups')
       call setupInterpInfoTiles(interpInfoTiles_tlad, obsSpaceData, stateVector,  &
                                 columnAnlInc, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl', beSilent=beSilent)
-      call utl_tmg_stop(31)
-      call utl_tmg_start(38,'----s2c_TL')
+      call rti_tmg_stop(31)
+      call rti_tmg_start(38,'----s2c_TL')
     end if
 
     ! set contents of column to zero
@@ -2433,10 +2434,10 @@ contains
                       myHaloValues_r48)
 
     ! Do interpolation to compute myColumnData from stateVector and myHaloValues
-    call utl_tmg_start(39,'------s2c_TL_Hinterp')
+    call rti_tmg_start(39,'------s2c_TL_Hinterp')
     call tileToColumn(stateVector, myHaloValues_r48, interpInfoTiles_tlad,  &
                       myColumnData, beSilent)
-    call utl_tmg_stop(39)
+    call rti_tmg_stop(39)
 
     ! Send columns to the original mpi tasks and put in column object
     call sendRecvColumns(myColumnData, columnAnlInc, interpInfoTiles_tlad, beSilent)
@@ -2472,13 +2473,13 @@ contains
 
     if ( .not. interpInfoTiles_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(41)
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_stop(41)
+      call rti_tmg_start(31,'----s2c_Setups')
       call setupInterpInfoTiles(interpInfoTiles_tlad, obsSpaceData, stateVector,  &
                                 columnAnlInc, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl', beSilent=beSilent)
-      call utl_tmg_stop(31)
-      call utl_tmg_start(41,'----s2c_AD')
+      call rti_tmg_stop(31)
+      call rti_tmg_start(41,'----s2c_AD')
     end if
 
     ! Set stateVector to zero
@@ -2488,10 +2489,10 @@ contains
     call sendRecvColumnsAd(myColumnDataAd, columnAnlInc, interpInfoTiles_tlad, beSilent)
 
     ! Do adjoint of interpolation to update stateVector and myHaloValuesAd from myColumnDataAd
-    call utl_tmg_start(42,'------s2c_AD_Hinterp')
+    call rti_tmg_start(42,'------s2c_AD_Hinterp')
     call tileToColumnAd(stateVector, myHaloValuesAd_r48, interpInfoTiles_tlad,  &
                         myColumnDataAd, beSilent)
-    call utl_tmg_stop(42)
+    call rti_tmg_stop(42)
 
     ! Communicate the list of extra grid-points needed on each MPI tile
     call sendRecvHaloAd(stateVector, interpInfoTiles_tlad, beSilent,  &
@@ -3846,7 +3847,7 @@ contains
           end if
           if (singularIndex == 1) then !should never happen
             write(*,*) 'pressureProfileMonotonicityCheck: ', pressureProfile(1:2)
-            call utl_abort('pressureProfileMonotonicityCheck: profile in the wrong order ?' &
+            call rti_abort('pressureProfileMonotonicityCheck: profile in the wrong order ?' &
                  // pressureVarList(pressureVarIndex))
           end if
           pressureProfile(singularIndex) = 0.5d0 * ( pressureProfile(singularIndex - 1) + pressureProfile(singularIndex + 1) )
@@ -3898,7 +3899,8 @@ contains
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
     integer, save :: numWrites = 0
-    integer :: gdllfxy
+    ! external definitions
+    integer, external :: gdllfxy
 
     write(*,*) ' '
     write(*,*) 'latlonChecksAnlGrid: STARTING'
@@ -4269,9 +4271,9 @@ contains
                         stateVector%hco, stateVector%vco, &
                         mpi_local_opt=.false., &
                         dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/))
-      call utl_tmg_start(32,'------s2c_Slant')
+      call rti_tmg_start(32,'------s2c_Slant')
       call gsv_transposeTilesToMpiGlobal(stateVector_1Step, stateVector_Tiles_1Step)
-      call utl_tmg_stop(32)
+      call rti_tmg_stop(32)
       call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
       call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
 
@@ -4346,13 +4348,13 @@ contains
             end if
 
             ! calculate lat/lon along the line of sight
-            call utl_tmg_start(32,'------s2c_Slant')
+            call rti_tmg_start(32,'------s2c_Slant')
             call slp_calcLatLonTovs(obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                     height3D_T_r4, height3D_M_r4,               & ! IN
                                     latLev_T, lonLev_T,                         & ! OUT
                                     latLev_M, lonLev_M,                         & ! OUT
                                     latLev_S, lonLev_S             )              ! OUT
-            call utl_tmg_stop(32)
+            call rti_tmg_stop(32)
 
           else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if (firstHeaderSlantPathRO) then
@@ -4362,13 +4364,13 @@ contains
             end if
 
             ! Calculate lat/lon along the GPSRO obs
-            call utl_tmg_start(32,'------s2c_Slant')
+            call rti_tmg_start(32,'------s2c_Slant')
             call slp_calcLatLonRO(obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                   height3D_T_r4, height3D_M_r4,               & ! IN
                                   latLev_T, lonLev_T,                         & ! OUT
                                   latLev_M, lonLev_M,                         & ! OUT
                                   latLev_S, lonLev_S                          ) ! OUT
-            call utl_tmg_stop(32)
+            call rti_tmg_stop(32)
           else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
               write(*,'(a,i3,a,i8)') 'setupInterpInfo2dFields: start slant-path for RADAR. stepIndex=', &
@@ -4418,7 +4420,7 @@ contains
               latColumn(headerUsedIndex,varLevIndex) = latLev_S
               lonColumn(headerUsedIndex,varLevIndex) = lonLev_S
             else
-              call utl_abort('setupInterpInfo2dFields: unknown value of varLevel')
+              call rti_abort('setupInterpInfo2dFields: unknown value of varLevel')
             end if
 
           end do
@@ -4464,7 +4466,7 @@ contains
             if ( varLevIndex <= stateVector%allVarLevEnd(procIndex) ) then
               if( procIndex > numVarLevToSend ) then
                 write(*,*) 'procIndex, numVarLevToSend = ', procIndex, numVarLevToSend
-                call utl_abort('ERROR: with numVarLevToSend?')
+                call rti_abort('ERROR: with numVarLevToSend?')
               end if
 
               lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,varLevIndex)
@@ -4747,7 +4749,7 @@ contains
     allocate(interpInfo%lonIndexDepot(numGridptTotal))
     allocate(interpInfo%interpWeightDepot(numGridptTotal))
 
-    call utl_tmg_start(33,'------s2c_SetupWeights')
+    call rti_tmg_start(33,'------s2c_SetupWeights')
     !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, varLevIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
@@ -4766,7 +4768,7 @@ contains
       end do ! stepIndex
     end do ! procIndex
     !$OMP END PARALLEL DO
-    call utl_tmg_stop(33)
+    call rti_tmg_stop(33)
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -4844,19 +4846,19 @@ contains
     ! Locals:
     type(struct_gsv), pointer  :: stateVector
 
-    call utl_tmg_start(30,'--StateToColumn')
-    call utl_tmg_start(38,'----s2c_TL')
+    call rti_tmg_start(30,'--StateToColumn')
+    call rti_tmg_start(38,'----s2c_TL')
 
-    call utl_tmg_start(40,'------s2c_barrier_TL')
+    call rti_tmg_start(40,'------s2c_barrier_TL')
     call mmpi_barrier
-    call utl_tmg_stop(40)
+    call rti_tmg_stop(40)
 
     if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
 
     call readNml()
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then
-      call utl_abort('s2c_tl: stateVector must be allocated')
+      call rti_abort('s2c_tl: stateVector must be allocated')
     end if
 
     if (trim(mpiMode) == '2DFIELDS' .and. interpInfo_tlad%initialized) then
@@ -4901,7 +4903,7 @@ contains
     else if (trim(mpiMode) == 'TILES') then
       call tlTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
     else
-      call utl_abort('s2c_tl: invalid value of mpiMode = '//trim(mpiMode))
+      call rti_abort('s2c_tl: invalid value of mpiMode = '//trim(mpiMode))
     end if
 
     if (calcHeightPressIncrOnColumn) then
@@ -4918,8 +4920,8 @@ contains
       call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
     end if
 
-    call utl_tmg_stop(38)
-    call utl_tmg_stop(30)
+    call rti_tmg_stop(38)
+    call rti_tmg_stop(30)
 
   end subroutine s2c_tl
 
@@ -4979,13 +4981,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(38)
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_stop(38)
+      call rti_tmg_start(31,'----s2c_Setups')
       call setupInterpInfo2dFields( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                     1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                     inputStateVectorType='tl' )
-      call utl_tmg_stop(31)
-      call utl_tmg_start(38,'----s2c_TL')
+      call rti_tmg_stop(31)
+      call rti_tmg_start(38,'----s2c_TL')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -5020,7 +5022,7 @@ contains
           call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,varLevIndex)
         end if
 
-        call utl_tmg_start(39,'------s2c_TL_Hinterp')
+        call rti_tmg_start(39,'------s2c_TL_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -5047,7 +5049,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(39)
+        call rti_tmg_stop(39)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mmpi_nprocs
@@ -5131,17 +5133,17 @@ contains
     ! Locals:
     type(struct_gsv), pointer  :: stateVector
 
-    call utl_tmg_start(30,'--StateToColumn')
-    call utl_tmg_start(41,'----s2c_AD')
+    call rti_tmg_start(30,'--StateToColumn')
+    call rti_tmg_start(41,'----s2c_AD')
 
-    call utl_tmg_start(43,'------s2c_barrier_AD')
+    call rti_tmg_start(43,'------s2c_barrier_AD')
     call mmpi_barrier
-    call utl_tmg_stop(43)
+    call rti_tmg_stop(43)
 
     if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
 
     if ( .not. gsv_isAllocated(stateVector_out) ) then
-      call utl_abort('s2c_ad: stateVector must be allocated')
+      call rti_abort('s2c_ad: stateVector must be allocated')
     end if
 
     if (trim(mpiMode) == '2DFIELDS' .and. interpInfo_tlad%initialized) then
@@ -5181,7 +5183,7 @@ contains
     else if (trim(mpiMode) == 'TILES') then
       call adTiles(stateVector, obsSpaceData, columnAnlInc, beSilent_opt)
     else
-      call utl_abort('s2c_ad: invalid value of mpiMode = '//trim(mpiMode))
+      call rti_abort('s2c_ad: invalid value of mpiMode = '//trim(mpiMode))
     end if
 
     if (calcHeightPressIncrOnColumn) then
@@ -5201,8 +5203,8 @@ contains
       deallocate(stateVector)
     end if
 
-    call utl_tmg_stop(41)
-    call utl_tmg_stop(30)
+    call rti_tmg_stop(41)
+    call rti_tmg_stop(30)
 
   end subroutine s2c_ad
 
@@ -5252,13 +5254,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(41)
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_stop(41)
+      call rti_tmg_start(31,'----s2c_Setups')
       call setupInterpInfo2dFields( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                     1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
                                     inputStateVectorType='ad' )
-      call utl_tmg_stop(31)
-      call utl_tmg_start(41,'----s2c_AD')
+      call rti_tmg_stop(31)
+      call rti_tmg_start(41,'----s2c_AD')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -5330,7 +5332,7 @@ contains
           end do
         end do
 
-        call utl_tmg_start(42,'------s2c_AD_Hinterp')
+        call rti_tmg_start(42,'------s2c_AD_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -5357,7 +5359,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(42)
+        call rti_tmg_stop(42)
 
       end if ! if varLevIndex <= myVarLevEnd
 
@@ -5400,8 +5402,8 @@ contains
     ! Locals:
     logical :: moveObsAtPole, rejectOutsideObs, beSilent
 
-    call utl_tmg_start(30,'--StateToColumn')
-    call utl_tmg_start(34,'----s2c_NL')
+    call rti_tmg_start(30,'--StateToColumn')
+    call rti_tmg_start(34,'----s2c_NL')
 
     ! Read the namelist
     call readNml()
@@ -5421,7 +5423,7 @@ contains
     if (.not. interpInfo_nl%initialized .and. &
         .not. interpInfoTiles_nl%initialized) then
 
-      call utl_tmg_start(31,'----s2c_Setups')
+      call rti_tmg_start(31,'----s2c_Setups')
       ! Reject obs outside (LAM) domain and optionally move obs near
       ! numerical pole to first/last analysis grid latitude
       call latlonChecksAnlGrid(obsSpaceData, hco_core, moveObsAtPole)
@@ -5429,7 +5431,7 @@ contains
       ! Do not reject obs for global domain
       rejectOutsideObs = .not. stateVector%hco%global
       write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
-      call utl_tmg_stop(31)
+      call rti_tmg_stop(31)
 
     end if
 
@@ -5444,11 +5446,11 @@ contains
       call nlTiles(stateVector, obsSpaceData, column, timeInterpType, &
                    rejectOutsideObs, beSilent, dealloc_opt)
     else
-      call utl_abort('s2c_nl: invalid value of mpiMode = '//trim(mpiMode))
+      call rti_abort('s2c_nl: invalid value of mpiMode = '//trim(mpiMode))
     end if
 
-    call utl_tmg_stop(34)
-    call utl_tmg_stop(30)
+    call rti_tmg_stop(34)
+    call rti_tmg_stop(30)
 
   end subroutine s2c_nl
 
@@ -5502,7 +5504,7 @@ contains
     end if
 
     if (.not. gsv_isAllocated(stateVector)) then
-      call utl_abort('nl2dFields: stateVector must be allocated')
+      call rti_abort('nl2dFields: stateVector must be allocated')
     end if
 
     if (present(dealloc_opt)) then
@@ -5535,7 +5537,7 @@ contains
     end if
 
     if (stateVector%mpi_distribution /= 'Tiles') then
-      call utl_abort('nl2dFields: stateVector must by Tiles distributed')
+      call rti_abort('nl2dFields: stateVector must by Tiles distributed')
     end if
 
     ! check the column and statevector have same nk/varNameList
@@ -5586,8 +5588,8 @@ contains
       end if
 
       if (.not. interpInfo_nl%initialized) then
-        call utl_tmg_stop(34)
-        call utl_tmg_start(31,'----s2c_Setups')
+        call rti_tmg_stop(34)
+        call rti_tmg_start(31,'----s2c_Setups')
 
         ! compute and collect all obs grids onto all mpi tasks
         call setupInterpInfo2dFields(interpInfo_nl, obsSpaceData, stateVector_VarsLevs, &
@@ -5601,8 +5603,8 @@ contains
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
           end do
         end if
-        call utl_tmg_stop(31)
-        call utl_tmg_start(34,'----s2c_NL')
+        call rti_tmg_stop(31)
+        call rti_tmg_start(34,'----s2c_NL')
       end if
 
       ! arrays for interpolated column for 1 level/variable and each time step
@@ -5629,7 +5631,7 @@ contains
         if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
           varName = gsv_getVarNameFromVarLev(stateVector_VarsLevs, varLevIndex)
 
-          call utl_tmg_start(35,'------s2c_NL_Hinterp')
+          call rti_tmg_start(35,'------s2c_NL_Hinterp')
           if ( varName == 'UU' .or. varName == 'VV' ) then
             call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,varLevIndex)
           end if
@@ -5660,7 +5662,7 @@ contains
             !$OMP END PARALLEL DO
 
           end do step_loop
-          call utl_tmg_stop(35)
+          call rti_tmg_stop(35)
 
           ! interpolate in time to the columns destined for all procs and one level/variable
           do procIndex = 1, mmpi_nprocs
@@ -6385,7 +6387,7 @@ contains
     integer :: varIndex
     character(len=4) :: varName
 
-    call utl_tmg_start(30,'--StateToColumn')
+    call rti_tmg_start(30,'--StateToColumn')
 
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid by suprep
@@ -6447,7 +6449,7 @@ contains
                    xpos, ypos
         write(*,*) '  domain x_end, y_end bounds          = ', &
                    statevector%ni + extraLongitude, statevector%nj
-        call utl_abort('s2c_bgcheck_bilin')
+        call rti_abort('s2c_bgcheck_bilin')
       end if
 
       !- 2.2 Find the lower-left grid point next to the observation
@@ -6496,7 +6498,7 @@ contains
 
     deallocate(zgd)
 
-    call utl_tmg_stop(30)
+    call rti_tmg_stop(30)
 
   end subroutine s2c_bgcheck_bilin
 
@@ -6545,7 +6547,7 @@ contains
     else
 
       write(*,*) 'footprint radius = ',footprintRadius_r4
-      call utl_abort('s2c_setupHorizInterp: footprint radius not permitted')
+      call rti_abort('s2c_setupHorizInterp: footprint radius not permitted')
 
     end if
 
@@ -6590,7 +6592,7 @@ contains
         case('DMSP16','DMSP17','DMSP18')
           fpr = 29.0e3
         case DEFAULT
-          call utl_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
+          call rti_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
         end select
 
       else if (cstnid == 'GCOM-W1') then
@@ -6627,7 +6629,7 @@ contains
 
       else
 
-        call utl_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
+        call rti_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
 
       end if
 
@@ -6868,7 +6870,7 @@ contains
     if ( stateVector%oceanMask%maskPresent ) then
       ! abort if 3D mask is present, since we may not handle this situation correctly
       if ( stateVector%oceanMask%nLev > 1 ) then
-        call utl_abort('s2c_setupBilinearInterp: 3D mask present - this case not properly handled')
+        call rti_abort('s2c_setupBilinearInterp: 3D mask present - this case not properly handled')
       end if
       ! extract the ocean mask
       mask(leftIndex ,bottomIndex) = stateVector%oceanMask%mask(lonIndex  ,latIndex    ,1)
@@ -7025,7 +7027,7 @@ contains
 
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupFootprintInterp: revise code'
-      call utl_abort('s2c_setupFootprintInterp: both subGrids involved in interpolation.')
+      call rti_abort('s2c_setupFootprintInterp: both subGrids involved in interpolation.')
     end if
 
     ! Return if observation is not on the grid, or masked.
@@ -7035,7 +7037,7 @@ contains
     if ( stateVector%oceanMask%maskPresent ) then
       ! abort if 3D mask is present, since we may not handle this situation correctly
       if ( stateVector%oceanMask%nLev > 1 ) then
-        call utl_abort('s2c_setupFootprintInterp: 3D mask present - this case not properly handled')
+        call rti_abort('s2c_setupFootprintInterp: 3D mask present - this case not properly handled')
       end if
 
       if ( .not. stateVector%oceanMask%mask(lonIndexCentre,latIndexCentre,1) ) return
@@ -7049,14 +7051,14 @@ contains
       if ( associated(tree_nl) ) then
         tree => tree_nl
       else
-        call utl_abort('s2c_setupFootprintInterp: tree_nl is not allocated!')
+        call rti_abort('s2c_setupFootprintInterp: tree_nl is not allocated!')
       end if
     else if ( interpInfo%inputStateVectorType == 'tl' .or. &
               interpInfo%inputStateVectorType == 'ad' ) then
       if ( associated(tree_tlad) ) then
         tree => tree_tlad
       else
-        call utl_abort('s2c_setupFootprintInterp: tree_tlad is not allocated!')
+        call rti_abort('s2c_setupFootprintInterp: tree_tlad is not allocated!')
       end if
     end if
     call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
@@ -7065,7 +7067,7 @@ contains
                            results=searchResults)
 
     if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
-      call utl_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
+      call rti_abort('s2c_setupFootprintInterp: the parameter maxNumLocalGridptsSearch must be increased')
     else if ( numLocalGridptsFoundSearch < minNumLocalGridptsSearch .and. useFootprintForTovs ) then
       write(*,*) 's2c_setupFootprintInterp: Warning! For TOVS headerIndex=', headerIndex, &
                  ' number of grid points found within footprint radius=', fpr, ' is less than ', &
@@ -7083,7 +7085,7 @@ contains
       gridIndex = searchResults(resultsIndex)%idx
       if ( gridIndex < 1 .or. gridIndex > statevector%hco%ni * statevector%hco%nj ) then
         write(*,*) 's2c_setupFootprintInterp: gridIndex=', gridIndex
-        call utl_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
+        call rti_abort('s2c_setupFootprintInterp: gridIndex out of bound.')
       end if
 
       latIndex = (gridIndex - 1) / statevector%hco%ni + 1
@@ -7091,7 +7093,7 @@ contains
       if ( lonIndex < 1 .or. lonIndex > statevector%hco%ni .or. &
            latIndex < 1 .or. latIndex > statevector%hco%nj ) then
         write(*,*) 's2c_setupFootprintInterp: lonIndex=', lonIndex, ',latIndex=', latIndex
-        call utl_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
+        call rti_abort('s2c_setupFootprintInterp: lonIndex/latIndex out of bound.')
       end if
 
       if ( stateVector%oceanMask%maskPresent ) then
@@ -7158,11 +7160,11 @@ contains
     integer :: k, l
 
     if ( stateVector%hco%grtyp == 'U' ) then
-      call utl_abort('s2c_setupLakeInterp: Yin-Yang grid not supported')
+      call rti_abort('s2c_setupLakeInterp: Yin-Yang grid not supported')
     end if
 
     if ( .not.stateVector%oceanMask%maskPresent ) then
-      call utl_abort('s2c_setupLakeInterp: Only compatible when mask present')
+      call rti_abort('s2c_setupLakeInterp: Only compatible when mask present')
     end if
 
     numGridpt(:) = 0
@@ -7186,7 +7188,7 @@ contains
 
     if ( subGridIndex == 3 ) then
       write(*,*) 's2c_setupLakeInterp: revise code'
-      call utl_abort('s2c_setupLakeInterp: both subGrids involved in interpolation.')
+      call rti_abort('s2c_setupLakeInterp: both subGrids involved in interpolation.')
       numSubGridsForInterp = 2
       subGridIndex = 1
     else
@@ -7291,7 +7293,7 @@ contains
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
 
     if ( stateVector%hco%grtyp == 'U' ) then
-      call utl_abort('s2c_setupNearestNeighbor: Yin-Yang grid not supported')
+      call rti_abort('s2c_setupNearestNeighbor: Yin-Yang grid not supported')
     end if
 
     numGridpt(:) = 0
@@ -7355,7 +7357,7 @@ contains
     if ( col_getNumVarLev(column) /= gsv_getNumVarLev(statevector) ) then
       write(*,*) 'checkColumnStatevectorMatch: col_getNumVarLev(column), gsv_getNumVarLev(statevector)', &
                  col_getNumVarLev(column), gsv_getNumVarLev(statevector)
-      call utl_abort('checkColumnStatevectorMatch: col_getNumVarLev(column) /= gsv_getNumVarLev(statevector)')
+      call rti_abort('checkColumnStatevectorMatch: col_getNumVarLev(column) /= gsv_getNumVarLev(statevector)')
     end if
 
     ! loop through k and check varNames are same between column/statevector
@@ -7363,7 +7365,7 @@ contains
       if (gsv_getVarNameFromVarLev(statevector,varLevIndex) /= col_getVarNameFromVarLev(column,varLevIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
                    gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex)
-        call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
+        call rti_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
       end if
     end do
 
@@ -7398,7 +7400,8 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     logical :: latlonOutsideGrid, rejectHeader
-    integer :: gdllfxy
+    ! external definitions
+    integer, external :: gdllfxy
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if ( hco%grtyp == 'G' .or. (hco%grtyp == 'Z' .and. hco%global) ) then
@@ -7617,14 +7620,14 @@ contains
     integer :: indexBeg, indexEnd, gridptIndex
     integer :: subGridIndex, maxGridpt
 
-    call utl_tmg_start(30,'--StateToColumn')
+    call rti_tmg_start(30,'--StateToColumn')
 
     maxGridpt = size( interpWeight )
 
     gridptCount = 0
 
     if ( interpInfo_tlad%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) /= headerIndex ) then
-      call utl_abort('s2c_getWeightsAndGridPointIndexes: headerUsedIndex and headerIndex differ.'//    &
+      call rti_abort('s2c_getWeightsAndGridPointIndexes: headerUsedIndex and headerIndex differ.'//    &
                      ' If using multiple time steps in the assimilation window,'//                     &
                      ' the code needs to be modified to convert values of headerIndex into headerUsedIndex.')
     end if
@@ -7641,7 +7644,7 @@ contains
         gridptCount = gridptCount + 1
 
         if ( gridptCount > maxGridpt ) then
-          call utl_abort('s2c_getWeightsAndGridPointIndexes: maxGridpt must be increased')
+          call rti_abort('s2c_getWeightsAndGridPointIndexes: maxGridpt must be increased')
         end if
 
         lonIndex(gridptCount) = interpInfo_tlad%lonIndexDepot(gridptIndex)
@@ -7652,7 +7655,7 @@ contains
 
     end do subGrid_loop
 
-    call utl_tmg_stop(30)
+    call rti_tmg_stop(30)
 
   end subroutine s2c_getWeightsAndGridPointIndexes
 
@@ -7680,7 +7683,7 @@ contains
         case('tlad')
           interpInfo => interpInfo_tlad
         case default
-          call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+          call rti_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
       end select
 
       if ( .not. interpInfo%initialized ) return
@@ -7720,7 +7723,7 @@ contains
         case('tlad')
           intInfoTiles => interpInfoTiles_tlad
         case default
-          call utl_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
+          call rti_abort('s2c_deallocInterpInfo: invalid input argument' // inputStateVectorType)
       end select
 
       if ( .not. intInfoTiles%initialized ) return

@@ -154,6 +154,7 @@ program midas_dfs
   ! Other B matrix modules   various      weight and other parameters for each type of B matrix
   !======================== ============ ==============================================================
   !
+  use rmn_fnom
   use linearAlgebra_mod
   use midasMpi_mod
   use version_mod
@@ -161,6 +162,7 @@ program midas_dfs
   use mathPhysConstants_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -185,8 +187,7 @@ program midas_dfs
 
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos
-  integer :: ierr, istamp, obsIndex
+  integer :: ierr, obsIndex
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -226,8 +227,6 @@ program midas_dfs
 
   NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning, highResWaterFractionThreshold, lowResWaterFractionThreshold
 
-  istamp = exdb('dfs', 'DEBUT', 'NON')
-
   call ver_printNameAndVersion('dfs', 'Dfs computation')
 
   ! MPI initilization
@@ -235,8 +234,8 @@ program midas_dfs
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0, 'Main')
-  call utl_printTime()
+  call rti_tmg_start(0, 'Main')
+  call rti_printTime()
 
   varMode = 'analysis'
 
@@ -276,10 +275,10 @@ program midas_dfs
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = NAMDFS, iostat = ierr)
-    call utl_tmg_stop(181)
-    if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
+    call rti_tmg_stop(181)
+    if (ierr /= 0) call rti_abort('midas-dfs: Error reading namelist')
   end if
 
   ! Longitudes in ObsSpaceData are positives
@@ -296,10 +295,10 @@ program midas_dfs
     nLevelsDfs = nLevelsDfs + 1
   end do
 
-  if (nLevelsDfs == 0) call utl_abort('midas-dfs: empty vertical coordinate list vCoordList !')
+  if (nLevelsDfs == 0) call rti_abort('midas-dfs: empty vertical coordinate list vCoordList !')
 
   if (doChannelSelection .and. familyType /= 'TO') then
-    call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
+    call rti_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
 
   selectSpecificObservationsFromList = .not. all( utl_isEqual(latList(:),   MPC_missingValue_R8) .and. &
@@ -346,10 +345,8 @@ program midas_dfs
 
   ! 3. Job termination
 
-  istamp = exfin('dfs', 'FIN', 'NON')
-
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
@@ -377,7 +374,7 @@ contains
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine dfs_setup --'
     write(*,*) '-----------------------------------'
-    call utl_printTime()
+    call rti_printTime()
 
     !
     !- Initialize the Temporal grid and set dateStamp from env variable
@@ -392,7 +389,7 @@ contains
       if (dateStampFromObs > 0) then
         call tim_setDatestamp(dateStampFromObs)
       else
-        call utl_abort('dfs_setup: dateStamp was not set')
+        call rti_abort('dfs_setup: dateStamp was not set')
       end if
     end if
 
@@ -470,7 +467,7 @@ contains
 
     call msg_memUsage('midas-dfs')
     write(*,*) 'dfs_setup: exiting...'
-    call utl_printTime()
+    call rti_printTime()
 
   end subroutine dfs_setup
 
@@ -517,7 +514,7 @@ contains
 
     write(*,*)
     write(*,*) 'Computing HBHT from selected observations start'
-    call utl_printTime()
+    call rti_printTime()
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
@@ -682,7 +679,7 @@ contains
             end if
           end do
           write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
-          call utl_printTime()
+          call rti_printTime()
         end do channelLoop1
 
         headerObs = ''
@@ -814,7 +811,7 @@ contains
               end if
             end do
             write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
-            call utl_printTime()
+            call rti_printTime()
           end do channelLoop2
           dfsCount = dfsCount + 1
 
@@ -1079,13 +1076,13 @@ contains
 
     write(*,*) 'selectChannels: start'
     call msg_memUsage('selectChannels')
-    call utl_printTime()
+    call rti_printTime()
     nChannelsIn = size(R, dim = 1)
 
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
         write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
-        call utl_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input R and HBHt matrices.')
+        call rti_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input R and HBHt matrices.')
       end if
       if (nChannelsOut_opt < 1) then
         nChannelsOut = nChannelsIn
@@ -1109,7 +1106,7 @@ contains
       allocate(RSubset(channelIndex1,channelIndex1), HBHtSubset(channelIndex1,channelIndex1))
       numberOfFreeChannels = nChannelsIn - channelIndex1 + 1
       write(*,*) 'selectChannels: step ', channelIndex1
-      call utl_printTime()
+      call rti_printTime()
       do channelIndex2 = 1, numberOfFreeChannels
         tmpOrder(1:channelIndex1-1) = orderedChannelIndexes(1:channelIndex1-1)
         tmpOrder(channelIndex1) = freeIndexList(channelIndex2)

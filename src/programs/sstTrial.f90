@@ -69,6 +69,7 @@ program midas_sstTrial
   use version_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -79,8 +80,7 @@ program midas_sstTrial
 
   implicit none
 
-  integer, external :: exdb, exfin
-  integer :: ierr, istamp
+  integer :: ierr
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
@@ -93,16 +93,14 @@ program midas_sstTrial
   integer           :: datestampClim(nmonthsClim) ! datestamps of input climatology fields
   real(8)           :: alphaClim         ! scaling factor to relax towards climatology
 
-  istamp = exdb('SSTTRIAL','DEBUT','NON')
-
   call ver_printNameAndVersion('SSTtrial','SST trial preparation')
 
   ! MPI initialization
   call mmpi_initialize
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   ! 1. Top level setup
 
@@ -122,14 +120,12 @@ program midas_sstTrial
                            nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
 
   ! 3. Job termination
-
-  istamp = exfin('SSTTRIAL','FIN','NON')
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 
-  contains
+contains
 
   !----------------------------------------------------------------------------------------
   ! SSTtrial_setup
@@ -147,7 +143,7 @@ program midas_sstTrial
 
     ! Locals:
     character(len=*), parameter :: gridFile = './analysis'
-    integer                     :: prntdate, prnttime, imode, newdate, indexMonth
+    integer                     :: prntdate, prnttime, indexMonth
     namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim
 
     write(*,*) ''
@@ -161,11 +157,11 @@ program midas_sstTrial
     alphaClim = 0.983d0
 
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read( utl_flnml, nml = namSSTtrial, iostat = ierr )
-    if ( ierr /= 0) call utl_abort( 'SSTtrial_setup: Error reading namelist')
+    if ( ierr /= 0) call rti_abort( 'SSTtrial_setup: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*, nml = namSSTtrial )
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
@@ -188,8 +184,7 @@ program midas_sstTrial
     call incdatr(trialDateStamp, analysisDateStamp, tim_windowsize)
     write(*,*) 'SSTtrial_setup:    trial datestamp  = ', trialDateStamp
 
-    imode = -3 ! stamp to printable
-    ierr = newdate(trialDateStamp, prntdate, prnttime, imode)
+    call tim_dateStampToYYYYMMDDHH(trialDateStamp, prntdate, prnttime)
     write(*,*) 'SSTtrial_setup: trial date = ', prntdate
     write(*,*) 'SSTtrial_setup: trial time = ', prnttime
     !

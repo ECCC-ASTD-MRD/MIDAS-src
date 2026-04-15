@@ -11,6 +11,7 @@ module globalSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -460,7 +461,7 @@ contains
 
     if(nGstAlreadyAllocated.eq.nMaxGst) then
       if(mmpi_myid.eq.0) write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ', nMaxGst
-      call utl_abort('gst_setup')
+      call rti_abort('gst_setup')
     endif
 
     nGstAlreadyAllocated = nGstAlreadyAllocated+1
@@ -642,11 +643,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     integer :: yourid,ila,icount,jlev,jlev2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
     do yourid = 0, (mmpi_npex-1)
@@ -679,7 +680,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_NtoLev
 
@@ -699,11 +700,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     integer :: yourid,ila,icount,jlev,jlev2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
+    call rti_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
     do yourid = 0, (mmpi_npex-1)
@@ -737,7 +738,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(153)
+    call rti_tmg_stop(153)
 
   end subroutine transpose2d_LevtoN
 
@@ -758,11 +759,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -807,7 +808,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat
 
@@ -829,11 +830,11 @@ contains
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -853,11 +854,11 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
+    call rti_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
 
     if(mmpi_npey.gt.1) then
       call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
@@ -865,7 +866,7 @@ contains
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
 
-    call utl_tmg_stop(156)
+    call rti_tmg_stop(156)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -884,7 +885,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -905,11 +906,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npey)
     integer :: yourid,jm,jm2,icount,jlev,jlev2,jlat,jlat2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -954,7 +955,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LattoM
 
@@ -976,11 +977,11 @@ contains
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mmpi_npey)
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
+    call rti_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -1000,11 +1001,11 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_NS,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
+    call rti_tmg_start(156,'low-level--gst_transpose_MtoLAT-mpi')
 
     if(mmpi_npey.gt.1) then
       call mmpi_alltoall(gd_send, gd_recv, communicator_opt = mmpi_comm_NS)
@@ -1012,7 +1013,7 @@ contains
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
 
-    call utl_tmg_stop(156)
+    call rti_tmg_stop(156)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mmpi_npey-1)
@@ -1031,7 +1032,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(154)
+    call rti_tmg_stop(154)
 
   end subroutine transpose2d_LattoM_kij
 
@@ -1052,11 +1053,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     integer :: youridP1, jlev, jlev2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
@@ -1084,7 +1085,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1104,11 +1105,11 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     integer :: youridP1, yourNumLev
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1)
     do youridP1 = 1, mmpi_npex
@@ -1132,7 +1133,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1153,11 +1154,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mmpi_npex)
     integer :: youridP1, jlev, jlev2
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mmpi_npex
@@ -1186,7 +1187,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev
 
@@ -1206,11 +1207,11 @@ contains
                                        gst(gstID)%latPerPEmax, mmpi_npex)
     integer :: youridP1, yourNumLev
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(mmpi_comm_EW,doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
-    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
+    call rti_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
     do youridP1 = 1, mmpi_npex
@@ -1234,7 +1235,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_stop(155)
+    call rti_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij
 
@@ -1379,7 +1380,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1394,9 +1395,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.2 Inverse Legendre transform
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call spgdpar(psp2,pgd2,nflev)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.3 Transpose data along npey from M to Latitudes
@@ -1415,9 +1416,9 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the FFT
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -1447,7 +1448,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_GDSP: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_GDSP: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_GDSP: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1462,18 +1463,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! 1. Fourier transform all fields for all latitudes
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform including wind transformations
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call gdsppar(psp2,pgd2,nflev)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -1788,7 +1789,7 @@ contains
       ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
       if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGDA: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
+        call rti_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1805,18 +1806,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! Fourier transform all fields for all latitudes
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! Direct Legendre transform including wind transformations
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call spgdapar(psp2,pgd2,nflev)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2072,9 +2073,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.1 Inverse Legendre transform (lon -> m)
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call spereepar(psp2,pgd2)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2093,9 +2094,9 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -2116,9 +2117,9 @@ contains
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2130,9 +2131,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.1 Inverse Legendre transform (lon -> m)
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call spereepar_kij(psp2,pgd2)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2151,17 +2152,17 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,+1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon_kij(pgd3,pgd)
     deallocate(pgd3)
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
   end subroutine gst_speree_kij
 
@@ -2199,18 +2200,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! 1. Apply the FFT
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call reespepar(pgd2,psp2)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2231,9 +2232,9 @@ contains
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2243,27 +2244,27 @@ contains
     call transpose2d_LontoLev_kij(pgd,pgd3)
 
     ! 1. Apply the FFT
-    call utl_tmg_start(151,'low-level--gst_fft')
+    call rti_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,-1)
-    call utl_tmg_stop(151)
+    call rti_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM_kij(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform
-    call utl_tmg_start(150,'low-level--gst_lt')
+    call rti_tmg_start(150,'low-level--gst_lt')
     call reespepar_kij(pgd2,psp2)
-    call utl_tmg_stop(150)
+    call rti_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    call utl_tmg_start(152,'low-level--gst_barr')
+    call rti_tmg_start(152,'low-level--gst_barr')
     call mmpi_barrier(doAlways_opt=.false.)
-    call utl_tmg_stop(152)
+    call rti_tmg_stop(152)
 
   end subroutine gst_reespe_kij
 
@@ -2935,7 +2936,6 @@ contains
     logical :: lverbose
     integer :: jlat, jm
     real(8) :: zpisu2
-    external gauss
 
     ! Some explanation:
     ! rmu = sin(latitude)
@@ -3477,7 +3477,7 @@ contains
     call ngfft( i )
     if ( i.ne.ni ) then
        write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
-       call utl_abort('fft3dvar: vector length is not compatible with FFT')
+       call rti_abort('fft3dvar: vector length is not compatible with FFT')
     endif
     call setfft8(ni)
 
@@ -3537,7 +3537,7 @@ contains
     call ngfft( i )
     if ( i.ne.ni ) then
        write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
-       call utl_abort('fft3dvar: vector length is not compatible with FFT')
+       call rti_abort('fft3dvar: vector length is not compatible with FFT')
     endif
     call setfft8(ni)
 

@@ -74,13 +74,13 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    say "loading eccc/mrd/rpn/utils/20251009-beta"
-   . r.load.dot  eccc/mrd/rpn/utils/20251009-beta
+    say "loading eccc/mrd/rpn/utils/20260401-beta"
+   . r.load.dot  eccc/mrd/rpn/utils/20260401-beta
 fi
 
 if ! which liburp >/dev/null 2>&1; then
-    say  "loading eccc/cmd/cmda/utils/20251009-beta"
-   . ssmuse-sh -d eccc/cmd/cmda/utils/20251009-beta
+    say  "loading eccc/cmd/cmda/utils/20260401-beta"
+   . ssmuse-sh -d eccc/cmd/cmda/utils/20260401-beta
 fi
 
 set -u

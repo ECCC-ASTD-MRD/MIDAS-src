@@ -156,6 +156,7 @@ program midas_letkf
   !                                         the background state and the analysis
   !======================== ============== ==============================================================
   !
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use mathPhysConstants_mod
@@ -172,6 +173,7 @@ program midas_letkf
   use timeCoord_mod
   use obsTimeInterp_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use stateToColumn_mod
   use obsFiles_mod
@@ -210,7 +212,6 @@ program midas_letkf
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs, randomSeedRandomPert
   integer :: dateStampFromObs, ierr
-  integer :: fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
@@ -229,7 +230,7 @@ program midas_letkf
   real(4), pointer :: field_Psfc(:,:,:,:)
 
   character(len=50)    :: outfilename ! filename for the dfs output
-  integer              :: fclos, funit
+  integer              :: funit
   integer              :: obsIndex, localBodyIndex, gridIndex
   real(8)              :: Ya_anom, Ya_mean
   type(struct_enkfDFS) :: enkfDFS
@@ -250,15 +251,12 @@ program midas_letkf
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   call utl_readNml()
 
   call msg_memUsage('midas-letkf')
-
-  ! Avoid printing lots of stuff to listing for std file I/O
-  ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
@@ -274,13 +272,13 @@ program midas_letkf
   useModulatedEns = (enkfNML%numRetainedEigen > 0)
   if (trim(enkfNML%algorithm) == 'LETKF-Gain-ME' .or. trim(enkfNML%algorithm) == 'CVLETKF-ME') then
     if (.not. useModulatedEns) then
-      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+      call rti_abort('midas-letkf: numRetainedEigen should be ' // &
                      'equal or greater than one for LETKF algorithm: ' // &
                      trim(enkfNML%algorithm))
     end if
   else
     if (useModulatedEns) then
-      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+      call rti_abort('midas-letkf: numRetainedEigen should be ' // &
                      'equal to zero for LETKF algorithm: ' // &
                      trim(enkfNML%algorithm))
     end if
@@ -288,7 +286,7 @@ program midas_letkf
 
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
   if (.not. all( utl_isEqual(enkfNML%hLocalize(2:4),enkfNML%hLocalize(1)) ) .and. useModulatedEns) then
-    call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
+    call rti_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
                    'letkf with modulated ensembles')
   end if
 
@@ -314,11 +312,11 @@ program midas_letkf
       ! use dateStamp from obs if not already set by env variable
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort('midas-letkf: DateStamp was not set')
+      call rti_abort('midas-letkf: DateStamp was not set')
     end if
   end if
   if (tim_nstepobsinc /= 1 .and. tim_nstepobsinc /= tim_nstepobs) then
-    call utl_abort('midas-letkf: invalid value for namelist variable DSTEPOBSINC. ' // &
+    call rti_abort('midas-letkf: invalid value for namelist variable DSTEPOBSINC. ' // &
                    'Increments can be either 3D or have same number of time steps as trials')
   end if
   allocate(dateStampList(tim_nstepobs))
@@ -339,12 +337,12 @@ program midas_letkf
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
-    call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
+    call rti_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
   nwpFields   = (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0)
   oceanFields = (vco_getNumLev(vco_ens,'DP') > 0)
   if (.not.nwpFields .and. .not.oceanFields) then
-    call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
+    call rti_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
   end if
 
   call msg_memUsage('midas-letkf')
@@ -441,11 +439,11 @@ program midas_letkf
   call gsv_zero(stateVectorWithZandP4D)
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
-  call utl_tmg_start(2,'--ReadEnsemble')
+  call rti_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensembleTrl4D, enkfNML%nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, enkfNML%ensPathName, biPeriodic = .false., &
                         ignoreDate_opt = enkfNML%ignoreEnsDate)
-  call utl_tmg_stop(2)
+  call rti_tmg_stop(2)
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (enkfNML%recenterInputEns) then
@@ -510,7 +508,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
       call msg_memUsage('midas-letkf')
-      call utl_printTime(reset_opt = (memberIndex==1))
+      call rti_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
@@ -660,9 +658,9 @@ program midas_letkf
   call eob_setObsErrInv(ensObs)
   if (useModulatedEns) call eob_setObsErrInv(ensObsGain)
 
-  call utl_tmg_start(141,'----Barr')
+  call rti_tmg_start(141,'----Barr')
   call mmpi_barrier
-  call utl_tmg_stop(141)
+  call rti_tmg_stop(141)
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
@@ -720,7 +718,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to analysis ensemble member ', memberIndex
       write(*,*) ''
-      call utl_printTime(reset_opt = (memberIndex==1))
+      call rti_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleAnl, stateVectorMemberAnl, memberIndex)
@@ -844,7 +842,7 @@ program midas_letkf
 
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (enkfNML%ensPostProcessing) then
-    call utl_printTime()
+    call rti_printTime()
 
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)
     call gsv_allocate(stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -866,7 +864,7 @@ program midas_letkf
                             readHeightSfc_opt = .false.)
     end do
 
-    call utl_printTime()
+    call rti_printTime()
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
                          writeTrlEnsemble = .false., outputOnlyEnsMean_opt = enkfNML%outputOnlyEnsMean)
   else
@@ -874,13 +872,13 @@ program midas_letkf
     if (mmpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
-    call utl_tmg_start(3,'--WriteEnsemble')
+    call rti_tmg_start(3,'--WriteEnsemble')
     if (.not. enkfNML%outputOnlyEnsMean) then
       call ens_writeEnsemble(ensembleAnl, '.', '', enkfNML%etiket_anl, 'A',  &
                              numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                              containsFullField_opt = .true.)
     end if
-    call utl_tmg_stop(3)
+    call rti_tmg_stop(3)
 
   end if
 
@@ -888,8 +886,8 @@ program midas_letkf
   !- 8. MPI, tmg finalize
   !
   call msg_memUsage('midas-letkf')
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
 
   !- Deallocate ensObs objects
   call eob_deallocate(ensObs)
@@ -920,10 +918,9 @@ contains
     integer             :: randomSeed
 
     ! Locals:
-    integer :: imode, datePrint, timePrint, newdate
+    integer :: datePrint, timePrint
 
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
     ! Remove the century from date: YYMMDD
     datePrint = datePrint - 1000000*(datePrint/1000000)
     ! Add hours to date: YYMMDDHH

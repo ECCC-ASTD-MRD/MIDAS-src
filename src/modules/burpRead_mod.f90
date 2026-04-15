@@ -5,7 +5,6 @@ module burpRead_mod
   !:Purpose:  To read and update BURP observation files. Data is stored in
   !           obsSpaceData object.
   !
-
   use codePrecision_mod
   use bufr_mod
   use burp_module
@@ -13,12 +12,14 @@ module burpRead_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use obsFilter_mod
   use tovs_mod
   use kdTree2_mod
   use codtyp_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -261,7 +262,7 @@ contains
           end do elementLoop
 
           if ( .not. btClearElementFound ) &
-            call utl_abort('brpr_updateBurp: btClearElement element should be in namelist.')
+            call rti_abort('brpr_updateBurp: btClearElement element should be in namelist.')
         end if
 
         NELE_INFO=24
@@ -278,7 +279,7 @@ contains
         FAMILYTYPE2='CH'
         call BRPACMA_NML('namburp_filter_chm')
       CASE default
-        call utl_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
+        call rti_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
     NELE=NELEMS
@@ -1711,7 +1712,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errorMessage))
+        call rti_abort(trim(errorMessage))
       end if
     end subroutine handle_error
 
@@ -1745,7 +1746,7 @@ contains
       beSilent = .false.
     end if
 
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
     SELECT CASE(trim(NML_SECTION))
@@ -1756,7 +1757,7 @@ contains
         call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_gps == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
+          call rti_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
         end if
       CASE( 'namburp_filter_sfc')
         nElems_sfc = MPC_missingValue_INT
@@ -1765,7 +1766,7 @@ contains
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_sfc == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
+          call rti_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
         end if
       CASE( 'namburp_filter_conv')
         nElems = MPC_missingValue_INT
@@ -1774,7 +1775,7 @@ contains
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
         if (nElems == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
+          call rti_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
         end if
       CASE( 'namburp_filter_tovs')
         nElems = MPC_missingValue_INT
@@ -1784,7 +1785,7 @@ contains
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
         if (nElems == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
+          call rti_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
         end if
       CASE( 'namburp_filter_chm_sfc')
         nElems_sfc = MPC_missingValue_INT
@@ -1793,7 +1794,7 @@ contains
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
         if (nElems_sfc == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
+          call rti_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
         end if
       CASE( 'namburp_filter_chm')
         nElems = MPC_missingValue_INT
@@ -1802,14 +1803,14 @@ contains
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
         if (nElems == 0) then
-          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
+          call rti_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
         end if
       CASE( 'namburp_update')
         BN_ITEMS = MPC_missingValue_INT
         bItemList(:) = '***'
         READ(utl_flnml,NML=NAMBURP_UPDATE)
         if (BN_ITEMS /= MPC_missingValue_INT) then
-          call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
+          call rti_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
         end if
         BN_ITEMS = 0
         do itemIndex = 1, maxItems
@@ -1818,10 +1819,10 @@ contains
         end do
         if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
       CASE default
-        call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
+        call rti_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
       END SELECT
 
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
   contains
 
@@ -1837,7 +1838,7 @@ contains
       integer :: listIndex
 
       if (numberElements /= MPC_missingValue_INT) then
-        call utl_abort('brpacma_nml: check '//trim(nml_section)//' namelist section, you should remove '//trim(variable))
+        call rti_abort('brpacma_nml: check '//trim(nml_section)//' namelist section, you should remove '//trim(variable))
       end if
       numberElements = 0
       do listIndex = 1, size(list)
@@ -1945,7 +1946,7 @@ contains
     CHARACTER(LEN=9)       :: STNID,STN_RESUME
     LOGICAL                :: HIRES,HIRES_SFC,HIPCS,phasePresent,LOK,LROK
     integer                :: NDATA,NDATA_SF
-    integer                :: IER,date2,time2,time_sonde,NEWDATE
+    integer                :: date2,time2,time_sonde
     real                   :: RAD_MOY,RAD_STD
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
@@ -2061,7 +2062,7 @@ contains
         FAMILYTYPE2='CH'
         call BRPACMA_NML('namburp_filter_chm')
       CASE default
-        call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
+        call rti_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
     !Exception CrIS
@@ -2500,7 +2501,7 @@ contains
               IND_dataQcFlag0 = BURP_Find_Element(Block_in, ELEMENT=33081)
               IND_dataQcFlag1 = BURP_Find_Element(Block_in, ELEMENT=33032)
               if ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 > 0 ) then
-                call  utl_abort('readBurp : Got two valid indices for IND_dataQcFlag2 in family' // trim(familyType))
+                call  rti_abort('readBurp : Got two valid indices for IND_dataQcFlag2 in family' // trim(familyType))
               elseif ( IND_dataQcFlag0 > 0 .and. IND_dataQcFlag1 < 0 ) then
                 IND_dataQcFlag2 = IND_dataQcFlag0
               elseif ( IND_dataQcFlag0 < 0 .and. IND_dataQcFlag1 > 0 ) then
@@ -2984,12 +2985,12 @@ contains
               IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
                 IF ( XLON  < 0. ) XLON  = 360. + XLON
-                ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
+                kstamp2 = tim_yyyymmddhhToDatestamp(YMD_DATE,HM*10000)
                 XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                IER=newdate(kstamp,date2,time_sonde,-3)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
                 time2=time_sonde/10000
                 YMD_DATE_SFC=date2
                 HM_SFC=time2
@@ -3042,7 +3043,7 @@ contains
                 dataCloudFracLEV(:) = MPC_missingValue_INT
               end if
 
-              ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
+              kstamp2 = tim_yyyymmddhhToDatestamp(YMD_DATE,HM*10000)
               do  JJ =1,nval
                 OBSERV(1:NELE,1:1) = obsvalue(1:NELE,jj:jj,k)
                 if (allocated(BCOR2))  BiasCorrection2(1:NELE,1:1) = BCOR2(1:NELE,jj:jj,k)
@@ -3057,7 +3058,7 @@ contains
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                IER=newdate(kstamp,date2,time_sonde,-3)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
 
                 time2=time_sonde/10000
 
@@ -3128,12 +3129,12 @@ contains
               IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
                 IF ( XLON  < 0. ) XLON  = 360. + XLON
-                ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
+                kstamp2 = tim_yyyymmddhhToDatestamp(YMD_DATE,HM*10000)
                 XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                IER=newdate(kstamp,date2,time_sonde,-3)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
                 time2=time_sonde/10000
                 YMD_DATE=date2
                 HM=time2
@@ -3433,7 +3434,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errormessage))
+        call rti_abort(trim(errormessage))
       end if
     end subroutine handle_error
 
@@ -3546,7 +3547,7 @@ contains
                  end if
               END DO
            ELSE
-              call utl_abort('write_body: Invalid BURP vertical coordinate type.')
+              call rti_abort('write_body: Invalid BURP vertical coordinate type.')
            END IF
         END IF
     END SELECT
@@ -3954,7 +3955,7 @@ contains
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (utl_isEqual(RCONSTITUENT, MPC_missingValue_R4)) THEN
-                call utl_abort('writeInfo: Missing 08046 element for the CH family.')
+                call rti_abort('writeInfo: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
@@ -3992,7 +3993,7 @@ contains
     end if
 
     if (  trim(FAMTYP) == trim('GO') ) then
-      call utl_abort('writeInfo: unknown familyType : ' // trim(FAMTYP))
+      call rti_abort('writeInfo: unknown familyType : ' // trim(FAMTYP))
     END IF
 
 
@@ -4461,7 +4462,7 @@ contains
                     headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                     end if
 
                   val_r4 = real(obs_headElem_r(obsSpaceData, OBS_ETOP, idata2),4)
@@ -4544,7 +4545,7 @@ contains
                     write(*,*) "File Inconsistency emissivity block", &
                          headElem_i, fileIndex, idata3
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                   end if
                   idata   = obs_headElem_i(obsSpaceData,OBS_RLN,idata3)
                   idatend = obs_headElem_i(obsSpaceData,OBS_NLV,idata3) + idata - 1
@@ -4699,7 +4700,7 @@ contains
                     headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                   end if
 
                   ! clwObs
@@ -4791,7 +4792,7 @@ contains
                     headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                   end if
 
                   ! siObs
@@ -4945,7 +4946,7 @@ contains
                     headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                   end if
 
                   ! clwObs
@@ -5100,7 +5101,7 @@ contains
                     headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
-                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                    call rti_abort('brpr_addCloudParametersandEmissivity')
                   end if
 
                   ! clwObs
@@ -5249,7 +5250,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errormessage))
+        call rti_abort(trim(errormessage))
       end if
     end subroutine handle_error
 
@@ -5606,7 +5607,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errormessage))
+        call rti_abort(trim(errormessage))
       end if
     end subroutine handle_error
 
@@ -5691,11 +5692,11 @@ contains
     if ( familyType == "TO" ) then
       if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
         ! read the namelist
-        call utl_tmg_start(181,'low-level--readNML')
+        call rti_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=NAMADDTOBURP, iostat=error)
-        if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
+        if ( error /= 0 ) call rti_abort('brpr_addElementsToBurp: Error reading namelist')
         write(*,nml=NAMADDTOBURP)
-        call utl_tmg_stop(181)
+        call rti_tmg_stop(181)
       else
         write(*,*)
         write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'
@@ -5705,7 +5706,7 @@ contains
 
       ! check clear-sky radiance element is in the namelist
       if ( addBtClearToBurp .and. btClearElementId < 0 ) then
-        call utl_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
+        call rti_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
       end if
 
       btClearMrqElementID = 200000 + btClearElementId
@@ -5735,7 +5736,7 @@ contains
 
     if (error /= burp_noerr) then
       write(*,*) "cannot open BURP input file ", inputFileName
-      call utl_abort('brpr_addElementsToBurp')
+      call rti_abort('brpr_addElementsToBurp')
     end if
 
     ! obtain input burp file number of reports
@@ -5800,13 +5801,13 @@ contains
         ! check clwFG element is in the namelist in all-sky mode.
         if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .and. &
             clwFgElementId < 0) then
-          call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
+          call rti_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
         end if
 
         ! check siFG element is in the namelist in all-sky mode.
         if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .and. &
             siFgElementId < 0) then
-          call utl_abort('brpr_addElementsToBurp: siFgElementId missing in the namelist')
+          call rti_abort('brpr_addElementsToBurp: siFgElementId missing in the namelist')
         end if
       end if
 
@@ -6034,7 +6035,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errorMessage))
+        call rti_abort(trim(errorMessage))
       end if
     end subroutine handle_error
 
@@ -6071,12 +6072,13 @@ contains
     integer                     :: nsize, iun_burpin, numReject, numRejectTotal
     character(len=7), parameter :: opt_missing='MISSING'
     real, parameter             :: missingValue = MPC_missingValue_R4
-    integer, external           :: mrfbfl
     logical                     :: groupedData, foundFlags, foundObs, emptyReport
     logical                     :: resumeReport, cleanLevels, checkBlock, cleanLevelsCH
     character(len=2)            :: familyTypesToDo(8) = (/'AI','SW','TO','SC','GP','UA','SF','CH'/)
     character(len=9)            :: stnid
     logical                     :: debug = .false.
+    ! external definitions
+    integer, external           :: mrfbfl
 
     write(*,*)
     write(*,*) 'brpr_burpClean: starting'
@@ -6473,7 +6475,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errorMessage))
+        call rti_abort(trim(errorMessage))
       end if
     end subroutine handle_error
 
@@ -6561,7 +6563,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errorMessage))
+        call rti_abort(trim(errorMessage))
       end if
     end subroutine handle_error
 
@@ -6648,7 +6650,7 @@ contains
         write(*,*) "history"
         call BURP_STR_ERROR_HISTORY()
         call cleanup()
-        call utl_abort(trim(errorMessage))
+        call rti_abort(trim(errorMessage))
       end if
     end subroutine handle_error
 
@@ -6841,7 +6843,7 @@ contains
       deallocate(bListElementsMax)
 
     case default
-      call utl_abort('getElementIdsRead: unknown familyType: ' // trim(familyType))
+      call rti_abort('getElementIdsRead: unknown familyType: ' // trim(familyType))
 
     end select
 

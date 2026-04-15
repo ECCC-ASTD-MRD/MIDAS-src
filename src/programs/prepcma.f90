@@ -88,6 +88,7 @@ program midas_prepcma
   !=================== ====================== ===========================================
   !
   !
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use obsSpaceData_mod
@@ -99,6 +100,7 @@ program midas_prepcma
   use timeCoord_mod
   use enkf_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use regions_mod
   use burpRead_mod
@@ -109,7 +111,7 @@ program midas_prepcma
 
   implicit none
 
-  integer :: fnom, ierr, dateStampFromObs
+  integer :: ierr, dateStampFromObs
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
@@ -172,10 +174,10 @@ program midas_prepcma
 
   !- 1.1 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
-  if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
+  if ( mmpi_myid == 0 ) call rti_writeStatus('PREPCMA_BEG')
 
   call utl_readNml()
 
@@ -200,11 +202,11 @@ program midas_prepcma
   tovsInstNamesWithMaxNumHeaders(:) = 'NOT_DEFINED'
   maxNumHeadersForTovsInst(:) = nto_target
 
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namprepcma, iostat=ierr)
-  if (ierr /= 0) call utl_abort('midas-prepcma: Error reading namelist')
+  if (ierr /= 0) call rti_abort('midas-prepcma: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namprepcma)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   !- RAM disk usage
   call ram_setup
@@ -212,7 +214,7 @@ program midas_prepcma
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
-  call utl_tmg_start(10,'--Observations')
+  call rti_tmg_start(10,'--Observations')
 
   !- Set up list of elements to be assimilated and flags for rejection (from namelist)
   call filt_setup('prepcma')
@@ -225,9 +227,9 @@ program midas_prepcma
   call obs_initialize( obsSpaceData, mpi_local_opt=obsf_filesSplit() )
 
   !- Read observations
-  call utl_tmg_start(11,'----ReadObsFiles')
+  call rti_tmg_start(11,'----ReadObsFiles')
   call obsf_readFiles( obsSpaceData )
-  call utl_tmg_stop(11)
+  call rti_tmg_stop(11)
 
   numHeader = obs_numheader(obsSpaceData)
   numBody   = obs_numbody(obsSpaceData)
@@ -262,7 +264,7 @@ program midas_prepcma
   !- Call suprep again to 'black list' channels according to 'util' column of stats_tovs
   if (applySatUtil) call filt_suprep(obsSpaceData)
 
-  call utl_tmg_stop(10)
+  call rti_tmg_stop(10)
 
   !- Setup timeCoord module and set dateStamp from env variable
   call tim_setup()
@@ -271,7 +273,7 @@ program midas_prepcma
       ! use dateStamp from obs if not already set by env variable
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort('midas-prepcma: DateStamp was not set')
+      call rti_abort('midas-prepcma: DateStamp was not set')
     end if
   end if
 
@@ -382,14 +384,14 @@ program midas_prepcma
   write(*,*) '> midas-prepcma: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
-  call utl_printTime()
-  call utl_tmg_stop(0)
+  call rti_printTime()
+  call rti_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call mmpi_finalize
 
   if ( mmpi_myid == 0 ) then
-    call utl_writeStatus('PREPCMA_END')
+    call rti_writeStatus('PREPCMA_END')
   end if
 
 contains
@@ -500,7 +502,7 @@ contains
 
     if (cfam /= 'TO') then
       if (present(codtyp_opt)) then
-        call utl_abort('thining_fam: codtyp_opt argument only allowed for TO family')
+        call rti_abort('thining_fam: codtyp_opt argument only allowed for TO family')
       end if
     end if
 
@@ -684,7 +686,7 @@ contains
                                   headerFoundForInst, ifAfterThinning_opt=.true.)
 
       if (.not. headerFoundForInst) then
-        call utl_abort('thinning_fam: should have returned before thinning was performed')
+        call rti_abort('thinning_fam: should have returned before thinning was performed')
       end if
 
     end if ! cfam=='TO'
@@ -776,7 +778,7 @@ contains
         if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) /= 'NOT_DEFINED') then
           if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == trim(tovsInstNamesWithMaxNumHeaders(sensorIndex2))) then
             write(*,*) trim(tovsInstNamesWithMaxNumHeaders(sensorIndex))
-            call utl_abort('checkTovsInstNamesInNml: duplicate instrument names exist in tovsInstNamesWithMaxNumHeaders')
+            call rti_abort('checkTovsInstNamesInNml: duplicate instrument names exist in tovsInstNamesWithMaxNumHeaders')
           end if
         else
           exit loopSensor4
@@ -786,7 +788,7 @@ contains
 
     do sensorIndex = 1, tvs_nsensors
       if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == 'amsub') then
-        call utl_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')
+        call rti_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')
       end if
     end do
 
@@ -913,10 +915,10 @@ contains
           if (numInstNameUniqueListWithHeader == 1) then
             if (trim(instNameUniqueListWithHeader(1)) /= trim(instName)) then
               write(*,*) 'instName=', instName
-              call utl_abort('printToListingsForTovs: instNameUniqueListWithHeader(1)) /= instName')
+              call rti_abort('printToListingsForTovs: instNameUniqueListWithHeader(1)) /= instName')
             end if
           else
-            call utl_abort('printToListingsForTovs: numInstNameUniqueListWithHeader > 1')
+            call rti_abort('printToListingsForTovs: numInstNameUniqueListWithHeader > 1')
           end if
         end if ! thinTovsPerInst
 
@@ -968,9 +970,9 @@ contains
                       ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
 
           if (.not. ifAfterThinning) then
-            call utl_abort('printToListingsForTovs: the sums do not match before thinning')
+            call rti_abort('printToListingsForTovs: the sums do not match before thinning')
           else
-            call utl_abort('printToListingsForTovs: the sums do not match after thinning')
+            call rti_abort('printToListingsForTovs: the sums do not match after thinning')
           end if
 
         end if

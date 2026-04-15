@@ -5,8 +5,10 @@ module ensPostProcess_mod
   !:Purpose:  Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
+  use rmn_fnom
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use verticalCoord_mod
@@ -57,7 +59,7 @@ contains
     logical, optional, intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
-    integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
+    integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, randomSeedRandomPert
     integer                   :: stepIndex, middleStepIndex
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
@@ -79,7 +81,6 @@ contains
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
-    integer, external         :: newdate
     logical                   :: outputOnlyEnsMean
     logical                   :: writeHeightSfc
 
@@ -147,7 +148,7 @@ contains
     else
       write(*,*) 'epp_postProcess: Unexpected combination of values for nstepobs, nstepobsinc = ', &
                  tim_nstepobs, tim_nstepobsinc
-      call utl_abort('epp_postProcess')
+      call rti_abort('epp_postProcess')
     end if
 
     ! Optional argument settings
@@ -227,11 +228,11 @@ contains
     horizSmoothMeanIncShape = 'tophat'
 
     !- Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
+    call rti_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namEnsPostProcModule, iostat = ierr)
-    if (ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
+    if (ierr /= 0) call rti_abort('epp_postProc: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml = namEnsPostProcModule)
-    call utl_tmg_stop(181)
+    call rti_tmg_stop(181)
 
     !- Set numBits2D if it does not appear in the namelist
     if (numBits2D == MPC_missingValue_INT) then
@@ -240,10 +241,10 @@ contains
 
     if (use4Drecentering3Densemble) then
       if (tim_nstepobsinc > 1) then
-        call utl_abort('epp_postProc: Not able to use 4D recentering analysis when ensemble is also 4D')
+        call rti_abort('epp_postProc: Not able to use 4D recentering analysis when ensemble is also 4D')
       end if
       if (tim_nstepobs == 1) then
-        call utl_abort('epp_postProc: Not able to use 4D recentering analysis when tim_nstepobs equal 1')
+        call rti_abort('epp_postProc: Not able to use 4D recentering analysis when tim_nstepobs equal 1')
       end if
     end if
 
@@ -255,19 +256,19 @@ contains
 
     if (writeSubSample) then
       if (.not.(ens_isAllocated(ensembleTrl).and.ens_isAllocated(ensembleAnl))) then
-        call utl_abort('epp_postProc: subSample can only be produced if both Anl and Trl ensembles available')
+        call rti_abort('epp_postProc: subSample can only be produced if both Anl and Trl ensembles available')
       end if
     end if
 
     if (writeSubSampleUnPert) then
       if (.not.ens_isAllocated(ensembleAnl)) then
-        call utl_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
+        call rti_abort('epp_postProc: subSampleUnPert can only be produced if Anl ensemble available')
       end if
     end if
 
     if (writeRawAnalStats) then
       if (.not.ens_isAllocated(ensembleAnl)) then
-        call utl_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
+        call rti_abort('epp_postProc: RawAnalStats can only be produced if Anl ensemble available')
       end if
     end if
 
@@ -449,11 +450,10 @@ contains
       if (alphaRandomPert > 0.0D0) then
         ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
         if (randomSeed == MPC_missingValue_INT) then
-          imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
           dateStamp = tim_getDateStamp()
-          ierr = newdate(dateStamp, datePrint, timePrint, imode)
+          call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
           timePrint = timePrint/1000000
-          datePrint =  datePrint*100 + timePrint
+          datePrint = datePrint*100 + timePrint
           if (includeYearInSeed) then
             ! Remove the century, keeping 2 digits of the year
             randomSeedRandomPert = datePrint - 100000000*(datePrint/100000000)
@@ -492,9 +492,8 @@ contains
         if (alphaRandomPertSubSample > 0.0D0) then
           ! If namelist value is MPC_missingValue_INT, set random seed using the date (as in standard EnKF)
           if (randomSeed == MPC_missingValue_INT) then
-            imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
             dateStamp = tim_getDateStamp()
-            ierr = newdate(dateStamp, datePrint, timePrint, imode)
+            call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
             timePrint = timePrint/1000000
             datePrint =  datePrint*100 + timePrint
             if (includeYearInSeed) then
@@ -687,7 +686,7 @@ contains
 
     if (ens_isAllocated(ensembleTrl)) then
       ! output trialmean, trialrms
-      call utl_tmg_start(5,'--WriteEnsMeanRms')
+      call rti_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorMeanTrl)
@@ -706,18 +705,18 @@ contains
                            containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
       if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevTrl, outFileName, ftype = 'F', nEns = nEns)
-      call utl_tmg_stop(5)
+      call rti_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble .and. .not. outputOnlyEnsMean) then
-        call utl_tmg_start(3,'--WriteEnsemble')
+        call rti_tmg_start(3,'--WriteEnsemble')
         if (writeHeightSfc) then
           call ens_copyHeightSfc(ensembleTrl,stateVectorHeightSfc)
         end if
         call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
                                numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                                containsFullField_opt = .true., writeHeightSfc_opt = writeHeightSfc)
-        call utl_tmg_stop(3)
+        call rti_tmg_stop(3)
       end if
     end if
 
@@ -756,7 +755,7 @@ contains
       end if
 
       ! output analmean, analrms
-      call utl_tmg_start(5,'--WriteEnsMeanRms')
+      call rti_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
@@ -819,11 +818,11 @@ contains
         outFileName = trim(outFileName) // '_ascii'
         if (writeAsciiRmsStats) call epp_printRmsStats(stateVectorStdDevAnlPert, outFileName, ftype = 'P', nEns = nEns)
       end if
-      call utl_tmg_stop(5)
+      call rti_tmg_stop(5)
 
       !- Output the ensemble mean increment (include MeanAnl Psfc) and ensemble increments
       if (ens_isAllocated(ensembleTrl)) then
-        call utl_tmg_start(5,'--WriteEnsMeanRms')
+        call rti_tmg_start(5,'--WriteEnsMeanRms')
         ! output ensemble mean increment
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt = 'inc')
         ! here we assume 4 digits for the ensemble member!!!!
@@ -850,7 +849,7 @@ contains
             end if
           end do
           if (writeNetCDFInc) then
-            call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+            call rti_abort('epp_postProcess: output netCDF file requested but not required.')
           end if
         else
           call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -874,10 +873,10 @@ contains
           end do
         end if
 
-        call utl_tmg_stop(5)
+        call rti_tmg_stop(5)
 
         !- Output all ensemble member increments
-        call utl_tmg_start(3,'--WriteEnsemble')
+        call rti_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
@@ -891,12 +890,12 @@ contains
                                        fileNameSuffix = 'inc', ensPath='.')
           end if
         end if
-        call utl_tmg_stop(3)
+        call rti_tmg_stop(3)
 
       end if ! allocated(ensembleTrl)
 
       ! output ensemble mean analysis state
-      call utl_tmg_start(5,'--WriteEnsMeanRms')
+      call rti_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp(), 0)
       ! here we assume 4 digits for the ensemble member!!!!
       etiket = trim(etiket_anl) // '0000'
@@ -909,7 +908,7 @@ contains
         end do
 
         if (writeNetCDFensAnalysis) then
-          call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+          call rti_abort('epp_postProcess: output netCDF file requested but not required.')
         end if
 
       else
@@ -927,22 +926,22 @@ contains
                                      containsFullField_opt = .false.)
         end if
       end if
-      call utl_tmg_stop(5)
+      call rti_tmg_stop(5)
 
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
-      call utl_tmg_start(3,'--WriteEnsemble')
+      call rti_tmg_start(3,'--WriteEnsemble')
       if (.not. outputOnlyEnsMean) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                                numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                                containsFullField_opt = .true., &
                                writeNetCDF_opt = writeNetCDFensAnalysis)
       end if
-      call utl_tmg_stop(3)
+      call rti_tmg_stop(3)
 
       !- Output the sub-sampled ensemble analyses and increments
       if (writeSubSample) then
-        call utl_tmg_start(5,'--WriteEnsMeanRms')
+        call rti_tmg_start(5,'--WriteEnsMeanRms')
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         ! here we assume 4 digits for the ensemble member!!!!
@@ -988,19 +987,19 @@ contains
                                  stepIndex_opt = stepIndex, containsFullField_opt = .true.)
           end do
         end if
-        call utl_tmg_stop(5)
+        call rti_tmg_stop(5)
 
         ! Output the sub-sampled analysis ensemble members
-        call utl_tmg_start(3,'--WriteEnsemble')
+        call rti_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                                  containsFullField_opt = .true.)
         end if
-        call utl_tmg_stop(3)
+        call rti_tmg_stop(3)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
-        call utl_tmg_start(3,'--WriteEnsemble')
+        call rti_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
@@ -1013,7 +1012,7 @@ contains
                                        ensPath = 'subspace')
           end if
         end if
-        call utl_tmg_stop(3)
+        call rti_tmg_stop(3)
 
       end if ! writeSubSample
 
@@ -1021,13 +1020,13 @@ contains
       if (writeSubSampleUnPert) then
 
         ! Output the sub-sampled analysis ensemble members
-        call utl_tmg_start(3,'--WriteEnsemble')
+        call rti_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                                  containsFullField_opt = .true.)
         end if
-        call utl_tmg_stop(3)
+        call rti_tmg_stop(3)
 
       end if
 
@@ -1265,7 +1264,7 @@ contains
     character(len=4), pointer :: varNamesWithLQ(:)
     character(len=4) :: varName
 
-    call utl_tmg_start(4,'--AddEnsRandomPert')
+    call rti_tmg_start(4,'--AddEnsRandomPert')
 
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensemble)
@@ -1311,10 +1310,10 @@ contains
 
     hco_core => hco_randomPert
     if (firstCall) then
-      call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
+      call rti_tmg_stop(4) ! stop counter, since Bmat has it's own counters
       call bmat_setup(hco_randomPert, hco_core, vco_randomPert)
       firstCall = .false.
-      call utl_tmg_start(4,'--AddEnsRandomPert')
+      call rti_tmg_start(4,'--AddEnsRandomPert')
     end if
     call gvt_setup(hco_randomPert, hco_core, vco_randomPert)
 
@@ -1391,7 +1390,7 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
-      call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
+      call rti_tmg_stop(4) ! stop counter, since Bmat has it's own counters
       if (ens_varExist(ensemble,'HU') .and. .not.useMemberAsHuRefState) then
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
@@ -1402,7 +1401,7 @@ contains
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
                         stateVectorPerturbation)       ! OUT
       end if
-      call utl_tmg_start(4,'--AddEnsRandomPert')
+      call rti_tmg_start(4,'--AddEnsRandomPert')
 
       if (vco_ens%vcode == 21001 .and. vco_randomPert%vcode /= 21001) then
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
@@ -1487,7 +1486,7 @@ contains
       call gsv_deallocate(stateVectorHuRefStateInterpV)
     end if
 
-    call utl_tmg_stop(4)
+    call rti_tmg_stop(4)
 
   end subroutine epp_addRandomPert
 
@@ -1513,7 +1512,6 @@ contains
     integer :: memberIndex, memberIndexSubSample, memberIndexFull
     integer :: memberIndexesSubSample(1000), memberIndexesFull(1000)
     integer, allocatable :: dateStampListInc(:)
-    integer, external :: fnom, fclos
 
     numSubSample = 0
 
@@ -1607,7 +1605,6 @@ contains
     real(8), allocatable :: weightArray(:,:), weightArrayEnsMean1(:), weightArrayEnsMean2(:)
     real(8), allocatable :: weightArrayLand(:)
     real(8)              :: weightFound
-    integer, external    :: fnom, fclos
     integer              :: localDateStamp
 
     write(*,*) 'epp_hybridRecentering: RecenterAnlFileName = ', recenterAnlFileName
@@ -1615,7 +1612,7 @@ contains
     ! check if recentering analysis file exists
     inquire(file = recenterAnlFileName, exist = recenterAnlFileExists)
     if (.not. recenterAnlFileExists) then
-      call utl_abort('epp_hybridRecentering: The recentering analysis file does not exist')
+      call rti_abort('epp_hybridRecentering: The recentering analysis file does not exist')
     end if
 
     hco_ens => ens_getHco(ensembleAnl)
@@ -1634,7 +1631,7 @@ contains
       status = fnom(nulFile, './optiontable', 'FMT+SEQ+R/O', 0)
       read(nulFile,'(a)', IOSTAT = status) textLine
       if (status /= 0) then
-        call utl_abort('epp_hybridRecentering: unable to read optiontable file')
+        call rti_abort('epp_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
       if (mmpi_myid == 0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
@@ -1654,7 +1651,7 @@ contains
         write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens, 'MM')
         write(*,*) 'Provided values : '
         write(*,*) weightRecenter(1:vco_getNumLev(vco_ens, 'MM'))
-        call utl_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
+        call rti_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
       end if
       do memberIndex = 0, numMembers
         weightArray(:, memberIndex) = weightRecenter(:)
@@ -1673,7 +1670,7 @@ contains
     else if (trim(utl_fileType(recenterAnlFileName)) == 'FST') then
       localDateStamp = tim_getDateStamp()
     else
-      call utl_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
+      call rti_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
     end if
 
     call gsv_allocate(stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -1790,7 +1787,6 @@ contains
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
     real(8)                       :: pzSfc(1,1)
     real(8), pointer              :: pressureOrHeight_T(:,:,:), pressureOrHeight_M(:,:,:)
-    integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
     real(8), parameter            :: elapsed = 0.0d0
@@ -1843,7 +1839,7 @@ contains
                                fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
       else
         write(*,*) 'vCode = ', vco%vcode
-        call utl_abort('epp_printRmsStats: Unknown vCode')
+        call rti_abort('epp_printRmsStats: Unknown vCode')
       end if
 
       ! set the variable name and pressure for each element of column
@@ -1883,7 +1879,7 @@ contains
 
     else
 
-      call utl_abort('epp_printRmsStats: Unknown type of levels')
+      call rti_abort('epp_printRmsStats: Unknown type of levels')
 
     end if
 
@@ -1905,7 +1901,7 @@ contains
       nulFile = 0
       ierr = fnom (nulFile, fileName, 'SEQ+R/W', 0)
       if (ierr /= 0) then
-        call utl_abort('epp_printRmsStats: Cannot open ascii output file')
+        call rti_abort('epp_printRmsStats: Cannot open ascii output file')
       end if
 
       varLevIndexCount = 0

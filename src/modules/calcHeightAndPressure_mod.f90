@@ -23,6 +23,7 @@ module calcHeightAndPressure_mod
   use gridstatevector_mod
   use columnData_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use gps_mod
   use HorizontalCoord_mod
@@ -152,7 +153,7 @@ contains
     if (Vcode == 0) return
 
     if (statevector%mpi_distribution == 'VarsLevs') then
-      call utl_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
+      call rti_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
     end if
 
     Vcode = vco_getVcode(gsv_getVco(statevector))
@@ -172,15 +173,15 @@ contains
         if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_nl(statevector)
         else
-          call utl_abort('calcZandP_gsv_nl (czp): Pressure is not allocated in stateVector')
+          call rti_abort('calcZandP_gsv_nl (czp): Pressure is not allocated in stateVector')
         end if
       else
-        call utl_abort('calcZandP_gsv_nl (czp): Height is not allocated in stateVector')
+        call rti_abort('calcZandP_gsv_nl (czp): Height is not allocated in stateVector')
       end if
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_gsv_nl (czp): not implemented')
+      call rti_abort('calcZandP_gsv_nl (czp): not implemented')
     end if
 
     call msg('calcZandP_gsv_nl (czp)', 'END', verb_opt=2)
@@ -220,7 +221,7 @@ contains
       if (gsv_varExist(statevector, 'P_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
-          call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
+          call rti_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
         end if
         call calcPressure_gsv_tl(statevector, statevectorRef)
 
@@ -234,7 +235,7 @@ contains
       if (gsv_varExist(statevector, 'Z_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
-          call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
+          call rti_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
         end if
         call calcHeight_gsv_tl(statevector, statevectorRef)
 
@@ -246,7 +247,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_gsv_tl (czp): not implemented')
+      call rti_abort('calcZandP_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcZandP_gsv_tl (czp)', 'END', verb_opt=2)
@@ -287,7 +288,7 @@ contains
       if (gsv_varExist(statevector, 'Z_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
-          call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
+          call rti_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
         call calcHeight_gsv_ad(statevector, statevectorRef)
 
@@ -301,7 +302,7 @@ contains
       if (gsv_varExist(statevector, 'P_*')) then
 
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
-          call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
+          call rti_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
         call calcPressure_gsv_ad(statevector, statevectorRef)
 
@@ -313,7 +314,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_gsv_ad (czp): not implemented')
+      call rti_abort('calcZandP_gsv_ad (czp): not implemented')
     end if
 
     call msg('calcZandP_gsv_ad (czp)', 'END', verb_opt=2)
@@ -339,7 +340,7 @@ contains
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
     real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
 
-    call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
+    call rti_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -391,12 +392,12 @@ contains
                                           ZTout_r4_opt=ptr_ZT_r4, &
                                           ZMout_r4_opt=ptr_ZM_r4)
       else
-        call utl_abort('calcHeight_gsv_nl (czp): not implemented for r8 and 2001')
+        call rti_abort('calcHeight_gsv_nl (czp): not implemented for r8 and 2001')
       end if
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcHeight_gsv_nl (czp): not implemented')
+      call rti_abort('calcHeight_gsv_nl (czp): not implemented')
     end if
 
     if ( gsv_getDataKind(statevector) == 4 ) then
@@ -416,7 +417,7 @@ contains
     end if
 
     call msg('calcHeight_gsv_nl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(172)
+    call rti_tmg_stop(172)
   end subroutine calcHeight_gsv_nl
 
   !---------------------------------------------------------
@@ -448,7 +449,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
+    call rti_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -457,10 +458,10 @@ contains
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r4_opt=PTin_r4_opt, &
@@ -469,10 +470,10 @@ contains
                                           ZMout_r4_opt=ZMout_r4_opt)
       else ! datakind = 8
         if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
         call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r8_opt=PTin_r8_opt, &
@@ -484,12 +485,12 @@ contains
     else if (Vcode == 21001) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
         end if
         call calcHeight_gsv_nl_vcode2100x_r4(statevector, ZTout_r4_opt, ZMout_r4_opt)
       else
         if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+          call rti_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
         end if
         call calcHeight_gsv_nl_vcode2100x_r8(statevector, ZTout_r8_opt, ZMout_r8_opt)
       end if
@@ -497,11 +498,11 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('czp_calcReturnHeight_gsv_nl: not implemented')
+      call rti_abort('czp_calcReturnHeight_gsv_nl: not implemented')
     end if
 
     call msg('czp_calcReturnHeight_gsv_nl', 'END', verb_opt=2)
-    call utl_tmg_stop(172)
+    call rti_tmg_stop(172)
   end subroutine czp_calcReturnHeight_gsv_nl
 
   !---------------------------------------------------------
@@ -829,10 +830,10 @@ contains
     allocate(tv(nlev_T))
 
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-      call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
+      call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
     end if
     if ((Vcode == 5005) .and. nlev_T /= nlev_M) then
-      call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
+      call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
     end if
 
     if (Vcode == 5005) then
@@ -860,13 +861,13 @@ contains
 
     if ( statevector%dataKind == 4 ) then
       if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: P{T,M}in_r4_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: P{T,M}in_r4_opt expected')
       end if
       P_T_ptr_r4 => PTin_r4_opt
       P_M_ptr_r4 => PMin_r4_opt
 
       if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: Z{T,M}out_r4_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: Z{T,M}out_r4_opt expected')
       end if
       height_M_ptr_r4 => ZMout_r4_opt
       height_T_ptr_r4 => ZTout_r4_opt
@@ -881,13 +882,13 @@ contains
 
     else ! datakind = 8
       if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: P{T,M}in_r8_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: P{T,M}in_r8_opt expected')
       end if
       P_T_ptr_r8 => PTin_r8_opt
       P_M_ptr_r8 => PMin_r8_opt
 
       if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: Z{T,M}out_r8_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: Z{T,M}out_r8_opt expected')
       end if
       height_M_ptr_r8 => ZMout_r8_opt
       height_T_ptr_r8 => ZTout_r8_opt
@@ -1191,12 +1192,12 @@ contains
 
     if ( statevector%dataKind == 4 ) then
       if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=4: P{T,M}in_r4_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=4: P{T,M}in_r4_opt expected')
       end if
       Pres_ptr_r4 => PTin_r4_opt
 
       if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=4: Z{T,M}out_r4_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=4: Z{T,M}out_r4_opt expected')
       end if
       height_M_ptr_r4 => ZMout_r4_opt
       height_T_ptr_r4 => ZTout_r4_opt
@@ -1211,12 +1212,12 @@ contains
 
     else ! datakind = 8
       if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=8: P{T,M}in_r8_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=8: P{T,M}in_r8_opt expected')
       end if
       Pres_ptr_r8 => PTin_r8_opt
 
       if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=8: Z{T,M}out_r8_opt expected')
+        call rti_abort('calcHeight_gsv_nl_vcode2001 (czp): dataKind=8: Z{T,M}out_r8_opt expected')
       end if
       height_M_ptr_r8 => ZMout_r8_opt
       height_T_ptr_r8 => ZTout_r8_opt
@@ -1286,7 +1287,7 @@ contains
             end if
           end do
           if (presLevIndexAboveSfc == -1) then
-            call utl_abort('calcHeight_gsv_nl_vcode2001 (czp): problem finding pressure level above the surface')
+            call rti_abort('calcHeight_gsv_nl_vcode2001 (czp): problem finding pressure level above the surface')
           end if
 
           !
@@ -1427,7 +1428,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
+    call rti_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -1435,34 +1436,34 @@ contains
 
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables Z_T and Z_M must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
       call calcHeight_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       call calcHeight_gsv_tl_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcHeight_gsv_tl (czp): not implemented')
+      call rti_abort('calcHeight_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcHeight_gsv_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(173)
+    call rti_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -1690,7 +1691,7 @@ contains
 
         else
 
-          call utl_abort('calcHeight_gsv_tl_vcode5xxx (czp): not implemented')
+          call rti_abort('calcHeight_gsv_tl_vcode5xxx (czp): not implemented')
 
         end if if_computeHeight_gsv_tl_vcodes
 
@@ -1718,7 +1719,7 @@ contains
     type(struct_vco), pointer :: vco
     integer :: Vcode
 
-    call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
+    call rti_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_gsv_ad', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -1726,34 +1727,34 @@ contains
 
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
       call calcHeight_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+        call rti_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       call calcHeight_gsv_ad_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcHeight_gsv_ad (czp): not implemented')
+      call rti_abort('calcHeight_gsv_ad (czp): not implemented')
     end if
 
     call msg('calcHeight_gsv_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(174)
+    call rti_tmg_stop(174)
 
     contains
       !---------------------------------------------------------
@@ -2037,7 +2038,7 @@ contains
 
         else
 
-          call utl_abort('calcHeight_gsv_ad_vcode5xxx (czp): not implemented')
+          call rti_abort('calcHeight_gsv_ad_vcode5xxx (czp): not implemented')
 
         end if if_computeHeight_gsv_ad_vcodes
 
@@ -2069,7 +2070,7 @@ contains
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
     real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
 
-    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+    call rti_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -2120,7 +2121,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcPressure_gsv_nl (czp): not implemented')
+      call rti_abort('calcPressure_gsv_nl (czp): not implemented')
     end if
 
     if ( gsv_getDataKind(statevector) == 4 ) then
@@ -2140,7 +2141,7 @@ contains
     end if
 
     call msg('calcPressure_gsv_nl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(177)
+    call rti_tmg_stop(177)
   end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
@@ -2172,7 +2173,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+    call rti_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
@@ -2181,32 +2182,32 @@ contains
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         call calcPressure_gsv_nl_vcode5xxx_r4(statevector, PTout_r4_opt, PMout_r4_opt)
       else
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         call calcPressure_gsv_nl_vcode5xxx_r8(statevector, PTout_r8_opt, PMout_r8_opt)
       end if
     else if (Vcode == 21001) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(ZTin_r4_opt) .and. present(ZMin_r4_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                             PTout_r4_opt=PTout_r4_opt, &
                                             PMout_r4_opt=PMout_r4_opt)
       else ! datakind = 8
         if ( .not. (present(ZTin_r8_opt) .and. present(ZMin_r8_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
-          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
+          call rti_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                             PTout_r8_opt=PTout_r8_opt, &
@@ -2215,11 +2216,11 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('czp_calcReturnPressure_gsv_nl: not implemented')
+      call rti_abort('czp_calcReturnPressure_gsv_nl: not implemented')
     end if
 
     call msg('czp_calcReturnPressure_gsv_nl', 'END', verb_opt=2)
-    call utl_tmg_stop(177)
+    call rti_tmg_stop(177)
   end subroutine czp_calcReturnPressure_gsv_nl
 
   !---------------------------------------------------------
@@ -2273,7 +2274,7 @@ contains
     allocate(tv(nlev_T))
 
     if (nlev_T /= nlev_M) then
-      call utl_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
+      call rti_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
     end if
 
     status = vgd_get( vco_ptr%vgrid, &
@@ -2287,7 +2288,7 @@ contains
          //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
          verb_opt=2, mpiAll_opt=.false.)
     if (.not. statevector%addHeightSfcOffset) then
-      call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): addHeightSfcOffset cannot be .false. for vcode2100x')
+      call rti_abort('calcPressure_gsv_nl_vcode2100x (czp): addHeightSfcOffset cannot be .false. for vcode2100x')
     end if
 
     !
@@ -2303,7 +2304,7 @@ contains
       call calcGeopotHeight_gsv_nl_vcode2100x_r4(statevector, height_T_ptr_r4, height_M_ptr_r4)
 
       if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: P{T,M}out_r4_opt expected')
+        call rti_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: P{T,M}out_r4_opt expected')
       end if
       P_M_ptr_r4 => PMout_r4_opt
       P_T_ptr_r4 => PTout_r4_opt
@@ -2324,7 +2325,7 @@ contains
       call calcGeopotHeight_gsv_nl_vcode2100x_r8(statevector, height_T_ptr_r8, height_M_ptr_r8)
 
       if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=8: P{T,M}_r8_opt expected')
+        call rti_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=8: P{T,M}_r8_opt expected')
       end if
       P_M_ptr_r8 => PMout_r8_opt
       P_T_ptr_r8 => PTout_r8_opt
@@ -2687,7 +2688,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
+    call rti_tmg_start(178,'low-level--czp_calcPressure_tl')
     call msg('calcPressure_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -2695,34 +2696,34 @@ contains
 
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_tl_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcPressure_gsv_tl (czp): not implemented')
+      call rti_abort('calcPressure_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcPressure_gsv_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(178)
+    call rti_tmg_stop(178)
 
     contains
 
@@ -2997,7 +2998,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           if (gsv_getDataKind(statevector) == 4) then
@@ -3032,7 +3033,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_gsv_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           if (gsv_getDataKind(statevector) == 4) then
@@ -3086,7 +3087,7 @@ contains
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
 
-    call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
+    call rti_tmg_start(179,'low-level--czp_calcPressure_ad')
     call msg('calcPressure_gsv_ad (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevectorRef)
@@ -3094,34 +3095,34 @@ contains
 
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+        call rti_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_ad_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcPressure_gsv_ad (czp): not implemented')
+      call rti_abort('calcPressure_gsv_ad (czp): not implemented')
     end if
 
     call msg('calcPressure_gsv_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(179)
+    call rti_tmg_stop(179)
 
     contains
 
@@ -3404,7 +3405,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-            call utl_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
+            call rti_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           if (gsv_getDataKind(statevector) == 4) then
@@ -3441,7 +3442,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_gsv_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           if (gsv_getDataKind(statevector) == 4) then
@@ -3522,7 +3523,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_col_nl (czp): not implemented')
+      call rti_abort('calcZandP_col_nl (czp): not implemented')
     end if
 
     call msg('calcZandP_col_nl (czp)', 'END', verb_opt=2)
@@ -3570,7 +3571,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_col_tl (czp): not implemented')
+      call rti_abort('calcZandP_col_tl (czp): not implemented')
     end if
 
     call msg('calcZandP_col_tl (czp)', 'END', verb_opt=2)
@@ -3617,7 +3618,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcZandP_col_ad (czp): not implelmented')
+      call rti_abort('calcZandP_col_ad (czp): not implelmented')
     end if
 
     call msg('calcZandP_col_ad (czp)', 'END', verb_opt=2)
@@ -3679,7 +3680,7 @@ contains
       ttExists = col_varExist(column,'TT')
       huExists = col_varExist(column,'HU')
       if ( .not. ( p0Exists .and. ttExists .and. huExists ) ) then
-        call utl_abort('czp_calcReturnHeight_col_nl: for vcode 5xxx, variables P0, TT and HU must be allocated in column')
+        call rti_abort('czp_calcReturnHeight_col_nl: for vcode 5xxx, variables P0, TT and HU must be allocated in column')
       end if
       call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
@@ -3687,7 +3688,7 @@ contains
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('czp_calcReturnHeight_col_nl (czp): not implemented')
+      call rti_abort('czp_calcReturnHeight_col_nl (czp): not implemented')
     end if
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'END', verb_opt=2)
@@ -3721,7 +3722,7 @@ contains
     if (present(heightType_opt)) then
       heightType = heightType_opt
       if (trim(heightType) /= 'altitude' .and. trim(heightType) /= 'geopotHeight') then
-        call utl_abort('calcHeight_col_nl_vcode2100x (czp): heightType must equal altitude or geopotHeight')
+        call rti_abort('calcHeight_col_nl_vcode2100x (czp): heightType must equal altitude or geopotHeight')
       end if
     else
       heightType = 'altitude'
@@ -3874,10 +3875,10 @@ contains
     Vcode   =  vco_getVcode(vco_ptr)
 
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-      call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
+      call rti_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
     end if
     if (Vcode == 5005 .and. nlev_T /= nlev_M) then
-      call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
+      call rti_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
     end if
 
     if (Vcode == 5005) then
@@ -4060,7 +4061,7 @@ contains
     ! Locals:
     integer :: Vcode
 
-    call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
+    call rti_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_col_tl (czp)', 'START', verb_opt=2)
 
     if (col_getNumCol(columnInc) == 0) return
@@ -4068,34 +4069,34 @@ contains
     Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable TT must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable HU must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
       call calcHeight_col_tl_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
+        call rti_abort('calcHeight_col_tl (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
       end if
       call calcHeight_col_tl_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcHeight_col_tl (czp): not implemented')
+      call rti_abort('calcHeight_col_tl (czp): not implemented')
     end if
 
     call msg('calcHeight_col_tl (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(173)
+    call rti_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -4263,7 +4264,7 @@ contains
             end do
           end do
         else
-          call utl_abort('calcHeight_col_tl_vcode5xxx (czp): not implemented')
+          call rti_abort('calcHeight_col_tl_vcode5xxx (czp): not implemented')
         end if if_computeHeight_col_tl_vcodes
 
         deallocate(delThick)
@@ -4290,7 +4291,7 @@ contains
     ! Locals:
     integer :: Vcode
 
-    call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
+    call rti_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_col_ad (czp)', 'START', verb_opt=2)
 
     if (col_getNumCol(columnInc) == 0) return
@@ -4298,34 +4299,34 @@ contains
     Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable TT must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable HU must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
       call calcHeight_col_ad_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
+        call rti_abort('calcHeight_col_ad (czp): for vcode 2100x, variables Z_M and Z_T must be allocated in column')
       end if
       call calcHeight_col_ad_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcHeight_col_ad (czp): not implemented')
+      call rti_abort('calcHeight_col_ad (czp): not implemented')
     end if
 
     call msg('calcHeight_col_ad (czp)', 'END', verb_opt=2)
-    call utl_tmg_stop(174)
+    call rti_tmg_stop(174)
 
     contains
       !---------------------------------------------------------
@@ -4552,7 +4553,7 @@ contains
             end do
           end do
         else
-          call utl_abort('calcHeight_col_ad_vcode5xxx (czp): not implemented')
+          call rti_abort('calcHeight_col_ad_vcode5xxx (czp): not implemented')
         end if if_computeHeight_col_ad_vcodes
 
         deallocate(delThick)
@@ -4615,7 +4616,7 @@ contains
     Vcode = vco_getVcode(col_getVco(column))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 5xxx, variable P0 must be allocated in column')
+        call rti_abort('czp_calcReturnPressure_col_nl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
       call calcPressure_col_nl_vcode5xxx(column, P_T, P_M)
     else if (Vcode == 21001) then
@@ -4623,7 +4624,7 @@ contains
       ttExists = col_varExist(column,'TT')
       huExists = col_varExist(column,'HU')
       if ( .not. ( p0Exists .and. ttExists .and. huExists ) ) then
-        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 2100x, variables P0, TT and HU must be allocated in column')
+        call rti_abort('czp_calcReturnPressure_col_nl (czp): for vcode 2100x, variables P0, TT and HU must be allocated in column')
       end if
       call calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     end if
@@ -4785,7 +4786,7 @@ contains
     Vcode = vco_getVcode(col_getVco(column))
 
     if (.not.col_varExist(column,'P0')) then
-      call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
+      call rti_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
     end if
 
     allocate(Psfc(1,col_getNumCol(column)))
@@ -4826,30 +4827,30 @@ contains
     Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
       call calcPressure_col_tl_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variable TT must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 2100x, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variable HU must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 2100x, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 2100x, variable P0 must be allocated in column')
+        call rti_abort('calcPressure_col_tl (czp): for vcode 2100x, variable P0 must be allocated in column')
       end if
       call calcPressure_col_tl_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcPressure_col_tl (czp): not implemented')
+      call rti_abort('calcPressure_col_tl (czp): not implemented')
     end if
 
     call msg('calcPressure_col_tl (czp)', 'END', verb_opt=2)
@@ -5063,7 +5064,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           do lev_M = 1, nlev_M
@@ -5078,7 +5079,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_col_tl (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           do lev_T = 1, nlev_T
@@ -5116,30 +5117,30 @@ contains
     Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
       call calcPressure_col_ad_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 2100x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variable TT must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 2100x, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variable HU must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 2100x, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 2100x, variable P0 must be allocated in column')
+        call rti_abort('calcPressure_col_ad (czp): for vcode 2100x, variable P0 must be allocated in column')
       end if
       call calcPressure_col_ad_vcode2100x
     else
       write(*,*)
       write(*,*) ' Vcode = ', Vcode
-      call utl_abort('calcPressure_col_ad (czp): not implemented')
+      call rti_abort('calcPressure_col_ad (czp): not implemented')
     end if
 
     call msg('calcPressure_col_ad (czp)', 'END', verb_opt=2)
@@ -5370,7 +5371,7 @@ contains
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
+              call rti_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_M
           do lev_M = 1, nlev_M
@@ -5386,7 +5387,7 @@ contains
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
-            call utl_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
+            call rti_abort('calcPressure_col_ad (czp): ERROR with vgd_dpidpis')
           end if
           ! calculate delP_T
           do lev_T = 1, nlev_T
@@ -5449,7 +5450,7 @@ contains
       if (height_profile(levIndex+1) <= height_profile(levIndex)) then
         write(*,*) levIndex+1, height_profile(levIndex+1)
         write(*,*) levIndex  , height_profile(levIndex)
-        call utl_abort('czp_calcPressureProfileUsingStdAtm: Invalid ordering')
+        call rti_abort('czp_calcPressureProfileUsingStdAtm: Invalid ordering')
       end if
     end do
 
@@ -5457,7 +5458,7 @@ contains
     if (height_profile(nLev) > zbase(nLayer)) then
       write(*,*)  'Height at model top = ', height_profile(nLev)
       write(*,*)  'Std Atm max height  = ', zbase(nLayer)
-      call utl_abort('czp_calcPressureProfileUsingStdAtm: Maximum layer exceeded')
+      call rti_abort('czp_calcPressureProfileUsingStdAtm: Maximum layer exceeded')
     end if
 
     !
@@ -5528,38 +5529,38 @@ contains
         if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r8) then
           call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
-          call utl_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
+          call rti_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
         end if
       else
-          call utl_abort('fetch3DLevels_r8: negative surface reference')
+          call rti_abort('fetch3DLevels_r8: negative surface reference')
       end if
     end if
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
       if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
-        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
+        call rti_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, &
                           sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
+        call rti_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
       if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
-        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
+        call rti_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, &
                           sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
+        call rti_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
 
@@ -5590,38 +5591,38 @@ contains
         if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r4) then
           call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
-          call utl_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
+          call rti_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
         end if
       else
-        call utl_abort('fetch3DLevels_r4: negative surface reference')
+        call rti_abort('fetch3DLevels_r4: negative surface reference')
       end if
     end if
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
       if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
-        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
+        call rti_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, &
                           sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
+        call rti_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
       if (vco%sleveCoord .and. .not.present(sfcFldLS_opt) ) then
-        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
+        call rti_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, &
                           sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
+        call rti_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
 
@@ -5652,10 +5653,10 @@ contains
         if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DLevels_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
-          call utl_abort('fetch1DLevels_r8: unrealistic negative surface height reference : '//str(sfcValue))
+          call rti_abort('fetch1DLevels_r8: unrealistic negative surface height reference : '//str(sfcValue))
         end if
       else
-        call utl_abort('fetch1DLevels_r8: negative surface reference')
+        call rti_abort('fetch1DLevels_r8: negative surface reference')
       end if
     end if
 
@@ -5666,7 +5667,7 @@ contains
                           sfc_field=sfcValue, sfc_field_ls=sfcValueLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (momentum levels)')
+        call rti_abort('fetch1DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -5677,7 +5678,7 @@ contains
                           sfc_field=sfcValue, sfc_field_ls=sfcValueLS_opt, &
                           in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
+        call rti_abort('fetch1DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
   end subroutine fetch1DLevels_r8
@@ -5701,7 +5702,7 @@ contains
     real(4) :: pressure
 
     if ( vco_getVcode(vco) /= 2001 ) then
-      call utl_abort('fetch1DPressureLevels_r8: only compatible with vCode = 2001')
+      call rti_abort('fetch1DPressureLevels_r8: only compatible with vCode = 2001')
     end if
 
     nLev = vco_getNumLev(vco,'MM')
@@ -5744,10 +5745,10 @@ contains
         if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DdPdPs_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
-          call utl_abort('fetch1DdPdPs_r8: unrealistic negative surface height reference : '//str(sfcValue))
+          call rti_abort('fetch1DdPdPs_r8: unrealistic negative surface height reference : '//str(sfcValue))
         end if
       else
-        call utl_abort('fetch1DdPdPs_r8: negative surface reference')
+        call rti_abort('fetch1DdPdPs_r8: negative surface reference')
       end if
     end if
 
@@ -5755,7 +5756,7 @@ contains
       nullify(profM_opt)
       status = vgd_dpidpis(vco%vgrid, vco%ip1_M, profM_opt, sfcValue)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (momentum levels)')
+        call rti_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (momentum levels)')
       end if
     end if
 
@@ -5763,7 +5764,7 @@ contains
       nullify(profT_opt)
       status = vgd_dpidpis(vco%vgrid, vco%ip1_T, profT_opt, sfcValue)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (thermodynamic levels)')
+        call rti_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (thermodynamic levels)')
       end if
     end if
   end subroutine fetch1DdPdPs_r8
@@ -5806,7 +5807,7 @@ contains
 
     if ( vco_getVcode(vco_sourceGrid) == 21001 ) then
       if ( vco_getVcode(vco_destGrid) /= 21001 ) then
-        call utl_abort('czp_ensureCompatibleTops: destGrid not on vCode = 21001')
+        call rti_abort('czp_ensureCompatibleTops: destGrid not on vCode = 21001')
       end if
 
       ! dummy height value
@@ -5842,12 +5843,12 @@ contains
         write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest  = ', numLevSource, numLevDest
         write(*,*) 'czp_ensureCompatibleTops: sourceHeightLevels = ', sourceLevels(1,1,:)
         write(*,*) 'czp_ensureCompatibleTops: destHeightLevels   = ', destLevels(1,1,:)
-        call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
+        call rti_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
       end if
 
     else
       if ( vco_getVcode(vco_sourceGrid) == 21001 ) then
-        call utl_abort('czp_ensureCompatibleTops: sourceGrid is on vCode = 21001')
+        call rti_abort('czp_ensureCompatibleTops: sourceGrid is on vCode = 21001')
       end if
 
       ! dummy pressure value
@@ -5870,7 +5871,7 @@ contains
         write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
         write(*,*) 'czp_ensureCompatibleTops: sourcePressureLevels = ', sourceLevels(1,1,:)
         write(*,*) 'czp_ensureCompatibleTops: destPressureLevels   = ', destLevels(1,1,:)
-        call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
+        call rti_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
       end if
 
     end if
@@ -6132,7 +6133,7 @@ contains
 
     else if_calcHeightCoeff_gsv_vcodes
 
-      call utl_abort('calcHeightCoeff_gsv (czp): only vcode 5002 and 5005 implemented')
+      call rti_abort('calcHeightCoeff_gsv (czp): only vcode 5002 and 5005 implemented')
 
     end if if_calcHeightCoeff_gsv_vcodes
 
@@ -6336,7 +6337,7 @@ contains
 
     else
 
-      call utl_abort('calcHeightCoeff_col (czp): only vcode 5002 and 5005 implemented')
+      call rti_abort('calcHeightCoeff_col (czp): only vcode 5002 and 5005 implemented')
 
     end if if_calcHeightCoeff_col_vcodes
 
@@ -6368,7 +6369,7 @@ contains
     real(8), parameter   :: e =-0.765D-8
     real(8)         :: x,tc,pt,tc2,x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility: Temperature <= 0K')
+    if ( t <= 0 ) call rti_abort('gpscompressibility: Temperature <= 0K')
 
     x  = gps_p_wa * q / (1.D0 + gps_p_wb * q)
     ! Estimate, from CIPM, Picard (2008)
@@ -6406,7 +6407,7 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility_TT: t <= 0')
+    if ( t <= 0 ) call rti_abort('gpscompressibility_TT: t <= 0')
 
     x  = gps_p_wa * q / (1.D0 + gps_p_wb * q)
     d_x  = 0.0D0
@@ -6451,7 +6452,7 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility_HU: t <= 0')
+    if ( t <= 0 ) call rti_abort('gpscompressibility_HU: t <= 0')
 
     x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
     d_x  = gps_p_wa * (1.0D0 / (1.D0+gps_p_wb*q) - q / (1.D0+gps_p_wb*q)**2 * gps_p_wb * 1.0D0)
@@ -6498,7 +6499,7 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility_P0_1: t <= 0')
+    if ( t <= 0 ) call rti_abort('gpscompressibility_P0_1: t <= 0')
 
     x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
     d_x  = 0.0D0
@@ -6543,7 +6544,7 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_tc2,d_x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility_P0_2: t <= 0')
+    if ( t <= 0 ) call rti_abort('gpscompressibility_P0_2: t <= 0')
 
     x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
     d_x  = 0.0D0

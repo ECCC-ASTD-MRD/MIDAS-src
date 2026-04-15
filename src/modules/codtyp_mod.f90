@@ -10,6 +10,7 @@ module codtyp_mod
   !          https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP
   !
   use utilities_mod
+  use runtimeInfo_mod
   use midasMpi_mod
 
   implicit none
@@ -50,10 +51,10 @@ contains
 
     ! read namelist to obtain additions to codtype dictionary
     if (utl_isNamelistPresent('namcodtyp','./flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namcodtyp,iostat=ierr)
-      if (ierr /= 0) call utl_abort('codtyp_initialize: Error reading namelist namcodtyp')
-      call utl_tmg_stop(181)
+      if (ierr /= 0) call rti_abort('codtyp_initialize: Error reading namelist namcodtyp')
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'codtyp_initialize: namcodtyp is missing in the namelist. The default value will be taken.'

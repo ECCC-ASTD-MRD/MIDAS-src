@@ -9,6 +9,7 @@ module windRotation_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use utilities_mod
+  use runtimeInfo_mod
   use midasMpi_mod
 
   implicit none
@@ -54,7 +55,7 @@ module windRotation_mod
         if ( mmpi_myid == 0 ) write(*,*) 'uvr_setup: already initialized, returning'
         return
       else
-        call utl_abort('uvr_setup: the supplied non-null uvr pointer is not initialized!')
+        call rti_abort('uvr_setup: the supplied non-null uvr pointer is not initialized!')
       end if
     end if
 
@@ -284,7 +285,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_nl: WindRotation module is not initialize')
+      call rti_abort('uvr_rotateWind_nl: WindRotation module is not initialize')
     endif
 
     coslatr = cos(LatRot)
@@ -317,12 +318,12 @@ module windRotation_mod
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_nl: mode ToRotWind is not available yet')
+      call rti_abort('uvr_rotateWind_nl: mode ToRotWind is not available yet')
     else
       write(*,*)
       write(*,*) 'uvr_rotateWind_nl: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
-      call utl_abort('uvr_rotateWind_nl')
+      call rti_abort('uvr_rotateWind_nl')
     end if
 
   end subroutine uvr_rotateWind_nl
@@ -353,7 +354,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_tl: WindRotation module is not initialize')
+      call rti_abort('uvr_rotateWind_tl: WindRotation module is not initialize')
     endif
 
     ! Special case for the equator
@@ -381,7 +382,7 @@ module windRotation_mod
     if ( .not. utl_isEqual(lat, 0.0d0) ) then
       rsinlat = 1.0d0/sin(lat)
     else
-      call utl_abort('uvr_rotateWind_tl: cannot be used for points on the equator')
+      call rti_abort('uvr_rotateWind_tl: cannot be used for points on the equator')
     end if
 
     if ( trim(mode) == 'ToMetWind' ) then
@@ -403,12 +404,12 @@ module windRotation_mod
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_tl: mode ToRotWind is not available yet')
+      call rti_abort('uvr_rotateWind_tl: mode ToRotWind is not available yet')
     else
       write(*,*)
       write(*,*) 'uvr_rotateWind_tl: Unknown transform name: ', trim(mode)
       write(*,*) '                mode = ToMetWind or ToRotWind'
-      call utl_abort('uvr_rotateWind_tl')
+      call rti_abort('uvr_rotateWind_tl')
     end if
 
   end subroutine uvr_rotateWind_tl
@@ -439,7 +440,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_ad: WindRotation module is not initialize')
+      call rti_abort('uvr_rotateWind_ad: WindRotation module is not initialize')
     endif
 
     ! Special case for the equator
@@ -467,7 +468,7 @@ module windRotation_mod
     if ( .not. utl_isEqual(lat,0.0d0) ) then
       rsinlat = 1.0d0/sin(lat)
     else
-      call utl_abort('uvr_rotateWind_ad: cannot be used for points on the equator')
+      call rti_abort('uvr_rotateWind_ad: cannot be used for points on the equator')
     end if
 
     if ( trim(mode) == 'ToMetWind' ) then
@@ -488,12 +489,12 @@ module windRotation_mod
 
     else if ( trim(mode) == 'ToRotWind' ) then
       write(*,*)
-      call utl_abort('uvr_rotateWind_ad: mode ToRotWind is not available yet')
+      call rti_abort('uvr_rotateWind_ad: mode ToRotWind is not available yet')
     else
       write(*,*)
       write(*,*) 'uvr_rotateWind_ad: Unknown transform name: ', trim(mode)
       write(*,*) '                   mode = ToMetWind or ToRotWind'
-      call utl_abort('uvr_rotateWind_ad')
+      call rti_abort('uvr_rotateWind_ad')
     end if
 
   end subroutine uvr_rotateWind_ad
@@ -520,7 +521,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_rotateLatLon: WindRotation module is not initialize')
+      call rti_abort('uvr_rotateLatLon: WindRotation module is not initialize')
     endif
 
     rLon = LonIn * MPC_DEGREES_PER_RADIAN_R8 ! To degress
@@ -541,7 +542,7 @@ module windRotation_mod
       write(*,*)
       write(*,*) 'uvr_rotateLatLon: Unknown transform name: ', trim(mode)
       write(*,*) '                  mode = ToLatLonRot or ToLatLon'
-      call utl_abort('uvr_rotateLatLon')
+      call rti_abort('uvr_rotateLatLon')
     end if
 
     call carall( LonOut, LatOut, & ! OUT
@@ -578,7 +579,7 @@ module windRotation_mod
 
     if ( .not. uvr%initialized ) then
       write(*,*)
-      call utl_abort('uvr_rotateLatLon: WindRotation module is not initialize')
+      call rti_abort('uvr_rotateLatLon: WindRotation module is not initialize')
     endif
 
     do pointIndex = 1, numPoints
@@ -604,7 +605,7 @@ module windRotation_mod
         write(*,*)
         write(*,*) 'uvr_rotateLatLon: Unknown transform name: ', trim(mode)
         write(*,*) '                  mode = ToLatLonRot or ToLatLon'
-        call utl_abort('uvr_rotateLatLon')
+        call rti_abort('uvr_rotateLatLon')
       end if
 
       LatOut(pointIndex) = asin(CartOut(3))

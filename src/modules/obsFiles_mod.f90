@@ -10,9 +10,11 @@ module obsFiles_mod
   !              2. SQLITE (burp2rdb format)
   !              3. SQLITE (obsDB format)
   !
+  use rmn_fnom
   use midasMpi_mod
   use ramDisk_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use burpFiles_mod
   use sqliteFiles_mod
@@ -90,7 +92,7 @@ contains
          obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
     else
-      call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
+      call rti_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
     end if
 
     !
@@ -119,7 +121,7 @@ contains
     ! Result:
     logical :: obsFilesSplit_out
 
-    if ( .not.initialized ) call utl_abort('obsf_filesSplit: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_filesSplit: obsFiles_mod not initialized!')
 
     obsFilesSplit_out = obsFilesSplit
 
@@ -143,7 +145,7 @@ contains
     character(len=familyTypeLen)      :: obsFamilyType
     logical :: fileExists
 
-    if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
     ! for every splitted file, the file type is defined separately
     do fileIndex = 1, obsf_numMpiUniqueList
@@ -202,7 +204,7 @@ contains
     ! abort if NAMTOV does not exist but there are radiance observation files
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
         any(obsf_familyType(:) == 'TO') ) then
-      call utl_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
+      call rti_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
     end if
 
     ! initialize OBS_HIND for each observation
@@ -239,9 +241,9 @@ contains
 
     namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, addFSRdiag, writeObsDb
 
-    call utl_tmg_start(10,'--Observations')
+    call rti_tmg_start(10,'--Observations')
 
-    if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_writeFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
@@ -257,14 +259,14 @@ contains
       end if
     else
       ! read in the namelist namwritediag
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml,nml=namwritediag,iostat=ierr)
-      if (ierr /= 0) call utl_abort('obsf_writeFiles: Error reading namelist')
-      call utl_tmg_stop(181)
+      if (ierr /= 0) call rti_abort('obsf_writeFiles: Error reading namelist')
+      call rti_tmg_stop(181)
     end if
 
     if (addFSOdiag .and. addFSRdiag) then
-      call utl_abort('obsf_writeFiles: both addFSOdiag and addFSRdiag are set to .true., which is not supported.')
+      call rti_abort('obsf_writeFiles: both addFSOdiag and addFSRdiag are set to .true., which is not supported.')
     end if
 
     if (mmpi_myid == 0) write(*,nml = namwritediag)
@@ -341,12 +343,12 @@ contains
       sfFileName = 'sf'
     end if
 
-    call utl_tmg_start(15,'----WriteDiagFiles')
+    call rti_tmg_start(15,'----WriteDiagFiles')
     if (lwritediagsql) then
       call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
                                      addFSOdiag, addFSRdiag, ensObs_opt=ensObs_opt)
     end if
-    call utl_tmg_stop(15)
+    call rti_tmg_stop(15)
 
     if ( present(asciDumpObs_opt) ) then
       if ( asciDumpObs_opt ) then
@@ -358,7 +360,7 @@ contains
       end if
     end if
 
-    call utl_tmg_stop(10)
+    call rti_tmg_stop(10)
 
   end subroutine obsf_writeFiles
 
@@ -372,7 +374,7 @@ contains
     integer                    :: fileIndex
     character(len=fileTypeLen) :: obsFileType
 
-    if ( .not.initialized ) call utl_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
+    if ( .not.initialized ) call rti_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
@@ -383,7 +385,7 @@ contains
       return
     end if
 
-    call utl_tmg_start(23, '----ObsFileClean')
+    call rti_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
@@ -397,7 +399,7 @@ contains
       end if
     end do
 
-    call utl_tmg_stop(23)
+    call rti_tmg_stop(23)
 
   end subroutine obsf_cleanObsFiles
 
@@ -412,7 +414,7 @@ contains
     real(8),          intent(in) :: HXens_mpiglobal(:,:)
 
     ! Locals:
-    integer :: unitHX, ierr, headerIndex, fnom, fclos
+    integer :: unitHX, ierr, headerIndex
     character(len=10) :: fileNameHX
 
     write(*,*) 'obsf_writeHX: Starting'
@@ -442,7 +444,7 @@ contains
 
     ! Locals:
     character(len=25) :: fileNameAsciDump
-    integer :: unitAsciDump, ierr, fnom, fclos
+    integer :: unitAsciDump, ierr
     character(len=4)    :: myIdxStr, myIdyStr
     character(len=9)    :: myIdStr
 
@@ -599,22 +601,22 @@ contains
     namePrefix(101) = 'obshydro'
     namePrefix(102) = 'obssarwinds'
     namePrefix(103) = 'obsgl_rcm'
-    namePrefix(104) = 'obsos_insitu'   ! All In-situ SST for G6 
+    namePrefix(104) = 'obsos_insitu'   ! All In-situ SST for G6
     namePrefix(105) = 'obsos_avhrr'    ! AVHRR SST
     namePrefix(106) = 'obsos_amsr2'    ! AMSR2 SST
     namePrefix(107) = 'obsos_viirs'    ! VIIRS SST
-    namePrefix(108) = 'obsos_pseudo'   ! Pseudo foundation SST 
+    namePrefix(108) = 'obsos_pseudo'   ! Pseudo foundation SST
     namePrefix(109) = 'obsos_slstr'    ! Sea and Land Surface Temperature Radiometer (SLSTR) SST
     namePrefix(110) = 'obsos_CO_PR_CT' ! Copernicus CORA 'PR': vertical profile, 'CT': CTD
     namePrefix(111) = 'obsos_CO_PR_GL' ! Copernicus CORA 'PR': vertical profile, 'GL': Gliders
-    namePrefix(112) = 'obsos_CO_PR_ML' ! Copernicus CORA 'PR': vertical profile, 'ML': Mini loggers for fishery observations  
+    namePrefix(112) = 'obsos_CO_PR_ML' ! Copernicus CORA 'PR': vertical profile, 'ML': Mini loggers for fishery observations
     namePrefix(113) = 'obsos_CO_PR_PF' ! Copernicus CORA 'PR': vertical profile, 'PF': Argo profiles
     namePrefix(114) = 'obsos_CO_PR_SM' ! Copernicus CORA 'PR': vertical profile, 'SM': Sea mammals
     namePrefix(115) = 'obsos_CO_PR_TX' ! Copernicus CORA 'PR': vertical profile, 'TX': Thermistor chain data
     namePrefix(116) = 'obsos_CO_PR_XB' ! Copernicus CORA 'PR': vertical profile, 'XB': XBT, XCTD or MBT profiles
     namePrefix(117) = 'obsos_CO_TS_DB' ! Copernicus CORA 'TS': time series     , 'DB': Drifter buoys
     namePrefix(118) = 'obsos_CO_TS_FB' ! Copernicus CORA 'TS': time series     , 'FB': Ferry boxes
-    namePrefix(119) = 'obsos_CO_TS_MO' ! Copernicus CORA 'TS': time series     , 'MO': Moorings 
+    namePrefix(119) = 'obsos_CO_TS_MO' ! Copernicus CORA 'TS': time series     , 'MO': Moorings
     namePrefix(120) = 'obsos_CO_TS_TG' ! Copernicus CORA 'TS': time series     , 'TG': Tide gauges
     namePrefix(121) = 'obsos_CO_TS_TS' ! Copernicus CORA 'TS': time series     , 'TS': Ship underway data, thermosalinograph
     namePrefix(122) = 'obssh_al_l3'    ! Altimetry Saral/AltiKa
@@ -622,7 +624,7 @@ contains
     namePrefix(124) = 'obssh_j3_l3'    ! Altimetry Jason-3
     namePrefix(125) = 'obssh_s3a_l3'   ! Altimetry Sentinel-3A
     namePrefix(126) = 'obssh_s3b_l3'   ! Altimetry Sentinel-3B
-    
+
     familyName(:)   = ''
     familyName( 1)  = 'TO'
     familyName( 2)  = 'TO'
@@ -898,7 +900,7 @@ contains
     end do procid_loop
 
     if ( .not.fileExists ) then
-      call utl_abort('obsf_determineFileType: No observation files found')
+      call rti_abort('obsf_determineFileType: No observation files found')
     end if
 
     write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
@@ -928,7 +930,7 @@ contains
     obsFileType = trim(utl_fileType(fileName))
     if (.not. (trim(obsFileType) == 'BURP' .or. trim(obsFileType) == 'sqliteOrObsdb')) then
       write(*,*) 'obsf_determineSplitFileType: obsFileType=', obsFileType
-      call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+      call rti_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
     if (trim(obsFileType) == 'sqliteOrObsdb') then
@@ -1030,7 +1032,7 @@ contains
       call obsf_determineSplitFileType( obsFileType, filename )
       if (obsFileType=='BURP') then
         if (.not.present(block_opt)) &
-          call utl_abort("obsf_obsSubRead: optional variable 'block_opt' is required for BURP observational files.")
+          call rti_abort("obsf_obsSubRead: optional variable 'block_opt' is required for BURP observational files.")
         if (.not.present(numColumns_opt)) then
           obsdata = brpf_obsSubRead(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
                     match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
@@ -1039,7 +1041,7 @@ contains
                     match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt,numColumns_opt=numColumns_opt)
         end if
       else
-        call utl_abort("obsf_obsSubRead: Only BURP observational files currently supported.")
+        call rti_abort("obsf_obsSubRead: Only BURP observational files currently supported.")
       end if
 
     else
@@ -1057,7 +1059,7 @@ contains
         obsdata%nrep=0
         write(*,*) "obsf_obsSubRead: Setting empty struct_oss_obsdata object for this node."
       else
-        call utl_abort("obsf_obsSubRead: Abort since files are not split.")
+        call rti_abort("obsf_obsSubRead: Abort since files are not split.")
       end if
     end if
 
@@ -1109,10 +1111,10 @@ contains
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
-                  call utl_abort("obsf_obsSubUpdate: optional varaible 'block_opt' is required for BURP observational files.")
+                  call rti_abort("obsf_obsSubUpdate: optional varaible 'block_opt' is required for BURP observational files.")
              nrep_modified = brpf_obsSubUpdate(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
           else
-             call utl_abort("obsf_obsSubUpdate: Only BURP observational files currently supported.")
+             call rti_abort("obsf_obsSubUpdate: Only BURP observational files currently supported.")
           end if
        end if
     else
@@ -1158,7 +1160,7 @@ contains
         write(*,*) 'obsf_addCloudParametersAndEmissivity: obsDB files handled separately'
       else
         write(*,*) ' UNKNOWN FileType=',obsFileType
-        call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
+        call rti_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
       end if
     end do
 
@@ -1278,7 +1280,7 @@ contains
 
     else
 
-      call utl_abort('obsf_copyObsDirectory: invalid value for direction')
+      call rti_abort('obsf_copyObsDirectory: invalid value for direction')
 
     end if
 

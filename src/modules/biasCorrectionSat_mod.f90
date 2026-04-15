@@ -8,11 +8,13 @@ module biasCorrectionSat_mod
   !          for estimating the bias. Existing bias correction estimates
   !          can also be applied to observations.
   !
+  use rmn_fnom
   use midasMpi_mod
   use linearAlgebra_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -96,7 +98,6 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  integer, external     :: fnom, fclos
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
@@ -179,11 +180,11 @@ contains
     !
     ! read in the namelist NAMBIASSAT
     if (utl_isNamelistPresent('nambiassat', './flnml')) then
-      call utl_tmg_start(181,'low-level--readNML')
+      call rti_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=nambiassat, iostat=ierr)
-      if (ierr /= 0) call utl_abort('bcs_readConfig: Error reading namelist section nambiassat')
+      if (ierr /= 0) call rti_abort('bcs_readConfig: Error reading namelist section nambiassat')
       if (mmpi_myid == 0) write(*,nml=nambiassat)
-      call utl_tmg_stop(181)
+      call rti_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcs_readconfig: nambiassat is missing in the namelist. The default value will be taken.'
@@ -256,7 +257,7 @@ contains
         if (nfov == -1) then
           write(*,*) "bcs_setup: Problem with instrName ", instrNamecoeff
           write(*,'(15(A10,1x))')  cinst(:)
-          call utl_abort('bcs_setup: check nambiassat namelist')
+          call rti_abort('bcs_setup: check nambiassat namelist')
         end if
 
         inquire(file=trim(bcifFile), exist=bcifExists)
@@ -265,7 +266,7 @@ contains
           call read_bcif(bcifFile, tvs_isNameHyperSpectral(instrName), ncanBcif, &
                canBCIF, bcmodeBCIF, bctypeBCIF, npredBCIF, predBCIF, global, exitcode)
           if (exitcode /= 0) then
-            call utl_abort("bcs_setup: Problem in read_bcif while reading " // trim(bcifFile))
+            call rti_abort("bcs_setup: Problem in read_bcif while reading " // trim(bcifFile))
           end if
 
           bias(iSensor)%numChannels = ncanBcif
@@ -328,13 +329,13 @@ contains
                 kpred = 16
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
-                call utl_abort(errorMessage)
+                call rti_abort(errorMessage)
               end select
               bias(iSensor)%chans(ichan)%predictorIndex(jPred) = kpred
             end do
           end do
         else
-          call utl_abort("bcs_setup: Error : " // trim(bcifFile) // " not present !")
+          call rti_abort("bcs_setup: Error : " // trim(bcifFile) // " not present !")
         end if
 
         bias(iSensor)%numscan = nfov
@@ -870,7 +871,7 @@ contains
         if (status /= clib_ok) then
           status = clib_mkdir_r(trim(dirName))
           if (status /= clib_ok) then
-            call utl_abort('bcs_dumpBiasToSqliteAfterThinning: Failed to create directory: ' // trim(dirName))
+            call rti_abort('bcs_dumpBiasToSqliteAfterThinning: Failed to create directory: ' // trim(dirName))
           end if
         end if
         ! Construct full path of sqlite files from genCoeff
@@ -1003,7 +1004,7 @@ contains
       character(len=*),  intent(in) :: message
 
       write(*,*) message, fSQL_errmsg(stat)
-      call utl_abort(trim(message))
+      call rti_abort(trim(message))
     end subroutine handleError
 
   end subroutine bcs_dumpBiasToSqliteAfterThinning
@@ -1187,9 +1188,10 @@ contains
         iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
 
-        call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-             obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-             obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), tim_nstepobs)
+        stepObsIndex =  tim_getStepObsIndex(tim_getDatestamp(),                                 &
+                                            obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                            obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), &
+                                            tim_nstepobs)
 
         timeIndex = nint(stepObsIndex)
         if  (timeIndex < 0) cycle HEADER1
@@ -1243,9 +1245,10 @@ contains
           iSensor = tvs_lsensor(headerIndex)
           if (iSensor /= sensorIndex) cycle HEADER2
 
-          call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
-               obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
-               obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), tim_nstepobs)
+          stepObsIndex =  tim_getStepObsIndex(tim_getDatestamp(),                                 &
+                                              obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                              obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex), &
+                                              tim_nstepobs)
 
           timeIndex = nint(stepObsIndex)
           if  (timeIndex < 0) cycle HEADER2
@@ -2483,7 +2486,7 @@ contains
         end if
       end do
       if (instrumentList(sensorIndex) == -1) then
-        call utl_abort('bcs_filterObs: Instrument ' // trim(instrName) // &
+        call rti_abort('bcs_filterObs: Instrument ' // trim(instrName) // &
             'missing in CINST table fron NAMBIASSAT namelist section')
       end if
     end do
@@ -3522,7 +3525,7 @@ contains
     iun = 0
     ier = fnom(iun, bcifFileName, 'FMT', 0)
     if (ier /= 0) then
-      call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFileName))
+      call rti_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFileName))
     end if
 
     pred(:,:) = 'XX'
@@ -3530,14 +3533,14 @@ contains
     read(iun,'(A64)') line
     do while(line(1:3)== 'DEF')
       read(line(8:), *, iostat=ier) par1, par2
-      if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFileName))
+      if (ier /= 0) call rti_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFileName))
       xpred(1) = line(5:6)
       select case(xpred(1))
       case('T1')
         bottomPressureT1 = par1
         topPressureT1 = par2
       case default
-        call utl_abort('read_bcif: predictor redefinition not supported for ' // xpred(1))
+        call rti_abort('read_bcif: predictor redefinition not supported for ' // xpred(1))
       end select
       write(*,*) 'read_bcif: Warning redefining predictor ' // xpred(1)
       write(*,*) 'read_bcif: new bottom and top pressure :', par1, par2
@@ -3770,7 +3773,7 @@ contains
       iun = 0
       ier = fnom(iun, coeff_file, 'FMT', 0)
       if (ier /= 0) then
-        call utl_abort('read_coeff: ERROR - Problem opening the coefficient file! ' // trim(coeff_file))
+        call rti_abort('read_coeff: ERROR - Problem opening the coefficient file! ' // trim(coeff_file))
       end if
 
       write(*,*)
@@ -3818,7 +3821,7 @@ contains
         newsat = .true.
         read(line,'(T53,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)',iostat=istat) sat, cinstrum, chan, nobs, nbpred, nbfov
         if (istat /= 0) then
-          call utl_abort('read_coeff: ERROR - reading data from SATELLITE line in coeff file!')
+          call rti_abort('read_coeff: ERROR - reading data from SATELLITE line in coeff file!')
         end if
         do i = 1, maxsat
           if (trim(sats(i)) == trim(sat)) then
@@ -3829,7 +3832,7 @@ contains
         if (newsat) then
           ii = ii + 1
           if (ii > maxsat) then
-            call utl_abort('read_coeff: ERROR - max number of satellites exceeded in coeff file!')
+            call rti_abort('read_coeff: ERROR - max number of satellites exceeded in coeff file!')
           end if
           sats(ii) = sat
           if (ii > 1) nchan(ii - 1) = j
@@ -3841,22 +3844,22 @@ contains
         npred(ii,j) = nbpred
         ndata(ii,j) = nobs
         if (nbpred > maxpred) then
-          call utl_abort('read_coeff: ERROR - max number of predictors exceeded in coeff file!')
+          call rti_abort('read_coeff: ERROR - max number of predictors exceeded in coeff file!')
         end if
         read(iun,'(A)',iostat=istat) line
         if (line(1:3) /= 'PTY') then
-          call utl_abort('read_coeff: ERROR - list of predictors is missing in coeff file!')
+          call rti_abort('read_coeff: ERROR - list of predictors is missing in coeff file!')
         end if
         if (nbpred > 0) then
           write(cnum,'(i2)') nbpred
           read(line,'(T8,'// trim(cnum) //'(1X,A2))', iostat = istat) (ptypes(ii,j,k), k = 1, nbpred)
           if (istat /= 0) then
-            call utl_abort('read_coeff: ERROR - reading predictor types from PTYPES line in coeff file!')
+            call rti_abort('read_coeff: ERROR - reading predictor types from PTYPES line in coeff file!')
           end if
         end if
         read(iun,*,iostat=istat) (fovbias(ii,j,k), k= 1, nbfov)
         if (istat /= 0) then
-          call utl_abort('read_coeff: ERROR - reading fovbias in coeff file!')
+          call rti_abort('read_coeff: ERROR - reading fovbias in coeff file!')
         end if
         if (nbpred > 0) then
           read(iun,*,iostat=istat) (coeff(ii,j,k), k = 1, nbpred + 1)
@@ -3864,7 +3867,7 @@ contains
           read(iun,*,iostat=istat) dummy
         end if
         if (istat /= 0) then
-          call utl_abort('read_coeff: ERROR - reading coeff in coeff file!')
+          call rti_abort('read_coeff: ERROR - reading coeff in coeff file!')
         end if
       else
         exit
@@ -3873,7 +3876,7 @@ contains
     end do
 
     if (ii == 0) then
-      call utl_abort('read_coeff: ERROR - No data read from coeff file!')
+      call rti_abort('read_coeff: ERROR - No data read from coeff file!')
     end if
 
     nsat = ii

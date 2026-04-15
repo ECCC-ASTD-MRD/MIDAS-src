@@ -89,7 +89,7 @@ program midas_diagBmatrix
   ! Other **B** matrix modules   various      weight and other parameters for each type of **B** matrix
   !======================== ============ ==============================================================
   !
-
+  use rmn_fnom
   use midasMpi_mod
   use version_mod
   use message_mod
@@ -108,6 +108,7 @@ program midas_diagBmatrix
   use timeCoord_mod
   use randomNumber_mod
   use utilities_mod
+  use runtimeInfo_mod
   use ramDisk_mod
 
   implicit none
@@ -133,7 +134,6 @@ program midas_diagBmatrix
 
   real(8) :: centralValue, centralValueLocal, multFactor
 
-  integer :: fnom, fstopc, newdate
   integer :: ierr, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
@@ -179,9 +179,8 @@ program midas_diagBmatrix
   ! MPI, tmg initialization
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
-  call utl_printTime()
-  ierr = fstopc('MSGLVL','ERRORS',0)
+  call rti_tmg_start(0,'Main')
+  call rti_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -201,11 +200,11 @@ program midas_diagBmatrix
   writePsiChiStddev = .false.
 
   ! Read the parameters from NAMDIAG
-  call utl_tmg_start(181,'low-level--readNML')
+  call rti_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namdiag, iostat=ierr)
-  if(ierr.ne.0) call utl_abort('midas-diagBmatrix: Error reading namelist')
+  if(ierr.ne.0) call rti_abort('midas-diagBmatrix: Error reading namelist')
   write(*,nml=namdiag)
-  call utl_tmg_stop(181)
+  call rti_tmg_stop(181)
 
   nlevs=0
   do index = 1, size(oneobs_levs)
@@ -222,12 +221,12 @@ program midas_diagBmatrix
   !- Initialize the Temporal grid and set dateStamp from env variable
   call tim_setup()
   if (tim_getDateStamp() == 0) then
-    call utl_abort('midas-diagBmatrix: date must be set by env variable MIDAS_DATE')
+    call rti_abort('midas-diagBmatrix: date must be set by env variable MIDAS_DATE')
   end if
 
   ! Build date-time string from dateStamp
   dateStamp = tim_getDateStamp()
-  ierr = newdate(dateStamp,datePrint,timePrint,-3)
+  call tim_dateStampToYYYYMMDDHH(datestamp, datePrint, timePrint)
   dateTime = datePrint*100 + timePrint/1000000
   write(datestr,'(i10.10)') dateTime
   write(*,*)' datePrint= ',datePrint,' timePrint= ',timePrint
@@ -287,7 +286,7 @@ program midas_diagBmatrix
         write(*,*)
         write(*,*) 'odd number of nstepobsinc a required for obs place in the middle of the analysis window '
         write(*,*) 'tim_nstepobsinc = ', tim_nstepobsinc
-        call utl_abort('midas-diagBmatrix')
+        call rti_abort('midas-diagBmatrix')
       end if
       oneobs_timeStepIndex = (tim_nstepobsinc+1)/2
     case ('last')
@@ -295,7 +294,7 @@ program midas_diagBmatrix
     case default
       write(*,*)
       write(*,*) 'Unsupported oneobs_timeStep : ', trim(oneobs_timeStep)
-      call utl_abort('midas-diagBmatrix')
+      call rti_abort('midas-diagBmatrix')
     end select
 
     allocate(controlVector(cvm_nvadim))
@@ -379,7 +378,7 @@ program midas_diagBmatrix
           if (.not. utl_isEqual(centralValue, 0.d0)) then
             call gsv_scale(statevector,1.d0/centralValue)
           else
-            call utl_abort('midas-diagBmatrix: central value equals 0!')
+            call rti_abort('midas-diagBmatrix: central value equals 0!')
           end if
 
           do stepIndexInc = 1, tim_nstepobsinc
@@ -796,8 +795,8 @@ program midas_diagBmatrix
   call msg_memUsage('midas-diagBmatrix')
 
   ! MPI, tmg finalize
-  call utl_tmg_stop(0)
-  call utl_printTime()
+  call rti_tmg_stop(0)
+  call rti_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call mmpi_finalize
 

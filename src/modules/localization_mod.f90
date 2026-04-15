@@ -8,6 +8,7 @@ module localization_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use runtimeInfo_mod
   use localizationSpectral_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -86,7 +87,7 @@ CONTAINS
     else
       write(*,*)
       write(*,*) 'Vcode = ', loc%vco%Vcode
-      call utl_abort('loc_setup: unknown Vcode') 
+      call rti_abort('loc_setup: unknown Vcode')
     end if
 
     select case (trim(loc%locType))
@@ -99,11 +100,11 @@ CONTAINS
     case default
        write(*,*)
        write(*,*) 'locType = ', trim(locType)
-       call utl_abort('loc_setup: unknown locType')
+       call rti_abort('loc_setup: unknown locType')
     end select
 
     loc%cvDim = cvDim_out
-    loc%nEnsOverDimension = nEnsOverDimension 
+    loc%nEnsOverDimension = nEnsOverDimension
 
     !
     !- 3.  Ending
@@ -132,7 +133,7 @@ CONTAINS
                      ensAmplitude,           & ! OUT
                      stepIndex)                ! IN
     case default
-       call utl_abort('loc_Lsqrt: unknown locType')
+       call rti_abort('loc_Lsqrt: unknown locType')
     end select
 
   end subroutine loc_Lsqrt
@@ -158,7 +159,7 @@ CONTAINS
                         controlVector, & ! OUT
                         stepIndex )      ! IN
     case default
-       call utl_abort('loc_LsqrtAd: unknown locType')
+       call rti_abort('loc_LsqrtAd: unknown locType')
     end select
 
   end subroutine loc_LsqrtAd
@@ -178,7 +179,7 @@ CONTAINS
     case('spectral')
       call lsp_finalize(loc%lsp)
     case default
-      call utl_abort('loc_finalize: unknown locType')
+      call rti_abort('loc_finalize: unknown locType')
     end select
 
   end subroutine loc_finalize
@@ -202,11 +203,11 @@ CONTAINS
                                 cv_mpilocal, & ! OUT
                                 cv_mpiglobal)  ! IN
     case default
-      call utl_abort('loc_reduceToMPILocal: unknown locType')
+      call rti_abort('loc_reduceToMPILocal: unknown locType')
     end select
 
   end subroutine loc_reduceToMPILocal
- 
+
   !--------------------------------------------------------------------------
   ! loc_reduceToMPILocal_r4
   !--------------------------------------------------------------------------
@@ -226,11 +227,11 @@ CONTAINS
                                    cv_mpilocal,  & ! OUT
                                    cv_mpiglobal)   ! IN
     case default
-      call utl_abort('loc_reduceToMPILocal_r4: unknown locType')
+      call rti_abort('loc_reduceToMPILocal_r4: unknown locType')
     end select
 
   end subroutine loc_reduceToMPILocal_r4
- 
+
   !--------------------------------------------------------------------------
   ! loc_expandToMPIGlobal
   !--------------------------------------------------------------------------
@@ -243,13 +244,13 @@ CONTAINS
     real(8),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
-    
+
     select case (trim(loc%locType))
     case('spectral')
       call lsp_expandToMPIGlobal(loc%lsp, cv_mpilocal,  & ! IN
                                  cv_mpiglobal)           ! OUT
     case default
-      call utl_abort('loc_expandToMPIGlobal: unknown locType')
+      call rti_abort('loc_expandToMPIGlobal: unknown locType')
     end select
 
   end subroutine loc_expandToMPIGlobal
@@ -266,13 +267,13 @@ CONTAINS
     real(4),          intent(out)   :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
-    
+
     select case (trim(loc%locType))
     case('spectral')
       call lsp_expandToMPIGlobal_r4(loc%lsp, cv_mpilocal, & ! IN
                                     cv_mpiglobal)          ! OUT
     case default
-      call utl_abort('loc_expandToMPIGlobal_r4: unknown locType')
+      call rti_abort('loc_expandToMPIGlobal_r4: unknown locType')
     end select
 
   end subroutine  loc_expandToMPIGlobal_r4

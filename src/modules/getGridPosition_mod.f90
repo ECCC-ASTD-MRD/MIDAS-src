@@ -14,6 +14,7 @@ module getGridPosition_mod
   use message_mod
   use physicsFunctions_mod
   use utilities_mod
+  use runtimeInfo_mod
 
   implicit none
   save
@@ -60,9 +61,10 @@ contains
 
     ! Locals:
     integer :: numSubGrids, numPoints, pointIndex
-    integer :: ezget_nsubGrids, gdxyfll, ezgprm
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
+    ! external definitions
+    integer, external :: gdxyfll, ezgprm, ezget_nsubGrids
 
     numPoints = size(xpos_r4)
     numSubGrids = ezget_nsubGrids(gdid)
@@ -139,12 +141,13 @@ contains
 
     ! Locals:
     integer :: numSubGrids
-    integer :: ezget_nsubGrids, gdxyfll, ezgprm
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
     real(4) :: xpos_r4_vec(1), ypos_r4_vec(1), xpos2_r4_vec(1), ypos2_r4_vec(1)
     real(4) :: lat_deg_r4_vec(1),lon_deg_r4_vec(1)
     integer :: subGridIndex_vec(1)
+    ! external definitions
+    integer, external :: gdxyfll, ezgprm, ezget_nsubGrids
 
     numSubGrids = ezget_nsubGrids(gdid)
     xpos2_r4 = mpc_missingValue_R4
@@ -222,7 +225,6 @@ contains
     integer :: ierr  ! returned value of function
 
     ! Locals:
-    integer :: ezget_subGridids, gdgaxes, gdxyfll, ezgprm
     integer :: EZscintIDvec(2)
     integer :: lonIndex, latIndex, numPoints, pointIndex
     integer :: ig1, ig2, ig3, ig4
@@ -234,6 +236,8 @@ contains
     integer, save :: EZscintIDvec1_old = MPC_missingValue_INT
     integer, save :: ni, nj
     real(4), allocatable, save :: ax_yin(:), ay_yin(:)
+    ! external definitions
+    integer, external :: gdxyfll, ezgprm, ezget_subGridids, gdgaxes
 
     numPoints = size(lat_deg_r4)
     ierr = ezget_subGridids(gdid, EZscintIDvec)
@@ -353,18 +357,18 @@ contains
     integer :: closePointsIndex
     integer :: gridIndex
     integer :: xIndex, yIndex, xIndexMin, xIndexMax, yIndexMin, yIndexMax
-    integer :: ezgprm, gdll ! Functions
     integer                   :: numLocalGridPointsFound
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
     real(kdkind)              :: maxRadiusSquared
     real(kdkind)              :: refPosition(3)
-
     integer :: indexFound
+    ! external definitions
+    integer, external :: ezgprm, gdll
 
     if (gdid /= gdidOld .and. gdidOld > 0) then
       write(*,*) 'gpos_xyfll_unstructGrid: gdid gdidOld = ', gdid, gdidOld
-      call utl_abort('gpos_xyfll_unstructGrid: only one grid expected. Change code!')
+      call rti_abort('gpos_xyfll_unstructGrid: only one grid expected. Change code!')
     end if
 
     ! create the kdtree on the first call
@@ -450,7 +454,7 @@ contains
                    grid_lon_rad(xIndex, yIndex) * MPC_DEGREES_PER_RADIAN_R8, &
                    grid_lat_rad(xIndex, yIndex) * MPC_DEGREES_PER_RADIAN_R8
       end do
-      call utl_abort('gpos_xyfll_unstructGrid: the parameter maxNumLocalGridPointsSearch must be increased')
+      call rti_abort('gpos_xyfll_unstructGrid: the parameter maxNumLocalGridPointsSearch must be increased')
     end if
 
     if (numLocalGridPointsFound < 4) then

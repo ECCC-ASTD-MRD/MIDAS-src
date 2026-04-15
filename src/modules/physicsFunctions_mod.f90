@@ -8,6 +8,7 @@ module physicsFunctions_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use message_mod
   use codePrecision_mod
 
@@ -66,17 +67,17 @@ module physicsFunctions_mod
               'NAMPHY is missing in the namelist. Default values will be taken.', mpiAll_opt=.False.)
        else
          ! Reading the namelist
-         call utl_tmg_start(181,'low-level--readNML')
+         call rti_tmg_start(181,'low-level--readNML')
          read(utl_flnml, nml=namphy, iostat=ierr)
-         if ( ierr /= 0) call utl_abort('tetens_coefs: Error reading namelist')
-         call utl_tmg_stop(181)
+         if ( ierr /= 0) call rti_abort('tetens_coefs: Error reading namelist')
+         call rti_tmg_stop(181)
        end if
 
        validOption = (trim(saturationCurve) == 'Tetens_1930'  .or.  &
                       trim(saturationCurve) == 'Tetens_2018a' .or.  &
                       trim(saturationCurve) == 'Tetens_2018')
        if (.not.validOption) then
-         call utl_abort('phf_tetens: WV Saturation not in expected list')
+         call rti_abort('phf_tetens: WV Saturation not in expected list')
        end if
 
        call msg( 'phf_tetens_coefs_switch ', saturationCurve )
@@ -874,7 +875,7 @@ module physicsFunctions_mod
     integer :: ilev,ilev_mod
 
     ! Check model pressures
-    if (any(press_mod < 0.0d0)) call utl_abort("phf_convertZtoPressure: Invalid model pressure.")
+    if (any(press_mod < 0.0d0)) call rti_abort("phf_convertZtoPressure: Invalid model pressure.")
 
     ! Convert altitudes to geopotential heights
     rgz = phf_convertZtoGZ(altitude,lat,nlev)
@@ -1044,7 +1045,7 @@ module physicsFunctions_mod
     real(8), parameter :: consth=0.160754938d7    ! conversion from mass mixing ratio to ppmv;  1.0d06 / (18.015/28.96)
 
     tropo_press = -1.0d0
-    if (all(height < 0.0d0))  call utl_abort('phf_calcTropopause: Missing height for determining tropopause pressure')
+    if (all(height < 0.0d0))  call rti_abort('phf_calcTropopause: Missing height for determining tropopause pressure')
 
     ! Initialize tropopause pressure level using temperature gradient.
     ! Thermal tropopause is defined as the lowest level (above height_min) at which (1) the lapse rate decreases
@@ -1121,7 +1122,7 @@ module physicsFunctions_mod
         tropo_press = min(tropo_press,tropo_press_hu)
       else
         write(*,*) 'phf_calcTropopause: Level and specific humidity: ',itop,hu_ppmv2
-        call utl_abort('phf_calcTropopause: Specific humidity too small.')
+        call rti_abort('phf_calcTropopause: Specific humidity too small.')
       end if
     end if
 
@@ -1187,7 +1188,7 @@ module physicsFunctions_mod
 
     i = nmodlev
 
-    if (all(height < 0.0d0))  call utl_abort('phf_calcPBL: Missing height for determining PBL pressure')
+    if (all(height < 0.0d0))  call rti_abort('phf_calcPBL: Missing height for determining PBL pressure')
 
     ! Convert hu to mass mixing ratio
 
@@ -1222,7 +1223,7 @@ module physicsFunctions_mod
     if (present(uu_opt) .and. present(vv_opt)) then
       id = nmodlev-size(uu_opt)
       if (id > 1 .or. id < 0) then
-        call utl_abort('phf_calcPBL: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )
+        call rti_abort('phf_calcPBL: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )
       end if
       us = uu_opt(size(uu_opt))
       vs = vv_opt(size(vv_opt))

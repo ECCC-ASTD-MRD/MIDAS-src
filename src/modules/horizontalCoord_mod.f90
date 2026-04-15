@@ -5,13 +5,15 @@ module horizontalCoord_mod
   !:Purpose:  Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
   !
+  use netcdf
+  use rmn_fst98
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use runtimeInfo_mod
   use varNameList_mod
   use physicsFunctions_mod
-  use netcdf
   use message_mod
 
   implicit none
@@ -90,9 +92,7 @@ contains
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
     integer :: iu_template, numSubGrid, varIndex
-    integer :: fnom, fstlir, fstouv, fstfrm, fclos
-    integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
-    integer :: key, fstinf, fstprm, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
+    integer :: key, ier, EZscintID, EZscintIDsubGrids(maxNumSubGrid)
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -108,6 +108,8 @@ contains
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
     character(len=len_trim(templateFile)+len_trim(netcdfFileExtention)) :: fileName
+    ! external definitions
+    integer, external :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
 
     ! Define template file where to look for variables:
     if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
@@ -120,7 +122,7 @@ contains
     if(.not.associated(hco)) then
       allocate(hco)
     else
-      call utl_abort('hco_setupFromFile: supplied hco must be null')
+      call rti_abort('hco_setupFromFile: supplied hco must be null')
     end if
 
     ! Check if file exists
@@ -131,7 +133,7 @@ contains
         call msg('hco_SetupFromFile', 'RPN standard file containing the same horizontal '//&
                                       'grid definition as the netCDF file must exist!')
       end if
-      call utl_abort('hco_SetupFromFile: template grid file does not exist: '//trim(fileName))
+      call rti_abort('hco_SetupFromFile: template grid file does not exist: '//trim(fileName))
     end if
 
     !
@@ -168,7 +170,7 @@ contains
 
           end do
 
-          if (.not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
+          if (.not. foundVarNameInFile) call rti_abort('hco_SetupFromFile: NO variables found in the file!!!')
 
         end if
 
@@ -189,7 +191,7 @@ contains
       ier = fstouv(iu_template, 'RND+OLD')
     else
       write(*,*)
-      call utl_abort('hco_SetupFromFile: Error in opening the template grid file: '//trim(fileName))
+      call rti_abort('hco_SetupFromFile: Error in opening the template grid file: '//trim(fileName))
     end if
 
     !
@@ -212,7 +214,7 @@ contains
       write(*,*)
       call msg('hco_SetupFromFile', 'Unable to find output horiz grid info using '//trim(varName)//&
                                     'with etiket '//trim(etiketName))
-      call utl_abort('hco_setupFromFile: unable to setup the structure')
+      call rti_abort('hco_setupFromFile: unable to setup the structure')
     end if
 
     ier = fstprm(key,                                            & ! IN
@@ -227,13 +229,13 @@ contains
     end if
 
     if (trim(grtyp) == 'G' .and. ig2 == 1) then
-      call utl_abort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
+      call rti_abort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     end if
 
     EZscintID  = ezqkdef(ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template)   ! IN
     if (EZscintID < 0) then
       write(*,*) '  ni, nj, grtyp, ig1, ig2, ig3, ig4 =', ni, nj, grtyp, ig1, ig2, ig3, ig4
-      call utl_abort('hco_setupFromFile: unable to define EZscintID')
+      call rti_abort('hco_setupFromFile: unable to define EZscintID')
     end if
 
     numSubGrid = 1
@@ -274,7 +276,7 @@ contains
 
       if (ier < 0) then
         call msg('hco_SetupFromFile', 'Unable to find >> grid descriptors')
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
@@ -282,7 +284,7 @@ contains
         call msg('hco_SetupFromFile', 'Incompatible >> grid descriptors!')
         call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
         call msg('hco_SetupFromFile', 'Should be: '//str(ni)//','//str(1))
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !-  2.2.2 Read the latitudes
@@ -301,7 +303,7 @@ contains
 
       if (ier < 0) then
         call msg('hco_SetupFromFile', 'Unable to find ^^ grid descriptors')
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
@@ -309,7 +311,7 @@ contains
         call msg('hco_SetupFromFile', 'Incompatible ^^ grid descriptors!')
         call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
         call msg('hco_SetupFromFile', 'Should be: '//str(1)//','//str(nj))
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !- 2.2.3 Do we have a rotated grid ?
@@ -406,7 +408,7 @@ contains
       if (ier < 0) then
         write(*,*)
         call msg('hco_SetupFromFile', 'Unable to find ^> grid descriptors')
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
@@ -414,7 +416,7 @@ contains
         call msg('hco_SetupFromFile', 'Incompatible ^> grid descriptors!')
         call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
         call msg('hco_SetupFromFile', 'Should be: '//str(ni_tictacU)//','//str(1))
-        call utl_abort('hco_setupFromFile')
+        call rti_abort('hco_setupFromFile')
       end if
 
       !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
@@ -424,7 +426,7 @@ contains
       !-  2.5.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
       if (numSubGrid /= 2) then
-        call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
+        call rti_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
 
@@ -471,7 +473,7 @@ contains
 
     else
       call msg('hco_SetupFromFile', 'Only grtyp = Z or G or B or U or Y are supported !, grtyp: '//trim(grtyp))
-      call utl_abort('hco_setupFromFile')
+      call rti_abort('hco_setupFromFile')
     end if
 
     !
@@ -589,7 +591,7 @@ contains
     end if
 
     if (maxGridSpacing > 1.0d6) then
-      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
+      call rti_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
     end if
 
     hco%maxGridSpacing = maxGridSpacing
@@ -645,7 +647,7 @@ contains
     end if
 
     if (minGridSpacing > 1.0d6) then
-      call utl_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
+      call rti_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
     end if
 
     hco%minGridSpacing = minGridSpacing
@@ -714,7 +716,7 @@ contains
     ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco
 
-    ! Locals:
+    ! external definitions
     integer, external :: ezqkdef
 
     write(*,*) 'hco_mpiBcast: starting'
@@ -723,7 +725,7 @@ contains
       if(.not.associated(hco)) then
         allocate(hco)
       else
-        call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
+        call rti_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
       end if
     end if
 
@@ -1081,8 +1083,7 @@ contains
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
 
     ! Locals:
-    integer :: ierr, fnom, fclos
-    integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
+    integer :: ierr, ni, nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
     real(8)  :: dx,dy,sum_weight,tictacRad_r8
@@ -1118,21 +1119,21 @@ contains
 
         ! check if the grtyp in the file is the same as the 'hco%grtyp'
         if ( trim(hco%grtyp) /= grtyp ) then
-          call utl_abort('hco_weight: the grid_type in the file '// trim(fileName) // &
+          call rti_abort('hco_weight: the grid_type in the file '// trim(fileName) // &
                ' is ' // grtyp // ' and it is different from ' // trim(hco%grtyp) // &
                ' in the ''struct_hco''')
         end if
 
         ! check if the 'ni' in the file is the same as the grid
         if ( ni /= niFromFile ) then
-          call utl_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
+          call rti_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
                ' is ' // str(niFromFile) // ' and it is different from ' // str(ni) // &
                ' in the ''struct_hco''')
         end if
 
         ! check if the 'nj' in the file is the same as the grid
         if ( nj /= njFromFile ) then
-          call utl_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
+          call rti_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
                ' is ' // str(njFromFile) // ' and it is different from ' // str(nj) // &
                ' in the ''struct_hco''')
         end if

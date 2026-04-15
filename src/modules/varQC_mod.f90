@@ -11,6 +11,7 @@ module varQC_mod
   use codtyp_mod
   use bufr_mod
   use utilities_mod
+  use runtimeInfo_mod
   use obsSpaceData_mod
   use columnData_mod
   use rmatrix_mod ,only : rmat_lnondiagr
