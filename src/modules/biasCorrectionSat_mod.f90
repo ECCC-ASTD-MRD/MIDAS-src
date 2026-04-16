@@ -83,7 +83,7 @@ module biasCorrectionSat_mod
   type(struct_columnData) :: column_mask
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 16
+  integer, parameter    :: NumPredictors = 18
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
@@ -99,7 +99,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "L4", "L5", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -326,12 +326,16 @@ contains
                 kpred = 12
               case('L3')
                 kpred = 13
-              case('SA')
+              case('L4')
                 kpred = 14
-              case('R1')
+              case('L5')
                 kpred = 15
-              case('R2')
+              case('SA')
                 kpred = 16
+              case('R1')
+                kpred = 17
+              case('R2')
+                kpred = 18
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call rti_abort(errorMessage)
@@ -1796,12 +1800,18 @@ contains
         ! third order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
       else if (iPredictor == 14) then
+        ! fourth order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.125d0 * (35.d0*(normalizedScanPosition**4) - 30.d0*(normalizedScanPosition**2) + 3.d0)
+      else if (iPredictor == 15) then
+        ! fivth order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.125d0 * normalizedScanPosition * (63.d0*(normalizedScanPosition**4) -70.d0*(normalizedScanPosition**2) +15.d0)
+      else if (iPredictor == 16) then
         ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
         predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
-      else if (iPredictor == 15) then
+      else if (iPredictor == 17) then
         ! channel convoluted lapse rate (R1)
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)
-      else if (iPredictor == 16) then
+      else if (iPredictor == 18) then
         ! channel convoluted lapse rate squared (R2)
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)**2
       end if
