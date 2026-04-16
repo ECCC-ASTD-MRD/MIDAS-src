@@ -60,8 +60,6 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##  parsing input and building job for submissions
 ##
 
-## default: make all
-__target=all
 __abs_exist_list=${__abs_all}
 
 __fresh_build_directory=--fresh
@@ -176,6 +174,11 @@ if [ $# -gt 0 ]; then
         done
     fi
 fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
+
+## default: make all
+if [[ -z "${__target}" ]]; then
+  __target=all
+fi
 
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
