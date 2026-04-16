@@ -71,6 +71,7 @@ module biasCorrectionSat_mod
   type  :: struct_bias
     type(struct_chaninfo), allocatable :: chans(:)
     integer :: numscan
+    logical :: doScanBias
     integer :: numChannels
     real(8), allocatable  :: BHalfScanBias(:,:)
     real(8), allocatable  :: BMinusHalfScanBias(:,:)
@@ -118,6 +119,7 @@ module biasCorrectionSat_mod
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
   integer          :: nbscan(maxNumInst)  ! the number of scan positions
+  logical          :: doScanBiasCorrection(maxNumInst)
   integer          :: passiveChannelList(maxNumInst, maxPassiveChannels)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
@@ -129,7 +131,7 @@ module biasCorrectionSat_mod
   logical  :: dumpToSqliteAfterThinning  ! option to output all usefull parameters to sqlite files after thinning
   namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
-  namelist /nambiassat/ cglobal, cinst, nbscan, passiveChannelList, filterObs, outstats, outCoeffCov
+  namelist /nambiassat/ cglobal, cinst, nbscan, doScanBiasCorrection, passiveChannelList, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
   namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov, removeHeightSfcOffset
 contains
@@ -166,6 +168,7 @@ contains
     outOmFPredCov = .false.
     removeHeightSfcOffset = .true.
     nbscan(:) = -1
+    doScanBiasCorrection(:) = .true.
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
     outstats = .false.
@@ -217,6 +220,7 @@ contains
     character(len=85)  :: bcifFile
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff
     logical            :: bcifExists
+    logical            :: doScanBias
     ! variables from background coeff file
     integer            :: nfov, exitCode
     character(len=2)   :: predBCIF(tvs_maxchannelnumber,numPredictors)
@@ -252,6 +256,7 @@ contains
           if (trim(instrNamecoeff) == trim(cinst(instIndex))) then
             global = cglobal(instIndex)
             nfov = nbscan(instIndex)
+            doScanBias = doScanBiasCorrection(instIndex)
           end if
         end do
         if (nfov == -1) then
@@ -339,7 +344,7 @@ contains
         end if
 
         bias(iSensor)%numscan = nfov
-
+        bias(iSensor)%doScanBias = doScanBias
         allocate( bias(iSensor) % BHalfScanBias (nfov,nfov))
         if (doRegression) allocate( bias(iSensor) % BMinusHalfScanBias (nfov,nfov))
         allocate( Bmatrix(nfov,nfov))
@@ -698,7 +703,7 @@ contains
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
 
-      if (bias(iSensor)%numScan > 1) then
+      if (bias(iSensor)%doScanBias) then
         iScan = iFov
       else
         iScan = 1
@@ -906,7 +911,7 @@ contains
       sunaz = obs_headElem_r(obsSpaceData, OBS_SAZ, headerIndex)
       satzen = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
       sataz = obs_headElem_r(obsSpaceData, OBS_AZA, headerIndex)
-      if (bias(sensorIndex)%numScan > 1) then
+      if (bias(sensorIndex)%doScanBias) then
         iScan = iFov
       else
         iScan = 1
@@ -1379,7 +1384,7 @@ contains
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if (iPredictor == 1) then
-                if (bias(iSensor)%numScan > 1) then
+                if (bias(iSensor)%doScanBias) then
                   iScan = iFov
                 else
                   iScan = 1
