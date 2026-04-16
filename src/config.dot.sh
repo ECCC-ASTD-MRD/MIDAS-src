@@ -440,6 +440,13 @@ EOF
                 echo "Running cmake $(cmake_options) ${MIDAS_SOURCE_DIR}"
                 echo
                 cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
+                if [ $? -ne 0 ]; then
+                    echo
+                    echo "CMake failed!"
+                    echo
+                    __status=false
+                    __show_instructions=false
+                fi
             fi
         fi ## End of 'if [ "${__run_cmake}" = true ]'
 
