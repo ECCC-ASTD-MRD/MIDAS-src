@@ -1751,7 +1751,7 @@ contains
     sensorIndex = tvs_lsensor(headerIndex)
 
     !computation of scan bias position normalized to [-1;1]
-    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
+    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan - 1) / bias(sensorIndex)%numscan
 
     do iPredictor = 1, NumPredictors
 
