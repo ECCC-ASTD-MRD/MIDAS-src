@@ -232,6 +232,7 @@
     cinst(5)="AIRS"
     nbscan(5)=1
     cglobal(5)="NON"
+    doScanBiasCorrection(5)=.false.
     cinst(6)="IASI"
     nbscan(6)=1
     cglobal(6)="NON"

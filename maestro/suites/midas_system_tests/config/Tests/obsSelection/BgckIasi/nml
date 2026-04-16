@@ -239,6 +239,7 @@
     cglobal(5)="NON"
     cinst(6)="IASI"
     nbscan(6)=1
+    doscanbiasCorrection(6)=.false.
     cglobal(6)="NON"
     cinst(7)="METS7"
     nbscan(7)=1

@@ -232,9 +232,11 @@
     cinst(11)="CRIS"
     nbscan(11)=1
     cglobal(11)="NON"
+    doScanBiasCorrection(11)=.false.
     cinst(12)="CRISFSR"
     nbscan(12)=1
     cglobal(12)="NON"
+    doScanBiasCorrection(12)=.false.
     cinst(13)="AHI"
     nbscan(13)=1
     cglobal(13)="OUI"

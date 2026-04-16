@@ -241,6 +241,7 @@
     cinst(6)="IASI"
     nbscan(6)=1
     cglobal(6)="NON"
+    doScanBiasCorrection(6)=.false.
     cinst(7)="METS7"
     nbscan(7)=1
     cglobal(7)="OUI"
