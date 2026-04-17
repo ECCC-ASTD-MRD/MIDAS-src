@@ -127,12 +127,12 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
     __run_cmake=stop
 fi
 
-__supported_compilers="'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0', 'gnu-15.2.0'"
+__supported_compilers="'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-15.2.0'"
 if [ "${__compiler}" = list ]; then
-    echo "The compiler supported are 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-14.2.0' and 'gnu-15.2.0'."
+    echo "The compiler supported are 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', and 'gnu-15.2.0'."
     echo "The supported compilers are ${__supported_compilers}."
     __run_cmake=stop
-elif [ "${__compiler}" != inteloneapi-2022.1.2 -a "${__compiler}" != gnu-14.2.0 -a "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
+elif [ "${__compiler}" != inteloneapi-2022.1.2 -a "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
     echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only ${__supported_compilers} are." >&2
     __status=false
     __run_cmake=stop
@@ -276,13 +276,7 @@ if [ "${__run_cmake}" != stop ]; then
         export MIDAS_COMPILE_COMPF_GLOBAL
     fi
 
-    if [ "${__compiler}" = gnu-14.2.0 ]; then
-        __original_ordenv_plat__=${ORDENV_PLAT}
-
-        echo "... loading gnu 14.2.0 compiler"
-        export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
-        . r.load.dot rpn/code-tools/20260219/env/exp/gnu-14.2.0
-    elif [ "${__compiler}" = gnu-15.2.0 ]; then
+    if [ "${__compiler}" = gnu-15.2.0 ]; then
         __original_ordenv_plat__=${ORDENV_PLAT}
 
         echo "... loading gnu 15.2.0 compiler"
@@ -299,18 +293,7 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
-    if [ "${__compiler}" = gnu-14.2.0 ]; then
-        ## This is needed for CMake to find the library
-        export f90sqlite_INSTALLDIR=/home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}/${ORDENV_PLAT}
-
-        ## Loading the compiler affects 'ORDENV_PLAT' and for the
-        ## rest, we need to use the original value.
-        export ORDENV_PLAT=${__original_ordenv_plat__}
-        unset __original_ordenv_plat__
-
-        echo "... loading perftools, udfsqlite and f90sqlite for ${COMP_ARCH}"
-        . r.load.dot /home/erv000/SSM/midas-external-libs/1.0-rc2/${COMP_ARCH}
-    elif [ "${__compiler}" = gnu-15.2.0 ]; then
+    if [ "${__compiler}" = gnu-15.2.0 ]; then
         ## This is needed for CMake to find the library
         echo "... providing path for f90sqlite, hdf5 and netcdf to CMake"
         export f90sqlite_INSTALLDIR=/home/mad001/ssm/f90sqlite_1.5-gnu-15.2.0_rhel-9-amd64-64
