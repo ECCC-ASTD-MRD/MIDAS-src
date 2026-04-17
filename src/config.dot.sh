@@ -352,21 +352,16 @@ if [ "${__run_cmake}" != stop ]; then
         __rttovdebug__=
     fi
     if [ "${__compiler}" = gnu-15.2.0 ]; then
-      __rttov_path__=/fs/site7/eccc/mrd/rpnad/erv000/midas/rttov_v13-17/tmp/rttov13/2.1.0-16-g10f9cad
-      echo "... loading  ${__rttov_path__}"
-      . ssmuse-sh -x ${__rttov_path__}
-       export rttov_installdir=${__rttov_path__}
+        __rttov_path__=/fs/site7/eccc/mrd/rpnad/erv000/midas/rttov_v13-17/tmp/rttov13/2.1.0-17-g93b9e11
+        echo "... loading  ${__rttov_path__}${__rttovdebug__}"
+        . ssmuse-sh -x ${__rttov_path__}${__rttovdebug__}
     else
-      export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
-      __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
-      echo "... loading ${__rttov_path__}"
-      . r.load.dot ${__rttov_path__}
+        export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
+        __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
+        echo "... loading ${__rttov_path__}"
+        . r.load.dot ${__rttov_path__}
     fi
 
-    ## Why is this needed to 'gfortran' and not for Intel
-    if [ "${__compiler}" = gnu-14.2.0 ]; then
-        export rttov_installdir=${__rttov_path__}/${ORDENV_PLAT}
-    fi
     unset __rttov_path__ __rttovdebug__
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
