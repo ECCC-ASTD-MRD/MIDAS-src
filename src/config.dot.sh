@@ -22,9 +22,7 @@ __cd_to_build_directory=true
 __fresh_build_directory=false
 
 function __default_compiler {
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        echo inteloneapi-2022.1.2
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo inteloneapi-2025.1.0
     else
         echo "config.dot.sh: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are    ." >&2
@@ -127,12 +125,12 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
     __run_cmake=stop
 fi
 
-__supported_compilers="'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', 'gnu-15.2.0'"
+__supported_compilers="'inteloneapi-2025.1.0', 'gnu-15.2.0'"
 if [ "${__compiler}" = list ]; then
-    echo "The compiler supported are 'inteloneapi-2022.1.2', 'inteloneapi-2025.1.0', and 'gnu-15.2.0'."
+    echo "The compiler supported are ${__supported_compilers}"
     echo "The supported compilers are ${__supported_compilers}."
     __run_cmake=stop
-elif [ "${__compiler}" != inteloneapi-2022.1.2 -a "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
+elif [ "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
     echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only ${__supported_compilers} are." >&2
     __status=false
     __run_cmake=stop
