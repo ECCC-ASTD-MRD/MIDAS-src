@@ -76,10 +76,10 @@ __abs_all="${__abs_all} ${__abs_external}"
 __abs_exist_list=${__abs_all}
 
 function default_compiler {
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        echo inteloneapi-2022.1.2
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        echo inteloneapi-2025.1.0
     else
-        echo "midas_build: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-8-icelake-64' is." >&2
+        echo "midas_build: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-9-graniterapids-64' is." >&2
         exit 1
     fi
 }
