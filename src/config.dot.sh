@@ -352,9 +352,10 @@ if [ "${__run_cmake}" != stop ]; then
         __rttovdebug__=
     fi
     if [ "${__compiler}" = gnu-15.2.0 ]; then
-      echo "... providing path for rttov to CMake"
-      export rttov_INSTALLDIR=/home/mad001/code/rttov13/rttov-17/installdir
-      #. ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/code/rttov13/rttov-17/installdir
+      __rttov_path__=/fs/site7/eccc/mrd/rpnad/erv000/midas/rttov_v13-17/tmp/rttov13/2.1.0-16-g10f9cad
+      echo "... loading  ${__rttov_path__}"
+      . ssmuse-sh -x ${__rttov_path__}
+       export rttov_installdir=${__rttov_path__}
     else
       export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
       __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
