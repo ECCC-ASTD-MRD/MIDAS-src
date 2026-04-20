@@ -57,17 +57,17 @@ typedef struct { // to be used as the argument in a callback
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_get_tables_callback(void *callback_args, int count, char **data, char **columns);
 
-int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_split_key, char* table_list_without_split_key);
+static int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_split_key, char* table_list_without_split_key);
 
-void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, int nsplit, int id);
-void append_table_list_split_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, char* header_table, char* data_table);
-void append_table_list_without_split_key_requests(char* requete_sql, char* attached_db_name, char* table_list);
+static void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, int nsplit, int id);
+static void append_table_list_split_key_requests_using_header(char* requete_sql, char* attached_db_name, char* table_list, char* split_on_key, char* header_table, char* data_table);
+static void append_table_list_without_split_key_requests(char* requete_sql, char* attached_db_name, char* table_list);
 
-void checkgrid_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
+static void checkgrid_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
 
-void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
+static void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
 
-void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
+static void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **argv);
 
 /*****************************************************/
 /******* Fin des prototype des fonctions *************/
