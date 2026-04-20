@@ -11,8 +11,8 @@
 /* Include pour les definitions des fonctions definies dans ce fichier */
 #include "options.h"
 
-void  aide(int VERBOSE);
-void  help(int VERBOSE);
+void aide(int VERBOSE);
+void help(int VERBOSE);
 
 /***************************************************************************
  * fonction: parseOptions

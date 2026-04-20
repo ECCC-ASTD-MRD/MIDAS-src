@@ -32,8 +32,10 @@
 #define MAXSTR            1024
 
 /* Prototypes of functions used in 'main' */
-int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
+int  getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 void set_domain_rectangle(optionsptr optptr, gridtype grid);
+int  getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
+                 float** valeurs_gz_min_ptr, float** valeurs_gz_max_ptr);
 
 /* Variable globale utilisee pour identifier le niveau de detail
  * que l'on veut dans le listing
@@ -119,63 +121,17 @@ int main(int argc, char** argv) {
     }
 
     set_domain_rectangle(&opt, grid);
-
-    /**********************************************************
-     * Dans cette partie, on va lire, si necessaire, le champ GZ dans le
-     * fichier opt.gz tel qu'identifie par les elements dans la
-     * structure (options) opt .
-     **********************************************************/
-    if (strlen(opt.gz)!=0) {
-      if (opt.rect.max_i>grid.ni) {
-        printf("\nLe max_i donne en entree de %g est plus grand que la dimension de la grille ni=%d alors on met max_i a ni\n", opt.rect.max_i, grid.ni);
-        opt.rect.max_i = grid.ni;
-      }
-      if (opt.rect.max_j>grid.nj) {
-        printf("\nLe max_j donne en entree de %g est plus grand que la dimension de la grille nj=%d alors on met max_j a nj\n", opt.rect.max_j, grid.nj);
-        opt.rect.max_j = grid.nj;
-      }
-      if (opt.rect.min_i<0) {
-        printf("\nLe min_i donne en entree de %g est plus petit que 0 alors on met min_i a 0\n", opt.rect.min_i);
-        opt.rect.min_i = 0;
-      }
-      if (opt.rect.max_j<0) {
-        printf("\nLe min_j donne en entree de %g est plus petit que 0 alors on met min_j a 0\n", opt.rect.min_j);
-        opt.rect.min_j = 0;
+    status = getMinMaxGZ(&opt, &grid_gz, &valeurs_gz_min, &valeurs_gz_max);
+    if (status != OK) {
+      /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'optptr->fstin'. */
+      if ( opt.roundrobin == 0 ) {
+        status = c_gdrls(grid.gridid);
+        if (status<0)
+          App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-      if (opt.niveau_min != IP1_VIDE) {
-        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_min,&valeurs_gz_min);
-        if (status == NOT_OK) {
-          /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
-          if ( opt.roundrobin == 0 ) {
-            status = c_gdrls(grid.gridid);
-            if (status<0)
-              App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-          }
-
-          App_End(-1);exit(1);
-        }
-      }
-      if (opt.niveau_max != IP1_VIDE) {
-        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_max,&valeurs_gz_max);
-        if (status == NOT_OK) {
-          /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
-          if ( opt.roundrobin == 0 ) {
-            status = c_gdrls(grid.gridid);
-            if (status<0)
-              App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-          }
-
-          if (valeurs_gz_min != (float*) NULL)
-            free(valeurs_gz_min);
-          App_End(-1);exit(1);
-        }
-      }
-    } /* Fin du if (strlen(opt.gz)!=0) */
-    else { /* Si necessaire, on convertit les hPa en Pa en multipliant par 100 */
-      if (opt.niveau_min != IP1_VIDE) opt.niveau_min *= 100;
-      if (opt.niveau_max != IP1_VIDE) opt.niveau_max *= 100;
-    }
+      App_End(-1);exit(1);
+    } /* Fin de 'if (status != OK)' */
   } /* Fin du 'if ( opt.roundrobin == 0 )' */
 
   if ( filetype == WKF_SQLITE3 ) {  /* Alors on traite une base de donnees SQL */
@@ -415,6 +371,56 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
     } /* Fin du else relie au 'if ( optptr->npex != 1 || optptr->npey != 1)' */
 } /* Fin de 'void set_domain_rectangle(optionsptr optptr, gridtype grid)' */
 
+int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
+                float** valeurs_gz_min_ptr, float** valeurs_gz_max_ptr) {
+  int status;
+
+    /**********************************************************
+     * Dans cette partie, on va lire, si necessaire, le champ GZ dans le
+     * fichier optptr->gz tel qu'identifie par les elements dans la
+     * structure (options) opt .
+     **********************************************************/
+    if (strlen(optptr->gz)!=0) {
+      if (optptr->rect.max_i>gridptr->ni) {
+        printf("\nLe max_i donne en entree de %g est plus grand que la dimension de la grille ni=%d alors on met max_i a ni\n", optptr->rect.max_i, gridptr->ni);
+        optptr->rect.max_i = gridptr->ni;
+      }
+      if (optptr->rect.max_j>gridptr->nj) {
+        printf("\nLe max_j donne en entree de %g est plus grand que la dimension de la grille nj=%d alors on met max_j a nj\n", optptr->rect.max_j, gridptr->nj);
+        optptr->rect.max_j = gridptr->nj;
+      }
+      if (optptr->rect.min_i<0) {
+        printf("\nLe min_i donne en entree de %g est plus petit que 0 alors on met min_i a 0\n", optptr->rect.min_i);
+        optptr->rect.min_i = 0;
+      }
+      if (optptr->rect.max_j<0) {
+        printf("\nLe min_j donne en entree de %g est plus petit que 0 alors on met min_j a 0\n", optptr->rect.min_j);
+        optptr->rect.min_j = 0;
+      }
+
+      if (optptr->niveau_min != IP1_VIDE) {
+        status = getGZ(optptr->gz,gridptr,optptr->niveau_min,valeurs_gz_min_ptr);
+        if (status != OK) {
+          return NOT_OK;
+        }
+      }
+      if (optptr->niveau_max != IP1_VIDE) {
+        status = getGZ(optptr->gz,gridptr,optptr->niveau_max,valeurs_gz_max_ptr);
+        if (status != OK) {
+          if (*valeurs_gz_min_ptr != (float*) NULL)
+            free(*valeurs_gz_min_ptr);
+
+          return NOT_OK;
+        }
+      }
+    } /* Fin du if (strlen(optptr->gz)!=0) */
+    else { /* Si necessaire, on convertit les hPa en Pa en multipliant par 100 */
+      if (optptr->niveau_min != IP1_VIDE) optptr->niveau_min *= 100;
+      if (optptr->niveau_max != IP1_VIDE) optptr->niveau_max *= 100;
+    }
+
+    return OK;
+} /* Fin de 'int getMinMaxGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs)' */
 
 /***************************************************************************
    * fonction: getGZ
@@ -426,14 +432,15 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
    *     valeurs: pointeur de pointeur a un tableau de float pour stocker les valeurs de GZ
    *
    ***************************************************************************/
-int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs) {
-  int ier, key, status, datev;
+int getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs) {
+  int iun, ier, key, status, datev;
   fstparam fst = fstparam_DEFAUT;
   double forecast;
 
   fst.ip1=niveau;
   strcpy(fst.nomvar,"GZ  ");
 
+  iun = 0;
   status = open_stdfile(iun, fichier, "RND+R/O");
   if (status == NOT_OK) {
     App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
