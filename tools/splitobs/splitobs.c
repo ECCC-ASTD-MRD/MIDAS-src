@@ -28,9 +28,6 @@
  */
 #include "midas_build_info.h"
 
-/* define pour les differentes longueurs de chaine de caracteres utilisees dans le programme */
-#define MAXSTR            1024
-
 /* Prototypes of functions used in 'main' */
 int  getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle);
 int  getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs);
@@ -285,6 +282,19 @@ int main(int argc, char** argv) {
 
 } /* Fin de 'int main(int argc, char** argv)' */
 
+/***************************************************************************
+   * fonction: getGridFromFile
+   *
+   * Cette fonction sert a aller lire la grille horizontale d'un champ.
+   *     fstptr: a pointeur vers une structure 'fstparam' qui contient l'information sur le champ a lire.
+   *     fichier: nom du fichier standard dans lequel sera lu le champ GZ
+   *     gridptr: pointeur a une structure de grille EZSCINT sur laquelle le champ GZ est definit
+
+   *     file_handle: pointeur vers un 'int'.  Si sa valeur est 0,
+   *                  alors on ne fermera pas le fichier et on donnera la valeur du
+   *                  "file unit" pour que l'usager ferme lui-meme le fichier
+   *
+   ***************************************************************************/
 int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle) {
   int iun, status;
 
@@ -328,6 +338,14 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
     return OK;
 } /* Fin de 'int getGridFromFile(optionsptr optptr, char* fichier, gridtype* gridptr, int* file_handle)' */
 
+/***************************************************************************
+   * fonction: set_domain_rectangle(
+   *
+   * Cette fonction initialiser les valeurs de 'optptr->rect' en fonction du parametre 'optptr->pilot'
+   *     optptr: un pointeur vers une structure 'options' qui sera mise a jour
+   *     grid: information sur la grille qui est lue
+   *
+   ***************************************************************************/
 void set_domain_rectangle(optionsptr optptr, gridtype grid) {
   /* Si on a defini la region avec l'option -pilot alors on definit le rectangle avec cette option */
   if (optptr->pilot!=PILOT_DEFAUT) {
@@ -390,6 +408,16 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
     } /* Fin du else relie au 'if ( optptr->npex != 1 || optptr->npey != 1)' */
 } /* Fin de 'void set_domain_rectangle(optionsptr optptr, gridtype grid)' */
 
+/***************************************************************************
+   * fonction: getGZ
+   *
+   * Cette fonction sert a aller chercher le champ GZ dans le fichier donne
+   *     optptr: un pointeur vers une structure 'options' qui sera mise a jour
+   *     gridptr: pointeur a une structure de grille EZSCINT sur laquelle le champ GZ est definit
+   *     valeurs_gz_min_ptr: pointeur de pointeur a un tableau de float pour stocker les valeurs minimales de GZ
+   *     valeurs_gz_max_ptr: pointeur de pointeur a un tableau de float pour stocker les valeurs maximales de GZ
+   *
+   ***************************************************************************/
 int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
                 float** valeurs_gz_min_ptr, float** valeurs_gz_max_ptr) {
   int status;
