@@ -7,6 +7,8 @@
 #include "fstdlib.h"
 /* Include pour les constantes OK et NOT_OK */
 #include "ok_or_notok.h"
+/* Include pour la structure qui definit toutes les options */
+#include "options.h"
 
 /* nom des fonctions SQL qui seront creees pour rechercher les observations
  * dans la base de donnees

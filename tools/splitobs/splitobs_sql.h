@@ -1,6 +1,9 @@
 #ifndef __INCLUDE_SPLITOBS_SQL_H__
 #define __INCLUDE_SPLITOBS_SQL_H__
 
+/* Include pour la structure qui definit toutes les options */
+#include "options.h"
+
 int splitobs_sql(options opt, gridtype grid, gridtype grid_gz);
 
 #endif /* #ifndef __INCLUDE_SPLITOBS_SQL_H__ */
