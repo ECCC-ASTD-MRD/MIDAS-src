@@ -17,6 +17,8 @@
 #include "ok_or_notok.h"
 /* Include pour la structure qui definit toutes les options */
 #include "options.h"
+/* Include pour les fonctions qui permettent de voir si un point dans a l'interieur de la grille de definition */
+#include "checkgrid.h"
 
 /* nom des fonctions SQL qui seront creees pour rechercher les observations
  * dans la base de donnees
@@ -28,9 +30,15 @@
 #define SQL_VERTICAL_GZ_NAME   "checkvertical_gz_sql"
 #define NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ  9
 
-#define SQL_BUFFER_SIZE   19865
+#define SQL_BUFFER_SIZE 19865
+
 
 static int SPLITOBS_SQLITE_VERBOSE = 0;
+/* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
+ * pour estimer la hauteur de la pression donnee
+ */
+static float* SPLITOBS_SQLITE_VALEURS_GZ_MIN = (float*) NULL;
+static float* SPLITOBS_SQLITE_VALEURS_GZ_MAX = (float*) NULL;
 
 typedef struct { // to be used as the argument in a callback
   char* split_on_key;
@@ -72,6 +80,8 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
   char *ErrMsg, requete_sql[SQL_BUFFER_SIZE];
 
   SPLITOBS_SQLITE_VERBOSE = VERBOSE;
+  SPLITOBS_SQLITE_VALEURS_GZ_MIN = VALEURS_GZ_MIN;
+  SPLITOBS_SQLITE_VALEURS_GZ_MAX = VALEURS_GZ_MAX;
 
   /**********************************************************
    * Cette partie a pour but de manipuler la base de donnees SQL
@@ -776,7 +786,7 @@ void checkgrid_sql(sqlite3_context *context, int argc, sqlite3_value **argv) {
   rect.min_j_equal = sqlite3_value_int(argv[11]);
   rect.max_j_equal = sqlite3_value_int(argv[12]);
 
-  status = checkgrid(gridid, ni, nj, lat, lon, rect, errmsg);
+  status = checkgrid(gridid, ni, nj, lat, lon, rect, errmsg, SPLITOBS_SQLITE_VERBOSE);
 
   if (status<0) {
     sqlite3_result_error(context, errmsg, -1);
@@ -827,7 +837,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
     printf("debug: id_obs=%d vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,vcoord,niveau_max,niveau_min);
   }
 
-  status = checkvertical(vcoord,niveau_min,niveau_max);
+  status = checkvertical(vcoord,niveau_min,niveau_max,SPLITOBS_SQLITE_VERBOSE);
 
   if (status<0) {
     char errmsg[MAXSTR];
@@ -896,7 +906,9 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
     printf("debug: id_obs=%d lat=%f lon=%f vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,lat,lon,vcoord,niveau_max,niveau_min);
   }
 
-  status = checkvertical_gz(lat,lon,vcoord,gridid,ni,nj,niveau_min,niveau_max);
+  status = checkvertical_gz(lat,lon,vcoord,gridid,ni,nj,niveau_min,niveau_max,
+                            SPLITOBS_SQLITE_VALEURS_GZ_MIN,SPLITOBS_SQLITE_VALEURS_GZ_MAX,
+                            SPLITOBS_SQLITE_VERBOSE);
 
   if (status<0) {
     char errmsg[MAXSTR];
