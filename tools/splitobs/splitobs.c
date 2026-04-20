@@ -35,16 +35,11 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid);
 int  getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
                  float** valeurs_gz_min_ptr, float** valeurs_gz_max_ptr);
 
-/* Variable globale utilisee pour identifier le niveau de detail
- * que l'on veut dans le listing
- */
-static int VERBOSE = 0;
-
 /********************************/
 /*          main                */
 /********************************/
 int main(int argc, char** argv) {
-  int status, EXIT_STATUS = OK;
+  int status, EXIT_STATUS = OK, VERBOSE = 0;
   int filetype;
   gridtype grid, grid_gz;
   options  opt = optionsDEFAUT;

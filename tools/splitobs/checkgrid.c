@@ -82,8 +82,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
       printf("(!rect.max_j_equal && y<rect.max_j) || (rect.max_j_equal && y<=rect.max_j)\n");
     else
       App_Log(APP_ERROR,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
-
-  }
+  } /* End of 'if (VERBOSE>2)' */
 
   return 0;
 
