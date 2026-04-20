@@ -128,6 +128,16 @@ It will
 Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
+### Building specific targets
+
+It is also possible to build a single program or a chosen list of them; it suffices
+to provide the list as arguments:
+```sh
+./midas_build var letkf
+```
+Providing no argument defaults to `all`, which compiles and install all programs.
+For more specific compilation tasks, you are refered to
+[advanced use cases section](#using-make-advanced-use-cases).
 
 ### Activate the debug options for compilation
 
