@@ -75,8 +75,8 @@ static void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_val
 
 /* Fonction principale pour le splitting en format SQL
  */
-int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
-                 float* valeurs_gz_min, float* valeurs_gz_max) {
+int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
+                 float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE) {
   int status, EXIT_STATUS;
   char sqlreq_tables_without_split_key[MAXSTR];
   char table_list_with_split_key[MAXSTR];

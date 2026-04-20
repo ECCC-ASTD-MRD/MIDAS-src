@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h> /* POSIX says that <sys/types.h> must be included (by the caller) before <regex.h>.  */
-#include <regex.h>
 #include <unistd.h> /* to get the function 'access' to know if files are already existing */
 
 /* Include pour les librairies RPN */
@@ -22,6 +17,8 @@
 #include "splitobs_sql.h"
 /* Include pour la fonction 'splitobs_burp' */
 #include "splitobs_burp.h"
+/* Include pour la fonction 'splitobs_ascii' */
+#include "splitobs_ascii.h"
 
 /* Include qui permet d'obtenir la version a la compilation
  * (ce fichier est genere on-the-fly par le Makefile puis efface)
@@ -103,7 +100,7 @@ int main(int argc, char** argv) {
   filetype = c_wkoffit(opt.obsin,strlen(opt.obsin));
 
   if ( filetype == WKF_SQLITE3 ) {  /* Alors on traite une base de donnees SQL */
-    status = splitobs_sql(opt, grid, grid_gz, VERBOSE, valeurs_gz_min, valeurs_gz_max);
+    status = splitobs_sql(opt, grid, grid_gz, valeurs_gz_min, valeurs_gz_max, VERBOSE);
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction splitobs_sql\n", status);
 
@@ -119,133 +116,12 @@ int main(int argc, char** argv) {
     }
   } /* Fin du  if ( filetype == WKF_BURP ) */
   else if ( filetype == WKF_ASCII ) {  /* Alors on traite un fichier ASCII */
-    FILE* filein = (FILE*) NULL, *fileout = (FILE*) NULL;
-    char ligne[MAXSTR], regex_errbuf[MAXSTR];
-    char latstr[MAXSTR], lonstr[MAXSTR], altstr[MAXSTR];
-    char errmsg[MAXSTR];
-    float lat, lon, alt;
-    int regex_err;
-    regex_t regex;
-    regmatch_t regex_match[5];
+    status = splitobs_ascii(opt, grid, grid_gz, valeurs_gz_min, valeurs_gz_max, VERBOSE);
+    if ( status<0 ) {
+      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction splitobs_ascii\n", status);
 
-    if ( opt.roundrobin == 1 ) {
-      App_Log(APP_ERROR,"Fonction main: Le mode 'round-robin' n'a pas encore ete "
-              "implementee pour des fichiers d'input de type ASCII!\n");
-
-      App_End(-1);exit(1);
+      EXIT_STATUS = status;
     }
-
-    filein=fopen(opt.obsin,"r");
-    if (filein == (FILE*) NULL) {
-      App_Log(APP_ERROR,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsin);
-
-      status = c_gdrls(grid.gridid);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-      App_End(-1);exit(1);
-    }
-
-    fileout=fopen(opt.obsout,"w");
-    if (fileout == (FILE*) NULL) {
-      App_Log(APP_ERROR,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsout);
-
-      fclose(filein);
-
-      status = c_gdrls(grid.gridid);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-      if (strlen(opt.gz)!=0) {
-        status = c_gdrls(grid_gz.gridid);
-        if (status<0)
-          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-        if (valeurs_gz_min != (float*) NULL)
-          free(valeurs_gz_min);
-        if (valeurs_gz_max != (float*) NULL)
-          free(valeurs_gz_max);
-      }
-
-      App_End(-1);exit(1);
-    }
-
-#define REGEX_DEFINITION  "^[[:blank:]]*([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*).*$"
-
-    regex_err = regcomp(&regex, REGEX_DEFINITION, REG_EXTENDED);
-    if (regex_err!=0) {
-      regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-      App_Log(APP_ERROR,"Fonction main: Erreur avec la fonction regcomp '%s' avec l'expression reguliere '%s'\n",regex_errbuf, REGEX_DEFINITION);
-
-      fclose(filein);
-      fclose(fileout);
-
-      status = c_gdrls(grid.gridid);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-      if (strlen(opt.gz)!=0) {
-        status = c_gdrls(grid_gz.gridid);
-        if (status<0)
-          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-        if (valeurs_gz_min != (float*) NULL)
-          free(valeurs_gz_min);
-        if (valeurs_gz_max != (float*) NULL)
-          free(valeurs_gz_max);
-      }
-
-      App_End(-1);exit(1);
-    }
-
-    while( fgets(ligne,sizeof(ligne),filein) != (char*) NULL ) {
-
-      regex_err = regexec(&regex,ligne,regex.re_nsub+1,regex_match,0);
-      if (regex_err!=0) {
-        regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-        App_Log(APP_ERROR,"Fonction main: Erreur avec la fonction regexec '%s' sur la ligne '%s'\n",regex_errbuf,ligne);
-        EXIT_STATUS = 1;
-        break;
-      }
-
-      strncpy(latstr,&ligne[regex_match[1].rm_so],regex_match[1].rm_eo-regex_match[1].rm_so);
-      strncpy(lonstr,&ligne[regex_match[2].rm_so],regex_match[2].rm_eo-regex_match[2].rm_so);
-      strncpy(altstr,&ligne[regex_match[3].rm_so],regex_match[3].rm_eo-regex_match[3].rm_so);
-
-      lat = atof(latstr);
-      lon = atof(lonstr);
-      alt = atof(altstr);
-
-      status = checkgrid(grid.gridid, grid.ni, grid.nj, lat, lon, opt.rect, errmsg, VERBOSE);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction checkgrid pour la ligne '%s' avec le message '%s'\n", ligne, errmsg);
-        EXIT_STATUS = 1;
-        break;
-      }
-
-      if (opt.inout == status) {
-        if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
-          /* Aucun filtrage vertical n'est fait */
-          fputs(ligne,fileout);
-        else if (strlen(opt.channels)==0 && strlen(opt.gz)==0 && checkvertical(alt,opt.niveau_min,opt.niveau_max,VERBOSE))
-          /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
-          fputs(ligne,fileout);
-        else if (strlen(opt.channels)==0 && checkvertical_gz(lat,lon,alt,grid_gz.gridid,grid_gz.ni,grid_gz.nj,opt.niveau_min,opt.niveau_max,valeurs_gz_min, valeurs_gz_max, VERBOSE))
-          /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
-          fputs(ligne,fileout);
-        else if (opt.channels_voulus==checkcanal(alt,opt.channels,VERBOSE))
-          fputs(ligne,fileout);
-        else
-          fputs("\n",fileout);
-      }
-      else
-        fputs("\n",fileout);
-
-    }
-
-    regfree(&regex);
-    fclose(filein);
-    fclose(fileout);
   } /* Fin du  if ( filetype == WKF_ASCII ) */
 
   /* Si on n'est pas en mode round-robin, alors on a besoin du fichier 'opt.fstin'. */
