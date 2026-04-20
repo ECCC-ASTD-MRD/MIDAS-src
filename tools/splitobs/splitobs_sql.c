@@ -46,9 +46,10 @@ typedef struct { // to be used as the argument in a callback
   char* table_list_without_split_key;
 } sqlite_get_tables_callback_arg;
 
-/*****************************************************/
-/******* Prototype des fonctions localement **********/
-/*****************************************************/
+/**************************************************************/
+/******* Prototype des fonctions definies localement **********/
+/**************************************************************/
+
 static int sqlite_schema_callback(void *schema_void, int count, char **data, char **columns);
 static int sqlite_get_tables_callback(void *callback_args, int count, char **data, char **columns);
 
