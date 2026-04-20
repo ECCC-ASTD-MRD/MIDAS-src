@@ -32,6 +32,7 @@
 #define MAXSTR            1024
 
 int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
+void set_domain_rectangle(optionsptr optptr, gridtype grid);
 
 /* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
  * pour estimer la hauteur de la pression donnee
@@ -70,7 +71,7 @@ int main(int argc, char** argv) {
   }
 
   status = access(opt.obsin,F_OK);
-  if ( status != 0 ) { /* Le fichier existe deja */
+  if ( status != 0 ) { /* Le fichier n'existe pas  */
     App_Log(APP_ERROR,"The file '%s' does not exist and should.\n",opt.obsin);
     App_End(-1);exit(1);
   }
@@ -117,65 +118,7 @@ int main(int argc, char** argv) {
       App_End(-1);exit(1);
     }
 
-    /* Si on a defini la region avec l'option -pilot alors on definit le rectangle avec cette option */
-    if (opt.pilot!=PILOT_DEFAUT) {
-      opt.rect.min_i =       1+opt.pilot;
-      opt.rect.max_i = grid.ni-opt.pilot;
-      opt.rect.min_j =       1+opt.pilot;
-      opt.rect.max_j = grid.nj-opt.pilot;
-    }
-    else if ( opt.npex != 1 || opt.npey != 1) {
-      /* Dans le cas d'une grille gaussienne, on se doit de considerer
-       * la grille complete et d'ajouter 1 en longitude pour avoir les
-       * points qui sont pres de la ligne de changement de date.
-       */
-      if (grid.grtyp[0]=='G') {
-        if (opt.rect.min_i<0) {
-          opt.rect.min_i=0;
-          opt.rect.min_j_equal=1;
-        }
-        if (opt.rect.max_i<0) {
-          opt.rect.max_i=grid.ni+1;
-          opt.rect.max_j_equal=1;
-        }
-        if (opt.rect.min_j<0) {
-          opt.rect.min_j=0;
-          opt.rect.min_i_equal=1;
-        }
-        if (opt.rect.max_j<0) {
-          opt.rect.max_j=grid.nj+1;
-          opt.rect.max_i_equal=1;
-        }
-      }
-      else {
-        if (opt.rect.min_i<0)
-          opt.rect.min_i=1;
-        if (opt.rect.max_i<0) {
-          opt.rect.max_i=grid.ni;
-          opt.rect.max_i_equal=1;
-        }
-        if (opt.rect.min_j<0) {
-          opt.rect.min_j=0;
-          opt.rect.min_j_equal=1;
-        }
-        if (opt.rect.max_j<0)
-          opt.rect.max_j=grid.nj;
-      } /* Fin du else relie au if (grid.grtyp[0]=='G') */
-    }
-    else {
-      if (opt.rect.min_i<0)
-        opt.rect.min_i=1;
-      if (opt.rect.max_i<0) {
-        opt.rect.max_i=grid.ni;
-        opt.rect.max_i_equal=1;
-      }
-      if (opt.rect.min_j<0) {
-        opt.rect.min_j=1;
-        opt.rect.min_j_equal=1;
-      }
-      if (opt.rect.max_j<0)
-        opt.rect.max_j=grid.nj;
-    } /* Fin du else relie au 'if ( opt.npex != 1 || opt.npey != 1)' */
+    set_domain_rectangle(&opt, grid);
 
     /**********************************************************
      * Dans cette partie, on va lire, si necessaire, le champ GZ dans le
@@ -408,7 +351,69 @@ int main(int argc, char** argv) {
 
   return(EXIT_STATUS);
 
-} /* Fin du main */
+} /* Fin de 'int main(int argc, char** argv)' */
+
+void set_domain_rectangle(optionsptr optptr, gridtype grid) {
+  /* Si on a defini la region avec l'option -pilot alors on definit le rectangle avec cette option */
+  if (optptr->pilot!=PILOT_DEFAUT) {
+    optptr->rect.min_i =       1+optptr->pilot;
+    optptr->rect.max_i = grid.ni-optptr->pilot;
+    optptr->rect.min_j =       1+optptr->pilot;
+    optptr->rect.max_j = grid.nj-optptr->pilot;
+  }
+  else if ( optptr->npex != 1 || optptr->npey != 1) {
+      /* Dans le cas d'une grille gaussienne, on se doit de considerer
+       * la grille complete et d'ajouter 1 en longitude pour avoir les
+       * points qui sont pres de la ligne de changement de date.
+       */
+      if (grid.grtyp[0]=='G') {
+        if (optptr->rect.min_i<0) {
+          optptr->rect.min_i=0;
+          optptr->rect.min_j_equal=1;
+        }
+        if (optptr->rect.max_i<0) {
+          optptr->rect.max_i=grid.ni+1;
+          optptr->rect.max_j_equal=1;
+        }
+        if (optptr->rect.min_j<0) {
+          optptr->rect.min_j=0;
+          optptr->rect.min_i_equal=1;
+        }
+        if (optptr->rect.max_j<0) {
+          optptr->rect.max_j=grid.nj+1;
+          optptr->rect.max_i_equal=1;
+        }
+      } /* Fin du 'else if ( optptr->npex != 1 || optptr->npey != 1)' */
+      else {
+        if (optptr->rect.min_i<0)
+          optptr->rect.min_i=1;
+        if (optptr->rect.max_i<0) {
+          optptr->rect.max_i=grid.ni;
+          optptr->rect.max_i_equal=1;
+        }
+        if (optptr->rect.min_j<0) {
+          optptr->rect.min_j=0;
+          optptr->rect.min_j_equal=1;
+        }
+        if (optptr->rect.max_j<0)
+          optptr->rect.max_j=grid.nj;
+      } /* Fin du 'else' relie au if (grid.grtyp[0]=='G') */
+    }
+    else {
+      if (optptr->rect.min_i<0)
+        optptr->rect.min_i=1;
+      if (optptr->rect.max_i<0) {
+        optptr->rect.max_i=grid.ni;
+        optptr->rect.max_i_equal=1;
+      }
+      if (optptr->rect.min_j<0) {
+        optptr->rect.min_j=1;
+        optptr->rect.min_j_equal=1;
+      }
+      if (optptr->rect.max_j<0)
+        optptr->rect.max_j=grid.nj;
+    } /* Fin du else relie au 'if ( optptr->npex != 1 || optptr->npey != 1)' */
+} /* Fin de 'void set_domain_rectangle(optionsptr optptr, gridtype grid)' */
 
 
 /***************************************************************************
