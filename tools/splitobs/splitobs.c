@@ -32,6 +32,7 @@
 #define MAXSTR            1024
 
 /* Prototypes of functions used in 'main' */
+int  getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle);
 int  getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 void set_domain_rectangle(optionsptr optptr, gridtype grid);
 int  getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
@@ -46,7 +47,7 @@ static int VERBOSE = 0;
 /*          main                */
 /********************************/
 int main(int argc, char** argv) {
-  int iun = 0, status, EXIT_STATUS = 0;
+  int status, EXIT_STATUS = OK;
   int filetype;
   gridtype grid, grid_gz;
   options  opt = optionsDEFAUT;
@@ -78,8 +79,6 @@ int main(int argc, char** argv) {
     App_End(-1);exit(1);
   }
 
-  filetype = c_wkoffit(opt.obsin,strlen(opt.obsin));
-
   /* Si on n'est pas en mode round-robin, alors on a besoin du fichier 'opt.fstin'. */
   if ( opt.roundrobin == 0 ) {
     /**********************************************************
@@ -87,40 +86,15 @@ int main(int argc, char** argv) {
      * opt.fstin tel qu'identifie par les elements dans la structure
      * (options) opt .
      **********************************************************/
-    status = open_stdfile(iun, opt.fstin, "RND+R/O");
+    int file_handle = 1;
+    status = getGridFromFile(&opt.fst, opt.fstin, &grid, &file_handle);
     if (status == NOT_OK) {
-      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction open_stdfile avec le fichier %s\n",opt.fstin);
-      App_End(-1);exit(1);
-    }
-
-    /* On va chercher la grille definie par le champ identifie avec la structure opt.fstin */
-    status = getgrid(iun,&grid,&opt.fst,opt.fstin);
-    if (status == NOT_OK) {
-      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction getgrid pour les parametres "
-        "(%s,%s,%s,%d,%d,%d,%d) dans le fichier %s\n",opt.fst.nomvar,opt.fst.typvar,opt.fst.etiket,
-        opt.fst.dateo,opt.fst.ip1,opt.fst.ip2,opt.fst.ip3,opt.fstin);
-
-      /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
-      close_stdfile(iun,opt.fstin);
-
-      App_End(-1);exit(1);
-    }
-
-    /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
-    status = close_stdfile(iun,opt.fstin);
-    if (status == NOT_OK) {
-      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",status,opt.fstin);
-
-      /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
-      if ( opt.roundrobin == 0 ) {
-         status = c_gdrls(grid.gridid);
-         if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-      }
+      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction getGridFromFile avec le fichier %s\n",opt.fstin);
       App_End(-1);exit(1);
     }
 
     set_domain_rectangle(&opt, grid);
+
     status = getMinMaxGZ(&opt, &grid_gz, &valeurs_gz_min, &valeurs_gz_max);
     if (status != OK) {
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'optptr->fstin'. */
@@ -133,6 +107,8 @@ int main(int argc, char** argv) {
       App_End(-1);exit(1);
     } /* Fin de 'if (status != OK)' */
   } /* Fin du 'if ( opt.roundrobin == 0 )' */
+
+  filetype = c_wkoffit(opt.obsin,strlen(opt.obsin));
 
   if ( filetype == WKF_SQLITE3 ) {  /* Alors on traite une base de donnees SQL */
     status = splitobs_sql(opt, grid, grid_gz, VERBOSE, valeurs_gz_min, valeurs_gz_max);
@@ -309,6 +285,49 @@ int main(int argc, char** argv) {
 
 } /* Fin de 'int main(int argc, char** argv)' */
 
+int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle) {
+  int iun, status;
+
+  iun = 0;
+    status = open_stdfile(iun, fichier, "RND+R/O");
+    if (status == NOT_OK) {
+      App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
+      App_End(-1);exit(1);
+    }
+
+    /* On va chercher la grille definie par le champ identifie avec la structure opt.fstin */
+    status = getgrid(iun, gridptr, fstptr, fichier);
+    if (status == NOT_OK) {
+      App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur dans la fonction getgrid pour les parametres "
+        "(%s,%s,%s,%d,%d,%d,%d) dans le fichier %s\n",fstptr->nomvar,fstptr->typvar,fstptr->etiket,
+        fstptr->dateo,fstptr->ip1,fstptr->ip2,fstptr->ip3,fichier);
+
+      /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
+      close_stdfile(iun, fichier);
+
+      App_End(-1);exit(1);
+    }
+
+    if (*file_handle) {
+    /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
+    status = close_stdfile(iun, fichier);
+    if (status == NOT_OK) {
+      App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",status,fichier);
+
+      status = c_gdrls(gridptr->gridid);
+      if (status<0)
+        App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
+
+      return NOT_OK;
+    }
+    }
+    else {
+      *file_handle = iun;
+    }
+
+    return OK;
+} /* Fin de 'int getGridFromFile(optionsptr optptr, char* fichier, gridtype* gridptr, int* file_handle)' */
+
 void set_domain_rectangle(optionsptr optptr, gridtype grid) {
   /* Si on a defini la region avec l'option -pilot alors on definit le rectangle avec cette option */
   if (optptr->pilot!=PILOT_DEFAUT) {
@@ -440,24 +459,10 @@ int getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs) {
   fst.ip1=niveau;
   strcpy(fst.nomvar,"GZ  ");
 
-  iun = 0;
-  status = open_stdfile(iun, fichier, "RND+R/O");
+  status = getGridFromFile(&fst, fichier, gridptr, &iun);
   if (status == NOT_OK) {
-    App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
-
-    return NOT_OK;
-  }
-
-  status = getgrid(iun,gridptr,&fst,fichier);
-  if (status == NOT_OK) {
-    App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction getgrid pour les parametres "
-            "(%s,%s,%s,%d,%d,%d,%d) dans le fichier %s\n",
-            fst.nomvar,fst.typvar,fst.etiket,fst.dateo,fst.ip1,fst.ip2,fst.ip3,fichier);
-
-    /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
-    close_stdfile(iun,fichier);
-
-    return NOT_OK;
+    App_Log(APP_ERROR,"Fonction getGZ: Erreur dans la fonction getGridFromFile avec le fichier %s\n",fichier);
+    App_End(-1);exit(1);
   }
 
   /**************************************************************
