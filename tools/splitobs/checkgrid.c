@@ -4,23 +4,23 @@
 #include "rmn.h"
 #include "App.h"
 
-  /***************************************************************************
-   * fonction: checkgrid
-   *
-   * Cette fonction sert a verifier si le point (lat,lon) est a l'interieur d'une grille
-   * donnee par les arguments d'entree:
-   *     gridid: identifiant de la grille EZSCINT
-   *     ni: dimension horizontale de la grille
-   *     nj: dimension verticale   de la grille
-   *     lat: coordonnee de latitude  du point d'observation
-   *     lon: coordonnee de longitude du point d'observation
-   *     rect:  rectangle definissant une sous-region de la grille comme domaine
-   *
-   * Cette fonction retourne:
-   *            1 si le point est a l'interieur de la grille
-   *            0 si le point est a l'exterieur de la grille
-   *           -1 s'il y a une erreur
-   ***************************************************************************/
+/***************************************************************************
+ * fonction: checkgrid
+ *
+ * Cette fonction sert a verifier si le point (lat,lon) est a l'interieur d'une grille
+ * donnee par les arguments d'entree:
+ *     gridid: identifiant de la grille EZSCINT
+ *     ni: dimension horizontale de la grille
+ *     nj: dimension verticale   de la grille
+ *     lat: coordonnee de latitude  du point d'observation
+ *     lon: coordonnee de longitude du point d'observation
+ *     rect:  rectangle definissant une sous-region de la grille comme domaine
+ *
+ * Cette fonction retourne:
+ *            1 si le point est a l'interieur de la grille
+ *            0 si le point est a l'exterieur de la grille
+ *           -1 s'il y a une erreur
+ ***************************************************************************/
 int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char errmsg[MAXSTR], int VERBOSE) {
   int status, criteria;
   float x, y;
@@ -36,8 +36,8 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
   status = c_gdxyfll(gridid, &x, &y, &lat, &lon, 1);
   if (status<0) {
     snprintf(errmsg, MAXSTR,  "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
-            "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
-            status, lat, lon, gridid, ni, nj);
+             "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
+             status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
     return -1;
   }
@@ -208,8 +208,8 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       if (status<0) {
         char errmsg[MAXSTR];
         snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
-                "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
-                status, lat, lon, gridid, ni, nj);
+                 "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
+                 status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
         return -1;
       }
@@ -218,8 +218,8 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       if (status<0) {
         char errmsg[MAXSTR];
         snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
-                "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
-                status, lat, lon, gridid, ni, nj);
+                 "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
+                 status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
         return -1;
       }
@@ -252,8 +252,8 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       if (status<0) {
         char errmsg[MAXSTR];
         snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
-                "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
-                status, lat, lon, gridid, ni, nj);
+                 "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
+                 status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
         return -1;
       }
@@ -286,8 +286,8 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       if (status<0) {
         char errmsg[MAXSTR];
         snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: c_gdllsval retourne %d "
-                "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
-                status, lat, lon, gridid, ni, nj);
+                 "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
+                 status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
         return -1;
       }

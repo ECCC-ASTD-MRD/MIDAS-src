@@ -141,7 +141,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
       /* Execution de la requete SQL sur la base de donnees */
       /* Execution de la requete SQL sur la base de donnees */
       /* L'idee est de reproduire la commande UNIX
-            echo .schema | sqlite3 obsin | sqlite3 obsout
+         echo .schema | sqlite3 obsin | sqlite3 obsout
          Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
       */
       strcpy(sqlschema,"");
@@ -155,7 +155,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
           App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
         return NOT_OK;
-          } /* Fin du 'if ( status != SQLITE_OK )' */
+      } /* Fin du 'if ( status != SQLITE_OK )' */
 
       status = sqlite3_close(sqldbin);
       if( status != SQLITE_OK ) {
@@ -205,7 +205,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
      * du domaine defini par la grille donnee plus haut.
      */
     status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
-                                       NULL, &checkvertical_sql, NULL, NULL);
+                                     NULL, &checkvertical_sql, NULL, NULL);
     if( status != SQLITE_OK ) {
       App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
@@ -236,216 +236,186 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
       /* Aucun filtrage vertical n'est fait */
       snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
-                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
-                grid.gridid, grid.ni, grid.nj,
-                opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
-                opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table);
-      else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
-        /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
-        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
-                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
-                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
-                grid.gridid, grid.ni, grid.nj,
-                opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
-                opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
-                SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
-      else if (strlen(opt.channels)==0)
-        /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
-        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
-                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
-                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
-                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
-                grid.gridid, grid.ni, grid.nj,
-                opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
-                opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_split_on_key,
-                SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
-                grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
-      else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
-        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
-                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord in (%s);\n",
-                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
-                grid.gridid, grid.ni, grid.nj,
-                opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
-                opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
-                opt.rdb_data_table, opt.channels);
-      else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
-        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
-                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
-                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
-                "  dbin.%s.vcoord not in (%s);\n",
-                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
-                grid.gridid, grid.ni, grid.nj,
-                opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
-                opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
-                opt.inout,
-                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
-                opt.rdb_data_table, opt.channels);
-      else {
-        App_Log(APP_ERROR, "Fonction main: Incapable de creer la requete SQL\n");
+               "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
+               opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+               grid.gridid, grid.ni, grid.nj,
+               opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
+               opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
+               opt.inout,
+               opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table);
+    else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
+      /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
+      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+               "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+               "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+               "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
+               opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+               grid.gridid, grid.ni, grid.nj,
+               opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
+               opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
+               opt.inout,
+               opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
+               SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
+    else if (strlen(opt.channels)==0)
+      /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
+      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+               "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+               "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
+               "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
+               opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+               grid.gridid, grid.ni, grid.nj,
+               opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
+               opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
+               opt.inout,
+               opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_split_on_key,
+               SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
+               grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
+    else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
+      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+               "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+               "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+               "  dbin.%s.vcoord in (%s);\n",
+               opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+               grid.gridid, grid.ni, grid.nj,
+               opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
+               opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
+               opt.inout,
+               opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
+               opt.rdb_data_table, opt.channels);
+    else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
+      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+               "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+               "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
+               "  dbin.%s.vcoord not in (%s);\n",
+               opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
+               grid.gridid, grid.ni, grid.nj,
+               opt.rect.min_i, opt.rect.max_i, opt.rect.min_j, opt.rect.max_j,
+               opt.rect.min_i_equal, opt.rect.max_i_equal, opt.rect.min_j_equal, opt.rect.max_j_equal,
+               opt.inout,
+               opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
+               opt.rdb_data_table, opt.channels);
+    else {
+      App_Log(APP_ERROR, "Fonction main: Incapable de creer la requete SQL\n");
 
-        status = sqlite3_close(sqldb);
-        if( status != SQLITE_OK )
-          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-        return NOT_OK;
-      }
-
-      // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
-      strcat(requete_sql,sqlreq_tables_without_split_key);
-
-      append_table_list_split_key_requests_using_header(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,opt.rdb_header_table,opt.rdb_data_table);
-
-      strcat(requete_sql,"\ndetach dbin;");
-
-      printf("\n\nVoici la requete SQL effectuee sur la base de donnees:\n");
-      printf("%s\n\n", requete_sql);
-
-      /* Execution de la requete SQL sur la base de donnees finale */
-      status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
-      if( status != SQLITE_OK ){
-        App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
-        if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-          App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
-                  "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
-        }
-        sqlite3_free(ErrMsg);
-        EXIT_STATUS = OK;
-      }
-
-      /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
       status = sqlite3_close(sqldb);
-      if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-        EXIT_STATUS = NOT_OK;
-      }
+      if( status != SQLITE_OK )
+        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+
+      return NOT_OK;
     }
-    else { /* Ici, opt.roundrobin == 1 */
-      /* Il faut travailler les 'npex*npey' fichiers */
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], rdbout[MAXSTR*4];
-      char sqlschema[MAXSTR*32];
-      int nsplit = opt.npex*opt.npey;
-      int ilonband, jlatband;
 
-      strcpy(sqlschema,"");
-      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
+    // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
+    strcat(requete_sql,sqlreq_tables_without_split_key);
 
-      for (ilonband=0;ilonband<opt.npex;ilonband++) {
-        for (jlatband=0;jlatband<opt.npey;jlatband++) {
-          int id = ilonband*opt.npey+jlatband;
+    append_table_list_split_key_requests_using_header(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,opt.rdb_header_table,opt.rdb_data_table);
 
-          /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
-          if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
-            if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
-              continue;
+    strcat(requete_sql,"\ndetach dbin;");
 
-          snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
-          snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
-          snprintf(rdbout, sizeof(rdbout), "%s_%s_%s",opt.obsout,npex_str,npey_str);
+    printf("\n\nVoici la requete SQL effectuee sur la base de donnees:\n");
+    printf("%s\n\n", requete_sql);
 
-          status = access(rdbout,F_OK);
-          if ( status == 0 ) { /* Le fichier existe deja */
-            /* On ouvre la base de donnees SQL de sortie */
-            status = sqlite3_open(rdbout,&sqldb);
+    /* Execution de la requete SQL sur la base de donnees finale */
+    status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
+    if( status != SQLITE_OK ){
+      App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+      if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
+        App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+                "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
+      }
+      sqlite3_free(ErrMsg);
+      EXIT_STATUS = OK;
+    }
+
+    /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
+    status = sqlite3_close(sqldb);
+    if( status != SQLITE_OK ) {
+      App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+      EXIT_STATUS = NOT_OK;
+    }
+  }
+  else { /* Ici, opt.roundrobin == 1 */
+    /* Il faut travailler les 'npex*npey' fichiers */
+    char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], rdbout[MAXSTR*4];
+    char sqlschema[MAXSTR*32];
+    int nsplit = opt.npex*opt.npey;
+    int ilonband, jlatband;
+
+    strcpy(sqlschema,"");
+    snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
+
+    for (ilonband=0;ilonband<opt.npex;ilonband++) {
+      for (jlatband=0;jlatband<opt.npey;jlatband++) {
+        int id = ilonband*opt.npey+jlatband;
+
+        /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
+        if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
+          if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
+            continue;
+
+        snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
+        snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
+        snprintf(rdbout, sizeof(rdbout), "%s_%s_%s",opt.obsout,npex_str,npey_str);
+
+        status = access(rdbout,F_OK);
+        if ( status == 0 ) { /* Le fichier existe deja */
+          /* On ouvre la base de donnees SQL de sortie */
+          status = sqlite3_open(rdbout,&sqldb);
+          if ( status != SQLITE_OK ) {
+            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+            return NOT_OK;
+          } /* Fin du 'if ( status != SQLITE_OK )' */
+        } /* Fin du 'if ( status == 0 )' */
+        else {
+          if (strlen(sqlschema)==0) {
+            /* Si le fichier n'existe pas encore alors on doit le creer et construire le meme schema */
+            sqlite3 *sqldbin;
+
+            /* On ouvre le fichier d'input */
+            status = sqlite3_open(opt.obsin,&sqldbin);
             if ( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
+
+              status = sqlite3_close(sqldbin);
+              if( status != SQLITE_OK )
+                App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+
               return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
-          } /* Fin du 'if ( status == 0 )' */
-          else {
-            if (strlen(sqlschema)==0) {
-              /* Si le fichier n'existe pas encore alors on doit le creer et construire le meme schema */
-              sqlite3 *sqldbin;
-
-              /* On ouvre le fichier d'input */
-              status = sqlite3_open(opt.obsin,&sqldbin);
-              if ( status != SQLITE_OK ) {
-                App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
-
-                status = sqlite3_close(sqldbin);
-                if( status != SQLITE_OK )
-                  App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-                return NOT_OK;
-              } /* Fin du 'if ( status != SQLITE_OK )' */
 
               /* Execution de la requete SQL sur la base de donnees */
               /* L'idee est de reproduire la commande UNIX
                  echo .schema | sqlite3 obsin | sqlite3 obsout
                  Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
               */
-              status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
-              if( status != SQLITE_OK ) {
-                App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
-                sqlite3_free(ErrMsg);
-
-                status = sqlite3_close(sqldbin);
-                if( status != SQLITE_OK )
-                  App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
-
-                return NOT_OK;
-              } /* Fin du 'if ( status != SQLITE_OK )' */
-
-              printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
+            status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
+            if( status != SQLITE_OK ) {
+              App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
+              sqlite3_free(ErrMsg);
 
               status = sqlite3_close(sqldbin);
-              if( status != SQLITE_OK ) {
+              if( status != SQLITE_OK )
                 App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                return NOT_OK;
-              }
-            } /* Fin du 'if (strlen(sqlschema)==0)' */
-
-            status = sqlite3_open(rdbout,&sqldb);
-            if ( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
               return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
-            status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
+            printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
+
+            status = sqlite3_close(sqldbin);
             if( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
-              if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-                App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
-                        "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
-              }
-              sqlite3_free(ErrMsg);
+              App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+
               return NOT_OK;
             }
-          } /* Fin du 'else' relie au 'if ( status == 0 )' */
+          } /* Fin du 'if (strlen(sqlschema)==0)' */
 
-          /* On doit fabriquer la requete sql pour faire le splitting */
-          snprintf(requete_sql, sizeof(requete_sql), "drop index if exists idx1;\n"
-                              "PRAGMA journal_mode = OFF;\n"
-                              "PRAGMA  synchronous = OFF;\n"
-                              "attach '%s' as dbin; \n"
-                              "%s\n", opt.obsin, sqlreq_tables_without_split_key);
-          append_table_list_split_key_requests_nsplit(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,nsplit,id);
-          if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
-               strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
-               strcasecmp(opt.rdb_split_on_key,RDB_SPLITONKEY_DEFAUT) == 0 ) {
-            strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);\n");
-          }
-          strcat(requete_sql,"detach dbin;");
+          status = sqlite3_open(rdbout,&sqldb);
+          if ( status != SQLITE_OK ) {
+            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+            return NOT_OK;
+          } /* Fin du 'if ( status != SQLITE_OK )' */
 
-          printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
-          printf("%s\n", requete_sql);
-
-          /* Execution de la requete SQL sur la base de donnees finale */
-          status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
+          status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
           if( status != SQLITE_OK ) {
             App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
             if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
@@ -453,18 +423,48 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
                       "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
             }
             sqlite3_free(ErrMsg);
-            EXIT_STATUS = 1;
+            return NOT_OK;
           }
+        } /* Fin du 'else' relie au 'if ( status == 0 )' */
 
-          /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
-          status = sqlite3_close(sqldb);
-          if( status != SQLITE_OK ) {
-            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-            EXIT_STATUS = 1;
+          /* On doit fabriquer la requete sql pour faire le splitting */
+        snprintf(requete_sql, sizeof(requete_sql), "drop index if exists idx1;\n"
+                 "PRAGMA journal_mode = OFF;\n"
+                 "PRAGMA  synchronous = OFF;\n"
+                 "attach '%s' as dbin; \n"
+                 "%s\n", opt.obsin, sqlreq_tables_without_split_key);
+        append_table_list_split_key_requests_nsplit(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,nsplit,id);
+        if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
+             strcasecmp(opt.rdb_data_table,RDB_DATA_DEFAUT) == 0       &&
+             strcasecmp(opt.rdb_split_on_key,RDB_SPLITONKEY_DEFAUT) == 0 ) {
+          strcat(requete_sql,"create index idx1 on data(id_obs,vcoord,varno);\n");
+        }
+        strcat(requete_sql,"detach dbin;");
+
+        printf("\nVoici la requete SQL effectuee sur la base de donnees pour creer le fichier '%s':\n",rdbout);
+        printf("%s\n", requete_sql);
+
+        /* Execution de la requete SQL sur la base de donnees finale */
+        status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
+        if( status != SQLITE_OK ) {
+          App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+          if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
+            App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+                    "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
           }
-        } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
-      } /* Fin du 'for (ilonband=0;ilonband<opt.npex;ilonband++)' */
-    } /* Fin du 'else' relie au 'if (opt.roundrobin == 0)' */
+          sqlite3_free(ErrMsg);
+          EXIT_STATUS = 1;
+        }
+
+        /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
+        status = sqlite3_close(sqldb);
+        if( status != SQLITE_OK ) {
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          EXIT_STATUS = 1;
+        }
+      } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
+    } /* Fin du 'for (ilonband=0;ilonband<opt.npex;ilonband++)' */
+  } /* Fin du 'else' relie au 'if (opt.roundrobin == 0)' */
 
   return EXIT_STATUS;
 } /* Fin de 'int splitobs_sql()' */
@@ -498,13 +498,13 @@ static int sqlite_schema_callback(void *schema_void, int count, char **data, cha
 }
 
 
-  /***************************************************************************
-   * fonction: sqlite_get_tables
-   *
-   * Trouve les tables qui contiennent une colonne 'split_on_key' et celles
-   * qui ne contiennent pas la colonne 'split_on_key'.
-   *
-   ***************************************************************************/
+/***************************************************************************
+ * fonction: sqlite_get_tables
+ *
+ * Trouve les tables qui contiennent une colonne 'split_on_key' et celles
+ * qui ne contiennent pas la colonne 'split_on_key'.
+ *
+ ***************************************************************************/
 int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_split_key, char* table_list_without_split_key) {
   int status;
   char *ErrMsg;
@@ -653,7 +653,7 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
     }
 
     if (strlen(table_list)>0) {
-        strcat(table_list, " ");
+      strcat(table_list, " ");
     }
     strcat(table_list, table_name);
     /* printf("sqlite_get_tables_callback: found table: '%s'\n", callback_arg->table_list); */
@@ -689,7 +689,7 @@ void append_table_list_split_key_requests_nsplit(char* requete_sql, char* attach
   /* walk through other tokens */
   while( token != (char*) NULL ) {
     snprintf(sqlreqtmp, sizeof(sqlreqtmp), "insert into %s select * from %s.%s where abs(%s) %% %d = %d;\n",
-            token,attached_db_name,token,split_on_key,nsplit,id);
+             token,attached_db_name,token,split_on_key,nsplit,id);
     strcat(requete_sql,sqlreqtmp);
     token = strtok((char*) NULL, separator_char);
   }
@@ -718,7 +718,7 @@ void append_table_list_split_key_requests_using_header(char* requete_sql, char* 
     // If the table is 'header' or 'data', then ignore it since they already have been considered in the request
     if ( strcasecmp(token,header_table) != 0 && strcasecmp(token,data_table) != 0) {
       snprintf(sqlreqtmp, sizeof(sqlreqtmp), "insert into %s select * from %s.%s where %s.%s.%s in (select %s from %s);\n",
-              token,attached_db_name,token,attached_db_name,token,split_on_key,split_on_key,header_table);
+               token,attached_db_name,token,attached_db_name,token,split_on_key,split_on_key,header_table);
       strcat(requete_sql,sqlreqtmp);
     }
     token = strtok((char*) NULL, separator_char);
@@ -848,7 +848,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
   if (status<0) {
     char errmsg[MAXSTR];
     snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_sql: Erreur avec checkvertical pour "
-            "id_obs=%d vcoord=%f niveau_min=%d et niveau_max=%d\n", id_obs, vcoord, niveau_min, niveau_max);
+             "id_obs=%d vcoord=%f niveau_min=%d et niveau_max=%d\n", id_obs, vcoord, niveau_min, niveau_max);
     App_Log(APP_ERROR,"%s",errmsg);
     sqlite3_result_error(context, errmsg, -1);
     return;
