@@ -78,6 +78,16 @@ while [[ $# > 0 ]]; do
     shift
 done ## End of 'while [[ $# > 0 ]]'
 
+if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
+  echo "+-----------------------------------------+"
+  echo "|                                         |"
+  echo "| WARNING: config.dot.sh already sourced! |"
+  echo "|   open a new shell before proceeding    |"
+  echo "|                                         |"
+  echo "+-----------------------------------------+"
+  return 1
+fi
+
 if [ "${__show_instructions}" != true -a "${__show_instructions}" != false ]; then
     echo "config.dot.sh: The variable '__show_instructions' can only be 'true' or 'false' and not '${__show_instructions}'." >&2
     __run_cmake=stop
@@ -410,6 +420,10 @@ EOF
         echo "The build directory ${MIDAS_COMPILE_DIR_BUILD} does not exist"
         __status=false
     fi
+
+    ## this variable is used to prevent sourcing a second time the confiduration
+    ## doing so is risky since some environment variables might already be set
+    export MIDAS_CONFIG_ALREADY_SOURCED=true
 
     # config return status
     ${__status}
