@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <sys/types.h> /* POSIX says that <sys/types.h> must be included (by the caller) before <regex.h>.  */
 #include <regex.h>
 #include <unistd.h> /* to get the function 'access' to know if files are already existing */
@@ -29,7 +28,6 @@ extern int c_mrfbfl(int);
 
 /* define pour les differentes longueurs de chaine de caracteres utilisees dans le programme */
 #define MAXSTR            1024
-#define SQL_BUFFER_SIZE   19865
 
 /* valeurs par defaut pour certaines structures utilisees dans le programme */
 #define UNIT_NUMBER        200
@@ -76,7 +74,7 @@ float* VALEURS_GZ_MAX = (float*) NULL;
 /* Variable globale utilisee pour identifier le niveau de detail
  * que l'on veut dans le listing
  */
-int    VERBOSE = 0;
+static int VERBOSE = 0;
 
 /********************************/
 /*          main                */
@@ -270,7 +268,7 @@ int main(int argc, char** argv) {
   } /* Fin du 'if ( opt.roundrobin == 0 )' */
 
   if ( filetype == WKF_SQLITE3 ) {  /* Alors on traite une base de donnees SQL */
-    status = splitobs_sql(opt, grid, grid_gz);
+    status = splitobs_sql(opt, grid, grid_gz, VERBOSE, VALEURS_GZ_MIN, VALEURS_GZ_MAX);
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction splitobs_sql\n", status);
 

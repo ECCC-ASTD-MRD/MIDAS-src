@@ -1,7 +1,15 @@
 #include <stdio.h>
+#include <regex.h>
+#include <assert.h>
+#include <unistd.h> /* to get the function 'access' to know if files are already existing */
 
 /* Include pour sqlite3 */
 #include <sqlite3.h>
+
+/* Include pour la librairie App dans 'rpn/libs' */
+#include "App.h"
+/* Include pour la librairie RPN */
+#include "rmn.h"
 
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
 #include "fstdlib.h"
@@ -19,6 +27,10 @@
 #define NUMBER_OF_ARGS_FOR_CHECK_VERTICAL     4
 #define SQL_VERTICAL_GZ_NAME   "checkvertical_gz_sql"
 #define NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ  9
+
+#define SQL_BUFFER_SIZE   19865
+
+static int SPLITOBS_SQLITE_VERBOSE = 0;
 
 typedef struct { // to be used as the argument in a callback
   char* split_on_key;
@@ -50,12 +62,16 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
 
 /* Fonction principale pour le splitting en format SQL
  */
-int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
+int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
+                 float* VALEURS_GZ_MIN, float* VALEURS_GZ_MAX) {
+  int status, EXIT_STATUS;
   char sqlreq_tables_without_split_key[MAXSTR];
   char table_list_with_split_key[MAXSTR];
   char table_list_without_split_key[MAXSTR];
   sqlite3  *sqldb;
   char *ErrMsg, requete_sql[SQL_BUFFER_SIZE];
+
+  SPLITOBS_SQLITE_VERBOSE = VERBOSE;
 
   /**********************************************************
    * Cette partie a pour but de manipuler la base de donnees SQL
@@ -63,286 +79,147 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
    * l'interieur du domaine defini par la grille donnee plus haut.
    **********************************************************/
 
-    strcpy(table_list_with_split_key,"");
-    strcpy(table_list_without_split_key,"");
-    status = sqlite_get_tables(opt.obsin, opt.rdb_split_on_key, table_list_with_split_key, table_list_without_split_key);
-    if( status != OK ) {
-      App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
-      App_End(-1);exit(1);
-    }
+  strcpy(table_list_with_split_key,"");
+  strcpy(table_list_without_split_key,"");
+  status = sqlite_get_tables(opt.obsin, opt.rdb_split_on_key, table_list_with_split_key, table_list_without_split_key);
+  if( status != OK ) {
+    App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
+    return NOT_OK;
+  }
 
-    append_table_list_without_split_key_requests(sqlreq_tables_without_split_key,"dbin",table_list_without_split_key);
+  append_table_list_without_split_key_requests(sqlreq_tables_without_split_key,"dbin",table_list_without_split_key);
 
-    /* Si on n'est pas en mode round-robin, alors les fichiers 'grid*.gridid' ont ete ouverts */
-    if ( opt.roundrobin == 0 ) {
-      /* On ouvre la base de donnees SQL finale */
-      status = access(opt.obsout,F_OK);
-      if ( status == 0 ) { /* Le fichier existe deja */
-        status = sqlite3_open(opt.obsout,&sqldb);
-        if ( status != SQLITE_OK ) {
-          App_Log(APP_ERROR,"Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-
-          status = sqlite3_close(sqldb);
-          if( status != SQLITE_OK )
-            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        } /* Fin du 'if ( status != SQLITE_OK )' */
-      } /* Fin du 'if ( status == 0 )' */
-      else {
-        /* Si le fichier n'existe pas encore alors on doit le creer et construire le meme schema */
-        sqlite3 *sqldbin;
-        char sqlschema[MAXSTR*32];
-
-        /* On lit le fichier d'input */
-        status = sqlite3_open(opt.obsin,&sqldbin);
-        if ( status != SQLITE_OK ) {
-          App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
-
-          status = sqlite3_close(sqldbin);
-          if( status != SQLITE_OK )
-            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        } /* Fin du 'if ( status != SQLITE_OK )' */
-
-        /* Execution de la requete SQL sur la base de donnees */
-        /* Execution de la requete SQL sur la base de donnees */
-        /* L'idee est de reproduire la commande UNIX
-                echo .schema | sqlite3 obsin | sqlite3 obsout
-           Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
-        */
-        strcpy(sqlschema,"");
-        status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
-        if( status != SQLITE_OK ) {
-          App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
-          sqlite3_free(ErrMsg);
-
-          status = sqlite3_close(sqldbin);
-          if( status != SQLITE_OK )
-            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        } /* Fin du 'if ( status != SQLITE_OK )' */
-
-        status = sqlite3_close(sqldbin);
-        if( status != SQLITE_OK ) {
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        }
-
-        status = sqlite3_open(opt.obsout,&sqldb);
-        if ( status != SQLITE_OK ) {
-          App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", opt.obsout, sqlite3_errmsg(sqldb));
-
-          status = sqlite3_close(sqldbin);
-          if( status != SQLITE_OK )
-            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        } /* Fin du 'if ( status != SQLITE_OK )' */
-
-        status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
-        if( status != SQLITE_OK ){
-          App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
-          if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-            App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
-                    "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
-          }
-          sqlite3_free(ErrMsg);
-
-          status = c_gdrls(grid.gridid);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-          if (strlen(opt.gz)!=0) {
-            status = c_gdrls(grid_gz.gridid);
-            if (status<0)
-
-              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-            if (VALEURS_GZ_MIN != (float*) NULL)
-              free(VALEURS_GZ_MIN);
-            if (VALEURS_GZ_MAX != (float*) NULL)
-              free(VALEURS_GZ_MAX);
-          }
-
-          App_End(-1);exit(1);
-        }
-      } /* Fin du 'else' relie au 'if ( status == 0 )' */
-
-      /* On cree la fonction checkgrid qui verifie si l'observation est a l'interieur
-       * du domaine defini par la grille donnee plus haut.
-       */
-      status = sqlite3_create_function(sqldb, SQLFUNCTION_NAME, NUMBER_OF_ARGS_FOR_CHECK_GRID, SQLITE_UTF8,
-                                       NULL, &checkgrid_sql, NULL, NULL);
-      if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
+  /* Si on n'est pas en mode round-robin, alors les fichiers 'grid*.gridid' ont ete ouverts */
+  if ( opt.roundrobin == 0 ) {
+    /* On ouvre la base de donnees SQL finale */
+    status = access(opt.obsout,F_OK);
+    if ( status == 0 ) { /* Le fichier existe deja */
+      status = sqlite3_open(opt.obsout,&sqldb);
+      if ( status != SQLITE_OK ) {
+        App_Log(APP_ERROR,"Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
           App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-        status = c_gdrls(grid.gridid);
-        if (status<0)
-          App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+        return NOT_OK;
+      } /* Fin du 'if ( status != SQLITE_OK )' */
+    } /* Fin du 'if ( status == 0 )' */
+    else {
+      /* Si le fichier n'existe pas encore alors on doit le creer et construire le meme schema */
+      sqlite3 *sqldbin;
+      char sqlschema[MAXSTR*32];
 
-        if (strlen(opt.gz)!=0) {
-          status = c_gdrls(grid_gz.gridid);
-          if (status<0)
-            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+      /* On lit le fichier d'input */
+      status = sqlite3_open(opt.obsin,&sqldbin);
+      if ( status != SQLITE_OK ) {
+        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
-          if (VALEURS_GZ_MIN != (float*) NULL)
-            free(VALEURS_GZ_MIN);
-          if (VALEURS_GZ_MAX != (float*) NULL)
-            free(VALEURS_GZ_MAX);
-        }
+        status = sqlite3_close(sqldbin);
+        if( status != SQLITE_OK )
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-        App_End(-1);exit(1);
+        return NOT_OK;
+      } /* Fin du 'if ( status != SQLITE_OK )' */
+
+      /* Execution de la requete SQL sur la base de donnees */
+      /* Execution de la requete SQL sur la base de donnees */
+      /* L'idee est de reproduire la commande UNIX
+            echo .schema | sqlite3 obsin | sqlite3 obsout
+         Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
+      */
+      strcpy(sqlschema,"");
+      status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
+      if( status != SQLITE_OK ) {
+        App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+        sqlite3_free(ErrMsg);
+
+        status = sqlite3_close(sqldbin);
+        if( status != SQLITE_OK )
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+
+        return NOT_OK;
+          } /* Fin du 'if ( status != SQLITE_OK )' */
+
+      status = sqlite3_close(sqldbin);
+      if( status != SQLITE_OK ) {
+        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+        return NOT_OK;
       }
 
-      /* On cree la fonction checkvertical qui verifie si l'observation est a l'interieur
-       * du domaine defini par la grille donnee plus haut.
-       */
-      status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
+      status = sqlite3_open(opt.obsout,&sqldb);
+      if ( status != SQLITE_OK ) {
+        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", opt.obsout, sqlite3_errmsg(sqldb));
+
+        status = sqlite3_close(sqldbin);
+        if( status != SQLITE_OK )
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+        return NOT_OK;
+      } /* Fin du 'if ( status != SQLITE_OK )' */
+
+      status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
+      if( status != SQLITE_OK ){
+        App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
+        if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
+          App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+                  "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
+        }
+        sqlite3_free(ErrMsg);
+
+        return NOT_OK;
+      }
+    } /* Fin du 'else' relie au 'if ( status == 0 )' */
+
+    /* On cree la fonction checkgrid qui verifie si l'observation est a l'interieur
+     * du domaine defini par la grille donnee plus haut.
+     */
+    status = sqlite3_create_function(sqldb, SQLFUNCTION_NAME, NUMBER_OF_ARGS_FOR_CHECK_GRID, SQLITE_UTF8,
+                                     NULL, &checkgrid_sql, NULL, NULL);
+    if( status != SQLITE_OK ) {
+      App_Log(APP_ERROR,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
+
+      status = sqlite3_close(sqldb);
+      if( status != SQLITE_OK )
+        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+
+      return NOT_OK;
+    }
+
+    /* On cree la fonction checkvertical qui verifie si l'observation est a l'interieur
+     * du domaine defini par la grille donnee plus haut.
+     */
+    status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
                                        NULL, &checkvertical_sql, NULL, NULL);
-      if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
+    if( status != SQLITE_OK ) {
+      App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
-        status = sqlite3_close(sqldb);
-        if( status != SQLITE_OK )
-          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+      status = sqlite3_close(sqldb);
+      if( status != SQLITE_OK )
+        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-        status = c_gdrls(grid.gridid);
-        if (status<0)
-          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+      return NOT_OK;
+    }
 
-        if (strlen(opt.gz)!=0) {
-          status = c_gdrls(grid_gz.gridid);
-          if (status<0)
-            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+    /* On cree la fonction checkvertical_gz qui verifie si l'observation est a l'interieur
+     * du domaine defini par la grille donnee plus haut.
+     */
+    status = sqlite3_create_function(sqldb, SQL_VERTICAL_GZ_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ, SQLITE_UTF8,
+                                     NULL, &checkvertical_gz_sql, NULL, NULL);
+    if( status != SQLITE_OK ) {
+      App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
-          if (VALEURS_GZ_MIN != (float*) NULL)
-            free(VALEURS_GZ_MIN);
-          if (VALEURS_GZ_MAX != (float*) NULL)
-            free(VALEURS_GZ_MAX);
-        }
+      status = sqlite3_close(sqldb);
+      if( status != SQLITE_OK )
+        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-        App_End(-1);exit(1);
-      }
+      return NOT_OK;
+    }
 
-      /* On cree la fonction checkvertical_gz qui verifie si l'observation est a l'interieur
-       * du domaine defini par la grille donnee plus haut.
-       */
-      status = sqlite3_create_function(sqldb, SQL_VERTICAL_GZ_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ, SQLITE_UTF8,
-                                       NULL, &checkvertical_gz_sql, NULL, NULL);
-      if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
-
-        status = sqlite3_close(sqldb);
-        if( status != SQLITE_OK )
-          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-
-        status = c_gdrls(grid.gridid);
-        if (status<0)
-          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-        if (strlen(opt.gz)!=0) {
-          status = c_gdrls(grid_gz.gridid);
-          if (status<0)
-            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-          if (VALEURS_GZ_MIN != (float*) NULL)
-            free(VALEURS_GZ_MIN);
-          if (VALEURS_GZ_MAX != (float*) NULL)
-            free(VALEURS_GZ_MAX);
-        }
-
-        App_End(-1);exit(1);
-      }
-
-      /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
-      if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
-        /* Aucun filtrage vertical n'est fait */
-        snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
-                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
+    /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
+    if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
+      /* Aucun filtrage vertical n'est fait */
+      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+               "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                 "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                 opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
                 grid.gridid, grid.ni, grid.nj,
@@ -408,22 +285,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
         if( status != SQLITE_OK )
           App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-        status = c_gdrls(grid.gridid);
-        if (status<0)
-          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-
-        if (strlen(opt.gz)!=0) {
-          status = c_gdrls(grid_gz.gridid);
-          if (status<0)
-            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
-
-          if (VALEURS_GZ_MIN != (float*) NULL)
-            free(VALEURS_GZ_MIN);
-          if (VALEURS_GZ_MAX != (float*) NULL)
-            free(VALEURS_GZ_MAX);
-        }
-
-        App_End(-1);exit(1);
+        return NOT_OK;
       }
 
       // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
@@ -445,16 +307,15 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
                   "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
         }
         sqlite3_free(ErrMsg);
-        EXIT_STATUS = 1;
+        EXIT_STATUS = OK;
       }
 
       /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK ) {
         App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
       }
-
     }
     else { /* Ici, opt.roundrobin == 1 */
       /* Il faut travailler les 'npex*npey' fichiers */
@@ -485,7 +346,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-              App_End(-1);exit(1);
+              return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
           } /* Fin du 'if ( status == 0 )' */
           else {
@@ -502,7 +363,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
                 if( status != SQLITE_OK )
                   App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-                App_End(-1);exit(1);
+                return NOT_OK;
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               /* Execution de la requete SQL sur la base de donnees */
@@ -519,7 +380,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
                 if( status != SQLITE_OK )
                   App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                App_End(-1);exit(1);
+                return NOT_OK;
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
@@ -528,14 +389,14 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
               if( status != SQLITE_OK ) {
                 App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                App_End(-1);exit(1);
+                return NOT_OK;
               }
             } /* Fin du 'if (strlen(sqlschema)==0)' */
 
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-              App_End(-1);exit(1);
+              return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
             status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
@@ -546,7 +407,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
                         "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
               }
               sqlite3_free(ErrMsg);
-              EXIT_STATUS = 1;
+              return NOT_OK;
             }
           } /* Fin du 'else' relie au 'if ( status == 0 )' */
 
@@ -588,6 +449,8 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz) {
         } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
       } /* Fin du 'for (ilonband=0;ilonband<opt.npex;ilonband++)' */
     } /* Fin du 'else' relie au 'if (opt.roundrobin == 0)' */
+
+  return EXIT_STATUS;
 } /* Fin de 'int splitobs_sql()' */
 
 
@@ -952,7 +815,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
   niveau_max = sqlite3_value_int(argv[3]);
 
   if ( sqlite3_value_type(argv[1]) == SQLITE_NULL && niveau_min == IP1_VIDE) {
-    if (VERBOSE>1) {
+    if (SPLITOBS_SQLITE_VERBOSE>1) {
       printf("debug: id_obs=%d vcoord=NULL niveau_max=%d niveau_min=%d -> ",id_obs,niveau_max,niveau_min);
       printf("Obs acceptee parce qu'a la surface\n");
     }
@@ -960,7 +823,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
     return;
   }
 
-  if (VERBOSE>1) {
+  if (SPLITOBS_SQLITE_VERBOSE>1) {
     printf("debug: id_obs=%d vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,vcoord,niveau_max,niveau_min);
   }
 
@@ -1021,7 +884,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
   niveau_max = sqlite3_value_int(argv[8]);
 
   if ( sqlite3_value_type(argv[3]) == SQLITE_NULL && niveau_min == IP1_VIDE) {
-    if (VERBOSE>2) {
+    if (SPLITOBS_SQLITE_VERBOSE>2) {
       printf("debug: id_obs=%d vcoord=NULL niveau_max=%d niveau_min=%d -> ",id_obs,niveau_max,niveau_min);
       printf("Obs acceptee parce qu'a la surface\n");
     }
@@ -1029,7 +892,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
     return;
   }
 
-  if (VERBOSE>2) {
+  if (SPLITOBS_SQLITE_VERBOSE>2) {
     printf("debug: id_obs=%d lat=%f lon=%f vcoord=%f niveau_max=%d niveau_min=%d -> ",id_obs,lat,lon,vcoord,niveau_max,niveau_min);
   }
 
