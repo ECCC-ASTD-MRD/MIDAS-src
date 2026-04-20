@@ -32,10 +32,14 @@
 
 #define SQL_BUFFER_SIZE 19865
 
-
+/* Global variables definitions
+ *
+ * We need some variables to pass information to functions called by
+ * the SQLite engine.
+ */
 static int SPLITOBS_SQLITE_VERBOSE = 0;
-/* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
- * pour estimer la hauteur de la pression donnee
+/* Vecteurs globaux qui contiennent les valeurs du champ GZ au niveau
+ * voulu pour estimer la hauteur de la pression donnee
  */
 static float* SPLITOBS_SQLITE_VALEURS_GZ_MIN = (float*) NULL;
 static float* SPLITOBS_SQLITE_VALEURS_GZ_MAX = (float*) NULL;
@@ -72,7 +76,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
 /* Fonction principale pour le splitting en format SQL
  */
 int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
-                 float* VALEURS_GZ_MIN, float* VALEURS_GZ_MAX) {
+                 float* valeurs_gz_min, float* valeurs_gz_max) {
   int status, EXIT_STATUS;
   char sqlreq_tables_without_split_key[MAXSTR];
   char table_list_with_split_key[MAXSTR];
@@ -80,9 +84,10 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
   sqlite3  *sqldb;
   char *ErrMsg, requete_sql[SQL_BUFFER_SIZE];
 
+  /* Initialize global variables from function inputs */
   SPLITOBS_SQLITE_VERBOSE = VERBOSE;
-  SPLITOBS_SQLITE_VALEURS_GZ_MIN = VALEURS_GZ_MIN;
-  SPLITOBS_SQLITE_VALEURS_GZ_MAX = VALEURS_GZ_MAX;
+  SPLITOBS_SQLITE_VALEURS_GZ_MIN = valeurs_gz_min;
+  SPLITOBS_SQLITE_VALEURS_GZ_MAX = valeurs_gz_max;
 
   /**********************************************************
    * Cette partie a pour but de manipuler la base de donnees SQL

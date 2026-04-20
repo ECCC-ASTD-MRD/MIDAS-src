@@ -5,6 +5,6 @@
 #include "options.h"
 
 int splitobs_sql(options opt, gridtype grid, gridtype grid_gz, int VERBOSE,
-                 float* VALEURS_GZ_MIN, float* VALEURS_GZ_MAX);
+                 float* valeurs_gz_min, float* valeurs_gz_max);
 
 #endif /* #ifndef __INCLUDE_SPLITOBS_SQL_H__ */

@@ -31,14 +31,9 @@
 /* define pour les differentes longueurs de chaine de caracteres utilisees dans le programme */
 #define MAXSTR            1024
 
+/* Prototypes of functions used in 'main' */
 int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs);
 void set_domain_rectangle(optionsptr optptr, gridtype grid);
-
-/* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
- * pour estimer la hauteur de la pression donnee
- */
-float* VALEURS_GZ_MIN = (float*) NULL;
-float* VALEURS_GZ_MAX = (float*) NULL;
 
 /* Variable globale utilisee pour identifier le niveau de detail
  * que l'on veut dans le listing
@@ -53,6 +48,11 @@ int main(int argc, char** argv) {
   int filetype;
   gridtype grid, grid_gz;
   options  opt = optionsDEFAUT;
+  /* Vecteurs qui contiennent les valeurs du champ GZ au niveau voulu
+   * pour estimer la hauteur de la pression donnee
+   */
+  float* valeurs_gz_min = (float*) NULL;
+  float* valeurs_gz_max = (float*) NULL;
 
   /**************************************************************/
   /* Impression de la boite indiquant le demarrage du programme */
@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
       }
 
       if (opt.niveau_min != IP1_VIDE) {
-        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_min,&VALEURS_GZ_MIN);
+        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_min,&valeurs_gz_min);
         if (status == NOT_OK) {
           /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
           if ( opt.roundrobin == 0 ) {
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
         }
       }
       if (opt.niveau_max != IP1_VIDE) {
-        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_max,&VALEURS_GZ_MAX);
+        status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_max,&valeurs_gz_max);
         if (status == NOT_OK) {
           /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
           if ( opt.roundrobin == 0 ) {
@@ -166,8 +166,8 @@ int main(int argc, char** argv) {
               App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
           }
 
-          if (VALEURS_GZ_MIN != (float*) NULL)
-            free(VALEURS_GZ_MIN);
+          if (valeurs_gz_min != (float*) NULL)
+            free(valeurs_gz_min);
           App_End(-1);exit(1);
         }
       }
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
   } /* Fin du 'if ( opt.roundrobin == 0 )' */
 
   if ( filetype == WKF_SQLITE3 ) {  /* Alors on traite une base de donnees SQL */
-    status = splitobs_sql(opt, grid, grid_gz, VERBOSE, VALEURS_GZ_MIN, VALEURS_GZ_MAX);
+    status = splitobs_sql(opt, grid, grid_gz, VERBOSE, valeurs_gz_min, valeurs_gz_max);
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction splitobs_sql\n", status);
 
@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
     }
   } /* Fin du  if ( filetype == WKF_SQLITE3 ) */
   else if ( filetype == WKF_BURP ) {  /* Alors on traite un fichier BURP */
-    status = splitobs_burp(opt, grid, grid_gz, VALEURS_GZ_MIN, VALEURS_GZ_MAX, VERBOSE);
+    status = splitobs_burp(opt, grid, grid_gz, valeurs_gz_min, valeurs_gz_max, VERBOSE);
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction splitobs_burp\n", status);
 
@@ -237,10 +237,10 @@ int main(int argc, char** argv) {
         if (status<0)
           App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
-        if (VALEURS_GZ_MIN != (float*) NULL)
-          free(VALEURS_GZ_MIN);
-        if (VALEURS_GZ_MAX != (float*) NULL)
-          free(VALEURS_GZ_MAX);
+        if (valeurs_gz_min != (float*) NULL)
+          free(valeurs_gz_min);
+        if (valeurs_gz_max != (float*) NULL)
+          free(valeurs_gz_max);
       }
 
       App_End(-1);exit(1);
@@ -265,10 +265,10 @@ int main(int argc, char** argv) {
         if (status<0)
           App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
-        if (VALEURS_GZ_MIN != (float*) NULL)
-          free(VALEURS_GZ_MIN);
-        if (VALEURS_GZ_MAX != (float*) NULL)
-          free(VALEURS_GZ_MAX);
+        if (valeurs_gz_min != (float*) NULL)
+          free(valeurs_gz_min);
+        if (valeurs_gz_max != (float*) NULL)
+          free(valeurs_gz_max);
       }
 
       App_End(-1);exit(1);
@@ -306,7 +306,7 @@ int main(int argc, char** argv) {
         else if (strlen(opt.channels)==0 && strlen(opt.gz)==0 && checkvertical(alt,opt.niveau_min,opt.niveau_max,VERBOSE))
           /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
           fputs(ligne,fileout);
-        else if (strlen(opt.channels)==0 && checkvertical_gz(lat,lon,alt,grid_gz.gridid,grid_gz.ni,grid_gz.nj,opt.niveau_min,opt.niveau_max,VALEURS_GZ_MIN, VALEURS_GZ_MAX, VERBOSE))
+        else if (strlen(opt.channels)==0 && checkvertical_gz(lat,lon,alt,grid_gz.gridid,grid_gz.ni,grid_gz.nj,opt.niveau_min,opt.niveau_max,valeurs_gz_min, valeurs_gz_max, VERBOSE))
           /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
           fputs(ligne,fileout);
         else if (opt.channels_voulus==checkcanal(alt,opt.channels,VERBOSE))
@@ -340,10 +340,10 @@ int main(int argc, char** argv) {
         EXIT_STATUS = NOT_OK;
       }
 
-      if (VALEURS_GZ_MIN != (float*) NULL)
-        free(VALEURS_GZ_MIN);
-      if (VALEURS_GZ_MAX != (float*) NULL)
-        free(VALEURS_GZ_MAX);
+      if (valeurs_gz_min != (float*) NULL)
+        free(valeurs_gz_min);
+      if (valeurs_gz_max != (float*) NULL)
+        free(valeurs_gz_max);
     }
   } /* Fin du 'if ( opt.roundrobin == 0 )'*/
 
