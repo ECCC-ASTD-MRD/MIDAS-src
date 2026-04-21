@@ -65,7 +65,7 @@ typedef struct {
  *      mode: mode l'ouverture du fichier (read, write, read et write...)
  *
  ***************************************************************************/
-int    open_stdfile(int iun,  char* filename, char* mode);
+int    open_stdfile(int* iun,  char* filename, char* mode);
 /***************************************************************************
  * fonction: close_stdfile
  *

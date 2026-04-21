@@ -22,18 +22,18 @@ static int compteur_stats = 0;
 /***************************************************************************
  * fonction: open_stdfile
  ***************************************************************************/
-int open_stdfile(int iun, char* filename, char* mode) {
+int open_stdfile(int* iun, char* filename, char* mode) {
   int ier;
 
-  ier = c_fnom(&iun,filename,mode,0);
+  ier = c_fnom(iun,filename,mode,0);
   if (ier<0) {
     fprintf(stderr,"fonction open_stdfile: Erreur %d avec le fichier %s dans la fonction c_fnom\n",ier,filename);
     return NOT_OK;
   }
-  ier = c_fstouv(iun,"RND");
+  ier = c_fstouv(*iun,"RND");
   if (ier<0) {
     fprintf(stderr,"fonction open_stdfile: Erreur %d avec le fichier %s dans la fonction c_fstouv\n",ier,filename);
-    ier = c_fclos(iun);
+    ier = c_fclos(*iun);
     if (ier<0)
       fprintf(stderr,"fonction open_stdfile: Erreur %d avec le fichier %s dans la fonction c_fclos\n",ier,filename);
 

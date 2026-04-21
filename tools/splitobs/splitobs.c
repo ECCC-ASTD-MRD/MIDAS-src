@@ -284,17 +284,16 @@ int main(int argc, char** argv) {
  *     fstptr: a pointeur vers une structure 'fstparam' qui contient l'information sur le champ a lire.
  *     fichier: nom du fichier standard dans lequel sera lu le champ GZ
  *     gridptr: pointeur a une structure de grille EZSCINT sur laquelle le champ GZ est definit
-
- *     file_handle: pointeur vers un 'int'.  Si sa valeur est 0,
- *                  alors on ne fermera pas le fichier et on donnera la valeur du
- *                  "file unit" pour que l'usager ferme lui-meme le fichier
- *
+ *     file_handle: pointeur vers un 'int'.  Si sa valeur est 0, alors
+ *                  on ne fermera pas le fichier et on donnera la
+ *                  valeur du "file unit" pour que l'usager ferme
+ *                  lui-meme le fichier
  ***************************************************************************/
 int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle) {
   int iun, status;
 
   iun = 0;
-  status = open_stdfile(iun, fichier, "RND+R/O");
+  status = open_stdfile(&iun, fichier, "RND+R/O");
   if (status == NOT_OK) {
     App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
     App_End(-1);exit(1);
@@ -334,7 +333,7 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
 } /* Fin de 'int getGridFromFile(optionsptr optptr, char* fichier, gridtype* gridptr, int* file_handle)' */
 
 /***************************************************************************
- * fonction: set_domain_rectangle(
+ * fonction: set_domain_rectangle
  *
  * Cette fonction initialiser les valeurs de 'optptr->rect' en fonction du parametre 'optptr->pilot'
  *     optptr: un pointeur vers une structure 'options' qui sera mise a jour
