@@ -52,6 +52,11 @@ static void print_allblocs(BURP_RPT* rptin);
 static void print_blk(BURP_BLK* blkin);
 static void print_rpt(BURP_RPT* rptin);
 
+static void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burpout_filename,
+                                int npex, int npey, int* adresses, int* nts, int* num_obs_per_tile,
+                                int* iouts, BURP_RPT** rptout, int erase_burpout_files,
+                                int ndigits, int cherrypick_id, int VERBOSE);
+
 /*****************************************************/
 /******* Fin des prototype des fonctions *************/
 /*****************************************************/
@@ -62,7 +67,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   int i_obs_enrgs, i_enrgs, nombre_enregistrements, longueur_max_enregistrement, engrs_resume;
   int *adresses = (int*) NULL, *iouts = (int*) NULL;
   int *t_in_domain = (int*) NULL, *nts = (int*) NULL, *num_obs_per_tile = (int*) NULL;
-  int vertical_clipping;
+  int vertical_clipping, cherrypick_id = -1;
   /* Cette variable sert a identifier si on est en presence du format UA multi-niveaux
    * Si -1, alors on n'a pas encore evaluer le cas, si 0 alors ce sont des UA classiques
    * si 1, ce sont des ua4d.
@@ -92,6 +97,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     /* Si le fichier BURP est vide alors on doit sortir */
     App_Log(APP_WARNING,"Fonction splitobs_burp: Il n'y a aucun enregistrement dans le fichier BURP %s\n",opt.obsin);
 
+    freeData_closeFiles(iun, opt.obsin, "dummy", 0, 0,
+                        (int*) NULL, (int*) NULL, (int*) NULL, (int*) NULL,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
     status = brp_close(iun);
     if (status<0)
       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
@@ -105,9 +113,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( adresses == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
 
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
+                        (int*) NULL, (int*) NULL, (int*) NULL, (int*) NULL,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   }
@@ -116,11 +124,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( nts == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur nts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-
-    free(adresses);
+    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
+                        adresses, (int*) NULL, (int*) NULL, (int*) NULL,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   } /* Fin du if ( nts == (int*) NULL) */
@@ -129,12 +135,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( num_obs_per_tile == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur num_obs_per_tile de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-
-    free(adresses);
-    free(nts);
+    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
+                        adresses, nts, (int*) NULL, (int*) NULL,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   } /* Fin du if ( nts == (int*) NULL) */
@@ -143,13 +146,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( iouts == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur iouts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-
-    free(adresses);
-    free(nts);
-    free(num_obs_per_tile);
+    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
+                        adresses, nts, num_obs_per_tile, (int*) NULL,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   } /* Fin du if ( iouts == (int*) NULL) */
@@ -162,14 +161,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
               "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", opt.obsout);
 
-      status = brp_close(iun);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-
-      free(adresses);
-      free(nts);
-      free(num_obs_per_tile);
-      free(iouts);
+      freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
+                          adresses, nts, num_obs_per_tile, iouts,
+                          (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
       return NOT_OK;
     }
@@ -179,18 +173,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
 
-      status = brp_close(iun);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
-
-      status = brp_close(iout);
-      if (status<0)
-        App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsout);
-
-      free(adresses);
-      free(num_obs_per_tile);
-      free(nts);
-      free(iouts);
+      freeData_closeFiles(iun, opt.obsin, opt.obsout, 1, 1,
+                          adresses, nts, num_obs_per_tile, iouts,
+                          (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
       return NOT_OK;
     }
@@ -220,8 +205,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
         status = access(burpout,F_OK);
         if ( status==0 || iouts[id]>999 ) {
-          int ilonbandtmp, jlatbandtmp;
-
           if ( status==0 )
             App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
                     "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
@@ -229,50 +212,20 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             App_Log(APP_ERROR,"Fonction splitobs_burp: Comme iouts[%d]=%d, la commande 'brp_open(...)' "
                     "n'acceptera pas cette valeur puisqu'elle est plus grande que 999\n", id, iouts[id]);
 
-          status = brp_close(iun);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
-
-          for (ilonbandtmp=0;ilonbandtmp<ilonband;ilonbandtmp++) {
-            for (jlatbandtmp=0;jlatbandtmp<jlatband;jlatbandtmp++) {
-              status = brp_close(iouts[ilonbandtmp*opt.npey+jlatbandtmp]);
-              if ( status<0 )
-                App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close "
-                        "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonbandtmp+1,jlatbandtmp+1);
-            }
-          }
-
-          free(adresses);
-          free(num_obs_per_tile);
-          free(iouts);
-          free(nts);
+          freeData_closeFiles(iun, opt.obsin, opt.obsout, ilonband, jlatband,
+                              adresses, nts, num_obs_per_tile, iouts,
+                              (BURP_RPT**) NULL, 0, opt.ndigits, id, VERBOSE);
 
           return NOT_OK;
         } /* Fin du if ( status==0 ) pour l'acces au fichier */
 
         status = brp_open(iouts[id],burpout,"a");
         if ( status<0 ) {
-          int ilonbandtmp, jlatbandtmp;
-
           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier %s\n", status, burpout);
 
-          status = brp_close(iun);
-          if (status<0)
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
-
-          for (ilonbandtmp=0;ilonbandtmp<ilonband;ilonbandtmp++) {
-            for (jlatbandtmp=0;jlatbandtmp<jlatband;jlatbandtmp++) {
-              status = brp_close(iouts[ilonbandtmp*opt.npey+jlatbandtmp]);
-              if ( status<0 )
-                App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close "
-                        "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonbandtmp+1,jlatbandtmp+1);
-            }
-          }
-
-          free(adresses);
-          free(iouts);
-          free(nts);
-          free(num_obs_per_tile);
+          freeData_closeFiles(iun, opt.obsin, opt.obsout, ilonband, jlatband,
+                              adresses, nts, num_obs_per_tile, iouts,
+                              (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
           return NOT_OK;
         } /* Fin du if ( status<0 ) */
@@ -285,22 +238,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( rptout == (BURP_RPT**) NULL ) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur rptout de (BURP_RPT*) de dimension %dx%d\n", opt.npex, opt.npey);
 
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
-
-    for (ilonband=0;ilonband<opt.npex;ilonband++)
-      for (jlatband=0;jlatband<opt.npey;jlatband++) {
-        status = brp_close(iouts[ilonband*opt.npey+jlatband]);
-        if ( status<0 )
-          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close "
-                  "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonband+1,jlatband+1);
-      }
-
-    free(adresses);
-    free(iouts);
-    free(nts);
-    free(num_obs_per_tile);
+    freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
+                        adresses, nts, num_obs_per_tile, iouts,
+                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   }
@@ -308,23 +248,10 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   rptin  = brp_newrpt();
   if ( rptin == (BURP_RPT*) NULL ) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer rptin de (BURP_RPT*)\n");
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
 
-    for (ilonband=0;ilonband<opt.npex;ilonband++)
-      for (jlatband=0;jlatband<opt.npey;jlatband++) {
-        status = brp_close(iouts[ilonband*opt.npey+jlatband]);
-        if ( status<0 )
-          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close "
-                  "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonband+1,jlatband+1);
-      }
-
-    free(adresses);
-    free(iouts);
-    free(nts);
-    free(num_obs_per_tile);
-    free(rptout);
+    freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
+                        adresses, nts, num_obs_per_tile, iouts,
+                        rptout, 0, opt.ndigits, -1, VERBOSE);
 
     return NOT_OK;
   }
@@ -435,7 +362,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     for(i=0;i<opt.npex*opt.npey;i++) {
       /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
       if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-        int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+        cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
         if (i != cherrypick_id)
           continue;
       }
@@ -541,7 +468,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
         /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
         if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-          int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+          cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
           if (i != cherrypick_id)
             continue;
         }
@@ -677,7 +604,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                    considere que si la tuile est egale a celle
                    voulue */
                 if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-                  int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+                  cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
                   if (i != cherrypick_id)
                     continue;
                 }
@@ -773,7 +700,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             /* Lorsqu'on en trouve qui n'a pas ete associe alors on le copie dans tous les blocs */
             for (i=0;i<opt.npex*opt.npey;i++) {
               if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-                int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+                cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
                 if (i != cherrypick_id)
                   continue;
               }
@@ -899,7 +826,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
       /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
       if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-        int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+        cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
         if (i != cherrypick_id)
           continue;
       }
@@ -924,143 +851,101 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     } /* Fin du for (i=0;i<opt.npex*opt.npey;i++) */
   } /* Fin du for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) */
 
-    /* fermeture de fichier burp d'entree */
-  status = brp_close(iun);
-  if (status<0) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
-    EXIT_STATUS = 1;
-  }
-
   /* fermeture de fichier burp de sortie */
-  if ( opt.npex == 1 && opt.npey == 1 ) {
-    if (VERBOSE>2)
-      printf("\nClosing BURP file %s iout = %d", opt.obsout, iout);
+  if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
+    if ( opt.npex == 1 && opt.npey == 1 ) {
+      if (num_obs_per_tile[0]>0) { /* On imprime le nombre de headers presents dans le domaine */
+        FILE* file;
+        char burpout_num_headers[MAXSTR*2];
 
-    printf("\nIl y a %d observations qui ont ete selectionnees\n", num_obs_per_tile[0]);
+        snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", opt.obsout);
 
-    status = brp_close(iout);
-    if (status<0) {
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsout);
-      EXIT_STATUS = 1;
-    }
-    else if (num_obs_per_tile[0]==0) {
-      printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", opt.obsout);
-      status = remove(opt.obsout);
-      if (status!=0) {
-        App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", opt.obsout);
-        EXIT_STATUS = 1;
-      }
-      else if (VERBOSE>2)
-        printf("On a efface le fichier BURP %s\n", opt.obsout);
-    }
-    else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans le domaine */
-      FILE* file;
-      char burpout_num_headers[MAXSTR*2];
+        status = access(burpout_num_headers,F_OK);
+        if (status==0)
+          App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
 
-      snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", opt.obsout);
+        file = (FILE*) fopen(burpout_num_headers,"w");
+        fprintf(file,"%d\n", num_obs_per_tile[0]);
+        fclose(file);
+      } /* End of 'if (opt.numheaders_files == 1)' */
+    } /* End of 'if ( opt.npex == 1 && opt.npey == 1 )' */
+    else {
+      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
+      int max_num_headers=0;
 
-      status = access(burpout_num_headers,F_OK);
-      if (status==0)
-        App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
+      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
 
-      file = (FILE*) fopen(burpout_num_headers,"w");
-      fprintf(file,"%d\n", num_obs_per_tile[0]);
-      fclose(file);
-    }
-  }
-  else {
-    char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
-    int max_num_headers=0;
+      for (ilonband=0;ilonband<opt.npex;ilonband++){
+        for (jlatband=0;jlatband<opt.npey;jlatband++) {
+          int id=ilonband*opt.npey+jlatband;
 
-    snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
+          if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
+            if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
+              continue;
 
-    for (ilonband=0;ilonband<opt.npex;ilonband++)
-      for (jlatband=0;jlatband<opt.npey;jlatband++) {
-        int id=ilonband*opt.npey+jlatband;
+          snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
+          snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
+          snprintf(burpout,  sizeof(burpout), "%s_%s_%s", opt.obsout,npex_str,npey_str);
 
-        if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
-          if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
-            continue;
+           /* On imprime le nombre de headers presents dans la tuile id */
+          if (num_obs_per_tile[id]>0) {
+            FILE* file;
+            char burpout_num_headers[MAXSTR*6];
 
-        snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
-        snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
-        snprintf(burpout, sizeof(burpout), "%s_%s_%s", opt.obsout,npex_str,npey_str);
+            snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
 
-        if (VERBOSE>2)
-          printf("\nClosing correctly BURP file %s iouts[%d] = %d", burpout, id, iouts[id]);
+            status = access(burpout_num_headers,F_OK);
+            if (status==0)
+              App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
 
-        status = brp_close(iouts[id]);
-        if ( status<0 )
-          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close "
-                  "pour le fichier %s\n", status, burpout);
-
-        printf("\nIl y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
-               num_obs_per_tile[id], burpout);
-
-        if (num_obs_per_tile[id]==0) {
-          printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout);
-          status = remove(burpout);
-          if (status!=0) {
-            App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout);
-            EXIT_STATUS = 1;
+            file = (FILE*) fopen(burpout_num_headers,"w");
+            fprintf(file,"%d\n", num_obs_per_tile[id]);
+            fclose(file);
           }
-          else if (VERBOSE>2)
-            printf("On a efface le fichier BURP %s\n", burpout);
-        }
-        else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
+          if (num_obs_per_tile[id]>max_num_headers) max_num_headers=num_obs_per_tile[id];
+        } /* End of 'for (jlatband=0;jlatband<npey;jlatband++)' */
+      } /* End of 'for (ilonband=0;ilonband<npex;ilonband++)' */
+
+      if (max_num_headers>0) {
+        if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
           FILE* file;
-          char burpout_num_headers[MAXSTR*6];
+          char burpout_max_num_headers[MAXSTR*2];
 
-          snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
+          snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
 
-          status = access(burpout_num_headers,F_OK);
+          status = access(burpout_max_num_headers,F_OK);
           if (status==0)
-            App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
+            fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
 
-          file = (FILE*) fopen(burpout_num_headers,"w");
-          fprintf(file,"%d\n", num_obs_per_tile[id]);
+          file = (FILE*) fopen(burpout_max_num_headers,"w");
+          fprintf(file,"%d\n", max_num_headers);
           fclose(file);
         }
-        if (num_obs_per_tile[id]>max_num_headers) max_num_headers=num_obs_per_tile[id];
-      }
-
-    if (max_num_headers>0) {
-      if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
-        FILE* file;
-        char burpout_max_num_headers[MAXSTR*2];
-
-        snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
-
-        status = access(burpout_max_num_headers,F_OK);
-        if (status==0)
-          fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
-
-        file = (FILE*) fopen(burpout_max_num_headers,"w");
-        fprintf(file,"%d\n", max_num_headers);
-        fclose(file);
-      }
-    }
-    else
-      printf("Il n'y a aucune observation qui a ete acceptee\n");
-  } /* Fin du else associe au if ( opt.npex == 1 && opt.npey == 1 ) */
+      } /* End of 'if (max_num_headers>0)' */
+      else
+        printf("Il n'y a aucune observation qui a ete selectionnee.\n");
+    } /* Fin du else associe au if ( opt.npex == 1 && opt.npey == 1 ) */
+  } /* Fin de 'if (opt.numheaders_files == 1)' */
 
   brp_freerpt(rptin);
+
+  cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+
   if (rptout != (BURP_RPT**) NULL) {
     for (i=0;i<opt.npex*opt.npey;i++) {
       /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
       if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-        int cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
         if (i != cherrypick_id)
           continue;
       }
+
       brp_freerpt(rptout[i]);
     }
-    free(rptout);
   }
-  free(nts);
-  free(num_obs_per_tile);
-  free(adresses);
-  free(iouts);
+
+  freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
+                      adresses, nts, num_obs_per_tile, iouts, rptout,
+                      1, opt.ndigits, cherrypick_id, VERBOSE);
 
   return EXIT_STATUS;
 } /* Fin de la fonction 'int splitobs_sql' */
@@ -2630,3 +2515,98 @@ void print_rpt(BURP_RPT* rptin) {
   printf ( "\n" );
 
 } /* Fin de la fonction 'print_rpt' */
+
+void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burpout_filename,
+                         int npex, int npey, int* adresses, int* nts,int* num_obs_per_tile,
+                         int* iouts, BURP_RPT** rptout, int erase_burpout_files,
+                         int ndigits, int cherrypick_id, int VERBOSE) {
+  int status;
+
+  status = brp_close(burp_file_handle);
+  if (status<0)
+    App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, burpin_filename);
+  else {
+    if (VERBOSE>2)
+      printf("\nClosed BURP file %s file handle = %d", burpin_filename, burp_file_handle);
+  }
+
+  if ( iouts != (int*) NULL ) {
+    if ( npex == 1 && npey == 1) {
+      status = brp_close(iouts[0]);
+      if ( status<0 )
+        App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close "
+                "pour le fichier %s\n", status, burpout_filename);
+      else {
+        if (VERBOSE>2)
+          printf("\nClosed BURP file %s file handle = %d", burpout_filename, iouts[0]);
+      }
+
+      if (num_obs_per_tile[0]==0) {
+        printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout_filename);
+        status = remove(burpout_filename);
+        if (status!=0) {
+          App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout_filename);
+        }
+        else if (VERBOSE>2)
+          printf("On a efface le fichier BURP %s\n", burpout_filename);
+      } /* End of 'if (num_obs_per_tile[0]==0)' */
+      else
+        printf("\nIl y a %d observations qui ont ete selectionnees et mises dans le fichier %s\n",
+               num_obs_per_tile[0], burpout_filename);
+
+    } /* End of 'if ( npex == 1 && npey == 1)' */
+    else {
+      int ilonband, jlatband;
+      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
+
+      snprintf(format_digits, sizeof(format_digits), "%%.%dd", ndigits);
+
+      for (ilonband=0;ilonband<npex;ilonband++) {
+        for (jlatband=0;jlatband<npey;jlatband++) {
+          int id=ilonband*npey+jlatband;
+
+          if ( cherrypick_id >=0 && cherrypick_id != id )
+            continue;
+
+          snprintf(npex_str, sizeof(npex_str), format_digits, ilonband+1);
+          snprintf(npey_str, sizeof(npey_str), format_digits, jlatband+1);
+          snprintf(burpout,  sizeof(burpout), "%s_%s_%s", burpout_filename, npex_str, npey_str);
+
+          status = brp_close(iouts[id]);
+          if ( status<0 )
+            App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close "
+                              "pour le fichier %s\n", status, burpout);
+          else
+            if (VERBOSE>2)
+              printf("\nClosing correctly BURP file %s iouts[%d] = %d", burpout, id, iouts[id]);
+
+          if (num_obs_per_tile[id]==0) {
+            printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout);
+            status = remove(burpout);
+            if (status!=0) {
+              App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout);
+            }
+            else if (VERBOSE>2)
+              printf("On a efface le fichier BURP %s\n", burpout);
+          } /* End of 'if (num_obs_per_tile[id]==0)' */
+          else
+            printf("\nIl y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
+                   num_obs_per_tile[id], burpout);
+        } /* End of 'for (jlatband=0;jlatband<npey;jlatband++)' */
+      } /* End of 'for (ilonband=0;ilonband<npex;ilonband++)' */
+
+      free(iouts);
+    } /* End of 'else' associated to 'if ( npex == 1 && npey == 1)' */
+  } /* End of 'if ( iouts != (int*) NULL )' */
+
+  if ( adresses != (int*) NULL )
+    free(adresses);
+  if ( nts != (int*) NULL)
+    free(nts);
+  if ( num_obs_per_tile != (int*) NULL )
+    free(num_obs_per_tile);
+
+  if ( rptout != (BURP_RPT**) NULL )
+    free(rptout);
+
+} /* Fin de la fonction 'freeData_closeFiles' */
