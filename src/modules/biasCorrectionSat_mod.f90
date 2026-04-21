@@ -216,7 +216,7 @@ contains
     integer  :: cvdim
     integer  :: iSensor, iPredictor, instIndex
     integer  :: iChan
-    integer  :: iPred, jPred, kPred, iScan1, iScan2
+    integer  :: iPred, kPred, iScan1, iScan2
     character(len=85)  :: bcifFile
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff
     logical            :: bcifExists
@@ -227,7 +227,6 @@ contains
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
-    character(len=128) :: errorMessage
     real(8), allocatable :: Bmatrix(:,:)
 
     call bcs_readConfig()
@@ -298,49 +297,9 @@ contains
             bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
 
             bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
-            jPred = 1
-            do ipred = 1, npredBCIF(ichan + 1)
-              jPred =  jPred + 1
-              select case(predBCIF(ichan + 1, ipred))
-              case('T1')
-                kpred = 2
-              case('T2')
-                kpred = 3
-              case('T3')
-                kpred = 4
-              case('T4')
-                kpred = 5
-              case('SV')
-                kpred = 6
-              case('TG')
-                kpred = 7
-              case('T5')
-                kpred = 8
-              case('T6')
-                kpred = 9
-              case('WC')
-                kpred = 10
-              case('L1')
-                kpred = 11
-              case('L2')
-                kpred = 12
-              case('L3')
-                kpred = 13
-              case('L4')
-                kpred = 14
-              case('L5')
-                kpred = 15
-              case('SA')
-                kpred = 16
-              case('R1')
-                kpred = 17
-              case('R2')
-                kpred = 18
-              case default
-                write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
-                call rti_abort(errorMessage)
-              end select
-              bias(iSensor)%chans(ichan)%predictorIndex(jPred) = kpred
+            do iPred = 1, npredBCIF(ichan + 1)
+              kpred = getPredictorIndex( predBCIF(ichan + 1, iPred) )
+              bias(iSensor)%chans(ichan)%predictorIndex(iPred+1) = kpred
             end do
           end do
         else
@@ -1759,60 +1718,60 @@ contains
 
     do iPredictor = 1, NumPredictors
 
-      if (iPredictor == 1) then
+      if (iPredictor == getPredictorIndex('KK')) then
         ! constant
         predictor(iPredictor) = 1.0d0
-      else if (iPredictor == 2) then
-        ! Height300-Height1000 (dam) /1000 T1
+      else if (iPredictor == getPredictorIndex('T1')) then
+        ! Height300-Height1000 (dam) /1000
         predictor(iPredictor) = trialHeight300m1000(headerIndex) / 1000.0d0
-      else if (iPredictor == 3) then
-        ! Height50-Height200 (dam) /1000   T2
+      else if (iPredictor == getPredictorIndex('T2')) then
+        ! Height50-Height200 (dam) /1000
         predictor(iPredictor) = trialHeight50m200(headerIndex) / 1000.0d0
-      else if (iPredictor == 4) then
-        ! Height5-Height50 (dam) /1000    T3
+      else if (iPredictor == getPredictorIndex('T3')) then
+        ! Height5-Height50 (dam) /1000
         predictor(iPredictor) = trialHeight5m50(headerIndex) / 1000.0d0
-      else if (iPredictor == 5) then
-        ! Height1-Height10 (dam) /1000    T4
+      else if (iPredictor == getPredictorIndex('T4')) then
+        ! Height1-Height10 (dam) /1000
         predictor(iPredictor) = trialHeight1m10(headerIndex) / 1000.0d0
-      else if (iPredictor == 6) then
+      else if (iPredictor == getPredictorIndex('SV')) then
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
         if (zenithAngle < 75.) predictor(iPredictor) = (1.d0 / cos(zenithAngle * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
-      else if (iPredictor == 7) then
+      else if (iPredictor == getPredictorIndex('TG')) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(headerIndex)
-      else if (iPredictor == 8) then
-        ! Height300-Height900 (dam) /1000    T5
+      else if (iPredictor == getPredictorIndex('T5')) then
+        ! Height300-Height900 (dam) /1000
         predictor(iPredictor) = trialHeight300m900(headerIndex) / 1000.0d0
-      else if (iPredictor == 9) then
-        ! Height300-Height850 (dam) /1000    T6
+      else if (iPredictor == getPredictorIndex('T6')) then
+        ! Height300-Height850 (dam) /1000 
         predictor(iPredictor) = trialHeight300m850(headerIndex) / 1000.0d0
-      else if (iPredictor == 10) then
+      else if (iPredictor == getPredictorIndex('WC')) then
         ! Total Water Vapor Content (aka precipitable water)
         predictor(iPredictor) = trialTotalWaterVaporContent(headerIndex)
-      else if (iPredictor == 11) then
+      else if (iPredictor == getPredictorIndex('L1')) then
         ! first order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = normalizedScanPosition
-      else if (iPredictor == 12) then
+      else if (iPredictor == getPredictorIndex('L2')) then
         ! second order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * (3.d0*normalizedScanPosition*normalizedScanPosition - 1.d0)
-      else if (iPredictor == 13) then
+      else if (iPredictor == getPredictorIndex('L3')) then
         ! third order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
-      else if (iPredictor == 14) then
+      else if (iPredictor == getPredictorIndex('L4')) then
         ! fourth order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.125d0 * (35.d0*(normalizedScanPosition**4) - 30.d0*(normalizedScanPosition**2) + 3.d0)
-      else if (iPredictor == 15) then
+      else if (iPredictor == getPredictorIndex('L5')) then
         ! fifth order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.125d0 * normalizedScanPosition * (63.d0*(normalizedScanPosition**4) -70.d0*(normalizedScanPosition**2) +15.d0)
-      else if (iPredictor == 16) then
+      else if (iPredictor == getPredictorIndex('SA')) then
         ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
         predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
-      else if (iPredictor == 17) then
-        ! channel convoluted lapse rate (R1)
+      else if (iPredictor == getPredictorIndex('R1')) then
+        ! channel convoluted lapse rate
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)
-      else if (iPredictor == 18) then
-        ! channel convoluted lapse rate squared (R2)
+      else if (iPredictor == getPredictorIndex('R2')) then
+        ! channel convoluted lapse rate squared
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)**2
       end if
     end do
@@ -4052,5 +4011,29 @@ contains
     deallocate(allNumBody)
 
   end subroutine getInitialIdObsData
+
+  !-----------------------------------------
+  ! getPredictorIndex
+  !-----------------------------------------
+  function getPredictorIndex(predictor) result(predictorIndex)
+    !
+    ! :Purpose: Compute predictor index from predictor string
+    !           
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=2), intent(in) :: predictor
+
+    ! Result:
+    integer :: predictorIndex
+    
+    predictorIndex = utl_findloc(predTab(1:NumPredictors), predictor)
+    
+    if (predictorIndex == 0) then
+      call utl_abort('getPredictorIndex: unknown predictor ' // predictor)
+    end if
+    
+  end function getPredictorIndex
 
 end module biasCorrectionSat_mod
