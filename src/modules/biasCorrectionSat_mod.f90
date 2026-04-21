@@ -1803,7 +1803,7 @@ contains
         ! fourth order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.125d0 * (35.d0*(normalizedScanPosition**4) - 30.d0*(normalizedScanPosition**2) + 3.d0)
       else if (iPredictor == 15) then
-        ! fivth order Legendre polynomial of normalized scan bias position
+        ! fifth order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.125d0 * normalizedScanPosition * (63.d0*(normalizedScanPosition**4) -70.d0*(normalizedScanPosition**2) +15.d0)
       else if (iPredictor == 16) then
         ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
