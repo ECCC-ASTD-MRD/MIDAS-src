@@ -214,39 +214,47 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
   if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
     message(STATUS "(EC) Adding libf90sqlite external library target")
     ExternalProject_Add(libf90sqlite
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite
       BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-build
       DOWNLOAD_COMMAND ""
       UPDATE_COMMAND ""
-      CONFIGURE_COMMAND ""
-      BUILD_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src && make lib"
-      INSTALL_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src && mv libf90sqlite.a ${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-build"
+      CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-install
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DLIBUDFSQLITE_INCLUDE_DIR=/home/erv000/data/midas/sqllibs/libudfsqlite/include
+      BUILD_COMMAND ${CMAKE_COMMAND} --build .
+      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     )
   endif()
 
   if(EXTLIBS_TO_BUILD MATCHES "udfsqlite")
     message(STATUS "(EC) Adding libudfsqlite external library target")
+    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
     ExternalProject_Add(libudfsqlite
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite
       BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-build
       DOWNLOAD_COMMAND ""
       UPDATE_COMMAND ""
-      CONFIGURE_COMMAND ""
-      BUILD_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src && make"
-      INSTALL_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src && make install DESTDIR=${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-build"
+      CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-install
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      BUILD_COMMAND ${CMAKE_COMMAND} --build .
+      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     )
   endif()
 
   if(EXTLIBS_TO_BUILD MATCHES "perftools")
     message(STATUS "(EC) Adding perftools external library target")
     ExternalProject_Add(perftools
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools/src
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools
       BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/perftools-build
       DOWNLOAD_COMMAND ""
       UPDATE_COMMAND ""
-      CONFIGURE_COMMAND ""
-      BUILD_COMMAND make -C ${CMAKE_SOURCE_DIR}/extlibs/perftools/src
-      INSTALL_COMMAND make -C ${CMAKE_SOURCE_DIR}/extlibs/perftools/src install DESTDIR=${CMAKE_BINARY_DIR}/extlibs/perftools-build
+      CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-install
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      BUILD_COMMAND ${CMAKE_COMMAND} --build .
+      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     )
   endif()
 endif()

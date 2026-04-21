@@ -38,6 +38,6 @@ install(TARGETS f90sqlite
 )
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/include/
-  DESTINATION ${DESTDIR}/include
+  DESTINATION ${CMAKE_BINARY_DIR}/include
   FILES_MATCHING PATTERN "*.mod"
 )
