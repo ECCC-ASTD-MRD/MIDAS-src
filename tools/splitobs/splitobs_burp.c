@@ -28,8 +28,9 @@ static int btypAssociated(int btyp_obs, int btyp, int VERBOSE);
 static int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BURP_RPT *rptout,
                              float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE);
 
-static int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle rect, int npex, int npey,
-                          int* ilonband, int* jlatband, char errmsg[MAXSTR], int VERBOSE);
+static int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle rect,
+                          int npex, int npey, int* ilonband, int* jlatband,
+                          char errmsg[MAXSTR], int VERBOSE);
 static int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOSE);
 static int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* val_in_domain, int nval, int VERBOSE);
 
@@ -51,6 +52,8 @@ static int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t
 static void print_allblocs(BURP_RPT* rptin);
 static void print_blk(BURP_BLK* blkin);
 static void print_rpt(BURP_RPT* rptin);
+static void build_file_name(char* filename, int latband, int lonband, int ndigits,
+                            char* output, size_t output_size);
 
 static void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burpout_filename,
                                 int npex, int npey, int* adresses, int* nts, int* num_obs_per_tile,
@@ -64,7 +67,7 @@ static void freeData_closeFiles(int burp_file_handle, char* burpin_filename, cha
 int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                   float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE) {
   int i, iun = 200, iout = 201, status, EXIT_STATUS = 0;
-  int i_obs_enrgs, i_enrgs, nombre_enregistrements, longueur_max_enregistrement, engrs_resume;
+  int i_obs_enrgs, i_enrgs, nombre_enregistrements, longueur_max_enregistrement;
   int *adresses = (int*) NULL, *iouts = (int*) NULL;
   int *t_in_domain = (int*) NULL, *nts = (int*) NULL, *num_obs_per_tile = (int*) NULL;
   int vertical_clipping, cherrypick_id = -1;
@@ -181,9 +184,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     }
   }
   else { /* Il faut ouvrir npex*npey fichiers */
-    char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
-
-    snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
+    char burpout[MAXSTR*4];
 
     for (ilonband=0;ilonband<opt.npex;ilonband++) {
       for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -196,9 +197,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
         iouts[id] = iout++;
 
-        snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
-        snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
-        snprintf(burpout, sizeof(burpout),"%s_%s_%s", opt.obsout,npex_str,npey_str);
+        build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
 
         if (VERBOSE>5)
           printf("Fonction splitobs_burp: appel de 'brp_open' sur le fichier '%s' pour id=%d\n", burpout, id);
@@ -288,7 +287,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   i_obs_enrgs = 0;
   /* Ensuite, on passe chaque enregistrement un a un */
   for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) {
-    engrs_resume = 0;
+    int engrs_resume = 0;
 
     status = brp_getrpt(iun,adresses[i_enrgs],rptin);
     if (status<0) {
@@ -870,10 +869,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       } /* End of 'if (opt.numheaders_files == 1)' */
     } /* End of 'if ( opt.npex == 1 && opt.npey == 1 )' */
     else {
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
+      char burpout[MAXSTR*4];
       int max_num_headers=0;
-
-      snprintf(format_digits, sizeof(format_digits), "%%.%dd",opt.ndigits);
 
       for (ilonband=0;ilonband<opt.npex;ilonband++){
         for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -883,9 +880,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
               continue;
 
-          snprintf(npex_str, sizeof(npex_str), format_digits,ilonband+1);
-          snprintf(npey_str, sizeof(npey_str), format_digits,jlatband+1);
-          snprintf(burpout,  sizeof(burpout), "%s_%s_%s", opt.obsout,npex_str,npey_str);
+          build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
 
            /* On imprime le nombre de headers presents dans la tuile id */
           if (num_obs_per_tile[id]>0) {
@@ -2557,9 +2552,7 @@ void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burp
     } /* End of 'if ( npex == 1 && npey == 1)' */
     else {
       int ilonband, jlatband;
-      char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR], burpout[MAXSTR*4];
-
-      snprintf(format_digits, sizeof(format_digits), "%%.%dd", ndigits);
+      char burpout[MAXSTR*4];
 
       for (ilonband=0;ilonband<npex;ilonband++) {
         for (jlatband=0;jlatband<npey;jlatband++) {
@@ -2568,9 +2561,7 @@ void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burp
           if ( cherrypick_id >=0 && cherrypick_id != id )
             continue;
 
-          snprintf(npex_str, sizeof(npex_str), format_digits, ilonband+1);
-          snprintf(npey_str, sizeof(npey_str), format_digits, jlatband+1);
-          snprintf(burpout,  sizeof(burpout), "%s_%s_%s", burpout_filename, npex_str, npey_str);
+          build_file_name(burpout_filename, ilonband, jlatband, ndigits, burpout, sizeof(burpout));
 
           status = brp_close(iouts[id]);
           if ( status<0 )
@@ -2610,3 +2601,16 @@ void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burp
     free(rptout);
 
 } /* Fin de la fonction 'freeData_closeFiles' */
+
+void build_file_name(char* filename, int ilonband, int jlatband, int ndigits,
+                     char* output, size_t output_size) {
+  char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR];
+
+  snprintf(format_digits, sizeof(format_digits), "%%.%dd", ndigits);
+
+  snprintf(npex_str, sizeof(npex_str), format_digits, ilonband+1);
+  snprintf(npey_str, sizeof(npey_str), format_digits, jlatband+1);
+
+  snprintf(output, output_size, "%s_%s_%s", filename, npex_str, npey_str);
+
+} /* Fin de la function 'build_file_name' */
