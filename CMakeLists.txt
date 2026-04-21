@@ -203,6 +203,47 @@ add_subdirectory(tools)
 ## which generates the 'midas-config' script.
 ec_build_config()
 
+## External libraries on demand compilation
+## to compile them, define the variable MIDAS_COMPILE_EXTLIBS to include the libraries needed
+## Exp: MIDAS_COMPILE_EXTLIBS=libudsqlite,libf90sqlite
+include(ExternalProject)
+
+if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
+  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
+
+  if(EXTLIBS_TO_BUILD MATCHES "libf90sqlite")
+    message(STATUS "(EC) Adding libf90sqlite external library target")
+    ExternalProject_Add(libf90sqlite
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src
+      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-build
+      DOWNLOAD_COMMAND ""
+      UPDATE_COMMAND ""
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src && make lib"
+      INSTALL_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src && mv libf90sqlite.a ${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-build"
+    )
+  endif()
+
+  if(EXTLIBS_TO_BUILD MATCHES "libudfsqlite")
+    message(STATUS "(EC) Adding libudfsqlite external library target")
+    ExternalProject_Add(libudfsqlite
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src
+      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-build
+      DOWNLOAD_COMMAND ""
+      UPDATE_COMMAND ""
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src && make"
+      INSTALL_COMMAND sh -c "cd ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src && make install DESTDIR=${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-build"
+    )
+  endif()
+
+  if(EXTLIBS_TO_BUILD MATCHES "perftools")
+    ExternalProject_Add(perftools
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools
+    )
+  endif()
+endif()
+
 ## Build the resources file 'maestro/suites/midas_system_tests/resources/resources.def'
 if(DEFINED ENV{ORDENV_PLAT})
   if("$ENV{ORDENV_PLAT}" STREQUAL "rhel-8-icelake-64")
