@@ -103,9 +103,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     freeData_closeFiles(iun, opt.obsin, "dummy", 0, 0,
                         (int*) NULL, (int*) NULL, (int*) NULL, (int*) NULL,
                         (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-    status = brp_close(iun);
-    if (status<0)
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
     return NOT_OK;
   }
@@ -352,7 +349,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
        */
       nts[i]=0;
       /* On 'claire' tous les rapports avant de travailler dedans */
-      /* Il n'est pas necessaire de faire ceci et on passer 75% du
+      /* Il n'est pas necessaire de faire ceci et on passait 75% du
          temps sur cette ligne alors on l'enleve. */
       /* brp_clrrpt(rptout[i]); */
     }
@@ -384,7 +381,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
     if (engrs_resume==1) {
       /* Si c'est un enregistrement resume, */
-      /*  on veut alors copier cet enregistrement dans le fichier output */
+      /* on veut alors copier cet enregistrement dans le fichier output */
       if (VERBOSE>0)
         printf("Fonction splitobs_burp: On copie cet enregistrement resume '%s' (i_enrgs=%d)\n",
                RPT_STNID(rptin),i_enrgs);
@@ -401,7 +398,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       int bin_id = i_obs_enrgs%(opt.npex*opt.npey);
 
       if (strncmp("^",RPT_STNID(rptin),1)==0)
-        /* Si c'est un enregistrement resume alors on a le nombre d'observations dans 'elev' */
+        /* Si ce sont des donnes regroupees, alors on a le nombre d'observations dans 'elev' */
         nts[bin_id] = RPT_ELEV(rptin);
       else
         /* Sinon, chaque enregistrement contient une seule observation. */
@@ -412,7 +409,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                i_enrgs,bin_id,nts[bin_id]);
 
       num_obs_per_tile[bin_id] += nts[bin_id];
-      status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
+      status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,
+                               opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_blk pour "
                 "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
@@ -494,7 +492,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       if (EXIT_STATUS)
         break;
 
-      status = fill_rptout_blk(rptin,rptout,nts,t_in_domain,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
+      status = fill_rptout_blk(rptin,rptout,nts,t_in_domain,opt.npex*opt.npey,
+                               opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_blk pour "
                 "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
@@ -788,7 +787,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       nts[id] = 1;
       num_obs_per_tile[id]++; /* On ajoute 1 au compteur total des observations */
 
-      status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
+      status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,
+                               opt.cherrypick_x,opt.cherrypick_y,opt.npey,VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_blk pour "
                 "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
