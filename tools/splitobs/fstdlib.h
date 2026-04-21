@@ -15,10 +15,10 @@
 #define MAXSTR_GRTYP      2
 #define MAXSTR_DATETIME   16
 #define MAXSTR_DATE       8
-#define MAXSTR_TIME       8   
+#define MAXSTR_TIME       8
 
 /* Valeurs par defaut pour les elements de recherche des champ dans un fichier standard
- * avec la fonction RPN fstinf 
+ * avec la fonction RPN fstinf
  */
 #define NOMVAR_VIDE       "    "
 #define TYPVAR_VIDE       "  "
@@ -56,7 +56,7 @@ typedef struct {
 
 /***************************************************************************
  * fonction: open_stdfile
- * 
+ *
  * Cette fonction ouvre proprement le fichier standard filename selon un mode donne
  *
  * En entree, elle prend 3 arguments:
@@ -69,9 +69,9 @@ int    open_stdfile(int* iun,  char* filename, char* mode);
 /***************************************************************************
  * fonction: close_stdfile
  *
- * Cette fonction ferme proprement le fichier standard ouvert dans 
- * la fonction open_stdfile.  
- * 
+ * Cette fonction ferme proprement le fichier standard ouvert dans
+ * la fonction open_stdfile.
+ *
  * En entree, elle prend 2 arguments:
  *      iun: unite fortran identifiant le fichier lu
  *      filename: nom du fichier standard
@@ -82,20 +82,20 @@ int    close_stdfile(int iun, char* filename);
  * fonction: getgrid
  *
  * Cette fonction genere une representation EZSCINT d'une grille definie en
- * lisant un champ dans un fichier standard.  
- * 
+ * lisant un champ dans un fichier standard.
+ *
  * En entree, elle prend 5 arguments:
  *      iun: unite fortran identifiant le fichier lu
  *      gridptr: pointeur a une structure de grille qui contiendra l'information sur la grille
  *      nomvar: NOMVAR du champ que l'on veut utiliser pour definir la grille
  *      fstin: nom du fichier standard utilise pour lire le champ definissant la grille
- * 
+ *
  ***************************************************************************/
 int    getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin);
 
 /***************************************************************************
  * fonction: stats_field
- * 
+ *
  * Cette fonction imprime des statistiques sur le champ contenu dans "z"
  *
  * En entree, elle prend 4 arguments:
@@ -103,18 +103,18 @@ int    getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin);
  *          dim: dimension du champ
  *          fstptr: un pointeur a une structure fstparam qui identifie les parametres du champ
  *          statsptr: un pointeur a une structure statstype qui stockera l'information sur le champ
- * 
+ *
  ***************************************************************************/
 int    stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr);
 /***************************************************************************
  * fonction: print_stats_field
- * 
+ *
  * Cette fonction imprime les statistiques accumulees dans le vecteur
- *     
+ *
  * En entree, elle prend 2 arguments:
  *          stats: un pointeur a un vecteur de structures "statstype" contenant l'information statistiques sur tous les champs
  *          dim: dimension de ce vecteur
- * 
+ *
  ***************************************************************************/
 int    print_stats_field(statstype* stats, int dim);
 
@@ -123,11 +123,11 @@ int    print_stats_field(statstype* stats, int dim);
  * fonction: exit_program
  *
  * Cette fonction imprime la boite indiquant la fin du programme dependant
- * si l'execution s'est deroulee correctement ou non.  
+ * si l'execution s'est deroulee correctement ou non.
  *
  * En entree, elle prend 1 argument:
  *      status: entier etant egal a OK ou NOT_OK
- * 
+ *
  ***************************************************************************/
 void exit_program(int status, char* program_name, char* problem, char* version);
 
@@ -137,9 +137,9 @@ void exit_program(int status, char* program_name, char* problem, char* version);
  *
  * Cette fonction convertit une date donnee dans le format YYYYMMDDHHMMSS
  * dans le standard CMCstamp
- * 
+ *
  * L'argument donne en entree est une chaine de caracteres dans le format YYYYMMDDHHMMSS
- * et on complete par des 0 a droite si la chaine est incomplete.  
+ * et on complete par des 0 a droite si la chaine est incomplete.
  ***************************************************************************/
 int padtime(char* argv);
 
