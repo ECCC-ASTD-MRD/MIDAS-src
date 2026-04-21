@@ -211,7 +211,7 @@ include(ExternalProject)
 if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
   set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
 
-  if(EXTLIBS_TO_BUILD MATCHES "libf90sqlite")
+  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
     message(STATUS "(EC) Adding libf90sqlite external library target")
     ExternalProject_Add(libf90sqlite
       SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite/src
@@ -224,7 +224,7 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
     )
   endif()
 
-  if(EXTLIBS_TO_BUILD MATCHES "libudfsqlite")
+  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite")
     message(STATUS "(EC) Adding libudfsqlite external library target")
     ExternalProject_Add(libudfsqlite
       SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src
@@ -238,8 +238,15 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
   endif()
 
   if(EXTLIBS_TO_BUILD MATCHES "perftools")
+    message(STATUS "(EC) Adding perftools external library target")
     ExternalProject_Add(perftools
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools
+      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools/src
+      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/perftools-build
+      DOWNLOAD_COMMAND ""
+      UPDATE_COMMAND ""
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND make -C ${CMAKE_SOURCE_DIR}/extlibs/perftools/src
+      INSTALL_COMMAND make -C ${CMAKE_SOURCE_DIR}/extlibs/perftools/src install DESTDIR=${CMAKE_BINARY_DIR}/extlibs/perftools-build
     )
   endif()
 endif()
