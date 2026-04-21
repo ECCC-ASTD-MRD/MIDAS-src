@@ -48,6 +48,10 @@ static int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon
 static int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_domain,
                            int n, int cherrypick_x, int cherrypick_y, int npey, int VERBOSE);
 
+static void print_allblocs(BURP_RPT* rptin);
+static void print_blk(BURP_BLK* blkin);
+static void print_rpt(BURP_RPT* rptin);
+
 /*****************************************************/
 /******* Fin des prototype des fonctions *************/
 /*****************************************************/
@@ -370,65 +374,12 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       printf("stnids = %s  enregistrement: %d\n", RPT_STNID(rptin), i_enrgs);
 
     /* entete de rapport */
-    if (VERBOSE>1) {
-      printf ( "\n\n" ) ;
-      printf ( "hhmm   =%8d " , RPT_TEMPS(rptin)) ;
-      printf ( "flgs   =%6d  ", RPT_FLGS(rptin )) ;
-      printf ( "codtyp =%6d  ", RPT_IDTYP(rptin)) ;
-      printf ( "stnids =%9s\n", RPT_STNID(rptin)) ;
-      printf ( "blat   =%8d " , RPT_LATI(rptin)) ;
-      printf ( "blon   =%6d  ", RPT_LONG(rptin )) ;
-      printf ( "dx     =%6d  ", RPT_DX(rptin)) ;
-      printf ( "dy     =%6d  ", RPT_DY(rptin)) ;
-      printf ( "stnhgt =%6d\n", RPT_ELEV(rptin)) ;
-      printf ( "yymmdd =%8d " , RPT_DATE(rptin)) ;
-      printf ( "oars   =%6d  ", RPT_OARS(rptin)) ;
-      printf ( "runn   =%6d  ", RPT_RUNN(rptin)) ;
-      printf ( "nblk   =%6d  ", RPT_NBLK(rptin)) ;
-      printf ( "dlay   =%6d\n", RPT_DRND(rptin)) ;
-      printf ( "\n" ) ;
-    }
+    if (VERBOSE>1)
+      print_rpt(rptin);
 
     if (VERBOSE>4) {
-      BURP_BLK* blk = (BURP_BLK*) NULL;
-
       printf("Impression des blocs au debut\n");
-
-      blk = brp_newblk();
-      BLK_SetBKNO(blk, 0);
-
-      while ( brp_findblk( blk, rptin ) >= 0 ) {
-        int thisi, thisj, thisk;
-        BURP_BLK* blkout = (BURP_BLK*) NULL;
-        blkout = brp_newblk();
-        status = brp_readblk(BLK_BKNO(blk), blkout, rptin, 0);
-
-        printf ( "blkno  =%6d  ", BLK_BKNO(blkout)    ) ;
-        printf ( "nele   =%6d  ", BLK_NELE(blkout)    ) ;
-        printf ( "nval   =%6d  ", BLK_NVAL(blkout)    ) ;
-        printf ( "nt     =%6d  ", BLK_NT(blkout)      ) ;
-        printf ( "bit0   =%6d\n", BLK_BIT0(blkout)    ) ;
-        printf ( "bdesc  =%6d  ", BLK_BDESC(blkout)   ) ;
-        printf ( "btyp   =%6d  ", BLK_BTYP(blkout)    ) ;
-        printf ( "nbit   =%6d  ", BLK_NBIT(blkout)    ) ;
-        printf ( "datyp  =%6d  ", BLK_DATYP(blkout)   ) ;
-        printf ( "bfam   =%6d  ", BLK_BFAM(blkout)    ) ;
-
-        for ( thisk = 0 ; thisk < BLK_NT(blkout) ; thisk++ ) {
-          printf (  "\nlstele =" ) ;
-          for (thisi=0;thisi<BLK_NELE(blkout);thisi++)
-            printf (  "    %6.6d", BLK_DLSTELE(blkout,thisi) ) ;
-          /* sortie des valeurs des elements */
-          for (  thisj = 0 ; thisj < BLK_NVAL(blkout) ; thisj++ ) {
-            printf (  "\ntblval =" ) ;
-            for (  thisi = 0 ; thisi < BLK_NELE(blkout) ; thisi++ )
-              printf (  "%10d", BLK_TBLVAL(blkout,thisi,thisj,thisk) ) ;
-          }
-        }
-        printf("\n");
-        brp_freeblk(blkout);
-      } /* Fin du while ( brp_findblk( blk, rptin ) >= 0 ) */
-      brp_freeblk(blk);
+      print_allblocs(rptin);
     } /* Fin du if (VERBOSE>4) */
 
       /* On verifie si on est en presence d'un ua4d.
@@ -954,59 +905,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       }
 
       if (VERBOSE>5) {
-        BURP_BLK* blk = (BURP_BLK*) NULL;
-
         printf ( "Fonction splitobs_burp (juste avant 'brp_writerpt'): Entete du rapport rptout[%d]\n",i) ;
-        printf ( "hhmm   =%8d " , RPT_TEMPS(rptout[i])) ;
-        printf ( "flgs   =%6d  ", RPT_FLGS(rptout[i])) ;
-        printf ( "codtyp =%6d  ", RPT_IDTYP(rptout[i])) ;
-        printf ( "stnids =%9s\n", RPT_STNID(rptout[i])) ;
-        printf ( "blat   =%8d " , RPT_LATI(rptout[i])) ;
-        printf ( "blon   =%6d  ", RPT_LONG(rptout[i])) ;
-        printf ( "dx     =%6d  ", RPT_DX(rptout[i])) ;
-        printf ( "dy     =%6d  ", RPT_DY(rptout[i])) ;
-        printf ( "stnhgt =%6d\n", RPT_ELEV(rptout[i])) ;
-        printf ( "yymmdd =%8d " , RPT_DATE(rptout[i])) ;
-        printf ( "oars   =%6d  ", RPT_OARS(rptout[i])) ;
-        printf ( "runn   =%6d  ", RPT_RUNN(rptout[i])) ;
-        printf ( "nblk   =%6d  ", RPT_NBLK(rptout[i])) ;
-        printf ( "dlay   =%6d\n", RPT_DRND(rptout[i])) ;
-
-        blk = brp_newblk();
-        BLK_SetBKNO(blk, 0);
-        while ( brp_findblk( blk, rptout[i] ) >= 0 ) {
-          int thisi, thisj, thisk;
-          BURP_BLK* blkout = (BURP_BLK*) NULL;
-
-          blkout = brp_newblk();
-          status = brp_readblk(BLK_BKNO(blk), blkout, rptout[i], 0);
-
-          printf ( "blkno  =%6d  ", BLK_BKNO(blkout)    ) ;
-          printf ( "nele   =%6d  ", BLK_NELE(blkout)    ) ;
-          printf ( "nval   =%6d  ", BLK_NVAL(blkout)    ) ;
-          printf ( "nt     =%6d  ", BLK_NT(blkout)      ) ;
-          printf ( "bit0   =%6d\n", BLK_BIT0(blkout)    ) ;
-          printf ( "bdesc  =%6d  ", BLK_BDESC(blkout)   ) ;
-          printf ( "btyp   =%6d  ", BLK_BTYP(blkout)    ) ;
-          printf ( "nbit   =%6d  ", BLK_NBIT(blkout)    ) ;
-          printf ( "datyp  =%6d  ", BLK_DATYP(blkout)   ) ;
-          printf ( "bfam   =%6d  ", BLK_BFAM(blkout)    ) ;
-
-          for ( thisk = 0 ; thisk < BLK_NT(blkout) ; thisk++ ) {
-            printf (  "\nlstele =" ) ;
-            for (thisi=0;thisi<BLK_NELE(blkout);thisi++)
-              printf (  "    %6.6d", BLK_DLSTELE(blkout,thisi) ) ;
-            /* sortie des valeurs des elements */
-            for (  thisj = 0 ; thisj < BLK_NVAL(blkout) ; thisj++ ) {
-              printf (  "\ntblval =" ) ;
-              for (  thisi = 0 ; thisi < BLK_NELE(blkout) ; thisi++ )
-                printf (  "%10d", BLK_TBLVAL(blkout,thisi,thisj,thisk) ) ;
-            }
-          }
-          printf("\n");
-          brp_freeblk(blkout);
-        } /* Fin du while ( brp_findblk( blk, rptout[i] ) >= 0 ) */
-        brp_freeblk(blk);
+        print_rpt(rptout[i]);
+        print_allblocs(rptout[i]);
       } /* Fin du if (VERBOSE>5) */
 
       if (VERBOSE>4)
@@ -1745,22 +1646,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   if (VERBOSE>5) {
     printf("Fonction find_blk_data_in_rpt: On travaille avec le rapport: \n");
     printf("Fonction find_blk_data_in_rpt: ");
-    printf ( "hhmm   =%8d " , RPT_TEMPS(rptin)) ;
-    printf ( "flgs   =%6d  ", RPT_FLGS(rptin)) ;
-    printf ( "codtyp =%6d  ", RPT_IDTYP(rptin)) ;
-    printf ( "stnids =%9s\n", RPT_STNID(rptin)) ;
-    printf("Fonction find_blk_data_in_rpt: ");
-    printf ( "blat   =%8d " , RPT_LATI(rptin)) ;
-    printf ( "blon   =%6d  ", RPT_LONG(rptin)) ;
-    printf ( "dx     =%6d  ", RPT_DX(rptin)) ;
-    printf ( "dy     =%6d  ", RPT_DY(rptin)) ;
-    printf ( "stnhgt =%6d\n", RPT_ELEV(rptin)) ;
-    printf("Fonction find_blk_data_in_rpt: ");
-    printf ( "yymmdd =%8d " , RPT_DATE(rptin)) ;
-    printf ( "oars   =%6d  ", RPT_OARS(rptin)) ;
-    printf ( "runn   =%6d  ", RPT_RUNN(rptin)) ;
-    printf ( "nblk   =%6d  ", RPT_NBLK(rptin)) ;
-    printf ( "dlay   =%6d\n", RPT_DRND(rptin)) ;
+    print_rpt(rptin);
   }
 
   blktmp = brp_newblk();
@@ -1783,17 +1669,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 
     if (VERBOSE>5) {
       printf("Fonction find_blk_data_in_rpt: ");
-      printf ( "blkno  =%6d  ", BLK_BKNO(blk)    ) ;
-      printf ( "nele   =%6d  ", BLK_NELE(blk)    ) ;
-      printf ( "nval   =%6d  ", BLK_NVAL(blk)    ) ;
-      printf ( "nt     =%6d  ", BLK_NT(blk)      ) ;
-      printf ( "bit0   =%6d\n", BLK_BIT0(blk)    ) ;
-      printf("Fonction find_blk_data_in_rpt: ");
-      printf ( "bdesc  =%6d  ", BLK_BDESC(blk)   ) ;
-      printf ( "btyp   =%6d  ", BLK_BTYP(blk)    ) ;
-      printf ( "nbit   =%6d  ", BLK_NBIT(blk)    ) ;
-      printf ( "datyp  =%6d  ", BLK_DATYP(blk)   ) ;
-      printf ( "bfam   =%6d\n", BLK_BFAM(blk)    ) ;
+      print_blk(blk);
       printf("Fonction find_blk_data_in_rpt: which_btyp(%d)=%d\n", BLK_BTYP(blk), which_btyp(BLK_BTYP(blk), 0));
     }
 
@@ -1866,17 +1742,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 
     if (VERBOSE>5) {
       printf("Fonction find_blk_data_in_rpt: ");
-      printf ( "blkno  =%6d  ", BLK_BKNO(blk));
-      printf ( "nele   =%6d  ", BLK_NELE(blk));
-      printf ( "nval   =%6d  ", BLK_NVAL(blk));
-      printf ( "nt     =%6d  ", BLK_NT(blk)  );
-      printf ( "bit0   =%6d\n", BLK_BIT0(blk));
-      printf("Fonction find_blk_data_in_rpt: ");
-      printf ( "bdesc  =%6d  ", BLK_BDESC(blk));
-      printf ( "btyp   =%6d  ", BLK_BTYP(blk) );
-      printf ( "nbit   =%6d  ", BLK_NBIT(blk) );
-      printf ( "datyp  =%6d  ", BLK_DATYP(blk));
-      printf ( "bfam   =%6d\n", BLK_BFAM(blk) );
+      print_blk(blk);
     }
 
     trouve_lat=0;
@@ -1966,17 +1832,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
 
   if (VERBOSE>5) {
     printf("Fonction find_blk_data_flag_in_rpt: ");
-    printf ( "blkno  =%6d  ", BLK_BKNO(blk));
-    printf ( "nele   =%6d  ", BLK_NELE(blk));
-    printf ( "nval   =%6d  ", BLK_NVAL(blk));
-    printf ( "nt     =%6d  ", BLK_NT(blk)  );
-    printf ( "bit0   =%6d\n", BLK_BIT0(blk));
-    printf("Fonction find_blk_data_flag_in_rpt: ");
-    printf ( "bdesc  =%6d  ", BLK_BDESC(blk));
-    printf ( "btyp   =%6d  ", BLK_BTYP(blk) );
-    printf ( "nbit   =%6d  ", BLK_NBIT(blk) );
-    printf ( "datyp  =%6d  ", BLK_DATYP(blk));
-    printf ( "bfam   =%6d\n", BLK_BFAM(blk) );
+    print_blk(blk);
   }
 
   btyp_data  = BLK_BTYP(blk);
@@ -2704,3 +2560,73 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
 
   return 0;
 } /* Fin de la fonction putblk_nval */
+
+void print_allblocs(BURP_RPT* rptin) {
+  int thisi, thisj, thisk;
+  BURP_BLK* blk = (BURP_BLK*) NULL;
+  BURP_BLK* blkout = (BURP_BLK*) NULL;
+
+  blk = brp_newblk();
+  BLK_SetBKNO(blk, 0);
+
+  while ( brp_findblk( blk, rptin ) >= 0 ) {
+    blkout = (BURP_BLK*) NULL;
+    blkout = brp_newblk();
+
+    brp_readblk(BLK_BKNO(blk), blkout, rptin, 0);
+
+    print_blk(blkout);
+
+    for ( thisk = 0 ; thisk < BLK_NT(blkout) ; thisk++ ) {
+      printf (  "\nlstele =" ) ;
+      for (thisi=0;thisi<BLK_NELE(blkout);thisi++)
+        printf (  "    %6.6d", BLK_DLSTELE(blkout,thisi) ) ;
+      /* sortie des valeurs des elements */
+      for (  thisj = 0 ; thisj < BLK_NVAL(blkout) ; thisj++ ) {
+        printf (  "\ntblval =" ) ;
+        for (  thisi = 0 ; thisi < BLK_NELE(blkout) ; thisi++ )
+          printf (  "%10d", BLK_TBLVAL(blkout,thisi,thisj,thisk) ) ;
+      }
+    }
+    printf("\n");
+    brp_freeblk(blkout);
+  } /* Fin du while ( brp_findblk( blk, rptin ) >= 0 ) */
+
+  brp_freeblk(blk);
+} /* Fin de la fonction print_allblocs */
+
+void print_blk(BURP_BLK* blkin) {
+
+  printf ( "blkno  =%6d  ", BLK_BKNO(blkin) );
+  printf ( "nele   =%6d  ", BLK_NELE(blkin) );
+  printf ( "nval   =%6d  ", BLK_NVAL(blkin) );
+  printf ( "nt     =%6d  ", BLK_NT(blkin)   );
+  printf ( "bit0   =%6d\n", BLK_BIT0(blkin) );
+  printf ( "bdesc  =%6d  ", BLK_BDESC(blkin));
+  printf ( "btyp   =%6d  ", BLK_BTYP(blkin) );
+  printf ( "nbit   =%6d  ", BLK_NBIT(blkin) );
+  printf ( "datyp  =%6d  ", BLK_DATYP(blkin));
+  printf ( "bfam   =%6d\n", BLK_BFAM(blkin) );
+
+} /* Fin de la fonction 'print_blk' */
+
+void print_rpt(BURP_RPT* rptin) {
+
+  printf ( "\n\n" ) ;
+  printf ( "hhmm   =%8d " , RPT_TEMPS(rptin));
+  printf ( "flgs   =%6d  ", RPT_FLGS(rptin ));
+  printf ( "codtyp =%6d  ", RPT_IDTYP(rptin));
+  printf ( "stnids =%9s\n", RPT_STNID(rptin));
+  printf ( "blat   =%8d " , RPT_LATI(rptin));
+  printf ( "blon   =%6d  ", RPT_LONG(rptin ));
+  printf ( "dx     =%6d  ", RPT_DX(rptin));
+  printf ( "dy     =%6d  ", RPT_DY(rptin));
+  printf ( "stnhgt =%6d\n", RPT_ELEV(rptin));
+  printf ( "yymmdd =%8d " , RPT_DATE(rptin));
+  printf ( "oars   =%6d  ", RPT_OARS(rptin));
+  printf ( "runn   =%6d  ", RPT_RUNN(rptin));
+  printf ( "nblk   =%6d  ", RPT_NBLK(rptin));
+  printf ( "dlay   =%6d\n", RPT_DRND(rptin));
+  printf ( "\n" );
+
+} /* Fin de la fonction 'print_rpt' */
