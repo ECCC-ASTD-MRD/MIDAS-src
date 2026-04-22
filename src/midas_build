@@ -273,7 +273,7 @@ function printHeader {
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
-            echo "|   (will be removed if installation is successful)"
+            echo "|   (will be removed if installation is successful (use '--no-clean' to avoid that))"
         fi
         echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
@@ -285,7 +285,7 @@ function printHeader {
     echo "| listings"
     echo "| * ${__listing_frontend}"
     if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
-        echo "|   (will be removed if compilation is successful)"
+        echo "|   (will be removed if compilation is successful (use '--keep-listing' to avoid that))"
     fi
     echo "+-----------------------------------------------------------------------------"
     echo
