@@ -79,13 +79,14 @@ while [[ $# > 0 ]]; do
 done ## End of 'while [[ $# > 0 ]]'
 
 if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
-  echo "+-----------------------------------------+"
-  echo "|                                         |"
-  echo "| WARNING: config.dot.sh already sourced! |"
-  echo "|   open a new shell before proceeding    |"
-  echo "|                                         |"
-  echo "+-----------------------------------------+"
-  return 1
+    echo "+-----------------------------------------+"
+    echo "|                                         |"
+    echo "| WARNING: config.dot.sh already sourced! |"
+    echo "|     possible environment conflict       |"
+    echo "|   open a new shell before proceeding    |"
+    echo "|                                         |"
+    echo "+-----------------------------------------+"
+    return 1
 fi
 
 if [ "${__show_instructions}" != true -a "${__show_instructions}" != false ]; then

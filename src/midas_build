@@ -44,6 +44,19 @@ __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version)
 
 ##=========================================================
+##  checking if the environment has already been defined
+if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
+    echo "+-----------------------------------------+"
+    echo "|                                         |"
+    echo "| WARNING: config.dot.sh already sourced! |"
+    echo "|     possible environment conflict       |"
+    echo "|   open a new shell before proceeding    |"
+    echo "|                                         |"
+    echo "+-----------------------------------------+"
+    exit 1
+fi
+
+##=========================================================
 ##  sourcing user configuration
 if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
     echo "Only ORDENV_PLAT=rhel-8-icelake-64 or ORDENV_PLAT=rhel-9-graniterapids-64 are supported"
