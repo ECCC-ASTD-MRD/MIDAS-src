@@ -44,6 +44,19 @@ __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version)
 
 ##=========================================================
+##  checking if the environment has already been defined
+if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
+    echo "+-----------------------------------------+"
+    echo "|                                         |"
+    echo "| WARNING: config.dot.sh already sourced! |"
+    echo "|     possible environment conflict       |"
+    echo "|   open a new shell before proceeding    |"
+    echo "|                                         |"
+    echo "+-----------------------------------------+"
+    exit 1
+fi
+
+##=========================================================
 ##  sourcing user configuration
 if [ "${ORDENV_PLAT}" != rhel-8-icelake-64 -a "${ORDENV_PLAT}" != rhel-9-graniterapids-64 ];then
     echo "Only ORDENV_PLAT=rhel-8-icelake-64 or ORDENV_PLAT=rhel-9-graniterapids-64 are supported"
@@ -60,11 +73,9 @@ __abs_all="${__abs_all} ${__abs_external}"
 ##  parsing input and building job for submissions
 ##
 
-## default: make all
-__target=all
 __abs_exist_list=${__abs_all}
 
-__fresh_build_directory=--no-fresh
+__fresh_build_directory=--fresh
 ## When using 'midas_build', we want verbose compilation listing
 ## This can be overriden with '--no-verbose' option
 MIDAS_COMPILE_VERBOSE=TRUE
@@ -78,7 +89,7 @@ function print_usage {
     echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
     echo "        --codecov: activate the code covering compiler options (needs a directory for storing the code coverage information) (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
     echo "        --local: avoid launching a batch job to compile (override the variable 'MIDAS_COMPILE_'HEADNODE_FRONTEND)"
-    echo "        --fresh: erase the build directory if it already exists before compilation"
+    echo "        --no-fresh: won't erase the build directory if it already exists before compilation"
     echo "        --no-clean: do not erase the build directory after the compilation (override the variable 'MIDAS_COMPILE_CLEAN'"
     echo "        --keep-listing: do not erase compilation listing after the compilation (override the variable 'MIDAS_COMPILE_KEEP_LISTING')"
     echo "        --append-version-id-builddir: append version id to the build directory (override the variable 'MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR'"
@@ -116,8 +127,8 @@ if [ $# -gt 0 ]; then
             MIDAS_COMPILE_HEADNODE_FRONTEND=true
         elif [[ "${arg}" = --no-verbose ]]; then
             MIDAS_COMPILE_VERBOSE=FALSE  ## We use 'FALSE' here because it is the standard for the variable 'CMAKE_VERBOSE_MAKEFILE'
-        elif [[ "${arg}" = --fresh ]]; then
-            __fresh_build_directory=--fresh
+        elif [[ "${arg}" = --no-fresh ]]; then
+            __fresh_build_directory=--no-fresh
         elif [[ "${arg}" = --no-clean ]]; then
             MIDAS_COMPILE_CLEAN=false
         elif [[ "${arg}" = --keep-listing ]]; then
@@ -176,6 +187,11 @@ if [ $# -gt 0 ]; then
         done
     fi
 fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
+
+## default: make all
+if [[ -z "${__target}" ]]; then
+  __target=all
+fi
 
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
@@ -257,7 +273,7 @@ function printHeader {
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]; then
-            echo "|   (will be removed if installation is successful)"
+            echo "|   (will be removed if installation is successful (use '--no-clean' to avoid that))"
         fi
         echo "| installation directory : ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
     else
@@ -269,7 +285,7 @@ function printHeader {
     echo "| listings"
     echo "| * ${__listing_frontend}"
     if [ "${MIDAS_COMPILE_KEEP_LISTING}" = false ]; then
-        echo "|   (will be removed if compilation is successful)"
+        echo "|   (will be removed if compilation is successful (use '--keep-listing' to avoid that))"
     fi
     echo "+-----------------------------------------------------------------------------"
     echo
