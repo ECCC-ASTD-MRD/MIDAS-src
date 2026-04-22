@@ -257,7 +257,7 @@ contains
             nfov = nbscan(instIndex)
             scanBiasMode = scanBiasCorrectionMode(instIndex)
             if (scanBiasMode == 'undefined' .or. ( trim(scanBiasMode) /= 'all' .and. trim(scanBiasMode) /= 'none') ) then
-              call utl_abort('bcs_setup: scanBiasCorrectionMode should be set to "all" or "none" for instrument ' // trim(instrNamecoeff))
+              call rti_abort('bcs_setup: scanBiasCorrectionMode should be set to "all" or "none" for instrument ' // trim(instrNamecoeff))
             end if
           end if
         end do
@@ -4034,7 +4034,7 @@ contains
     predictorIndex = utl_findloc(predTab(1:NumPredictors), predictorName)
     
     if (predictorIndex == 0) then
-      call utl_abort('getPredictorIndex: unknown predictor ' // predictorName)
+      call rti_abort('getPredictorIndex: unknown predictor ' // predictorName)
     end if
     
   end function getPredictorIndex
