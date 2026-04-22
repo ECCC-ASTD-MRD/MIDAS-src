@@ -4018,7 +4018,7 @@ contains
   !-----------------------------------------
   ! getPredictorIndex
   !-----------------------------------------
-  function getPredictorIndex(predictor) result(predictorIndex)
+  function getPredictorIndex(predictorName) result(predictorIndex)
     !
     ! :Purpose: Compute predictor index from predictor string
     !           
@@ -4026,15 +4026,15 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=2), intent(in) :: predictor
+    character(len=*), intent(in) :: predictorName ! 2 letters predictor name
 
     ! Result:
     integer :: predictorIndex
     
-    predictorIndex = utl_findloc(predTab(1:NumPredictors), predictor)
+    predictorIndex = utl_findloc(predTab(1:NumPredictors), predictorName)
     
     if (predictorIndex == 0) then
-      call utl_abort('getPredictorIndex: unknown predictor ' // predictor)
+      call utl_abort('getPredictorIndex: unknown predictor ' // predictorName)
     end if
     
   end function getPredictorIndex
