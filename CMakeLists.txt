@@ -44,6 +44,37 @@ find_package(MPI REQUIRED)
 set(WITH_OPENMP TRUE CACHE BOOL "Control whether to use OpenMP")
 include(ec_openmp)
 
+
+## External libraries on demand compilation
+## to compile them, define the variable MIDAS_COMPILE_EXTLIBS to include the libraries needed
+## Exp: MIDAS_COMPILE_EXTLIBS=libudsqlite,libf90sqlite
+set(USE_LOCAL_EXTLIBS FALSE)
+
+if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
+  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
+  set(USE_LOCAL_EXTLIBS TRUE)
+  message(STATUS "(EC) Using LOCAL external libraries: ${EXTLIBS_TO_BUILD}")
+
+  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
+
+  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
+    message(STATUS "(EC) Adding libf90sqlite external library target")
+    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
+    add_subdirectory(extlibs/libf90sqlite)
+  endif()
+
+  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite")
+    message(STATUS "(EC) Adding libudfsqlite external library target")
+    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
+    add_subdirectory(extlibs/libudfsqlite)
+  endif()
+
+  if(EXTLIBS_TO_BUILD MATCHES "perftools")
+    message(STATUS "(EC) Adding perftools external library target")
+    add_subdirectory(extlibs/perftools)
+  endif()
+endif()
+
 find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
@@ -74,7 +105,11 @@ foreach(component ${rttov_FIND_COMPONENTS})
   list(APPEND rttov_LIBRARIES ${${component}_lib})
 endforeach()
 
-find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
+if(USE_LOCAL_EXTLIBS)
+  message(STATUS "(EC) Using LOCAL perftools")
+else()
+  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
+endif()
 
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
@@ -202,62 +237,6 @@ add_subdirectory(tools)
 ## The 'cmake_rpn' macro 'ec_build_config' contains an install target
 ## which generates the 'midas-config' script.
 ec_build_config()
-
-## External libraries on demand compilation
-## to compile them, define the variable MIDAS_COMPILE_EXTLIBS to include the libraries needed
-## Exp: MIDAS_COMPILE_EXTLIBS=libudsqlite,libf90sqlite
-include(ExternalProject)
-
-if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
-  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
-
-  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
-    message(STATUS "(EC) Adding libf90sqlite external library target")
-    ExternalProject_Add(libf90sqlite
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libf90sqlite
-      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-build
-      DOWNLOAD_COMMAND ""
-      UPDATE_COMMAND ""
-      CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-install
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DLIBUDFSQLITE_INCLUDE_DIR=/home/erv000/data/midas/sqllibs/libudfsqlite/include
-      BUILD_COMMAND ${CMAKE_COMMAND} --build .
-      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
-    )
-  endif()
-
-  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite")
-    message(STATUS "(EC) Adding libudfsqlite external library target")
-    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
-    ExternalProject_Add(libudfsqlite
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite
-      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-build
-      DOWNLOAD_COMMAND ""
-      UPDATE_COMMAND ""
-      CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libudfsqlite-install
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      BUILD_COMMAND ${CMAKE_COMMAND} --build .
-      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
-    )
-  endif()
-
-  if(EXTLIBS_TO_BUILD MATCHES "perftools")
-    message(STATUS "(EC) Adding perftools external library target")
-    ExternalProject_Add(perftools
-      SOURCE_DIR ${CMAKE_SOURCE_DIR}/extlibs/perftools
-      BINARY_DIR ${CMAKE_BINARY_DIR}/extlibs/perftools-build
-      DOWNLOAD_COMMAND ""
-      UPDATE_COMMAND ""
-      CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/extlibs/libf90sqlite-install
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      BUILD_COMMAND ${CMAKE_COMMAND} --build .
-      INSTALL_COMMAND ${CMAKE_COMMAND} --install .
-    )
-  endif()
-endif()
 
 ## Build the resources file 'maestro/suites/midas_system_tests/resources/resources.def'
 if(DEFINED ENV{ORDENV_PLAT})
