@@ -15,7 +15,6 @@ set(SOURCES
 add_library(f90sqlite STATIC ${SOURCES})
 
 # Set include directories for csqlite.c
-set(LIBUDFSQLITE_INCLUDE_DIR "" CACHE PATH "Path to libudfsqlite include directory")
 if(NOT LIBUDFSQLITE_INCLUDE_DIR)
     message(FATAL_ERROR "LIBUDFSQLITE_INCLUDE_DIR must be set")
 endif()
