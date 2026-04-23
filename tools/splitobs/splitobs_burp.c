@@ -68,18 +68,18 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                   float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE) {
   int i, iun = 200, iout = 201, status, EXIT_STATUS = 0;
   int i_obs_enrgs, i_enrgs, nombre_enregistrements, longueur_max_enregistrement;
-  int *adresses = (int*) NULL, *iouts = (int*) NULL;
+  int *adresses = (int*) NULL;
   int *t_in_domain = (int*) NULL, *nts = (int*) NULL, *num_obs_per_tile = (int*) NULL;
   int vertical_clipping, cherrypick_id = -1;
+  char errmsg[MAXSTR];
+  float lat, lon;
+  int ilonband, jlatband;
+  BURP_RPT *rptin, *rptout;
   /* Cette variable sert a identifier si on est en presence du format UA multi-niveaux
    * Si -1, alors on n'a pas encore evaluer le cas, si 0 alors ce sont des UA classiques
    * si 1, ce sont des ua4d.
    */
   int is_ua4d = -1;
-  char errmsg[MAXSTR];
-  float lat, lon;
-  int ilonband, jlatband;
-  BURP_RPT *rptin, **rptout;
 
   /* niveau de tolerance erreur burp */
   /* status = brp_SetOptChar ( "MSGLVL",  "INFORMATIF" ); */
@@ -100,9 +100,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     /* Si le fichier BURP est vide alors on doit sortir */
     App_Log(APP_WARNING,"Fonction splitobs_burp: Il n'y a aucun enregistrement dans le fichier BURP %s\n",opt.obsin);
 
-    freeData_closeFiles(iun, opt.obsin, "dummy", 0, 0,
+    freeData_closeFiles(iun, opt.obsin, -1, "dummy",
                         (int*) NULL, (int*) NULL, (int*) NULL, (int*) NULL,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
+                        (BURP_RPT*) NULL, -1, VERBOSE);
 
     return NOT_OK;
   }
@@ -192,21 +192,15 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
             continue;
 
-        iouts[id] = iout++;
-
         build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
 
         if (VERBOSE>5)
-          printf("Fonction splitobs_burp: appel de 'brp_open' sur le fichier '%s' pour id=%d\n", burpout, id);
+          printf("Fonction splitobs_burp: Verification si le fichier '%s' existe pour id=%d\n", burpout, id);
 
         status = access(burpout,F_OK);
-        if ( status==0 || iouts[id]>999 ) {
-          if ( status==0 )
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
-                    "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
-          else if ( iouts[id]>999 )
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Comme iouts[%d]=%d, la commande 'brp_open(...)' "
-                    "n'acceptera pas cette valeur puisqu'elle est plus grande que 999\n", id, iouts[id]);
+        if ( status==0 ) {
+          App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
+                  "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
 
           freeData_closeFiles(iun, opt.obsin, opt.obsout, ilonband, jlatband,
                               adresses, nts, num_obs_per_tile, iouts,
@@ -214,34 +208,12 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
           return NOT_OK;
         } /* Fin du if ( status==0 ) pour l'acces au fichier */
-
-        status = brp_open(iouts[id],burpout,"a");
-        if ( status<0 ) {
-          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier %s\n", status, burpout);
-
-          freeData_closeFiles(iun, opt.obsin, opt.obsout, ilonband, jlatband,
-                              adresses, nts, num_obs_per_tile, iouts,
-                              (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-
-          return NOT_OK;
-        } /* Fin du if ( status<0 ) */
       } /* Fin du for (jlatband=0;jlatband<opt.npey;jlatband++) */
     } /* Fin du for (ilonband=0;ilonband<opt.npex;ilonband++) */
   } /* Fin du else pour le if ( opt.npex == 1 && opt.npey == 1 ) */
 
-    /* Toujours initialiser les pointeurs */
-  rptout = (BURP_RPT**) malloc(opt.npex*opt.npey*sizeof(BURP_RPT*));
-  if ( rptout == (BURP_RPT**) NULL ) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur rptout de (BURP_RPT*) de dimension %dx%d\n", opt.npex, opt.npey);
-
-    freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
-                        adresses, nts, num_obs_per_tile, iouts,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-
-    return NOT_OK;
-  }
-
-  rptin  = brp_newrpt();
+  rptin = (BURP_RPT*) NULL
+  rptin = brp_newrpt();
   if ( rptin == (BURP_RPT*) NULL ) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer rptin de (BURP_RPT*)\n");
 
@@ -260,14 +232,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   longueur_max_enregistrement = c_mrfbfl(iun);
   if (VERBOSE>0)
     printf("Fonction splitobs_burp: les rapports auront la longueur %d\n", longueur_max_enregistrement);
-  /* Il faut absolument ajouter a la longueur maximal d'un
-   * enregistrement sinon l'appel a brp_freerpt(rptout) donnera un
-   * signal '*** glibc detected *** free(): invalid pointer: 0x08314590 ***'
-   */
-  for (i=0;i<opt.npex*opt.npey;i++) {
-    rptout[i] = brp_newrpt();
-    brp_allocrpt(rptout[i], longueur_max_enregistrement);
-  }
 
   /* On regarde si on doit fait le clipping vertical */
   if ( strlen(opt.channels)!=0 || opt.niveau_min != IP1_VIDE || opt.niveau_max != IP1_VIDE)
@@ -280,34 +244,51 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     num_obs_per_tile[i]=0;
   }
 
-  /* Cette variable contient le nombre d'enregistrements d'observation qui ont ete traites jusqu'a splitobs_burptenant dans la boucle */
-  i_obs_enrgs = 0;
-  /* Ensuite, on passe chaque enregistrement un a un */
-  for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) {
-    int engrs_resume = 0;
+  rptout = (BURP_RPT*) NULL
+  rptout = brp_newrpt();
+  /* Il faut absolument ajouter a la longueur maximal d'un
+   * enregistrement sinon l'appel a brp_freerpt(rptout) donnera un
+   * signal '*** glibc detected *** free(): invalid pointer: 0x08314590 ***'
+   */
+  brp_allocrpt(rptout, longueur_max_enregistrement);
+
+  /* On boucle sur chaque fichier de sortie */
+  for (id=0;id<opt.npex*opt.npey;id++) {
+    /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
+    if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
+      cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
+      if (id != cherrypick_id)
+        continue;
+    }
+
+    /* Cette variable contient le nombre d'enregistrements qui ont ete traites jusqu'a maintenant dans la boucle */
+    i_obs_enrgs = 0;
+    /* Ensuite, on passe chaque enregistrement avec un increment de 'opt.npex*opt.npey' */
+    for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) {
+      int engrs_resume = 0;
 
     status = brp_getrpt(iun,adresses[i_enrgs],rptin);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour "
-              "le fichier d'entree %s a l'adresse %d (%d rapport)\n", status, opt.obsin, adresses[i_enrgs], i_enrgs);
+                         "le fichier d'entree %s a l'adresse %d (%d rapport)\n", status, opt.obsin, adresses[i_enrgs], i_enrgs);
       continue;
     }
 
     if (VERBOSE>0)
-      printf("stnids = %s  enregistrement: %d\n", RPT_STNID(rptin), i_enrgs);
+      printf("stnids = %s enregistrement: %d\n", RPT_STNID(rptin), i_enrgs);
 
     /* entete de rapport */
     if (VERBOSE>1)
       print_rpt(rptin);
 
     if (VERBOSE>4) {
-      printf("Impression des blocs au debut\n");
+      printf("Impression des blocs au debut pour l'enregistrement %d\n", i_enrgs);
       print_allblocs(rptin);
     } /* Fin du if (VERBOSE>4) */
 
-      /* On verifie si on est en presence d'un ua4d.
-       * On ne fait ceci que si on n'est pas en presence d'un enregistrement resume.
-       */
+    /* On verifie si on est en presence d'un ua4d.
+     * On ne fait ceci que si on n'est pas en presence d'un enregistrement resume.
+     */
     if ((is_ua4d==-1 || opt.check_ua4d) && strncmp(">>",RPT_STNID(rptin),2)!=0) {
       is_ua4d = check_ua4d(rptin, VERBOSE);
       if (is_ua4d<0) {
@@ -342,6 +323,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       rptin = rptin_clip_vert;
     } /* Fin du if (engrs_resume==0 && vertical_clipping==1) */
 
+    /* TO REMOVE !!!!! */
     for (i=0;i<opt.npex*opt.npey;i++) {
       /* On se doit de remettre a 0 tous les elements de 'nts'
        * puisqu'ils vont nous indiquer combien d'observations
@@ -353,30 +335,23 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
          temps sur cette ligne alors on l'enleve. */
       /* brp_clrrpt(rptout[i]); */
     }
+    /* TO REMOVE !!!!! */
 
-    /* On commence par copier le header dans tous les rapports */
-    for(i=0;i<opt.npex*opt.npey;i++) {
-      /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
-      if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-        cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
-        if (i != cherrypick_id)
-          continue;
-      }
+    /* On commence par copier le header dans le rapport */
+    brp_copyrpthdr(rptout,rptin);
 
-      brp_copyrpthdr(rptout[i],rptin);
+    if (VERBOSE>4)
+      printf("Fonction splitobs_burp: appel de 'brp_putrpthdr' pour iout=%d et i_enrgs=%d\n",iout,i_enrgs);
 
-      if (VERBOSE>4)
-        printf("Fonction splitobs_burp: appel de 'brp_putrpthdr' pour i=%d, iouts=%d et i_enrgs=%d\n",i,iouts[i],i_enrgs);
-
-      status = brp_putrpthdr(iouts[i],rptout[i]);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_putrpthdr pour "
-                "le fichier de sortie %s_%d_%d a l'adresse %d (rapport %d) (iun=%d)\n",
-                status, opt.obsout, ilonband+1, jlatband+1, adresses[i_enrgs], i_enrgs,
-                iouts[ilonband*opt.npey+jlatband]);
-        EXIT_STATUS = 1;
-        break;
-      }
+    status = brp_putrpthdr(iout,rptout);
+    if (status<0) {
+      char burpout[MAXSTR*4];
+      build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
+      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_putrpthdr pour "
+              "le fichier de sortie %s a l'adresse %d (rapport %d) (iout=%d)\n",
+              status, burpout, adresses[i_enrgs], i_enrgs, iout);
+      EXIT_STATUS = 1;
+      break;
     }
 
     if (engrs_resume==1) {
