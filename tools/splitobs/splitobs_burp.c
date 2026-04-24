@@ -38,11 +38,14 @@ static int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr
                                             int elem_lat, int elem_lon, int* nts, int** t_in_domain_ptr,
                                             int VERBOSE);
 static int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
-                                              int elem_lat, int elem_lon, int** t_in_domain_ptr,
-                                              int VERBOSE);
+                                              int elem_lat, int elem_lon, int ilonband, int jlatband,
+                                              int** t_in_domain_ptr, int VERBOSE);
 static int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
                                               int elem_lat, int elem_lon, BURP_BLK *blk_data,
                                               int* nvals_in_domain, int* val_in_domain, int VERBOSE);
+static int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
+                                                int ilonband, int jlatband, BURP_BLK *blk_data,
+                                                int* val_in_domain, int VERBOSE);
 static int check_ua4d(BURP_RPT *rptin, int VERBOSE);
 static int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
                                 int** bknos_data_ptr, int** btyps_data_ptr, int* nblks, int VERBOSE);
@@ -54,9 +57,12 @@ static int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t
 static int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in_subdomain,
                                 int* tIndices_in_domain, int VERBOSE);
 
-static int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int VERBOSE);
-static int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int iout, int VERBOSE);
-static int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int iout, int VERBOSE);
+static int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                                  int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE);
+static int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                                      int ilonband, int jlatband, BURP_RPT* rptout, int iout, int VERBOSE);
+static int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                               int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE);
 
 static void print_allblocs(BURP_RPT* rptin);
 static void print_blk(BURP_BLK* blkin);
@@ -64,10 +70,8 @@ static void print_rpt(BURP_RPT* rptin);
 static void build_file_name(char* filename, int latband, int lonband, int ndigits,
                             char* output, size_t output_size);
 
-static void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burpout_filename,
-                                int npex, int npey, int* adresses, int* nts, int* num_obs_per_tile,
-                                int* iouts, BURP_RPT** rptout, int erase_burpout_files,
-                                int ndigits, int cherrypick_id, int VERBOSE);
+static void freeData_closeFiles(int burp_file_handle, char* burpin_filename,
+                                int* adresses, int VERBOSE);
 
 /*****************************************************/
 /******* Fin des prototype des fonctions *************/
@@ -81,8 +85,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   int vertical_clipping, cherrypick_id = -1;
   char errmsg[MAXSTR];
   float lat, lon;
-  int ilonband, jlatband;
-  BURP_RPT *rptin, *rptout;
+  int ilonband, jlatband, max_num_headers = 0;
+  BURP_RPT *rptin;
   /* Cette variable sert a identifier si on est en presence du format UA multi-niveaux
    * Si -1, alors on n'a pas encore evaluer le cas, si 0 alors ce sont des UA classiques
    * si 1, ce sont des ua4d.
@@ -121,47 +125,12 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( adresses == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
 
-    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
-                        (int*) NULL, (int*) NULL, (int*) NULL, (int*) NULL,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
+    freeData_closeFiles(iun, opt.obsin, (int*) NULL, VERBOSE);
 
     return NOT_OK;
   }
 
-  nts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
-  if ( nts == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur nts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
-
-    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
-                        adresses, (int*) NULL, (int*) NULL, (int*) NULL,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-
-    return NOT_OK;
-  } /* Fin du if ( nts == (int*) NULL) */
-
-  num_obs_per_tile = (int*) malloc(opt.npex*opt.npey*sizeof(int));
-  if ( num_obs_per_tile == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur num_obs_per_tile de (int) de dimension %dx%d\n", opt.npex, opt.npey);
-
-    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
-                        adresses, nts, (int*) NULL, (int*) NULL,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-
-    return NOT_OK;
-  } /* Fin du if ( nts == (int*) NULL) */
-
-  iouts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
-  if ( iouts == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer le vecteur iouts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
-
-    freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
-                        adresses, nts, num_obs_per_tile, (int*) NULL,
-                        (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
-
-    return NOT_OK;
-  } /* Fin du if ( iouts == (int*) NULL) */
-
-    /* Ouverture du fichier burp en sortie */
+  /* Ouverture du fichier burp en sortie */
   if ( opt.npex == 1 && opt.npey == 1 ) {
 
     status = access(opt.obsout,F_OK);
@@ -169,9 +138,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
               "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", opt.obsout);
 
-      freeData_closeFiles(iun, opt.obsin, "dummy", 1, 1,
-                          adresses, nts, num_obs_per_tile, iouts,
-                          (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
+      freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
       return NOT_OK;
     }
@@ -181,19 +148,16 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     if ( status<0 ) {
       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
 
-      freeData_closeFiles(iun, opt.obsin, opt.obsout, 1, 1,
-                          adresses, nts, num_obs_per_tile, iouts,
-                          (BURP_RPT**) NULL, 0, opt.ndigits, -1, VERBOSE);
+      freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
       return NOT_OK;
     }
   }
-  else { /* Il faut ouvrir npex*npey fichiers */
-    char burpout[MAXSTR*4];
-
+  else { /* Il faut verifier npex*npey fichiers */
     for (ilonband=0;ilonband<opt.npex;ilonband++) {
       for (jlatband=0;jlatband<opt.npey;jlatband++) {
         int id=ilonband*opt.npey+jlatband;
+        char burpout[MAXSTR*4];
 
         /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
         if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
@@ -206,13 +170,11 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           printf("Fonction splitobs_burp: Verification si le fichier '%s' existe pour id=%d\n", burpout, id);
 
         status = access(burpout,F_OK);
-        if ( status==0 ) {
+        if ( status == 0 ) {
           App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
                   "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
 
-          freeData_closeFiles(iun, opt.obsin, opt.obsout, ilonband, jlatband,
-                              adresses, nts, num_obs_per_tile, iouts,
-                              (BURP_RPT**) NULL, 0, opt.ndigits, id, VERBOSE);
+          freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
           return NOT_OK;
         } /* Fin du if ( status==0 ) pour l'acces au fichier */
@@ -225,9 +187,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( rptin == (BURP_RPT*) NULL ) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer rptin de (BURP_RPT*)\n");
 
-    freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
-                        adresses, nts, num_obs_per_tile, iouts,
-                        rptout, 0, opt.ndigits, -1, VERBOSE);
+    freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
     return NOT_OK;
   }
@@ -247,20 +207,13 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   else
     vertical_clipping = 0;
 
-  rptout = (BURP_RPT*) NULL;
-  rptout = brp_newrpt();
-  /* Il faut absolument ajouter a la longueur maximal d'un
-   * enregistrement sinon l'appel a brp_freerpt(rptout) donnera un
-   * signal '*** glibc detected *** free(): invalid pointer: 0x08314590 ***'
-   */
-  brp_allocrpt(rptout, longueur_max_enregistrement);
-
   /* On boucle sur chaque fichier de sortie */
   for (ilonband=0;ilonband<npex;ilonband++) {
     for (jlatband=0;jlatband<npey;jlatband++) {
-      int number_of_observations_in_subdomain = 0;
-      int id = ilonband*opt.npey + jlatband;
       char burpout[MAXSTR*4];
+      int number_of_obs_accepted = 0;
+      int id = ilonband*opt.npey + jlatband;
+      BURP_RPT* rptout = (BURP_RPT*) NULL;
 
       /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
       if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
@@ -269,6 +222,13 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           continue;
       }
 
+      rptout = brp_newrpt();
+      /* Il faut absolument ajouter a la longueur maximal d'un
+       * enregistrement sinon l'appel a brp_freerpt(rptout) donnera un
+       * signal '*** glibc detected *** free(): invalid pointer: 0x08314590 ***'
+       */
+      brp_allocrpt(rptout, longueur_max_enregistrement);
+
       build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
 
       /* Cette variable contient le nombre d'enregistrements qui ont ete traites jusqu'a maintenant dans la boucle */
@@ -276,6 +236,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       /* Ensuite, on passe chaque enregistrement avec un increment de 'opt.npex*opt.npey' */
       for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) {
         int engrs_resume = 0;
+        int number_of_observations_in_subdomain = 0;
 
         status = brp_getrpt(iun,adresses[i_enrgs],rptin);
         if (status<0) {
@@ -351,8 +312,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         if (engrs_resume==1) {
           /* Si c'est un enregistrement resume, */
           /* on veut alors copier cet enregistrement dans le fichier output */
-          if (VERBOSE>0)
-            printf("Fonction splitobs_burp: On copie cet enregistrement resume '%s' (i_enrgs=%d)\n",
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: will copy the resume record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
           status = fill_rptout_with_blk(rptin, rptout, 1, (int*) NULL, VERBOSE);
@@ -363,13 +324,17 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             EXIT_STATUS = 1;
             break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
           }
+
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: did copy the resume record '%s' (i_enrgs=%d)\n",
+                   RPT_STNID(rptin),i_enrgs);
         } /* Fin du if (engrs_resume==1) */
         else if (opt.roundrobin==1) {
-          int number_of_obs_in_this_record;
           /* On fait le splitting en mode round-robin comme l'utilitaire 'reflex' le fait. */
-          if (VERBOSE>0)
-            printf("Fonction splitobs_burp: L'enregistrement %d sera place dans le fichier %d et contient %d observations.\n",
-                   i_enrgs,bin_id,nts[bin_id]);
+          int number_of_obs_in_this_record;
+
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: L'enregistrement %d sera place dans le fichier %d.\n", i_enrgs, id);
 
           number_of_obs_in_this_record = fill_rptout_with_blk(rptin, rptout, 1, (int*) NULL, VERBOSE);
           if (status<0) {
@@ -382,6 +347,11 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           else {
             number_of_observations_in_subdomain += ....;
           }
+
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: L'enregistrement %d a ete place dans le fichier %d et contient %d observations.\n",
+                   i_enrgs,bin_id,nts[bin_id]);
+
         } /* Fin du 'else if (opt.roundrobin==1)' */
         /* Cette section traite les enregistrements regroupes qu'ils soient des 'ua4d' ou bien de
          * donnees satellitaires.
@@ -389,11 +359,12 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         else if (strncmp("^",RPT_STNID(rptin),1)==0) {
           int number_of_obs_in_this_record_in_subdomain;
 
-          if (VERBOSE>0)
+          if (VERBOSE>1)
             printf("Fonction splitobs_burp: will process grouped data record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          number_of_obs_in_this_record_in_subdomain = process_groupeddata_record(&opt, &grid, rptin, rptout, iout, VERBOSE);
+          number_of_obs_in_this_record_in_subdomain = process_groupeddata_record(&opt, &grid, rptin, ilonband, jlatband,
+                                                                                 rptout, iout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain<0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_groupeddata_record pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
@@ -404,7 +375,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             number_of_obs_in_subdomain += number_of_obs_in_this_record_in_subdomain;
           }
 
-          if (VERBOSE>0)
+          if (VERBOSE>1)
             printf("Fonction splitobs_burp: did process grouped data record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
@@ -412,11 +383,12 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         else if (is_ua4d==1) { /* Si c'est un 'ua4d' */
           int number_of_obs_in_this_record_in_subdomain;
 
-          if (VERBOSE>0)
+          if (VERBOSE>1)
             printf("Fonction splitobs_burp: will process ua4d data record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          number_of_obs_in_this_record_in_subdomain = process_ua4d_record(rptin, rptout, VERBOSE);
+          number_of_obs_in_this_record_in_subdomain = process_ua4d_record(&opt, &grid, rptin, ilonband, jlatband,
+                                                                          rptout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain < 0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonctionprocess_regular_record pour "
                     "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
@@ -426,13 +398,16 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             number_of_obs_in_subdomain += number_of_obs_in_this_record_in_subdomain;
           }
 
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: did process ua4d data record '%s' (i_enrgs=%d)\n",
+                   RPT_STNID(rptin),i_enrgs);
         } /* Fin du 'else if (is_ua4d==1)' */
         else { /* Si ce n'est pas un 'ua4d', ni un enregistrement regroupe ni un enregistrement resume */
-          if (VERBOSE>0)
+          if (VERBOSE>1)
             printf("Fonction splitobs_burp: will process regular record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          status = process_regular_record(rptin, rptout, VERBOSE);
+          status = process_regular_record(&opt, &grid, rptin, ilonband, jlatband, rptout, VERBOSE);
           if (status != NOT_OK) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonctionprocess_regular_record pour "
                     "l'adresse %d (%d rapport)\n",
@@ -443,6 +418,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             number_of_obs_in_subdomain++;
           }
 
+          if (VERBOSE>1)
+            printf("Fonction splitobs_burp: did process regular record '%s' (i_enrgs=%d)\n",
+                   RPT_STNID(rptin),i_enrgs);
         } /* Fin du else associe au 'else if (is_ua4d==1)' */
 
         if (EXIT_STATUS!=0) {
@@ -450,61 +428,57 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           break;
         }
 
-        /* Si c'est un enregistrement alors on active le compteur pour
-           le nombre d'enregistrements d'observations traites jusqu'a
-           maintenant */
+        /* Si c'est un enregistrement contenant des donnes alors on
+           increment le compteur pour le nombre d'enregistrements
+           d'observations traites jusqu'a maintenant */
         if (engrs_resume==0) i_obs_enrgs++;
 
-        for (i=0;i<opt.npex*opt.npey;i++) {
-          /* Si c'est un enregistrement resume (engrs_resume==1) alors on l'ecrit dans tous les fichiers */
-          /* Si ce n'est pas un enregistrement resume (engrs_resume==0) alors
-           * on n'ecrit que dans les fichiers qui contiennent des observations */
-          if (VERBOSE>5)
-            printf("Fonction splitobs_burp (juste avant 'brp_writerpt'): engrs_resume=%d nts[%d]=%d\n",
-                   engrs_resume, i, nts[i]);
+        if (VERBOSE>5)
+          printf("Fonction splitobs_burp (juste avant 'brp_writerpt'): engrs_resume=%d i_enrgs=%d number_of_obs_in_subdomain=%d\n",
+                 engrs_resume, i_enrgs, number_of_obs_in_subdomain);
 
-          if (engrs_resume==0 && nts[i]==0)
-            continue;
+        /* Si c'est un enregistrement resume (engrs_resume==1),
+           alors on l'ecrit dans tous les fichiers.
+           Si ce n'est pas un enregistrement resume (engrs_resume==0), alors
+           on n'ecrit que dans les fichiers qui contiennent des observations */
+        if (engrs_resume == 0 && number_of_obs_in_subdomain > 0)
+          continue;
 
-          /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
-          if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-            cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
-            if (i != cherrypick_id)
-              continue;
-          }
+        number_of_obs_accepted += number_of_obs_in_subdomain;
 
-          if (VERBOSE>5) {
-            printf ( "Fonction splitobs_burp (juste avant 'brp_writerpt'): Entete du rapport rptout[%d]\n",i) ;
-            print_rpt(rptout[i]);
-            print_allblocs(rptout[i]);
-          } /* Fin du if (VERBOSE>5) */
+        if (VERBOSE>5) {
+          printf ( "Fonction splitobs_burp (juste avant 'brp_writerpt'): Entete du rapport rptout "
+                   "pour %s et i_enrgs=%d\n", burpout,i_enrgs);
+          print_rpt(rptout);
+          print_allblocs(rptout);
+        } /* Fin du if (VERBOSE>5) */
 
-          if (VERBOSE>4)
-            printf("Fonction splitobs_burp: appel de 'brp_writerpt' pour i=%d, iouts=%d et i_enrgs=%d\n",i,iouts[i],i_enrgs);
+        if (VERBOSE>4)
+          printf("Fonction splitobs_burp: appel de 'brp_writerpt' pour %s, iout=%d et i_enrgs=%d\n", burpout, iout, i_enrgs);
 
-          status = brp_writerpt(iouts[i],rptout[i],END_BURP_FILE);
-          if (status<0) {
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_writerpt pour "
-                    "le fichier de sortie %s_%d_%d a l'adresse %d (%d rapport)\n",
-                    status, opt.obsout, i/opt.npey+1, i%opt.npey+1, adresses[i_enrgs], i_enrgs);
-            EXIT_STATUS = 1;
-            break;
-          }
-        } /* Fin du for (i=0;i<opt.npex*opt.npey;i++) */
+        status = brp_writerpt(iout,rptout,END_BURP_FILE);
+        if (status<0) {
+          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_writerpt pour "
+                  "le fichier de sortie %s a l'adresse %d (%d rapport)\n",
+                  status, burpout, adresses[i_enrgs], i_enrgs);
+          EXIT_STATUS = 1;
+          break;
+        }
+
+        if (VERBOSE>4)
+          printf("Fonction splitobs_burp: appel complete de 'brp_writerpt' pour %s, iout=%d et i_enrgs=%d\n", burpout, iout, i_enrgs);
+
       } /* Fin du for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) */
-    } /* Fin du 'for (jlatband=0;jlatband<npey;jlatband++)' */
-  } /* Fin du 'for (ilonband=0;ilonband<npex;ilonband++)' */
 
-  /* fermeture de fichier burp de sortie */
-  if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
-    if ( opt.npex == 1 && opt.npey == 1 ) {
-      if (num_obs_per_tile[0]>0) { /* On imprime le nombre de headers presents dans le domaine */
+      if ( number_of_obs_in_subdomain > max_num_headers)
+        max_num_headers = number_of_obs_accepted;
+
+      if (opt.numheaders_files == 1) {
         FILE* file;
         char burpout_num_headers[MAXSTR*2];
+        snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
 
-        snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", opt.obsout);
-
-        status = access(burpout_num_headers,F_OK);
+        status = access(burpout_num_headers, F_OK);
         if (status==0)
           App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
 
@@ -512,83 +486,37 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         fprintf(file,"%d\n", num_obs_per_tile[0]);
         fclose(file);
       } /* End of 'if (opt.numheaders_files == 1)' */
-    } /* End of 'if ( opt.npex == 1 && opt.npey == 1 )' */
-    else {
-      char burpout[MAXSTR*4];
-      int max_num_headers=0;
 
-      for (ilonband=0;ilonband<opt.npex;ilonband++){
-        for (jlatband=0;jlatband<opt.npey;jlatband++) {
-          int id=ilonband*opt.npey+jlatband;
+      brp_freerpt(rptout);
+    } /* Fin du 'for (jlatband=0;jlatband<npey;jlatband++)' */
+  } /* Fin du 'for (ilonband=0;ilonband<npex;ilonband++)' */
 
-          if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0)
-            if (ilonband != opt.cherrypick_x-1 || jlatband != opt.cherrypick_y-1)
-              continue;
+  /* fermeture de fichier burp de sortie */
+  if (opt.numheaders_files == 1) {
+    if (max_num_headers>0) {
+      FILE* file;
+      char burpout_max_num_headers[MAXSTR*2];
 
-          build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
+      snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
 
-          /* On imprime le nombre de headers presents dans la tuile id */
-          if (num_obs_per_tile[id]>0) {
-            FILE* file;
-            char burpout_num_headers[MAXSTR*6];
+      status = access(burpout_max_num_headers,F_OK);
+      if (status==0)
+        fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
 
-            snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
-
-            status = access(burpout_num_headers,F_OK);
-            if (status==0)
-              App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
-
-            file = (FILE*) fopen(burpout_num_headers,"w");
-            fprintf(file,"%d\n", num_obs_per_tile[id]);
-            fclose(file);
-          }
-          if (num_obs_per_tile[id]>max_num_headers) max_num_headers=num_obs_per_tile[id];
-        } /* End of 'for (jlatband=0;jlatband<npey;jlatband++)' */
-      } /* End of 'for (ilonband=0;ilonband<npex;ilonband++)' */
-
-      if (max_num_headers>0) {
-        if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
-          FILE* file;
-          char burpout_max_num_headers[MAXSTR*2];
-
-          snprintf(burpout_max_num_headers, sizeof(burpout_max_num_headers), "%s.max_num_headers", opt.obsout);
-
-          status = access(burpout_max_num_headers,F_OK);
-          if (status==0)
-            fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
-
-          file = (FILE*) fopen(burpout_max_num_headers,"w");
-          fprintf(file,"%d\n", max_num_headers);
-          fclose(file);
-        }
-      } /* End of 'if (max_num_headers>0)' */
-      else
-        printf("Il n'y a aucune observation qui a ete selectionnee.\n");
-    } /* Fin du else associe au if ( opt.npex == 1 && opt.npey == 1 ) */
+      file = (FILE*) fopen(burpout_max_num_headers,"w");
+      fprintf(file,"%d\n", max_num_headers);
+      fclose(file);
+    } /* End of 'if (max_num_headers>0)' */
+    else
+      printf("Il n'y a aucune observation qui a ete selectionnee.\n");
   } /* Fin de 'if (opt.numheaders_files == 1)' */
 
   brp_freerpt(rptin);
 
-  cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
-
-  if (rptout != (BURP_RPT**) NULL) {
-    for (i=0;i<opt.npex*opt.npey;i++) {
-      /* Si on est en mode 'cherrypick', alors on ne considere que si la tuile est egale a celle voulue */
-      if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-        if (i != cherrypick_id)
-          continue;
-      }
-
-      brp_freerpt(rptout[i]);
-    }
-  }
-
-  freeData_closeFiles(iun, opt.obsin, opt.obsout, opt.npex, opt.npey,
-                      adresses, nts, num_obs_per_tile, iouts, rptout,
-                      1, opt.ndigits, cherrypick_id, VERBOSE);
+  freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
   return EXIT_STATUS;
-} /* Fin de la fonction 'int splitobs_sql' */
+} /* Fin de la fonction 'int splitobs_burp' */
 
 
 
@@ -1571,11 +1499,20 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
       break;
     }
 
+    if (number_of_observations_in_report<0) {
+      if (tIndices_in_domain == (int*) NULL) {
+        number_of_observations_in_report = BLK_NT(blkout)
+          }
+      else {
+        number_of_observations_in_report =  number_of_obs_in_subdomain
+          }
+    } /* Fin du 'if (number_of_observations_in_report<0) */
+
     /*
       if (t_in_domain != (int*) NULL)
-        status = putblk_nt(rptout[i], blkout, t_in_domain, number_of_obs_in_subdomain,VERBOSE);
+      status = putblk_nt(rptout[i], blkout, t_in_domain, number_of_obs_in_subdomain,VERBOSE);
       else
-        status = putblk_nt(rptout[i], blkout, (int*) NULL, 0, VERBOSE);
+      status = putblk_nt(rptout[i], blkout, (int*) NULL, 0, VERBOSE);
     */
 
     status = putblk_nt(rptout, blkout, tIndices_in_domain, number_of_obs_in_subdomain, VERBOSE);
@@ -1594,7 +1531,11 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
 
   brp_freeblk(blk);
 
-  return number_of_observations_in_report;
+  if ( EXIT_STATUS == OK ) {
+    return number_of_observations_in_report;
+  }
+
+  return NOT_OK;
 } /* Fin de la fonction fill_rptout_with_blk */
 
 
@@ -1694,7 +1635,7 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
        * ou bien qui si opt.inout == 0 alors status == 1 et donc le
        * point est a l'interieur de la grille ce qui n'est pas voulu.
        */
-      is_observation_in_subdomain = optptr->inout == status
+      is_observation_in_subdomain = optptr->inout == status;
     } /* Fin du if ( optptr->npex == 1 || optptr->npey == 1 ) */
     else {
       int ilonband_for_that_observation = -1;
@@ -1722,17 +1663,18 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
           printf("Fonction extract_data_in_subdomain_along_nt: cette observation n'est pas dans le domaine npex=%d, npey=%d "
                  "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband,
                  jlatband, lat, lon);
-          printf("Fonction splitobs_burp: ilonband_for_that_observation=%d jlatband_for_that_observation=%d\n",
+          printf("Fonction extract_data_in_subdomain_along_nt: ilonband_for_that_observation=%d jlatband_for_that_observation=%d\n",
                  ilonband_for_that_observation, jlatband_for_that_observation);
         } /* Fin du 'else' associated to 'if (is_observation_in_subdomain)' */
       } /* Fin du 'if (VERBOSE>4)'
-    } /* Fin du else associe au if ( opt.npex == 1 || opt.npey == 1 ) */
+           } /* Fin du else associe au if ( opt.npex == 1 || opt.npey == 1 ) */
 
-    if (is_observation_in_subdomain) {
-      (*tIndices_in_domain_ptr)[number_of_observations_in_subdomain] = tIndex;
-      number_of_observations_in_subdomain++;
-    }
-  } /* Fin du for (tIndex=0;t<BLK_NT(blkout);tIndex++)  */
+      if (is_observation_in_subdomain) {
+        (*tIndices_in_domain_ptr)[number_of_observations_in_subdomain] = tIndex;
+        number_of_observations_in_subdomain++;
+      }
+    } /* Fin du 'else' associe au 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
+  } /* Fin du 'for (tIndex=0;t<BLK_NT(blkout);tIndex++)' */
 
   brp_freeblk(blk_data);
   brp_freeblk(blk_flags);
@@ -1894,6 +1836,158 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
 
 
   /***************************************************************************
+   * fonction: extract_data_in_subdomain_along_nval
+   *
+   * En entree, cette fonction prend
+   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
+   *            l'information sur npex et npey et le rectangle du domaine
+   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+   *    rptin: un rapport BURP complet d'entree
+   *    elem_lat: element donnant la latitude  (5001 ou 5002)
+   *    elem_lon: element donnant la longitude (6001 ou 6002)
+   *    ilatband: index of the subdomain in the latitude direction
+   *    jlatband: index of the subdomain in the lontitude direction
+   *
+   * En sortie, on donne les elements suivants:
+   *    val_in_domain: tableau donnant a quel sous-domaine chaque observation appartient
+   *
+   * Cette fonction retourne:
+   *           le nombre d'observations a l'interieur du domaine
+   *           NOT_OK s'il y a une erreur
+   *
+   ***************************************************************************/
+int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
+                                         int elem_lat, int elem_lon, int ilonband, int jlatband,
+                                         BURP_BLK *blk_data, int* val_in_domain, int VERBOSE) {
+  int status, id, e, v, colonne_lat, colonne_lon, EXIT_STATUS;
+  int ilonband=1, jlatband=1;
+  float lat, lon;
+  char errmsg[MAXSTR];
+  BURP_BLK *blk_data_converted = (BURP_BLK*) NULL;
+
+  EXIT_STATUS = 0;
+
+  blk_data_converted = brp_newblk();
+  status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
+
+  if (val_in_domain == (int*) NULL) {
+    App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: le vecteur 'val_in_domain' doit etre deja alloue\n");
+    brp_freeblk(blk_data_converted);
+    return 1;
+  }
+
+  for (v=0;v<BLK_NVAL(blk_data)*optptr->npex*optptr->npey;v++)
+    val_in_domain[v] = 0;
+
+  colonne_lat=-1;
+  colonne_lon=-1;
+  for (e=0;e<BLK_NELE(blk_data);e++) {
+    /* L'element 5001 indique la valeur de latitude de l'observation */
+    if (BLK_DLSTELE(blk_data,e)==elem_lat)
+      colonne_lat=e;
+    /* L'element 6001 indique la valeur de longitude de l'observation */
+    else if (BLK_DLSTELE(blk_data,e)==elem_lon)
+      colonne_lon=e;
+    if (colonne_lat>=0 && colonne_lon>=0)
+      break;
+  } /* Fin du for (e=0;e<BLK_NELE(blk);e++) */
+
+  if (colonne_lat<0 || colonne_lon<0) {
+
+    if (colonne_lat<0 && colonne_lon<0)
+      App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: ne trouve pas "
+              "les elements %d et %d dans l'entete du bloc\n", elem_lat, elem_lon);
+    else if (colonne_lat<0)
+      App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: ne trouve pas "
+              "l'element %d dans l'entete du bloc\n", elem_lat);
+    else if (colonne_lon<0)
+      App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: ne trouve pas "
+              "l'element %d dans l'entete du bloc\n", elem_lon);
+
+    brp_freeblk(blk_data_converted);
+    return 1;
+  }
+
+  for (v=0;v<BLK_NVAL(blk_data);v++) {
+    lat=BLK_RVAL(blk_data_converted,colonne_lat,v,0);
+    lon=BLK_RVAL(blk_data_converted,colonne_lon,v,0);
+
+    if (VERBOSE>3)
+      printf("Fonction extract_data_in_subdomain_along_nval: appel de 'checkgrid' ou 'find_subdomain' avec lat=%f et lon=%f\n", lat, lon);
+
+    id=-1;
+
+    if ( optptr->npex == 1 && optptr->npey == 1 ) {
+      /* On verifie si on est dans le domaine */
+      status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg, VERBOSE);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Erreur dans la fonction checkgrid pour le lat=%f "
+                "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+        EXIT_STATUS = 1;
+        break;
+      }
+
+      /* Ceci signifie que si opt.inout == 1 alors status == 0 et donc
+       * le point est hors de la grille ce qui n'est pas voulu
+       *
+       * ou bien qui si opt.inout == 0 alors status == 1 et donc le
+       * point est a l'interieur de la grille ce qui n'est pas voulu.
+       */
+      if (optptr->inout == status)
+        id = 0;
+    } /* Fin du if ( optptr->npex == 1 || optptr->npey == 1 ) */
+    else {
+      ilonband=-1;
+      jlatband=-1;
+      status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
+                              optptr->npex, optptr->npey, &ilonband, &jlatband, errmsg, VERBOSE);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Erreur dans la fonction find_subdomain "
+                "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+        EXIT_STATUS = 1;
+        break;
+      }
+      if (ilonband<1 || ilonband>optptr->npex || jlatband<1 || jlatband>optptr->npey) {
+        if (VERBOSE>1)
+          printf("Fonction extract_data_in_subdomain_along_nval: cette observation n'est pas dans le domaine npex=%d, npey=%d "
+                 "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband,
+                 jlatband, lat, lon);
+      }
+      else {
+        id = (ilonband-1)*optptr->npey+(jlatband-1);
+      }
+    } /* Fin du else associe au if ( opt.npex == 1 || opt.npey == 1 ) */
+
+    if (id>=0) {
+      val_in_domain[id*BLK_NVAL(blk_data)+nvals_in_domain[id]] = v;
+      nvals_in_domain[id]++;
+
+      if (VERBOSE>4)
+        printf("Fonction extract_data_in_subdomain_along_nval: Observation acceptee: "
+               "ilonband=%d jlatband=%d id=%d BLK_NVAL(blk_data)=%d "
+               "vals_in_domain[%d]=%d nvals[%d]=%d\n",
+               ilonband,jlatband,id,BLK_NVAL(blk_data),id*BLK_NVAL(blk_data)+nvals_in_domain[id],
+               v,id,nvals_in_domain[id]);
+    }
+  } /* Fin du for (v=0;v<BLK_NVAL(blk_data);v++)  */
+
+  if (VERBOSE>1)
+    for (id=0;id<optptr->npex*optptr->npey;id++)
+      printf("Fonction extract_data_in_subdomain_along_nval: Il y a %d observations dans la bande %d\n", nvals_in_domain[id], id);
+
+  brp_freeblk(blk_data_converted);
+
+  if (EXIT_STATUS!=0) {
+    App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Une erreur dans la "
+            "selection des observations\n");
+    return 1;
+  }
+
+  return 0;
+} /* Fin de la fonction extract_data_in_subdomain_along_nval */
+
+
+  /***************************************************************************
    * fonction: extract_data_in_domains_along_nval
    *
    * En entree, cette fonction prend
@@ -2043,7 +2137,6 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
   return 0;
 } /* Fin de la fonction extract_data_in_domains_along_nval */
 
-
   /***************************************************************************
    * fonction: putblk_nt
    *
@@ -2177,19 +2270,19 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
 } /* Fin de la fonction putblk_nt */
 
 
-/***************************************************************************
- * fonction: putblk_nval
- *
- * Cette fonction sert a inserer un bloc dans un enregistrement pour seulement
- * quelques tranches dans la dimension 'v' donnee par le vecteur vals_in_domain
- * pour les nval premiers elements
- *
- *      rpt: enregistrement dans lequel le bloc sera insere
- *      blk: bloc initial contenant toutes les observations
- *      vals_in_domain: vecteur de (int) contenant les dimensions voulues
- *      nval: dimension du vecteur vals_in_domain
- *
- ***************************************************************************/
+  /***************************************************************************
+   * fonction: putblk_nval
+   *
+   * Cette fonction sert a inserer un bloc dans un enregistrement pour seulement
+   * quelques tranches dans la dimension 'v' donnee par le vecteur vals_in_domain
+   * pour les nval premiers elements
+   *
+   *      rpt: enregistrement dans lequel le bloc sera insere
+   *      blk: bloc initial contenant toutes les observations
+   *      vals_in_domain: vecteur de (int) contenant les dimensions voulues
+   *      nval: dimension du vecteur vals_in_domain
+   *
+   ***************************************************************************/
 int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int VERBOSE) {
   int e,v,vv,t,status = 0;
   BURP_BLK *newblk;
@@ -2301,418 +2394,394 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
   return 0;
 } /* Fin de la fonction putblk_nval */
 
- /***************************************************************************
- * fonction: process_ua4d_record
- *
- * En entree, cette fonction prend
- *    optptr: un pointeur a une structure 'options' qui permet d'extraire
- *            l'information sur npex et npey et le rectangle du domaine
- *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
- *    rptin: un rapport BURP complet d'entree
- *    rptout: un rapport BURP pour ecrire
- *    iout: le 'file_handle' du fichier de sortie
- *
- * Cette fonction retourne:
- *            OK     si la fonction ne rencontre aucune erreur
- *            NOT_OK s'il y a une erreur
- *
- ***************************************************************************/
- int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int iout, int VERBOSE) {
-   int obs_in_domain=0, i_btyp, btyp_data, btypnum;
-   int *bknos_data, *btyps_data, *nvals_in_domain, *val_in_domain;
+  /***************************************************************************
+   * fonction: process_ua4d_record
+   *
+   * En entree, cette fonction prend
+   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
+   *            l'information sur npex et npey et le rectangle du domaine
+   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+   *    rptin: un rapport BURP complet d'entree
+   *    ilonband: indice de longitude du domaine a considerer
+   *    jlatband: indice de latitude du domaine a considerer
+   *    rptout: un rapport BURP pour ecrire
+   *
+   * Cette fonction retourne:
+   *            Le nombre d'observations contenues dans l'enregistrement
+   *            NOT_OK s'il y a une erreur
+   *
+   ***************************************************************************/
+int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                        int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE) {
+  int obs_in_domain=0, i_btyp, btyp_data, btypnum, nvals_in_domain;
+  int *bknos_data, *btyps_data, *val_in_domain;
+  BURP_BLK* blkdata;
+  BURP_BLK* blksearch;
+  BURP_BLK* blktmp;
 
-   bknos_data = (int*) NULL;
-   btyps_data = (int*) NULL;
-   status = find_blk_data_in_rpt(rptin, 5001, 6001, &bknos_data, &btyps_data, &btypnum, VERBOSE);
-   if (status<0) {
-     App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction find_blk_data_in_rpt\n");
-     if (bknos_data != (int*) NULL)  free(bknos_data);
-     continue;
-   }
+  bknos_data = (int*) NULL;
+  btyps_data = (int*) NULL;
+  status = find_blk_data_in_rpt(rptin, 5001, 6001, &bknos_data, &btyps_data, &btypnum, VERBOSE);
+  if (status<0) {
+    App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction find_blk_data_in_rpt\n");
+    if (bknos_data != (int*) NULL) free(bknos_data);
+    if (btyps_data != (int*) NULL) free(btyps_data);
+    return NOT_OK;
+  }
 
-   val_in_domain   = (int*) NULL;
-   nvals_in_domain = (int*) NULL;
-   nvals_in_domain = (int*) malloc(opt.npex*opt.npey*sizeof(int));
-   if (nvals_in_domain == (int*) NULL) {
-     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey);
-     if (bknos_data != (int*) NULL)  free(bknos_data);
-     continue;
-   }
-   for (i=0;i<opt.npex*opt.npey;i++)
-     nvals_in_domain[i]=0;
+  nvals_in_domain = 0
 
-   /* On passe au travers tous les blocs de donnees et on va extraire les donnees */
-   for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
-     BURP_BLK* blkdata = (BURP_BLK*) NULL;
-     BURP_BLK* blksearch = (BURP_BLK*) NULL;
+    /* On passe au travers tous les blocs de donnees et on va extraire les donnees */
+    for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
+      blkdata = (BURP_BLK*) NULL;
+      blkdata = brp_newblk();
+      status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+        brp_freeblk(blkdata);
+        continue;
+      }
 
-     blkdata = brp_newblk();
-     status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
-       brp_freeblk(blkdata);
-       continue;
-     }
-     btyp_data = BLK_BTYP(blkdata);
-     if (btyp_data != btyps_data[i_btyp])
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Probleme potentiel puisque btyp_data=%d est different de btyps_data[%d]=%d",
-               btyp_data, i_btyp, btyps_data[i_btyp]);
+      btyp_data = BLK_BTYP(blkdata);
+      if (btyp_data != btyps_data[i_btyp])
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Probleme potentiel puisque btyp_data=%d est different de btyps_data[%d]=%d",
+                btyp_data, i_btyp, btyps_data[i_btyp]);
 
-     val_in_domain = (int*) NULL;
-     val_in_domain = (int*) malloc(opt.npex*opt.npey*BLK_NVAL(blkdata)*sizeof(int));
-     if (val_in_domain == (int*) NULL) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey*BLK_NVAL(blkdata));
-       if (bknos_data != (int*) NULL) free(bknos_data);
-       brp_freeblk(blkdata);
-       continue;
-     }
-     for (i=0;i<opt.npex*opt.npey*BLK_NVAL(blkdata);i++)
-       val_in_domain[i]=0;
+      val_in_domain = (int*) NULL;
+      val_in_domain = (int*) malloc(BLK_NVAL(blkdata)*sizeof(int));
+      if (val_in_domain == (int*) NULL) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", optptr->npex*optptr->npey*BLK_NVAL(blkdata));
 
-     status = extract_data_in_domains_along_nval(&opt,&grid,rptin,5001,6001,blkdata,nvals_in_domain,val_in_domain,VERBOSE);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction extract_data_in_domains_along_nval pour "
-               "l'adresse %d (%d rapport) et le bloc %d\n", status, adresses[i_enrgs], i_enrgs, i_btyp);
-       EXIT_STATUS = 1;
-       brp_freeblk(blkdata);
-       free(val_in_domain);
-       break;
-     }
+        brp_freeblk(blkdata);
+        if (bknos_data != (int*) NULL) free(bknos_data);
+        if (btyps_data != (int*) NULL) free(btyps_data);
 
-     /* Si aucune observation n'est dans le domaine alors on passe au
-      * prochain enregistrement
-      */
-     for (i=0;i<opt.npex*opt.npey;i++)
-       if (nvals_in_domain[i]!=0) {
-         num_obs_per_tile[i] += nvals_in_domain[i];
-         obs_in_domain=1;
-         if (VERBOSE>1)
-           printf("Fonction splitobs_burp: %d observations sont dans la bande %d pour cet enregistrement\n", nvals_in_domain[i], i);
-       }
-     if (obs_in_domain==0) {
-       free(val_in_domain);
-       val_in_domain = (int*) NULL;
-       if (VERBOSE>1)
-         printf("Fonction splitobs_burp: Aucune observation n'a ete selectionnee pour cet "
-                "enregistrement (rapport %d, bkno=%d, btyp=%d)\n", i_enrgs, bknos_data[i_btyp], btyp_data);
-       continue;
-     }
+        return NOT_OK;
+      }
+      for (i=0;i<BLK_NVAL(blkdata);i++)
+        val_in_domain[i]=0;
 
-     /* A partir d'ici, on a au moins une observation dans le domaine */
-     blksearch = brp_newblk();
-     BLK_SetBKNO(blksearch, 0);
-     while ( brp_findblk( blksearch, rptin ) >= 0 ) {
-       BURP_BLK* blkout = (BURP_BLK*) NULL;
-       blkout = brp_newblk();
-       status = brp_readblk(BLK_BKNO(blksearch), blkout, rptin, 0);
-       if (status<0) {
-         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
-         brp_freeblk(blkout);
-         continue;
-       }
+      nvals_in_domain = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, ilonband, jlatband,
+                                                             blkdata, val_in_domain, VERBOSE);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_domains_along_nval pour "
+                "le bloc %d\n", status, i_btyp);
 
-       if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1 ) {
-         if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
-           for (i=0;i<opt.npex*opt.npey;i++) {
-             /* Si on est en mode 'cherrypick', alors on ne
-                considere que si la tuile est egale a celle
-                voulue */
-             if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-               cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
-               if (i != cherrypick_id)
-                 continue;
-             }
-             if (nvals_in_domain[i]!=0) {
-               if (VERBOSE>1)
-                 printf("Fonction splitobs_burp: Appel de putblk_nval btyp=%d i=%d nvals=%d BLK_NVAL(blkout)*i=%d\n",
-                        BLK_BTYP(blkout), i, nvals_in_domain[i],BLK_NVAL(blkout)*i);
+        free(val_in_domain);
+        brp_freeblk(blkdata);
+        if (bknos_data != (int*) NULL) free(bknos_data);
+        if (btyps_data != (int*) NULL) free(btyps_data);
 
-               status = putblk_nval(rptout[i],blkout,&val_in_domain[BLK_NVAL(blkout)*i],nvals_in_domain[i],VERBOSE);
-               if (status<0) {
-                 App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction putblk_nval pour "
-                         "l'adresse %d (%d rapport) et le bloc %d (btyp=%d) pour la tuile %d (bloc data)\n",
-                         status, adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), i);
-                 EXIT_STATUS = 1;
-                 break;
-               }
-             }
-           } /* for (i=0;i<opt.npex*opt.npey;i++) */
-         }
-         else {
-           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans le traitement de l'enregistrement a "
-                   "l'adresse %d (%d rapport) et le bloc %d (btyp=%d, nval=%d).  Le nval est different "
-                   "du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
-                   adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout),
-                   BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
-         }
-       }/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */
+        return NOT_OK;
+      }
 
-       brp_freeblk(blkout);
-     } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
+      /* Si aucune observation n'est dans le domaine alors on passe au
+       * prochain enregistrement
+       */
+      if (nvals_in_domain==0) {
+        free(val_in_domain);
+        val_in_domain = (int*) NULL;
+        if (VERBOSE>1)
+          printf("Fonction process_ua4d_record: Aucune observation n'a ete selectionnee pour cet "
+                 "enregistrement (rapport %d, bkno=%d, btyp=%d)\n", bknos_data[i_btyp], btyp_data);
+        continue;
+      }
 
-     free(val_in_domain);
-     val_in_domain = (int*) NULL;
+      /* A partir d'ici, on a au moins une observation dans le domaine */
+      blksearch = (BURP_BLK*) NULL;
+      blksearch = brp_newblk();
+      BLK_SetBKNO(blksearch, 0);
+      while ( brp_findblk( blksearch, rptin ) >= 0 ) {
+        BURP_BLK* blkout = (BURP_BLK*) NULL;
+        blkout = brp_newblk();
+        status = brp_readblk(BLK_BKNO(blksearch), blkout, rptin, 0);
+        if (status<0) {
+          App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
+          brp_freeblk(blkout);
+          continue;
+        }
 
-     for (i=0;i<opt.npex*opt.npey;i++) {
-       nts[i]+=nvals_in_domain[i];
-       nvals_in_domain[i]=0;
-     }
+        if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1 ) {
+          if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
+            if (VERBOSE>1)
+              printf("Fonction process_ua4d_record: Appel de putblk_nval btyp=%d i=%d nvals=%d BLK_NVAL(blkout)*i=%d\n",
+                     BLK_BTYP(blkout), i, nvals_in_domain[i],BLK_NVAL(blkout)*i);
 
-     brp_freeblk(blkdata);
-     brp_freeblk(blksearch);
+            status = putblk_nval(rptout[i],blkout,&val_in_domain[BLK_NVAL(blkout)*i],nvals_in_domain[i],VERBOSE);
+            if (status<0) {
+              App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
+                      "l'adresse %d (%d rapport) et le bloc %d (btyp=%d) pour la tuile %d (bloc data)\n",
+                      status, adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), i);
+              EXIT_STATUS = NOT_OK;
+              break;
+            }
+          } /* Fin du 'if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) )' */
+          else {
+            App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans le traitement du bloc %d  avec btyp=%d et nval=%d.  "
+                    "Le nval est different du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
+                    i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout), BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
+          }
+        }/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */
 
-     if (EXIT_STATUS)
-       break;
-   } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
+        brp_freeblk(blkout);
+      } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
 
-   /* A partir d'ici, tous les blocs de donnees et ceux qui leur sont associes ont ete traites.
-    * Il faut maintenant trouver ceux qui ne l'ont pas ete pour les ecrire dans le fichier
-    */
-   {
-     BURP_BLK* blkdata = (BURP_BLK*) NULL;
-     BURP_BLK* blktmp  = (BURP_BLK*) NULL;
+      free(val_in_domain);
 
-     blkdata = brp_newblk();
+      brp_freeblk(blkdata);
+      brp_freeblk(blksearch);
 
-     if (VERBOSE>1)
-       printf("Fonction splitobs_burp: on cherche les blocs qui n'ont pas ete traites\n");
+      if (EXIT_STATUS == NOT_OK)
+        break;
+    } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
 
-     /* on trouve les blocs qui ne sont pas associes a aucun bloc */
-     blktmp = brp_newblk();
-     while ( brp_findblk( blktmp, rptin ) >= 0 ) {
-       int associated = 0;
-       BURP_BLK* blkout = (BURP_BLK*) NULL;
+  /* A partir d'ici, tous les blocs de donnees et ceux qui leur sont associes ont ete traites.
+   * Il faut maintenant trouver ceux qui ne l'ont pas ete pour les ecrire dans le fichier
+   */
+  blkdata = (BURP_BLK*) NULL;
+  blkdata = brp_newblk();
 
-       blkout = brp_newblk();
-       status = brp_readblk(BLK_BKNO(blktmp), blkout, rptin, 0);
-       if (status<0) {
-         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, BLK_BKNO(blktmp));
-         brp_freeblk(blkout);
-         continue;
-       }
+  if (VERBOSE>1)
+    printf("Fonction process_ua4d_record: on cherche les blocs qui n'ont pas ete traites\n");
 
-       for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
-         status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
-         if (status<0) {
-           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
-           brp_freeblk(blkdata);
-           continue;
-         }
+  /* on trouve les blocs qui ne sont pas associes a aucun bloc */
+  blktmp  = (BURP_BLK*) NULL;
+  blktmp = brp_newblk();
+  while ( brp_findblk( blktmp, rptin ) >= 0 ) {
+    int associated = 0;
+    BURP_BLK* blkout = (BURP_BLK*) NULL;
 
-         if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) && (btyps_data[i_btyp] == BLK_BTYP(blkout) || btypAssociated(btyps_data[i_btyp],BLK_BTYP(blkout),VERBOSE) == 1)) {
-           if (VERBOSE>1)
-             printf("Fonction splitobs_burp: le btyp %d est associe a %d\n", BLK_BTYP(blkout), btyps_data[i_btyp]);
-           associated=1;
-           break;
-         }
-       }
+    blkout = brp_newblk();
+    status = brp_readblk(BLK_BKNO(blktmp), blkout, rptin, 0);
+    if (status<0) {
+      App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, BLK_BKNO(blktmp));
+      brp_freeblk(blkout);
+      continue;
+    }
 
-       if (!associated) {
-         if (VERBOSE>1)
-           printf("Fonction splitobs_burp: le btyp %d n'a associe a aucun autre bloc d'observations\n", BLK_BTYP(blkout));
+    for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
+      status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+        brp_freeblk(blkdata);
+        continue;
+      }
 
-         /* Lorsqu'on en trouve qui n'a pas ete associe alors on le copie dans tous les blocs */
-         for (i=0;i<opt.npex*opt.npey;i++) {
-           if (opt.cherrypick_x > 0 && opt.cherrypick_y > 0) {
-             cherrypick_id = (opt.cherrypick_x-1)*opt.npey+opt.cherrypick_y-1;
-             if (i != cherrypick_id)
-               continue;
-           }
+      if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) && (btyps_data[i_btyp] == BLK_BTYP(blkout) || btypAssociated(btyps_data[i_btyp],BLK_BTYP(blkout),VERBOSE) == 1)) {
+        if (VERBOSE>1)
+          printf("Fonction process_ua4d_record: le btyp %d est associe a %d\n", BLK_BTYP(blkout), btyps_data[i_btyp]);
+        associated=1;
+        break;
+      }
+    } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
 
-           status = putblk_nval(rptout[i],blkout,(int*) NULL,0,VERBOSE);
-           if (status<0) {
-             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction putblk_nval pour "
-                     "l'adresse %d (%d rapport) et le bloc %d (btyp=%d) pour la tuile %d (bloc data)\n",
-                     status, adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blktmp), i);
-             EXIT_STATUS = 1;
-             break;
-           }
-         } /* Fin du for (i=0;i<opt.npex*opt.npey;i++) */
-       } /* Fin du 'if(!associated)' */
+    if (!associated) {
+      if (VERBOSE>1)
+        printf("Fonction process_ua4d_record: le btyp %d n'a associe a aucun autre bloc d'observations\n", BLK_BTYP(blkout));
 
-       brp_freeblk(blkout);
-     } /* Fin du 'while ( brp_findblk( blktmp, rptin ) >= 0 )' */
+      status = putblk_nval(rptout,blkout, (int*) NULL, 0, VERBOSE);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
+                "le bloc %d (btyp=%d) (bloc data)\n", status, i_btyp, BLK_BTYP(blktmp));
+        EXIT_STATUS = NOT_OK;
+        break;
+      }
+    } /* Fin du 'if(!associated)' */
 
-     brp_freeblk(blkdata);
-   } /* Fin du bloc '{ on trouve les blocs qui ne sont pas associes a aucun bloc' */
+    brp_freeblk(blkout);
+  } /* Fin du 'while ( brp_findblk( blktmp, rptin ) >= 0 )' */
 
-   free(bknos_data);
-   free(btyps_data);
-   free(nvals_in_domain)/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */;
- } /* Fin de la fonction 'process_ua4d_record'
+  brp_freeblk(blktmp);
+  brp_freeblk(blkdata);
+
+  free(bknos_data);
+  free(btyps_data);
+
+  if (EXIT_STATUS == NOT_OK)
+    return NOT_OK;
+
+  return nvals_in_domain;
+} /* Fin de la fonction 'process_ua4d_record'
 
 /***************************************************************************
- * fonction: process_groupeddata_record
- *
- * En entree, cette fonction prend
- *    optptr: un pointeur a une structure 'options' qui permet d'extraire
- *            l'information sur npex et npey et le rectangle du domaine
- *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
- *    rptin: un rapport BURP complet d'entree
- *    rptout: un rapport BURP pour ecrire
- *    iout: le 'file_handle' du fichier de sortie
- *
- * Cette fonction retourne:
- *            le nombre d'observations a l'interieur du domaine
- *            NOT_OK s'il y a une erreur
- *
- ***************************************************************************/
- int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int iout, int VERBOSE) {
-   int number_of_obs_in_subdomain=0;
-   int* tIndices_in_domain;
-   int EXIT_STATUS = OK;
+* fonction: process_groupeddata_record
+*
+* En entree, cette fonction prend
+*    optptr: un pointeur a une structure 'options' qui permet d'extraire
+*            l'information sur npex et npey et le rectangle du domaine
+*    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+*    rptin: un rapport BURP complet d'entree
+*    ilonband: indice de longitude du domaine a considerer
+*    jlatband: indice de latitude du domaine a considerer
+*    rptout: un rapport BURP pour ecrire
+*    iout: le 'file_handle' du fichier de sortie
+*
+* Cette fonction retourne:
+*            le nombre d'observations a l'interieur du domaine
+*            NOT_OK s'il y a une erreur
+*
+***************************************************************************/
+int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                               int ilonband, int jlatband, BURP_RPT* rptout, int iout,
+                               int VERBOSE) {
+  int number_of_obs_in_subdomain=0;
+  int* tIndices_in_domain;
+  int EXIT_STATUS = OK;
 
-   /* Si c'est un enregistrement regroupe de donnes satellitaires */
-   /* 5120 est le btyp du bloc info pour ces donnees */
-   /* 5002 est l'element qui donne la latitude de l'observation */
-   /* 6002 est l'element qui donne la longitude de l'observation */
-   number_of_obs_in_subdomain = extract_data_in_subdomain_along_nt(optptr, gridptr, rptin, 5002, 6002, ilonband, jlatband,
-                                                                   &tIndices_in_domain, VERBOSE);
-   if (number_of_obs_in_subdomain == NOT_OK) {
-     App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction extract_data_in_domains_along_nt pour "
-             "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
-     EXIT_STATUS = NOT_OK;
-     break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
-   }
+  /* Si c'est un enregistrement regroupe de donnes satellitaires */
+  /* 5120 est le btyp du bloc info pour ces donnees */
+  /* 5002 est l'element qui donne la latitude de l'observation */
+  /* 6002 est l'element qui donne la longitude de l'observation */
+  number_of_obs_in_subdomain = extract_data_in_subdomain_along_nt(optptr, gridptr, rptin, 5002, 6002, ilonband, jlatband,
+                                                                  &tIndices_in_domain, VERBOSE);
+  if (number_of_obs_in_subdomain == NOT_OK) {
+    App_Log(APP_ERROR,"Fonction process_groupeddata_record: Erreur %d dans la fonction extract_data_in_domains_along_nt pour "
+            "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
+    EXIT_STATUS = NOT_OK;
+    break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+  }
 
-   /* Si aucune observation n'est dans le domaine alors on passe au
-    * prochain enregistrement
-    */
-   if (number_of_obs_in_subdomain==0) {
-     free(tIndices_in_domain);
-     if (VERBOSE>1)
-       printf("Fonction splitobs_burp: Aucune observation n'a ete selectionnee pour cet enregistrement\n");
+  /* Si aucune observation n'est dans le domaine alors on passe au
+   * prochain enregistrement
+   */
+  if (number_of_obs_in_subdomain==0) {
+    free(tIndices_in_domain);
+    if (VERBOSE>1)
+      printf("Fonction process_groupeddata_record: Aucune observation n'a ete selectionnee pour cet enregistrement\n");
 
-     return 0;
-   }
+    return 0;
+  }
 
-   /* Dans le cas des observations regroupees, l'elevation de la
-    * station dans le header contient le nombre d'observations
-    * dans l'enregistrement. Manifestement, ce nombre change
-    * lorsqu'on clippe ou bien on splitte alors il faut mettre a
-    * jour cette information.
-    */
+  /* Dans le cas des observations regroupees, l'elevation de la
+   * station dans le header contient le nombre d'observations
+   * dans l'enregistrement. Manifestement, ce nombre change
+   * lorsqu'on clippe ou bien on splitte alors il faut mettre a
+   * jour cette information.
+   */
 
-   if (RPT_ELEV(rptout[i]) != number_of_obs_in_subdomain ) {
-     if (VERBOSE>5) {
-       printf("Fonction splitobs_burp: On met a jour le header (RPT_ELEV(rptout)) de %d a %d\n",
-              RPT_ELEV(rptout),number_of_obs_in_subdomain);
-     }
+  if (RPT_ELEV(rptout[i]) != number_of_obs_in_subdomain ) {
+    if (VERBOSE>5) {
+      printf("Fonction process_groupeddata_record: On met a jour le header (RPT_ELEV(rptout)) de %d a %d\n",
+             RPT_ELEV(rptout),number_of_obs_in_subdomain);
+    }
 
-     RPT_SetELEV(rptout, obs_in_subdomain);
-     status = brp_updrpthdr(iout,rptout);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_updrpthdr pour "
-               "le fichier de sortie %s a l'adresse %d (%d rapport)\n",
-               status, burpout, adresses[i_enrgs], i_enrgs);
-       free(tIndices_in_domain);
-       return NOT_OK;
-     }
-   } /* Fin du if (RPT_ELEV(rptout[i]) != number_of_obs_in_subdomai) */
-   else if (VERBOSE>5) {
-     printf("Fonction splitobs_burp: On n'a pas pas besoin de mettre a jour le header (RPT_ELEV(rptout)=%d)\n",
-            RPT_ELEV(rptout[i]));
-   }
+    RPT_SetELEV(rptout, obs_in_subdomain);
+    status = brp_updrpthdr(iout,rptout);
+    if (status<0) {
+      App_Log(APP_ERROR,"Fonction process_groupeddata_record: Erreur %d dans la fonction brp_updrpthdr pour "
+              "le fichier de sortie %s a l'adresse %d (%d rapport)\n",
+              status, burpout, adresses[i_enrgs], i_enrgs);
+      free(tIndices_in_domain);
+      return NOT_OK;
+    }
+  } /* Fin du if (RPT_ELEV(rptout[i]) != number_of_obs_in_subdomai) */
+  else if (VERBOSE>5) {
+    printf("Fonction process_groupeddata_record: On n'a pas pas besoin de mettre a jour le header (RPT_ELEV(rptout)=%d)\n",
+           RPT_ELEV(rptout[i]));
+  }
 
-   status = fill_rptout_with_blk(rptin, rptout, number_of_obs_in_subdomain, tIndices_in_domain, VERBOSE);
-   if (status<0) {
-     App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_blk pour "
-             "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
-     EXIT_STATUS = NOT_OK;
-   }
+  status = fill_rptout_with_blk(rptin, rptout, number_of_obs_in_subdomain, tIndices_in_domain, VERBOSE);
+  if (status<0) {
+    App_Log(APP_ERROR,"Fonction process_groupeddata_record: Erreur %d dans la fonction fill_rptout_blk pour "
+            "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
+    EXIT_STATUS = NOT_OK;
+  }
 
-   free(tIndices_in_domain);
-   if (EXIT_STATUS == NOT_OK )
-     return NOT_OK;
+  free(tIndices_in_domain);
+  if (EXIT_STATUS == NOT_OK )
+    return NOT_OK;
 
-   return number_of_obs_in_subdomain;
- } /* Fin de la fonction 'process_groupeddata_record'
+  return number_of_obs_in_subdomain;
+} /* Fin de la fonction 'process_groupeddata_record'
 
 /***************************************************************************
- * fonction: process_regular_record (non-resume, non-regroupe ni ua4d)
- *
- * En entree, cette fonction prend
- *    optptr: un pointeur a une structure 'options' qui permet d'extraire
- *            l'information sur npex et npey et le rectangle du domaine
- *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
- *    rptin: un rapport BURP complet d'entree
- *    rptout: un rapport BURP pour ecrire
- *
- * Cette fonction retourne:
- *            OK     si la fonction ne rencontre aucune erreur
- *            NOT_OK s'il y a une erreur
- *
- ***************************************************************************/
- int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin, BURP_RPT* rptout, int VERBOSE) {
-   int do_copy_record;
-   float lat, lon;
+* fonction: process_regular_record (non-resume, non-regroupe ni ua4d)
+*
+* En entree, cette fonction prend
+*    optptr: un pointeur a une structure 'options' qui permet d'extraire
+*            l'information sur npex et npey et le rectangle du domaine
+*    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+*    rptin: un rapport BURP complet d'entree
+*    ilonband: indice de longitude du domaine a considerer
+*    jlatband: indice de latitude du domaine a considerer
+*    rptout: un rapport BURP pour ecrire
+*
+* Cette fonction retourne:
+*            OK     si la fonction ne rencontre aucune erreur
+*            NOT_OK s'il y a une erreur
+*
+***************************************************************************/
+int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
+                           int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE) {
+  int do_copy_record;
+  float lat, lon;
 
-   /* Dans le cas d'un rapport non-regroupe alors on peut se fier aux valeurs de
-    * latitude et de longitude dans l'entete du rapport.
-    */
-   lat = RPT_LATI(rptin)/100. - 90.;
-   lon = RPT_LONG(rptin)/100.;
+  /* Dans le cas d'un rapport non-regroupe alors on peut se fier aux valeurs de
+   * latitude et de longitude dans l'entete du rapport.
+   */
+  lat = RPT_LATI(rptin)/100. - 90.;
+  lon = RPT_LONG(rptin)/100.;
 
-   if ( optptr->npex == 1 && optptr->npey == 1 ) {
-     status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg, VERBOSE);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction checkgrid pour le lat=%f "
-               "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-       return NOT_OK;
-     }
+  if ( optptr->npex == 1 && optptr->npey == 1 ) {
+    status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg, VERBOSE);
+    if (status<0) {
+      v       App_Log(APP_ERROR,"Fonction process_regular_record: Erreur dans la fonction checkgrid pour le lat=%f "
+                      "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+      return NOT_OK;
+    }
 
-     /* Ceci signifie que si optptr->inout == 1 alors status == 0 et donc
-      * le point est hors de la grille ce qui n'est pas voulu
-      *
-      * ou bien qui si optptr->inout == 0 alors status == 1 et donc le
-      * point est a l'interieur de la grille ce qui n'est pas voulu.
-      */
-     do_copy_record = optptr->inout == status;
-   } /* End of 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
-   else {
-     int ilonband_for_that_observation = -1;
-     int jlatband_for_that_observation = -1;
+    /* Ceci signifie que si optptr->inout == 1 alors status == 0 et donc
+     * le point est hors de la grille ce qui n'est pas voulu
+     *
+     * ou bien qui si optptr->inout == 0 alors status == 1 et donc le
+     * point est a l'interieur de la grille ce qui n'est pas voulu.
+     */
+    do_copy_record = optptr->inout == status;
+  } /* End of 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
+  else {
+    int ilonband_for_that_observation = -1;
+    int jlatband_for_that_observation = -1;
 
-     status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
-                             optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation,
-                             errmsg, VERBOSE);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur dans la fonction 'find_subdomain' "
-               "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-       return NOT_OK;
-     }
+    status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
+                            optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation,
+                            errmsg, VERBOSE);
+    if (status<0) {
+      App_Log(APP_ERROR,"Fonction process_regular_record: Erreur dans la fonction 'find_subdomain' "
+              "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+      return NOT_OK;
+    }
 
-     /* Check if the 'i' and 'j' bands fit with the domain considered  */
-     do_copy_record = ilonband == ilonband_for_that_observation && jlatband == jlatband_for_that_observation;
+    /* Check if the 'i' and 'j' bands fit with the domain considered  */
+    do_copy_record = ilonband == ilonband_for_that_observation && jlatband == jlatband_for_that_observation;
 
-     /* Print some information about the process */
-     if (VERBOSE>1) {
-       if (do_copy_record) {
-         printf("Fonction splitobs_burp: cette observation est dans le domaine npex=%d, npey=%d "
-                "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
-       } /* Fin du 'if (do_copy_record)' */
-       else {
-         printf("Fonction splitobs_burp: cette observation n'est pas dans le domaine npex=%d, npey=%d "
-                "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
+    /* Print some information about the process */
+    if (VERBOSE>1) {
+      if (do_copy_record) {
+        printf("Fonction process_regular_record: cette observation est dans le domaine npex=%d, npey=%d "
+               "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
+      } /* Fin du 'if (do_copy_record)' */
+      else {
+        printf("Fonction process_regular_record: cette observation n'est pas dans le domaine npex=%d, npey=%d "
+               "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
 
-         if (VERBOSE>4)
-           printf("Fonction splitobs_burp: ilonband_for_that_observation=%d jlatband_for_that_observation=%d\n",
-                  ilonband_for_that_observation, jlatband_for_that_observation);
-       } /* Fin du 'else' associe au 'if (do_copy_record)' */
-     } /* End of 'if (VERBOSE>1)' */
-   } /* Fin du 'else' associe au 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
+        if (VERBOSE>4)
+          printf("Fonction process_regular_record: ilonband_for_that_observation=%d jlatband_for_that_observation=%d\n",
+                 ilonband_for_that_observation, jlatband_for_that_observation);
+      } /* Fin du 'else' associe au 'if (do_copy_record)' */
+    } /* End of 'if (VERBOSE>1)' */
+  } /* Fin du 'else' associe au 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
 
-   if ( do_copy_record != 0 ) {
-     status = fill_rptout_with_blk(rptin, rptout, VERBOSE);
-     if (status<0) {
-       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_with_blk pour "
-               "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
-       return NOT_OK;
-     }
-   } /* Enf of ' if ( do_copy_record != 0 )' */
+  if ( do_copy_record != 0 ) {
+    status = fill_rptout_with_blk(rptin, rptout, VERBOSE);
+    if (status<0) {
+      App_Log(APP_ERROR,"Fonction process_regular_record: Erreur %d dans la fonction fill_rptout_with_blk pour "
+              "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
+      return NOT_OK;
+    }
+  } /* Enf of ' if ( do_copy_record != 0 )' */
 
-   return OK;
- } /* Fin de la fonction 'process_regular_record' */
+  return OK;
+} /* Fin de la fonction 'process_regular_record' */
 
 void print_allblocs(BURP_RPT* rptin) {
   int thisi, thisj, thisk;
@@ -2784,94 +2853,20 @@ void print_rpt(BURP_RPT* rptin) {
 
 } /* Fin de la fonction 'print_rpt' */
 
-void freeData_closeFiles(int burp_file_handle, char* burpin_filename, char* burpout_filename,
-                         int npex, int npey, int* adresses, int* nts,int* num_obs_per_tile,
-                         int* iouts, BURP_RPT** rptout, int erase_burpout_files,
-                         int ndigits, int cherrypick_id, int VERBOSE) {
+void freeData_closeFiles(int burpin_file_handle, char* burpin_filename,
+                         int* adresses, int VERBOSE) {
   int status;
 
-  status = brp_close(burp_file_handle);
+  status = brp_close(burpin_file_handle);
   if (status<0)
     App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, burpin_filename);
   else {
     if (VERBOSE>2)
-      printf("\nClosed BURP file %s file handle = %d", burpin_filename, burp_file_handle);
+      printf("\nClosed BURP file %s file handle = %d", burpin_filename, burpin_file_handle);
   }
-
-  if ( iouts != (int*) NULL ) {
-    if ( npex == 1 && npey == 1) {
-      status = brp_close(iouts[0]);
-      if ( status<0 )
-        App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close "
-                "pour le fichier %s\n", status, burpout_filename);
-      else {
-        if (VERBOSE>2)
-          printf("\nClosed BURP file %s file handle = %d", burpout_filename, iouts[0]);
-      }
-
-      if (num_obs_per_tile[0]==0) {
-        printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout_filename);
-        status = remove(burpout_filename);
-        if (status!=0) {
-          App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout_filename);
-        }
-        else if (VERBOSE>2)
-          printf("On a efface le fichier BURP %s\n", burpout_filename);
-      } /* End of 'if (num_obs_per_tile[0]==0)' */
-      else
-        printf("\nIl y a %d observations qui ont ete selectionnees et mises dans le fichier %s\n",
-               num_obs_per_tile[0], burpout_filename);
-
-    } /* End of 'if ( npex == 1 && npey == 1)' */
-    else {
-      int ilonband, jlatband;
-      char burpout[MAXSTR*4];
-
-      for (ilonband=0;ilonband<npex;ilonband++) {
-        for (jlatband=0;jlatband<npey;jlatband++) {
-          int id=ilonband*npey+jlatband;
-
-          if ( cherrypick_id >=0 && cherrypick_id != id )
-            continue;
-
-          build_file_name(burpout_filename, ilonband, jlatband, ndigits, burpout, sizeof(burpout));
-
-          status = brp_close(iouts[id]);
-          if ( status<0 )
-            App_Log(APP_ERROR,"Fonction freeData_closeFiles: Erreur %d dans la fonction brp_close "
-                    "pour le fichier %s\n", status, burpout);
-          else
-            if (VERBOSE>2)
-              printf("\nClosing correctly BURP file %s iouts[%d] = %d", burpout, id, iouts[id]);
-
-          if (num_obs_per_tile[id]==0) {
-            printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout);
-            status = remove(burpout);
-            if (status!=0) {
-              App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout);
-            }
-            else if (VERBOSE>2)
-              printf("On a efface le fichier BURP %s\n", burpout);
-          } /* End of 'if (num_obs_per_tile[id]==0)' */
-          else
-            printf("\nIl y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
-                   num_obs_per_tile[id], burpout);
-        } /* End of 'for (jlatband=0;jlatband<npey;jlatband++)' */
-      } /* End of 'for (ilonband=0;ilonband<npex;ilonband++)' */
-
-      free(iouts);
-    } /* End of 'else' associated to 'if ( npex == 1 && npey == 1)' */
-  } /* End of 'if ( iouts != (int*) NULL )' */
 
   if ( adresses != (int*) NULL )
     free(adresses);
-  if ( nts != (int*) NULL)
-    free(nts);
-  if ( num_obs_per_tile != (int*) NULL )
-    free(num_obs_per_tile);
-
-  if ( rptout != (BURP_RPT**) NULL )
-    free(rptout);
 
 } /* Fin de la fonction 'freeData_closeFiles' */
 
