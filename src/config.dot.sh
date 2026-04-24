@@ -280,6 +280,8 @@ if [ "${__run_cmake}" != stop ]; then
         echo "... loading gnu 15.2.0 compiler"
         export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
         . r.load.dot rpn/code-tools/20260219/env/exp/gnu-15.2.0
+        ## compile external libraries from local repo
+        export MIDAS_COMPILE_EXTLIBS="f90sqlite,udfsqlite,perftools"
     else
         echo "... loading rpn/code-tools/20251217/env/${__compiler}"
         . r.load.dot rpn/code-tools/20260219/env/${__compiler}
