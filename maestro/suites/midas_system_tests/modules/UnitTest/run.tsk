@@ -137,6 +137,9 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         ## We need to add the path to MKL shared objects
         MKLROOT=/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest ## TODO use intel 2025
         echo export LD_LIBRARY_PATH=${MKLROOT}/lib/intel64:\${LD_LIBRARY_PATH} >> load_env.dot
+
+        ## see above: same as gnu-14.2.0
+        echo export PRTE_MCA_prte_silence_shared_fs=1 >> load_env.dot
     fi
 
     ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
