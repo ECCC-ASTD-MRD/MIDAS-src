@@ -34,15 +34,9 @@ static int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rect
 static int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOSE);
 static int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* val_in_domain, int nval, int VERBOSE);
 
-static int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
-                                            int elem_lat, int elem_lon, int* nts, int** t_in_domain_ptr,
-                                            int VERBOSE);
 static int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
                                               int elem_lat, int elem_lon, int ilonband, int jlatband,
                                               int** t_in_domain_ptr, int VERBOSE);
-static int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
-                                              int elem_lat, int elem_lon, BURP_BLK *blk_data,
-                                              int* nvals_in_domain, int* val_in_domain, int VERBOSE);
 static int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
                                                 int elem_lat, int elem_lon, int ilonband, int jlatband,
                                                 BURP_BLK *blk_data, int* val_in_domain, int VERBOSE);
@@ -52,8 +46,6 @@ static int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 static int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int bkno_data,
                                      BURP_BLK **blk_data_ptr, BURP_BLK **blk_flags_ptr,
                                      int* colonne_lat_ptr, int* colonne_lon_ptr, int VERBOSE);
-static int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_domain,
-                           int n, int cherrypick_x, int cherrypick_y, int npey, int VERBOSE);
 static int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in_subdomain,
                                 int* tIndices_in_domain, int VERBOSE);
 
@@ -1370,83 +1362,6 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
 } /* Fin de la fonction find_blk_data_flag_in_rpt */
 
 
-  /***************************************************************************
-   * fonction: fill_rptout_blk
-   *
-   * En entree, cette fonction prend
-   *    rptin: un rapport BURP complet d'entree
-   *    rptout: un pointeur a une serie de rapport BURP d'une longueur 'n'
-   *    nts: nombre d'observations presentes dans chaque fichier pointe par 'rptout' (longueur 'n')
-   *    t_in_domain: vecteur contenant les observations appartenant a chaque enregistrement pointe par 'rptout'
-   *    n: longueur des vecteurs 'rptout' et 'nts'
-   *    cherrypick_x et cherrypick_y: les tuiles que l'on veut extraire
-   *    npey: le nombre de tuiles en y
-   *
-   * Cette fonction retourne:
-   *            0 si la fonction ne rencontre aucune erreur
-   *            -1 s'il y a une erreur
-   *
-   ***************************************************************************/
-int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_domain, int n,
-                    int cherrypick_x,int cherrypick_y, int npey, int VERBOSE) {
-  BURP_BLK *blk, *blkout;
-  int i, EXIT_STATUS = 0, status;
-
-  blk = brp_newblk();
-
-  BLK_SetBKNO(blk, 0);
-  while ( brp_findblk( blk, rptin ) >= 0 ) {
-    blkout = brp_newblk();
-    /* On utilise 'readblk' avec docvt = 0 pour ne pas convertir les valeurs puisque
-     * cette operation change les valeurs dans certains cas tres particuliers.
-     */
-    status = brp_readblk(BLK_BKNO(blk), blkout, rptin, 0);
-    if (status<0) {
-      App_Log(APP_ERROR,"Fonction fill_rptout_blk: Erreur %d dans la fonction brp_readblk pour blk_no=%d\n", status, BLK_BKNO(blk));
-      brp_freeblk(blkout);
-      EXIT_STATUS = -1;
-      break;
-    }
-
-    for(i=0;i<n;i++) {
-      if (cherrypick_x > 0 && cherrypick_y > 0) {
-        int cherrypick_id = (cherrypick_x-1)*npey+cherrypick_y-1;
-        if (i != cherrypick_id)
-          continue;
-      }
-
-      if (nts!= (int*) NULL) {
-        if (nts[i]==0) {
-          if (VERBOSE>5)
-            printf("Fonction fill_rptout_blk: aucune observation pour id=%d\n", i);
-          continue;
-        }
-        else
-          if (VERBOSE>5)
-            printf("Fonction fill_rptout_blk: %d observations pour id=%d\n", nts[i], i);
-      }
-
-      if (t_in_domain != (int*) NULL)
-        status = putblk_nt(rptout[i],blkout,&t_in_domain[BLK_NT(blkout)*i],nts[i],VERBOSE);
-      else
-        status = putblk_nt(rptout[i],blkout,(int*) NULL,0,VERBOSE);
-
-      if (status!=0) {
-        App_Log(APP_ERROR,"Fonction fill_rptout_blk: Erreur %d dans la fonction putblk_nt pour btyp=%d "
-                "pour le id=%d\n", status, BLK_BTYP(blkout), i);
-        EXIT_STATUS = -1;
-        brp_freeblk(blkout);
-        break;
-      }
-    } /* Fin du for(i=0;i<opt.npex*opt.npey;i++) */
-    brp_freeblk(blkout);
-  } /* Fin du 'while ( brp_findblk( blk, rptin ) >= 0 ) */
-
-  brp_freeblk(blk);
-
-  return EXIT_STATUS;
-} /* Fin de la fonction fill_rptout_blk */
-
 /***************************************************************************
  * fonction: fill_rptout_with_blk
  *
@@ -1504,7 +1419,7 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
     status = putblk_nt(rptout, blkout, tIndices_in_domain, number_of_obs_in_subdomain, VERBOSE);
 
     if (status!=0) {
-      App_Log(APP_ERROR,"Fonction fill_rptout_blk: Erreur %d dans la fonction putblk_nt pour btyp=%d\n", status, BLK_BTYP(blkout));
+      App_Log(APP_ERROR,"Fonction fill_rptout_with_blk: Erreur %d dans la fonction putblk_nt pour btyp=%d\n", status, BLK_BTYP(blkout));
       brp_freeblk(blkout);
 
       EXIT_STATUS = NOT_OK;
@@ -1685,152 +1600,6 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
 } /* Fin de la fonction extract_data_in_subdomain_along_nt */
 
   /***************************************************************************
-   * fonction: extract_data_in_domains_along_nt
-   *
-   * En entree, cette fonction prend
-   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
-   *            l'information sur npex et npey et le rectanle du domaine
-   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
-   *    rptin: un rapport BURP complet d'entree
-   *    elem_lat: element donnant la latitude  (5001 ou 5002) (mais surement 5002 puisque ce sont probablement des observations satellitaires)
-   *    elem_lon: element donnant la longitude (6001 ou 6002) (mais surement 6002 puisque ce sont probablement des observations satellitaires)
-   *
-   * En sortie, on donne les elements suivants:
-   *    nts: liste de nombre representant le nombre d'observations dans chaque sous-domaine
-   *    t_in_domain_ptr: tableau donnant a quel sous-domaine chaque observation appartient
-   *
-   * Cette fonction retourne:
-   *            0 si la fonction ne rencontre aucune erreur
-   *            1 s'il y a une erreur
-   *
-   ***************************************************************************/
-int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
-                                     int elem_lat, int elem_lon, int* nts, int** t_in_domain_ptr,
-                                     int VERBOSE) {
-  int status, t, colonne_lat, colonne_lon, EXIT_STATUS;
-  int ilonband=1, jlatband=1;
-  int btypnum, *bknos_data, *bknos_flags;
-  float lat, lon;
-  char errmsg[MAXSTR];
-  BURP_BLK *blk_data, *blk_flags;
-
-  EXIT_STATUS = 0;
-
-  bknos_data = (int*) NULL;
-  bknos_flags = (int*) NULL;
-  status = find_blk_data_in_rpt(rptin,elem_lat,elem_lon,&bknos_data,&bknos_flags,&btypnum,VERBOSE);
-  if (status<0) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_in_rpt\n");
-    return 1;
-  }
-
-  if (btypnum!=1) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Dans la fonction find_blk_data_in_rpt, "
-            "on a trouve %d blocs de donnees qui sont: ", btypnum);
-    for (t=0;t<btypnum;t++)
-      App_Log(APP_ERROR,"%d ", bknos_data[t]);
-    App_Log(APP_ERROR,"\n");
-    App_Log(APP_ERROR,"Or, ce programme ne peut traiter des enregistrements contenant plus d'un bloc de donnees regroupees\n");
-    free(bknos_data);
-    free(bknos_flags);
-    return 1;
-  }
-
-  colonne_lat = -1;
-  colonne_lon = -1;
-  blk_data  = (BURP_BLK*) NULL;
-  blk_flags = (BURP_BLK*) NULL;
-  status = find_blk_data_flag_in_rpt(rptin,elem_lat,elem_lon,bknos_data[0],&blk_data,&blk_flags,&colonne_lat,&colonne_lon,VERBOSE);
-  if (status<0) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_flag_in_rpt\n");
-    free(bknos_data);
-    free(bknos_flags);
-    return 1;
-  }
-
-  *t_in_domain_ptr = (int*) malloc(BLK_NT(blk_data)*optptr->npex*optptr->npey*sizeof(int));
-  if (*t_in_domain_ptr == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Incapable d'allouer la memoire pour un tableau de "
-            "int de dimension %dx%dx%d=%d\n", BLK_NT(blk_data), optptr->npex, optptr->npey,
-            BLK_NT(blk_data)*optptr->npex*optptr->npey);
-    free(bknos_data);
-    free(bknos_flags);
-    brp_freeblk(blk_data);
-    brp_freeblk(blk_flags);
-    return 1;
-  }
-
-  for (t=0;t<BLK_NT(blk_data);t++) {
-    lat=BLK_RVAL(blk_data,colonne_lat,0,t);
-    lon=BLK_RVAL(blk_data,colonne_lon,0,t);
-
-    if ( optptr->npex == 1 && optptr->npey == 1 ) {
-      /* On verifie si on est dans le domaine */
-      status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg, VERBOSE);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction checkgrid pour le lat=%f "
-                "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-        EXIT_STATUS = 1;
-        break;
-      }
-
-      /* Ceci signifie que si opt.inout == 1 alors status == 0 et donc
-       * le point est hors de la grille ce qui n'est pas voulu
-       *
-       * ou bien qui si opt.inout == 0 alors status == 1 et donc le
-       * point est a l'interieur de la grille ce qui n'est pas voulu.
-       */
-      if (optptr->inout == status) {
-        (*t_in_domain_ptr)[nts[0]] = t;
-        nts[0]++;
-      }
-    } /* Fin du if ( optptr->npex == 1 || optptr->npey == 1 ) */
-    else {
-      ilonband=-1;
-      jlatband=-1;
-      status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
-                              optptr->npex, optptr->npey, &ilonband, &jlatband, errmsg, VERBOSE);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_subdomain "
-                "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-        EXIT_STATUS = 1;
-        break;
-      }
-      if (ilonband<1 || ilonband>optptr->npex || jlatband<1 || jlatband>optptr->npey) {
-        if (VERBOSE>1)
-          printf("Fonction main: cette observation n'est pas dans le domaine npex=%d, npey=%d "
-                 "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband,
-                 jlatband, lat, lon);
-      }
-      else {
-        int id = (ilonband-1)*optptr->npey+(jlatband-1);
-
-        (*t_in_domain_ptr)[nts[id]+id*BLK_NT(blk_data)] = t;
-        nts[id]++;
-
-        if (VERBOSE>4)
-          printf("Fonction main: Observation acceptee: ilonband=%d jlatband=%d id=%d t_in_domain[%d]=%d nts[%d]=%d\n",
-                 ilonband,jlatband,id,nts[id]+id*BLK_NT(blk_data)-1,t,id,nts[id]);
-      }
-    } /* Fin du else associe au if ( opt.npex == 1 || opt.npey == 1 ) */
-  } /* Fin du for (t=0;t<BLK_NT(blkout);t++)  */
-
-    /*         printf("nt = %d\n", nt); */
-  brp_freeblk(blk_data);
-  brp_freeblk(blk_flags);
-  free(bknos_data);
-  free(bknos_flags);
-
-  if (EXIT_STATUS!=0) {
-    free(*t_in_domain_ptr);
-    return 1;
-  }
-
-  return 0;
-} /* Fin de la fonction extract_data_in_domains_along_nt */
-
-
-  /***************************************************************************
    * fonction: extract_data_in_subdomain_along_nval
    *
    * En entree, cette fonction prend
@@ -1985,156 +1754,6 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
   return number_of_observations_in_subdomain;
 } /* Fin de la fonction extract_data_in_subdomain_along_nval */
 
-
-  /***************************************************************************
-   * fonction: extract_data_in_domains_along_nval
-   *
-   * En entree, cette fonction prend
-   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
-   *            l'information sur npex et npey et le rectanle du domaine
-   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
-   *    rptin: un rapport BURP complet d'entree
-   *    elem_lat: element donnant la latitude  (5001 ou 5002)
-   *    elem_lon: element donnant la longitude (6001 ou 6002)
-   *
-   * En sortie, on donne les elements suivants:
-   *    nvals_in_domain: liste de nombre representant le nombre d'observations dans chaque sous-domaine
-   *    val_in_domain:   tableau donnant a quel sous-domaine chaque observation appartient
-   *
-   * Cette fonction retourne:
-   *            0 si la fonction ne rencontre aucune erreur
-   *            1 s'il y a une erreur
-   *
-   ***************************************************************************/
-int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BURP_RPT *rptin,
-                                       int elem_lat, int elem_lon, BURP_BLK *blk_data,
-                                       int* nvals_in_domain, int* val_in_domain, int VERBOSE) {
-  int status, id, e, v, colonne_lat, colonne_lon, EXIT_STATUS;
-  int ilonband=1, jlatband=1;
-  float lat, lon;
-  char errmsg[MAXSTR];
-  BURP_BLK *blk_data_converted = (BURP_BLK*) NULL;
-
-  EXIT_STATUS = 0;
-
-  blk_data_converted = brp_newblk();
-  status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
-
-  if (val_in_domain == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: le vecteur 'val_in_domain' doit etre deja alloue\n");
-    brp_freeblk(blk_data_converted);
-    return 1;
-  }
-
-  for (v=0;v<BLK_NVAL(blk_data)*optptr->npex*optptr->npey;v++)
-    val_in_domain[v] = 0;
-
-  colonne_lat=-1;
-  colonne_lon=-1;
-  for (e=0;e<BLK_NELE(blk_data);e++) {
-    /* L'element 5001 indique la valeur de latitude de l'observation */
-    if (BLK_DLSTELE(blk_data,e)==elem_lat)
-      colonne_lat=e;
-    /* L'element 6001 indique la valeur de longitude de l'observation */
-    else if (BLK_DLSTELE(blk_data,e)==elem_lon)
-      colonne_lon=e;
-    if (colonne_lat>=0 && colonne_lon>=0)
-      break;
-  } /* Fin du for (e=0;e<BLK_NELE(blk);e++) */
-
-  if (colonne_lat<0 || colonne_lon<0) {
-
-    if (colonne_lat<0 && colonne_lon<0)
-      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
-              "les elements %d et %d dans l'entete du bloc\n", elem_lat, elem_lon);
-    else if (colonne_lat<0)
-      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
-              "l'element %d dans l'entete du bloc\n", elem_lat);
-    else if (colonne_lon<0)
-      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
-              "l'element %d dans l'entete du bloc\n", elem_lon);
-
-    brp_freeblk(blk_data_converted);
-    return 1;
-  }
-
-  for (v=0;v<BLK_NVAL(blk_data);v++) {
-    lat=BLK_RVAL(blk_data_converted,colonne_lat,v,0);
-    lon=BLK_RVAL(blk_data_converted,colonne_lon,v,0);
-
-    if (VERBOSE>3)
-      printf("Fonction extract_data_in_domains_along_nval: appel de 'checkgrid' ou 'find_subdomain' avec lat=%f et lon=%f\n", lat, lon);
-
-    id=-1;
-
-    if ( optptr->npex == 1 && optptr->npey == 1 ) {
-      /* On verifie si on est dans le domaine */
-      status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg, VERBOSE);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction checkgrid pour le lat=%f "
-                "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-        EXIT_STATUS = 1;
-        break;
-      }
-
-      /* Ceci signifie que si opt.inout == 1 alors status == 0 et donc
-       * le point est hors de la grille ce qui n'est pas voulu
-       *
-       * ou bien qui si opt.inout == 0 alors status == 1 et donc le
-       * point est a l'interieur de la grille ce qui n'est pas voulu.
-       */
-      if (optptr->inout == status)
-        id = 0;
-    } /* Fin du if ( optptr->npex == 1 || optptr->npey == 1 ) */
-    else {
-      ilonband=-1;
-      jlatband=-1;
-      status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
-                              optptr->npex, optptr->npey, &ilonband, &jlatband, errmsg, VERBOSE);
-      if (status<0) {
-        App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction find_subdomain "
-                "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
-        EXIT_STATUS = 1;
-        break;
-      }
-      if (ilonband<1 || ilonband>optptr->npex || jlatband<1 || jlatband>optptr->npey) {
-        if (VERBOSE>1)
-          printf("Fonction extract_data_in_domains_along_nval: cette observation n'est pas dans le domaine npex=%d, npey=%d "
-                 "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband,
-                 jlatband, lat, lon);
-      }
-      else {
-        id = (ilonband-1)*optptr->npey+(jlatband-1);
-      }
-    } /* Fin du else associe au if ( opt.npex == 1 || opt.npey == 1 ) */
-
-    if (id>=0) {
-      val_in_domain[id*BLK_NVAL(blk_data)+nvals_in_domain[id]] = v;
-      nvals_in_domain[id]++;
-
-      if (VERBOSE>4)
-        printf("Fonction extract_data_in_domains_along_nval: Observation acceptee: "
-               "ilonband=%d jlatband=%d id=%d BLK_NVAL(blk_data)=%d "
-               "vals_in_domain[%d]=%d nvals[%d]=%d\n",
-               ilonband,jlatband,id,BLK_NVAL(blk_data),id*BLK_NVAL(blk_data)+nvals_in_domain[id],
-               v,id,nvals_in_domain[id]);
-    }
-  } /* Fin du for (v=0;v<BLK_NVAL(blk_data);v++)  */
-
-  if (VERBOSE>1)
-    for (id=0;id<optptr->npex*optptr->npey;id++)
-      printf("Fonction extract_data_in_domains_along_nval: Il y a %d observations dans la bande %d\n", nvals_in_domain[id], id);
-
-  brp_freeblk(blk_data_converted);
-
-  if (EXIT_STATUS!=0) {
-    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Une erreur dans la "
-            "selection des observations\n");
-    return 1;
-  }
-
-  return 0;
-} /* Fin de la fonction extract_data_in_domains_along_nval */
 
   /***************************************************************************
    * fonction: putblk_nt
@@ -2465,7 +2084,7 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
                                                              ilonband, jlatband, blkdata, values_in_domain,
                                                              VERBOSE);
       if (status<0) {
-        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_domains_along_nval "
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_subdomain_along_nval "
                           "pour le bloc %d\n", status, i_btyp);
 
         free(values_in_domain);
@@ -2681,7 +2300,7 @@ int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* r
 
   status = fill_rptout_with_blk(rptin, rptout, number_of_obs_in_subdomain, tIndices_in_domain, VERBOSE);
   if (status<0) {
-    App_Log(APP_ERROR,"Fonction process_groupeddata_record: Erreur %d dans la fonction fill_rptout_blk\n", status);
+    App_Log(APP_ERROR,"Fonction process_groupeddata_record: Erreur %d dans la fonction fill_rptout_with_blk\n", status);
     EXIT_STATUS = NOT_OK;
   }
 
