@@ -62,8 +62,8 @@ static void print_rpt(BURP_RPT* rptin);
 static void build_file_name(char* filename, int latband, int lonband, int ndigits,
                             char* output, size_t output_size);
 
-static void freeData_closeFiles(int burp_file_handle, char* burpin_filename,
-                                int* adresses, int VERBOSE);
+static void freeData_closeFiles(int burp_file_handle, char* burpin_filename, BURP_RPT *rptin,
+                                int* adresses, int* resume_indices, int VERBOSE);
 
 /*****************************************************/
 /******* Fin des prototype des fonctions *************/
@@ -72,8 +72,9 @@ static void freeData_closeFiles(int burp_file_handle, char* burpin_filename,
 int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                   float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE) {
   int iun = 200, iout = 201, status, EXIT_STATUS = 0;
-  int i_enrgs, nombre_enregistrements, longueur_max_enregistrement;
-  int *adresses = (int*) NULL;
+  int i_enrgs, i_enrgs_resume, enrgs_counter, longueur_max_enregistrement;
+  int nombre_enregistrements_total, nombre_enregistrements_resume;
+  int *adresses = (int*) NULL, *resume_indices = (int*) NULL;
   int vertical_clipping, cherrypick_id = -1;
   int ilonband, jlatband, max_num_headers = 0;
   BURP_RPT *rptin;
@@ -98,25 +99,17 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
     return NOT_OK;
   }
-  else if (status == 0) {
+
+  /* Si aucun probleme alors 'status' est le nombre d'enregistrements du fichier BURP */
+  nombre_enregistrements_total = status;
+  if (VERBOSE>5)
+    printf("Il y a %d enregistrement dans le fichier '%s'.\n", nombre_enregistrements_total, opt.obsin);
+
+  if ( nombre_enregistrements_total == 0) {
     /* Si le fichier BURP est vide alors on doit sortir */
     App_Log(APP_WARNING,"Fonction splitobs_burp: Il n'y a aucun enregistrement dans le fichier BURP %s\n",opt.obsin);
 
-    freeData_closeFiles(iun, opt.obsin, (int*) NULL, VERBOSE);
-
-    return NOT_OK;
-  }
-
-  /* Si aucun probleme alors 'status' est le nombre d'enregistrements du fichier BURP */
-  nombre_enregistrements = status;
-  if (VERBOSE>5)
-    printf("Il y a %d enregistrement dans le fichier '%s'.\n", nombre_enregistrements, opt.obsin);
-
-  adresses = (int*) malloc(sizeof(int)*nombre_enregistrements);
-  if ( adresses == (int*) NULL) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
-
-    freeData_closeFiles(iun, opt.obsin, (int*) NULL, VERBOSE);
+    freeData_closeFiles(iun, opt.obsin, (BURP_RPT*) NULL, (int*) NULL, (int*) NULL, VERBOSE);
 
     return NOT_OK;
   }
@@ -128,7 +121,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
               "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", opt.obsout);
 
-      freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+      freeData_closeFiles(iun, opt.obsin, (BURP_RPT*) NULL, (int*) NULL, (int*) NULL, VERBOSE);
 
       return NOT_OK;
     }
@@ -154,7 +147,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
                   "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
 
-          freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+          freeData_closeFiles(iun, opt.obsin, (BURP_RPT*) NULL, (int*) NULL, (int*) NULL, VERBOSE);
 
           return NOT_OK;
         } /* Fin du 'if ( status==0 )' pour l'acces au fichier */
@@ -167,40 +160,76 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if ( rptin == (BURP_RPT*) NULL ) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer rptin de (BURP_RPT*)\n");
 
-    freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+    freeData_closeFiles(iun, opt.obsin, (BURP_RPT*) NULL, (int*) NULL, (int*) NULL, VERBOSE);
+
+    return NOT_OK;
+  }
+
+  adresses = (int*) malloc(sizeof(int)*nombre_enregistrements_total);
+  if ( adresses == (int*) NULL) {
+    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur (adresses) de (int) de dimension %d\n", nombre_enregistrements_total);
+
+    freeData_closeFiles(iun, opt.obsin, rptin, (int*) NULL, (int*) NULL, VERBOSE);
+
+    return NOT_OK;
+  }
+
+  resume_indices = (int*) malloc(sizeof(int)*nombre_enregistrements_total);
+  if ( resume_indices == (int*) NULL) {
+    App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur (resume_indices) de (int) de dimension %d\n", nombre_enregistrements_total);
+
+    freeData_closeFiles(iun, opt.obsin, rptin, adresses, (int*) NULL, VERBOSE);
 
     return NOT_OK;
   }
 
   i_enrgs=0;
+  i_enrgs_resume=0;
+  resume_indices[0] = -1;
+
   RPT_SetHANDLE(rptin, 0);
+
+  /* On lit le fichier pour trouver les adresses des enregistrements
+     et on les separe un deux groupes pour les enregistrements resume
+     et les autres.
+  */
   while ( brp_findrpt(iun, rptin) >= 0 ) {
-     adresses[i_enrgs++] = RPT_HANDLE(rptin);
-    /* int rpt_handle = RPT_HANDLE(rptin); */
-    /* /\* We must read the report to see if it is a resume record. *\/ */
-    /* status = brp_getrpt(iun,rpt_handle,rptin); */
-    /* if (status<0) { */
-    /*   App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour " */
-    /*                     "le fichier d'entree %s a l'adresse %d (%d rapport)\n", */
-    /*                     status, opt.obsin, rpt_handle, i_enrgs); */
+     /* adresses[i_enrgs++] = RPT_HANDLE(rptin); */
+    int rpt_handle = RPT_HANDLE(rptin);
+    /* We must read the report to see if it is a resume record. */
+    status = brp_getrpt(iun,rpt_handle,rptin);
+    if (status<0) {
+      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour "
+                        "le fichier d'entree %s a l'adresse %d (%d rapport)\n",
+                        status, opt.obsin, rpt_handle, i_enrgs);
 
-    /*   freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE); */
+      freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
 
-    /*   return NOT_OK; */
-    /* } */
-    /* if ( strncmp(">>",RPT_STNID(rptin),2) != 0 ) { */
-    /*   for (ilonband=0;ilonband<opt.npex;ilonband++) { */
-    /*     for (jlatband=0;jlatband<opt.npey;jlatband++) { */
-    /* } */
-    /* else { */
-    /*   adresses[i_enrgs++] = rpt_handle; */
-    /* } */
+      return NOT_OK;
+    }
+
+    if (VERBOSE>4)
+      printf("Checking if %s is a resume record at index %d\n", RPT_STNID(rptin), i_enrgs);
+    if ( !strncmp(">>",RPT_STNID(rptin),2) ) {
+      if (VERBOSE>4)
+        printf("Found the %d resume record at %d record\n", i_enrgs_resume, i_enrgs);
+
+      resume_indices[i_enrgs_resume++] = i_enrgs;
+    }
+
+    adresses[i_enrgs++] = rpt_handle;
   } /* Fin de 'while ( brp_findrpt(iun, rptin) >= 0 )' */
 
-  if (VERBOSE>4) {
+  /* nombre_enregistrements = i_enrgs; */
+  nombre_enregistrements_resume = i_enrgs_resume;
+  if (VERBOSE>1)
+    printf("Found the %d resume records in file %s\n", nombre_enregistrements_resume, opt.obsin);
+
+ if (VERBOSE>4) {
     printf("Will print the content of the input file\n");
-    for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) {
-      brp_getrpt(iun,adresses[i_enrgs],rptin);
+    RPT_SetHANDLE(rptin, 0);
+    while ( brp_findrpt(iun, rptin) >= 0 ) {
+      brp_getrpt(iun, RPT_HANDLE(rptin), rptin);
       if (!strncmp(RPT_STNID(rptin),"N524FE",6)) {
         printf("enregistrement %d\n", i_enrgs);
         print_rpt(rptin);
@@ -208,7 +237,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       if (VERBOSE>5)
         print_allblocs(rptin);
       printf("\n") ;
-    }
+    } /* Fin de ' while ( brp_findrpt(iun, rptin) >= 0 )' */
     printf("Did print the content of the input file\n");
   } /* Fin de 'if (VERBOSE>4)' */
 
@@ -253,15 +282,26 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       if ( status<0 ) {
         App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction open_burpfile sur le fichier '%s'\n", status, burpout);
 
-        freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+        freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
 
         return NOT_OK;
       }
 
+      /* RPT_SetHANDLE(rptin, 0); This is probably not needed! */
+
+      i_enrgs_resume = 0;
+      enrgs_counter = 0;
       /* Ensuite, on passe chaque enregistrement avec un increment de 'opt.npex*opt.npey' */
-      for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) {
+      for (i_enrgs=0;i_enrgs<nombre_enregistrements_total;i_enrgs++) {
         int engrs_resume = 0;
         int number_of_observations_in_subdomain = 0;
+
+        if ( resume_indices[i_enrgs_resume] == i_enrgs )
+          i_enrgs_resume++;
+        else if (enrgs_counter%(opt.npex*opt.npey) != id )
+          continue;
+
+        enrgs_counter++;
 
         status = brp_getrpt(iun,adresses[i_enrgs],rptin);
         if (status<0) {
@@ -488,7 +528,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         if (VERBOSE>4)
           printf("Fonction splitobs_burp: appel complete de 'brp_writerpt' pour %s, iout=%d et i_enrgs=%d\n", burpout, iout, i_enrgs);
 
-      } /* Fin du for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) */
+      } /* Fin du for (i_enrgs=0;i_enrgs<nombre_enregistrements_total;i_enrgs++) */
 
       if ( number_of_observations_accepted > max_num_headers)
         max_num_headers = number_of_observations_accepted;
@@ -531,9 +571,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       printf("Il n'y a aucune observation qui a ete selectionnee.\n");
   } /* Fin de 'if (opt.numheaders_files == 1)' */
 
-  brp_freerpt(rptin);
-
-  freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+  freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
 
   return EXIT_STATUS;
 } /* Fin de la fonction 'int splitobs_burp' */
@@ -2510,8 +2548,8 @@ void print_rpt(BURP_RPT* rptin) {
 
 } /* Fin de la fonction 'print_rpt' */
 
-void freeData_closeFiles(int burpin_file_handle, char* burpin_filename,
-                         int* adresses, int VERBOSE) {
+ void freeData_closeFiles(int burpin_file_handle, char* burpin_filename, BURP_RPT *rptin,
+                          int* adresses, int* resume_indices, int VERBOSE) {
   int status;
 
   status = brp_close(burpin_file_handle);
@@ -2522,8 +2560,14 @@ void freeData_closeFiles(int burpin_file_handle, char* burpin_filename,
       printf("\nClosed BURP file %s file handle = %d", burpin_filename, burpin_file_handle);
   }
 
+  if ( rptin != (BURP_RPT*) NULL )
+    brp_freerpt(rptin);
+
   if ( adresses != (int*) NULL )
     free(adresses);
+
+  if ( resume_indices != (int*) NULL )
+    free(resume_indices);
 
 } /* Fin de la fonction 'freeData_closeFiles' */
 
