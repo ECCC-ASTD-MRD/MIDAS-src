@@ -382,11 +382,11 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                    RPT_STNID(rptin),i_enrgs);
 
           status = fill_rptout_with_blk(rptin, rptout, 0, (int*) NULL, VERBOSE);
-          if (status<0) {
+          if (status == NOT_OK) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_with_blk "
                     "lors de la copie de l'enregistrement resume pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
-            EXIT_STATUS = 1;
+            EXIT_STATUS = NOT_OK;
             break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
 
@@ -455,7 +455,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           number_of_obs_in_this_record_in_subdomain = process_ua4d_record(&opt, &grid, rptin, ilonband, jlatband,
                                                                           rptout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain < 0) {
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonctionprocess_regular_record pour "
+            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_ua4d_record pour "
                     "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = NOT_OK;
           }
@@ -473,8 +473,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                    RPT_STNID(rptin),i_enrgs);
 
           status = process_regular_record(&opt, &grid, rptin, ilonband, jlatband, rptout, VERBOSE);
-          if (status != NOT_OK) {
-            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonctionprocess_regular_record pour "
+          if (status == NOT_OK) {
+            App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_regular_record pour "
                     "l'adresse %d (%d rapport)\n",
                     status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = NOT_OK;
@@ -1461,7 +1461,7 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
                          int* tIndices_in_domain, int VERBOSE) {
   BURP_BLK *blk, *blkout;
   int status, EXIT_STATUS = OK;
-  int number_of_observations_in_report = -1;
+  int number_of_observations_in_report = 0;
 
   blk = brp_newblk();
 
@@ -1484,7 +1484,7 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
       if (tIndices_in_domain == (int*) NULL)
         number_of_observations_in_report = BLK_NT(blkout);
       else
-        number_of_observations_in_report =  number_of_obs_in_subdomain;
+        number_of_observations_in_report = number_of_obs_in_subdomain;
     } /* Fin du 'if (number_of_observations_in_report<0) */
 
     /*
