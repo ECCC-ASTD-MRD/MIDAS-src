@@ -194,14 +194,16 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
      et les autres.
   */
   while ( brp_findrpt(iun, rptin) >= 0 ) {
-     /* adresses[i_enrgs++] = RPT_HANDLE(rptin); */
-    int rpt_handle = RPT_HANDLE(rptin);
+     adresses[i_enrgs++] = RPT_HANDLE(rptin);
+  }
+
+  for (i_enrgs=0;i_enrgs<nombre_enregistrements_total;i_enrgs++) {
     /* We must read the report to see if it is a resume record. */
-    status = brp_getrpt(iun,rpt_handle,rptin);
+    status = brp_getrpt(iun, adresses[i_enrgs], rptin);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour "
                         "le fichier d'entree %s a l'adresse %d (%d rapport)\n",
-                        status, opt.obsin, rpt_handle, i_enrgs);
+                        status, opt.obsin, adresses[i_enrgs], i_enrgs);
 
       freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
 
@@ -210,14 +212,13 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
     if (VERBOSE>4)
       printf("Checking if %s is a resume record at index %d\n", RPT_STNID(rptin), i_enrgs);
+
     if ( !strncmp(">>",RPT_STNID(rptin),2) ) {
       if (VERBOSE>4)
-        printf("Found the %d resume record at %d record\n", i_enrgs_resume, i_enrgs);
+        printf("Found the %d resume record at %d record\n", i_enrgs_resume+1, i_enrgs);
 
       resume_indices[i_enrgs_resume++] = i_enrgs;
     }
-
-    adresses[i_enrgs++] = rpt_handle;
   } /* Fin de 'while ( brp_findrpt(iun, rptin) >= 0 )' */
 
   /* nombre_enregistrements = i_enrgs; */
@@ -296,18 +297,24 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         int engrs_resume = 0;
         int number_of_observations_in_subdomain = 0;
 
-        if ( resume_indices[i_enrgs_resume] == i_enrgs )
+        if ( resume_indices[i_enrgs_resume] == i_enrgs ) {
           i_enrgs_resume++;
-        else if (enrgs_counter%(opt.npex*opt.npey) != id )
-          continue;
+          engrs_resume = 1;
+        }
+        else {
+          if (enrgs_counter%(opt.npex*opt.npey) != id ) {
+            enrgs_counter++;
+            continue;
+          }
 
-        enrgs_counter++;
+          enrgs_counter++;
+        }
 
-        status = brp_getrpt(iun,adresses[i_enrgs],rptin);
+        status = brp_getrpt(iun, adresses[i_enrgs], rptin);
         if (status<0) {
           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour "
                   "le fichier d'entree %s a l'adresse %d (%d rapport)\n", status, opt.obsin, adresses[i_enrgs], i_enrgs);
-          continue; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+          continue; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
         if (VERBOSE>0)
@@ -331,15 +338,8 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             App_Log(APP_ERROR,"Fonction splitobs_burp: la fonction 'check_ua4d' retourne %d\n"
                     "le fichier d'entree %s a l'adresse %d (%d rapport)\n",
                     is_ua4d, opt.obsin, adresses[i_enrgs], i_enrgs);
-            continue; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+            continue; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
-        }
-
-        if (strncmp(">>",RPT_STNID(rptin),2)==0) { /* C'est un enregistrement resume */
-          engrs_resume = 1;
-          if (VERBOSE>0)
-            printf("Fonction splitobs_burp: C'est un enregistrement resume '%s' (i_enrgs=%d)\n",
-                   RPT_STNID(rptin),i_enrgs);
         }
 
         if (engrs_resume==0 && vertical_clipping==1) {
@@ -352,7 +352,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           if (status<0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction clipping_vertical\n", status);
             EXIT_STATUS=-1;
-            continue; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+            continue; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
           /* Apres l'etape du clipping vertical, le 'rptin_clip_vert' devient le 'rptin' */
           brp_freerpt(rptin);
@@ -371,7 +371,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                   "le fichier de sortie %s a l'adresse %d (rapport %d) (iout=%d)\n",
                   status, burpout, adresses[i_enrgs], i_enrgs, iout);
           EXIT_STATUS = 1;
-          break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+          break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
         if (engrs_resume==1) {
@@ -387,7 +387,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                     "lors de la copie de l'enregistrement resume pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = 1;
-            break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+            break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
 
           if (VERBOSE>1)
@@ -407,7 +407,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                     "lors de la copie total de l'enregistrement en mode round-robin pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = 1;
-            break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+            break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
           else {
             number_of_observations_in_subdomain += number_of_obs_in_this_record;
@@ -434,7 +434,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_groupeddata_record pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = NOT_OK;
-            break; /* for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) */
+            break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
           else {
             number_of_observations_in_subdomain += number_of_obs_in_this_record_in_subdomain;
@@ -490,7 +490,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
         if (EXIT_STATUS!=0) {
           App_Log(APP_ERROR,"Fonction splitobs_burp: il y a eu une erreur precedemment (dans else if (vertical_clipping==1))\n");
-          break;
+          break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
         if (VERBOSE>5)
@@ -502,7 +502,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
            Si ce n'est pas un enregistrement resume (engrs_resume==0), alors
            on n'ecrit que dans les fichiers qui contiennent des observations */
         if (engrs_resume == 0 && number_of_observations_in_subdomain == 0)
-          continue;
+          continue; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
 
         number_of_observations_accepted += number_of_observations_in_subdomain;
 
@@ -522,7 +522,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                   "le fichier de sortie %s a l'adresse %d (%d rapport)\n",
                   status, burpout, adresses[i_enrgs], i_enrgs);
           EXIT_STATUS = 1;
-          break;
+          break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
         if (VERBOSE>4)
