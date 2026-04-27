@@ -109,6 +109,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
   /* Si aucun probleme alors 'status' est le nombre d'enregistrements du fichier BURP */
   nombre_enregistrements = status;
+  if (VERBOSE>5)
+    printf("Il y a %d enregistrement dans le fichier '%s'.\n", nombre_enregistrements, opt.obsin);
+
   adresses = (int*) malloc(sizeof(int)*nombre_enregistrements);
   if ( adresses == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction splitobs_burp: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
@@ -171,8 +174,43 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
   i_enrgs=0;
   RPT_SetHANDLE(rptin, 0);
-  while ( brp_findrpt(iun, rptin) >= 0 )
-    adresses[i_enrgs++] = RPT_HANDLE(rptin);
+  while ( brp_findrpt(iun, rptin) >= 0 ) {
+     adresses[i_enrgs++] = RPT_HANDLE(rptin);
+    /* int rpt_handle = RPT_HANDLE(rptin); */
+    /* /\* We must read the report to see if it is a resume record. *\/ */
+    /* status = brp_getrpt(iun,rpt_handle,rptin); */
+    /* if (status<0) { */
+    /*   App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_getrpt pour " */
+    /*                     "le fichier d'entree %s a l'adresse %d (%d rapport)\n", */
+    /*                     status, opt.obsin, rpt_handle, i_enrgs); */
+
+    /*   freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE); */
+
+    /*   return NOT_OK; */
+    /* } */
+    /* if ( strncmp(">>",RPT_STNID(rptin),2) != 0 ) { */
+    /*   for (ilonband=0;ilonband<opt.npex;ilonband++) { */
+    /*     for (jlatband=0;jlatband<opt.npey;jlatband++) { */
+    /* } */
+    /* else { */
+    /*   adresses[i_enrgs++] = rpt_handle; */
+    /* } */
+  } /* Fin de 'while ( brp_findrpt(iun, rptin) >= 0 )' */
+
+  if (VERBOSE>4) {
+    printf("Will print the content of the input file\n");
+    for (i_enrgs=0;i_enrgs<nombre_enregistrements;i_enrgs++) {
+      brp_getrpt(iun,adresses[i_enrgs],rptin);
+      if (!strncmp(RPT_STNID(rptin),"N524FE",6)) {
+        printf("enregistrement %d\n", i_enrgs);
+        print_rpt(rptin);
+      }
+      if (VERBOSE>5)
+        print_allblocs(rptin);
+      printf("\n") ;
+    }
+    printf("Did print the content of the input file\n");
+  } /* Fin de 'if (VERBOSE>4)' */
 
   longueur_max_enregistrement = c_mrfbfl(iun);
   if (VERBOSE>0)
@@ -2455,7 +2493,6 @@ void print_blk(BURP_BLK* blkin) {
 
 void print_rpt(BURP_RPT* rptin) {
 
-  printf ( "\n\n" ) ;
   printf ( "hhmm   =%8d " , RPT_TEMPS(rptin));
   printf ( "flgs   =%6d  ", RPT_FLGS(rptin ));
   printf ( "codtyp =%6d  ", RPT_IDTYP(rptin));
@@ -2470,7 +2507,6 @@ void print_rpt(BURP_RPT* rptin) {
   printf ( "runn   =%6d  ", RPT_RUNN(rptin));
   printf ( "nblk   =%6d  ", RPT_NBLK(rptin));
   printf ( "dlay   =%6d\n", RPT_DRND(rptin));
-  printf ( "\n" );
 
 } /* Fin de la fonction 'print_rpt' */
 
