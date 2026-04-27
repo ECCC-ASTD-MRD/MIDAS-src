@@ -303,7 +303,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             printf("Fonction splitobs_burp: will copy the resume record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          status = fill_rptout_with_blk(rptin, rptout, 1, (int*) NULL, VERBOSE);
+          status = fill_rptout_with_blk(rptin, rptout, 0, (int*) NULL, VERBOSE);
           if (status<0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_with_blk "
                     "lors de la copie de l'enregistrement resume pour "
@@ -323,7 +323,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           if (VERBOSE>1)
             printf("Fonction splitobs_burp: L'enregistrement %d sera place dans le fichier %d.\n", i_enrgs, id);
 
-          number_of_obs_in_this_record = fill_rptout_with_blk(rptin, rptout, 1, (int*) NULL, VERBOSE);
+          number_of_obs_in_this_record = fill_rptout_with_blk(rptin, rptout, 0, (int*) NULL, VERBOSE);
           if ( number_of_obs_in_this_record < 0 ) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_with_blk "
                     "lors de la copie total de l'enregistrement en mode round-robin pour "
@@ -1778,7 +1778,8 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
 
   if (VERBOSE>2)
     printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p\n", BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)t_in_domain);
-  if (VERBOSE>3 && nt!=0) {
+
+  if (VERBOSE>3 && nt!=0 && t_in_domain != (int*) NULL) {
     printf("Fonction putblk_nt: t_in_domain = [%d", t_in_domain[0]);
     for (t=1;t<nt;t++)
       printf(",%d", t_in_domain[t]);
@@ -1787,7 +1788,8 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
 
   if (VERBOSE>4) {
     int thisi, thisj, thisk;
-    printf("Fonction putblk_nt: Impression du 'blk' BLK_NT(blk)=%d BLK_NELE(blk)=%d BLK_NVAL(blk)=%d",BLK_NT(blk),BLK_NELE(blk),BLK_NVAL(blk));
+    printf("Fonction putblk_nt: Impression du 'blk'\n");
+    printf("BLK_NT(blk)=%d BLK_NELE(blk)=%d BLK_NVAL(blk)=%d",BLK_NT(blk),BLK_NELE(blk),BLK_NVAL(blk));
 
     for ( thisk = 0 ; thisk < BLK_NT(blk) ; thisk++ ) {
       printf (  "\nlstele =" ) ;
@@ -2392,7 +2394,7 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
   } /* Fin du 'else' associe au 'if ( optptr->npex == 1 && optptr->npey == 1 )' */
 
   if ( do_copy_record != 0 ) {
-    status = fill_rptout_with_blk(rptin, rptout, 1, (int*) NULL, VERBOSE);
+    status = fill_rptout_with_blk(rptin, rptout, 0, (int*) NULL, VERBOSE);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction process_regular_record: Erreur %d dans la fonction fill_rptout_with_blk\n", status);
       return NOT_OK;
