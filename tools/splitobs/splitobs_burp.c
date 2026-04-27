@@ -92,9 +92,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   }
 
   /* Ouverture du fichier burp en entree */
-  status = brp_open(iun,opt.obsin,"r");
+  status = open_burpfile(&iun,opt.obsin,"r");
   if ( status<0 ) {
-    App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsin);
+    App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction open_burpfile sur le fichier '%s'\n", status, opt.obsin);
 
     return NOT_OK;
   }
@@ -120,7 +120,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
   /* Ouverture du fichier burp en sortie */
   if ( opt.npex == 1 && opt.npey == 1 ) {
-
     status = access(opt.obsout,F_OK);
     if ( status==0 ) {
       App_Log(APP_ERROR,"Fonction splitobs_burp: Le fichier '%s' existe deja mais il pourrait etre efface "
@@ -130,16 +129,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
       return NOT_OK;
     }
-
-    status = brp_open(iout,opt.obsout,"a");
-    if ( status<0 ) {
-      App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
-
-      freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
-
-      return NOT_OK;
-    }
-  }
+  } /* Fin du 'if ( opt.npex == 1 && opt.npey == 1 )' */
   else { /* Il faut verifier npex*npey fichiers */
     for (ilonband=0;ilonband<opt.npex;ilonband++) {
       for (jlatband=0;jlatband<opt.npey;jlatband++) {
@@ -164,10 +154,10 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
 
           return NOT_OK;
-        } /* Fin du if ( status==0 ) pour l'acces au fichier */
-      } /* Fin du for (jlatband=0;jlatband<opt.npey;jlatband++) */
-    } /* Fin du for (ilonband=0;ilonband<opt.npex;ilonband++) */
-  } /* Fin du else pour le if ( opt.npex == 1 && opt.npey == 1 ) */
+        } /* Fin du 'if ( status==0 )' pour l'acces au fichier */
+      } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
+    } /* Fin du 'for (ilonband=0;ilonband<opt.npex;ilonband++)' */
+  } /* Fin du' else' pour le 'if ( opt.npex == 1 && opt.npey == 1 )' */
 
   rptin = (BURP_RPT*) NULL;
   rptin = brp_newrpt();
@@ -216,7 +206,19 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
        */
       brp_allocrpt(rptout, longueur_max_enregistrement);
 
-      build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
+      if ( opt.npex == 1 && opt.npey == 1 )
+        strcpy(burpout, opt.obsout);
+      else
+        build_file_name(opt.obsout, ilonband, jlatband, opt.ndigits, burpout, sizeof(burpout));
+
+      status = open_burpfile(&iout,burpout,"w");
+      if ( status<0 ) {
+        App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d avec la fonction open_burpfile sur le fichier '%s'\n", status, burpout);
+
+        freeData_closeFiles(iun, opt.obsin, adresses, VERBOSE);
+
+        return NOT_OK;
+      }
 
       /* Ensuite, on passe chaque enregistrement avec un increment de 'opt.npex*opt.npey' */
       for (i_enrgs=id;i_enrgs<nombre_enregistrements;i_enrgs+=opt.npex*opt.npey) {

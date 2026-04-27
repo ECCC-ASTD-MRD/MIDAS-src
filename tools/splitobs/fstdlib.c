@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h> /* to get the function 'access' to know if files are already existing */
 
 #include "ok_or_notok.h"
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
@@ -42,6 +43,66 @@ int open_stdfile(int* iun, char* filename, char* mode) {
 
   return OK;
 } /* Fin de la fonction open_stdfile */
+
+/***************************************************************************
+ * fonction: open_burpfile
+ * This function is a copy of
+ *      https://gitlab.science.gc.ca/wxobs-libs/libburpc/-/blob/master/src/burp_api.c?ref_type=heads
+ * but where 'iun' is set to the unit file handle generated bu 'fnom'
+ ***************************************************************************/
+int open_burpfile(int* iun, char* filename, char* op) {
+  int ier, number_of_reports;
+  char type[30], mode[30];
+
+  if (strcmp(op,"r") == 0) { /* READ ONLY */
+    strcpy( type, "RND+OLD+R/O" );
+    strcpy( mode, "READ" );
+  }
+  else if (strcmp(op,"w") == 0) { /* WRITE ONLY */
+    strcpy( type, "RND+R/W" );
+    strcpy( mode, "CREATE" );
+  }
+  else if (strcmp(op,"a") == 0) { /* APPEND */
+    strcpy( type, "RND+APPEND" );
+    strcpy( mode, "APPEND" );
+
+    /* si fichier n'existe pas ouvrir en ecriture */
+    ier = access(filename, F_OK);
+    if (ier != 0) {
+      strcpy( type, "RND+R/W" );
+      strcpy( mode, "CREATE" );
+    }
+  } /* End of 'else if (strcmp(op,"a") == 0)' */
+  else {
+    fprintf(stderr,"fonction open_burpfile: Le mode '%s' n'est pas supporte pour ouvrir le fichier '%s'.\n",mode,filename);
+
+    return NOT_OK;
+  }
+
+  *iun = 0;
+  ier = c_fnom(iun, filename, type, 0 );
+  if ( ier < 0 ) {
+    fprintf(stderr,"Unable to open file as %s : %s with 'c_fnom'\n",
+            type,  filename);
+    c_fclos(*iun);
+
+    return NOT_OK;
+  } /* Fin de 'if ( ier < 0 )' */
+
+  /* The function 'c_mrfopn' returns the number of reports in the file */
+  number_of_reports = c_mrfopn(*iun, mode);
+  if ( ier < 0 ) {
+    fprintf(stderr,"Unable to open file as %s : %s with 'c_mrfopn'\n",
+            mode,  filename);
+
+    ier = c_mrfcls(*iun);
+    ier = c_fclos(*iun);
+
+    return NOT_OK;
+  } /* Fin de 'if ( ier < 0 )' */
+
+  return number_of_reports;
+} /* Fin de la fonction open_burpfile */
 
 
 /***************************************************************************

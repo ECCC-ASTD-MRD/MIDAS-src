@@ -79,6 +79,20 @@ int    open_stdfile(int* iun,  char* filename, char* mode);
  ***************************************************************************/
 int    close_stdfile(int iun, char* filename);
 /***************************************************************************
+ * fonction: open_burpfile
+ *
+ * Cette fonction ouvre proprement le fichier BURP filename selon un mode donne
+ *
+ * En entree, elle prend 3 arguments:
+ *      iun: unite fortran identifiant le fichier lu
+ *      filename: nom du fichier BURP
+ *      mode: mode l'ouverture du fichier (read, write, read et write...)
+ *
+ * This function returns the number of reports in the file.
+ * This function returns 'NOT_OK' if an error was incountered.
+ ***************************************************************************/
+int open_burpfile(int* iun, char* filename, char* mode);
+/***************************************************************************
  * fonction: getgrid
  *
  * Cette fonction genere une representation EZSCINT d'une grille definie en
