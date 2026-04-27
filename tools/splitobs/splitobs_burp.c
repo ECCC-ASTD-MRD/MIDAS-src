@@ -479,7 +479,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                     status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = NOT_OK;
           }
-          else {
+          else if (status > 0 ) {
             number_of_observations_in_subdomain++;
           }
 
@@ -2404,7 +2404,8 @@ int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* r
 *    rptout: un rapport BURP pour ecrire
 *
 * Cette fonction retourne:
-*            OK     si la fonction ne rencontre aucune erreur
+*            1 si l'observation a ete acceptee
+*            0 si l'observation n'a pas ete acceptee
 *            NOT_OK s'il y a une erreur
 *
 ***************************************************************************/
@@ -2477,7 +2478,7 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
     }
   } /* Enf of ' if ( do_copy_record != 0 )' */
 
-  return OK;
+  return do_copy_record;
 } /* Fin de la fonction 'process_regular_record' */
 
 void print_allblocs(BURP_RPT* rptin) {
