@@ -423,7 +423,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
            alors on l'ecrit dans tous les fichiers.
            Si ce n'est pas un enregistrement resume (engrs_resume==0), alors
            on n'ecrit que dans les fichiers qui contiennent des observations */
-        if (engrs_resume == 0 && number_of_observations_in_subdomain > 0)
+        if (engrs_resume == 0 && number_of_observations_in_subdomain == 0)
           continue;
 
         number_of_observations_accepted += number_of_observations_in_subdomain;
