@@ -56,6 +56,7 @@ static int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP
 static int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
                                int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE);
 
+static int write_num_headers(char* burpout, int number_of_observations_accepted);
 static void print_allblocs(BURP_RPT* rptin);
 static void print_blk(BURP_BLK* blkin);
 static void print_rpt(BURP_RPT* rptin);
@@ -528,7 +529,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_writerpt pour "
                   "le fichier de sortie %s a l'adresse %d (%d rapport)\n",
                   status, burpout, adresses[i_enrgs], i_enrgs);
-          EXIT_STATUS = 1;
+          EXIT_STATUS = NOT_OK;
           break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
@@ -543,18 +544,43 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
       printf("\nFonction splitobs_burp: Il y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
               number_of_observations_accepted, burpout);
 
-      if (opt.numheaders_files == 1) {
-        FILE* file;
-        char burpout_num_headers[MAXSTR*2];
-        snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
+      status = brp_close(iout);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, burpout);
+        EXIT_STATUS = NOT_OK;
 
-        status = access(burpout_num_headers, F_OK);
-        if (status==0)
-          App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
+        brp_freerpt(rptout);
+        freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
 
-        file = (FILE*) fopen(burpout_num_headers,"w");
-        fprintf(file,"%d\n", number_of_observations_accepted);
-        fclose(file);
+        return EXIT_STATUS;
+      }
+
+      if (number_of_observations_accepted == 0) {
+        printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout);
+        status = remove(burpout);
+        if (status != 0) {
+          App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout);
+          EXIT_STATUS = NOT_OK;
+
+          brp_freerpt(rptout);
+          freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
+
+          return EXIT_STATUS;
+        }
+        else if (VERBOSE>2)
+          printf("On a efface le fichier BURP %s\n", burpout);
+      } /* End of ' if (number_of_observations_accepted == 0)' */
+      else if (opt.numheaders_files == 1) {
+        status = write_num_headers(burpout, number_of_observations_accepted);
+        if ( status != OK ) {
+          App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur a l'appel de 'write_num_headers' pour le fichier '%s'\n", burpout);
+          EXIT_STATUS = NOT_OK;
+
+          brp_freerpt(rptout);
+          freeData_closeFiles(iun, opt.obsin, rptin, adresses, resume_indices, VERBOSE);
+
+          return EXIT_STATUS;
+        } /* End of 'else if (opt.numheaders_files == 1)' */
       } /* End of 'if (opt.numheaders_files == 1)' */
 
       brp_freerpt(rptout);
@@ -2490,6 +2516,39 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
 
   return do_copy_record;
 } /* Fin de la fonction 'process_regular_record' */
+
+int write_num_headers(char* burpout, int number_of_observations_accepted) {
+  int status;
+  FILE* file;
+  char burpout_num_headers[MAXSTR*2];
+
+  snprintf(burpout_num_headers, sizeof(burpout_num_headers), "%s.num_headers", burpout);
+
+  status = access(burpout_num_headers, F_OK);
+  if (status==0)
+    App_Log(APP_ERROR,"Fonction write_num_headers: Attention le fichier '%s' sera efface\n", burpout_num_headers);
+
+  file = (FILE*) fopen(burpout_num_headers,"w");
+  if ( file == (FILE*) NULL) {
+    App_Log(APP_ERROR,"Fonction write_num_headers: Il est impossible d'ouvrir le fichier' %s'\n", burpout_num_headers);
+    return NOT_OK;
+  }
+
+  status = fprintf(file, "%d\n", number_of_observations_accepted);
+  if ( status < 0 ) {
+    App_Log(APP_ERROR,"Fonction write_num_headers: Il est impossible d'ecrire '%d' dans le fichier '%s'\n", number_of_observations_accepted, burpout_num_headers);
+    return NOT_OK;
+  }
+
+  status = fclose(file);
+  if ( status != 0 ) {
+    App_Log(APP_ERROR,"Fonction write_num_headers: Il est impossible de fermer le fichier '%s'\n", burpout_num_headers);
+    return NOT_OK;
+  }
+
+  return OK;
+} /* Fin de la fonction 'write_num_headers' */
+
 
 void print_allblocs(BURP_RPT* rptin) {
   int thisi, thisj, thisk;
