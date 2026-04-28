@@ -302,7 +302,11 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           engrs_resume = 1;
         }
         else {
-          if (enrgs_counter%(opt.npex*opt.npey) != id ) {
+          /* Si on est en mode round-robin, on utiliser cette formule
+           * pour decider dans quelle sous-domaine, on place
+           * l'enregistrement.
+           */
+          if ( opt.roundrobin == 1 && enrgs_counter%(opt.npex*opt.npey) != id ) {
             enrgs_counter++;
             continue;
           }
