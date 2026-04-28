@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
   /**************************************************************/
 
   App_Init(APP_MAIN,PROJECT_NAME_STRING,VERSION,PROJECT_DESCRIPTION_STRING,BUILD_TIMESTAMP);
+  App_LogStream("stdout");
   App_Start();
 
   /***************************************/
