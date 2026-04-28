@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed bug for bias correction predictors L1, L2 and L3 and add L4 and L5. Add `scanBiasCorrectionMode` to `NAMBIASSAT` namelist.
  * Fix gcc compiler warnings in splitobs (#1092 and !1078)
  * No more Kelvin-Celcius conversion for TM missing values (#1136 and !1061)
  * Bugfix in netCDF writes (#1134 and !1055)
