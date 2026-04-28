@@ -55,8 +55,6 @@ export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
-#SPLITOBS="time ${SPLITOBS}"
-
 [ -d "${WORKDIR}" ] && rm -rf ${WORKDIR}
 mkdir -p ${WORKDIR}
 cd ${WORKDIR}
@@ -159,6 +157,20 @@ say() {
     echo "$1"
 
     return ${__say_status}
+}
+
+run_splitobs() {
+    typeset -r user_time_file=splitobs.user_time
+
+    program_status=0
+
+    /usr/bin/time --format='%U' --output ${user_time_file} ${SPLITOBS} ${*} 1>> check_result.listing 2>&1 || program_status=$?
+
+    if [[ "${program_status}" -eq 0 ]]; then
+        message="The program took $(head -1 ${user_time_file}) seconds"
+        printf "\033[0m\033[01;36m${message}\033[0m\n"
+    fi
+    [[ -f ${user_time_file} ]] && rm ${user_time_file}
 }
 
 paddedPrint() {
@@ -292,8 +304,7 @@ test_burp_regional_standard () {
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do ## ua4d.resume
 	rm -f 2011070112_${fam}
 	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0
 	assert "test_burp_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 	check_status=0
 	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -317,8 +328,7 @@ test_burp_regional_with_imax_imin_jmax_jmin () {
 	rm -f 2011070112_${fam}
 
 	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019
 	assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 	check_status=0
 	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -341,8 +351,7 @@ test_burp_identity () {
 	rm -f 2011070112_${fam}
 
 	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
 	assert "test_burp_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 	check_status=0
 	if [ "${fam}" = ua4d ]; then
@@ -367,8 +376,7 @@ test_rdb_identity () {
 
     for fam in ai ua sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
 	status=0
-	program_status=0
-	${SPLITOBS} -rdbin ${INPUTS}/rdb/2011070112_${fam} -rdbout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -rdbin ${INPUTS}/rdb/2011070112_${fam} -rdbout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
 	assert "test_rdb_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 	check_status=0
 	check_result ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -388,8 +396,7 @@ test_robustness_for_mrbcvt () {
     echo "test_robustness_for_mrbcvt() begins"
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA -burpout 2011073100_ai -fstin ${GRIDS}/glbgrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA -burpout 2011073100_ai -fstin ${GRIDS}/glbgrid -nomvar P0
     assert "test_robustness_for_mrbcvt program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA 2011073100_ai ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -417,8 +424,7 @@ test_rdb_regional_standard () {
 	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
 
 	status=0
-	program_status=0
-	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0
 	assert "test_rdb_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
 	## add some column to UA database because some have been added since the reference has been created
@@ -451,8 +457,7 @@ test_rdb_regional_global_with_imax_imin_jmax_jmin () {
 	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
 
 	status=0
-	program_status=0
-	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019
 	assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
 	## add some column to UA database because some have been added since the reference has been created
@@ -482,8 +487,7 @@ test_rdb_round_robin () {
 
     for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
 	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_rdb_round_robin_npex} -npey ${test_rdb_round_robin_npey} -ndigits ${test_rdb_round_robin_ndigits} -obsin ${INPUTS}/rdb/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -round-robin -npex ${test_rdb_round_robin_npex} -npey ${test_rdb_round_robin_npey} -ndigits ${test_rdb_round_robin_ndigits} -obsin ${INPUTS}/rdb/2011070112_${fam} -obsout 2011070112_${fam}
 	assert "test_rdb_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         rdbsplit ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_output ${test_rdb_round_robin_npex} ${test_rdb_round_robin_npey} ${test_rdb_round_robin_ndigits} 1>> check_result.listing 2>&1
@@ -526,19 +530,18 @@ test_rdb_cherrypick_roundrobin () {
         filein=2011070112_${fam}
 
 	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
-            -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
-            -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
+        run_splitobs -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+                     -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+                     -obsout ${filein}
 	assert "test_rdb_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         procx=1
 	while [ "${procx}" -le "${test_rdb_cherrypick_roundrobin_npex}" ]; do
             procy=1
 	    while [ "${procy}" -le "${test_rdb_cherrypick_roundrobin_npey}" ]; do
-	        ${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
-                    -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
-                    -obsout ${filein}_cherrypick -x ${procx} -y ${procy} 1>> check_result.listing 2>&1 || program_status=$?
+	        run_splitobs -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+                             -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+                             -obsout ${filein}_cherrypick -x ${procx} -y ${procy}
 	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick* | wc -l)
                 assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
@@ -578,8 +581,7 @@ test_rdb_index () {
     procy=${test_rdb_index_npey}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal
     assert "test_rdb_index splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     procx_str=$(paddedPrint ${test_rdb_index_ndigits} ${procx})
@@ -609,8 +611,7 @@ test_rdb_resume () {
     test_rdb_resume_npey=4
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs
     assert "test_rdb_resume splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     rdbsplit_resume ${INPUTS}/rdb/airs-resume.rdb airs_reference ${test_rdb_resume_npex} ${test_rdb_resume_npey} ${test_rdb_resume_ndigits} 1>> check_result.listing 2>&1
@@ -635,8 +636,7 @@ test_rdb_resume () {
     unset test_rdb_resume_npex test_rdb_resume_npey test_rdb_resume_ndigits test_rdb_resume_number_of_process
 
     status=0
-    program_status=0
-    ${SPLITOBS} -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
     assert "test_rdb_resume clipping program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/rdb/airs-resume.rdb airs_clipped ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -663,8 +663,7 @@ test_rdb_resume_schema_SAR () {
     procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds
     assert "test_rdb_resume_schema_SAR splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
@@ -684,8 +683,7 @@ test_rdb_resume_schema_SAR () {
     rm sarwinds_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     procx=1
@@ -724,8 +722,7 @@ test_rdb_resume_schema_AL () {
     procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_derialt -obsout obsal_derialt 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_derialt -obsout obsal_derialt
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
@@ -741,8 +738,7 @@ test_rdb_resume_schema_AL () {
     [ "${status}" -ne 0 ] && return 1
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_bgckalt -obsout obsal_bgckalt 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_bgckalt -obsout obsal_bgckalt
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     check_status=0
@@ -770,9 +766,8 @@ test_rdb_obsdb () {
     procy=$(paddedPrint ${test_rdb_obsdb_ndigits} 3)
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                 -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report
     assert "test_rdb_obsdb splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -783,9 +778,8 @@ test_rdb_obsdb () {
     rm obsatms_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                 -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report
     assert "test_rdb_obsdb splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -824,8 +818,7 @@ test_rdb_avhrr () {
     procy=$(paddedPrint ${test_rdb_avhrr_ndigits} ${test_rdb_avhrr_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -x ${test_rdb_avhrr_npex} -y ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -x ${test_rdb_avhrr_npex} -y ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi
     assert "test_rdb_avhrr splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -838,8 +831,7 @@ test_rdb_avhrr () {
     rm obsiasi_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi
     assert "test_rdb_avhrr splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -874,8 +866,7 @@ test_burp_subdomains () {
     ### Tests pour les AMSUB
     fam=to_amsub
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.2_enrgs -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.2_enrgs -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam}.2_enrgs program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/burp/2011070112_${fam}.2_enrgs 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -889,8 +880,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}.north 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -902,7 +892,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1
     assert "test_burp_subdomains fam=${fam} east-west program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}.east 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -914,7 +904,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0002_0001
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.world -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3
     assert "test_burp_subdomains fam=${fam} world program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     assert "test_burp_subdomains fam=${fam} east file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
     check_status=0
@@ -930,7 +920,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0002_0001 2011070112_${fam}_0002_0002 2011070112_${fam}_0001_0002
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world-res -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.world-res -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3
     assert "test_burp_subdomains fam=${fam} world-res program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     assert "test_burp_subdomains fam=${fam} east-res file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
     check_status=0
@@ -951,8 +941,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -967,8 +956,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0002 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -990,9 +978,8 @@ test_burp_subdomains () {
 	    rm -f ${filein}*
 
 	    status=0
-	    program_status=0
-	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
-		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	    run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+		         -nomvar P0 -npex ${npex} -npey ${npey}
 	    assert "test_burp_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
 	    for file in ${filein}_0001_[0-9][0-9][0-9][0-9]; do
@@ -1033,9 +1020,8 @@ test_burp_cherrypick_subdomains () {
 	    rm -f ${filein}*
 
 	    status=0
-	    program_status=0
-	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
-		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	    run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+		         -nomvar P0 -npex ${npex} -npey ${npey}
 	    assert "test_burp_cherrypick_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
             i=1
@@ -1045,8 +1031,8 @@ test_burp_cherrypick_subdomains () {
                     procx_str=$(paddedPrint 4 ${i})
                     procy_str=$(paddedPrint 4 ${j})
 
-                    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
-		        -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+                    run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
+                                 -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey}
 	            assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                     if [ ! -f ${filein}_${procx_str}_${procy_str} ]; then
                         assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} does not exists" [ ! -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
@@ -1085,9 +1071,8 @@ test_burp_latbands () {
 	rm -f ${filein}*
 
 	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin ${grid_800x400} \
-	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin ${grid_800x400} \
+                     -nomvar P0 -npex ${npex} -npey ${npey}
 	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
 	for fileout in ${filein}_*; do
@@ -1126,10 +1111,9 @@ test_burp_maximum_unit_number () {
 
     status=0
 
-    program_status=0
-    ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
-		-x 15 -y 1 -npex ${test_burp_maximum_unit_number_npex} -npey ${test_burp_maximum_unit_number_npey} \
-                -ndigits ${test_burp_maximum_unit_number_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
+                 -x 15 -y 1 -npex ${test_burp_maximum_unit_number_npex} -npey ${test_burp_maximum_unit_number_npey} \
+                 -ndigits ${test_burp_maximum_unit_number_ndigits}
     assert "test_burp_maximum_unit_number filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     [ "${status}" -ne 0 ] && return 1
@@ -1151,11 +1135,10 @@ test_burp_cherrypick_roundrobin () {
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
 	status=0
-	program_status=0
-        filein=2011070112_${fam}
+	filein=2011070112_${fam}
 
-	${SPLITOBS} -round-robin -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
-            -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -round-robin -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+                     -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein}
 	assert "test_burp_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         i=1
@@ -1165,9 +1148,9 @@ test_burp_cherrypick_roundrobin () {
                 procx_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${i})
                 procy_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${j})
 
-                ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
-		    -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
-                    -ndigits ${test_burp_cherrypick_roundrobin_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
+                run_splitobs -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
+                             -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+                             -ndigits ${test_burp_cherrypick_roundrobin_ndigits}
 	        assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick_*_* | wc -l)
 		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
@@ -1202,8 +1185,7 @@ test_burp_round_robin () {
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
 	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_burp_round_robin_npex} -npey ${test_burp_round_robin_npey} -ndigits ${test_burp_round_robin_ndigits} -obsin ${INPUTS}/burp/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
+	run_splitobs -round-robin -npex ${test_burp_round_robin_npex} -npey ${test_burp_round_robin_npey} -ndigits ${test_burp_round_robin_ndigits} -obsin ${INPUTS}/burp/2011070112_${fam} -obsout 2011070112_${fam}
 	assert "test_burp_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
 	split_status=0
