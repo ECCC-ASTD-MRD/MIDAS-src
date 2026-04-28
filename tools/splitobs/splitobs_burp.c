@@ -464,7 +464,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
                                                                           rptout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain < 0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_ua4d_record pour "
-                    "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
+                              "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
             EXIT_STATUS = NOT_OK;
           }
           else {
@@ -1822,7 +1822,8 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
       int jlatband_for_that_observation = -1;
 
       status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
-                              optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation, errmsg, VERBOSE);
+                              optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation,
+                              errmsg, VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Erreur dans la fonction find_subdomain "
                 "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
@@ -2167,6 +2168,8 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
 
   /* On passe au travers tous les blocs de donnees et on va extraire les donnees */
   for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
+    int nvals_in_domain_for_that_bloc = 0;
+
     blkdata = (BURP_BLK*) NULL;
     blkdata = brp_newblk();
     status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
@@ -2196,9 +2199,9 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
       for (valueIndex=0;valueIndex<BLK_NVAL(blkdata);valueIndex++)
         values_in_domain[valueIndex] = -1;
 
-      nvals_in_domain = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, 5001, 6001,
-                                                             ilonband, jlatband, blkdata, values_in_domain,
-                                                             VERBOSE);
+      nvals_in_domain_for_that_bloc = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, 5001, 6001,
+                                                                           ilonband, jlatband, blkdata, values_in_domain,
+                                                                           VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_subdomain_along_nval "
                           "pour le bloc %d\n", status, i_btyp);
@@ -2213,14 +2216,25 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
 
       /* Si aucune observation n'est dans le domaine alors on passe au
        * prochain enregistrement. */
-      if (nvals_in_domain==0) {
+      if (nvals_in_domain_for_that_bloc==0) {
         free(values_in_domain);
         values_in_domain = (int*) NULL;
+
         if (VERBOSE>1)
           printf("Fonction process_ua4d_record: Aucune observation n'a ete selectionnee pour cet "
                  "enregistrement (bkno=%d, btyp=%d)\n", bknos_data[i_btyp], btyp_data);
-        continue;
-      }
+
+         /* On retourne immediatement avec le nombre d'observations dans le domaine pour cet enregistrement qui est 0. */
+        return 0;
+        /* continue; */
+      } /* End of 'if (nvals_in_domain_for_that_bloc==0)' */
+
+      nvals_in_domain += nvals_in_domain_for_that_bloc;
+
+      if (VERBOSE>2)
+        printf("Fonction process_ua4d_record: %d observations selectionnees (total=%d) pour cet "
+               "enregistrement (bkno=%d, btyp=%d)\n", nvals_in_domain_for_that_bloc, nvals_in_domain,
+               bknos_data[i_btyp], btyp_data);
 
       /* A partir d'ici, on a au moins une observation dans le domaine */
       blksearch = (BURP_BLK*) NULL;
@@ -2240,9 +2254,9 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
           if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
             if (VERBOSE>1)
               printf("Fonction process_ua4d_record: Appel de putblk_nval btyp=%d nvals=%d BLK_NVAL(blkout)=%d\n",
-                     BLK_BTYP(blkout), nvals_in_domain, BLK_NVAL(blkout));
+                     BLK_BTYP(blkout), nvals_in_domain_for_that_bloc, BLK_NVAL(blkout));
 
-            status = putblk_nval(rptout,blkout,values_in_domain,nvals_in_domain,VERBOSE);
+            status = putblk_nval(rptout,blkout,values_in_domain,nvals_in_domain_for_that_bloc,VERBOSE);
             if (status<0) {
               App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
                                 "le bloc %d (btyp=%d)\n", status, i_btyp, BLK_BTYP(blkout));
@@ -2252,8 +2266,8 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
           } /* Fin du 'if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) )' */
           else {
             App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans le traitement du bloc %d  avec btyp=%d et nval=%d.  "
-                    "Le nval est different du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
-                    i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout), BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
+                              "Le nval est different du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
+                              i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout), BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
           }
         }/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */
 
