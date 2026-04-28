@@ -71,6 +71,7 @@ module biasCorrectionSat_mod
   type  :: struct_bias
     type(struct_chaninfo), allocatable :: chans(:)
     integer :: numscan
+    logical :: multipleScanBias
     integer :: numChannels
     real(8), allocatable  :: BHalfScanBias(:,:)
     real(8), allocatable  :: BMinusHalfScanBias(:,:)
@@ -82,7 +83,7 @@ module biasCorrectionSat_mod
   type(struct_columnData) :: column_mask
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 16
+  integer, parameter    :: NumPredictors = 18
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
@@ -98,7 +99,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "L4", "L5", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -118,6 +119,7 @@ module biasCorrectionSat_mod
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
   integer          :: nbscan(maxNumInst)  ! the number of scan positions
+  character(len=9) :: scanBiasCorrectionMode(maxNumInst)
   integer          :: passiveChannelList(maxNumInst, maxPassiveChannels)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
@@ -129,7 +131,7 @@ module biasCorrectionSat_mod
   logical  :: dumpToSqliteAfterThinning  ! option to output all usefull parameters to sqlite files after thinning
   namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
-  namelist /nambiassat/ cglobal, cinst, nbscan, passiveChannelList, filterObs, outstats, outCoeffCov
+  namelist /nambiassat/ cglobal, cinst, nbscan, scanBiasCorrectionMode, passiveChannelList, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
   namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov, removeHeightSfcOffset
 contains
@@ -166,6 +168,7 @@ contains
     outOmFPredCov = .false.
     removeHeightSfcOffset = .true.
     nbscan(:) = -1
+    scanBiasCorrectionMode(:) = "default"
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
     outstats = .false.
@@ -213,17 +216,17 @@ contains
     integer  :: cvdim
     integer  :: iSensor, iPredictor, instIndex
     integer  :: iChan
-    integer  :: iPred, jPred, kPred, iScan1, iScan2
+    integer  :: iPred, kPred, iScan1, iScan2
     character(len=85)  :: bcifFile
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff
     logical            :: bcifExists
+    character(len=9)   :: scanBiasMode
     ! variables from background coeff file
     integer            :: nfov, exitCode
     character(len=2)   :: predBCIF(tvs_maxchannelnumber,numPredictors)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
-    character(len=128) :: errorMessage
     real(8), allocatable :: Bmatrix(:,:)
 
     call bcs_readConfig()
@@ -252,6 +255,19 @@ contains
           if (trim(instrNamecoeff) == trim(cinst(instIndex))) then
             global = cglobal(instIndex)
             nfov = nbscan(instIndex)
+            if (scanBiasCorrectionMode(instIndex) == "default") then
+              if (nfov == 1) then
+                scanBiasCorrectionMode(instIndex) = 'none'
+              else if (nfov > 1) then
+                scanBiasCorrectionMode(instIndex) = 'all'
+              end if
+              write(*,*) "bcs_setup: Warning: default behavior scanBiasCorrectionMode was set to " // &
+                  trim(scanBiasCorrectionMode(instIndex)) // " for instrument " // trim(instrNamecoeff)
+            end if
+            scanBiasMode = scanBiasCorrectionMode(instIndex)
+            if ( trim(scanBiasMode) /= 'all' .and. trim(scanBiasMode) /= 'none') then
+              call rti_abort('bcs_setup: scanBiasCorrectionMode should be set to "default", "all" or "none" for instrument ' // trim(instrNamecoeff))
+            end if
           end if
         end do
         if (nfov == -1) then
@@ -293,45 +309,9 @@ contains
             bias(iSensor) % chans(ichan) % coeff_offset(:) = 0.d0
 
             bias(iSensor)%chans(ichan)% predictorIndex(1) = 1 !the constant term is always included
-            jPred = 1
-            do ipred = 1, npredBCIF(ichan + 1)
-              jPred =  jPred + 1
-              select case(predBCIF(ichan + 1, ipred))
-              case('T1')
-                kpred = 2
-              case('T2')
-                kpred = 3
-              case('T3')
-                kpred = 4
-              case('T4')
-                kpred = 5
-              case('SV')
-                kpred = 6
-              case('TG')
-                kpred = 7
-              case('T5')
-                kpred = 8
-              case('T6')
-                kpred = 9
-              case('WC')
-                kpred = 10
-              case('L1')
-                kpred = 11
-              case('L2')
-                kpred = 12
-              case('L3')
-                kpred = 13
-              case('SA')
-                kpred = 14
-              case('R1')
-                kpred = 15
-              case('R2')
-                kpred = 16
-              case default
-                write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
-                call rti_abort(errorMessage)
-              end select
-              bias(iSensor)%chans(ichan)%predictorIndex(jPred) = kpred
+            do iPred = 1, npredBCIF(ichan + 1)
+              kpred = getPredictorIndex( predBCIF(ichan + 1, iPred) )
+              bias(iSensor)%chans(ichan)%predictorIndex(iPred+1) = kpred
             end do
           end do
         else
@@ -339,7 +319,7 @@ contains
         end if
 
         bias(iSensor)%numscan = nfov
-
+        bias(iSensor)%multipleScanBias = ( scanBiasMode == 'all' )
         allocate( bias(iSensor) % BHalfScanBias (nfov,nfov))
         if (doRegression) allocate( bias(iSensor) % BMinusHalfScanBias (nfov,nfov))
         allocate( Bmatrix(nfov,nfov))
@@ -698,7 +678,7 @@ contains
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
 
-      if (bias(iSensor)%numScan > 1) then
+      if (bias(iSensor)%multipleScanBias) then
         iScan = iFov
       else
         iScan = 1
@@ -906,7 +886,7 @@ contains
       sunaz = obs_headElem_r(obsSpaceData, OBS_SAZ, headerIndex)
       satzen = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
       sataz = obs_headElem_r(obsSpaceData, OBS_AZA, headerIndex)
-      if (bias(sensorIndex)%numScan > 1) then
+      if (bias(sensorIndex)%multipleScanBias) then
         iScan = iFov
       else
         iScan = 1
@@ -1065,7 +1045,7 @@ contains
         if (iSensor /= sensorIndex) cycle HEADER
 
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
-        if (nscan > 1) then
+        if (bias(sensorIndex)%multipleScanBias) then
           iScan = iFov
         else
           iScan = 1
@@ -1379,7 +1359,7 @@ contains
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if (iPredictor == 1) then
-                if (bias(iSensor)%numScan > 1) then
+                if (bias(iSensor)%multipleScanBias) then
                   iScan = iFov
                 else
                   iScan = 1
@@ -1746,58 +1726,64 @@ contains
     sensorIndex = tvs_lsensor(headerIndex)
 
     !computation of scan bias position normalized to [-1;1]
-    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
+    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan - 1) / bias(sensorIndex)%numscan
 
     do iPredictor = 1, NumPredictors
 
-      if (iPredictor == 1) then
+      if (iPredictor == getPredictorIndex('KK')) then
         ! constant
         predictor(iPredictor) = 1.0d0
-      else if (iPredictor == 2) then
-        ! Height300-Height1000 (dam) /1000 T1
+      else if (iPredictor == getPredictorIndex('T1')) then
+        ! Height300-Height1000 (dam) /1000
         predictor(iPredictor) = trialHeight300m1000(headerIndex) / 1000.0d0
-      else if (iPredictor == 3) then
-        ! Height50-Height200 (dam) /1000   T2
+      else if (iPredictor == getPredictorIndex('T2')) then
+        ! Height50-Height200 (dam) /1000
         predictor(iPredictor) = trialHeight50m200(headerIndex) / 1000.0d0
-      else if (iPredictor == 4) then
-        ! Height5-Height50 (dam) /1000    T3
+      else if (iPredictor == getPredictorIndex('T3')) then
+        ! Height5-Height50 (dam) /1000
         predictor(iPredictor) = trialHeight5m50(headerIndex) / 1000.0d0
-      else if (iPredictor == 5) then
-        ! Height1-Height10 (dam) /1000    T4
+      else if (iPredictor == getPredictorIndex('T4')) then
+        ! Height1-Height10 (dam) /1000
         predictor(iPredictor) = trialHeight1m10(headerIndex) / 1000.0d0
-      else if (iPredictor == 6) then
+      else if (iPredictor == getPredictorIndex('SV')) then
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
         if (zenithAngle < 75.) predictor(iPredictor) = (1.d0 / cos(zenithAngle * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
-      else if (iPredictor == 7) then
+      else if (iPredictor == getPredictorIndex('TG')) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(headerIndex)
-      else if (iPredictor == 8) then
-        ! Height300-Height900 (dam) /1000    T5
+      else if (iPredictor == getPredictorIndex('T5')) then
+        ! Height300-Height900 (dam) /1000
         predictor(iPredictor) = trialHeight300m900(headerIndex) / 1000.0d0
-      else if (iPredictor == 9) then
-        ! Height300-Height850 (dam) /1000    T6
+      else if (iPredictor == getPredictorIndex('T6')) then
+        ! Height300-Height850 (dam) /1000 
         predictor(iPredictor) = trialHeight300m850(headerIndex) / 1000.0d0
-      else if (iPredictor == 10) then
+      else if (iPredictor == getPredictorIndex('WC')) then
         ! Total Water Vapor Content (aka precipitable water)
         predictor(iPredictor) = trialTotalWaterVaporContent(headerIndex)
-      else if (iPredictor == 11) then
+      else if (iPredictor == getPredictorIndex('L1')) then
         ! first order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = normalizedScanPosition
-      else if (iPredictor == 12) then
+      else if (iPredictor == getPredictorIndex('L2')) then
         ! second order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * (3.d0*normalizedScanPosition*normalizedScanPosition - 1.d0)
-      else if (iPredictor == 13) then
+      else if (iPredictor == getPredictorIndex('L3')) then
         ! third order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
-      else if (iPredictor == 14) then
+      else if (iPredictor == getPredictorIndex('L4')) then
+        ! fourth order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.125d0 * (35.d0*(normalizedScanPosition**4) - 30.d0*(normalizedScanPosition**2) + 3.d0)
+      else if (iPredictor == getPredictorIndex('L5')) then
+        ! fifth order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.125d0 * normalizedScanPosition * (63.d0*(normalizedScanPosition**4) -70.d0*(normalizedScanPosition**2) +15.d0)
+      else if (iPredictor == getPredictorIndex('SA')) then
         ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
         predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
-      else if (iPredictor == 15) then
-        ! channel convoluted lapse rate (R1)
+      else if (iPredictor == getPredictorIndex('R1')) then
+        ! channel convoluted lapse rate
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)
-      else if (iPredictor == 16) then
-        ! channel convoluted lapse rate squared (R2)
+      else if (iPredictor == getPredictorIndex('R2')) then
+        ! channel convoluted lapse rate squared
         predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)**2
       end if
     end do
@@ -1890,7 +1876,7 @@ contains
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if (jPred == 1) then
-                if (bias(iSensor)%numScan > 1) then
+                if (bias(iSensor)%multipleScanBias) then
                   iScan = iFov
                 else
                   iScan = 1
@@ -2931,7 +2917,7 @@ contains
         iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
-        if (nscan > 1) then
+        if (bias(sensorIndex)%multipleScanBias) then
           iScan = iFov
         else
           iScan = 1
@@ -2993,7 +2979,7 @@ contains
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
-        if (nscan > 1) then
+        if (bias(sensorIndex)%multipleScanBias) then
           iScan = iFov
         else
           iScan = 1
@@ -4037,5 +4023,29 @@ contains
     deallocate(allNumBody)
 
   end subroutine getInitialIdObsData
+
+  !-----------------------------------------
+  ! getPredictorIndex
+  !-----------------------------------------
+  function getPredictorIndex(predictorName) result(predictorIndex)
+    !
+    ! :Purpose: Compute predictor index from predictor string
+    !           
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: predictorName ! 2 letters predictor name
+
+    ! Result:
+    integer :: predictorIndex
+    
+    predictorIndex = utl_findloc(predTab(1:NumPredictors), predictorName)
+    
+    if (predictorIndex == 0) then
+      call rti_abort('getPredictorIndex: unknown predictor ' // predictorName)
+    end if
+    
+  end function getPredictorIndex
 
 end module biasCorrectionSat_mod
