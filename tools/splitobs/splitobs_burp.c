@@ -432,7 +432,10 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             printf("Fonction splitobs_burp: will process grouped data record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          number_of_obs_in_this_record_in_subdomain = process_groupeddata_record(&opt, &grid, rptin, ilonband, jlatband,
+          /* When considering the geophraphical bins, the first bin starts at index 1, so
+             we need to use 'ilonband+1, jlatband+1' to have the correct binning.
+           */
+          number_of_obs_in_this_record_in_subdomain = process_groupeddata_record(&opt, &grid, rptin, ilonband+1, jlatband+1,
                                                                                  rptout, iout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain<0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_groupeddata_record pour "
@@ -456,7 +459,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             printf("Fonction splitobs_burp: will process ua4d data record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          number_of_obs_in_this_record_in_subdomain = process_ua4d_record(&opt, &grid, rptin, ilonband, jlatband,
+          number_of_obs_in_this_record_in_subdomain = process_ua4d_record(&opt, &grid, rptin, ilonband+1, jlatband+1,
                                                                           rptout, VERBOSE);
           if (number_of_obs_in_this_record_in_subdomain < 0) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_ua4d_record pour "
@@ -476,7 +479,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             printf("Fonction splitobs_burp: will process regular record '%s' (i_enrgs=%d)\n",
                    RPT_STNID(rptin),i_enrgs);
 
-          status = process_regular_record(&opt, &grid, rptin, ilonband, jlatband, rptout, VERBOSE);
+          status = process_regular_record(&opt, &grid, rptin, ilonband+1, jlatband+1, rptout, VERBOSE);
           if (status == NOT_OK) {
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction process_regular_record pour "
                     "l'adresse %d (%d rapport)\n",
@@ -536,6 +539,9 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
       if ( number_of_observations_accepted > max_num_headers)
         max_num_headers = number_of_observations_accepted;
+
+      printf("\nFonction splitobs_burp: Il y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
+              number_of_observations_accepted, burpout);
 
       if (opt.numheaders_files == 1) {
         FILE* file;
