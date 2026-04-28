@@ -168,7 +168,7 @@ contains
     outOmFPredCov = .false.
     removeHeightSfcOffset = .true.
     nbscan(:) = -1
-    scanBiasCorrectionMode(:) = "undefined"
+    scanBiasCorrectionMode(:) = "default"
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
     outstats = .false.
@@ -255,9 +255,18 @@ contains
           if (trim(instrNamecoeff) == trim(cinst(instIndex))) then
             global = cglobal(instIndex)
             nfov = nbscan(instIndex)
+            if (scanBiasCorrectionMode(instIndex) == "default") then
+              if (nfov == 1) then
+                scanBiasCorrectionMode(instIndex) = 'none'
+              else if (nfov > 1) then
+                scanBiasCorrectionMode(instIndex) = 'all'
+              end if
+              write(*,*) "bcs_setup: Warning: default behavior scanBiasCorrectionMode was set to " // &
+                  trim(scanBiasCorrectionMode(instIndex)) // " for instrument " // trim(instrNamecoeff)
+            end if
             scanBiasMode = scanBiasCorrectionMode(instIndex)
-            if (scanBiasMode == 'undefined' .or. ( trim(scanBiasMode) /= 'all' .and. trim(scanBiasMode) /= 'none') ) then
-              call rti_abort('bcs_setup: scanBiasCorrectionMode should be set to "all" or "none" for instrument ' // trim(instrNamecoeff))
+            if ( trim(scanBiasMode) /= 'all' .and. trim(scanBiasMode) /= 'none') then
+              call rti_abort('bcs_setup: scanBiasCorrectionMode should be set to "default", "all" or "none" for instrument ' // trim(instrNamecoeff))
             end if
           end if
         end do
