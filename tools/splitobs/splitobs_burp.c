@@ -1516,7 +1516,7 @@ int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in
       break;
     }
 
-    if (number_of_observations_in_report<0) {
+    if (number_of_obs_in_subdomain<=0) {
       if (tIndices_in_domain == (int*) NULL)
         number_of_observations_in_report = BLK_NT(blkout);
       else
