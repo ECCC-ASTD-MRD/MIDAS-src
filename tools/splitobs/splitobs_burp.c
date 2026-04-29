@@ -806,9 +806,9 @@ int which_btyp(int btyp, int VERBOSE) {
     else if ( crit == 3 )
       return 1;
     else {
-      App_Log(APP_ERROR,"Fonction which_btyp: Ce n'est ni un bloc marqueur ni un "
-              "bloc de donnees btyp=%d (btyp>>2 & 31 = %d) (btyp>>11 & 3 = %d)\n",
-              btyp, btyp>>2 & 31, btyp>>11 & 3);
+      printf("Fonction which_btyp: Ce n'est ni un bloc marqueur ni un "
+             "bloc de donnees btyp=%d (btyp>>2 & 31 = %d) (btyp>>11 & 3 = %d)\n",
+             btyp, btyp>>2 & 31, btyp>>11 & 3);
       return -1;
     }
   }
@@ -1323,9 +1323,9 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   if (VERBOSE>5) {
     printf("Fonction find_blk_data_in_rpt: Voici les blocs trouves (bknos, btyp): [");
     i=0;
-    printf("%d %d", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
+    printf("(%d %d)", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
     for (i=1;i<nblkstmp;i++)
-      printf(",%d %d", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
+      printf(",(%d %d)", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
     printf("]\n");
   }
 
@@ -1747,11 +1747,15 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
 
   EXIT_STATUS = OK;
 
-  blk_data_converted = brp_newblk();
-  status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
-
   if (values_in_domain == (int*) NULL) {
     App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: le vecteur 'values_in_domain' doit etre deja alloue\n");
+    return NOT_OK;
+  }
+
+  blk_data_converted = brp_newblk();
+  status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
+  if ( status < 0 ) {
+    App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Erreur %d a l'appel de 'brp_readblk'\n", status);
     brp_freeblk(blk_data_converted);
     return NOT_OK;
   }
@@ -1839,7 +1843,7 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
     } /* Fin du 'else' associe au 'if ( opt.npex == 1 || opt.npey == 1 )' */
 
     if ( is_observation_in_subdomain ) {
-      values_in_domain[valueIndex] = valueIndex;
+      values_in_domain[number_of_observations_in_subdomain] = valueIndex;
       number_of_observations_in_subdomain++;
     }
     if (VERBOSE>4) {
@@ -2051,7 +2055,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
     printf("\nFonction putblk_nval: Impression du 'blk' terminee\n");
   }
 
-  if (nval==0)
+  if (nval<=0)
     brp_allocblk(newblk,BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk));
   else
     brp_allocblk(newblk,BLK_NELE(blk),nval,BLK_NT(blk));
@@ -2154,7 +2158,7 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
   BURP_BLK* blksearch;
   BURP_BLK* blktmp;
 
-  if (VERBOSE>3) {
+  if (VERBOSE>2) {
     printf("Fonction process_ua4d_record: processing stdids %s for domain %dx%d\n", RPT_STNID(rptin), ilonband, jlatband);
     print_rpt(rptin);
   }
