@@ -2154,6 +2154,11 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
   BURP_BLK* blksearch;
   BURP_BLK* blktmp;
 
+  if (VERBOSE>3) {
+    printf("Fonction process_ua4d_record: processing stdids %s for domain %dx%d\n", RPT_STNID(rptin), ilonband, jlatband);
+    print_rpt(rptin);
+  }
+
   bknos_data = (int*) NULL;
   btyps_data = (int*) NULL;
   status = find_blk_data_in_rpt(rptin, 5001, 6001, &bknos_data, &btyps_data, &btypnum, VERBOSE);
@@ -2185,108 +2190,108 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
       App_Log(APP_ERROR,"Fonction process_ua4d_record: Probleme potentiel puisque btyp_data=%d est different de btyps_data[%d]=%d",
               btyp_data, i_btyp, btyps_data[i_btyp]);
 
-      values_in_domain = (int*) NULL;
-      values_in_domain = (int*) malloc(BLK_NVAL(blkdata)*sizeof(int));
-      if (values_in_domain == (int*) NULL) {
-        App_Log(APP_ERROR,"Fonction process_ua4d_record: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", optptr->npex*optptr->npey*BLK_NVAL(blkdata));
-
-        brp_freeblk(blkdata);
-        if (bknos_data != (int*) NULL) free(bknos_data);
-        if (btyps_data != (int*) NULL) free(btyps_data);
-
-        return NOT_OK;
-      }
-
-      for (valueIndex=0;valueIndex<BLK_NVAL(blkdata);valueIndex++)
-        values_in_domain[valueIndex] = -1;
-
-      nvals_in_domain_for_that_bloc = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, 5001, 6001,
-                                                                           ilonband, jlatband, blkdata, values_in_domain,
-                                                                           VERBOSE);
-      if (nvals_in_domain_for_that_bloc<0) {
-        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_subdomain_along_nval "
-                          "pour le bloc btyp=%d\n", nvals_in_domain_for_that_bloc, i_btyp);
-
-        free(values_in_domain);
-        brp_freeblk(blkdata);
-        if (bknos_data != (int*) NULL) free(bknos_data);
-        if (btyps_data != (int*) NULL) free(btyps_data);
-
-        return NOT_OK;
-      }
-
-      /* Si aucune observation n'est dans le domaine alors on passe au
-       * prochain enregistrement. */
-      if (nvals_in_domain_for_that_bloc==0) {
-        brp_freeblk(blkdata);
-        free(values_in_domain);
-        values_in_domain = (int*) NULL;
-
-        if (VERBOSE>1)
-          printf("Fonction process_ua4d_record: Aucune observation n'a ete selectionnee pour cet "
-                 "enregistrement (bkno=%d, btyp=%d)\n", bknos_data[i_btyp], btyp_data);
-
-         /* On retourne immediatement avec le nombre d'observations dans le domaine pour cet enregistrement qui est 0. */
-        /* return 0; */
-
-        continue;
-      } /* End of 'if (nvals_in_domain_for_that_bloc==0)' */
-
-      nvals_in_domain += nvals_in_domain_for_that_bloc;
-
-      if (VERBOSE>2)
-        printf("Fonction process_ua4d_record: %d observations selectionnees (total=%d) pour cet "
-               "enregistrement (bkno=%d, btyp=%d)\n", nvals_in_domain_for_that_bloc, nvals_in_domain,
-               bknos_data[i_btyp], btyp_data);
-
-      /* A partir d'ici, on a au moins une observation dans le domaine */
-      blksearch = (BURP_BLK*) NULL;
-      blksearch = brp_newblk();
-      BLK_SetBKNO(blksearch, 0);
-      while ( brp_findblk( blksearch, rptin ) >= 0 ) {
-        BURP_BLK* blkout = (BURP_BLK*) NULL;
-        blkout = brp_newblk();
-        status = brp_readblk(BLK_BKNO(blksearch), blkout, rptin, 0);
-        if (status<0) {
-          App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
-          brp_freeblk(blkout);
-          continue;
-        }
-
-        if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1 ) {
-          if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
-            if (VERBOSE>1)
-              printf("Fonction process_ua4d_record: Appel de putblk_nval btyp=%d nvals=%d BLK_NVAL(blkout)=%d\n",
-                     BLK_BTYP(blkout), nvals_in_domain_for_that_bloc, BLK_NVAL(blkout));
-
-            status = putblk_nval(rptout,blkout,values_in_domain,nvals_in_domain_for_that_bloc,VERBOSE);
-            if (status<0) {
-              App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
-                                "le bloc %d (btyp=%d)\n", status, i_btyp, BLK_BTYP(blkout));
-              print_rpt(rptin);
-
-              EXIT_STATUS = NOT_OK;
-              break;
-            }
-          } /* Fin du 'if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) )' */
-          else {
-            App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans le traitement du bloc %d  avec btyp=%d et nval=%d.  "
-                              "Le nval est different du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
-                              i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout), BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
-          }
-        }/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */
-
-        brp_freeblk(blkout);
-      } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
-
-      free(values_in_domain);
+    values_in_domain = (int*) NULL;
+    values_in_domain = (int*) malloc(BLK_NVAL(blkdata)*sizeof(int));
+    if (values_in_domain == (int*) NULL) {
+      App_Log(APP_ERROR,"Fonction process_ua4d_record: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", optptr->npex*optptr->npey*BLK_NVAL(blkdata));
 
       brp_freeblk(blkdata);
-      brp_freeblk(blksearch);
+      if (bknos_data != (int*) NULL) free(bknos_data);
+      if (btyps_data != (int*) NULL) free(btyps_data);
 
-      if (EXIT_STATUS == NOT_OK)
-        break;
-    } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
+      return NOT_OK;
+    }
+
+    for (valueIndex=0;valueIndex<BLK_NVAL(blkdata);valueIndex++)
+      values_in_domain[valueIndex] = -1;
+
+    nvals_in_domain_for_that_bloc = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, 5001, 6001,
+                                                                         ilonband, jlatband, blkdata, values_in_domain,
+                                                                         VERBOSE);
+    if (nvals_in_domain_for_that_bloc<0) {
+      App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_subdomain_along_nval "
+              "pour le bloc btyp=%d\n", nvals_in_domain_for_that_bloc, i_btyp);
+
+      free(values_in_domain);
+      brp_freeblk(blkdata);
+      if (bknos_data != (int*) NULL) free(bknos_data);
+      if (btyps_data != (int*) NULL) free(btyps_data);
+
+      return NOT_OK;
+    }
+
+    /* Si aucune observation n'est dans le domaine alors on passe au
+     * prochain enregistrement. */
+    if (nvals_in_domain_for_that_bloc==0) {
+      brp_freeblk(blkdata);
+      free(values_in_domain);
+      values_in_domain = (int*) NULL;
+
+      if (VERBOSE>1)
+        printf("Fonction process_ua4d_record: Aucune observation n'a ete selectionnee pour cet "
+               "enregistrement (bkno=%d, btyp=%d)\n", bknos_data[i_btyp], btyp_data);
+
+      /* On retourne immediatement avec le nombre d'observations dans le domaine pour cet enregistrement qui est 0. */
+      /* return 0; */
+
+      continue; /* for (i_btyp=0;i_btyp<btypnum;i_btyp++) */
+    } /* End of 'if (nvals_in_domain_for_that_bloc==0)' */
+
+    nvals_in_domain += nvals_in_domain_for_that_bloc;
+
+    if (VERBOSE>2)
+      printf("Fonction process_ua4d_record: %d observations selectionnees (total=%d) pour cet "
+             "enregistrement (bkno=%d, btyp=%d)\n", nvals_in_domain_for_that_bloc, nvals_in_domain,
+             bknos_data[i_btyp], btyp_data);
+
+    /* A partir d'ici, on a au moins une observation dans le domaine */
+    blksearch = (BURP_BLK*) NULL;
+    blksearch = brp_newblk();
+    BLK_SetBKNO(blksearch, 0);
+    while ( brp_findblk( blksearch, rptin ) >= 0 ) {
+      BURP_BLK* blkout = (BURP_BLK*) NULL;
+      blkout = brp_newblk();
+      status = brp_readblk(BLK_BKNO(blksearch), blkout, rptin, 0);
+      if (status<0) {
+        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
+        brp_freeblk(blkout);
+        continue; /* while ( brp_findblk( blksearch, rptin ) >= 0 ) */
+      }
+
+      if ( btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1 ) {
+        if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) ) {
+          if (VERBOSE>1)
+            printf("Fonction process_ua4d_record: Appel de putblk_nval btyp=%d nvals=%d BLK_NVAL(blkout)=%d\n",
+                   BLK_BTYP(blkout), nvals_in_domain_for_that_bloc, BLK_NVAL(blkout));
+
+          status = putblk_nval(rptout,blkout,values_in_domain,nvals_in_domain_for_that_bloc,VERBOSE);
+          if (status<0) {
+            App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
+                              "le bloc %d (btyp=%d)\n", status, i_btyp, BLK_BTYP(blkout));
+            print_rpt(rptin);
+
+            EXIT_STATUS = NOT_OK;
+            break; /* while ( brp_findblk( blksearch, rptin ) >= 0 ) */
+          }
+        } /* Fin du 'if ( BLK_NVAL(blkdata) == BLK_NVAL(blkout) )' */
+        else {
+          App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans le traitement du bloc %d  avec btyp=%d et nval=%d.  "
+                             "Le nval est different du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
+                             i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout), BLK_BKNO(blkdata), BLK_BTYP(blkdata), BLK_NVAL(blkdata));
+        }
+      }/* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout),VERBOSE) == 1)' */
+
+      brp_freeblk(blkout);
+    } /* Fin du while ( brp_findblk( blksearch, rptin ) >= 0 ) */
+
+    free(values_in_domain);
+
+    brp_freeblk(blkdata);
+    brp_freeblk(blksearch);
+
+    if (EXIT_STATUS == NOT_OK)
+      break;
+  } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
 
   /* A partir d'ici, tous les blocs de donnees et ceux qui leur sont associes ont ete traites.
    * Il faut maintenant trouver ceux qui ne l'ont pas ete pour les ecrire dans le fichier
@@ -2307,24 +2312,26 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
     blkout = brp_newblk();
     status = brp_readblk(BLK_BKNO(blktmp), blkout, rptin, 0);
     if (status<0) {
-      App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, BLK_BKNO(blktmp));
+      App_Log(APP_ERROR, "Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n",
+              i_btyp, BLK_BKNO(blktmp));
       brp_freeblk(blkout);
-      continue;
+      continue; /* while ( brp_findblk( blktmp, rptin ) >= 0 ) */
     }
 
     for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
       status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
       if (status<0) {
-        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+        App_Log(APP_ERROR, "Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n",
+                i_btyp, bknos_data[i_btyp]);
         brp_freeblk(blkdata);
-        continue;
+        continue; /* for (i_btyp=0;i_btyp<btypnum;i_btyp++) */
       }
 
       if (BLK_NVAL(blkdata) == BLK_NVAL(blkout) && (btyps_data[i_btyp] == BLK_BTYP(blkout) || btypAssociated(btyps_data[i_btyp],BLK_BTYP(blkout),VERBOSE) == 1)) {
         if (VERBOSE>1)
           printf("Fonction process_ua4d_record: le btyp %d est associe a %d\n", BLK_BTYP(blkout), btyps_data[i_btyp]);
         associated=1;
-        break;
+        break; /* for (i_btyp=0;i_btyp<btypnum;i_btyp++) */
       }
     } /* Fin du 'for (i_btyp=0;i_btyp<btypnum;i_btyp++)' */
 
@@ -2334,10 +2341,10 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
 
       status = putblk_nval(rptout,blkout, (int*) NULL, 0, VERBOSE);
       if (status<0) {
-        App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
+        App_Log(APP_ERROR, "Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
                 "le bloc %d (btyp=%d) (bloc data)\n", status, i_btyp, BLK_BTYP(blktmp));
         EXIT_STATUS = NOT_OK;
-        break;
+        break; /* while ( brp_findblk( blktmp, rptin ) >= 0 ) */
       }
     } /* Fin du 'if(!associated)' */
 
