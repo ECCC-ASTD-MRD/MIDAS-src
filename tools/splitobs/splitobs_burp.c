@@ -2076,7 +2076,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
   if (status<0) {
     App_Log(APP_ERROR,"Fonction putblk_nval: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
     brp_freeblk(newblk);
-    return -1;
+    return NOT_OK;
   }
   if (VERBOSE>4)
     printf("Fonction putblk_nval: newblk->datyp = %d (apres encode)\n", BLK_DATYP(newblk));
@@ -2116,11 +2116,11 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
   status = brp_putblk(rpt,newblk);
   if (VERBOSE>3)
     fprintf(stdout,"Fonction putblk_nval: 'brp_putblk' terminee\n");
-  if (status<0) {
-    App_Log(APP_ERROR,"Fonction putblk_nval: Erreur %d dans la fonction blk_putblk (btyp %d)\n", status, BLK_BTYP(blk));
-    return -1;
-  }
   brp_freeblk(newblk);
+  if (status<0) {
+    App_Log(APP_ERROR,"Fonction putblk_nval: Erreur %d dans la fonction brp_putblk (btyp %d)\n", status, BLK_BTYP(blk));
+    return NOT_OK;
+  }
 
   if (VERBOSE>2)
     printf("Fonction putblk_nval: btyp=%d nval=%d blk_nele=%d blk_nval=%d blk_nt=%d vals_in_domain=%p return=0\n",
@@ -2174,7 +2174,8 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
     blkdata = brp_newblk();
     status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
     if (status<0) {
-      App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+      App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n",
+              i_btyp, bknos_data[i_btyp]);
       brp_freeblk(blkdata);
       continue;
     }
@@ -2202,9 +2203,9 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
       nvals_in_domain_for_that_bloc = extract_data_in_subdomain_along_nval(optptr, gridptr, rptin, 5001, 6001,
                                                                            ilonband, jlatband, blkdata, values_in_domain,
                                                                            VERBOSE);
-      if (status<0) {
+      if (nvals_in_domain_for_that_bloc<0) {
         App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction extract_data_in_subdomain_along_nval "
-                          "pour le bloc %d\n", status, i_btyp);
+                          "pour le bloc btyp=%d\n", nvals_in_domain_for_that_bloc, i_btyp);
 
         free(values_in_domain);
         brp_freeblk(blkdata);
@@ -2217,6 +2218,7 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
       /* Si aucune observation n'est dans le domaine alors on passe au
        * prochain enregistrement. */
       if (nvals_in_domain_for_that_bloc==0) {
+        brp_freeblk(blkdata);
         free(values_in_domain);
         values_in_domain = (int*) NULL;
 
@@ -2225,8 +2227,9 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
                  "enregistrement (bkno=%d, btyp=%d)\n", bknos_data[i_btyp], btyp_data);
 
          /* On retourne immediatement avec le nombre d'observations dans le domaine pour cet enregistrement qui est 0. */
-        return 0;
-        /* continue; */
+        /* return 0; */
+
+        continue;
       } /* End of 'if (nvals_in_domain_for_that_bloc==0)' */
 
       nvals_in_domain += nvals_in_domain_for_that_bloc;
@@ -2260,6 +2263,8 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
             if (status<0) {
               App_Log(APP_ERROR,"Fonction process_ua4d_record: Erreur %d dans la fonction putblk_nval pour "
                                 "le bloc %d (btyp=%d)\n", status, i_btyp, BLK_BTYP(blkout));
+              print_rpt(rptin);
+
               EXIT_STATUS = NOT_OK;
               break;
             }
@@ -2293,7 +2298,7 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
     printf("Fonction process_ua4d_record: on cherche les blocs qui n'ont pas ete traites\n");
 
   /* on trouve les blocs qui ne sont pas associes a aucun bloc */
-  blktmp  = (BURP_BLK*) NULL;
+  blktmp = (BURP_BLK*) NULL;
   blktmp = brp_newblk();
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
     int associated = 0;
