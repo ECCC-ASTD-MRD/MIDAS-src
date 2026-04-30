@@ -1,0 +1,74 @@
+ &NAMTIME
+  DSTEPOBS = 84.0d0
+  DSTEPOBSINC = 168.0d0
+  DWINDOWSIZE = 168.0d0
+/
+ &NAMSTATE
+  ANLVAR(1) = 'GE'
+/
+ &NAMDIMO
+   NMXOBS  = 600000
+   NDATAMX = 600000
+/
+ &NAMFILT
+  NLIST(1) = 13115
+  NLISTFLG(1) = -5
+  NLISTFLG(2) = 3
+  NLISTFLG(3) = 4
+  NLISTFLG(4) = 13
+/
+ &namPlatformIce
+  listPlatformIce(1) = 'SMOS'
+  listPlatformIce(2) = 'CryoSat'
+  listPlatformIce(3) = 'SMAP'
+/
+ &NAMBDIFF
+  corr_len = 200*40.0
+  stab     = 200*0.2
+  nsamp    = 200*10000
+  SCALEFACTOR = 200*1.0
+  stddevMode = 'HOMO'
+  homogeneous_std = 200*0.093
+/
+ &NAMBHI
+   NTRUNC  = 180
+   SCALEFACTOR = 200*0.0D0
+/
+ &NAMBLB
+   NTRUNC  = 180
+   SCALEFACTOR = 200*0.0D0
+   stddevMode = 'GD3D'
+   filterStddev = 5
+/
+ &NAMBEN
+   SCALEFACTOR = 200*0.0D0
+/
+ &NAMSQLgl
+  listElem="13115"
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+ itemUpdateBodyList(1)='OMP'
+ itemUpdateBodyList(2)='OMA'
+ itemUpdateBodyList(3)='HPHT'
+/
+ &namSQLInsert
+/
+ &NAMMIN
+   NVAMAJ   = 30
+   NITERMAX = 20
+   NSIMMAX  = 100
+   REPSG    = 1.0D-5
+   LGRTEST  = .FALSE.
+   LWRTHESS = .FALSE.
+   LVARQC   = .FALSE.
+   NWOQCV   = 5
+/
+ &NAMINC
+   etiket_rebm ='XXXXXX'
+   writeNumBits = 32
+   hInterpolationDegree = 'CUBIC'
+   spreadIceIncOverLakes = .TRUE.
+/
+ &NAMCODTYP
+/
