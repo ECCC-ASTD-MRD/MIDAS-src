@@ -102,16 +102,20 @@ foreach(prog ${PROJECT_PROGRAMS})
   target_link_directories(${prog} PUBLIC $ENV{netcdf_INSTALLDIR}/lib/lib64)
   if(USE_LOCAL_EXTLIBS)
     target_link_libraries(${prog} PUBLIC perftools f90sqlite)
-  else()
-    target_link_directories(${prog} PUBLIC $ENV{f90sqlite_INSTALLDIR}/lib)
   endif()
 endforeach()
 
+
+if(DEFINED ENV{FFLAGS_HDF5})
+  set(FFLAGS "${MPI_COMPILE_FLAGS} $ENV{FFLAGS_HDF5}")
+else()
+  set(FFLAGS "${MPI_COMPILE_FLAGS}")
+endif()
 foreach(prog ${PROJECT_PROGRAMS})
 
   set_target_properties(${prog} PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}"
+    COMPILE_FLAGS "${FFLAGS}"
     LINK_FLAGS "${MPI_LINK_FLAGS}"
   )
 

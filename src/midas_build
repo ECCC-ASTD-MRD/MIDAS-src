@@ -293,6 +293,7 @@ function printHeader {
     done
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
+    echo "| compiler: ${compiler}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_BUILD}"
