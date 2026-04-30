@@ -118,7 +118,7 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
     App_End(-1);exit(1);
   }
 
-  if (*file_handle) {
+  if (*file_handle != 0) {
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     status = close_stdfile(iun, fichier);
     if (status == NOT_OK) {
@@ -150,8 +150,6 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
  ***************************************************************************/
 int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
                 float** valeurs_gz_min_ptr, float** valeurs_gz_max_ptr) {
-  int status;
-
   /**********************************************************
    * Dans cette partie, on va lire, si necessaire, le champ GZ dans le
    * fichier optptr->gz tel qu'identifie par les elements dans la
@@ -176,13 +174,13 @@ int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
     }
 
     if (optptr->niveau_min != IP1_VIDE) {
-      status = getGZ(optptr->gz,gridptr,optptr->niveau_min,valeurs_gz_min_ptr);
+      int status = getGZ(optptr->gz,gridptr,optptr->niveau_min,valeurs_gz_min_ptr);
       if (status != OK) {
         return NOT_OK;
       }
     }
     if (optptr->niveau_max != IP1_VIDE) {
-      status = getGZ(optptr->gz,gridptr,optptr->niveau_max,valeurs_gz_max_ptr);
+      int status = getGZ(optptr->gz,gridptr,optptr->niveau_max,valeurs_gz_max_ptr);
       if (status != OK) {
         if (*valeurs_gz_min_ptr != (float*) NULL)
           free(*valeurs_gz_min_ptr);

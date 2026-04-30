@@ -563,7 +563,6 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
   int idx, isTypeTable, found_split_on_key;
   sqlite_get_tables_callback_arg *callback_arg;
   char table_name[MAXSTR];
-  char* table_list;
   regex_t regex;
   char regex_errbuf[MAXSTR];
   int regex_err;
@@ -645,6 +644,8 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
   regfree(&regex);
 
   if (strlen(table_name)>0) {
+    char* table_list;
+
     if (found_split_on_key) {
       table_list = callback_arg->table_list_with_split_key;
     }

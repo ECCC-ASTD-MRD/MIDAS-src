@@ -1184,7 +1184,7 @@ int check_ua4d(BURP_RPT *rptin, int VERBOSE) {
    ***************************************************************************/
 int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
                          int** bknos_data_ptr, int** btyps_data_ptr, int* nblks, int VERBOSE) {
-  int i, e, status, nblkstmp, trouve_lat, trouve_lon;
+  int status, nblkstmp, trouve_lat, trouve_lon;
   int trouve_au_moins_un_bloc_avec_lat_lon;
   BURP_BLK *blktmp, *blk;
 
@@ -1206,6 +1206,8 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   BLK_SetBKNO(blktmp, 0);
   nblkstmp = 0;
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
+    int elementIndex;
+
     status = brp_readblk(BLK_BKNO(blktmp), blk, rptin,0);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
@@ -1223,12 +1225,12 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     trouve_lat=0;
     trouve_lon=0;
     /* On cherche l'element lat et lon dans ce bloc */
-    for (e=0;e<BLK_NELE(blk);e++) {
+    for (elementIndex=0;elementIndex<BLK_NELE(blk);elementIndex++) {
       /* L'element 5001 indique la valeur de latitude de l'observation */
-      if (BLK_DLSTELE(blk,e)==elem_lat)
+      if (BLK_DLSTELE(blk,elementIndex)==elem_lat)
         trouve_lat=1;
       /* L'element 6001 indique la valeur de longitude de l'observation */
-      else if (BLK_DLSTELE(blk,e)==elem_lon)
+      else if (BLK_DLSTELE(blk,elementIndex)==elem_lon)
         trouve_lon=1;
 
       if (trouve_lat>0 && trouve_lon>0) {
@@ -1277,6 +1279,8 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   nblkstmp = 0;
   BLK_SetBKNO(blktmp, 0);
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
+    int elementIndex;
+
     status = brp_readblk(BLK_BKNO(blktmp), blk, rptin,0);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
@@ -1295,12 +1299,12 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     trouve_lat=0;
     trouve_lon=0;
     /* On cherche l'element lat et lon dans ce bloc */
-    for (e=0;e<BLK_NELE(blk);e++) {
+    for (elementIndex=0;elementIndex<BLK_NELE(blk);elementIndex++) {
       /* L'element 5001 indique la valeur de latitude de l'observation */
-      if (BLK_DLSTELE(blk,e)==elem_lat)
+      if (BLK_DLSTELE(blk,elementIndex)==elem_lat)
         trouve_lat=1;
       /* L'element 6001 indique la valeur de longitude de l'observation */
-      else if (BLK_DLSTELE(blk,e)==elem_lon)
+      else if (BLK_DLSTELE(blk,elementIndex)==elem_lon)
         trouve_lon=1;
 
       if (trouve_lat>0 && trouve_lon>0) {
@@ -1322,10 +1326,10 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 
   if (VERBOSE>5) {
     printf("Fonction find_blk_data_in_rpt: Voici les blocs trouves (bknos, btyp): [");
-    i=0;
-    printf("(%d %d)", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
-    for (i=1;i<nblkstmp;i++)
-      printf(",(%d %d)", (*bknos_data_ptr)[i],(*btyps_data_ptr)[i]);
+    int index=0;
+    printf("(%d %d)", (*bknos_data_ptr)[index],(*btyps_data_ptr)[index]);
+    for (index=1;index<nblkstmp;index++)
+      printf(",(%d %d)", (*bknos_data_ptr)[index],(*btyps_data_ptr)[index]);
     printf("]\n");
   }
 
@@ -1357,7 +1361,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
 int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int bkno_data,
                               BURP_BLK** blk_data_ptr, BURP_BLK** blk_flags_ptr,
                               int* colonne_lat_ptr, int* colonne_lon_ptr, int VERBOSE) {
-  int e, status, btyp, btyp_data, btyp_flags, trouve_flags=0, trouve_data=0;
+  int status, btyp_data, btyp_flags, trouve_flags=0, trouve_data=0;
   BURP_BLK *blktmp, *blk;
 
   if (VERBOSE>5)
@@ -1397,6 +1401,8 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
   blktmp = brp_newblk();
   BLK_SetBKNO(blktmp, 0);
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
+    int btyp;
+
     status = brp_getblk(BLK_BKNO(blktmp), blk, rptin);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction "
@@ -1414,18 +1420,20 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
       printf("Fonction find_blk_data_flag_in_rpt: btyp=%d (btyp>>11 & 3)=%d (btyp>>1 & 1)=%d\n", btyp, btyp>>11 & 3, btyp>>1 & 1);
 
     if (btyp == btyp_data) {
+      int elementIndex;
+
       trouve_data = 1;
 
       *blk_data_ptr = brp_newblk();
       brp_copyblk(*blk_data_ptr, blk);
 
-      for (e=0;e<BLK_NELE(*blk_data_ptr);e++) {
+      for (elementIndex=0;elementIndex<BLK_NELE(*blk_data_ptr);elementIndex++) {
         /* L'element 5001 indique la valeur de latitude de l'observation */
-        if (BLK_DLSTELE(*blk_data_ptr,e)==elem_lat)
-          *colonne_lat_ptr=e;
+        if (BLK_DLSTELE(*blk_data_ptr,elementIndex)==elem_lat)
+          *colonne_lat_ptr=elementIndex;
         /* L'element 6001 indique la valeur de longitude de l'observation */
-        else if (BLK_DLSTELE(*blk_data_ptr,e)==elem_lon)
-          *colonne_lon_ptr=e;
+        else if (BLK_DLSTELE(*blk_data_ptr,elementIndex)==elem_lon)
+          *colonne_lon_ptr=elementIndex;
 
         if (*colonne_lat_ptr>=0 && *colonne_lon_ptr>=0)
           break;
@@ -1495,15 +1503,17 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
  ***************************************************************************/
 int fill_rptout_with_blk(BURP_RPT* rptin, BURP_RPT* rptout, int number_of_obs_in_subdomain,
                          int* tIndices_in_domain, int VERBOSE) {
-  BURP_BLK *blk, *blkout;
-  int status, EXIT_STATUS = OK;
+  BURP_BLK* blk;
+  int EXIT_STATUS = OK;
   int number_of_observations_in_report = 0;
 
   blk = brp_newblk();
 
   BLK_SetBKNO(blk, 0);
   while ( brp_findblk( blk, rptin ) >= 0 ) {
-    blkout = brp_newblk();
+    int status;
+    BURP_BLK* blkout = brp_newblk();
+
     /* On utilise 'readblk' avec docvt = 0 pour ne pas convertir les valeurs puisque
      * cette operation change les valeurs dans certains cas tres particuliers.
      */
@@ -1581,7 +1591,6 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
   int status, tIndex, colonne_lat, colonne_lon, EXIT_STATUS;
   int is_observation_in_subdomain, number_of_observations_in_subdomain=0;
   int btypnum, *bknos_data, *bknos_flags;
-  float lat, lon;
   char errmsg[MAXSTR];
   BURP_BLK *blk_data, *blk_flags;
 
@@ -1594,8 +1603,6 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
   }
 
   if (btypnum!=1) {
-    int tIndex;
-
     App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nt: Dans la fonction find_blk_data_in_rpt, "
             "on a trouve %d blocs de donnees qui sont: ", btypnum);
 
@@ -1640,8 +1647,8 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
 
   EXIT_STATUS = OK;
   for (tIndex=0;tIndex<BLK_NT(blk_data);tIndex++) {
-    lat=BLK_RVAL(blk_data,colonne_lat,0,tIndex);
-    lon=BLK_RVAL(blk_data,colonne_lon,0,tIndex);
+    float lat = BLK_RVAL(blk_data,colonne_lat,0,tIndex);
+    float lon = BLK_RVAL(blk_data,colonne_lon,0,tIndex);
 
     if ( optptr->npex == 1 && optptr->npey == 1 ) {
       /* On verifie si on est dans le domaine */
@@ -1741,7 +1748,6 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
   int status, EXIT_STATUS;
   int elementIndex, valueIndex, colonne_lat, colonne_lon;
   int number_of_observations_in_subdomain = 0;
-  float lat, lon;
   char errmsg[MAXSTR];
   BURP_BLK *blk_data_converted = (BURP_BLK*) NULL;
 
@@ -1797,8 +1803,8 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
   for (valueIndex=0;valueIndex<BLK_NVAL(blk_data);valueIndex++) {
     int is_observation_in_subdomain = 0;
 
-    lat=BLK_RVAL(blk_data_converted,colonne_lat,valueIndex,0);
-    lon=BLK_RVAL(blk_data_converted,colonne_lon,valueIndex,0);
+    float lat = BLK_RVAL(blk_data_converted,colonne_lat,valueIndex,0);
+    float lon = BLK_RVAL(blk_data_converted,colonne_lon,valueIndex,0);
 
     if (VERBOSE>3)
       printf("Fonction extract_data_in_subdomain_along_nval: appel de 'checkgrid' ou 'find_subdomain' avec lat=%f et lon=%f\n", lat, lon);

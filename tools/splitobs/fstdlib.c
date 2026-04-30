@@ -91,12 +91,21 @@ int open_burpfile(int* iun, char* filename, char* op) {
 
   /* The function 'c_mrfopn' returns the number of reports in the file */
   number_of_reports = c_mrfopn(*iun, mode);
-  if ( ier < 0 ) {
-    fprintf(stderr,"Unable to open file as %s : %s with 'c_mrfopn'\n",
-            mode,  filename);
+  if ( number_of_reports < 0 ) {
+    fprintf(stderr,"Error %d when calling 'c_mrfopn' on file %s\n",
+            number_of_reports, filename);
 
     ier = c_mrfcls(*iun);
+    if ( ier < 0 ) {
+      fprintf(stderr,"Error %d when calling 'c_mrfcls' on file %s\n",
+            number_of_reports, filename);
+    }
+
     ier = c_fclos(*iun);
+    if ( ier < 0 ) {
+      fprintf(stderr,"Error %d when calling 'c_fclos' on file %s\n",
+              number_of_reports, filename);
+    }
 
     return NOT_OK;
   } /* Fin de 'if ( ier < 0 )' */
