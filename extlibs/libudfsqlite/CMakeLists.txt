@@ -14,7 +14,12 @@ find_package(rmn REQUIRED)
 find_library(LIBZ NAMES z REQUIRED)
 find_library(LIBM NAMES m REQUIRED)
 
-add_library(udfsqlite STATIC src/udfsqlite.c)
+set(SOURCES
+  src/udfsqlite.c
+  src/udfsqlite.h
+)
+
+add_library(udfsqlite STATIC ${SOURCES})
 
 target_compile_definitions(udfsqlite PRIVATE SQLITE_CORE)
 
@@ -24,6 +29,12 @@ target_link_libraries(udfsqlite PRIVATE
   ${LIBZ}
   ${LIBM}
 )
+
+target_include_directories(udfsqlite
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/extlibs/libudfsqlite/src>
+  PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
 
 install(TARGETS udfsqlite
   ARCHIVE DESTINATION ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}

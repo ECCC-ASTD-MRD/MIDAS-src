@@ -26,6 +26,7 @@ target_link_libraries(midas PUBLIC
   random::random
   ${HDF5_Libraries}
   burp::burp
+  ${SQLITE_Libraries}
 )
 
 if(MKL_SUPPORT)

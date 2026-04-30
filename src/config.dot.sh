@@ -295,19 +295,18 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${__compiler}" = gnu-15.2.0 ]; then
         ## This is needed for CMake to find the library
-        echo "... providing path for f90sqlite, hdf5 and netcdf to CMake"
-        export f90sqlite_INSTALLDIR=/home/mad001/ssm/f90sqlite_1.5-gnu-15.2.0_rhel-9-amd64-64
+        echo "... providing path for HDF5 to CMake"
         export hdf5_INSTALLDIR=/home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64
+        echo "... providing path for netcdf to CMake"
         export netcdf_INSTALLDIR=/home/mad001/ssm/netcdf-fortran_4.6.2-gnu-15.2.0_rhel-9-amd64-64
+        ## we should be able to replace those ssm with a module load command, but it does not find the mod files
+        # module load hdf5/gcc-15.2 netcdf/gcc-15.2 netcdf-fortran/gcc-15.2
 
         ## Loading the compiler affects 'ORDENV_PLAT' and for the
         ## rest, we need to use the original value.
         export ORDENV_PLAT=${__original_ordenv_plat__}
         unset __original_ordenv_plat__
 
-        echo "... loading perftools, and udfsqlite for ${COMP_ARCH}"
-        . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/perftools_2.1-gnu-15.2.0_rhel-9-amd64-64
-        . ssmuse-sh -x /fs/homeu3/eccc/mrd/rpnad/mad001/ssm/udfsqlite_1.19-gnu-15.2.0_rhel-9-amd64-64
     else
         echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
         . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}

@@ -57,16 +57,16 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
 
   set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
 
-  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
-    message(STATUS "(EC) Adding libf90sqlite external library target")
-    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
-    add_subdirectory(extlibs/libf90sqlite)
+  # Add udfsqlite first if needed by anything
+  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite" OR EXTLIBS_TO_BUILD MATCHES "f90sqlite")
+    message(STATUS "(EC) Adding libudfsqlite external library target")
+    add_subdirectory(extlibs/libudfsqlite)
   endif()
 
-  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite")
-    message(STATUS "(EC) Adding libudfsqlite external library target")
-    set(LIBUDFSQLITE_INCLUDE_DIR /home/erv000/data/midas/sqllibs/libudfsqlite/include)
-    add_subdirectory(extlibs/libudfsqlite)
+  # Then add f90sqlite if needed
+  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
+    message(STATUS "(EC) Adding libf90sqlite external library target")
+    add_subdirectory(extlibs/libf90sqlite)
   endif()
 
   if(EXTLIBS_TO_BUILD MATCHES "perftools")

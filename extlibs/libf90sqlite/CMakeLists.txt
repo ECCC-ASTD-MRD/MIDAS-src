@@ -14,11 +14,12 @@ set(SOURCES
 # Create the static library
 add_library(f90sqlite STATIC ${SOURCES})
 
-# Set include directories for csqlite.c
-if(NOT LIBUDFSQLITE_INCLUDE_DIR)
-    message(FATAL_ERROR "LIBUDFSQLITE_INCLUDE_DIR must be set")
-endif()
-target_include_directories(f90sqlite PRIVATE ${LIBUDFSQLITE_INCLUDE_DIR})
+# Link against udfsqlite target (this propagates its include directories)
+target_link_libraries(f90sqlite PRIVATE udfsqlite)
+
+target_include_directories(f90sqlite
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+)
 
 set_target_properties(f90sqlite PROPERTIES
   Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/include
