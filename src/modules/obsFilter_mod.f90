@@ -59,7 +59,9 @@ module obsFilter_mod
   logical :: initialized = .false.
 
   ! Namelist variables:
-  logical :: discardlandsfcwind          ! choose to reject surface wind obs over land
+  logical :: discardlandsfcwind          ! choose to reject surface wind obs over land (missing SWOB and Metar)
+  logical :: discardlandsfcwind_all      ! choose to reject surface wind obs over land (includes SWOB and Metar)
+  integer :: list_discardlandsfcwind(30) ! optional, user-defined list of surface codtyps for which to reject wind
   real(8) :: surfaceBufferZone_Pres      ! height of buffer zone (in Pa) for rejecting obs near sfc
   real(8) :: surfaceBufferZone_Height    ! height of buffer zone (in m) for rejecting obs near sfc
   real(8) :: surfaceBufferZoneCH_Pres    ! height buffer zone (in Pa) for rejecting CH family obs near sfc
@@ -121,7 +123,8 @@ contains
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
          surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, rejectGZforAnalysis, &
-         surfaceBufferZoneCH_Pres,surfaceBufferZoneCH_Height
+         surfaceBufferZoneCH_Pres,surfaceBufferZoneCH_Height, discardlandsfcwind_all, &
+         list_discardlandsfcwind
 
     filterMode = filterMode_in
 
@@ -133,11 +136,13 @@ contains
     list_altDiffMax (:) = MPC_missingValue_INT
     value_altDiffMax(:) = MPC_missingValue_R8
     nelems_altDiffMax = MPC_missingValue_INT
+    list_discardlandsfcwind(:) = MPC_missingValue_INT
 
     list_topoFilt(:) = '**'
 
     rlimlvhu = 300.d0
     discardlandsfcwind = .true.
+    discardlandsfcwind_all = .false.
 
     surfaceBufferZone_Pres   = 5000.0d0   ! default value in Pascals
     surfaceBufferZone_Height =  400.0d0   ! default value in Metres
@@ -1162,20 +1167,55 @@ end subroutine filt_topoAISW
     logical,          intent(in)    :: beSilent
 
     ! Locals:
-    INTEGER, parameter :: JPINEL=2,JPIDLND=9
+    INTEGER, parameter :: JPINEL=2,JPIDLND_BUG=9,JPIDLND_ALL=12
     INTEGER :: J,JID,JDATA
     LOGICAL :: LLPRINT
     INTEGER :: ITYP,IDBURP
-    INTEGER :: ILISTEL(JPINEL), IDLND(JPIDLND)
-    INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT
+    INTEGER :: ILISTEL(JPINEL), IDLND_BUG(JPIDLND_BUG), IDLND_ALL(JPIDLND_ALL)
+    INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT, IDLND(JPIDLND_ALL), JPIDLND
     character(len=2), dimension(2) :: list_family
     integer :: index_family, headerIndex, bodyIndex
     character(len=obs_stnidLength) :: stnid
     real(pre_obsReal) :: obsLAT, obsLON, obsPPP
+    ! Original list of codtyps (missing Metar and SWOB) as in IC4
+    DATA IDLND_BUG / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
+    ! Augmented list of codtyps (including Metar and SWOB) planned for IC5
+    DATA IDLND_ALL / 12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138 /
 
-    DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
+    if (discardlandsfcwind) then
+      if (.not. discardlandsfcwind_all) then
+        if (list_discardlandsfcwind(1) == MPC_missingValue_INT) then
+          ! Default case, i.e. SWOB and Metar not blocked, as in IC4
+          JPIDLND=JPIDLND_BUG
+          do J=1,JPIDLND_BUG
+            IDLND(J)=IDLND_BUG(J)
+          end do
+        else
+          ! Determine the number of user-defined codtyps from namelist
+          do J=1,30
+            if (list_discardlandsfcwind(J) == MPC_missingValue_INT) exit
+          end do
+          JPIDLND=J-1
+          write(*,*) 'JPIDLND = ', JPIDLND
+          ! Assign user-defined codtyps to IDLND so they will be blocked
+          do J=1,JPIDLND
+            IDLND(J)=list_discardlandsfcwind(J)
+          end do
+        end if
+      else
+        ! Use a predefined list of codtyps including SWOB and Metar
+        JPIDLND=JPIDLND_ALL
+        do J=1,JPIDLND_ALL
+          IDLND(J)=IDLND_ALL(J)
+        end do
+      end if
+    end if
+
+    write(*,*) 'MKR: Preliminary obsFilter_mod.f90 modifications for IC5'
+
     !
-    if ( .not. discardlandsfcwind ) return
+    if (( .not. discardlandsfcwind ) .and. ( .not. discardlandsfcwind_all )) &
+      return
     !
     ILISTEL(1)=BUFR_NEUS
     ILISTEL(2)=BUFR_NEVS
@@ -1184,8 +1224,8 @@ end subroutine filt_topoAISW
       WRITE(*,* ) ' filt_surfaceWind:'
       WRITE(*,* ) ' '
       WRITE(*,* ) '*****************************************************'
-      WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,jpinel)
-      WRITE(*,222)'LIST OF IDTYP             ',(   idlnd(J),J=1,jpidlnd)
+      WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,JPINEL)
+      WRITE(*,222)'LIST OF IDTYP             ',(   IDLND(J),J=1,JPIDLND)
       WRITE(*,* ) '*****************************************************'
       WRITE(*,* ) ' '
     end if
