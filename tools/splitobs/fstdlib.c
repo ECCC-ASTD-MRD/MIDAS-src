@@ -74,7 +74,7 @@ int open_burpfile(int* iun, char* filename, char* op) {
     }
   } /* End of 'else if (strcmp(op,"a") == 0)' */
   else {
-    fprintf(stderr,"fonction open_burpfile: Le mode '%s' n'est pas supporte pour ouvrir le fichier '%s'.\n",mode,filename);
+    fprintf(stderr,"fonction open_burpfile: Le mode '%s' n'est pas supporte pour ouvrir le fichier '%s'.\n",op,filename);
 
     return NOT_OK;
   }
