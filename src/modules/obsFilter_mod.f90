@@ -59,9 +59,9 @@ module obsFilter_mod
   logical :: initialized = .false.
 
   ! Namelist variables:
-  logical :: discardlandsfcwind          ! choose to reject surface wind obs over land (missing SWOB and Metar)
-  logical :: discardlandsfcwind_all      ! choose to reject surface wind obs over land (includes SWOB and Metar)
-  integer :: list_discardlandsfcwind(30) ! optional, user-defined list of surface codtyps for which to reject wind
+  logical :: discardLandSfcWind          ! choose to reject surface wind obs over land (missing SWOB and Metar)
+  logical :: discardLandSfcWind_all      ! choose to reject surface wind obs over land (includes SWOB and Metar)
+  integer :: list_discardLandSfcWind(30) ! optional, user-defined list of surface codtyps for which to reject wind
   real(8) :: surfaceBufferZone_Pres      ! height of buffer zone (in Pa) for rejecting obs near sfc
   real(8) :: surfaceBufferZone_Height    ! height of buffer zone (in m) for rejecting obs near sfc
   real(8) :: surfaceBufferZoneCH_Pres    ! height buffer zone (in Pa) for rejecting CH family obs near sfc
@@ -120,11 +120,11 @@ contains
     real(8) :: value_altDiffMax(numElem) ! value of maximum difference between model sfc and obs altitude
     real(8) :: rlimlvhu                  ! pressure level (in hPa) above which humidity (ES) obs are rejected
 
-    namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
+    namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardLandSfcWind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
          surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, rejectGZforAnalysis, &
-         surfaceBufferZoneCH_Pres,surfaceBufferZoneCH_Height, discardlandsfcwind_all, &
-         list_discardlandsfcwind
+         surfaceBufferZoneCH_Pres,surfaceBufferZoneCH_Height, discardLandSfcWind_all, &
+         list_discardLandSfcWind
 
     filterMode = filterMode_in
 
@@ -136,13 +136,13 @@ contains
     list_altDiffMax (:) = MPC_missingValue_INT
     value_altDiffMax(:) = MPC_missingValue_R8
     nelems_altDiffMax = MPC_missingValue_INT
-    list_discardlandsfcwind(:) = MPC_missingValue_INT
+    list_discardLandSfcWind(:) = MPC_missingValue_INT
 
     list_topoFilt(:) = '**'
 
     rlimlvhu = 300.d0
-    discardlandsfcwind = .true.
-    discardlandsfcwind_all = .false.
+    discardLandSfcWind = .true.
+    discardLandSfcWind_all = .false.
 
     surfaceBufferZone_Pres   = 5000.0d0   ! default value in Pascals
     surfaceBufferZone_Height =  400.0d0   ! default value in Metres
@@ -1171,7 +1171,7 @@ end subroutine filt_topoAISW
     integer :: codTypIndex, JID, JDATA
     logical :: LLPRINT
     integer :: ITYP,IDBURP
-    integer :: IKOUNTREJ(2), IKOUNTT, codTypWindLandRej(30), numCodTypWindLandRej
+    integer :: codTypWindLandRej(size(list_discardLandSfcWind)), numCodTypWindLandRej, numObsAssim, numObsRej(2)
     character(len=2), dimension(2) :: list_family
     integer :: index_family, headerIndex, bodyIndex
     character(len=obs_stnidLength) :: stnid
@@ -1182,9 +1182,10 @@ end subroutine filt_topoAISW
     integer, parameter :: codTypWindLandRej_all(12) = &
       [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
 
-    if (discardlandsfcwind) then
-      if (.not. discardlandsfcwind_all) then
-        if (list_discardlandsfcwind(1) == MPC_missingValue_INT) then
+    write (*,*) 'size of list_discardLandSfcWind =', size(list_discardLandSfcWind)
+    if (discardLandSfcWind) then
+      if (.not. discardLandSfcWind_all) then
+        if (list_discardLandSfcWind(1) == MPC_missingValue_INT) then
           ! Default case, i.e. SWOB and Metar not blocked, as in IC4
           numCodTypWindLandRej = numCodTypWindLandRej_bug
           do codTypIndex = 1, numCodTypWindLandRej_bug
@@ -1192,14 +1193,14 @@ end subroutine filt_topoAISW
           end do
         else
           ! Determine the number of user-defined codtyps from namelist
-          do codTypIndex = 1, 30
-            if (list_discardlandsfcwind(codTypIndex) == MPC_missingValue_INT) exit
+          do codTypIndex = 1, size(list_discardLandSfcWind)
+            if (list_discardLandSfcWind(codTypIndex) == MPC_missingValue_INT) exit
           end do
           numCodTypWindLandRej = codTypIndex-1
           write(*,*) 'numCodTypWindLandRej = ', numCodTypWindLandRej
           ! Assign user-defined codtyps to codTypWindLandRej so they will be blocked
           do codTypIndex = 1, numCodTypWindLandRej
-            codTypWindLandRej(codTypIndex) = list_discardlandsfcwind(codTypIndex)
+            codTypWindLandRej(codTypIndex) = list_discardLandSfcWind(codTypIndex)
           end do
         end if
       else
@@ -1211,7 +1212,7 @@ end subroutine filt_topoAISW
       end if
     end if
 
-    if (( .not. discardlandsfcwind ) .and. ( .not. discardlandsfcwind_all )) &
+    if (( .not. discardLandSfcWind ) .and. ( .not. discardLandSfcWind_all )) &
       return
 
     if ( .not.beSilent ) then
@@ -1230,7 +1231,7 @@ end subroutine filt_topoAISW
     !     SET COUNTERS TO ZERO
     !
     do codTypIndex = 1, 2
-      IKOUNTREJ(codTypIndex) = 0
+      numObsRej(codTypIndex) = 0
     end do
     !
     ! Loop over the families of interest
@@ -1257,7 +1258,7 @@ end subroutine filt_topoAISW
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
           ! UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-          ITYP=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if ( ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS) then
             do JID = 1, numCodTypWindLandRej
@@ -1267,7 +1268,7 @@ end subroutine filt_topoAISW
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                 do codTypIndex = 1, 2
                   if (ITYP == listElemWind(codTypIndex)) then
-                    IKOUNTREJ(codTypIndex) = IKOUNTREJ(codTypIndex)+1
+                    numObsRej(codTypIndex) = numObsRej(codTypIndex)+1
                   end if
                 end do
                 if (LLPRINT .and. .not.beSilent ) then
@@ -1288,8 +1289,8 @@ end subroutine filt_topoAISW
       if ( .not.beSilent ) then
         WRITE(*,* ) ' '
         WRITE(*,* ) '*****************************************************'
-        WRITE(*,222)'ELEMENTS            ', (listElemWind(codTypIndex), codTypIndex=1,2)
-        WRITE(*,222)'REJECTED            ', (IKOUNTREJ(codTypIndex), codTypIndex=1,2)
+        WRITE(*,222)'ELEMENTS         ', (listElemWind(codTypIndex), codTypIndex=1,2)
+        WRITE(*,222)'REJECTED         ', (numObsRej(codTypIndex), codTypIndex=1,2)
         WRITE(*,* ) '*****************************************************'
         WRITE(*,* ) ' '
 222    FORMAT(2x,a29,10(2x,i5))
@@ -1297,13 +1298,13 @@ end subroutine filt_topoAISW
 
     end do ! family
 
-    IKOUNTT = 0
+    numObsAssim = 0
     do JDATA = 1, obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated) IKOUNTT = IKOUNTT+1
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated) numObsAssim = numObsAssim+1
     end do
     if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
-         IKOUNTT
+         numObsAssim
     if ( .not.beSilent ) WRITE(*,* ) ' '
 
   end subroutine filt_surfaceWind
