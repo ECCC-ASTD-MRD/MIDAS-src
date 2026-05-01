@@ -1167,65 +1167,61 @@ end subroutine filt_topoAISW
     logical,          intent(in)    :: beSilent
 
     ! Locals:
-    INTEGER, parameter :: JPINEL=2,JPIDLND_BUG=9,JPIDLND_ALL=12
-    INTEGER :: J,JID,JDATA
+    INTEGER, parameter :: numCodTypWindLandRej_bug=9, numCodTypWindLandRej_all=12
+    INTEGER :: codTypIndex, JID, JDATA
     LOGICAL :: LLPRINT
     INTEGER :: ITYP,IDBURP
-    INTEGER :: ILISTEL(JPINEL), IDLND_BUG(JPIDLND_BUG), IDLND_ALL(JPIDLND_ALL)
-    INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT, IDLND(JPIDLND_ALL), JPIDLND
+    INTEGER :: IKOUNTREJ(2), IKOUNTT, codTypWindLandRej(30), numCodTypWindLandRej
     character(len=2), dimension(2) :: list_family
     integer :: index_family, headerIndex, bodyIndex
     character(len=obs_stnidLength) :: stnid
     real(pre_obsReal) :: obsLAT, obsLON, obsPPP
-    ! Original list of codtyps (missing Metar and SWOB) as in IC4
-    DATA IDLND_BUG / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
-    ! Augmented list of codtyps (including Metar and SWOB) planned for IC5
-    DATA IDLND_ALL / 12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138 /
+    integer, parameter :: listElemWind(2) = [BUFR_NEUS, BUFR_NEVS]
+    integer, parameter :: codTypWindLandRej_bug(9) = &
+      [12, 14, 146, 32, 35, 135, 136, 137, 138]
+    integer, parameter :: codTypWindLandRej_all(12) = &
+      [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
 
     if (discardlandsfcwind) then
       if (.not. discardlandsfcwind_all) then
         if (list_discardlandsfcwind(1) == MPC_missingValue_INT) then
           ! Default case, i.e. SWOB and Metar not blocked, as in IC4
-          JPIDLND=JPIDLND_BUG
-          do J=1,JPIDLND_BUG
-            IDLND(J)=IDLND_BUG(J)
+          numCodTypWindLandRej = numCodTypWindLandRej_bug
+          do codTypIndex = 1, numCodTypWindLandRej_bug
+            codTypWindLandRej(codTypIndex) = codTypWindLandRej_bug(codTypIndex)
           end do
         else
           ! Determine the number of user-defined codtyps from namelist
-          do J=1,30
-            if (list_discardlandsfcwind(J) == MPC_missingValue_INT) exit
+          do codTypIndex = 1, 30
+            if (list_discardlandsfcwind(codTypIndex) == MPC_missingValue_INT) exit
           end do
-          JPIDLND=J-1
-          write(*,*) 'JPIDLND = ', JPIDLND
-          ! Assign user-defined codtyps to IDLND so they will be blocked
-          do J=1,JPIDLND
-            IDLND(J)=list_discardlandsfcwind(J)
+          numCodTypWindLandRej = codTypIndex-1
+          write(*,*) 'numCodTypWindLandRej = ', numCodTypWindLandRej
+          ! Assign user-defined codtyps to codTypWindLandRej so they will be blocked
+          do codTypIndex = 1, numCodTypWindLandRej
+            codTypWindLandRej(codTypIndex) = list_discardlandsfcwind(codTypIndex)
           end do
         end if
       else
         ! Use a predefined list of codtyps including SWOB and Metar
-        JPIDLND=JPIDLND_ALL
-        do J=1,JPIDLND_ALL
-          IDLND(J)=IDLND_ALL(J)
+        numCodTypWindLandRej = numCodTypWindLandRej_all
+        do codTypIndex = 1, numCodTypWindLandRej_all
+          codTypWindLandRej(codTypIndex) = codTypWindLandRej_all(codTypIndex)
         end do
       end if
     end if
-
-    write(*,*) 'MKR: Preliminary obsFilter_mod.f90 modifications for IC5'
 
     !
     if (( .not. discardlandsfcwind ) .and. ( .not. discardlandsfcwind_all )) &
       return
     !
-    ILISTEL(1)=BUFR_NEUS
-    ILISTEL(2)=BUFR_NEVS
     if ( .not.beSilent ) then
       WRITE(*,* ) ' '
       WRITE(*,* ) ' filt_surfaceWind:'
       WRITE(*,* ) ' '
       WRITE(*,* ) '*****************************************************'
-      WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,JPINEL)
-      WRITE(*,222)'LIST OF IDTYP             ',(   IDLND(J),J=1,JPIDLND)
+      WRITE(*,222)'ELEMENTS REJECTED         ', (listElemWind(codTypIndex), codTypIndex=1,2)
+      WRITE(*,222)'LIST OF IDTYP             ', (codTypWindLandRej(codTypIndex), codTypIndex=1,numCodTypWindLandRej)
       WRITE(*,* ) '*****************************************************'
       WRITE(*,* ) ' '
     end if
@@ -1234,8 +1230,8 @@ end subroutine filt_topoAISW
     !
     !     SET COUNTERS TO ZERO
     !
-    DO J=1,JPINEL
-       IKOUNTREJ(J)=0
+    DO codTypIndex = 1, 2
+      IKOUNTREJ(codTypIndex) = 0
     END DO
 
     !
@@ -1267,18 +1263,18 @@ end subroutine filt_topoAISW
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit BODY
 
-             !             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
+             ! UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
              ITYP=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
              IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
              IF ( ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
-                DO JID = 1, JPIDLND
-                   IF(IDBURP == IDLND(JID) .AND. &
+                DO JID = 1, numCodTypWindLandRej
+                   IF(IDBURP == codTypWindLandRej(JID) .AND. &
                         obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) THEN
                       call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
                       call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-                      DO J = 1, JPINEL
-                         IF(ITYP ==ILISTEL(J)) THEN
-                            IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                      DO codTypIndex = 1, 2
+                         IF(ITYP == listElemWind(codTypIndex)) THEN
+                            IKOUNTREJ(codTypIndex)=IKOUNTREJ(codTypIndex)+1
                          END IF
                       END DO
                       IF(LLPRINT .and. .not.beSilent ) THEN
@@ -1299,8 +1295,8 @@ end subroutine filt_topoAISW
        if ( .not.beSilent ) then
          WRITE(*,* ) ' '
          WRITE(*,* ) '*****************************************************'
-         WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-         WRITE(*,222)'REJECTED             ',(IKOUNTREJ(J),J=1,JPINEL)
+         WRITE(*,222 )'ELEMENTS            ', (  listElemWind(codTypIndex),codTypIndex=1,2)
+         WRITE(*,222)'REJECTED             ',(IKOUNTREJ(codTypIndex),codTypIndex=1,2)
          WRITE(*,* ) '*****************************************************'
          WRITE(*,* ) ' '
 222    FORMAT(2x,a29,10(2x,i5))
