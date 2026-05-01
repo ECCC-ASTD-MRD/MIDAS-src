@@ -435,7 +435,7 @@ CONTAINS
 
     case ('iceLimits')
       if (.not.present(varName_opt)) then
-        call utl_abort('gvt_transform: for gvt_iceLimits, missing variable name')
+        call rti_abort('gvt_transform: for gvt_iceLimits, missing variable name')
       end if
       if (.not.present(spreadIceIncOverLakes_opt)) then
         call rti_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
@@ -2420,7 +2420,7 @@ CONTAINS
       seaIce_ptr(:,:,:,:) = max(seaIce_ptr(:,:,:,:), 0.0d0)
       return
     else
-      call utl_abort('gvt_iceLimits: unrecognized variable name: '//trim(variableName))
+      call rti_abort('gvt_iceLimits: unrecognized variable name: '//trim(variableName))
     end if
 
     if (.not. spreadIceIncOverLakes) then
