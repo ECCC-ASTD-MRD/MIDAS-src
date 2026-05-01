@@ -295,22 +295,8 @@ if [ "${__run_cmake}" != stop ]; then
 
     if [ "${__compiler}" = gnu-15.2.0 ]; then
 
-        echo "... providing path for HDF5 to CMake"
-        module load hdf5/gcc-15.2
-        ## The 'module load hdf5/gcc-15.2' command adds the 'include'
-        ## directory in the 'CPATH' environment variable.  But this
-        ## variable is not recognized by 'gcc' so we must transform
-        ## each path in that colon separated list into a list of '-I'
-        ## which is then given to the compiler.
-        expandIncludePath() {
-          echo :${CPATH%%:} | sed 's/:/ -I/g'
-        }
-        export FFLAGS_HDF5="$(expandIncludePath)"
-
-        ## This is needed for CMake to find the library
-        ## TODO switch to module load as well
-        echo "... providing path for netcdf to CMake"
-        export netcdf_INSTALLDIR=/home/mad001/ssm/netcdf-fortran_4.6.2-gnu-15.2.0_rhel-9-amd64-64
+        echo "... providing path for HDF5 and netcdf to CMake"
+        module load hdf5/gcc-15.2 netcdf/gcc-15.2 netcdf-fortran/gcc-15.2
 
         ## Loading the compiler affects 'ORDENV_PLAT' and for the
         ## rest, we need to use the original value.

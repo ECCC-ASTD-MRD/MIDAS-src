@@ -10,12 +10,6 @@ if(DEFINED ENV{rttov_INSTALLDIR})
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/include)
   target_include_directories(midas PUBLIC $ENV{rttov_INSTALLDIR}/mod)
 endif()
-if(DEFINED ENV{hdf5_INSTALLDIR})
-  target_include_directories(midas PUBLIC $ENV{hdf5_INSTALLDIR}/include)
-endif()
-if(DEFINED ENV{netcdf_INSTALLDIR})
-  target_include_directories(midas PUBLIC $ENV{netcdf_INSTALLDIR}/include)
-endif()
 
 target_link_libraries(midas PUBLIC
   rmn::rmn-ompi
@@ -35,3 +29,16 @@ endif()
 if (DGEMMTR_SUPPORT)
   target_compile_definitions(midas PRIVATE DGEMMTR_SUPPORT=${DGEMMTR_SUPPORT})
 endif()
+
+# Adding include path for mod files (especially for netcdf and hdf5)
+set(FFLAGS "")
+if(DEFINED ENV{CPATH})
+  string(REPLACE ":" ";" CPATH_LIST $ENV{CPATH})
+  foreach(CPATH_DIR ${CPATH_LIST})
+    # Only add paths that actually contain .mod files
+    # Typically from netcdf-fortran and hdf5
+    list(APPEND FFLAGS "-I${CPATH_DIR}")
+  endforeach()
+endif()
+
+target_compile_options(midas PRIVATE ${FFLAGS})

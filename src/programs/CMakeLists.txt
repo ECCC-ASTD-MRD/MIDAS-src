@@ -98,19 +98,13 @@ endif()
 
 foreach(prog ${PROJECT_PROGRAMS})
   target_link_directories(${prog} PUBLIC $ENV{rttov_INSTALLDIR}/lib)
-  target_link_directories(${prog} PUBLIC $ENV{hd5_INSTALLDIR}/lib)
-  target_link_directories(${prog} PUBLIC $ENV{netcdf_INSTALLDIR}/lib/lib64)
   if(USE_LOCAL_EXTLIBS)
     target_link_libraries(${prog} PUBLIC perftools f90sqlite)
   endif()
 endforeach()
 
+list(APPEND FFLAGS "${MPI_COMPILE_FLAGS}")
 
-if(DEFINED ENV{FFLAGS_HDF5})
-  set(FFLAGS "${MPI_COMPILE_FLAGS} $ENV{FFLAGS_HDF5}")
-else()
-  set(FFLAGS "${MPI_COMPILE_FLAGS}")
-endif()
 foreach(prog ${PROJECT_PROGRAMS})
 
   set_target_properties(${prog} PROPERTIES
