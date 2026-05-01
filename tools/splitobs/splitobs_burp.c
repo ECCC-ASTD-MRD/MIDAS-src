@@ -29,8 +29,7 @@ static int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_
                              float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE);
 
 static int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle rect,
-                          int npex, int npey, int* ilonband, int* jlatband,
-                          char errmsg[MAXSTR], int VERBOSE);
+                          int npex, int npey, int* ilonband, int* jlatband, int VERBOSE);
 static int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOSE);
 static int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* val_in_domain, int nval, int VERBOSE);
 
@@ -632,15 +631,18 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
    *            1 si le point est a l'interieur de la grille
    *            0 si le point est a l'exterieur de la grille
    *           -1 s'il y a une erreur
+   *           ilonband: la bande de longitude a laquelle appartient le point 'lat,lon'
+   *           jlatband: la bande de latitude  a laquelle appartient le point 'lat,lon'
    *
    ***************************************************************************/
 int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle rect, int npex, int npey,
-                   int* ilonband, int* jlatband, char errmsg[MAXSTR], int VERBOSE) {
+                   int* ilonband, int* jlatband, int VERBOSE) {
   int status, criteria;
   float x, y;
+  char errmsg[MAXSTR];
 
   if (VERBOSE>3)
-    printf("Fonction find_subdomain: lat=%f  lon=%f npex=%d npey=%d\n", lat, lon, npex, npey);
+    printf("Fonction find_subdomain: lat=%f lon=%f npex=%d npey=%d\n", lat, lon, npex, npey);
 
   if (lon<0) lon+=360;
 
@@ -650,7 +652,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
              "pour lat = %f, lon = %f, gridid = %d, ni = %d, nj = %d\n",
              status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
-    return -1;
+    return NOT_OK;
   }
 
   if ( (!rect.min_i_equal && x>rect.min_i) || (rect.min_i_equal && x>=rect.min_i) ) {
@@ -759,10 +761,9 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
       printf("(!rect.max_j_equal && y<rect.max_j) || (rect.max_j_equal && y<=rect.max_j)\n");
     else
       App_Log(APP_ERROR,"Fonction find_subdomain: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
+  } // End of 'if (VERBOSE>3)'
 
-  }
-
-  return 0;
+  return OK;
 } /* Fin de la fonction find_subdomain */
 
 
@@ -1675,10 +1676,10 @@ int extract_data_in_subdomain_along_nt(optionsptr optptr, gridtype* gridptr, BUR
       status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
                               optptr->npex, optptr->npey,
                               &ilonband_for_that_observation, &jlatband_for_that_observation,
-                              errmsg, VERBOSE);
+                              VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nt: Erreur dans la fonction find_subdomain "
-                "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+                "pour le lat=%f et lon=%f\n", lat, lon);
         EXIT_STATUS = NOT_OK;
         break;
       }
@@ -1833,10 +1834,10 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
 
       status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
                               optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation,
-                              errmsg, VERBOSE);
+                              VERBOSE);
       if (status<0) {
         App_Log(APP_ERROR,"Fonction extract_data_in_subdomain_along_nval: Erreur dans la fonction find_subdomain "
-                "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+                "pour le lat=%f et lon=%f\n", lat, lon);
         EXIT_STATUS = NOT_OK;
         break;
       }
@@ -2515,10 +2516,10 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
 
     status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
                             optptr->npex, optptr->npey, &ilonband_for_that_observation, &jlatband_for_that_observation,
-                            errmsg, VERBOSE);
+                            VERBOSE);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction process_regular_record: Erreur dans la fonction 'find_subdomain' "
-              "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
+              "pour le lat=%f et lon=%f\n", lat, lon);
       return NOT_OK;
     }
 
