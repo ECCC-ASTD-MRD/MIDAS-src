@@ -6574,7 +6574,7 @@ contains
     ! Locals:
     character(len=2)  :: obsFamily
     character(len=obs_stnidLength) :: cstnid
-    integer           :: codeType
+    integer           :: codeType, sat
 
     fpr = bilinearFootprint
 
@@ -6586,14 +6586,15 @@ contains
 
       if (index(cstnid,'DMSP') == 1) then
 
-        select case(cstnid)
-        case('DMSP15')
+        read(cstnid(5:6),'(i2.2)') sat
+
+        if (sat <= 15) then
           fpr = 27.5e3
-        case('DMSP16','DMSP17','DMSP18')
+        else if (sat >= 16 .and. sat <= 20) then
           fpr = 29.0e3
-        case DEFAULT
+        else
           call rti_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
-        end select
+        end if
 
       else if (cstnid == 'GCOM-W1') then
 
@@ -6626,6 +6627,22 @@ contains
       else if (cstnid(1:3) == 'RCM') then
 
         fpr = 0.8e3
+
+      else if (cstnid == 'SMOS') then
+
+        fpr = 20.0e3
+
+      else if (cstnid == 'SMAP') then
+
+        fpr = 20.0e3
+
+      else if (cstnid == 'CryoSat') then
+
+        fpr = bilinearFootprint
+
+      else if (cstnid == 'ICESAT') then
+
+        fpr = bilinearFootprint
 
       else
 

@@ -178,6 +178,14 @@ CONTAINS
 
     end if
 
+    if (gsv_varExist(varName = 'GE  ')) then
+
+      numvar2d = numvar2d + 1
+      nsposit(numvar2d + 1) = nsposit(numvar2d) + 1
+      bdiff_varNameList(numvar2d) = 'GE  '
+
+    end if
+
     if (numvar2d == 0) then
 
       if (mmpi_myid == 0) then

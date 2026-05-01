@@ -83,7 +83,7 @@ program midas_analysisErrorOI
   ! ``timeCoord_mod``       ``NAMTIME``         assimilation time window length, temporal resolution of
   !                                             the background state
   ! ``columndata_mod``      ``NAMSTATE``        name of the analysis variable (RPN nomvar, 4-character long),
-  !                                             only sea ice concentration (GL) is allowed for now
+  !                                             only GL, GE, or TM are allowed
   ! ``gridstatevector_mod``       "                                   "
   ! ``obsspacedata_mod``    ``NAMDIMO``         specify the maximum number of header and body elements
   ! ``obsfilter_mod``       ``NAMFILT``         list of varno to use and bit flags (13-bit#) for filtering
@@ -219,7 +219,7 @@ program midas_analysisErrorOI
   call msg_memUsage(myName)
 
   ! Sea ice concentration
-  if (obs_famExist(obsSpaceData, 'GL')) then
+  if (gsv_varExist(varName='GL')) then
     call filt_iceConcentration(obsSpaceData, beSilent = .false.)
     call filt_backScatAnisIce(obsSpaceData, beSilent = .false.)
     call oer_setErrBackScatAnisIce(obsSpaceData, beSilent = .false.)

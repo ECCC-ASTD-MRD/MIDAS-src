@@ -280,7 +280,7 @@ contains
     end do
 
     mindxy = min( mindxy, diff(diffID)%dlat )
-    write(*,*) 'diff_setup: minimim grid spacing: mindxy = ', mindxy
+    write(*,*) 'diff_setup: minimum grid spacing: mindxy = ', mindxy
 
     if ( utl_isEqual(corr_len, -1.0) ) then
 
@@ -416,7 +416,11 @@ contains
       allocate(buf2d(ni, nj))
       ! Looking for FST record parameters..
       dateo = -1
-      etiket = ''
+      if (useImplicit) then
+        write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
+      else
+        write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
+      end if
       ip1 = -1
       ip2 = -1
       ip3 = -1

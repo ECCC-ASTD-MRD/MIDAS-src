@@ -403,7 +403,10 @@ module bgckOcean_mod
         obsFlag = obs_bodyElem_i(obsData, OBS_FLG, bodyIndex)
 
         if ( (cstnid /= idStation(stationIndex)) .or. &
-             (obsFlag /= 0 .and. cstnid /= 'CIS_REGIONAL') ) cycle HEADER
+             (obsFlag /= 0 .and. &
+             cstnid /= 'CIS_REGIONAL' .and. &
+             cstnid /= 'SMOS' .and. &
+             cstnid /= 'SMAP') ) cycle HEADER
 
         obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
         obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
@@ -444,9 +447,7 @@ module bgckOcean_mod
           if (.not. utl_isEqual(OmP, MPC_missingValue_R8)) then
 
             numberObs(swathIndex) = numberObs(swathIndex) + 1
-            ! TODO: simplify the floating point precision conversions
-            !   rmsDiff(swathIndex) = rmsDiff(swathIndex) + real(OmP,4)**2
-            rmsDiff(swathIndex) = real(real(rmsDiff(swathIndex),8) + (OmP)**2, 4)
+            rmsDiff(swathIndex) = rmsDiff(swathIndex) + real(OmP,4)**2
             if (numberObs(swathIndex) <= maxPerSwath) then
               bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
             else

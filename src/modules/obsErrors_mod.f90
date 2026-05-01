@@ -1631,20 +1631,20 @@ contains
             end if
 
                 !***********************************************************************
-                !               Sea Ice Concentration
+                !               Sea Ice Concentration and Thickness
                 !***********************************************************************
 
           else if (cfam == 'GL') then
 
             if (index(cstnid,'DMSP') == 1) then
-              select case(cstnid)
-              case('DMSP15')
+              read(cstnid(5:6),'(i2.2)') isat
+              if (isat <= 15) then
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(1))
-              case('DMSP16','DMSP17','DMSP18')
+              else if (isat >= 16 .and. isat <= 20) then
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(2))
-              case DEFAULT
+              else
                 call rti_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
-              end select
+              end if
             else if (cstnid == 'GCOM-W1') then
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(3))
             else if (cstnid(1:6) == 'METOP-') then
@@ -1670,6 +1670,14 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(9))
             else if (index(cstnid,'RCM') == 1) then
               ! For RCM, obs-error comes from SQLite file
+            else if (index(cstnid,'SMOS') == 1) then
+              ! For SMOS, obs-error comes from SQLite file
+            else if (index(cstnid,'SMAP') == 1) then
+              ! For SMAP, obs-error comes from SQLite file
+            else if (index(cstnid,'CryoSat') == 1) then
+              ! For CryoSat, obs-error comes from SQLite file
+            else if (index(cstnid,'ICESAT') == 1) then
+              ! For ICESAT, obs-error comes from SQLite file
             else
               call rti_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if

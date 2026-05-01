@@ -1062,20 +1062,22 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       bodyIndex = obs_getBodyIndex( obsSpaceData )
       if ( bodyIndex < 0 ) exit BODY
 
-      ! only process observations flagged to be assimilated
-      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
-
       bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
+
+      ! only process observations flagged to be assimilated
+      ! or for sea ice thickness
+      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated .and. &
+          bufrCode /= BUFR_ICET ) cycle BODY
 
       headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
       varName = vnl_varNameFromVarNum(bufrCode)
 
       select case (bufrCode)
-      case(bufr_icec, bufr_icep)
+      case(BUFR_ICEC, BUFR_ICEP)
         backValue = 100.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
-      case(bufr_icev)
+      case(BUFR_ICEV, BUFR_ICET)
         backValue = 1.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
-      case(bufr_ices)
+      case(BUFR_ICES)
         obsDate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
         write(ccyymmdd, FMT='(i8.8)') obsDate
         read(ccyymmdd(5:6), FMT='(i2)') monthIndex
@@ -4190,7 +4192,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     select case (bufrCode)
     case(BUFR_ICEC, BUFR_ICEP)
        scaling = 100.0d0
-    case(BUFR_ICEV)
+    case(BUFR_ICEV, BUFR_ICET)
        scaling = 1.0d0
     case(BUFR_ICES)
        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )

@@ -746,7 +746,7 @@ contains
 
           end do body2
 
-          ! insert resduals into obsSpaceData
+          ! insert residuals into obsSpaceData
           body2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == directionBufrCode .and. &

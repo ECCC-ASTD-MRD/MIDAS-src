@@ -137,7 +137,9 @@ contains
     end if
 
     if (analysisVariable(1) == 'GL') then
-      call msg('aer_analysisError:', ' computing seaice analysis error...')
+      call msg('aer_analysisError:', ' computing seaice concentration analysis error...')
+    else if(analysisVariable(1) == 'GE') then
+      call msg('aer_analysisError:', ' computing seaice thickness analysis error...')
     else if(analysisVariable(1) == 'TM') then
       call msg('aer_analysisError:', ' computing SST analysis error...')
     else
@@ -168,7 +170,7 @@ contains
       call aer_propagateAnalysisError (stateVectorTrlErrorStd, oceanMask, &
                                        analysisVariable(1), &
                                        analysisEtiket, errorGrowth, &
-                                       hco_ptr, vco_ptr)
+                                       maxAnalysisErrorStdDev, hco_ptr, vco_ptr)
 
       ! impose maximum value on trial error standard deviation field
       trlErrorStdDev_ptr(:,:,:,:) = min(trlErrorStdDev_ptr(:,:,:,:), &
@@ -299,7 +301,7 @@ contains
     call gsv_deallocate(stateVectorAnlErrorStd)
     call gsv_deallocate(stateVectorTrlErrorStd)
 
-    if (analysisVariable(1) == 'GL') then
+    if (analysisVariable(1) == 'GL' .or. analysisVariable(1) == 'GE') then
       ! Update the Days Since Last Obs
       call aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, &
                                 errStddevFileName_in, anlErrStddevFileName_out, &
@@ -324,7 +326,7 @@ contains
     type(struct_obs),                   intent(in)    :: obsSpaceData     ! observation data structure
     type(struct_gsv),                   intent(in)    :: stateVectorTrlErrorStd ! state containing background error stddev
     integer,                            intent(out)   :: numObs(:,:)      ! number of observations found
-    character(len=*),                   intent(in)    :: variableName     ! 'GL' for seaice or 'TM' for SST
+    character(len=*),                   intent(in)    :: variableName     ! 'GL' or 'GE' for seaice or 'TM' for SST
     real(8)         ,                   intent(in)    :: Lcorr(:,:)       ! horizontal background-error correlation length scale
     type(struct_neighborhood), pointer, intent(inout) :: influentObs(:,:) ! details about observations to use in update
 
@@ -446,7 +448,7 @@ contains
               cycle BODY_LOOP
             end if
 
-            if (trim(variableName) == 'GL') then
+            if (trim(variableName) == 'GL' .or. trim(variableName) == 'GE') then
               footprintRadius_r8 = allFootPrintRadius_r8(headerIndex, procIndex)
               influenceRadius_r8 = max(0.0d0, footprintRadius_r8) + maxLcorr
             else if (trim(variableName) == 'TM') then
@@ -726,20 +728,22 @@ contains
   ! aer_propagateAnalysisError
   !---------------------------------------------------------
   subroutine aer_propagateAnalysisError(stateVectorErrorStd, oceanMask, variableName, &
-                                        analysisEtiket, errorGrowth, hco_ptr, vco_ptr)
+                                        analysisEtiket, errorGrowth, maxAnalysisErrorStdDev, &
+                                        hco_ptr, vco_ptr)
     !
     !:Purpose: read analysis error standard deviation field and propagate it forward in time
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error.
-    type(struct_ocm),          intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
-    character(len=*),          intent(in)    :: variableName        ! variable name
-    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file
-    real(8)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
-    type(struct_hco), pointer, intent(in)    :: hco_ptr             ! horizontal coordinates structure, pointer
-    type(struct_vco), pointer, intent(in)    :: vco_ptr             ! vertical coordinates structure, pointer
+    type(struct_gsv),          intent(inout) :: stateVectorErrorStd    ! Input: analysis std error; Output: background std error.
+    type(struct_ocm),          intent(in)    :: oceanMask              ! ocean-land mask (1=water, 0=land)
+    character(len=*),          intent(in)    :: variableName           ! variable name
+    character(len=*),          intent(in)    :: analysisEtiket         ! analysis etiket in the input std file
+    real(8)         ,          intent(in)    :: errorGrowth            ! seaice: fraction of ice per hour, SST: estimated growth
+    real(8)         ,          intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
+    type(struct_hco), pointer, intent(in)    :: hco_ptr                ! horizontal coordinates structure, pointer
+    type(struct_vco), pointer, intent(in)    :: vco_ptr                ! vertical coordinates structure, pointer
 
     ! Locals:
     type(struct_gsv) :: stateVectorAnalysis
@@ -810,10 +814,10 @@ contains
     ! Add the standard deviation increment
     do latIndex = 1, hco_ptr%nj
       do lonIndex = 1, hco_ptr%ni
-        if (trim(variableName) == 'GL') then
+        if (trim(variableName) == 'GL' .or. trim(variableName) == 'GE') then
           stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
                      min(stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
-                         errorGrowth * tim_dstepobs, 1.0d0)
+                         errorGrowth * tim_dstepobs, maxAnalysisErrorStdDev)
         else if (trim(variableName) == 'TM') then
           stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
                          stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
@@ -889,7 +893,7 @@ contains
     type(struct_obs)         ,          intent(in)    :: obsSpaceData           ! obsSpaceData structure
     type(struct_gsv)         ,          intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
     type(struct_gsv)         ,          intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
-    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM')
+    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'GE' or 'TM')
     real(8)                  ,          intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     type(struct_neighborhood), pointer, intent(in)    :: influentObs(:,:)       ! details about observations to use in update
     real(8)                  ,          intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
@@ -945,7 +949,7 @@ contains
     numBodyMax = maxval(allNumBody)
     write(*,*) 'aer_computeAnlErrorStd: numBodyMax = ', numBodyMax
 
-    if (analysisVariable == 'GL') then
+    if (analysisVariable == 'GL' .or. analysisVariable == 'GE') then
       allocate(iceScaling(numBodyMax))
       allocate(allIceScaling(numBodyMax,mmpi_nprocs))
       do bodyIndex = 1, obs_numBody(obsSpaceData)
@@ -1013,7 +1017,7 @@ contains
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
               procIndex   = influentObs(lonIndex, latIndex)%procIndex(influentObsIndex)
 
-              if (analysisVariable == 'GL') then
+              if (analysisVariable == 'GL' .or. analysisVariable == 'GE') then
                 scaling = allIceScaling(bodyIndex,procIndex)
               else if (analysisVariable == 'TM') then
                 scaling = 1.0d0
@@ -1096,7 +1100,7 @@ contains
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
               procIndex   = influentObs(lonIndex, latIndex)%procIndex(influentObsIndex)
 
-              if (analysisVariable == 'GL') then
+              if (analysisVariable == 'GL' .or. analysisVariable == 'GE') then
                 scaling = allIceScaling(bodyIndex,procIndex)
               else if (analysisVariable == 'TM') then
                 scaling = 1.0d0

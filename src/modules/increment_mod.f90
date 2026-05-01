@@ -398,7 +398,14 @@ CONTAINS
 
     if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
-      call gvt_transform(stateVectorAnal, 'iceLimits', spreadIceIncOverLakes_opt = spreadIceIncOverLakes)
+      call gvt_transform(stateVectorAnal, 'iceLimits', varName_opt = 'GL', &
+                         spreadIceIncOverLakes_opt = spreadIceIncOverLakes)
+    end if
+
+    if (gsv_varExist(stateVectorAnal, 'GE')) then
+      ! Impose non negative value on sea ice thickness analysis
+      call gvt_transform(stateVectorAnal, 'iceLimits', varName_opt = 'GE', &
+                         spreadIceIncOverLakes_opt = spreadIceIncOverLakes)
     end if
 
     if (applyLiebmann) then

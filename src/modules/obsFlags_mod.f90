@@ -30,7 +30,7 @@ module obsFlags_mod
   public :: flg_descrip
 
   ! Public variables for each possible bitNumber value
-  integer, public, parameter :: flg_offset = 1000    ! Arbitary offset value
+  integer, public, parameter :: flg_offset = 1000    ! Arbitrary offset value
   integer, public, parameter :: flg_00           = 00 + flg_offset
   integer, public, parameter :: flg_01           = 01 + flg_offset
   integer, public, parameter :: flg_02erroneous  = 02 + flg_offset

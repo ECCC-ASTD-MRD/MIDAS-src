@@ -633,7 +633,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
    integer, parameter, public :: OBS_TSEM= OBS_EMER+1 ! true surface emissivity
    integer, parameter, public :: OBS_OERI= OBS_TSEM+1 ! Initial sigma(obs)
-   integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
+   integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmissivity
    integer, parameter, public :: OBS_ETRU= OBS_TRAN+1 ! Truth based on true state and simulated emissivity
    integer, parameter, public :: OBS_OMHX= OBS_ETRU+1 ! obs - H (updated state vector)
    ! the number of real body variables defined just above
