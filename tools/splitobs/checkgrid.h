@@ -1,9 +1,8 @@
 #ifndef __INCLUDE_CHECKGRID_H__
 #define __INCLUDE_CHECKGRID_H__
 
-/* Include pour ma librairie de manipulation des fichiers standard RPN */
-#include "fstdlib.h"
-#include "options.h" /* To get access to the definition of 'rectangle' */
+/* To get access to the definition of 'rectangle', and some default values */
+#include "options.h"
 
 int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char* errmsg, int VERBOSE);
 

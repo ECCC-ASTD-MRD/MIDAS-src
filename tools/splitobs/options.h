@@ -1,7 +1,13 @@
 #ifndef __INCLUDE_OPTIONS_H__
 #define __INCLUDE_OPTIONS_H__
 
+/* Include pour ma librairie de manipulation des fichiers standard RPN */
+#include "fstdlib.h"
+
 /* valeurs par defaut pour certaines structures utilisees dans le programme */
+#ifndef MAXSTR
+#define MAXSTR            1024
+#endif
 #define MAXSTR_CHANNELS    MAXSTR
 #define NOMVAR_DEFAUT      "PN"
 #define INOUT_DEFAUT       1

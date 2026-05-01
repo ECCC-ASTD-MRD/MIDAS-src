@@ -1,8 +1,19 @@
+#include <stdio.h>
+
+/* Include pour les fonctions qui permettent de voir si un point dans a l'interieur de la grille de definition */
 #include "checkgrid.h"
 
+/* Include pour la librairie App dans 'rpn/libs' */
+#include "App.h"
 /* Include pour les librairies RPN */
 #include "rmn.h"
-#include "App.h"
+
+/* Include pour les constantes OK et NOT_OK */
+#include "ok_or_notok.h"
+/* Include pour ma librairie de manipulation des fichiers standard RPN */
+#include "fstdlib.h"
+/* To get access to the definition of 'rectangle', and some default values */
+#include "options.h"
 
 /***************************************************************************
  * fonction: checkgrid
@@ -39,7 +50,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
              "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
              status, lat, lon, gridid, ni, nj);
     App_Log(APP_ERROR,"%s",errmsg);
-    return -1;
+    return NOT_OK;
   }
 
   /* Si le point est effectivement dans le rectangle, on retourne 1 sinon 0 */
@@ -84,7 +95,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
       App_Log(APP_ERROR,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
   } /* End of 'if (VERBOSE>2)' */
 
-  return 0;
+  return OK;
 
 } /* Fin de la fonction checkgrid */
 
