@@ -1168,21 +1168,20 @@ end subroutine filt_topoAISW
 
     ! Locals:
     integer, parameter :: numCodTypWindLandRej_bug=9, numCodTypWindLandRej_all=12
-    integer :: codTypIndex, JID, JDATA
-    logical :: LLPRINT
-    integer :: ITYP,IDBURP
+    integer :: codTypIndex, codTypRejIndex, numbodyIndex
+    logical :: displayDetails
+    integer :: elemWind, burpIndex
     integer :: codTypWindLandRej(size(list_discardLandSfcWind)), numCodTypWindLandRej, numObsAssim, numObsRej(2)
     character(len=2), dimension(2) :: list_family
     integer :: index_family, headerIndex, bodyIndex
     character(len=obs_stnidLength) :: stnid
-    real(pre_obsReal) :: obsLAT, obsLON, obsPPP
+    real(pre_obsReal) :: obsLat, obsLon, obsPPP
     integer, parameter :: listElemWind(2) = [BUFR_NEUS, BUFR_NEVS]
     integer, parameter :: codTypWindLandRej_bug(9) = &
       [12, 14, 146, 32, 35, 135, 136, 137, 138]
     integer, parameter :: codTypWindLandRej_all(12) = &
       [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
 
-    write (*,*) 'size of list_discardLandSfcWind =', size(list_discardLandSfcWind)
     if (discardLandSfcWind) then
       if (.not. discardLandSfcWind_all) then
         if (list_discardLandSfcWind(1) == MPC_missingValue_INT) then
@@ -1225,8 +1224,8 @@ end subroutine filt_topoAISW
       WRITE(*,* ) '*****************************************************'
       WRITE(*,* ) ' '
     end if
-    LLPRINT = .FALSE.
-    !cc      LLPRINT = .TRUE.
+    displayDetails = .FALSE.
+    !cc      displayDetails = .TRUE.
     !
     !     SET COUNTERS TO ZERO
     !
@@ -1258,26 +1257,26 @@ end subroutine filt_topoAISW
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
           ! UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-          ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if ( ITYP == BUFR_NEUS .or. ITYP == BUFR_NEVS) then
-            do JID = 1, numCodTypWindLandRej
-              if (IDBURP == codTypWindLandRej(JID) .and. &
+          elemWind = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          burpIndex = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+          if ( ANY(elemWind == listElemWind) ) then
+            do codTypRejIndex = 1, numCodTypWindLandRej
+              if (burpIndex == codTypWindLandRej(codTypRejIndex) .and. &
                 obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
                 call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                 do codTypIndex = 1, 2
-                  if (ITYP == listElemWind(codTypIndex)) then
+                  if (elemWind == listElemWind(codTypIndex)) then
                     numObsRej(codTypIndex) = numObsRej(codTypIndex)+1
                   end if
                 end do
-                if (LLPRINT .and. .not.beSilent ) then
+                if (displayDetails .and. .not.beSilent ) then
                   stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
-                  obsLAT = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
-                  obsLON = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+                  obsLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+                  obsLon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
                   obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                  WRITE(*,225) 'Rej sfc wind lnd',headerIndex,ITYP,stnid, &
-                    IDBURP, obsLAT, obsLON, obsPPP
+                  WRITE(*,225) 'Rej sfc wind lnd',headerIndex,elemWind,stnid, &
+                    burpIndex, obsLat, obsLon, obsPPP
 225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
                 end if
               end if
@@ -1299,8 +1298,8 @@ end subroutine filt_topoAISW
     end do ! family
 
     numObsAssim = 0
-    do JDATA = 1, obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated) numObsAssim = numObsAssim+1
+    do numbodyIndex = 1, obs_numbody(obsSpaceData)
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,numbodyIndex) == obs_assimilated) numObsAssim = numObsAssim+1
     end do
     if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
