@@ -1167,20 +1167,20 @@ end subroutine filt_topoAISW
     logical,          intent(in)    :: beSilent
 
     ! Locals:
+    integer, parameter :: listElemWind(2) = [BUFR_NEUS, BUFR_NEVS]
     integer, parameter :: numCodTypWindLandRej_bug=9, numCodTypWindLandRej_all=12
-    integer :: codTypIndex, codTypRejIndex, numbodyIndex
-    logical :: displayDetails
-    integer :: elemWind, burpIndex
-    integer :: codTypWindLandRej(size(list_discardLandSfcWind)), numCodTypWindLandRej, numObsAssim, numObsRej(2)
-    character(len=2), dimension(2) :: list_family
-    integer :: index_family, headerIndex, bodyIndex
+    integer, parameter :: codTypWindLandRej_bug(numCodTypWindLandRej_bug) = &
+      [12, 14, 146, 32, 35, 135, 136, 137, 138]
+    integer, parameter :: codTypWindLandRej_all(numCodTypWindLandRej_all) = &
+      [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
+    character(len=2), parameter, dimension(2) :: list_family = ['SF', 'UA']
+    integer :: codTypIndex, codTypRejIndex, burpIndex, elemWind
+    integer :: codTypWindLandRej(size(list_discardLandSfcWind))
+    integer :: numCodTypWindLandRej, numObsAssim, numObsRej(2)
+    integer :: familyIndex, headerIndex, bodyIndex
     character(len=obs_stnidLength) :: stnid
     real(pre_obsReal) :: obsLat, obsLon, obsPPP
-    integer, parameter :: listElemWind(2) = [BUFR_NEUS, BUFR_NEVS]
-    integer, parameter :: codTypWindLandRej_bug(9) = &
-      [12, 14, 146, 32, 35, 135, 136, 137, 138]
-    integer, parameter :: codTypWindLandRej_all(12) = &
-      [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
+    logical :: displayDetails
 
     if (discardLandSfcWind) then
       if (.not. discardLandSfcWind_all) then
@@ -1192,10 +1192,11 @@ end subroutine filt_topoAISW
           end do
         else
           ! Determine the number of user-defined codtyps from namelist
+          numCodTypWindLandRej = 0
           do codTypIndex = 1, size(list_discardLandSfcWind)
             if (list_discardLandSfcWind(codTypIndex) == MPC_missingValue_INT) exit
+            numCodTypWindLandRej = numCodTypWindLandRej + 1
           end do
-          numCodTypWindLandRej = codTypIndex-1
           write(*,*) 'numCodTypWindLandRej = ', numCodTypWindLandRej
           ! Assign user-defined codtyps to codTypWindLandRej so they will be blocked
           do codTypIndex = 1, numCodTypWindLandRej
@@ -1235,16 +1236,14 @@ end subroutine filt_topoAISW
     !
     ! Loop over the families of interest
     !
-    list_family(1) = 'SF'
-    list_family(2) = 'UA'
-    do index_family = 1,2
-      if ( .not.beSilent ) WRITE(*,'(2x,A9,2x,A2)')'FAMILY = ', list_family(index_family)
+    do familyIndex = 1,2
+      if ( .not.beSilent ) WRITE(*,'(2x,A9,2x,A2)') 'FAMILY = ', list_family(familyIndex)
       ! loop over all header indices of each family
       !
       ! Set the header list
       ! (& start at the beginning of the list)
       call obs_set_current_header_list(obsSpaceData, &
-        list_family(index_family))
+        list_family(familyIndex))
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
@@ -1256,7 +1255,7 @@ end subroutine filt_topoAISW
         BODY: do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
-          ! UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
+          ! UNCONDITIONALLY REJECT SURFACE WINDS AT LAND STATIONS
           elemWind = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           burpIndex = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if ( ANY(elemWind == listElemWind) ) then
@@ -1298,8 +1297,8 @@ end subroutine filt_topoAISW
     end do ! family
 
     numObsAssim = 0
-    do numbodyIndex = 1, obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,numbodyIndex) == obs_assimilated) numObsAssim = numObsAssim+1
+    do bodyIndex = 1, obs_numbody(obsSpaceData)
+       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) numObsAssim = numObsAssim+1
     end do
     if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
