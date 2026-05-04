@@ -67,16 +67,13 @@ echo                    >> load_env.dot
 echo "tty -s || set +x" >> load_env.dot
 
 if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-    if [ "${UnitTest_compiler}" = gnu-14.2.0 ]; then
-        echo echo ... loading gnu 14.2.0 compiler >> load_env.dot
-        echo export MODULEPATH=/home/sidr000/modules:\${MODULEPATH}  >> load_env.dot
-        echo . r.load.dot rpn/code-tools/20260219/env/exp/gnu-14.2.0 >> load_env.dot
-    elif [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+    if [[ "${UnitTest_compiler}" == *'GNU'* ]]; then
         echo echo ... loading gnu 15.2.0 compiler >> load_env.dot
         echo . r.load.dot rpn/code-tools/20260219/env/exp/gnu-15.2.0 >> load_env.dot
     else
-        echo echo loading rpn/code-tools/20260219/env/${UnitTest_compiler}  >> load_env.dot
-        echo . r.load.dot rpn/code-tools/20260219/env/${UnitTest_compiler}  >> load_env.dot
+        ## Intel compiler
+        echo echo loading rpn/code-tools/20260219/env/inteloneapi-2025.1.0  >> load_env.dot
+        echo . r.load.dot rpn/code-tools/20260219/env/inteloneapi-2025.1.0  >> load_env.dot
     fi
 
     echo echo loading eccc/mrd/rpn/libs/20260316-beta  >> load_env.dot
@@ -84,53 +81,7 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     echo echo loading eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
     echo . r.load.dot eccc/mrd/rpn/utils/20260316-beta >> load_env.dot
 
-    if [ "${UnitTest_compiler}" = gnu-14.2.0 ]; then
-        ## Back to original values
-        echo export ORDENV_PLAT=${ORDENV_PLAT}         >> load_env.dot
-
-        ## We need to add the path to MKL shared objects
-        MKLROOT=/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest
-        echo export LD_LIBRARY_PATH=${MKLROOT}/lib/intel64:\${LD_LIBRARY_PATH} >> load_env.dot
-
-        ## The directory '/home/erv000/data/midas/gfortran/libs/lib64'
-        ## contains the libraries that are not installed on 'robert' or
-        ## 'underhill'.  We did those commands on 'ppp6':
-        ##     mkdir -pv /home/erv000/data/midas/gfortran/libs/lib64
-        ##     cp -dvi /lib64/*hdf*      /home/erv000/data/midas/gfortran/libs/lib64
-        ##     cp -dvi /lib64/*netcdf*   /home/erv000/data/midas/gfortran/libs/lib64
-        ##     cp -dvi /lib64/libdf.so.0 /home/erv000/data/midas/gfortran/libs/lib64
-        if [ "${TRUE_HOST}" = robert -o "${TRUE_HOST}" = underhill ]; then
-            echo export LD_LIBRARY_PATH=/home/erv000/data/midas/gfortran/libs/lib64:\${LD_LIBRARY_PATH} >> load_env.dot
-        fi
-        echo export LD_LIBRARY_PATH=/home/sidr000/ords/comp/gcc-14.2/lib64:\${LD_LIBRARY_PATH} >> load_env.dot
-
-        ## Add 'PRTE_MCA_prte_silence_shared_fs' to remove a warning from OpenMPI
-        ##    The warning is
-        ##         --------------------------------------------------------------------------
-        ##         PRTE has detected that the head of the session directory tree (where
-        ##         scratch files and shared memory backing storage will be placed)
-        ##         resides on a shared file system:
-        ##
-        ##            Directory: ${SUITE}/maestro/suites/midas_system_tests/hub/ppp6/work/20250731000000/Tests/var/EnVar/2D_ppp/UnitTest/run/work/mpitmpdir
-        ##            File system type: gpfs
-        ##
-        ##         For performance reasons, it is strongly recommended that the session
-        ##         directory be located on a local file system. This can be controlled by
-        ##         setting the system temporary directory to be used by PRTE using either
-        ##         the TMPDIR envar or the "prte_tmpdir_base" MCA param.
-        ##
-        ##         If you need the temporary directory to be different on remote nodes
-        ##         from the local one where prterun is running (e.g., when a login node is
-        ##         being employed), then you can set the local temporary directory using
-        ##         the "prte_local_tmpdir_base" MCA param and the one to be used on all
-        ##         other nodes using the "prte_remote_tmpdir_base" param.
-        ##
-        ##         This is only a warning advisory and your job will continue. You can
-        ##         disable this warning in the future by setting the
-        ##         "prte_silence_shared_fs" MCA param to "1".
-        ##         ------------------------------------------------
-        echo export PRTE_MCA_prte_silence_shared_fs=1 >> load_env.dot
-    elif [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+    if [[ "${UnitTest_compiler}" == *'GNU'* ]]; then
         ## Back to original values
         echo export ORDENV_PLAT=${ORDENV_PLAT}         >> load_env.dot
 
@@ -147,7 +98,7 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
     ## library.
     if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
-        if [ "${UnitTest_compiler}" = gnu-15.2.0 ]; then
+        if [[ "${UnitTest_compiler}" == *'GNU'* ]]; then
           echo . ssmuse-sh -x /home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64>> load_env.dot ## TODO replace with dedicated SSM
         else
           echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
