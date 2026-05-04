@@ -208,7 +208,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
 
 ### Create and assign the `Merge Request`
 
-  - Go to **Gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
+  - Go to **Gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
   - Verify the information, in particular the source branch should be the branch you worked on and the target branch should be `main`.
   - Select the template, then follow the guidelines when filling in the Description box.
   - Assign the `Merge Request` to a colleague.
