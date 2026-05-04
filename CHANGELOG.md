@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added Introduction of sea ice thickness analysis (#1156 and !1093)
  * Added new standalone program (`createLamTemplateGrids`) to generate LAM analysis grids (#1158 and !1086)
  * Added the computation of pseudo sea-ice concentration observations (#1142 and !1074)
  * Added namelist variable `writeAsciiRmsStats` in `namEnsPostProcModule` (#1153 and !1082)
