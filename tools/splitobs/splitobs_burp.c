@@ -231,10 +231,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     RPT_SetHANDLE(rptin, 0);
     while ( brp_findrpt(iun, rptin) >= 0 ) {
       brp_getrpt(iun, RPT_HANDLE(rptin), rptin);
-      if (!strncmp(RPT_STNID(rptin),"N524FE",6)) {
-        printf("enregistrement %d\n", i_enrgs);
-        print_rpt(rptin);
-      }
       if (VERBOSE>5)
         print_allblocs(rptin);
       printf("\n") ;
