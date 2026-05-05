@@ -54,6 +54,16 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
   set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
   set(USE_LOCAL_EXTLIBS TRUE)
   message(STATUS "(EC) Using LOCAL external libraries: ${EXTLIBS_TO_BUILD}")
+  # Save the current debug flags
+  set(SAVED_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}")
+  set(SAVED_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+
+  # Override them to deactivate debug properties (warnings mostly)
+  message(STATUS "Deactivating warnings in external libraries")
+  if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -w")
+    set(CMAKE_C_FLAGS_DEBUG "-O2 -w")
+  endif()
 
   set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
 
@@ -73,6 +83,10 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
     message(STATUS "(EC) Adding perftools external library target")
     add_subdirectory(extlibs/perftools)
   endif()
+
+  # Restore debug flags
+  set(CMAKE_Fortran_FLAGS_DEBUG "${SAVED_Fortran_FLAGS_DEBUG}")
+  set(CMAKE_C_FLAGS_DEBUG "${SAVED_C_FLAGS_DEBUG}")
 endif()
 
 find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
