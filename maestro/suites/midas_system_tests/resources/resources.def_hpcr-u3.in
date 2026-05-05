@@ -61,6 +61,10 @@ LETKF_GLB15KM_NUM_THREADS=@LETKF_GLB15KM_NUM_THREADS@
 ## '/Tests/letkf/glb_10km'.
 LETKF_GLB10KM_CATCHUP=@LETKF_GLB10KM_CATCHUP@
 
+## Set this variable to '9' if you want to avoid running the test
+## '/Tests/letkf/glb_xc40'.
+LETKF_GLBXC40_CATCHUP=@LETKF_GLBXC40_CATCHUP@
+
 ## Set this variable to '${CMAKE_Fortran_COMPILER_ID}' to
 ## choose the compiler
 COMPILER=@CMAKE_Fortran_COMPILER_ID@
