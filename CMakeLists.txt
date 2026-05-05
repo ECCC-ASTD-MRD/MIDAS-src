@@ -181,6 +181,11 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   endif()
 
   set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -Wno-conversion -Wno-compare-reals -Wno-unused-function -Wno-tabs")
+  if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    ## Deactivate exception trapping that trigger segmentation fault in libXML used by OpenMPI
+    message(STATUS "(EC) Deactivating exception trapping for GNU+Debug mode")
+    string(REPLACE "-ffpe-trap=invalid,zero,overflow" "-ffpe-trap=" CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}")
+  endif()
 else()
   if(DEFINED ENV{EC_ARCH})
     message(FATAL_ERROR "This compiler is not supported: ${CMAKE_Fortran_COMPILER_ID}")
