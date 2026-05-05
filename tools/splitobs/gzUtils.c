@@ -215,6 +215,7 @@ int getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs) {
   fst.ip1=niveau;
   strcpy(fst.nomvar,"GZ  ");
 
+  iun = 0;
   status = getGridFromFile(&fst, fichier, gridptr, &iun);
   if (status == NOT_OK) {
     App_Log(APP_ERROR,"Fonction getGZ: Erreur dans la fonction getGridFromFile avec le fichier %s\n",fichier);

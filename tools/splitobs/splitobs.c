@@ -31,7 +31,7 @@
 int main(int argc, char** argv) {
   int status, EXIT_STATUS = OK, VERBOSE = 0;
   int filetype;
-  gridtype grid, grid_gz;
+  gridtype grid = grid_DEFAUT, grid_gz = grid_DEFAUT;
   options  opt = optionsDEFAUT;
   /* Vecteurs qui contiennent les valeurs du champ GZ au niveau voulu
    * pour estimer la hauteur de la pression donnee

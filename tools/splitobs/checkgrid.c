@@ -32,7 +32,7 @@
  *            0 si le point est a l'exterieur de la grille
  *           -1 s'il y a une erreur
  ***************************************************************************/
-int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char errmsg[MAXSTR], int VERBOSE) {
+int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char* errmsg, int VERBOSE) {
   int status, criteria;
   float x, y;
 

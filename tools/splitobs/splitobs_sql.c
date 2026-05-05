@@ -84,6 +84,8 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
   sqlite3  *sqldb;
   char *ErrMsg, requete_sql[SQL_BUFFER_SIZE];
 
+  EXIT_STATUS = OK;
+
   /* Initialize global variables from function inputs */
   SPLITOBS_SQLITE_VERBOSE = VERBOSE;
   SPLITOBS_SQLITE_VALEURS_GZ_MIN = valeurs_gz_min;
@@ -453,14 +455,14 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                     "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
           }
           sqlite3_free(ErrMsg);
-          EXIT_STATUS = 1;
+          EXIT_STATUS = NOT_OK;
         }
 
         /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK ) {
           App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
-          EXIT_STATUS = 1;
+          EXIT_STATUS = NOT_OK;
         }
       } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
     } /* Fin du 'for (ilonband=0;ilonband<opt.npex;ilonband++)' */

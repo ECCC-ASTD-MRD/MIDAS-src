@@ -2165,6 +2165,8 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
   BURP_BLK* blksearch;
   BURP_BLK* blktmp;
 
+  EXIT_STATUS = OK;
+
   if (VERBOSE>2) {
     printf("Fonction process_ua4d_record: processing stdids %s for domain %dx%d\n", RPT_STNID(rptin), ilonband, jlatband);
     print_rpt(rptin);
@@ -2574,6 +2576,10 @@ int write_num_headers(char* burpout, int number_of_observations_accepted) {
   status = fprintf(file, "%d\n", number_of_observations_accepted);
   if ( status < 0 ) {
     App_Log(APP_ERROR,"Fonction write_num_headers: Il est impossible d'ecrire '%d' dans le fichier '%s'\n", number_of_observations_accepted, burpout_num_headers);
+    status = fclose(file);
+    if ( status < 0 )
+      App_Log(APP_ERROR,"Fonction write_num_headers: Il est impossible de fermer le fichier '%s'\n", burpout_num_headers);
+
     return NOT_OK;
   }
 

@@ -30,7 +30,8 @@
 #define GRTYP_VIDE        " "
 
 /* valeurs par defaut pour certaines structures utilisees dans le programme */
-#define fstparam_DEFAUT    {DATEV_VIDE,0,0,1,1,1,0,0,IP1_VIDE,IP2_VIDE,IP3_VIDE,0,0,0,0,0,0,0,0,0,0,0,TYPVAR_VIDE,NOMVAR_VIDE,ETIKET_VIDE,GRTYP_VIDE}
+#define fstparam_DEFAUT {DATEV_VIDE,0,0,1,1,1,0,0,IP1_VIDE,IP2_VIDE,IP3_VIDE,0,0,0,0,0,0,0,0,0,0,0,TYPVAR_VIDE,NOMVAR_VIDE,ETIKET_VIDE,GRTYP_VIDE}
+#define grid_DEFAUT     { -1, -1, -1, -1, GRTYP_VIDE, -1, -1, -1, -1}
 
 /* structure contenant les elements identifiant un champ dans un fichier standard */
 typedef struct {
