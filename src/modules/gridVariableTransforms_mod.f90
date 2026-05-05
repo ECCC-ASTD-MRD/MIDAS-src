@@ -2410,11 +2410,10 @@ CONTAINS
     integer  :: ip1, ip2, ip3
     character(len=1) :: grtyp
     character(len=12) :: etiket
-    integer, external :: fnom,fstouv,fstfrm,fclos
 
-    if(variableName == 'GL') then
+    if (variableName == 'GL') then
       call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
-    elseif(variableName == 'GE') then
+    else if (variableName == 'GE') then
       call msg('gvt_iceLimits', 'Impose non negative value on sea ice thickness...')
       call gsv_getField(stateVector, seaIce_ptr, variableName)
       seaIce_ptr(:,:,:,:) = max(seaIce_ptr(:,:,:,:), 0.0d0)
