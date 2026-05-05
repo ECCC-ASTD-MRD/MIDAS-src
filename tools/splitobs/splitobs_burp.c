@@ -1242,7 +1242,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
           break;
         } /* Fin du if (which_btyp(BLK_BTYP(blk),VERBOSE)==0) */
       } /* Fin du if (trouve_lat>0 && trouve_lon>0) */
-    } /* Fin du for (e=0;e<BLK_NELE(blk);e++) */
+    } /* Fin du for (elementIndex=0;elementIndex<BLK_NELE(blk);elementIndex++) */
   } /* Fin du while ( brp_findblk( blktmp, rptin ) >= 0 ) */
 
   if (trouve_au_moins_un_bloc_avec_lat_lon == 0) {
