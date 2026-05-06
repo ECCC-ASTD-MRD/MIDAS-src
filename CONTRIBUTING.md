@@ -223,7 +223,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
 A merge request does not need to be a final review step.  You can use
 it as a development process to share code with colleagues.  To prevent
 the branch to be merged accidentally, you can prefix the title of the
-merge request with [`WIP: ` ("Work In
+merge request with [`Draft: ` ("Work In
 Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progress_merge_requests.html).
 You will see instructions about this feature in the **GitLab** merge
 request page.
