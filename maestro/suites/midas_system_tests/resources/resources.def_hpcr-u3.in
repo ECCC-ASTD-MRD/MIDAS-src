@@ -64,6 +64,8 @@ LETKF_GLB10KM_CATCHUP=@LETKF_GLB10KM_CATCHUP@
 ## Set this variable to '9' if you want to avoid running the test
 ## '/Tests/letkf/glb_xc40'.
 LETKF_GLBXC40_CATCHUP=@LETKF_GLBXC40_CATCHUP@
+## Number of ensemble members
+LETKF_GLBXC40_NENS=@LETKF_GLBXC40_NENS@
 
 ## Set this variable to '${CMAKE_Fortran_COMPILER_ID}' to
 ## choose the compiler
