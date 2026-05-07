@@ -34,6 +34,7 @@
   numIterMaxInnerLoop = 10,10,10,
   computeFinalNlJo = .true.
   limitHuInOuterLoop = .true.
+  writeOuterLoopIncrements = .true.
 /
  &NAMMIN
    NVAMAJ = 25,
