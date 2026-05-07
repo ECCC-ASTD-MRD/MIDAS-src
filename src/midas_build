@@ -43,6 +43,9 @@ __dateStampBeg=$(date +%s)
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version)
 
+__default_compiler=inteloneapi-2025.1.0
+__debug_compiler=gnu-15.2.0
+
 ##=========================================================
 ##  checking if the environment has already been defined
 if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
@@ -77,13 +80,12 @@ __abs_exist_list=${__abs_all}
 
 function default_compiler {
     if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        echo inteloneapi-2025.1.0
+        echo ${__default_compiler}
     else
         echo "midas_build: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-9-graniterapids-64' is." >&2
         exit 1
     fi
 }
-compiler=$(default_compiler)
 
 __fresh_build_directory=--fresh
 ## When using 'midas_build', we want verbose compilation listing
@@ -114,6 +116,10 @@ if [ $# -gt 0 ]; then
 
         if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
             export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+            ## defaults to debug compiler
+            if [[ -z "${compiler}" ]]; then
+              compiler=${__debug_compiler}
+            fi
         elif [[ "${arg}" = --compiler ]]; then
             if [[ $# -lt 2 ]]; then
                 echo "midas_build: The option '--compiler' must be followed by a compiler identificator" >&2
@@ -124,7 +130,7 @@ if [ $# -gt 0 ]; then
             fi
             compiler=${2}
             if [ "${compiler}" = list ]; then
-                echo "midas_build: The compiler supported are 'inteloneapi-2022.1.2' and 'gnu-14.2.0'."
+                echo "midas_build: The compiler supported are '${__default_compiler}' and '${__debug_compiler}'."
                 exit 0
             fi
             shift
@@ -212,6 +218,10 @@ if [ $# -gt 0 ]; then
         done
     fi
 fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
+
+if [[ -z "${compiler}" ]]; then
+  compiler=$(default_compiler)
+fi
 
 ## default: make all
 if [[ -z "${__target}" ]]; then
