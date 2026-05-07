@@ -1173,11 +1173,11 @@ end subroutine filt_topoAISW
       [12, 14, 146, 32, 35, 135, 136, 137, 138]
     integer, parameter :: codTypWindLandRej_all(numCodTypWindLandRej_all) = &
       [12, 14, 15, 143, 144, 146, 32, 35, 135, 136, 137, 138]
-    character(len=2), parameter, dimension(2) :: list_family = ['SF', 'UA']
-    integer :: codTypIndex, codTypRejIndex, burpIndex, elemWind
+    character(len=2), parameter :: list_family(2) = ['SF', 'UA']
+    integer :: codTypIndex, codTypRejIndex, obsCodTyp, elemWind
     integer :: codTypWindLandRej(size(list_discardLandSfcWind))
     integer :: numCodTypWindLandRej, numObsAssim, numObsRej(2)
-    integer :: familyIndex, headerIndex, bodyIndex
+    integer :: familyIndex, headerIndex, bodyIndex, elemIndex
     character(len=obs_stnidLength) :: stnid
     real(pre_obsReal) :: obsLat, obsLon, obsPPP
     logical :: displayDetails
@@ -1212,38 +1212,36 @@ end subroutine filt_topoAISW
       end if
     end if
 
-    if (( .not. discardLandSfcWind ) .and. ( .not. discardLandSfcWind_all )) &
-      return
+    if ((.not. discardLandSfcWind) .and. (.not. discardLandSfcWind_all)) return
 
-    if ( .not.beSilent ) then
-      WRITE(*,* ) ' '
-      WRITE(*,* ) ' filt_surfaceWind:'
-      WRITE(*,* ) ' '
-      WRITE(*,* ) '*****************************************************'
-      WRITE(*,222)'ELEMENTS REJECTED         ', (listElemWind(codTypIndex), codTypIndex=1,2)
-      WRITE(*,222)'LIST OF IDTYP             ', (codTypWindLandRej(codTypIndex), codTypIndex=1,numCodTypWindLandRej)
-      WRITE(*,* ) '*****************************************************'
-      WRITE(*,* ) ' '
+    if (.not.beSilent) then
+      write(*,*) ' '
+      write(*,*) ' filt_surfaceWind:'
+      write(*,*) ' '
+      write(*,*) '*****************************************************'
+      write(*,222)'ELEMENTS REJECTED         ', listElemWind(:)
+      write(*,222)'LIST OF IDTYP             ', codTypWindLandRej(:numCodTypWindLandRej)
+      write(*,*) '*****************************************************'
+      write(*,*) ' '
     end if
     displayDetails = .FALSE.
     !cc      displayDetails = .TRUE.
     !
     !     SET COUNTERS TO ZERO
     !
-    do codTypIndex = 1, 2
-      numObsRej(codTypIndex) = 0
+    do elemIndex = 1, 2
+      numObsRej(elemIndex) = 0
     end do
     !
     ! Loop over the families of interest
     !
-    do familyIndex = 1,2
-      if ( .not.beSilent ) WRITE(*,'(2x,A9,2x,A2)') 'FAMILY = ', list_family(familyIndex)
+    do familyIndex = 1, 2
+      if (.not.beSilent) write(*,'(2x,A9,2x,A2)') 'FAMILY = ', list_family(familyIndex)
       ! loop over all header indices of each family
       !
       ! Set the header list
       ! (& start at the beginning of the list)
-      call obs_set_current_header_list(obsSpaceData, &
-        list_family(familyIndex))
+      call obs_set_current_header_list(obsSpaceData, list_family(familyIndex))
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
@@ -1257,16 +1255,16 @@ end subroutine filt_topoAISW
           if (bodyIndex < 0) exit BODY
           ! UNCONDITIONALLY REJECT SURFACE WINDS AT LAND STATIONS
           elemWind = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          burpIndex = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if ( ANY(elemWind == listElemWind) ) then
+          obsCodTyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+          if ( Any(elemWind == listElemWind) ) then
             do codTypRejIndex = 1, numCodTypWindLandRej
-              if (burpIndex == codTypWindLandRej(codTypRejIndex) .and. &
+              if (obsCodTyp == codTypWindLandRej(codTypRejIndex) .and. &
                 obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
                 call flg_setFlag(obsSpaceData, bodyIndex, flg_19rejLandSea)
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-                do codTypIndex = 1, 2
-                  if (elemWind == listElemWind(codTypIndex)) then
-                    numObsRej(codTypIndex) = numObsRej(codTypIndex)+1
+                do elemIndex = 1, 2
+                  if (elemWind == listElemWind(elemIndex)) then
+                    numObsRej(elemIndex) = numObsRej(elemIndex)+1
                   end if
                 end do
                 if (displayDetails .and. .not.beSilent ) then
@@ -1274,36 +1272,36 @@ end subroutine filt_topoAISW
                   obsLat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
                   obsLon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
                   obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                  WRITE(*,225) 'Rej sfc wind lnd',headerIndex,elemWind,stnid, &
-                    burpIndex, obsLat, obsLon, obsPPP
-225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
-                end if
-              end if
-            end do
+                  write(*,225) 'Rej sfc wind lnd',headerIndex,elemWind,stnid, &
+                    obsCodTyp, obsLat, obsLon, obsPPP
+225    format(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,3(2x,f9.2))
+                end if ! display details
+              end if ! obs assimilated
+            end do ! traverse codtyps
           end if ! BUFR_NEUS or BUFR_NEVS
         end do BODY
       end do HEADER
 
-      if ( .not.beSilent ) then
-        WRITE(*,* ) ' '
-        WRITE(*,* ) '*****************************************************'
-        WRITE(*,222)'ELEMENTS         ', (listElemWind(codTypIndex), codTypIndex=1,2)
-        WRITE(*,222)'REJECTED         ', (numObsRej(codTypIndex), codTypIndex=1,2)
-        WRITE(*,* ) '*****************************************************'
-        WRITE(*,* ) ' '
-222    FORMAT(2x,a29,10(2x,i5))
+      if (.not.beSilent) then
+        write(*,*) ' '
+        write(*,*) '*****************************************************'
+        write(*,222)'ELEMENTS         ', listElemWind(:)
+        write(*,222)'REJECTED         ', numObsRej(:)
+        write(*,*) '*****************************************************'
+        write(*,*) ' '
+222    format(2x,a29,10(2x,i5))
       end if
 
     end do ! family
 
     numObsAssim = 0
     do bodyIndex = 1, obs_numbody(obsSpaceData)
-       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) numObsAssim = numObsAssim+1
+      if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) numObsAssim = numObsAssim+1
     end do
-    if ( .not.beSilent ) WRITE(*, &
-         '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
-         numObsAssim
-    if ( .not.beSilent ) WRITE(*,* ) ' '
+    if (.not.beSilent) write(*, &
+      '(1X," NUMBER OF DATA ASSIMILATED BY MIDAS AFTER ADJUSTMENTS: ",i10)') &
+      numObsAssim
+    if (.not.beSilent) write(*,*) ' '
 
   end subroutine filt_surfaceWind
 
