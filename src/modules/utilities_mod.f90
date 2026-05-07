@@ -1321,22 +1321,19 @@ contains
       fileType = 'sqliteOrObsdb'
     ! For 'typeCode' less than 0, this is an error
     ! Error codes are available at https://gitlab.science.gc.ca/RPN-SI/librmn/-/blob/master/src/PUBLIC_INCLUDES/rmn/c_wkoffit.h
-    case (-1)
+    case (-1,-2,-3,-4)
       write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
       write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-      call rti_abort('utl_fileType: unknown file type')
-    case (-2)
-      write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
-      write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-      call rti_abort('utl_fileType: file is empty')
-    case (-3)
-      write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
-      write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-      call rti_abort('utl_fileType: file does not exist')
-    case (-4)
-      write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
-      write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-      call rti_abort('utl_fileType: file is corrupted')
+      select case(typeCode)
+      case (-1)
+        call rti_abort('utl_fileType: unknown file type')
+      case (-2)
+        call rti_abort('utl_fileType: file is empty')
+      case (-3)
+        call rti_abort('utl_fileType: file does not exist')
+      case (-4)
+        call rti_abort('utl_fileType: file is corrupted')
+      end select
     case default
       ! check if filename contain '.nc' in case it is a new netCDF version
       if (index(trim(fileName_opt),'.nc') /= 0) then
