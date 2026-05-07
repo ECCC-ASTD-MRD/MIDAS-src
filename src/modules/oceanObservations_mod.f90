@@ -249,12 +249,11 @@ module oceanObservations_mod
     real(8), pointer     :: seaIce_ptr(:, :, :)
     type(struct_ocm)     :: oceanMask
     logical, allocatable :: isIce(:,:), isEdge(:,:), isBand(:,:), isGap(:,:), isOcean(:,:)
-    integer              :: newDate
     integer              :: ni, nj, bandCells
     integer              :: lonIndex, latIndex, nIceNeighbors
     type(struct_obs)     :: obsData
     integer              :: numberPseudoSICPoints, headerIndex
-    integer              :: dateStamp, datePrint, timePrint, imode, ierr
+    integer              :: dateStamp, datePrint, timePrint
     integer              :: codeType
     real(pre_obsReal)    :: obsLon, obsLat, obsValue
     real(8), allocatable :: iceLons(:), iceLats(:)
@@ -265,6 +264,13 @@ module oceanObservations_mod
     integer :: queueHead, queueTail
 
     call rti_tmg_start(186,'--oobs_pseudoSIC')
+
+    !---------------------------------------------------------
+    ! Date
+    !---------------------------------------------------------
+    dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
+    call tim_dateStampToYYYYMMDDHH(dateStamp, datePrint, timePrint)
+    timePrint = timePrint / 1000000
 
     if (mmpi_myid /= 0) then
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
@@ -458,15 +464,6 @@ module oceanObservations_mod
     end do
 
     !---------------------------------------------------------
-    ! Date
-    !---------------------------------------------------------
-    dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
-    imode = -3
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
-    timePrint = timePrint / 1000000
-    datePrint = datePrint * 100 + timePrint
-
-    !---------------------------------------------------------
     ! Write obs
     !---------------------------------------------------------
 
@@ -494,7 +491,7 @@ module oceanObservations_mod
         call obs_set_c(obsData, 'STID', headerIndex, 'BOGUS')
         call obs_headSet_i(obsData, OBS_NLV, headerIndex, 1)
         call obs_headSet_i(obsData, OBS_RLN, headerIndex, headerIndex)
-        call obs_headSet_i(obsData, OBS_DAT, headerIndex, datePrint / 100)
+        call obs_headSet_i(obsData, OBS_DAT, headerIndex, datePrint)
         call obs_headSet_i(obsData, OBS_ETM, headerIndex, timePrint)
 
       end do
