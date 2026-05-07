@@ -280,7 +280,7 @@ contains
     end do
 
     mindxy = min( mindxy, diff(diffID)%dlat )
-    write(*,*) 'diff_setup: minimim grid spacing: mindxy = ', mindxy
+    write(*,*) 'diff_setup: minimum grid spacing: mindxy = ', mindxy
 
     if ( utl_isEqual(corr_len, -1.0) ) then
 
@@ -416,7 +416,11 @@ contains
       allocate(buf2d(ni, nj))
       ! Looking for FST record parameters..
       dateo = -1
-      etiket = ''
+      if (useImplicit) then
+        write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
+      else
+        write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
+      end if
       ip1 = -1
       ip2 = -1
       ip3 = -1
@@ -424,7 +428,10 @@ contains
       ikey = utl_fstlir_r4( buf2d, std_unit, nii, njj, nkk, dateo, etiket, ip1, ip2, ip3, grtyp, 'LAMB')
       write(*,*) 'diff_setup: nii / njj: ', nii, njj
       write(*,*) 'diff_setup: ni  / nj : ', ni, nj
-      if (ikey <= 0) write(*,*) 'diff_setup: Attention! ikey = ', ikey
+      if (ikey <= 0) then
+        write(*,*) 'Did not find variable LAMB with etiket ',trim(etiket)
+        write(*,*) 'in file: ', trim(diff_norm_fact)
+      end if
 
       ierr = fstfrm(std_unit)
       ierr = fclos(std_unit)
@@ -433,14 +440,15 @@ contains
 
       deallocate(buf2d)
 
+    else
+
+      write(*,*) 'diff_setup: file does not exist: ', trim(diff_norm_fact)
+
     end if
 
     if (nii /= ni .or. njj /= nj .or. ikey <= 0 .or. ( .not. file_exist)) then
 
-      if (.not. file_exist) then
-        write(*,*) 'diff_setup: file does not exist: ', trim(diff_norm_fact)
-        write(*,*) 'diff_setup: normalization factors will be computed...'
-      end if
+      write(*,*) 'diff_setup: normalization factors will be computed...'
 
       seed = 1
       call rng_setup(abs(seed + mmpi_myid))

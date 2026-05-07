@@ -36,7 +36,7 @@ module obsFiles_mod
   private
 
   ! Private module parameters
-  integer, parameter :: maxNumObsfiles = 126
+  integer, parameter :: maxNumObsfiles = 130
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
@@ -624,6 +624,10 @@ contains
     namePrefix(124) = 'obssh_j3_l3'    ! Altimetry Jason-3
     namePrefix(125) = 'obssh_s3a_l3'   ! Altimetry Sentinel-3A
     namePrefix(126) = 'obssh_s3b_l3'   ! Altimetry Sentinel-3B
+    namePrefix(127) = 'obsgl_smos'     ! Sea ice thickness
+    namePrefix(128) = 'obsgl_smap'     ! Sea ice thickness
+    namePrefix(129) = 'obsgl_cryosat'  ! Sea ice thickness
+    namePrefix(130) = 'obsgl_icesat'   ! Sea ice thickness
 
     familyName(:)   = ''
     familyName( 1)  = 'TO'
@@ -752,6 +756,10 @@ contains
     familyName(124) = 'SH'
     familyName(125) = 'SH'
     familyName(126) = 'SH'
+    familyName(127) = 'GL'
+    familyName(128) = 'GL'
+    familyName(129) = 'GL'
+    familyName(130) = 'GL'
 
     obsDirectory = 'obs'
 

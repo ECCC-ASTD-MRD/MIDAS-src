@@ -1062,33 +1062,43 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
       bodyIndex = obs_getBodyIndex( obsSpaceData )
       if ( bodyIndex < 0 ) exit BODY
 
-      ! only process observations flagged to be assimilated
-      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) /= obs_assimilated ) cycle BODY
-
       bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
 
-      headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
-      varName = vnl_varNameFromVarNum(bufrCode)
+      ! Only process observations flagged to be assimilated
+      ! or for sea ice thickness.
+      ! OMP is needed for the gross check, where entire swath are rejected
+      ! if the RMS of OMP exceeds a threshold.
+      ! To detect bad swaths in the cases of SMOS and SMAP for ice thickness,
+      ! the RMS is needed over all points,
+      ! including those locations where a flag has already been set prior to OMP calculation.
+           
+      if ( obs_bodyElem_i( obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated .or. &
+           bufrCode == BUFR_ICET ) then
 
-      select case (bufrCode)
-      case(bufr_icec, bufr_icep)
-        backValue = 100.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
-      case(bufr_icev)
-        backValue = 1.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
-      case(bufr_ices)
-        obsDate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
-        write(ccyymmdd, FMT='(i8.8)') obsDate
-        read(ccyymmdd(5:6), FMT='(i2)') monthIndex
-        conc = col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName)
-        trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
-        backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(trackCellNum,monthIndex) + &
+        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )
+        varName = vnl_varNameFromVarNum(bufrCode)
+
+        select case (bufrCode)
+        case(BUFR_ICEC, BUFR_ICEP)
+          backValue = 100.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
+        case(BUFR_ICEV, BUFR_ICET)
+          backValue = 1.0d0*col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName )
+        case(BUFR_ICES)
+          obsDate = obs_headElem_i( obsSpaceData, OBS_DAT, headerIndex )
+          write(ccyymmdd, FMT='(i8.8)') obsDate
+          read(ccyymmdd(5:6), FMT='(i2)') monthIndex
+          conc = col_getElem( columnTrlOnTrlLev, 1, headerIndex, varName)
+          trackCellNum = obs_headElem_i( obsSpaceData, OBS_FOV, headerIndex )
+          backValue = (1.0d0-conc)*oer_ascatAnisOpenWater(trackCellNum,monthIndex) + &
                          conc*oer_ascatAnisIce(trackCellNum,monthIndex)
-      case default
-        cycle BODY
-      end select
+        case default
+          cycle BODY
+        end select
 
-      obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
-      call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, obsValue - backValue )
+        obsValue = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+        call obs_bodySet_r( obsSpaceData, destObsColumn, bodyIndex, obsValue - backValue )
+
+      end if
 
     end do BODY
 
@@ -4190,7 +4200,7 @@ subroutine oop_vobslyrs(columnTrl, obsSpaceData, beSilent)
     select case (bufrCode)
     case(BUFR_ICEC, BUFR_ICEP)
        scaling = 100.0d0
-    case(BUFR_ICEV)
+    case(BUFR_ICEV, BUFR_ICET)
        scaling = 1.0d0
     case(BUFR_ICES)
        headerIndex = obs_bodyElem_i( obsSpaceData, OBS_HIND, bodyIndex )

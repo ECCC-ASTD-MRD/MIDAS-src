@@ -434,10 +434,13 @@ CONTAINS
       call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
 
     case ('iceLimits')
+      if (.not.present(varName_opt)) then
+        call rti_abort('gvt_transform: for gvt_iceLimits, missing variable name')
+      end if
       if (.not.present(spreadIceIncOverLakes_opt)) then
         call rti_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
       end if
-      call gvt_iceLimits(statevector, spreadIceIncOverLakes_opt)
+      call gvt_iceLimits(statevector, varName_opt, spreadIceIncOverLakes_opt)
 
     case default
       write(*,*)
@@ -2370,9 +2373,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_iceLimits
   !--------------------------------------------------------------------------
-  subroutine gvt_iceLimits(stateVector, spreadIceIncOverLakes)
+  subroutine gvt_iceLimits(stateVector, variableName, spreadIceIncOverLakes)
     !
     ! :Purpose: Impose limits [0,1] on sea ice concentration analysis.
+    !           Impose non negative value on sea ice thickness analysis.
     !           For lakes, the negative values are redistributed over
     !           points that have positive value, such that the average
     !           ice concentration over the lake is preserved.
@@ -2381,6 +2385,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector           ! state vector of sea ice concentration analysis
+    character(len=*), intent(in)    :: variableName          ! variable name
     logical,          intent(in)    :: spreadIceIncOverLakes ! spread ice increment over lakes when outside [0,1]
 
     ! Locals:
@@ -2392,8 +2397,7 @@ CONTAINS
     type(struct_gsv)     :: stateVector_1step
     real(8), pointer     :: seaIce_ptr(:,:,:,:)
     real(8)              :: excess
-    character(len=2), parameter :: variableName = 'GL'
-    real(8), parameter   :: maxLakeArea = 32000.0d0
+    real(8), parameter   :: maxLakeArea = 32000.0d0    ! (km^2)
     real(8)              :: lakeArea
     real(4)              :: area(stateVector%ni,stateVector%nj)
     integer              :: aLakePoint(stateVector%ni,stateVector%nj)
@@ -2407,7 +2411,16 @@ CONTAINS
     character(len=1) :: grtyp
     character(len=12) :: etiket
 
-    call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
+    if (variableName == 'GL') then
+      call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
+    else if (variableName == 'GE') then
+      call msg('gvt_iceLimits', 'Impose non negative value on sea ice thickness...')
+      call gsv_getField(stateVector, seaIce_ptr, variableName)
+      seaIce_ptr(:,:,:,:) = max(seaIce_ptr(:,:,:,:), 0.0d0)
+      return
+    else
+      call rti_abort('gvt_iceLimits: unrecognized variable name: '//trim(variableName))
+    end if
 
     if (.not. spreadIceIncOverLakes) then
       call gsv_getField(stateVector, seaIce_ptr, variableName)

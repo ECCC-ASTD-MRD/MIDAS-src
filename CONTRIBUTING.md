@@ -208,7 +208,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
 
 ### Create and assign the `Merge Request`
 
-  - Go to **Gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
+  - Go to **Gitlab** [*branch* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/branches) and press on `Merge Request` button appearing next to the appropriate *branch* (`${ISSUE_NUMBER}-...`).
   - Verify the information, in particular the source branch should be the branch you worked on and the target branch should be `main`.
   - Select the template, then follow the guidelines when filling in the Description box.
   - Assign the `Merge Request` to a colleague.
@@ -223,8 +223,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
 A merge request does not need to be a final review step.  You can use
 it as a development process to share code with colleagues.  To prevent
 the branch to be merged accidentally, you can prefix the title of the
-merge request with [`WIP: ` ("Work In
-Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progress_merge_requests.html).
+merge request with [`Draft:`](https://docs.gitlab.com/user/project/merge_requests/drafts/).
 You will see instructions about this feature in the **GitLab** merge
 request page.
 
