@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Update `var/Var3D/gbc` with `var/EnVar/gbc` and GDPS configs of `main/assimcycle/genbiascoeff/var` (#1172 and !)
+ * Update `var/Var3D/gbc` with `var/EnVar/gbc` and GDPS configs of `main/assimcycle/genbiascoeff/var` (#1172 and !1097)
  * Added `writeOuterLoopIncrements` namelist variable in `NAMVAR` to write increments from outer-loop iterations (#1171 and !1096)
  * Added Introduction of sea ice thickness analysis (#1156 and !1093)
  * Added new standalone program (`createLamTemplateGrids`) to generate LAM analysis grids (#1158 and !1086)
