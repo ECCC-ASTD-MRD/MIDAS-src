@@ -129,6 +129,9 @@
  &NAMOER
    NEW_OER_SW=.true.
 /
+ &NAMSW
+  SWQI(27) = 'GOES19:qi1'
+/
  &NAMBURP_UPDATE
    BITEMLIST(1)='OMA',
    BITEMLIST(2)='OMP',
