@@ -300,6 +300,7 @@ program midas_var
 
   integer :: outerLoopIndex, numIterMaxInnerLoopUsed
   integer :: numIterWithoutVarqc, numInnerLoopIterDone
+  integer :: ip3ForWrite
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
@@ -593,13 +594,16 @@ program midas_var
       call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       call msg_memUsage('var')
 
-      if ( writeOuterLoopIncrements ) then
-        call inc_writeIncrement( stateVectorIncrSum, &    ! IN
-                                 ip3ForWriteToFile_opt=outerLoopIndex ) ! IN        
-      else
-        call inc_writeIncrement( stateVectorIncrSum, &     ! IN
-                                 ip3ForWriteToFile_opt=0 ) ! IN
+      ip3ForWrite = 0
+
+      ! Intermediate outer-loop increments
+      if ( writeOuterLoopIncrements .and. &
+           outerLoopIndex /= numOuterLoopIterations ) then
+        ip3ForWrite = outerLoopIndex
       end if
+
+      call inc_writeIncrement( stateVectorIncrSum, &               ! IN
+                               ip3ForWriteToFile_opt=ip3ForWrite ) ! IN
 
       call gsv_deallocate( stateVectorIncrSum )
     else if ( numOuterLoopIterations == 1 ) then
