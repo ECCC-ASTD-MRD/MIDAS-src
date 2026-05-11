@@ -594,11 +594,10 @@ program midas_var
       call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       call msg_memUsage('var')
 
-      ip3ForWrite = 0
-
       ! Intermediate outer-loop increments
-      if ( writeOuterLoopIncrements .and. &
-           outerLoopIndex /= numOuterLoopIterations ) then
+      if ( outerLoopIndex == numOuterLoopIterations ) then
+        ip3ForWrite = 0
+      else
         ip3ForWrite = outerLoopIndex
       end if
 
