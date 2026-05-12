@@ -393,6 +393,12 @@ hpcarchive --project rpndat_2ans --archivename midas-unittests-$(date +%Y%m%d) -
 The `hcron` directive file is
 `/home/sanl000/.hcron/hcron-dev7.science.gc.ca/events/MIDAS_tests_hpcarchive-backup.hcron`.
 
+A script has been written to encapsulate this logic and report errors at:
+`̀``
+/home/sanl000/bin/MIDAS_tests_hpcarchive-backup
+`̀``
+which is submitted in batch in `hcron`.
+
 ## Splitting an observation file to prepare a unit test input
 
 In the case a user wants to split an observation file to prepare a
