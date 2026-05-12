@@ -416,7 +416,8 @@ For example, if you call the command
 ```bash
 midas.splitobs.Abs -obsin obs_input -obsout obs_split -round-robin -npex 2 -npey 3
 ```
-it will split the input observation file `obs_input` and generates 6 files with the name:
+it will split the input observation file `obs_input` and generates 6
+files with the names:
 ```
 obs_split_0001_0001
 obs_split_0001_0002
@@ -431,11 +432,11 @@ obs_split_0002_0003
 To gain access to the program `midas.splitobs.Abs`, one can load one
 of the MIDAS SSM domain with:
 ```bash
-. ssmuse-sh -d eccc/mrd/rpn/anl/midas/3.8.1
+. ssmuse-sh -d eccc/mrd/rpn/anl/midas/4.1.5
 ```
 or point directly to the program in the SSM domain:
 ```
-/fs/ssm/eccc/mrd/rpn/anl/midas/3.8.1/${ORDENV_PLAT}/bin/midas.splitobs.Abs
+/fs/ssm/eccc/mrd/rpn/anl/midas/4.1.5/${ORDENV_PLAT}/bin/midas.splitobs.Abs
 ```
 
 An English help message is printed to screen by calling
