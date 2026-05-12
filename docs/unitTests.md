@@ -366,6 +366,33 @@ When you will ask a merge-request, the new results will be copied in a
 safe directory with all other reference results by one of the
 git repository maintainers.
 
+### Reference files database
+
+The reference files for all the tests are stored under user `sanl000` at:
+`̀``
+/home/sanl000/data/ppp7/UnitTests/midas
+`̀``
+
+A backup is made each day at 0 UTC using the command:
+`̀``bash
+rsync -a /home/sanl000/data/ppp7/UnitTests/midas /home/sanl000/data/ppp8/UnitTests/midas-backup
+`̀``
+
+This backup is run under `hcron` with the directive file
+`/home/sanl000/.hcron/hcron-dev7.science.gc.ca/events/MIDAS_tests_backup.hcron`.
+
+And each 3 months, on the first day of March, June, September and
+December at 0 UTC, we do a backup of those files under project
+`rpndat_2ans` with the command:
+
+```bash
+cd /home/sanl000/data/ppp7/UnitTests
+hpcarchive --project rpndat_2ans --archivename midas-unittests-$(date +%Y%m%d) --archive midas
+```
+
+The `hcron` directive file is
+`/home/sanl000/.hcron/hcron-dev7.science.gc.ca/events/MIDAS_tests_hpcarchive-backup.hcron`.
+
 ## Splitting an observation file to prepare a unit test input
 
 In the case a user wants to split an observation file to prepare a
