@@ -581,8 +581,8 @@ program midas_var
       call qlim_rttovLimit( stateVectorUpdateHighRes )
     end if
 
-    ! prepare to write incremnt when no outer-loop, or sum of increments at last
-    ! outer-loop iteration.
+    ! prepare to write incremnt when no outer-loop, sum of increments at final
+    ! outer-loop iteration, or sum of intermediate increments at each outer-loop iterations.
     if ( numOuterLoopIterations > 1 .and. &
         ( outerLoopIndex == numOuterLoopIterations .or. &
           writeOuterLoopIncrements ) ) then
