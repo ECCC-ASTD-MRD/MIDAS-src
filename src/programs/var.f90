@@ -300,6 +300,7 @@ program midas_var
 
   integer :: outerLoopIndex, numIterMaxInnerLoopUsed
   integer :: numIterWithoutVarqc, numInnerLoopIterDone
+  integer :: ip3ForWrite
 
   logical :: allocHeightSfc, applyLimitOnHU
   logical :: deallocHessian, isMinimizationFinalCall
@@ -315,8 +316,9 @@ program midas_var
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
   logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file
+  logical :: writeOuterLoopIncrements                  ! write increments from successive outer loop iterations
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
+  NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil, writeOuterLoopIncrements
 
   call ver_printNameAndVersion('var','Variational Assimilation')
 
@@ -353,6 +355,7 @@ program midas_var
   numIterMaxInnerLoop(:) = 0
   computeFinalNlJo = .false.
   useTovsUtil = .false.
+  writeOuterLoopIncrements = .false. 
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
     call msg('midas-var','namvar is missing in the namelist. ' // &
@@ -578,10 +581,11 @@ program midas_var
       call qlim_rttovLimit( stateVectorUpdateHighRes )
     end if
 
-    ! prepare to write incremnt when no outer-loop, or sum of increments at last
-    ! outer-loop iteration.
+    ! prepare to write incremnt when no outer-loop, sum of increments at final
+    ! outer-loop iteration, or sum of intermediate increments at each outer-loop iterations.
     if ( numOuterLoopIterations > 1 .and. &
-         outerLoopIndex == numOuterLoopIterations ) then
+        ( outerLoopIndex == numOuterLoopIterations .or. &
+          writeOuterLoopIncrements ) ) then
 
       call gsv_allocate(stateVectorIncrSum, tim_nstepobsinc, hco_anl, vco_anl, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
@@ -590,8 +594,16 @@ program midas_var
       call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       call msg_memUsage('var')
 
-      call inc_writeIncrement( stateVectorIncrSum, &     ! IN
-                               ip3ForWriteToFile_opt=0 ) ! IN
+      ! Intermediate outer-loop increments
+      if ( outerLoopIndex == numOuterLoopIterations ) then
+        ip3ForWrite = 0
+      else
+        ip3ForWrite = outerLoopIndex
+      end if
+
+      call inc_writeIncrement( stateVectorIncrSum, &               ! IN
+                               ip3ForWriteToFile_opt=ip3ForWrite ) ! IN
+
       call gsv_deallocate( stateVectorIncrSum )
     else if ( numOuterLoopIterations == 1 ) then
       call inc_writeIncrement( stateVectorIncr, &        ! IN
