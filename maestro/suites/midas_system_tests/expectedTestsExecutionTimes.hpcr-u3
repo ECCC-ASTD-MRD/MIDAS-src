@@ -118,7 +118,7 @@ Test Name, Mean, Stddev, Stddev/Mean, Min, Max, Number of cases
 /Tests/var1D/idealized 	581.968 34.9499 0.0600547 491 726 507
 /Tests/var1D/lowPeakingAmsuA 	216.081 8.64379 0.0400026 196 281 1354
 /Tests/var1D/tskinTest 	224.824 93.2235 0.414651 166 789 1141
-/Tests/var/EnVar/gbc    250.0 50.0 50.0 200.0 350.0 1
+/Tests/var/EnVar/gbc    250.0 50.0 50.0 200 350 1
 /Tests/var/EnVar/24mem_xc40 	396.004 28.3005 0.0714652 368 537 714
 /Tests/var/EnVar/2D_ppp 	15.8917 5.24344 0.329947 9 128 9348
 /Tests/var/EnVar/96mem_ppp 	214.742 54.5975 0.254247 161 565 1016
