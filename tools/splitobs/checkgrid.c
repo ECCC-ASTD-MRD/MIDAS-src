@@ -29,21 +29,21 @@
  *
  * Cette fonction retourne:
  *            1 si le point est a l'interieur de la grille
- *            0 si le point est a l'exterieur de la grille
- *           -1 s'il y a une erreur
+ *           OK si le point est a l'exterieur de la grille
+ *       NOT_OK s'il y a une erreur
  ***************************************************************************/
 int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char* errmsg, int VERBOSE) {
   int status, criteria;
   float x, y;
 
-  /* appel a la fonction EZSCINT qui permet d'obtenir la coordonnee dans la grille
-   * du point (lat,lon) donne en entree
-   */
   if (VERBOSE>3)
     printf("Fonction checkgrid: lat=%f  lon=%f\n", lat, lon);
 
   if(lon<0) lon+=360.;
 
+  /* appel a la fonction EZSCINT qui permet d'obtenir la coordonnee dans la grille
+   * du point (lat,lon) donne en entree
+   */
   status = c_gdxyfll(gridid, &x, &y, &lat, &lon, 1);
   if (status<0) {
     snprintf(errmsg, MAXSTR,  "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
@@ -96,7 +96,6 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
   } /* End of 'if (VERBOSE>2)' */
 
   return OK;
-
 } /* Fin de la fonction checkgrid */
 
 

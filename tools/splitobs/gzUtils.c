@@ -16,7 +16,7 @@
 /***************************************************************************
  * fonction: set_domain_rectangle
  *
- * Cette fonction initialiser les valeurs de 'optptr->rect' en fonction du parametre 'optptr->pilot'
+ * Cette fonction initialise les valeurs de 'optptr->rect' en fonction du parametre 'optptr->pilot'
  *     optptr: un pointeur vers une structure 'options' qui sera mise a jour
  *     grid: information sur la grille qui est lue
  *

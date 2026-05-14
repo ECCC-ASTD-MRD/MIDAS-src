@@ -109,8 +109,7 @@ int splitobs_ascii(options opt, gridtype grid, gridtype grid_gz,
       }
       else
         fputs("\n",fileout);
-
-    }
+    } /* Fin de 'while( fgets(ligne,sizeof(ligne),filein) != (char*) NULL ) */
 
     regfree(&regex);
     fclose(filein);
