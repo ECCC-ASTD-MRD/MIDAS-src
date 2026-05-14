@@ -7,7 +7,6 @@
 #include "rmn.h"
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
-extern int c_mrfbfl(int); /* This defnition is missing from 'burp_api.h' */
 
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
 #include "fstdlib.h"
