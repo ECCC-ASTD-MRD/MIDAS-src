@@ -102,7 +102,8 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
   status = open_stdfile(&iun, fichier, "RND+R/O");
   if (status == NOT_OK) {
     App_Log(APP_ERROR,"Fonction getGridFromFile: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
-    App_End(-1);exit(1);
+
+    return NOT_OK;
   }
 
   /* On va chercher la grille definie par le champ identifie avec la structure opt.fstin */
@@ -115,7 +116,7 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     close_stdfile(iun, fichier);
 
-    App_End(-1);exit(1);
+    return NOT_OK;
   }
 
   if (*file_handle != 0) {
@@ -219,7 +220,8 @@ int getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs) {
   status = getGridFromFile(&fst, fichier, gridptr, &iun);
   if (status == NOT_OK) {
     App_Log(APP_ERROR,"Fonction getGZ: Erreur dans la fonction getGridFromFile avec le fichier %s\n",fichier);
-    App_End(-1);exit(1);
+
+    return NOT_OK;
   }
 
   /**************************************************************
