@@ -23,6 +23,11 @@
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
     <FAMILY  name="EnVar">
+      <SUBMITS sub_name="gbc"/>
+      <FAMILY  name="gbc">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>    
       <SUBMITS sub_name="24mem_xc40"/>
       <FAMILY  name="24mem_xc40">
         <SUBMITS sub_name="UnitTest"/>
@@ -104,11 +109,6 @@
     </FAMILY>
     <SUBMITS sub_name="Var3D"/>
     <FAMILY  name="Var3D">
-      <SUBMITS sub_name="gbc"/>
-      <FAMILY  name="gbc">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
       <SUBMITS sub_name="splitobs_xc40"/>
       <FAMILY  name="splitobs_xc40">
         <SUBMITS sub_name="UnitTest"/>
