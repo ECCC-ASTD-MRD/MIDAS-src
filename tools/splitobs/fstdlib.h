@@ -99,10 +99,10 @@ int open_burpfile(int* iun, char* filename, char* mode);
  * Cette fonction genere une representation EZSCINT d'une grille definie en
  * lisant un champ dans un fichier standard.
  *
- * En entree, elle prend 5 arguments:
+ * En entree, elle prend 4 arguments:
  *      iun: unite fortran identifiant le fichier lu
  *      gridptr: pointeur a une structure de grille qui contiendra l'information sur la grille
- *      nomvar: NOMVAR du champ que l'on veut utiliser pour definir la grille
+ *      fst: pointeur à une structure 'fstparam' qui identifie les parametres du champ
  *      fstin: nom du fichier standard utilise pour lire le champ definissant la grille
  *
  ***************************************************************************/
