@@ -29,7 +29,7 @@
  *
  * Cette fonction retourne:
  *            1 si le point est a l'interieur de la grille
- *           OK si le point est a l'exterieur de la grille
+ *            0 si le point est a l'exterieur de la grille
  *       NOT_OK s'il y a une erreur
  ***************************************************************************/
 int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, char* errmsg, int VERBOSE) {
@@ -107,6 +107,11 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
    *     niveau_min: niveau minimum acceptable (en hPa)
    *     niveau_max: niveau maximum acceptable (en hPa)
    *
+   * Cette fonction retourne:
+   *            1 si le point est a l'interieur de la grille
+   *            0 si le point est a l'exterieur de la grille
+   *       NOT_OK s'il y a une erreur
+   *
    ***************************************************************************/
 int checkvertical(float vcoord, int niveau_min, int niveau_max, int VERBOSE) {
 
@@ -168,7 +173,7 @@ int checkvertical(float vcoord, int niveau_min, int niveau_max, int VERBOSE) {
     } /* Fin du if (niveau_max != IP1_VIDE) */
     else {
       App_Log(APP_ERROR, "Fonction checkvertical: Erreur pour niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
-      return -1;
+      return NOT_OK;
     }
   } /* Fin du else du if if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE ) */
 } /* Fin de la fonction check_vertical */
@@ -188,6 +193,10 @@ int checkvertical(float vcoord, int niveau_min, int niveau_max, int VERBOSE) {
    *     niveau_max: niveau maximum acceptable (en hPa)
    *     gz: nom du fichier standard qui contient le champ GZ estimer la hauteur de la pression
    *
+   * Cette fonction retourne:
+   *            1 si le point est a l'interieur de la grille
+   *            0 si le point est a l'exterieur de la grille
+   *       NOT_OK s'il y a une erreur
    ***************************************************************************/
 int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int nj, int niveau_min, int niveau_max,
                      float* VALEURS_GZ_MIN, float* VALEURS_GZ_MAX, int VERBOSE) {
@@ -220,7 +229,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
                  "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
                  status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
-        return -1;
+        return NOT_OK;
       }
 
       status = c_gdllsval(gridid, &hauteur_max, VALEURS_GZ_MAX, &lat, &lon, 1);
@@ -230,7 +239,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
                  "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
                  status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
-        return -1;
+        return NOT_OK;
       }
 
       /* On convertit le decametre du GZ en metres */
@@ -264,7 +273,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
                  "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
                  status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
-        return -1;
+        return NOT_OK;
       }
 
       /* On convertit le decametre du GZ en metres */
@@ -298,7 +307,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
                  "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n",
                  status, lat, lon, gridid, ni, nj);
         App_Log(APP_ERROR,"%s",errmsg);
-        return -1;
+        return NOT_OK;
       }
 
       /* On convertit le decametre du GZ en metres */
@@ -322,7 +331,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
       char errmsg[MAXSTR];
       snprintf(errmsg, sizeof(errmsg),  "Fonction checkvertical_gz: niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
       App_Log(APP_ERROR,"%s",errmsg);
-      return -1;
+      return NOT_OK;
     }
   } /* Fin du else du if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE ) */
 } /* Fin de la fonction checkvertical_gz */
@@ -335,6 +344,9 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
    *     canal: numero de canal que l'on veut verifier dans la liste "channels"
    *     channels: liste des canaux voulus telle que donnee avec l'option '-channels' ou '-nochannels'
    *
+   * Cette fonction retourne:
+   *            1 si le canal est selectionné
+   *            0 si le canal n'est pas selectionné
    ***************************************************************************/
 int checkcanal(float canal, char* channels, int VERBOSE) {
   char* result;

@@ -242,7 +242,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
     printf("Fonction splitobs_burp: les rapports auront la longueur %d\n", longueur_max_enregistrement);
 
   /* On regarde si on doit fait le clipping vertical */
-  if ( strlen(opt.channels)!=0 || opt.niveau_min != IP1_VIDE || opt.niveau_max != IP1_VIDE)
+  if ( strlen(opt.channels) != 0 || opt.niveau_min != IP1_VIDE || opt.niveau_max != IP1_VIDE)
     vertical_clipping = 1;
   else
     vertical_clipping = 0;
@@ -303,7 +303,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
            */
           if ( opt.roundrobin == 1 && enrgs_counter%(opt.npex*opt.npey) != id ) {
             enrgs_counter++;
-            continue;
+            continue; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
 
           enrgs_counter++;
@@ -369,7 +369,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
           App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction brp_putrpthdr pour "
                   "le fichier de sortie %s a l'adresse %d (rapport %d) (iout=%d)\n",
                   status, burpout, adresses[i_enrgs], i_enrgs, iout);
-          EXIT_STATUS = 1;
+          EXIT_STATUS = NOT_OK;
           break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
         }
 
@@ -405,7 +405,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
             App_Log(APP_ERROR,"Fonction splitobs_burp: Erreur %d dans la fonction fill_rptout_with_blk "
                     "lors de la copie total de l'enregistrement en mode round-robin pour "
                     "l'adresse %d (rapport %d)\n", status, adresses[i_enrgs], i_enrgs);
-            EXIT_STATUS = 1;
+            EXIT_STATUS = NOT_OK;
             break; /* for (i_enrgs=0;i_enrgs<nombre_enregistrement_totals;i_enrgs++) */
           }
           else {
@@ -625,7 +625,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
    * Cette fonction retourne:
    *            1 si le point est a l'interieur de la grille
    *            0 si le point est a l'exterieur de la grille
-   *           -1 s'il y a une erreur
+   *           -1 (ou NOT_OK) s'il y a une erreur
    *           ilonband: la bande de longitude a laquelle appartient le point 'lat,lon'
    *           jlatband: la bande de latitude  a laquelle appartient le point 'lat,lon'
    *
@@ -667,7 +667,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
             snprintf(errmsg, MAXSTR,  "Fonction find_subdomain: Erreur avec c_ezgprm qui retourne %d "
                      "pour gridid = %d, ni = %d, nj = %d\n", status, gridid, ni, nj);
             App_Log(APP_ERROR,"%s",errmsg);
-            return -1;
+            return NOT_OK;
           }
 
           if (x<1)
@@ -725,7 +725,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
                    "rect.min_i=%f rect.max_i=%f rect.min_j=%f rect.max_j=%f\n",*ilonband,*jlatband,lat,lon,x,y,npey,
                    (90+lat)/(180./npey),rect.min_i,rect.max_i,rect.min_j,rect.max_j);
 
-          return 1;
+          return OK;
         }
         else
           criteria = 4;
@@ -754,8 +754,10 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
       printf("(!rect.min_j_equal && y>rect.min_j) || (rect.min_j_equal && y>=rect.min_j)\n");
     else if (criteria==4)
       printf("(!rect.max_j_equal && y<rect.max_j) || (rect.max_j_equal && y<=rect.max_j)\n");
-    else
-      App_Log(APP_ERROR,"Fonction find_subdomain: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
+    else {
+      App_Log(APP_ERROR,"Fonction find_subdomain: Le critere '%d' n'est pas possible.  Il faut 1, 2, 3 ou 4.  ", criteria);
+      return NOT_OK;
+    }
   } // End of 'if (VERBOSE>3)'
 
   return OK;
@@ -774,7 +776,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
    *    2 si c'est un autre type de bloc (info, OmP, OmA, ...)
    *
    * Cette fonction retourne:
-   *           -1 s'il y a une erreur
+   *           -1 (ou NOT_OK) s'il y a une erreur
    *
    * Code python pour imprimer les bits d'un btyp et aider a trouver la formule
    *     btyps_amsub_deri=[5120,3072,9217,15361,9248,15392]
@@ -805,7 +807,8 @@ int which_btyp(int btyp, int VERBOSE) {
       printf("Fonction which_btyp: Ce n'est ni un bloc marqueur ni un "
              "bloc de donnees btyp=%d (btyp>>2 & 31 = %d) (btyp>>11 & 3 = %d)\n",
              btyp, btyp>>2 & 31, btyp>>11 & 3);
-      return -1;
+
+      return NOT_OK;
     }
   }
 
@@ -824,7 +827,7 @@ int which_btyp(int btyp, int VERBOSE) {
    * En sortie:
    *    0 si c'est le btyp n'est pas associe au btyp_obs
    *    1 si c'est btyp est associe au btyp_obs
-   *    -1 s'il y a une erreur
+   *    -1 (ou NOT_OK) s'il y a une erreur
    *
    * code Python equivalent:
    *      def is2split(btyp_obs, btyp):
@@ -846,7 +849,7 @@ int btypAssociated(int btyp_obs, int btyp, int VERBOSE) {
 
   if (btyp_obs == btyp) {
     App_Log(APP_ERROR,"Fonction btypAssociated: erreur: btyp_obs = btyp = %d\n", btyp);
-    return -1;
+    return NOT_OK;
   }
 
   if (VERBOSE>3)
@@ -903,7 +906,7 @@ int btypAssociated(int btyp_obs, int btyp, int VERBOSE) {
    ***************************************************************************/
 int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BURP_RPT *rptout,
                       float* valeurs_gz_min, float* valeurs_gz_max, int VERBOSE) {
-  int e,v,t,status,trouve_data,trouve_marqueur,EXIT_STATUS = 0;
+  int e,v,t,status,trouve_data,trouve_marqueur,EXIT_STATUS = OK;
   int rangee_alt, rangee_lat, rangee_lon;
   BURP_BLK *blk, *blkout, *blk_donnees, *blk_marqueur, *new_blk_donnees, *new_blk_marqueur;
 
@@ -959,7 +962,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
         App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
                 status, btyp);
         brp_freeblk(blkout);
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
         break;
       }
     }
@@ -1024,7 +1027,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
       if (status<0) {
         App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
                 "le bloc btyp=%d\n", status, BLK_BTYP(new_blk_donnees));
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
         break;
       }
 
@@ -1032,7 +1035,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
       if (status<0) {
         App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
                 "le bloc btyp=%d\n", status, BLK_BTYP(new_blk_marqueur));
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
         break;
       }
 
@@ -1077,7 +1080,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
         App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
                 status, BLK_BTYP(new_blk_donnees));
         brp_freeblk(blkout);
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
         break;
       }
 
@@ -1087,7 +1090,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
         App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
                 status, BLK_BTYP(new_blk_donnees));
         brp_freeblk(blkout);
-        EXIT_STATUS = 1;
+        EXIT_STATUS = NOT_OK;
         break;
       }
     } /* Fin du else if (trouve_data && trouve_marqueur) */
@@ -1107,7 +1110,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
    * Cette fonction retourne:
    *            0 si ce n'est pas un UA multi-niveau (ua4d)
    *            1 si c'est un UA multi-niveau (ua4d)
-   *            -1 s'il y a une erreur
+   *            -1 (ou NOT_OK) s'il y a une erreur
    *
    ***************************************************************************/
 int check_ua4d(BURP_RPT *rptin, int VERBOSE) {
@@ -1132,7 +1135,7 @@ int check_ua4d(BURP_RPT *rptin, int VERBOSE) {
         printf("Fonction check_ua4d: Erreur dans la fonction 'find_blk_data_in_rpt'.  "
                "Cette derniere retourne %d mais on a trouve %d blocs de donnees\n", status,
                n_blk_data);
-      return -1;
+      return NOT_OK;
     }
   }
   if(n_blk_data==0) {
@@ -1171,7 +1174,7 @@ int check_ua4d(BURP_RPT *rptin, int VERBOSE) {
    *
    * Cette fonction retourne:
    *            0 si aucune erreur n'a ete detectee
-   *            -1 s'il y a une erreur
+   *            -1 (ou NOT_OK) s'il y a une erreur
    *
    * Dans cette implementation, on pourrait eviter de passer deux fois travers les blocs
    * en allouant un premier grand vecteur quitte a en reallouer un nouveau si jamais
@@ -1209,7 +1212,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
       App_Log(APP_ERROR,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
       brp_freeblk(blk);
       brp_freeblk(blktmp);
-      return -1;
+      return NOT_OK;
     }
 
     if (VERBOSE>5) {
@@ -1246,7 +1249,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     brp_freeblk(blk);
     brp_freeblk(blktmp);
     *nblks=0;
-    return 0;
+    return OK;
   }
 
   if (VERBOSE>5)
@@ -1258,7 +1261,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     App_Log(APP_ERROR, "Fonction find_data_flag_in_rpt: Incapable d'allouer le vecteur '*bknos_data_ptr' de dimension %d de (int)\n", nblkstmp);
     brp_freeblk(blk);
     brp_freeblk(blktmp);
-    return -1;
+    return NOT_OK;
   }
   *btyps_data_ptr = (int*) NULL;
   *btyps_data_ptr = (int*) malloc(nblkstmp*sizeof(int));
@@ -1267,7 +1270,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     free(*bknos_data_ptr);
     brp_freeblk(blk);
     brp_freeblk(blktmp);
-    return -1;
+    return NOT_OK;
   }
 
   *nblks = nblkstmp;
@@ -1284,7 +1287,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
       brp_freeblk(blktmp);
       free(*bknos_data_ptr);
       free(*btyps_data_ptr);
-      return -1;
+      return NOT_OK;
     }
 
     if (VERBOSE>5) {
@@ -1329,7 +1332,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
     printf("]\n");
   }
 
-  return 0;
+  return OK;
 } /* Fin de la fonction find_blk_data_in_rpt */
 
 
@@ -1350,8 +1353,8 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
    *      si -1, alors on n'a pas trouve la latitude ou la longitude.
    *
    * Cette fonction retourne:
-   *            0 si aucune erreur n'a ete detectee
-   *            -1 s'il y a une erreur
+   *            0 (ou OK) si aucune erreur n'a ete detectee
+   *            -1 (ou NOT_OK) s'il y a une erreur
    *
    ***************************************************************************/
 int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int bkno_data,
@@ -1374,7 +1377,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
     App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction brp_readblk "
             "pour le bloc %d\n", status, bkno_data);
     brp_freeblk(blk);
-    return -1;
+    return NOT_OK;
   }
 
   if (VERBOSE>5) {
@@ -1407,7 +1410,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
       brp_freeblk(blktmp);
       if (*blk_data_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_data_ptr);
       if (*blk_flags_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_flags_ptr);
-      return -1;
+      return NOT_OK;
     }
 
     btyp = BLK_BTYP(blk);
@@ -1455,7 +1458,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
     App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: le bloc data n'a pas ete trouve dans cet enregistrement\n");
     if (*blk_data_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_data_ptr);
     if (*blk_flags_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_flags_ptr);
-    return -1;
+    return NOT_OK;
   }
 
   if (trouve_flags == 0) {
@@ -1468,7 +1471,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
     if (VERBOSE>2)
       fprintf(stdout,"Fonction find_blk_data_flag_in_rpt: On n'a pas trouve "
               "les lat-lon dans le bloc data de cet enregistrement\n");
-    return -1;
+    return NOT_OK;
   }
 
   if (VERBOSE>2)
@@ -1476,7 +1479,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
            "a l'element %d et la longitude a l'element %d\n",
            BLK_BKNO(*blk_data_ptr), *colonne_lat_ptr, *colonne_lon_ptr);
 
-  return 0;
+  return OK;
 } /* Fin de la fonction find_blk_data_flag_in_rpt */
 
 
@@ -1888,6 +1891,10 @@ int extract_data_in_subdomain_along_nval(optionsptr optptr, gridtype* gridptr, B
    *      t_in_domain: vecteur de (int) contenant les dimensions voulues
    *      nt: dimension du vecteur t_in_domain
    *
+   * Cette fonction retourne:
+   *            OK si aucune erreur n'a ete detectee
+   *            NOT_OK s'il y a une erreur
+   *
    ***************************************************************************/
 int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOSE) {
   int e,v,t,tt,status = 0;
@@ -1949,7 +1956,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
   if (status<0) {
     App_Log(APP_ERROR,"Fonction putblk_nt: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
     brp_freeblk(newblk);
-    return -1;
+    return NOT_OK;
   }
   if (VERBOSE>4)
     printf("Fonction putblk_nt: newblk->datyp = %d (apres encode)\n", BLK_DATYP(newblk));
@@ -1999,7 +2006,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
     App_Log(APP_ERROR,"Fonction putblk_nt: Erreur %d dans la fonction brp_putblk (btyp %d, datyp=%d)\n",
             status, BLK_BTYP(newblk), BLK_DATYP(newblk));
     brp_freeblk(newblk);
-    return -1;
+    return NOT_OK;
   }
 
   brp_freeblk(newblk);
@@ -2007,7 +2014,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
     printf("Fonction putblk_nt: btyp=%d nt=%d blk_nele=%d blk_nval=%d blk_nt=%d t_in_domain=%p return=0\n",
            BLK_BTYP(blk), nt, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)t_in_domain);
 
-  return 0;
+  return OK;
 } /* Fin de la fonction putblk_nt */
 
 
@@ -2022,6 +2029,10 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt, int VERBOS
    *      blk: bloc initial contenant toutes les observations
    *      vals_in_domain: vecteur de (int) contenant les dimensions voulues
    *      nval: dimension du vecteur vals_in_domain
+   *
+   * Cette fonction retourne:
+   *            OK si aucune erreur n'a ete detectee
+   *            NOT_OK s'il y a une erreur
    *
    ***************************************************************************/
 int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int VERBOSE) {
@@ -2132,7 +2143,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval, int
     printf("Fonction putblk_nval: btyp=%d nval=%d blk_nele=%d blk_nval=%d blk_nt=%d vals_in_domain=%p return=0\n",
            BLK_BTYP(blk), nval, BLK_NELE(blk),BLK_NVAL(blk),BLK_NT(blk),(void*)vals_in_domain);
 
-  return 0;
+  return OK;
 } /* Fin de la fonction putblk_nval */
 
   /***************************************************************************
@@ -2551,6 +2562,17 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
   return do_copy_record;
 } /* Fin de la fonction 'process_regular_record' */
 
+/***************************************************************************
+* fonction: write_num_headers
+*
+* En entree, cette fonction écrit le fichier '*.num_headers' qui
+* contient le nombre d'observations dans le fichier.
+*
+* Cette fonction retourne:
+*            OK si tout s'est bien passe
+*            NOT_OK s'il y a une erreur
+*
+***************************************************************************/
 int write_num_headers(char* burpout, int number_of_observations_accepted) {
   int status;
   FILE* file;
@@ -2656,8 +2678,8 @@ void print_rpt(BURP_RPT* rptin) {
 
 } /* Fin de la fonction 'print_rpt' */
 
- void freeData_closeFiles(int burpin_file_handle, char* burpin_filename, BURP_RPT *rptin,
-                          int* adresses, int* resume_indices, int VERBOSE) {
+void freeData_closeFiles(int burpin_file_handle, char* burpin_filename, BURP_RPT *rptin,
+                         int* adresses, int* resume_indices, int VERBOSE) {
   int status;
 
   status = brp_close(burpin_file_handle);

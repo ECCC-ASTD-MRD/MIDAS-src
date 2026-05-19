@@ -120,7 +120,7 @@ int    getgrid(int iun, gridtype* gridptr, fstparam* fst, char* fstin);
  *          statsptr: un pointeur a une structure statstype qui stockera l'information sur le champ
  *
  ***************************************************************************/
-int    stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr);
+void    stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr);
 /***************************************************************************
  * fonction: print_stats_field
  *
@@ -131,7 +131,7 @@ int    stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr);
  *          dim: dimension de ce vecteur
  *
  ***************************************************************************/
-int    print_stats_field(statstype* stats, int dim);
+void    print_stats_field(statstype* stats, int dim);
 
 
 /***************************************************************************

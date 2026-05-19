@@ -24,6 +24,11 @@ void help(int VERBOSE);
  *    argc: le nombre d'argument a l'appel du programme
  *    argv: pointeur contenant les arguments
  *    optptr: pointeur a une structure existante du type (options)
+ *
+ * Cette fonction retourne:
+ *            OK si tout s'est bien passe
+ *            NOT_OK s'il y a une erreur
+ *
  ***************************************************************************/
 int parseOptions(int argc, char** argv, optionsptr optptr, int* VERBOSE) {
   int i;
@@ -517,7 +522,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr, int* VERBOSE) {
     printf("\n");
   } /* Fin du 'else' relie au 'if ( optptr->roundrobin == 1 )' */
 
-  return 0;
+  return OK;
 }  /* Fin de la fonction parseOptions */
 
 

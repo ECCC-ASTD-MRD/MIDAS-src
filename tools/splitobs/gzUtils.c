@@ -94,6 +94,11 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
  *                  on ne fermera pas le fichier et on donnera la
  *                  valeur du "file unit" pour que l'usager ferme
  *                  lui-meme le fichier
+ *
+ * Cette fonction retourne:
+ *            OK si tout s'est bien passe
+ *            NOT_OK s'il y a une erreur
+ *
  ***************************************************************************/
 int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* file_handle) {
   int iun, status;
@@ -147,6 +152,10 @@ int getGridFromFile(fstparam* fstptr, char* fichier, gridtype* gridptr, int* fil
  *     gridptr: pointeur a une structure de grille EZSCINT sur laquelle le champ GZ est definit
  *     valeurs_gz_min_ptr: pointeur de pointeur a un tableau de float pour stocker les valeurs minimales de GZ
  *     valeurs_gz_max_ptr: pointeur de pointeur a un tableau de float pour stocker les valeurs maximales de GZ
+ *
+ * Cette fonction retourne:
+ *            OK si tout s'est bien passe
+ *            NOT_OK s'il y a une erreur
  *
  ***************************************************************************/
 int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
@@ -206,6 +215,10 @@ int getMinMaxGZ(optionsptr optptr, gridtype* gridptr,
  *     fichier: nom du fichier standard dans lequel sera lu le champ GZ
  *     gridptr: pointeur a une structure de grille EZSCINT sur laquelle le champ GZ est definit
  *     valeurs: pointeur de pointeur a un tableau de float pour stocker les valeurs de GZ
+ *
+ * Cette fonction retourne:
+ *            OK si tout s'est bien passe
+ *            NOT_OK s'il y a une erreur
  *
  ***************************************************************************/
 int getGZ(char* fichier, gridtype* gridptr, int niveau, float** valeurs) {

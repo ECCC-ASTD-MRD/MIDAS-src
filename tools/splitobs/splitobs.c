@@ -1,9 +1,8 @@
 #include <unistd.h> /* to get the function 'access' to know if files are already existing */
 
 /* Include pour les librairies RPN */
-#include "rmn.h"
+#include "rmn.h" /* Needed for 'c_wkoffit' and 'WKF_*' constants */
 #include "App.h"
-#include "rmn/rpnmacros.h"
 
 /* Include pour ma librairie de manipulation des fichiers standard RPN */
 #include "fstdlib.h"
@@ -124,7 +123,7 @@ int main(int argc, char** argv) {
     status = c_gdrls(grid.gridid);
     if (status<0) {
       App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-      EXIT_STATUS = 1;
+      EXIT_STATUS = OK;
     }
 
     if (strlen(opt.gz)!=0) {
