@@ -79,12 +79,9 @@ int main(int argc, char** argv) {
 
     status = getMinMaxGZ(&opt, &grid_gz, &valeurs_gz_min, &valeurs_gz_max);
     if (status != OK) {
-      /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'optptr->fstin'. */
-      if ( opt.roundrobin == 0 ) {
-        status = c_gdrls(grid.gridid);
-        if (status<0)
-          App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
-      }
+      status = c_gdrls(grid.gridid);
+      if (status<0)
+        App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
       App_End(-1);exit(1);
     } /* Fin de 'if (status != OK)' */
