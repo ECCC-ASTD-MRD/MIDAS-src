@@ -90,7 +90,7 @@ int    close_stdfile(int iun, char* filename);
  *      mode: mode l'ouverture du fichier (read, write, read et write...)
  *
  * This function returns the number of reports in the file.
- * This function returns 'NOT_OK' if an error was incountered.
+ * This function returns 'NOT_OK' if an error was encountered.
  ***************************************************************************/
 int open_burpfile(int* iun, char* filename, char* mode);
 /***************************************************************************
