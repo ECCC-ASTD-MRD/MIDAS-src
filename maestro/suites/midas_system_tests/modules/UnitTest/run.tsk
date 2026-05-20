@@ -91,18 +91,12 @@ if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
 
         ## see above: same as gnu-14.2.0
         echo export PRTE_MCA_prte_silence_shared_fs=1 >> load_env.dot
-    fi
 
-    ## We must load 'hdf5-netcdf4' on 'rhel-9-graniterapids-64'
-    ## because the programs are not compiled statically with this
-    ## library.
-    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
         echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
-        if [[ "${UnitTest_compiler}" == *'GNU'* ]]; then
-          echo . ssmuse-sh -x /home/mad001/ssm/hdf5_1.14.6-gnu-15.2.0_rhel-9-amd64-64>> load_env.dot ## TODO replace with dedicated SSM
-        else
-          echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
-        fi
+        echo module load hdf5/gcc-15.2 netcdf/gcc-15.2 netcdf-fortran/gcc-15.2                       >> load_env.dot
+    else
+        echo echo ... loading hdf5-netcdf4                                                           >> load_env.dot
+        echo . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/\${COMP_ARCH}/01 >> load_env.dot
 
         echo 'set -x'                                                        >> load_env.dot
         echo '[[ -z "${I_MPI_DEBUG}"      ]] && export I_MPI_DEBUG=10      ' >> load_env.dot
