@@ -19,10 +19,6 @@ SEQ_CONTAINER_METHOD=immediate
 
 SEQ_JOBNAME_PREFIX=midas-
 
-## Set this variable to 'inteloneapi-2022.1.2' or 'gnu-14.2.0' to
-## choose the compiler
-COMPILER=inteloneapi-2022.1.2
-
 ## Resources for the test '/Tests/var/Envar/gdps'
 VAR_GDPS_CPUS=20x45x4
 ## Resources for the test '/Tests/letkf/glb_xc40'
