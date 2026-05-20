@@ -133,20 +133,6 @@ void    stats_field(float* z, int dim, fstparam* fstptr, statstype* statsptr);
  ***************************************************************************/
 void    print_stats_field(statstype* stats, int dim);
 
-
-/***************************************************************************
- * fonction: exit_program
- *
- * Cette fonction imprime la boite indiquant la fin du programme dependant
- * si l'execution s'est deroulee correctement ou non.
- *
- * En entree, elle prend 1 argument:
- *      status: entier etant egal a OK ou NOT_OK
- *
- ***************************************************************************/
-void exit_program(int status, char* program_name, char* problem, char* version);
-
-
 /***************************************************************************
  * fonction: padtime
  *
