@@ -184,7 +184,7 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "IntelLLVM")
   endif()
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   ## This variable is used to add some libraries at link time in 'src/programs/CMakeLists.txt'
-  set(MKLROOT "/fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mkl/latest")
+  set(MKLROOT "/fs/ssm/main/opt/intelcomp/master/inteloneapi_2025.1.0_amd64-64/mkl/latest/")
 
   if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
     message(WARNING "(EC) The option 'MIDAS_COMPILE_OPTIMIZE_REPORT' is not supported for this compiler")
