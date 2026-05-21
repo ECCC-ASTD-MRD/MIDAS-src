@@ -51,7 +51,7 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
         optptr->rect.max_j=grid.nj+1;
         optptr->rect.max_i_equal=1;
       }
-    } /* Fin du 'else if ( optptr->npex != 1 || optptr->npey != 1)' */
+    } /* Fin du 'if (grid.grtyp[0]=='G')' */
     else {
       if (optptr->rect.min_i<0)
         optptr->rect.min_i=1;
@@ -66,7 +66,7 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
       if (optptr->rect.max_j<0)
         optptr->rect.max_j=grid.nj;
     } /* Fin du 'else' relie au if (grid.grtyp[0]=='G') */
-  }
+  } /* Fin du 'else if ( optptr->npex != 1 || optptr->npey != 1)' */
   else {
     if (optptr->rect.min_i<0)
       optptr->rect.min_i=1;
@@ -80,7 +80,7 @@ void set_domain_rectangle(optionsptr optptr, gridtype grid) {
     }
     if (optptr->rect.max_j<0)
       optptr->rect.max_j=grid.nj;
-  } /* Fin du else relie au 'if ( optptr->npex != 1 || optptr->npey != 1)' */
+  } /* Fin du else relie au 'else if ( optptr->npex != 1 || optptr->npey != 1)' */
 } /* Fin de 'void set_domain_rectangle(optionsptr optptr, gridtype grid)' */
 
 /***************************************************************************
