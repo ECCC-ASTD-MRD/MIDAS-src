@@ -95,7 +95,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
       App_Log(APP_ERROR,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
   } /* End of 'if (VERBOSE>2)' */
 
-  return 1;
+  return 0;
 } /* Fin de la fonction checkgrid */
 
 
