@@ -141,7 +141,6 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       } /* Fin du 'if ( status != SQLITE_OK )' */
 
       /* Execution de la requete SQL sur la base de donnees */
-      /* Execution de la requete SQL sur la base de donnees */
       /* L'idee est de reproduire la commande UNIX
          echo .schema | sqlite3 obsin | sqlite3 obsout
          Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
