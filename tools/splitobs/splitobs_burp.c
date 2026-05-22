@@ -78,7 +78,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   int ilonband, jlatband, max_num_headers = 0;
   BURP_RPT *rptin;
   /* Cette variable sert a identifier si on est en presence du format UA multi-niveaux
-   * Si -1, alors on n'a pas encore evaluer le cas, si 0 alors ce sont des UA classiques
+   * Si -1, alors on n'a pas encore evalué le cas, si 0 alors ce sont des UA classiques
    * si 1, ce sont des ua4d.
    */
   int is_ua4d = -1;
