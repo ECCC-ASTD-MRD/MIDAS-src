@@ -91,6 +91,9 @@ module tovs_mod
   save
   private
 
+  ! Public RTTOV constants
+  public :: inst_name, platform_name
+
   ! Public procedures
   public :: tvs_rttov_scatt_setupindex
   public :: tvs_allocateSurfaceParameters, tvs_allocateEmissivity

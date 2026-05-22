@@ -107,7 +107,6 @@ program midas_prepcma
   use gridStateVectorFileIO_mod
   use codtyp_mod
   use obsFlags_mod
-  use rttov_const, only : inst_name, platform_name
 
   implicit none
 
