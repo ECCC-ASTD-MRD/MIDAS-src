@@ -241,7 +241,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if (VERBOSE>0)
     printf("Fonction splitobs_burp: les rapports auront la longueur %d\n", longueur_max_enregistrement);
 
-  /* On regarde si on doit fait le clipping vertical */
+  /* On regarde si on doit faire le clipping vertical */
   if ( strlen(opt.channels) != 0 || opt.niveau_min != IP1_VIDE || opt.niveau_max != IP1_VIDE)
     vertical_clipping = 1;
   else
@@ -1166,11 +1166,11 @@ int check_ua4d(BURP_RPT *rptin, int VERBOSE) {
    *    elem_lon: le numero de l'element qui contient la longitude (6001 ou 6002)
    *
    * En sortie, on donne
-   *    bknos_data_ptr: un pointeur à un vecteur d'entier contenant les numeros de
+   *    bknos_data_ptr: un pointeur  un vecteur d'entier contenant les numeros de
    *                    blocs de donnees qui ont les elements 'elem_lat' et 'elem_lon'
-   *    btyps_data_ptr: un pointeur à un vecteur d'entier contenant les 'btyp' des
+   *    btyps_data_ptr: un pointeur  un vecteur d'entier contenant les 'btyp' des
    *                    blocs de donnees associes aux bknos du vecteur precedent.
-   *    nblks: le nombre de blocs trouvés (donc la dimension des vecteurs '*bknos_data_ptr' et 'btyps_data_ptr')
+   *    nblks: le nombre de blocs trouvs (donc la dimension des vecteurs '*bknos_data_ptr' et 'btyps_data_ptr')
    *
    * Cette fonction retourne:
    *            0 si aucune erreur n'a ete detectee
@@ -2565,7 +2565,7 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
 /***************************************************************************
 * fonction: write_num_headers
 *
-* En entree, cette fonction écrit le fichier '*.num_headers' qui
+* En entree, cette fonction crit le fichier '*.num_headers' qui
 * contient le nombre d'observations dans le fichier.
 *
 * Cette fonction retourne:
