@@ -189,7 +189,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   RPT_SetHANDLE(rptin, 0);
 
   /* On lit le fichier pour trouver les adresses des enregistrements
-     et on les separe un deux groupes pour les enregistrements resume
+     et on les separe en deux groupes pour les enregistrements resumes
      et les autres.
   */
   while ( brp_findrpt(iun, rptin) >= 0 ) {
