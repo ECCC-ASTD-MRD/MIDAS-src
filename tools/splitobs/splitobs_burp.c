@@ -283,8 +283,6 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
         return NOT_OK;
       }
 
-      /* RPT_SetHANDLE(rptin, 0); This is probably not needed! */
-
       i_enrgs_resume = 0;
       enrgs_counter = 0;
       /* Ensuite, on passe chaque enregistrement avec un increment de 'opt.npex*opt.npey' */
