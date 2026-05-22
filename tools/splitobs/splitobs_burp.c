@@ -1487,11 +1487,8 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
  * En entree, cette fonction prend
  *    rptin: un rapport BURP complet d'entree
  *    rptout: un pointeur a une serie de rapport BURP d'une longueur 'n'
- *    nts: nombre d'observations presentes dans chaque fichier pointe par 'rptout' (longueur 'n')
- *    t_in_domain: vecteur contenant les observations appartenant a chaque enregistrement pointe par 'rptout'
- *    n: longueur des vecteurs 'rptout' et 'nts'
- *    cherrypick_x et cherrypick_y: les tuiles que l'on veut extraire
- *    npey: le nombre de tuiles en y
+ *    number_of_obs_in_subdomain: nombre d'observations presentes dans le domaine pour cet enregistrement
+ *    tIndices_in_domain: vecteur contenant les indices des observations selectionnees dans 'rptin'
  *
  * Cette fonction retourne:
  *            Le nombre d'observations contenues dans l'enregistrement
