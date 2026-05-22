@@ -2513,7 +2513,7 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
     /* Ceci signifie que si optptr->inout == 1 alors status == 0 et donc
      * le point est hors de la grille ce qui n'est pas voulu
      *
-     * ou bien qui si optptr->inout == 0 alors status == 1 et donc le
+     * ou bien que si optptr->inout == 0 alors status == 1 et donc le
      * point est a l'interieur de la grille ce qui n'est pas voulu.
      */
     do_copy_record = optptr->inout == status;
@@ -2565,7 +2565,7 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
   /***************************************************************************
    * fonction: write_num_headers
    *
-   * En entree, cette fonction écrit le fichier '*.num_headers' qui
+   * En entree, cette fonction crit le fichier '*.num_headers' qui
    * contient le nombre d'observations dans le fichier.
    *
    * Cette fonction retourne:
