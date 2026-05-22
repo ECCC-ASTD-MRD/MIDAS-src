@@ -2382,24 +2382,24 @@ int process_ua4d_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
   return nvals_in_domain;
 } /* Fin de la fonction 'process_ua4d_record' */
 
-/***************************************************************************
-* fonction: process_groupeddata_record
-*
-* En entree, cette fonction prend
-*    optptr: un pointeur a une structure 'options' qui permet d'extraire
-*            l'information sur npex et npey et le rectangle du domaine
-*    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
-*    rptin: un rapport BURP complet d'entree
-*    ilonband: indice de longitude du domaine a considerer
-*    jlatband: indice de latitude du domaine a considerer
-*    rptout: un rapport BURP pour ecrire
-*    iout: le 'file_handle' du fichier de sortie
-*
-* Cette fonction retourne:
-*            le nombre d'observations a l'interieur du domaine
-*            NOT_OK s'il y a une erreur
-*
-***************************************************************************/
+  /***************************************************************************
+   * fonction: process_groupeddata_record
+   *
+   * En entree, cette fonction prend
+   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
+   *            l'information sur npex et npey et le rectangle du domaine
+   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+   *    rptin: un rapport BURP complet d'entree
+   *    ilonband: indice de longitude du domaine a considerer
+   *    jlatband: indice de latitude du domaine a considerer
+   *    rptout: un rapport BURP pour ecrire
+   *    iout: le 'file_handle' du fichier de sortie
+   *
+   * Cette fonction retourne:
+   *            le nombre d'observations a l'interieur du domaine
+   *            NOT_OK s'il y a une erreur
+   *
+   ***************************************************************************/
 int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
                                int ilonband, int jlatband, BURP_RPT* rptout, int iout,
                                int VERBOSE) {
@@ -2472,24 +2472,24 @@ int process_groupeddata_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* r
   return number_of_obs_in_subdomain;
 } /* Fin de la fonction 'process_groupeddata_record' */
 
-/***************************************************************************
-* fonction: process_regular_record (non-resume, non-regroupe ni ua4d)
-*
-* En entree, cette fonction prend
-*    optptr: un pointeur a une structure 'options' qui permet d'extraire
-*            l'information sur npex et npey et le rectangle du domaine
-*    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
-*    rptin: un rapport BURP complet d'entree
-*    ilonband: indice de longitude du domaine a considerer
-*    jlatband: indice de latitude du domaine a considerer
-*    rptout: un rapport BURP pour ecrire
-*
-* Cette fonction retourne:
-*            1 si l'observation a ete acceptee
-*            0 si l'observation n'a pas ete acceptee
-*            NOT_OK s'il y a une erreur
-*
-***************************************************************************/
+  /***************************************************************************
+   * fonction: process_regular_record (non-resume, non-regroupe ni ua4d)
+   *
+   * En entree, cette fonction prend
+   *    optptr: un pointeur a une structure 'options' qui permet d'extraire
+   *            l'information sur npex et npey et le rectangle du domaine
+   *    gridptr: un pointeur a une structure 'gridtyp' qui permet d'utiliser EZSCINT
+   *    rptin: un rapport BURP complet d'entree
+   *    ilonband: indice de longitude du domaine a considerer
+   *    jlatband: indice de latitude du domaine a considerer
+   *    rptout: un rapport BURP pour ecrire
+   *
+   * Cette fonction retourne:
+   *            1 si l'observation a ete acceptee
+   *            0 si l'observation n'a pas ete acceptee
+   *            NOT_OK s'il y a une erreur
+   *
+   ***************************************************************************/
 int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin,
                            int ilonband, int jlatband, BURP_RPT* rptout, int VERBOSE) {
   int status, do_copy_record;
@@ -2562,17 +2562,17 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
   return do_copy_record;
 } /* Fin de la fonction 'process_regular_record' */
 
-/***************************************************************************
-* fonction: write_num_headers
-*
-* En entree, cette fonction crit le fichier '*.num_headers' qui
-* contient le nombre d'observations dans le fichier.
-*
-* Cette fonction retourne:
-*            OK si tout s'est bien passe
-*            NOT_OK s'il y a une erreur
-*
-***************************************************************************/
+  /***************************************************************************
+   * fonction: write_num_headers
+   *
+   * En entree, cette fonction écrit le fichier '*.num_headers' qui
+   * contient le nombre d'observations dans le fichier.
+   *
+   * Cette fonction retourne:
+   *            OK si tout s'est bien passe
+   *            NOT_OK s'il y a une erreur
+   *
+   ***************************************************************************/
 int write_num_headers(char* burpout, int number_of_observations_accepted) {
   int status;
   FILE* file;
