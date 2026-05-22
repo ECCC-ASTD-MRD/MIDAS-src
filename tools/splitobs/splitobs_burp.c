@@ -218,7 +218,7 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
 
       resume_indices[i_enrgs_resume++] = i_enrgs;
     }
-  } /* Fin de 'while ( brp_findrpt(iun, rptin) >= 0 )' */
+  } /* Fin de 'for (i_enrgs=0;i_enrgs<nombre_enregistrements_total;i_enrgs++)' */
 
   /* nombre_enregistrements = i_enrgs; */
   nombre_enregistrements_resume = i_enrgs_resume;
