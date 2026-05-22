@@ -225,13 +225,13 @@ int splitobs_burp(options opt, gridtype grid, gridtype grid_gz,
   if (VERBOSE>1)
     printf("Found the %d resume records in file %s\n", nombre_enregistrements_resume, opt.obsin);
 
- if (VERBOSE>4) {
+  if (VERBOSE>4) {
     printf("Will print the content of the input file\n");
     RPT_SetHANDLE(rptin, 0);
     while ( brp_findrpt(iun, rptin) >= 0 ) {
       brp_getrpt(iun, RPT_HANDLE(rptin), rptin);
-      if (VERBOSE>5)
-        print_allblocs(rptin);
+      print_rpt(rptin);
+      print_allblocs(rptin);
       printf("\n") ;
     } /* Fin de ' while ( brp_findrpt(iun, rptin) >= 0 )' */
     printf("Did print the content of the input file\n");
