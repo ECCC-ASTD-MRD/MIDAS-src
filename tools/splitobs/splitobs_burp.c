@@ -2537,8 +2537,14 @@ int process_regular_record(optionsptr optptr, gridtype* gridptr, BURP_RPT* rptin
     /* Print some information about the process */
     if (VERBOSE>1) {
       if (do_copy_record) {
-        printf("Fonction process_regular_record: cette observation est dans le domaine npex=%d, npey=%d "
+        if (optptr->inout) {
+          printf("Fonction process_regular_record: cette observation est dans le domaine npex=%d, npey=%d "
                "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
+        }
+        else {
+          printf("Fonction process_regular_record: cette observation est hors du domaine, tel que recherché (inout=0) npex=%d, npey=%d "
+               "ilonband=%d jlatband=%d lat=%f lon=%f\n", optptr->npex, optptr->npey, ilonband, jlatband, lat, lon);
+        }
       } /* Fin du 'if (do_copy_record)' */
       else {
         printf("Fonction process_regular_record: cette observation n'est pas dans le domaine npex=%d, npey=%d "
