@@ -592,7 +592,7 @@ contains
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
-                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    tvs_inst_name(tvs_instruments(sensorIndex)), tvs_platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
                     sum(numHeaderPerTovsInstBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex))
       end do
 
@@ -676,7 +676,7 @@ contains
 
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
-                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    tvs_inst_name(tvs_instruments(sensorIndex)), tvs_platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
                     sum(numHeaderPerTovsInstAfterThin(:,sensorIndex)), sum(numHeaderPerTovsInstAfterThin_mpiGlobal(:,sensorIndex))
       end do
 
@@ -729,10 +729,10 @@ contains
 
     ! replace all amsub with mhs in the original list
     do sensorIndex = 1, tvs_nsensors
-      if (trim(inst_name(tvs_instruments(sensorIndex))) == 'amsub') then
+      if (trim(tvs_inst_name(tvs_instruments(sensorIndex))) == 'amsub') then
         instNameList(sensorIndex) = 'mhs'
       else
-        instNameList(sensorIndex) = trim(inst_name(tvs_instruments(sensorIndex)))
+        instNameList(sensorIndex) = trim(tvs_inst_name(tvs_instruments(sensorIndex)))
       end if
     end do
 
@@ -870,7 +870,7 @@ contains
     numInstNameUniqueListWithHeader = 1
     loopSensor1: do sensorIndex = 1, tvs_nsensors
       if (sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) > 0) then
-        instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
+        instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(tvs_inst_name(tvs_instruments(sensorIndex)))
         exit loopSensor1
       end if
     end do loopSensor1
@@ -878,14 +878,14 @@ contains
     ! find rest of the inst with non-zero number of headers
     loopSensor2: do sensorIndex = 1, tvs_nsensors
       do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-        if (trim(instNameUniqueListWithHeader(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
+        if (trim(instNameUniqueListWithHeader(sensorIndex2)) == trim(tvs_inst_name(tvs_instruments(sensorIndex))) .or. &
             sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) == 0) then
           cycle loopSensor2
         end if
       end do
 
       numInstNameUniqueListWithHeader = numInstNameUniqueListWithHeader + 1
-      instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
+      instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(tvs_inst_name(tvs_instruments(sensorIndex)))
     end do loopSensor2
 
     if (mmpi_myid == 0) then
@@ -894,7 +894,7 @@ contains
     end if
 
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2),matchIndexList)
+      call utl_findlocs(tvs_inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2),matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
         numHeadersFound = 0
@@ -938,7 +938,7 @@ contains
     numHeadersFoundInBlock(:,:) = 0
     numHeadersFoundInBlock_mpiGlobal(:,:) = 0
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
+      call utl_findlocs(tvs_inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 
@@ -953,7 +953,7 @@ contains
 
     ! check the sum over all blocks match the counts per sensor
     do sensorIndex2 = 1, numInstNameUniqueListWithHeader
-      call utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
+      call utl_findlocs(tvs_inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2), matchIndexList)
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 

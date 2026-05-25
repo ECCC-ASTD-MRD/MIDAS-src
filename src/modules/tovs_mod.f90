@@ -26,8 +26,10 @@ module tovs_mod
        eddington_sfc_type
   use rttov_const, only :           &
        platform_name               ,&
+       len_platform                ,&
        nplatforms                  ,&
        inst_name                   ,&
+       len_instrument              ,&
        ninst                       ,&
        inst_id_goesim              ,&
        inst_id_gmsim               ,&
@@ -92,7 +94,8 @@ module tovs_mod
   private
 
   ! Public RTTOV constants
-  public :: inst_name, platform_name
+  character(len=len_instrument), public, parameter :: tvs_inst_name(0:ninst-1)        = inst_name(0:ninst-1)
+  character(len=len_platform),   public, parameter :: tvs_platform_name(1:nplatforms) = platform_name(1:nplatforms)
 
   ! Public procedures
   public :: tvs_rttov_scatt_setupindex
