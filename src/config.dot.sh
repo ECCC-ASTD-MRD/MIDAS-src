@@ -74,6 +74,10 @@ while [[ $# > 0 ]]; do
         __fresh_build_directory=true
     elif [[ "${arg}" = --no-fresh ]]; then
         __fresh_build_directory=false
+    elif [[ "${arg}" = --debug ]]; then
+        export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+    elif [[ "${arg}" = --no-debug ]]; then
+        export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=no
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --build: explicitly specify a build directory"
@@ -87,6 +91,8 @@ while [[ $# > 0 ]]; do
         echo "        --cd-build: do move to build directory (default)"
         echo "        --fresh: do clean to build directory to start fresh"
         echo "        --no-fresh: do not clean to build directory to use previous builds (default)"
+        echo "        --debug: activate the debug mode (equivalent to 'export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'"
+        echo "        --no-debug: deactivate the debug mode (equivalent to 'export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=no'"
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
