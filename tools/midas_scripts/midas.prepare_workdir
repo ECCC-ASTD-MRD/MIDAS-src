@@ -142,7 +142,12 @@ if [ "${dosplit}" = yes ]; then
         if [[ "${split_error_detected}" = true ]]; then
             die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
         fi
-        say "Completed splitting for the file ${obsFileName} at $(date) in ${SECONDS} seconds or $((SECONDS/60)) minutes"
+        if [[ "${SECONDS}" > 60 ]]; then
+            minutes=" or $((SECONDS/60)) minutes"
+        else
+            minutes=
+        fi
+        say "Completed splitting for the file ${obsFileName} at $(date) in ${SECONDS} seconds${minutes}"
     done ## End of 'for obsfile in ${observations_files}'
 else ## End of 'if [ "${dosplit}" = yes ]'
     mv obsfiles obsfiles_split
@@ -156,4 +161,6 @@ fi
 
 touch prepare_done_${npex}x${npey}
 
-say "You can now launch the MIDAS program with" "midas.submit_program -workdir ${workdir} -pgm ${midas_program}"
+if [[ -v EC_ARCH ]]; then
+    say "You can now launch the MIDAS program with" "midas.submit_program -workdir ${workdir} -pgm ${midas_program}"
+fi
