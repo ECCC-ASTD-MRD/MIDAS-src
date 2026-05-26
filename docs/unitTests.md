@@ -366,6 +366,39 @@ When you will ask a merge-request, the new results will be copied in a
 safe directory with all other reference results by one of the
 git repository maintainers.
 
+### Reference files database
+
+The reference files for all the tests are stored under user `sanl000` at:
+`̀``
+/home/sanl000/data/ppp7/UnitTests/midas
+`̀``
+
+A backup is made each day at 0 UTC using the command:
+`̀``bash
+rsync -a /home/sanl000/data/ppp7/UnitTests/midas /home/sanl000/data/ppp8/UnitTests/midas-backup
+`̀``
+
+This backup is run under `hcron` with the directive file
+`/home/sanl000/.hcron/hcron-dev7.science.gc.ca/events/MIDAS_tests_backup.hcron`.
+
+And each 3 months, on the first day of March, June, September and
+December at 0 UTC, we do a backup of those files under project
+`rpndat_2ans` with the command:
+
+```bash
+cd /home/sanl000/data/ppp7/UnitTests
+hpcarchive --project rpndat_2ans --archivename midas-unittests-$(date +%Y%m%d) --archive midas
+```
+
+The `hcron` directive file is
+`/home/sanl000/.hcron/hcron-dev7.science.gc.ca/events/MIDAS_tests_hpcarchive-backup.hcron`.
+
+A script has been written to encapsulate this logic and report errors at:
+`̀``
+/home/sanl000/bin/MIDAS_tests_hpcarchive-backup
+`̀``
+which is submitted in batch in `hcron`.
+
 ## Splitting an observation file to prepare a unit test input
 
 In the case a user wants to split an observation file to prepare a
@@ -389,7 +422,8 @@ For example, if you call the command
 ```bash
 midas.splitobs.Abs -obsin obs_input -obsout obs_split -round-robin -npex 2 -npey 3
 ```
-it will split the input observation file `obs_input` and generates 6 files with the name:
+it will split the input observation file `obs_input` and generates 6
+files with the names:
 ```
 obs_split_0001_0001
 obs_split_0001_0002
@@ -404,11 +438,11 @@ obs_split_0002_0003
 To gain access to the program `midas.splitobs.Abs`, one can load one
 of the MIDAS SSM domain with:
 ```bash
-. ssmuse-sh -d eccc/mrd/rpn/anl/midas/3.8.1
+. ssmuse-sh -d eccc/mrd/rpn/anl/midas/4.1.5
 ```
 or point directly to the program in the SSM domain:
 ```
-/fs/ssm/eccc/mrd/rpn/anl/midas/3.8.1/${ORDENV_PLAT}/bin/midas.splitobs.Abs
+/fs/ssm/eccc/mrd/rpn/anl/midas/4.1.5/${ORDENV_PLAT}/bin/midas.splitobs.Abs
 ```
 
 An English help message is printed to screen by calling
