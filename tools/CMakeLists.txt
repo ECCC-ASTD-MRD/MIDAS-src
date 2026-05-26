@@ -1,4 +1,4 @@
-add_executable(splitobs splitobs/splitobs.c splitobs/fstdlib.c)
+add_executable(splitobs splitobs/splitobs.c splitobs/fstdlib.c splitobs/options.c splitobs/splitobs_sql.c splitobs/splitobs_burp.c splitobs/splitobs_ascii.c splitobs/checkgrid.c splitobs/gzUtils.c)
 add_dependencies(splitobs ${PROJECT_NAME}_build_info)
 
 target_link_libraries(splitobs PRIVATE

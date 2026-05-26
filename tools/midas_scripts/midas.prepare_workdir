@@ -131,33 +131,23 @@ if [ "${dosplit}" = yes ]; then
     mkdir obsfiles_split
 
     say "Split the observations files into ${npex}x${npey} parts"
-    [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
 
     for obsfile in ${observations_files}; do
         obsFileName=${obsfile##*/}
-        say "Processing the file ${obsFileName}"
-        if [[ "$((npex*npey))" -lt 800 ]]; then
-            ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin  \
-                        -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}              \
-                        > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
-            if [[ "${split_error_detected}" = true ]]; then
-                die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
-            fi
+        say "Processing the file ${obsFileName} starting at $(date)"
+        SECONDS=0
+        ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin  \
+                    -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}              \
+                    > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+        if [[ "${split_error_detected}" = true ]]; then
+            die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+        fi
+        if [[ "${SECONDS}" > 60 ]]; then
+            minutes=" or $((SECONDS/60)) minutes"
         else
-            ## Due to a limitation of the number of XDF files that can be opened simultaneously
-            ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
-            ## number of MPI ranks.
-            for procX in $(seq 1 ${npex}); do
-                for procY in $(seq 1 ${npey}); do
-                    ${splitobs} -obsin ${obsfile} -obsout obsfiles_split/${obsFileName} -round-robin             \
-                                -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
-                                >> splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
-                    if [[ "${split_error_detected}" = true ]]; then
-                        die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
-                    fi
-                done ## End of 'for procY in $(seq 1 ${npey})'
-            done ## End of 'for procX in $(seq 1 ${npex})'
-        fi ## End of 'else' associated to 'if [[ "$((npex*npey))" -le 800 ]]; then'
+            minutes=
+        fi
+        say "Completed splitting for the file ${obsFileName} at $(date) in ${SECONDS} seconds${minutes}"
     done ## End of 'for obsfile in ${observations_files}'
 else ## End of 'if [ "${dosplit}" = yes ]'
     mv obsfiles obsfiles_split
@@ -171,4 +161,6 @@ fi
 
 touch prepare_done_${npex}x${npey}
 
-say "You can now launch the MIDAS program with" "midas.submit_program -workdir ${workdir} -pgm ${midas_program}"
+if [[ -v EC_ARCH ]]; then
+    say "You can now launch the MIDAS program with" "midas.submit_program -workdir ${workdir} -pgm ${midas_program}"
+fi

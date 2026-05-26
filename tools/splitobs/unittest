@@ -55,8 +55,6 @@ export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
-#SPLITOBS="time ${SPLITOBS}"
-
 [ -d "${WORKDIR}" ] && rm -rf ${WORKDIR}
 mkdir -p ${WORKDIR}
 cd ${WORKDIR}
@@ -79,18 +77,17 @@ unittest () {
     echo "unittest() begins"
 
     if [ "${TESTS2RUN}" = burp -o "${TESTS2RUN}" = all ]; then
-	test_burp_maximum_unit_number || return 1
-	test_burp_regional_standard || return 1
-	test_burp_regional_with_imax_imin_jmax_jmin || return 1
-	test_robustness_for_mrbcvt || return 1
+        test_burp_regional_standard || return 1
+        test_burp_regional_with_imax_imin_jmax_jmin || return 1
+        test_robustness_for_mrbcvt || return 1
         ## The clipping should not change the result since we are using a global grid as clipping domain
-	test_burp_identity || return 1
+        test_burp_identity || return 1
 
-	test_burp_subdomains || return 1
+        test_burp_subdomains || return 1
 
-	test_burp_latbands || return 1
+        test_burp_latbands || return 1
 
-	test_burp_round_robin || return 1
+        test_burp_round_robin || return 1
 
         test_burp_cherrypick_roundrobin || return 1
         test_burp_cherrypick_subdomains || return 1
@@ -101,14 +98,14 @@ unittest () {
         test_rdb_avhrr || return 1
         test_rdb_resume_schema_SAR || return 1
         test_rdb_resume_schema_AL || return 1
-	test_rdb_index || return 1
-	test_rdb_resume || return 1
-	test_rdb_round_robin || return 1
-	test_rdb_cherrypick_roundrobin || return 1
-	test_rdb_regional_standard || return 1
-	test_rdb_regional_global_with_imax_imin_jmax_jmin || return 1
+        test_rdb_index || return 1
+        test_rdb_resume || return 1
+        test_rdb_round_robin || return 1
+        test_rdb_cherrypick_roundrobin || return 1
+        test_rdb_regional_standard || return 1
+        test_rdb_regional_global_with_imax_imin_jmax_jmin || return 1
         ## The clipping should not change the result since we are using a global grid as clipping domain
-	test_rdb_identity || return 1
+        test_rdb_identity || return 1
     fi
 
     test_check_result || return 1
@@ -139,13 +136,13 @@ assert() {
     shift
 
     if "$@"; then
-	## echo "assert(): assertion passed for test ${thisunittest}"
-	printf "\033[0m\033[01;32massert(): assertion passed for test ${thisunittest}\n\033[0m"
+        ## echo "assert(): assertion passed for test ${thisunittest}"
+        printf "\033[0m\033[01;32massert(): assertion passed for test ${thisunittest}\n\033[0m"
     else
-	errstr="assert(): assertion failed for test ${thisunittest}: $@"
-	printf "\033[0m\033[01;31m${errstr}\n\033[0m" >&2
-	return 1
-	## die "assert(): assertion failed for test ${thisunittest}: " "$@"
+        errstr="assert(): assertion failed for test ${thisunittest}: $@"
+        printf "\033[0m\033[01;31m${errstr}\n\033[0m" >&2
+        return 1
+        ## die "assert(): assertion failed for test ${thisunittest}: " "$@"
     fi
     ## debug "assert(): finished with test ${thisunittest}"
 } ## End of function 'assert'
@@ -159,6 +156,20 @@ say() {
     echo "$1"
 
     return ${__say_status}
+}
+
+run_splitobs() {
+    typeset -r user_time_file=splitobs.user_time
+
+    program_status=0
+
+    /usr/bin/time --format='%U' --output ${user_time_file} ${SPLITOBS} ${*} 1>> check_result.listing 2>&1 || program_status=$?
+
+    if [[ "${program_status}" -eq 0 ]]; then
+        message="The program took $(head -1 ${user_time_file}) seconds"
+        printf "\033[0m\033[01;36m${message}\033[0m\n"
+    fi
+    [[ -f ${user_time_file} ]] && rm ${user_time_file}
 }
 
 paddedPrint() {
@@ -195,15 +206,15 @@ test_run () {
     assert "run test2" [ "${status}" -eq 1 ]
     # test3
     if [ -n "${CACHEDIR}" ]; then
-	OLD_CACHEDIR=${CACHEDIR}
-	unset CACHEDIR
+        OLD_CACHEDIR=${CACHEDIR}
+        unset CACHEDIR
     fi
     status=0
     run 1 2 3 4 5 6 2> /dev/null || status=1 ## On teste si la variable CACHEDIR n'est pas settee
     assert "run test3" [ "${status}" -eq 1 ]
     if [ -n "${OLD_CACHEDIR}" ]; then
-	CACHEDIR=${OLD_CACHEDIR}
-	unset OLD_CACHEDIR
+        CACHEDIR=${OLD_CACHEDIR}
+        unset OLD_CACHEDIR
     fi
     [ "${status}" -ne 0 ] && return 1
 
@@ -290,17 +301,16 @@ test_burp_regional_standard () {
     echo "test_burp_regional_standard() begins"
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do ## ua4d.resume
-	rm -f 2011070112_${fam}
-	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-	check_status=0
-	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	assert "test_burp_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        rm -f 2011070112_${fam}
+        status=0
+        run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0
+        assert "test_burp_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        check_status=0
+        check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        assert "test_burp_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}
     done
 
     echo "test_burp_regional_standard() ends"
@@ -314,18 +324,17 @@ test_burp_regional_with_imax_imin_jmax_jmin () {
 
     ## La grille 'regglbgrid' est la meme que 'reggrid' mais avec une extension de 2 points de grille pour chaque direction.
     for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	rm -f 2011070112_${fam}
+        rm -f 2011070112_${fam}
 
-	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-	check_status=0
-	check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019
+        assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        check_status=0
+        check_result ${REFERENCE}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        assert "test_burp_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}
     done
 
     echo "test_burp_regional_with_imax_imin_jmax_jmin() ends"
@@ -338,22 +347,21 @@ test_burp_identity () {
     echo "test_burp_identity() begins"
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	rm -f 2011070112_${fam}
+        rm -f 2011070112_${fam}
 
-	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-	check_status=0
-	if [ "${fam}" = ua4d ]; then
-	    check_result ${REFERENCE}/burp/2011070112_${fam}.identity 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	else
-	    check_result ${INPUTS}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	fi
-	assert "test_burp_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
+        assert "test_burp_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        check_status=0
+        if [ "${fam}" = ua4d ]; then
+            check_result ${REFERENCE}/burp/2011070112_${fam}.identity 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        else
+            check_result ${INPUTS}/burp/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        fi
+        assert "test_burp_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}
     done
 
     echo "test_burp_identity() ends"
@@ -366,16 +374,15 @@ test_rdb_identity () {
     echo "test_rdb_identity() begins"
 
     for fam in ai ua sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	status=0
-	program_status=0
-	${SPLITOBS} -rdbin ${INPUTS}/rdb/2011070112_${fam} -rdbout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_rdb_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-	check_status=0
-	check_result ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	assert "test_rdb_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -rdbin ${INPUTS}/rdb/2011070112_${fam} -rdbout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
+        assert "test_rdb_identity fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        check_status=0
+        check_result ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        assert "test_rdb_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}
     done
 
     echo "test_rdb_identity() ends"
@@ -388,8 +395,7 @@ test_robustness_for_mrbcvt () {
     echo "test_robustness_for_mrbcvt() begins"
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA -burpout 2011073100_ai -fstin ${GRIDS}/glbgrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA -burpout 2011073100_ai -fstin ${GRIDS}/glbgrid -nomvar P0
     assert "test_robustness_for_mrbcvt program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/mrbcvt_problem/banco.bgckalt.2011073100_ai.UJIHOCRA 2011073100_ai ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -408,28 +414,27 @@ test_rdb_regional_standard () {
     echo "test_rdb_regional_standard() begins"
 
     for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	rm -f 2011070112_${fam}
-	typ=$(find_family ${fam} || return 1)
-	echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
-	${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
+        rm -f 2011070112_${fam}
+        typ=$(find_family ${fam} || return 1)
+        echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
+        ${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
 
-	## add some column to database because some have been added since the reference has been created
-	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
+        ## add some column to database because some have been added since the reference has been created
+        sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
 
-	status=0
-	program_status=0
-	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_rdb_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/reggrid -nomvar P0
+        assert "test_rdb_regional_standard fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-	## add some column to UA database because some have been added since the reference has been created
-	sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
+        ## add some column to UA database because some have been added since the reference has been created
+        sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
 
-	check_status=0
-	check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	assert "test_rdb_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        check_status=0
+        check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        assert "test_rdb_regional_standard fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
     done
 
     echo "test_rdb_regional_standard() ends"
@@ -442,28 +447,27 @@ test_rdb_regional_global_with_imax_imin_jmax_jmin () {
     echo "test_rdb_regional_global_with_imax_imin_jmax_jmin() begins"
 
     for fam in ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	rm -f 2011070112_${fam}
-	typ=$(find_family ${fam} || return 1)
-	echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
-	${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
+        rm -f 2011070112_${fam}
+        typ=$(find_family ${fam} || return 1)
+        echo "Running ${rdbgen} -f 2011070112_${fam} -type ${typ}" 1>> check_result.listing 2>&1
+        ${rdbgen} -f 2011070112_${fam} -type ${typ} 1>> check_result.listing 2>&1 || return 1
 
-	## add some column to UA database because some have been added since the reference has been created
-	sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
+        ## add some column to UA database because some have been added since the reference has been created
+        sqlite_add_column ${fam} ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_input
 
-	status=0
-	program_status=0
-	${SPLITOBS} -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -rdbin 2011070112_${fam}_input -rdbout 2011070112_${fam} -fstin ${GRIDS}/regglbgrid -fstin ${GRIDS}/regglbgrid -nomvar ME -min_i 12 -max_i 991 -min_j 8 -max_j 1019
+        assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-	## add some column to UA database because some have been added since the reference has been created
-	sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
+        ## add some column to UA database because some have been added since the reference has been created
+        sqlite_add_column ${fam} ${REFERENCE}/rdb/2011070112_${fam} 2011070112_${fam}_output
 
-	check_status=0
-	check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        check_status=0
+        check_result 2011070112_${fam}_output 2011070112_${fam} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+        assert "test_rdb_regional_global_with_imax_imin_jmax_jmin fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam} 2011070112_${fam}_input 2011070112_${fam}_output
     done
 
     echo "test_rdb_regional_global_with_imax_imin_jmax_jmin() ends"
@@ -481,30 +485,29 @@ test_rdb_round_robin () {
     test_rdb_round_robin_npey=4
 
     for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
-	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_rdb_round_robin_npex} -npey ${test_rdb_round_robin_npey} -ndigits ${test_rdb_round_robin_ndigits} -obsin ${INPUTS}/rdb/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_rdb_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -round-robin -npex ${test_rdb_round_robin_npex} -npey ${test_rdb_round_robin_npey} -ndigits ${test_rdb_round_robin_ndigits} -obsin ${INPUTS}/rdb/2011070112_${fam} -obsout 2011070112_${fam}
+        assert "test_rdb_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         rdbsplit ${INPUTS}/rdb/2011070112_${fam} 2011070112_${fam}_output ${test_rdb_round_robin_npex} ${test_rdb_round_robin_npey} ${test_rdb_round_robin_ndigits} 1>> check_result.listing 2>&1
 
         procx=1
-	while [ "${procx}" -le "${test_rdb_round_robin_npex}" ]; do
+        while [ "${procx}" -le "${test_rdb_round_robin_npex}" ]; do
             procy=1
-	    while [ "${procy}" -le "${test_rdb_round_robin_npey}" ]; do
+            while [ "${procy}" -le "${test_rdb_round_robin_npey}" ]; do
                 procx_str=$(paddedPrint ${test_rdb_round_robin_ndigits} ${procx})
                 procy_str=$(paddedPrint ${test_rdb_round_robin_ndigits} ${procy})
 
                 check_status=0
-		check_result 2011070112_${fam}_output_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	        assert "test_rdb_round_robin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                check_result 2011070112_${fam}_output_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+                assert "test_rdb_round_robin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                 let procy=procy+1
             done
             let procx=procx+1
-	done
+        done
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}_*
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}_*
     done
 
     unset test_rdb_round_robin_npex test_rdb_round_robin_npey test_rdb_round_robin_ndigits test_rdb_round_robin_number_of_process
@@ -525,21 +528,20 @@ test_rdb_cherrypick_roundrobin () {
     for fam in ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi ua; do
         filein=2011070112_${fam}
 
-	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
-            -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
-            -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_rdb_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+                     -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+                     -obsout ${filein}
+        assert "test_rdb_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         procx=1
-	while [ "${procx}" -le "${test_rdb_cherrypick_roundrobin_npex}" ]; do
+        while [ "${procx}" -le "${test_rdb_cherrypick_roundrobin_npex}" ]; do
             procy=1
-	    while [ "${procy}" -le "${test_rdb_cherrypick_roundrobin_npey}" ]; do
-	        ${SPLITOBS} -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
-                    -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
-                    -obsout ${filein}_cherrypick -x ${procx} -y ${procy} 1>> check_result.listing 2>&1 || program_status=$?
-	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+            while [ "${procy}" -le "${test_rdb_cherrypick_roundrobin_npey}" ]; do
+                run_splitobs -round-robin -npex ${test_rdb_cherrypick_roundrobin_npex} -npey ${test_rdb_cherrypick_roundrobin_npey} \
+                             -ndigits ${test_rdb_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/rdb/${filein} \
+                             -obsout ${filein}_cherrypick -x ${procx} -y ${procy}
+                assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick* | wc -l)
                 assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
 
@@ -547,16 +549,16 @@ test_rdb_cherrypick_roundrobin () {
                 procy_str=$(paddedPrint ${test_rdb_cherrypick_roundrobin_ndigits} ${procy})
 
                 check_status=0
-		check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	        assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+                assert "test_rdb_cherrypick_roundrobin fam=${fam} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                 rm ${filein}_cherrypick_${procx_str}_${procy_str}
                 let procy=procy+1
             done
             let procx=procx+1
-	done
+        done
 
-	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam}_*
+        [ "${status}" -ne 0 ] && return 1
+        rm 2011070112_${fam}_*
     done
 
     unset test_rdb_cherrypick_roundrobin_npex test_rdb_cherrypick_roundrobin_npey test_rdb_cherrypick_roundrobin_ndigits procx procy
@@ -578,8 +580,7 @@ test_rdb_index () {
     procy=${test_rdb_index_npey}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal
     assert "test_rdb_index splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     procx_str=$(paddedPrint ${test_rdb_index_ndigits} ${procx})
@@ -609,8 +610,7 @@ test_rdb_resume () {
     test_rdb_resume_npey=4
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/airs-resume.rdb -obsout airs
     assert "test_rdb_resume splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     rdbsplit_resume ${INPUTS}/rdb/airs-resume.rdb airs_reference ${test_rdb_resume_npex} ${test_rdb_resume_npey} ${test_rdb_resume_ndigits} 1>> check_result.listing 2>&1
@@ -618,13 +618,13 @@ test_rdb_resume () {
     procx=1
     while [ "${procx}" -le "${test_rdb_resume_npex}" ]; do
         procy=1
-	while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
+        while [ "${procy}" -le "${test_rdb_resume_npey}" ]; do
             procx_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procx})
             procy_str=$(paddedPrint ${test_rdb_resume_ndigits} ${procy})
 
             check_status=0
-	    check_result airs_reference_${procx_str}_${procy_str} airs_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	    assert "test_rdb_resume splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            check_result airs_reference_${procx_str}_${procy_str} airs_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            assert "test_rdb_resume splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
         let procx=procx+1
@@ -635,8 +635,7 @@ test_rdb_resume () {
     unset test_rdb_resume_npex test_rdb_resume_npey test_rdb_resume_ndigits test_rdb_resume_number_of_process
 
     status=0
-    program_status=0
-    ${SPLITOBS} -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
     assert "test_rdb_resume clipping program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/rdb/airs-resume.rdb airs_clipped ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -663,8 +662,7 @@ test_rdb_resume_schema_SAR () {
     procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds
     assert "test_rdb_resume_schema_SAR splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
@@ -684,8 +682,7 @@ test_rdb_resume_schema_SAR () {
     rm sarwinds_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/sarwinds.db -obsout sarwinds
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     procx=1
@@ -724,8 +721,7 @@ test_rdb_resume_schema_AL () {
     procy=$(paddedPrint ${test_rdb_resume_ndigits} ${test_rdb_resume_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_derialt -obsout obsal_derialt 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_derialt -obsout obsal_derialt
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     assert "test_rdb_resume_schema_AL splitting procx=${procx} procy=${procy} 'select date' (status=${check_status})" \
@@ -741,8 +737,7 @@ test_rdb_resume_schema_AL () {
     [ "${status}" -ne 0 ] && return 1
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_bgckalt -obsout obsal_bgckalt 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_resume_npex} -npey ${test_rdb_resume_npey} -x ${test_rdb_resume_npex} -y ${test_rdb_resume_npey} -ndigits ${test_rdb_resume_ndigits} -obsin ${INPUTS}/rdb/obsal_bgckalt -obsout obsal_bgckalt
     assert "test_rdb_resume_schema_AL splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
     check_status=0
@@ -770,9 +765,8 @@ test_rdb_obsdb () {
     procy=$(paddedPrint ${test_rdb_obsdb_ndigits} 3)
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -x ${test_rdb_obsdb_npex} -y ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                 -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report
     assert "test_rdb_obsdb splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -783,9 +777,8 @@ test_rdb_obsdb () {
     rm obsatms_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
-                -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_obsdb_npex} -npey ${test_rdb_obsdb_npey} -ndigits ${test_rdb_obsdb_ndigits} \
+                 -obsin ${INPUTS}/rdb/obsdb/obsatms-v2 -obsout obsatms -split-on-key id_report
     assert "test_rdb_obsdb splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -824,8 +817,7 @@ test_rdb_avhrr () {
     procy=$(paddedPrint ${test_rdb_avhrr_ndigits} ${test_rdb_avhrr_npey})
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -x ${test_rdb_avhrr_npex} -y ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -x ${test_rdb_avhrr_npex} -y ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi
     assert "test_rdb_avhrr splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -838,8 +830,7 @@ test_rdb_avhrr () {
     rm obsiasi_${procx}_${procy}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -round-robin -npex ${test_rdb_avhrr_npex} -npey ${test_rdb_avhrr_npey} -ndigits ${test_rdb_avhrr_ndigits} -obsin ${INPUTS}/rdb/avhrr/obsiasi -obsout obsiasi
     assert "test_rdb_avhrr splitting all program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     [ "${status}" -ne 0 ] && return 1
 
@@ -874,8 +865,7 @@ test_burp_subdomains () {
     ### Tests pour les AMSUB
     fam=to_amsub
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.2_enrgs -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.2_enrgs -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam}.2_enrgs program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${INPUTS}/burp/2011070112_${fam}.2_enrgs 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -889,8 +879,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.north_south -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}.north 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -902,7 +891,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0002
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.east_west -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 1
     assert "test_burp_subdomains fam=${fam} east-west program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}.east 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -914,7 +903,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0001_0001 2011070112_${fam}_0002_0001
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.world -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3
     assert "test_burp_subdomains fam=${fam} world program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     assert "test_burp_subdomains fam=${fam} east file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
     check_status=0
@@ -930,7 +919,7 @@ test_burp_subdomains () {
     [ "${status}" -ne 0 ] && return 1
     rm 2011070112_${fam}_0002_0001 2011070112_${fam}_0002_0002 2011070112_${fam}_0001_0002
 
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam}.world-res -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam}.world-res -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 2 -npey 2 -verbose 3
     assert "test_burp_subdomains fam=${fam} world-res program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     assert "test_burp_subdomains fam=${fam} east-res file is not there (that is OK)" [ ! -f 2011070112_${fam}_0001_0001 ] || status=$?
     check_status=0
@@ -951,8 +940,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0001 2011070112_${fam}_0001_0001 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -967,8 +955,7 @@ test_burp_subdomains () {
     rm -f 2011070112_${fam}
 
     status=0
-    program_status=0
-    ${SPLITOBS} -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2 1>> check_result.listing 2>&1 || program_status=$?
+    run_splitobs -burpin ${INPUTS}/burp/2011070112_${fam} -burpout 2011070112_${fam} -fstin ${GRIDS}/glbgrid -nomvar P0 -npex 1 -npey 2
     assert "test_burp_subdomains fam=${fam} north-south program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
     check_status=0
     check_result ${REFERENCE}/burp/2011070112_${fam}_0001_0002 2011070112_${fam}_0001_0002 ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
@@ -983,34 +970,33 @@ test_burp_subdomains () {
     npex=1
     npey=16
     for fam in ai.EU3859.201102011524 ua.stnid.85586 ua ua4d ai sw sf pr sc ro to_amsub to_amsua csr ssmis airs iasi; do
-	for filein in 2011020118_${fam} 2011070112_${fam}; do
-	    if [ ! -f ${INPUTS}/burp/${filein} ]; then
-		continue
-	    fi
-	    rm -f ${filein}*
+        for filein in 2011020118_${fam} 2011070112_${fam}; do
+            if [ ! -f ${INPUTS}/burp/${filein} ]; then
+                continue
+            fi
+            rm -f ${filein}*
 
-	    status=0
-	    program_status=0
-	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
-		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
-	    assert "test_burp_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+            status=0
+            run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+                         -nomvar P0 -npex ${npex} -npey ${npey}
+            assert "test_burp_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-	    for file in ${filein}_0001_[0-9][0-9][0-9][0-9]; do
-		${editbrp} -s ${file} -d ${filein} -n -i 0 1>> check_result.listing 2>&1
-	    done
-	    check_status=0
-	    if [[ "${fam}" = ua4d* ]]; then
+            for file in ${filein}_0001_[0-9][0-9][0-9][0-9]; do
+                ${editbrp} -s ${file} -d ${filein} -n -i 0 1>> check_result.listing 2>&1
+            done
+            check_status=0
+            if [[ "${fam}" = ua4d* ]]; then
                 echo . ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}
-		echo burpdiff ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
-		tty -s && read
-	    else
-		check_result ${INPUTS}/burp/${filein} ${filein} burp-SQL 1>> check_result.listing 2>&1 || check_status=$?
-		assert "test_burp_subdomains filein=${filein} recomposition check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
-	    fi
+                echo burpdiff ${INPUTS}/${filein} ${PWD}/${filein} -oreste || check_status=$?
+                tty -s && read
+            else
+                check_result ${INPUTS}/burp/${filein} ${filein} burp-SQL 1>> check_result.listing 2>&1 || check_status=$?
+                assert "test_burp_subdomains filein=${filein} recomposition check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            fi
 
-	    [ "${status}" -ne 0 ] && return 1
-	    rm ${filein}*
-	done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
+            [ "${status}" -ne 0 ] && return 1
+            rm ${filein}*
+        done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
     done
 
     echo "test_burp_subdomains() ends"
@@ -1026,17 +1012,16 @@ test_burp_cherrypick_subdomains () {
     npex=1
     npey=16
     for fam in ua ua4d ai sw sf pr sc ro to_amsub to_amsua csr ssmis airs iasi; do
-	for filein in 2011020118_${fam} 2011070112_${fam}; do
-	    if [ ! -f ${INPUTS}/burp/${filein} ]; then
-		continue
-	    fi
-	    rm -f ${filein}*
+        for filein in 2011020118_${fam} 2011070112_${fam}; do
+            if [ ! -f ${INPUTS}/burp/${filein} ]; then
+                continue
+            fi
+            rm -f ${filein}*
 
-	    status=0
-	    program_status=0
-	    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
-		-nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
-	    assert "test_burp_cherrypick_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+            status=0
+            run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein} -fstin ${GRIDS}/glbgrid \
+                         -nomvar P0 -npex ${npex} -npey ${npey}
+            assert "test_burp_cherrypick_subdomains filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
             i=1
             while [ "${i}" -le "${npex}" ]; do
@@ -1045,18 +1030,18 @@ test_burp_cherrypick_subdomains () {
                     procx_str=$(paddedPrint 4 ${i})
                     procy_str=$(paddedPrint 4 ${j})
 
-                    ${SPLITOBS} -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
-		        -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
-	            assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+                    run_splitobs -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick -fstin ${GRIDS}/glbgrid \
+                                 -nomvar P0 -x ${i} -y ${j} -npex ${npex} -npey ${npey}
+                    assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                     if [ ! -f ${filein}_${procx_str}_${procy_str} ]; then
                         assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} does not exists" [ ! -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
                         rm -f ${filein}_cherrypick* 2>/dev/null
                     else
                         assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} exists" [ -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
                         nfiles=$(ls -1 ${filein}_cherrypick_*_* | wc -l)
-		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
-		        check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
-		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+                        check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
+                        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                         rm ${filein}_cherrypick*
                     fi
                     let j=j+1
@@ -1065,9 +1050,9 @@ test_burp_cherrypick_subdomains () {
             done
             unset i j procx_str procy_str
 
-	    [ "${status}" -ne 0 ] && return 1
-	    rm ${filein}*
-	done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
+            [ "${status}" -ne 0 ] && return 1
+            rm ${filein}*
+        done ## Fin du 'for filein in 2011070112_${fam} 2011020118_${fam}'
     done
 
     echo "test_burp_cherrypick_subdomains() ends"
@@ -1082,61 +1067,33 @@ test_burp_latbands () {
     npex=1
     npey=16
     for filein in brpai brpairs brpcsr brpgp brpiasi brppr brpro brpsc brpsfc brpsw brpto_amsua brpto_amsub brpuan brpuas; do
-	rm -f ${filein}*
+        rm -f ${filein}*
 
-	status=0
-	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin ${grid_800x400} \
-	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin ${grid_800x400} \
+                     -nomvar P0 -npex ${npex} -npey ${npey}
+        assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-	for fileout in ${filein}_*; do
-	    check_status=0
-	    if [[ "${fileout}" = *num_headers ]]; then
-		check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} diff 1>> check_result.listing 2>&1 || check_status=$?
-	    else
-		check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-	    fi
-	    assert "test_burp_latbands filein=${filein} fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
-	done
-	for fileref in ${REFERENCE}/burp/latbands/${filein}_*; do
-	    fileout=$(basename ${fileref})
-	    assert "test_burp_latbands file=${fileout} does exist" [ -f "${fileout}" ] || status=$?
-	done
+        for fileout in ${filein}_*; do
+            check_status=0
+            if [[ "${fileout}" = *num_headers ]]; then
+                check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} diff 1>> check_result.listing 2>&1 || check_status=$?
+            else
+                check_result ${REFERENCE}/burp/latbands/${fileout} ${fileout} ${DIFF_METHOD_FOR_BURP_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            fi
+            assert "test_burp_latbands filein=${filein} fileout=${fileout} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+        done
+        for fileref in ${REFERENCE}/burp/latbands/${filein}_*; do
+            fileout=$(basename ${fileref})
+            assert "test_burp_latbands file=${fileout} does exist" [ -f "${fileout}" ] || status=$?
+        done
 
-	[ "${status}" -ne 0 ] && return 1
-	rm ${filein}_* ${filein}.max_num_headers
+        [ "${status}" -ne 0 ] && return 1
+        rm ${filein}_* ${filein}.max_num_headers
     done ## Fin du 'for filein in brpai brpairs brpcsr brpgp brpiasi brppr brpro brpsc brpsfc brpsw brpto_amsua brpto_amsub brpuan brpuas'
 
     echo "test_burp_latbands() ends"
 } ## End of function 'test_burp_latbands'
-
-
-test_burp_maximum_unit_number () {
-    set -e
-    [ -n "${SET_MX}" ] && ${SET_MX}
-
-    echo "test_burp_maximum_unit_number() begins"
-
-    test_burp_maximum_unit_number_ndigits=4
-    test_burp_maximum_unit_number_npex=17
-    test_burp_maximum_unit_number_npey=59
-
-    filein=2011070112_sw
-
-    status=0
-
-    program_status=0
-    ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
-		-x 15 -y 1 -npex ${test_burp_maximum_unit_number_npex} -npey ${test_burp_maximum_unit_number_npey} \
-                -ndigits ${test_burp_maximum_unit_number_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
-    assert "test_burp_maximum_unit_number filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-
-    [ "${status}" -ne 0 ] && return 1
-
-    unset test_burp_maximum_unit_number_npex test_burp_maximum_unit_number_npey test_burp_maximum_unit_number_ndigits
-    echo "test_burp_maximum_unit_number() ends"
-} ## End of function 'test_burp_maximum_unit_number'
 
 
 test_burp_cherrypick_roundrobin () {
@@ -1150,13 +1107,12 @@ test_burp_cherrypick_roundrobin () {
     test_burp_cherrypick_roundrobin_npey=4
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	status=0
-	program_status=0
+        status=0
         filein=2011070112_${fam}
 
-	${SPLITOBS} -round-robin -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
-            -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein} 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        run_splitobs -round-robin -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+                     -ndigits ${test_burp_cherrypick_roundrobin_ndigits} -obsin ${INPUTS}/burp/${filein} -obsout ${filein}
+        assert "test_burp_cherrypick_roundrobin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
         i=1
         while [ "${i}" -le "${test_burp_cherrypick_roundrobin_npex}" ]; do
@@ -1165,14 +1121,14 @@ test_burp_cherrypick_roundrobin () {
                 procx_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${i})
                 procy_str=$(paddedPrint ${test_burp_cherrypick_roundrobin_ndigits} ${j})
 
-                ${SPLITOBS} -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
-		    -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
-                    -ndigits ${test_burp_cherrypick_roundrobin_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
-	        assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+                run_splitobs -round-robin -burpin ${INPUTS}/burp/${filein} -burpout ${filein}_cherrypick \
+                             -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
+                             -ndigits ${test_burp_cherrypick_roundrobin_ndigits}
+                assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
                 nfiles=$(ls -1 ${filein}_cherrypick_*_* | wc -l)
-		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
-		check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
-		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+                assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
+                check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
+                assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
                 rm ${filein}_cherrypick*
                 let j=j+1
             done
@@ -1180,8 +1136,8 @@ test_burp_cherrypick_roundrobin () {
         done
         unset i j
 
-	[ "${status}" -ne 0 ] && return 1
-	rm ${filein}_*
+        [ "${status}" -ne 0 ] && return 1
+        rm ${filein}_*
     done
 
     unset test_burp_cherrypick_roundrobin_npex test_burp_cherrypick_roundrobin_npey test_burp_cherrypick_roundrobin_ndigits
@@ -1201,32 +1157,31 @@ test_burp_round_robin () {
     let test_burp_round_robin_number_of_process=test_burp_round_robin_npex*test_burp_round_robin_npey
 
     for fam in ua4d ua ai sw sf pr sc ro to_amsua to_amsub csr ssmis airs iasi; do
-	status=0
-	program_status=0
-	${SPLITOBS} -round-robin -npex ${test_burp_round_robin_npex} -npey ${test_burp_round_robin_npey} -ndigits ${test_burp_round_robin_ndigits} -obsin ${INPUTS}/burp/2011070112_${fam} -obsout 2011070112_${fam} 1>> check_result.listing 2>&1 || program_status=$?
-	assert "test_burp_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+        status=0
+        run_splitobs -round-robin -npex ${test_burp_round_robin_npex} -npey ${test_burp_round_robin_npey} -ndigits ${test_burp_round_robin_ndigits} -obsin ${INPUTS}/burp/2011070112_${fam} -obsout 2011070112_${fam}
+        assert "test_burp_round_robin fam=${fam} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-	split_status=0
-	cp ${INPUTS}/burp/2011070112_${fam} ref_2011070112_${fam}
-	split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=1
-	assert "test_burp_round_robin fam=${fam} split_round_robin_with_reflex execution (status=${split_status})" [ "${split_status}" -eq 0 ] || return 1
+        split_status=0
+        cp ${INPUTS}/burp/2011070112_${fam} ref_2011070112_${fam}
+        split_round_robin_with_reflex ref_2011070112_${fam} ${test_burp_round_robin_npex} ${test_burp_round_robin_npey} ${test_burp_round_robin_ndigits} || split_status=1
+        assert "test_burp_round_robin fam=${fam} split_round_robin_with_reflex execution (status=${split_status})" [ "${split_status}" -eq 0 ] || return 1
 
-	num=1
-	while [ "${num}" -le "${test_burp_round_robin_number_of_process}" ]; do
-	    procx=$(((num-1)/test_burp_round_robin_npey+1))
-	    procy=$(((num-1)%test_burp_round_robin_npey+1))
+        num=1
+        while [ "${num}" -le "${test_burp_round_robin_number_of_process}" ]; do
+            procx=$(((num-1)/test_burp_round_robin_npey+1))
+            procy=$(((num-1)%test_burp_round_robin_npey+1))
             procx_str=$(paddedPrint ${test_burp_round_robin_ndigits} ${procx})
             procy_str=$(paddedPrint ${test_burp_round_robin_ndigits} ${procy})
 
-	    check_status=0
-	    check_result ref_2011070112_${fam}_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} liburp-noresume 1>> check_result.listing 2>&1 || check_status=$?
-	    assert "test_burp_round_robin fam=${fam} num=${num} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            check_status=0
+            check_result ref_2011070112_${fam}_${procx_str}_${procy_str} 2011070112_${fam}_${procx_str}_${procy_str} liburp-noresume 1>> check_result.listing 2>&1 || check_status=$?
+            assert "test_burp_round_robin fam=${fam} num=${num} procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
-	    let num=num+1
-	done
+            let num=num+1
+        done
 
-	[ "${status}" -ne 0 ] && return 1
-	rm -f 2011070112_${fam}_*_* ref_2011070112_${fam} ref_2011070112_${fam}_*_*
+        [ "${status}" -ne 0 ] && return 1
+        rm -f 2011070112_${fam}_*_* ref_2011070112_${fam} ref_2011070112_${fam}_*_*
     done
 
     unset test_burp_round_robin_npex test_burp_round_robin_npey test_burp_round_robin_ndigits test_burp_round_robin_number_of_process
@@ -1245,8 +1200,8 @@ split_round_robin_with_reflex () {
     let nprocs=npex*npey
     ## Puisque 'reflex' permet de splitter les fichiers jusqu'a un maximum de 980
     if [ "${nprocs}" -gt 980 ]; then
-	say "We are not supporting mode than 980 MPI process when splitting with 'reflex'"
-	return 1
+        say "We are not supporting mode than 980 MPI process when splitting with 'reflex'"
+        return 1
     fi
     bburpfile=$(basename ${burpfile})
     ${editbrp} -s ${burpfile} -d ${bburpfile}.nores -i<<EOFBRP 1>> check_result.listing 2>&1
@@ -1257,7 +1212,7 @@ EOFBRP
 EOFBRP
     ${reflex} -ixent ${bburpfile}.nores -oxsrt ${bburpfile} -nsplit ${nprocs} 1>> check_result.listing 2>&1
     for file in ${bburpfile}_*; do
-	${editbrp} -s ${bburpfile}.res -d ${file} -i 0 1>> check_result.listing 2>&1
+        ${editbrp} -s ${bburpfile}.res -d ${file} -i 0 1>> check_result.listing 2>&1
     done
     rm ${bburpfile}.res ${bburpfile}.nores
     ## Il faut convertir les fichiers avec les noms compatibles avec ceux que le 3dvar lira
@@ -1266,17 +1221,17 @@ EOFBRP
     procx=1
     procy=1
     while [[ "${proc}" -le "${nprocs}" ]]; do
-	procx=$(((proc-1)/npey+1))
-	procy=$(((proc-1)%npey+1))
+        procx=$(((proc-1)/npey+1))
+        procy=$(((proc-1)%npey+1))
 
         ## 'reflex' is using 3 digits to split the file
         proc_str=$(paddedPrint 3 ${proc})
         procx_str=$(paddedPrint ${splitobs_ndigits} ${procx})
         procy_str=$(paddedPrint ${splitobs_ndigits} ${procy})
 
-	mv ${bburpfile}_${proc_str} ${bburpfile}_${procx_str}_${procy_str}
+        mv ${bburpfile}_${proc_str} ${bburpfile}_${procx_str}_${procy_str}
         [ ! -f ${bburpfile}_${procx_str}_${procy_str} ] && return 1
-	let proc=proc+1
+        let proc=proc+1
     done
 
     unset nprocs proc procx procy proc_str procx_str procy_str npex npey splitobs_ndigits burpfile bburpfile
@@ -1389,10 +1344,10 @@ test_find_family () {
     assert "test_find_family (status=${status})" [ "${status}" -ne 0 ]
 
     for fam in ua ai sw sf pr ro csr airs iasi; do
-	status=0
-	__test_find_family_typ=$(find_family ${fam} || status=$?)
-	assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
-	assert "test_find_family (fam=${fam})" [ "${__test_find_family_typ}" = ${fam} ]
+        status=0
+        __test_find_family_typ=$(find_family ${fam} || status=$?)
+        assert "test_find_family (status=${status})" [ "${status}" -eq 0 ]
+        assert "test_find_family (fam=${fam})" [ "${__test_find_family_typ}" = ${fam} ]
     done
 
     ## amsua
@@ -1425,20 +1380,20 @@ function find_family {
     [ -n "${SET_MX}" ] && ${SET_MX}
 
     if [ $# -ne 1 ]; then
-	echo "The function 'find_family' needs one and only one argument but received '$@'"
-	return 1
+        echo "The function 'find_family' needs one and only one argument but received '$@'"
+        return 1
     fi
     __find_family_fam=$(basename $1 | cut -d. -f3 | cut -d_ -f2-)
     if [[ "${__find_family_fam}" = to_amsua* ]]; then
-	__find_family_typ=amsua
+        __find_family_typ=amsua
     elif [[ "${__find_family_fam}" = to_amsub* ]]; then
-	__find_family_typ=amsub
+        __find_family_typ=amsub
     elif [[ "${__find_family_fam}" = sc* ]]; then
-	__find_family_typ=scat
+        __find_family_typ=scat
     elif [[ "${__find_family_fam}" = ssmis* ]]; then
-	__find_family_typ=ssmi
+        __find_family_typ=ssmi
     else
-	__find_family_typ=$(echo ${__find_family_fam} | sed 's/_qc//')
+        __find_family_typ=$(echo ${__find_family_fam} | sed 's/_qc//')
     fi
     echo ${__find_family_typ}
 } ## End of function 'find_family'
@@ -1449,8 +1404,8 @@ function check_result {
     [ -n "${SET_MX}" ] && ${SET_MX}
 
     if [ $# -ne 3 ]; then
-	echo "function 'check_result': must have 3 arguments (file1, file2 and method (may be 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'SQL', 'burp-SQL' or 'SQL-ignore_id_obs'"
-	return 1
+        echo "function 'check_result': must have 3 arguments (file1, file2 and method (may be 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'SQL', 'burp-SQL' or 'SQL-ignore_id_obs'"
+        return 1
     fi
 
     echo "Running 'check_result $@'"
@@ -1461,12 +1416,12 @@ function check_result {
     not_validating=""
 
     if [ ! -f "${file}" ]; then
-	echo "File ${file} not available!"
-	return 1
+        echo "File ${file} not available!"
+        return 1
     fi
     if [ ! -f "${file2}" ]; then
-	echo "File ${file2} not available!"
-	return 1
+        echo "File ${file2} not available!"
+        return 1
     fi
 
     message="The files '${file}' and '${file2}' are validating"
@@ -1474,8 +1429,8 @@ function check_result {
     __check_result_status=0
     cmp ${file} ${file2} || __check_result_status=$?
     if [ "${__check_result_status}" -eq 0 ]; then
-	echo "${message} with method 'cmp' before checking with method '${method}!"
-	return 0
+        echo "${message} with method 'cmp' before checking with method '${method}!"
+        return 0
     fi
 
     if [ "${method}" = fstcomp ]; then
@@ -1483,141 +1438,141 @@ function check_result {
         ln -s ${file}  file1.$$
         [ -f file2.$$ ] && rm file2.$$
         ln -s ${file2} file2.$$
-	${fstcomp} -ne -a file1.$$ -b file2.$$ | tee fstcomp.list
-	cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+        ${fstcomp} -ne -a file1.$$ -b file2.$$ | tee fstcomp.list
+        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-MAX      E-MOY" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
         rm file1.$$ file2.$$
-	if [ -s fstcomp.list.grep ]; then
-	    return 1
-	fi
-	rm fstcomp.list fstcomp.list.grep
+        if [ -s fstcomp.list.grep ]; then
+            return 1
+        fi
+        rm fstcomp.list fstcomp.list.grep
     elif [ "${method}" = cmp ]; then
-	cmp ${file} ${file2} || return 1
+        cmp ${file} ${file2} || return 1
     elif [ "${method}" = diff ]; then
-	diff -h ${file} ${file2} || return 1
+        diff -h ${file} ${file2} || return 1
     elif [ "${method}" = liburp ]; then
-	${liburp} -wide ${file}  > file1
-	${liburp} -wide ${file2} > file2
-	[[ ! -s file1 ]] && return 1
-	[[ ! -s file2 ]] && return 1
-	cmp file1 file2 || return 1
-	rm file1 file2
+        ${liburp} -wide ${file}  > file1
+        ${liburp} -wide ${file2} > file2
+        [[ ! -s file1 ]] && return 1
+        [[ ! -s file2 ]] && return 1
+        cmp file1 file2 || return 1
+        rm file1 file2
     elif [ "${method}" = liburp-noresume ]; then
-	[[ -f file1.nores ]] && rm -f file1.nores
-	${editbrp} -s ${file}  -d file1.nores -i<<EOF
+        [[ -f file1.nores ]] && rm -f file1.nores
+        ${editbrp} -s ${file}  -d file1.nores -i<<EOF
  exclure('>>*******')
 EOF
-	[[ ! -f  file1.nores ]] && return 1
-	[[ -f file2.nores ]] && rm -f file2.nores
-	${editbrp} -s ${file2} -d file2.nores -i<<EOF
+        [[ ! -f  file1.nores ]] && return 1
+        [[ -f file2.nores ]] && rm -f file2.nores
+        ${editbrp} -s ${file2} -d file2.nores -i<<EOF
  exclure('>>*******')
 EOF
-	[[ ! -f  file2.nores ]] && return 1
-	${liburp} -wide file1.nores > file1
-	${liburp} -wide file2.nores > file2
-	[[ ! -s file1 ]] && return 1
-	[[ ! -s file2 ]] && return 1
-	cmp file1 file2 || return 1
-	rm file1 file2 file1.nores file2.nores
+        [[ ! -f  file2.nores ]] && return 1
+        ${liburp} -wide file1.nores > file1
+        ${liburp} -wide file2.nores > file2
+        [[ ! -s file1 ]] && return 1
+        [[ ! -s file2 ]] && return 1
+        cmp file1 file2 || return 1
+        rm file1 file2 file1.nores file2.nores
     elif [ "${method}" = burp-SQL ]; then
-	OLD_TMPDIR=${TMPDIR}
-	TMPDIR=${PWD}/tmpdir$$
-	mkdir -p ${TMPDIR}
+        OLD_TMPDIR=${TMPDIR}
+        TMPDIR=${PWD}/tmpdir$$
+        mkdir -p ${TMPDIR}
 
-	typ=$(find_family ${file})
-	${burp2rdb} -in ${file}  -out file1.sql -type ${typ} || rm file1.sql
-	if [ ! -s file1.sql ]; then
-	    say "Problem with burp2rdb with file ${file}" 1 || return 1
-	    not_validating="problem"
-	else
-	    ${burp2rdb} -in ${file2} -out file2.sql -type ${typ} || rm file2.sql
-	    if [ ! -s file2.sql ]; then
-		say "Problem with burp2rdb with file ${file2}" 1 || return 1
-		not_validating="problem"
-	    else
-		case "${typ}" in
-		    amsua|amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
-		    *) satel_elem="" ;;
-		esac
-		cat > sqldir <<EOF
+        typ=$(find_family ${file})
+        ${burp2rdb} -in ${file}  -out file1.sql -type ${typ} || rm file1.sql
+        if [ ! -s file1.sql ]; then
+            say "Problem with burp2rdb with file ${file}" 1 || return 1
+            not_validating="problem"
+        else
+            ${burp2rdb} -in ${file2} -out file2.sql -type ${typ} || rm file2.sql
+            if [ ! -s file2.sql ]; then
+                say "Problem with burp2rdb with file ${file2}" 1 || return 1
+                not_validating="problem"
+            else
+                case "${typ}" in
+                    amsua|amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
+                    *) satel_elem="" ;;
+                esac
+                cat > sqldir <<EOF
 PRAGMA temp_store = MEMORY;
 .nullvalue NULL
 .mode tabs
 select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by id_stn || lat || lon || date || time || delay;
 EOF
 
-		cat sqldir | ${sqlite3} -noheader file1.sql | sort -n > file1.sqllist || rm file1.sqllist
-		if [ ! -s file1.sqllist ]; then
-		    say "Problem with SQL request for file ${file}" 1 || return 1
-		    not_validating="problem"
-		else
-		    cat sqldir | ${sqlite3} -noheader file2.sql | sort -n > file2.sqllist || rm file2.sqllist
-		    if [ ! -s file2.sqllist ]; then
-			say "Problem with SQL request for file ${file2}" 1 || return 1
-			not_validating="problem"
-		    else
-			cmp file1.sqllist file2.sqllist || return 1
-			rm file1.sql file2.sql file1.sqllist file2.sqllist sqldir
-		    fi ## Fin du else pour le 'if [ ! -s file2.sqllist ]'
-		fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
-	    fi ## Fin du else pour le 'if [ ! -s file2.sql ]'
-	fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
-	TMPDIR=${OLD_TMPDIR}
+                cat sqldir | ${sqlite3} -noheader file1.sql | sort -n > file1.sqllist || rm file1.sqllist
+                if [ ! -s file1.sqllist ]; then
+                    say "Problem with SQL request for file ${file}" 1 || return 1
+                    not_validating="problem"
+                else
+                    cat sqldir | ${sqlite3} -noheader file2.sql | sort -n > file2.sqllist || rm file2.sqllist
+                    if [ ! -s file2.sqllist ]; then
+                        say "Problem with SQL request for file ${file2}" 1 || return 1
+                        not_validating="problem"
+                    else
+                        cmp file1.sqllist file2.sqllist || return 1
+                        rm file1.sql file2.sql file1.sqllist file2.sqllist sqldir
+                    fi ## Fin du else pour le 'if [ ! -s file2.sqllist ]'
+                fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
+            fi ## Fin du else pour le 'if [ ! -s file2.sql ]'
+        fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
+        TMPDIR=${OLD_TMPDIR}
     elif [ "${method}" = SQL ]; then
-	OLD_TMPDIR=${TMPDIR}
-	TMPDIR=${PWD}/tmpdir$$
-	mkdir -p ${TMPDIR}
+        OLD_TMPDIR=${TMPDIR}
+        TMPDIR=${PWD}/tmpdir$$
+        mkdir -p ${TMPDIR}
 
-	echo .dump | ${sqlite3} ${file}  > dumpall1
-	echo .dump | ${sqlite3} ${file2} > dumpall2
-	[[ ! -s dumpall1 ]] && return 1
-	[[ ! -s dumpall2 ]] && return 1
+        echo .dump | ${sqlite3} ${file}  > dumpall1
+        echo .dump | ${sqlite3} ${file2} > dumpall2
+        [[ ! -s dumpall1 ]] && return 1
+        [[ ! -s dumpall2 ]] && return 1
 
-	grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall1 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp1
-	grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall2 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp2
-	[[ ! -s dumptmp1 ]] && return 1
-	[[ ! -s dumptmp2 ]] && return 1
+        grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall1 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp1
+        grep --text -v 'INSERT INTO "sqlite_stat1"' dumpall2 | grep --text -v 'INSERT INTO sqlite_stat1' > dumptmp2
+        [[ ! -s dumptmp1 ]] && return 1
+        [[ ! -s dumptmp2 ]] && return 1
 
-	grep --text "^INSERT INTO " dumptmp1 > dump1
-	grep --text "^INSERT INTO " dumptmp2 > dump2
-	[[ ! -s dump1 ]] && return 1
-	[[ ! -s dump2 ]] && return 1
+        grep --text "^INSERT INTO " dumptmp1 > dump1
+        grep --text "^INSERT INTO " dumptmp2 > dump2
+        [[ ! -s dump1 ]] && return 1
+        [[ ! -s dump2 ]] && return 1
 
-	cmp dump1 dump2 || return 1
-	rm dump1 dump2 dumptmp1 dumptmp2 dumpall1 dumpall2
+        cmp dump1 dump2 || return 1
+        rm dump1 dump2 dumptmp1 dumptmp2 dumpall1 dumpall2
 
-	TMPDIR=${OLD_TMPDIR}
+        TMPDIR=${OLD_TMPDIR}
         #mv -vi ${file} ${file}.original
-	#mv -vi ${file2} ${file}
+        #mv -vi ${file2} ${file}
     elif [ "${method}" = SQL-ignore_id_obs ]; then
-	OLD_TMPDIR=${TMPDIR}
-	TMPDIR=${PWD}/tmpdir$$
-	mkdir -p ${TMPDIR}
+        OLD_TMPDIR=${TMPDIR}
+        TMPDIR=${PWD}/tmpdir$$
+        mkdir -p ${TMPDIR}
 
-	echo .dump | ${sqlite3} ${file}  > dumpall1
-	echo .dump | ${sqlite3} ${file2} > dumpall2
-	[[ ! -s dumpall1 ]] && return 1
-	[[ ! -s dumpall2 ]] && return 1
+        echo .dump | ${sqlite3} ${file}  > dumpall1
+        echo .dump | ${sqlite3} ${file2} > dumpall2
+        [[ ! -s dumpall1 ]] && return 1
+        [[ ! -s dumpall2 ]] && return 1
 
-	grep -v 'INSERT INTO "sqlite_stat1"' dumpall1 > dump1
-	grep -v 'INSERT INTO "sqlite_stat1"' dumpall2 > dump2
-	[[ ! -s dump1 ]] && return 1
-	[[ ! -s dump2 ]] && return 1
+        grep -v 'INSERT INTO "sqlite_stat1"' dumpall1 > dump1
+        grep -v 'INSERT INTO "sqlite_stat1"' dumpall2 > dump2
+        [[ ! -s dump1 ]] && return 1
+        [[ ! -s dump2 ]] && return 1
 
-	sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump1 > dumptmp1
-	sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump2 > dumptmp2
-	[[ ! -s dumptmp1 ]] && return 1
-	[[ ! -s dumptmp2 ]] && return 1
+        sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump1 > dumptmp1
+        sed 's/VALUES([1-9][0-9]*,[1-9][0-9]*,/VALUES(,,/;s/VALUES([1-9][0-9]*,/VALUES(,/' dump2 > dumptmp2
+        [[ ! -s dumptmp1 ]] && return 1
+        [[ ! -s dumptmp2 ]] && return 1
 
-	cmp dumptmp1 dumptmp2 || return 1
-	rm dump1 dump2 dumpall1 dumpall2 dumptmp1 dumptmp2
+        cmp dumptmp1 dumptmp2 || return 1
+        rm dump1 dump2 dumpall1 dumpall2 dumptmp1 dumptmp2
 
-	TMPDIR=${OLD_TMPDIR}
-	#mv -vi ${file} ${file}.original
-	#mv -vi ${file2} ${file}
+        TMPDIR=${OLD_TMPDIR}
+        #mv -vi ${file} ${file}.original
+        #mv -vi ${file2} ${file}
     else
-	echo "In function check_result:  method=${method} is not one of the possibility"
-	echo "Please use 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'burp-SQL', 'SQL' or 'SQL-ignore_id_obs'"
-	return 1
+        echo "In function check_result:  method=${method} is not one of the possibility"
+        echo "Please use 'fstcomp', 'cmp', 'diff', 'liburp', 'liburp-noresume', 'burp-SQL', 'SQL' or 'SQL-ignore_id_obs'"
+        return 1
     fi
 
     echo "${message} with method '${method}!"
@@ -1648,19 +1603,19 @@ EOF
     TMPDIR=${PWD}/tmpdir$$
     mkdir -p ${TMPDIR}
     for file in $*; do
-	${burp2rdb} -in ${file} -out file.sql -type ${typ} || rm file.sql
-	if [ ! -s file.sql ]; then
-	    say "Problem with burp2rdb with file ${file}" 1 || return 1
-	else
-	    cat sqldir | ${sqlite3} -noheader file.sql > file.sqllist || rm file.sqllist
-	    if [ ! -s file.sqllist ]; then
-		say "Problem with SQL request for file ${file}" 1 || return 1
-	    else
-		jlatband=$(echo ${file} | rev | cut -d_ -f1 | rev)
-		ilonband=$(echo ${file} | rev | cut -d_ -f2 | rev)
-		${check_subdomains_tool} file.sqllist ${ilonband} ${jlatband} ${npex} ${npey} || return 1
-	    fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
-	fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
+        ${burp2rdb} -in ${file} -out file.sql -type ${typ} || rm file.sql
+        if [ ! -s file.sql ]; then
+            say "Problem with burp2rdb with file ${file}" 1 || return 1
+        else
+            cat sqldir | ${sqlite3} -noheader file.sql > file.sqllist || rm file.sqllist
+            if [ ! -s file.sqllist ]; then
+                say "Problem with SQL request for file ${file}" 1 || return 1
+            else
+                jlatband=$(echo ${file} | rev | cut -d_ -f1 | rev)
+                ilonband=$(echo ${file} | rev | cut -d_ -f2 | rev)
+                ${check_subdomains_tool} file.sqllist ${ilonband} ${jlatband} ${npex} ${npey} || return 1
+            fi ## Fin du else pour le 'if [ ! -s file1.sqllist ]'
+        fi ## Fin du else pour le 'if [ ! -s file1.sql ]'
     done ## Fin du 'for file in $*'
 
     TMPDIR=${OLD_TMPDIR}
@@ -1675,9 +1630,9 @@ function check_latlon_in_subdomain {
     echo "Running 'check_latlon_in_subdomain $@'"
 
     if [ $# -ne 5 ]; then
-	echo "function 'check_latlon_in_subdomain': must have 5 arguments "
-	echo "(file (output from SQL request), ilonband, jlatband, npex, npey"
-	return 1
+        echo "function 'check_latlon_in_subdomain': must have 5 arguments "
+        echo "(file (output from SQL request), ilonband, jlatband, npex, npey"
+        return 1
     fi
 
     file=$1
@@ -1687,31 +1642,31 @@ function check_latlon_in_subdomain {
     npey=$5
 
     while read line; do
-	if [ "${npey}" -ne 1 ]; then
-	    lat=$(echo ${line} | cut -d'|' -f1)
-	    lat180=$(echo "${lat}+90" | bc -l)
-	    thislatband=$(echo "${lat180}/(180./${npey})+1" | bc -l | cut -d. -f1)
-	    if [ "${jlatband}" -ne "${thislatband}" ]; then
-		echo "${line} gives wrong latband ${jlatband} instead of ${thislatband}"
-		return 1
-	    fi
-	elif [ "${jlatband}" -ne 1 ]; then
-	    echo "${line} gives wrong latband ${jlatband} instead of 1"
-	    return 1
-	fi
+        if [ "${npey}" -ne 1 ]; then
+            lat=$(echo ${line} | cut -d'|' -f1)
+            lat180=$(echo "${lat}+90" | bc -l)
+            thislatband=$(echo "${lat180}/(180./${npey})+1" | bc -l | cut -d. -f1)
+            if [ "${jlatband}" -ne "${thislatband}" ]; then
+                echo "${line} gives wrong latband ${jlatband} instead of ${thislatband}"
+                return 1
+            fi
+        elif [ "${jlatband}" -ne 1 ]; then
+            echo "${line} gives wrong latband ${jlatband} instead of 1"
+            return 1
+        fi
 
-	if [ "${npex}" -ne 1 ]; then
-	    lon=$(echo ${line} | cut -d'|' -f2)
-	    lon360=$(echo "(${lon}+360)%360" | bc -l)
-	    thislonband=$(echo "${lon360}/(360./${npex})+1" | bc -l | cut -d. -f1)
-	    if [ "${ilonband}" -ne "${thislonband}" ]; then
-		echo "${line} gives wrong lonband ${ilonband} instead of ${thislonband}"
-		return 1
-	    fi
-	elif [ "${ilonband}" -ne 1 ]; then
-	    echo "${line} gives wrong lonband ${ilonband} instead of 1"
-	    return 1
-	fi
+        if [ "${npex}" -ne 1 ]; then
+            lon=$(echo ${line} | cut -d'|' -f2)
+            lon360=$(echo "(${lon}+360)%360" | bc -l)
+            thislonband=$(echo "${lon360}/(360./${npex})+1" | bc -l | cut -d. -f1)
+            if [ "${ilonband}" -ne "${thislonband}" ]; then
+                echo "${line} gives wrong lonband ${ilonband} instead of ${thislonband}"
+                return 1
+            fi
+        elif [ "${ilonband}" -ne 1 ]; then
+            echo "${line} gives wrong lonband ${ilonband} instead of 1"
+            return 1
+        fi
     done < ${file}
 
     return 0
@@ -1723,79 +1678,79 @@ function sqlite_add_column {
 
     __sqlite_add_column_fam__=${1}
     if [ -z "${__sqlite_add_column_fam__}" ]; then
-	echo "Function sqlite_add_column: you must provide a family as first argument!"
-	unset __sqlite_add_column_fam__
+        echo "Function sqlite_add_column: you must provide a family as first argument!"
+        unset __sqlite_add_column_fam__
     fi
 
     __sqlite_add_column_filein__=${2}
 
     if [ ! -f "${__sqlite_add_column_filein__}" ]; then
-	echo "Function sqlite_add_column: the input file '${__sqlite_add_column_filein__}' does not exist (PWD=${PWD})!"
-	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__
-	return 1
+        echo "Function sqlite_add_column: the input file '${__sqlite_add_column_filein__}' does not exist (PWD=${PWD})!"
+        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__
+        return 1
     fi
 
     __sqlite_add_column_fileout__=${3}
     if [ -f "${__sqlite_add_column_fileout__}" ]; then
-	echo "Function sqlite_add_column: the output file '${__sqlite_add_column_fileout__}' does exist (PWD=${PWD})!"
-	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__
-	return 1
+        echo "Function sqlite_add_column: the output file '${__sqlite_add_column_fileout__}' does exist (PWD=${PWD})!"
+        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__
+        return 1
     fi
 
     __sqlite_add_column_status__=0
     cp ${__sqlite_add_column_filein__} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
     if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	echo "Function sqlite_add_column: cannot copy input file '${__sqlite_add_column_filein__}' in the output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	return 1
+        echo "Function sqlite_add_column: cannot copy input file '${__sqlite_add_column_filein__}' in the output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+        return 1
     fi
 
     if [ ! -w "${__sqlite_add_column_fileout__}" ]; then
-	__sqlite_add_column_status__=0
-	chmod u+w ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot change permission to allow user to write to '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        chmod u+w ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot change permission to allow user to write to '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
     fi
 
     if [ "${__sqlite_add_column_fam__}" = ua ]; then
         ## insert columns 'HLAT', 'HLON', 'TSONDE' and 'FSO' in 'data' table
-	__sqlite_add_column_status__=0
-	echo "alter table data add column HLAT real; alter table data add column HLON real; alter table data add column TSONDE test; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        echo "alter table data add column HLAT real; alter table data add column HLON real; alter table data add column TSONDE test; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
 
        ## insert columns 'LAUNCH_TIME', 'SONDE_TYPE', 'TRACKING_TECHNIQUE' and 'RADIATION_CORRECTION' in 'header' table
-	__sqlite_add_column_status__=0
-	echo "alter table header add column LAUNCH_TIME integer; alter table header add column SONDE_TYPE integer; alter table header add column TRACKING_TECHNIQUE integer; alter table header add column RADIATION_CORRECTION real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        echo "alter table header add column LAUNCH_TIME integer; alter table header add column SONDE_TYPE integer; alter table header add column TRACKING_TECHNIQUE integer; alter table header add column RADIATION_CORRECTION real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
     elif [ "${__sqlite_add_column_fam__}" = airs ]; then
         ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
-	__sqlite_add_column_status__=0
-	echo "alter table data add column FANION_QUAL_CAL integer; alter table data add column FANION_QUAL_FOV integer; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        echo "alter table data add column FANION_QUAL_CAL integer; alter table data add column FANION_QUAL_FOV integer; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
     elif [ "${__sqlite_add_column_fam__}" = csr ]; then
         ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
-	__sqlite_add_column_status__=0
-	echo "alter table data add column FSO real; alter table header add column azimuth real; alter table header add column solar_azimuth real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        echo "alter table data add column FSO real; alter table header add column azimuth real; alter table header add column solar_azimuth real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
     elif [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub -o "${__sqlite_add_column_fam__}" = ssmis ]; then
         if [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub ]; then
             ## The columns to add to the header table for 'to_amsu*'
@@ -1804,7 +1759,7 @@ function sqlite_add_column {
             ## The columns to add to the header table for 'ssmis'
             __sqlite_add_column_header_columns__="scattering_index cloud_liquid_water"
         fi
-	__sqlite_add_column_status__=0
+        __sqlite_add_column_status__=0
         __sqlite_add_column_request__="alter table data add column FSO real;"
         for __sqlite_add_column_column__ in ${__sqlite_add_column_header_columns__}; do
             __sqlite_add_column_request__="${__sqlite_add_column_request__} alter table header add column ${__sqlite_add_column_column__} real;"
@@ -1813,12 +1768,12 @@ function sqlite_add_column {
         __sqlite_add_column_request__="${__sqlite_add_column_request__} alter table header add column ${__sqlite_add_column_column__} integer;"
         unset __sqlite_add_column_column__
 
-	echo "${__sqlite_add_column_request__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        echo "${__sqlite_add_column_request__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
         unset __sqlite_add_column_request__
     elif [ "${__sqlite_add_column_fam__}" = ai ]; then
         ## we must insert column 'FSO' and 'BIAS_CORR' in 'data' table
@@ -1848,9 +1803,9 @@ function sqlite_add_column {
 
         ## We will reinsert other tables to keep the order of the tables the same
         for table in $(echo .tables | ${sqlite3} ${__sqlite_add_column_filein__}); do
-	    __sqlite_add_column_status__=0
+            __sqlite_add_column_status__=0
             if [ "${table}" = DATA ]; then
-	        __sqlite_add_column_status__=0
+                __sqlite_add_column_status__=0
                 __sqlite_add_column_column_names_comma__=$(echo ${__sqlite_add_column_column_names__} | sed 's/  */, /g')
                 #cat <<EOF
                 ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
@@ -1872,11 +1827,11 @@ EOF
                 unset __sqlite_add_column_columns_definition_tmp__
             fi
 
-	    if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	        echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	        return 1
-	    fi
+            if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+                echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+                unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+                return 1
+            fi
         done
 
         unset __sqlite_add_column_column_names__ __sqlite_add_column_column_names_with_new_columns__
@@ -1896,13 +1851,13 @@ EOF
         done
         unset column
 
-	__sqlite_add_column_status__=0
+        __sqlite_add_column_status__=0
         printf "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
         unset __sqlite_add_column_sqlrequest__
 
         ## We will insert the column 'ORIG_CENTER' between 'ELEV' and 'ZENITH'
@@ -1928,9 +1883,9 @@ EOF
 
         ## We will reinsert other tables to keep the order of the tables the same
         for table in $(echo .tables | ${sqlite3} ${__sqlite_add_column_fileout__}); do
-	    __sqlite_add_column_status__=0
+            __sqlite_add_column_status__=0
             if [ "${table}" = HEADER ]; then
-	        __sqlite_add_column_status__=0
+                __sqlite_add_column_status__=0
                 __sqlite_add_column_column_names_comma__=$(echo ${__sqlite_add_column_column_names__} | sed 's/  */, /g')
                 #cat <<EOF
                 ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
@@ -1952,11 +1907,11 @@ EOF
                 unset __sqlite_add_column_columns_definition_tmp__
             fi
 
-	    if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	        echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	        return 1
-	    fi
+            if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+                echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+                unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+                return 1
+            fi
         done
 
         ## remove columns 'CONFIDENCE', 'ALT_CONFIDENCE', 'REFER_PREDICTION' in 'data' table
@@ -1968,26 +1923,26 @@ EOF
         ## add 'FSO' column in 'data' table
         __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__} alter table data add column FSO real;"
 
-	__sqlite_add_column_status__=0
+        __sqlite_add_column_status__=0
         echo "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
         unset __sqlite_add_column_sqlrequest__
 
         unset __sqlite_add_column_column_names__ __sqlite_add_column_column_names_with_new_columns__
         unset __sqlite_add_column_columns_definition__ __sqlite_add_column_column_names_comma__
     else
         ## insert column 'FSO' in 'data' table
-	__sqlite_add_column_status__=0
-	echo "alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
-	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
-	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
-	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
-	    return 1
-	fi
+        __sqlite_add_column_status__=0
+        echo "alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+            echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+            unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+            return 1
+        fi
     fi  ## Fin du 'else' associe au 'elif [ "${__sqlite_add_column_fam__}" = sw ]'
 
     unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
