@@ -335,9 +335,8 @@ if [ "${__run_cmake}" != stop ]; then
     else
         __rttovdebug__=
     fi
-    export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
-    __rttov_path__=/fs/ssm/eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
-    __rttov_path__=/home/erv000/SSM/rttov/2.1.0-18-g39171ba/${COMP_ARCH}${__rttovdebug__}
+    export RTTOV_VERSION=2.2.0-rc1 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
+    __rttov_path__=eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
     echo "... loading ${__rttov_path__}"
     . r.load.dot ${__rttov_path__}
     unset __rttov_path__ __rttovdebug__
