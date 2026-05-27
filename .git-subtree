@@ -5,3 +5,4 @@ tools/splitobs git@gitlab.science.gc.ca:atmospheric-data-assimilation/splitobs.g
 tools/sphinx-fortran https://github.com/VACUMM/sphinx-fortran.git master
 extlibs/perftools git@gitlab.science.gc.ca:perftools/perftools.git master
 extlibs/libudfsqlite git@gitlab.science.gc.ca:wxobs-libs/libudfsqlite.git master
+extlibs/libf90sqlite git@gitlab.science.gc.ca:wxobs-libs/libf90sqlite.git master
