@@ -1,0 +1,2 @@
+1. make
+2. INSTALL_DIR=... make install
