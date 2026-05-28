@@ -142,6 +142,14 @@ elif [ "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 
     __run_cmake=stop
 fi
 
+if [[ "${__compiler}" = gnu-15.2.0 && ! -r /home/sidr000/modules ]]; then
+    echo "You do not have access to the compiler ${__compiler}" >&2
+    echo "Please request access at https://gitlab.science.gc.ca/RPN-SI/Support/-/issues" >&2
+    echo "and notify Martin Deshaies-Jacques or Ervig Lapalme" >&2
+    __status=false
+    __run_cmake=stop
+fi
+
 if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
     echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
     __run_cmake=stop
@@ -284,7 +292,6 @@ if [ "${__run_cmake}" != stop ]; then
         __original_ordenv_plat__=${ORDENV_PLAT}
 
         echo "... loading gnu 15.2.0 compiler"
-        export MODULEPATH=/home/sidr000/modules:${MODULEPATH}
         . r.load.dot rpn/code-tools/20260219/env/exp/gnu-15.2.0
         ## compile external libraries from local repo
         export MIDAS_COMPILE_EXTLIBS="f90sqlite,udfsqlite,perftools"
