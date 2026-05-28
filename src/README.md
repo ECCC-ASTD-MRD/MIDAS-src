@@ -149,7 +149,7 @@ the debug options avoiding to set the environment variable prior to
 compilation.  It will also change the default compiler to be GNU instead of Intel.
 We found that the GNU compiler can detect more warnings and errors and so is
 preferable to debug the code.  However, the GNU compiler __should not__ be used
-for code release has it is not supported.
+for code release as it is not supported.
 
 ## `splitobs` an *external* program
 
