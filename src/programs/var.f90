@@ -569,7 +569,8 @@ program midas_var
          dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! get final increment with mask if it exists
-    call inc_getIncrement( controlVectorIncr, stateVectorIncr, cvm_nvadim )
+    call inc_getIncrement( controlVectorIncr, stateVectorIncr, cvm_nvadim, &
+                           numHorizWavebandUsed_opt=numHorizWavebandOuterLoop(outerLoopIndex) )
     call gio_readMaskFromFile( stateVectorIncr, './analysisgrid' )
     call msg_memUsage('var')
 
@@ -594,7 +595,8 @@ program midas_var
       call gsv_allocate(stateVectorIncrSum, tim_nstepobsinc, hco_anl, vco_anl, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
-      call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim )
+      call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim, &
+                             numHorizWavebandUsed_opt=numHorizWavebandOuterLoop(outerLoopIndex) )
       call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       call msg_memUsage('var')
 
