@@ -31,6 +31,7 @@ module minimization_mod
   use runtimeInfo_mod
   use biasCorrectionSat_mod
   use columnVariableTransforms_mod
+  use mathPhysConstants_mod
 
   implicit none
   save
@@ -64,6 +65,7 @@ module minimization_mod
   integer :: itertot, isimtot, iztrl(5), imode
   integer :: outerLoopIndex
   integer :: numIterMaxInnerLoopUsed
+  integer :: numHorizWavebandUsed
   logical :: llvazx
   logical :: initializeForOuterLoop
   logical :: deallocHessian
@@ -167,7 +169,8 @@ CONTAINS
 
   subroutine min_minimize( outerLoopIndex_in, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                            vazx, numIterMaxInnerLoop, deallocHessian_opt, &
-                           isMinimizationFinalCall_opt, numIterMaxInnerLoopUsed_opt )
+                           isMinimizationFinalCall_opt, numIterMaxInnerLoopUsed_opt, &
+                           numHorizWavebandUsed_opt )
     !
     ! :Purpose: Minimizing cost function to get the increments.
     !           The maximum number of inner-loop iterations is set to nitermax if the
@@ -186,6 +189,7 @@ CONTAINS
     real(8),                 intent(inout) :: vazx(:)
     integer,                 intent(in)    :: numIterMaxInnerLoop
     integer,       optional, intent(out)   :: numIterMaxInnerLoopUsed_opt
+    integer,       optional, intent(in)    :: numHorizWavebandUsed_opt
     logical,       optional, intent(in)    :: deallocHessian_opt
     logical,       optional, intent(in)    :: isMinimizationFinalCall_opt
 
@@ -226,6 +230,12 @@ CONTAINS
       call rti_abort('min_minimize: one of the variables nIterMax and numIterMaxInnerLoop must be positive')
     end if
     if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
+
+    if ( present(numHorizWavebandUsed_opt) ) then
+      numHorizWavebandUsed = numHorizWavebandUsed_opt
+    else
+      numHorizWavebandUsed = MPC_missingValue_INT
+    end if
 
     controlVectorIncrSum_ptr => controlVectorIncrSum
 
@@ -624,7 +634,8 @@ CONTAINS
            call gio_readMaskFromFile(statevector,'./analysisgrid')
          end if
 
-         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
+         call bmat_sqrtB(da_v,nvadim_mpilocal,statevector, &
+                         numHorizWavebandUsed_opt=numHorizWavebandUsed)
 
          ! put in columnAnlInc H_horiz dx
          call s2c_tl(statevector, columnAnlInc_ptr, columnTrlOnAnlIncLev_ptr, &
@@ -709,7 +720,8 @@ CONTAINS
          call cvt_transform( columnAnlInc_ptr, 'ZandP_ad', columnTrlOnAnlIncLev_ptr)      ! IN
          call bmat1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
        else
-         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
+         call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector, &
+                          numHorizWavebandUsed_opt=numHorizWavebandUsed)
        end if
 
        if (na_indic .ne. 3) then

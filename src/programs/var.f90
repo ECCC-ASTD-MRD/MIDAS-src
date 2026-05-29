@@ -313,12 +313,14 @@ program midas_var
   ! namelist variables
   integer :: numOuterLoopIterations                    ! number of outer loop iterations (default=1)
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
+  integer :: numHorizWavebandOuterLoop(maxNumOuterLoopIter)  ! number of horizontal wavebands for each outer loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
   logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file
   logical :: writeOuterLoopIncrements                  ! write increments from successive outer loop iterations
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil, writeOuterLoopIncrements
+  NAMELIST /NAMVAR/ numHorizWavebandOuterLoop
 
   call ver_printNameAndVersion('var','Variational Assimilation')
 
@@ -353,6 +355,7 @@ program midas_var
   numOuterLoopIterations = 1
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
+  numHorizWavebandOuterLoop(:) = MPC_missingValue_INT
   computeFinalNlJo = .false.
   useTovsUtil = .false.
   writeOuterLoopIncrements = .false. 
@@ -545,7 +548,8 @@ program midas_var
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
                        isMinimizationFinalCall_opt=isMinimizationFinalCall, &
-                       numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoopUsed )
+                       numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoopUsed, &
+                       numHorizWavebandUsed_opt=numHorizWavebandOuterLoop(outerLoopIndex) )
     numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoopUsed
     call msg_memUsage('var')
 
