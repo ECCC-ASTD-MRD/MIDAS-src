@@ -1830,20 +1830,15 @@ CONTAINS
 
     numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     if (present(numHorizWavebandUsed_opt)) then
-
       if (numHorizWavebandUsed_opt /= MPC_missingValue_INT .and. &
           numHorizWavebandUsed_opt >= 1                    .and. &
           numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
 
         numHorizWavebandUsed = numHorizWavebandUsed_opt
-
-      else
-        if (mmpi_myid == 0) then
-          write(*,*) 'ben_bsqrt: using default value for numHorizWavebandUsed'
-        end if
       end if
-
     end if
+
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: numHorizWavebandUsed=', numHorizWavebandUsed
     horizWaveBandIndexStart =  bEns(instanceIndex)%nHorizWaveBand - numHorizWavebandUsed + 1
 
     !
@@ -1979,20 +1974,15 @@ CONTAINS
 
     numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     if (present(numHorizWavebandUsed_opt)) then
-
       if (numHorizWavebandUsed_opt /= MPC_missingValue_INT .and. &
           numHorizWavebandUsed_opt >= 1                    .and. &
           numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
 
         numHorizWavebandUsed = numHorizWavebandUsed_opt
-
-      else
-        if (mmpi_myid == 0) then
-          write(*,*) 'ben_bsqrt: using default value for numHorizWavebandUsed'
-        end if
       end if
-
     end if
+
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrtAd: numHorizWavebandUsed=', numHorizWavebandUsed
     horizWaveBandIndexStart =  bEns(instanceIndex)%nHorizWaveBand - numHorizWavebandUsed + 1
 
     !
