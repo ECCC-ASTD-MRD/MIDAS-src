@@ -661,7 +661,7 @@ CONTAINS
     real(8),           intent(in)    :: incr_cv(:)       ! control vector for computing increment
     type(struct_gsv),  intent(inout) :: statevector_incr ! stateVector object with resulting increment
     integer,           intent(in)    :: nvadim_mpilocal  ! mpi local dimension of control vector
-    integer, optional, intent(in)    :: numHorizWavebandUsed_opt
+    integer, optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
 
     call rti_tmg_start(80,'--Increment')

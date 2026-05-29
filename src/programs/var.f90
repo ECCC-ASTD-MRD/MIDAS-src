@@ -313,7 +313,7 @@ program midas_var
   ! namelist variables
   integer :: numOuterLoopIterations                    ! number of outer loop iterations (default=1)
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
-  integer :: numHorizWavebandOuterLoop(maxNumOuterLoopIter)  ! number of horizontal wavebands for each outer loop iterations
+  integer :: numHorizWavebandOuterLoop(maxNumOuterLoopIter) ! number of horizontal wavebands to use for each outer loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
   logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file
