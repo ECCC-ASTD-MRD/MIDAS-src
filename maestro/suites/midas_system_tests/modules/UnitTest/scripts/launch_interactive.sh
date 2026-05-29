@@ -21,6 +21,7 @@ eval `${CCLARGS:-cclargs} $0 \
   -node       "not defined"          "not defined"          "[test to launch interactively]"                        \
   -date       "not defined"          "not defined"          "[date of the working directory prepared with maestro]" \
   -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: ${wallclock_default} for 3 hours)]" \
+  -nox        "true"                 "false"                "[no X11 forwarding]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
@@ -205,9 +206,15 @@ echo
 echo for any executable of the midas program used in this test.
 EOF
 
+X_FWD="-X"
+if [ "${nox}" = "false" ]; then
+  echo "disabling X-forwarding: warning graphical programs such as DDT won't launch."
+  X_FWD=""
+fi
+
 #TODO mpiprocs should not be hard coded.
 #TODO figure out how to launch rcfile and let interactive session open
-qsub_cmd="qsub -X -I ${pbsdirectives}"
+qsub_cmd="qsub ${X_FWD} -I ${pbsdirectives}"
 echo "Launching the interactive job with"
 echo "   ${qsub_cmd}"
 echo

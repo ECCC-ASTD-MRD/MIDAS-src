@@ -44,6 +44,51 @@ find_package(MPI REQUIRED)
 set(WITH_OPENMP TRUE CACHE BOOL "Control whether to use OpenMP")
 include(ec_openmp)
 
+
+## External libraries on demand compilation
+## to compile them, define the variable MIDAS_COMPILE_EXTLIBS to include the libraries needed
+## Exp: MIDAS_COMPILE_EXTLIBS=libudsqlite,libf90sqlite
+set(USE_LOCAL_EXTLIBS FALSE)
+
+if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
+  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
+  set(USE_LOCAL_EXTLIBS TRUE)
+  message(STATUS "(EC) Using LOCAL external libraries: ${EXTLIBS_TO_BUILD}")
+  # Save the current debug flags
+  set(SAVED_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}")
+  set(SAVED_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+
+  # Override them to deactivate debug properties (warnings mostly)
+  message(STATUS "Deactivating warnings in external libraries")
+  if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -w")
+    set(CMAKE_C_FLAGS_DEBUG "-O2 -w")
+  endif()
+
+  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
+
+  # Add udfsqlite first if needed by anything
+  if(EXTLIBS_TO_BUILD MATCHES "udfsqlite" OR EXTLIBS_TO_BUILD MATCHES "f90sqlite")
+    message(STATUS "(EC) Adding libudfsqlite external library target")
+    add_subdirectory(extlibs/libudfsqlite)
+  endif()
+
+  # Then add f90sqlite if needed
+  if(EXTLIBS_TO_BUILD MATCHES "f90sqlite")
+    message(STATUS "(EC) Adding libf90sqlite external library target")
+    add_subdirectory(extlibs/libf90sqlite)
+  endif()
+
+  if(EXTLIBS_TO_BUILD MATCHES "perftools")
+    message(STATUS "(EC) Adding perftools external library target")
+    add_subdirectory(extlibs/perftools)
+  endif()
+
+  # Restore debug flags
+  set(CMAKE_Fortran_FLAGS_DEBUG "${SAVED_Fortran_FLAGS_DEBUG}")
+  set(CMAKE_C_FLAGS_DEBUG "${SAVED_C_FLAGS_DEBUG}")
+endif()
+
 find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
 find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
@@ -74,7 +119,11 @@ foreach(component ${rttov_FIND_COMPONENTS})
   list(APPEND rttov_LIBRARIES ${${component}_lib})
 endforeach()
 
-find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
+if(USE_LOCAL_EXTLIBS)
+  message(STATUS "(EC) Using LOCAL perftools")
+else()
+  find_library(hpcoperf NAMES hpcoperf REQUIRED HINTS PATHS ENV LIBRARY_PATH)
+endif()
 
 if (SQLITE_FORTRAN_SUPPORT)
   set(SQLITE_Libraries f90sqlite udfsqlite SQLite::SQLite3)
@@ -132,6 +181,24 @@ elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "IntelLLVM")
 
   if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -qopt-report=5")
+  endif()
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+  ## This variable is used to add some libraries at link time in 'src/programs/CMakeLists.txt'
+  set(MKLROOT "/fs/ssm/main/opt/intelcomp/master/inteloneapi_2025.1.0_amd64-64/mkl/latest/")
+
+  if("$ENV{MIDAS_COMPILE_OPTIMIZE_REPORT}" STREQUAL "yes")
+    message(WARNING "(EC) The option 'MIDAS_COMPILE_OPTIMIZE_REPORT' is not supported for this compiler")
+  endif()
+
+  if( DEFINED ENV{MIDAS_COMPILE_CODECOVERAGE_DATAPATH} )
+    message(WARNING "(EC) The option 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH' is not supported for this compiler")
+  endif()
+
+  set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -Wno-conversion -Wno-compare-reals -Wno-unused-function -Wno-tabs")
+  if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    ## Deactivate exception trapping that trigger segmentation fault in libXML used by OpenMPI
+    message(STATUS "(EC) Deactivating exception trapping for GNU+Debug mode")
+    string(REPLACE "-ffpe-trap=invalid,zero,overflow" "-ffpe-trap=" CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}")
   endif()
 else()
   if(DEFINED ENV{EC_ARCH})
@@ -207,21 +274,34 @@ if(DEFINED ENV{ORDENV_PLAT})
         message(FATAL_ERROR "${RESOURCES_FILE_FOR_PLATFORM} not found!")
     endif()
 
-    if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    if ("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" AND ${CMAKE_BUILD_TYPE} MATCHES Debug)
        set(CHECK_RESULTS_CATCHUP 9)
        set(CLEAN_UNITTEST_CATCHUP 9)
        set(LETKF_GLB15KM_NUM_THREADS 4)
        set(VAR_NITERMAX 10)
        set(VAR1D_IDEALIZED_NITERMAX 10)
+       set(LETKF_GLB10KM_CATCHUP 9)
+       set(LETKF_GLBXC40_CATCHUP 2)
+       set(LETKF_GLBXC40_NENS 128)
+    elseif (${CMAKE_BUILD_TYPE} MATCHES Debug)
+       set(CHECK_RESULTS_CATCHUP 9)
+       set(CLEAN_UNITTEST_CATCHUP 9)
+       set(LETKF_GLB15KM_NUM_THREADS 4)
+       set(VAR_NITERMAX 10)
+       set(VAR1D_IDEALIZED_NITERMAX 10)
+       set(LETKF_GLB10KM_CATCHUP 2)
+       set(LETKF_GLBXC40_CATCHUP 2)
+       set(LETKF_GLBXC40_NENS 256)
     else()
        set(CHECK_RESULTS_CATCHUP 2)
        set(CLEAN_UNITTEST_CATCHUP 2)
        set(LETKF_GLB15KM_NUM_THREADS 2)
        set(VAR_NITERMAX 70)
        set(VAR1D_IDEALIZED_NITERMAX 80)
+       set(LETKF_GLB10KM_CATCHUP 2)
+       set(LETKF_GLBXC40_CATCHUP 2)
+       set(LETKF_GLBXC40_NENS 256)
     endif()
-
-    set(LETKF_GLB10KM_CATCHUP 2)
 
     set(RESOURCES_HEADER "#########################\n## DO NOT EDIT THIS FILE!\n## Instead, edit ${RESOURCES_FILE_FOR_PLATFORM}")
     set(RESOURCES_FOOTER "## DO NOT EDIT THIS FILE!\n########################")

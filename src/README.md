@@ -146,7 +146,10 @@ to `yes`, the debug options will be enabled at compilation.
 
 The `midas_build` options `--debug`, `-debug` or `-d` will also enable
 the debug options avoiding to set the environment variable prior to
-compilation.
+compilation.  It will also change the default compiler to be GNU instead of Intel.
+We found that the GNU compiler can detect more warnings and errors and so is
+preferable to debug the code.  However, the GNU compiler __should not__ be used
+for code release as it is not supported.
 
 ## `splitobs` an *external* program
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added gnu-15.2.0 compiler which is used in debug mode (#1152 and !1098)
  * Scripts for unit tests file tree maintenance (#1148 and !1087)
  * Update `var/Var3D/gbc` with `var/EnVar/gbc` and GDPS configs of `main/assimcycle/genbiascoeff/var` (#1172 and !1097)
  * Added `writeOuterLoopIncrements` namelist variable in `NAMVAR` to write increments from outer-loop iterations (#1171 and !1096)

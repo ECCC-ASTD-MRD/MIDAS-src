@@ -16,7 +16,10 @@ target_link_libraries(midas PUBLIC
   rpncomm::rpncomm
   vgrid::vgrid
   ${hpcoperf}
+  random::random
   ${HDF5_Libraries}
+  burp::burp
+  ${SQLITE_Libraries}
 )
 
 if(MKL_SUPPORT)
@@ -26,3 +29,16 @@ endif()
 if (DGEMMTR_SUPPORT)
   target_compile_definitions(midas PRIVATE DGEMMTR_SUPPORT=${DGEMMTR_SUPPORT})
 endif()
+
+# Adding include path for mod files (especially for netcdf and hdf5)
+set(FFLAGS "")
+if(DEFINED ENV{CPATH})
+  string(REPLACE ":" ";" CPATH_LIST $ENV{CPATH})
+  foreach(CPATH_DIR ${CPATH_LIST})
+    # Only add paths that actually contain .mod files
+    # Typically from netcdf-fortran and hdf5
+    list(APPEND FFLAGS "-I${CPATH_DIR}")
+  endforeach()
+endif()
+
+target_compile_options(midas PRIVATE ${FFLAGS})

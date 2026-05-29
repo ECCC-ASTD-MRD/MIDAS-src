@@ -21,6 +21,16 @@ __show_instructions=true
 __cd_to_build_directory=true
 __fresh_build_directory=false
 
+function __default_compiler {
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        echo inteloneapi-2025.1.0
+    else
+        echo "config.dot.sh: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-8-icelake-64' and 'rhel-9-graniterapids-64' are    ." >&2
+        exit 1
+    fi
+}
+__compiler=$(__default_compiler)
+
 while [[ $# > 0 ]]; do
     arg=${1}
 
@@ -38,6 +48,16 @@ while [[ $# > 0 ]]; do
         else
             echo "config.dot.sh: this option '${arg}' needs a build id" >&2
         fi
+    elif [[ "${arg}" = --compiler ]]; then
+        if [[ $# -lt 2 ]]; then
+            echo "config.dot.sh: The option '--compiler' must be followed by a compiler identificator" >&2
+            exit 1
+        elif [[ ${2} = -* || -z "${2}" ]]; then
+            echo "config.dot.sh: The option '--compiler' must be followed by a compiler identificator" >&2
+            exit 1
+        fi
+        __compiler=${2}
+        shift
     elif [[ "${arg}" = --no-cmake ]]; then
         __run_cmake=false
     elif [[ "${arg}" = --cmake ]]; then
@@ -54,10 +74,15 @@ while [[ $# > 0 ]]; do
         __fresh_build_directory=true
     elif [[ "${arg}" = --no-fresh ]]; then
         __fresh_build_directory=false
+    elif [[ "${arg}" = --debug ]]; then
+        export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+    elif [[ "${arg}" = --no-debug ]]; then
+        export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=no
     elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
         echo "config.dot.sh: "
         echo "        --build: explicitly specify a build directory"
         echo "        --build-id: specify an extension the build directory name"
+        echo "        --compiler: set the compiler to use (default is ${__compiler})"
         echo "        --no-cmake: avoid running cmake to create the build directory and leave it to the user"
         echo "        --cmake: do run cmake to prepare the build directory (default)"
         echo "        --no-show-instructions: do not print any instructions for the user"
@@ -66,6 +91,8 @@ while [[ $# > 0 ]]; do
         echo "        --cd-build: do move to build directory (default)"
         echo "        --fresh: do clean to build directory to start fresh"
         echo "        --no-fresh: do not clean to build directory to use previous builds (default)"
+        echo "        --debug: activate the debug mode (equivalent to 'export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'"
+        echo "        --no-debug: deactivate the debug mode (equivalent to 'export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=no'"
         echo "        -h|-help|--help: show this help"
         __run_cmake=stop
         break
@@ -104,6 +131,25 @@ if [ "${__fresh_build_directory}" != true -a "${__fresh_build_directory}" != fal
     __run_cmake=stop
 fi
 
+__supported_compilers="'inteloneapi-2025.1.0', 'gnu-15.2.0'"
+if [ "${__compiler}" = list ]; then
+    echo "The compiler supported are ${__supported_compilers}"
+    echo "The supported compilers are ${__supported_compilers}."
+    __run_cmake=stop
+elif [ "${__compiler}" != gnu-15.2.0 -a "${__compiler}" != inteloneapi-2025.1.0 ]; then
+    echo "config.dot.sh: The compiler '${__compiler}' is not supported.  Only ${__supported_compilers} are." >&2
+    __status=false
+    __run_cmake=stop
+fi
+
+if [[ "${__compiler}" = gnu-15.2.0 && ! -r /home/sidr000/modules ]]; then
+    echo "You do not have access to the compiler ${__compiler}" >&2
+    echo "Please request access at https://gitlab.science.gc.ca/RPN-SI/Support/-/issues" >&2
+    echo "and notify Martin Deshaies-Jacques or Ervig Lapalme" >&2
+    __status=false
+    __run_cmake=stop
+fi
+
 if [ "${__run_cmake}" != stop -a "${__run_cmake}" != true -a "${__run_cmake}" != false ]; then
     echo "config.dot.sh: The variable '__run_cmake' can only be 'stop', 'true' or 'false' and not '${__run_cmake}'." >&2
     __run_cmake=stop
@@ -113,7 +159,7 @@ cmake_options() {
     typeset __cmake_options_options__=
 
     if [[ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}" = yes || -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]]; then
-        __cmake_options_options__=-DCMAKE_BUILD_TYPE=Debug
+        __cmake_options_options__="-DCMAKE_BUILD_TYPE=Debug -DWITH_WARNINGS=TRUE -DEXTRA_CHECKS=TRUE"
     fi
 
     if [[ "${MIDAS_COMPILE_VERBOSE}" != FALSE ]]; then
@@ -225,7 +271,7 @@ if [ "${__run_cmake}" != stop ]; then
     else
         __versionid_build=
     fi
-    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}
+    export MIDAS_COMPILE_DIR_BUILD=${MIDAS_COMPILE_DIR_MAIN}/midas_bld${__versionid_build}/${__compiler}
 
     ###########################################################
     ##  compilation needed for compilation
@@ -242,16 +288,17 @@ if [ "${__run_cmake}" != stop ]; then
         export MIDAS_COMPILE_COMPF_GLOBAL
     fi
 
-    #----------------------------------------------------------------
-    #  Set up dependent librarys and tools.
-    #---------------------------------------------------------------
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        __compiler=inteloneapi-2022.1.2
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        __compiler=inteloneapi-2025.1.0
+    if [ "${__compiler}" = gnu-15.2.0 ]; then
+        __original_ordenv_plat__=${ORDENV_PLAT}
+
+        echo "... loading gnu 15.2.0 compiler"
+        . r.load.dot rpn/code-tools/20260219/env/exp/gnu-15.2.0
+        ## compile external libraries from local repo
+        export MIDAS_COMPILE_EXTLIBS="f90sqlite,udfsqlite,perftools"
+    else
+        echo "... loading rpn/code-tools/20251217/env/${__compiler}"
+        . r.load.dot rpn/code-tools/20260219/env/${__compiler}
     fi
-    echo "... loading rpn/code-tools/20251217/env/${__compiler}"
-    . r.load.dot rpn/code-tools/20251217/env/${__compiler}
 
     echo "... loading eccc/mrd/rpn/libs/20260401-beta"
     . r.load.dot eccc/mrd/rpn/libs/20260401-beta
@@ -259,33 +306,47 @@ if [ "${__run_cmake}" != stop ]; then
     echo "... loading eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}"
     . r.load.dot eccc/mrd/rpn/utils/20260401-beta/burp-tools_20.0.16-${COMP_ARCH}_${ORDENV_PLAT}
 
-    echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
+    if [ "${__compiler}" = gnu-15.2.0 ]; then
 
-    echo "... loading hdf5-netcdf4"
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+        echo "... providing path for HDF5 and netcdf to CMake"
+        module load hdf5/gcc-15.2 netcdf/gcc-15.2 netcdf-fortran/gcc-15.2
+
+        ## Loading the compiler affects 'ORDENV_PLAT' and for the
+        ## rest, we need to use the original value.
+        export ORDENV_PLAT=${__original_ordenv_plat__}
+        unset __original_ordenv_plat__
+
+    else
+        echo "... loading eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}"
+        . ssmuse-sh -d eccc/cmd/cmda/libs/20260401-beta/${COMP_ARCH}
+
+        echo "... loading hdf5-netcdf4"
+        if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+            . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+        elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+            . ssmuse-sh -d main/opt/hdf5-netcdf4/parallel/intelmpi-2025.1.0/alllib/${COMP_ARCH}/01
+        fi
+
+        if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+            perftools_version=2.0
+        elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+            perftools_version=2.1
+        fi
+
+        echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
+        . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
     fi
-
-    if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        perftools_version=2.0
-    elif [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
-        perftools_version=2.1
-    fi
-
-    echo "... loading main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-${perftools_version}/${COMP_ARCH}
 
     if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-        rttovdebug=-debug
+        __rttovdebug__=-debug
     else
-        rttovdebug=
+        __rttovdebug__=
     fi
-    export RTTOV_VERSION=2.1.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
-    echo "... loading eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${rttovdebug}
+    export RTTOV_VERSION=2.2.0 ## This variable is used in '../CMakeLists.txt' for the script 'midas-config'
+    __rttov_path__=eccc/mrd/rpn/anl/rttov13/${RTTOV_VERSION}/${COMP_ARCH}${__rttovdebug__}
+    echo "... loading ${__rttov_path__}"
+    . r.load.dot ${__rttov_path__}
+    unset __rttov_path__ __rttovdebug__
 
     # add compiler option to produce reports on code optimization and deactivate cleaning
     if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
@@ -359,6 +420,13 @@ EOF
                 echo "Running cmake $(cmake_options) ${MIDAS_SOURCE_DIR}"
                 echo
                 cmake $(cmake_options) ${MIDAS_SOURCE_DIR}
+                if [ $? -ne 0 ]; then
+                    echo
+                    echo "CMake failed!"
+                    echo
+                    __status=false
+                    __show_instructions=false
+                fi
             fi
         fi ## End of 'if [ "${__run_cmake}" = true ]'
 
@@ -430,3 +498,6 @@ EOF
     ${__status}
 
 fi ## End of 'if [ "${__run_cmake}" != stop ]'
+
+# config return status
+${__status}

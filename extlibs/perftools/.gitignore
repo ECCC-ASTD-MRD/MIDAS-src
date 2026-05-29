@@ -1,0 +1,11 @@
+#----- Compiled object/library files
+*.o
+*.a
+*.so
+
+#----- Editor pattern
+*.sw[po]
+*~
+
+#----- install directory
+install

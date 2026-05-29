@@ -43,6 +43,9 @@ __dateStampBeg=$(date +%s)
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version)
 
+__default_compiler=inteloneapi-2025.1.0
+__debug_compiler=gnu-15.2.0
+
 ##=========================================================
 ##  checking if the environment has already been defined
 if [ "${MIDAS_CONFIG_ALREADY_SOURCED}" == "true" ]; then
@@ -75,6 +78,15 @@ __abs_all="${__abs_all} ${__abs_external}"
 
 __abs_exist_list=${__abs_all}
 
+function default_compiler {
+    if [ "${ORDENV_PLAT}" = rhel-9-graniterapids-64 ]; then
+        echo ${__default_compiler}
+    else
+        echo "midas_build: This platform '${ORDENV_PLAT}' is not supported.  Only 'rhel-9-graniterapids-64' is." >&2
+        exit 1
+    fi
+}
+
 __fresh_build_directory=--fresh
 ## When using 'midas_build', we want verbose compilation listing
 ## This can be overriden with '--no-verbose' option
@@ -85,6 +97,7 @@ function print_usage {
 
     echo "midas_build: "
     echo "        -d|-debug|--debug: compile using the debug options (override the variable 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS')"
+    echo "        --compiler: set the compiler to use (default is $(default_compiler) and if 'list' then it will list the supported compilers)"
     echo "        --opt-report: add the compiler options to output the optimization report (override the variable 'MIDAS_COMPILE_OPTIMIZE_REPORT')"
     echo "        --vtune: activate the compiler options to allow 'vtune' to profile the code"
     echo "        --codecov: activate the code covering compiler options (needs a directory for storing the code coverage information) (override the variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH')"
@@ -103,7 +116,25 @@ if [ $# -gt 0 ]; then
 
         if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
             export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
-        elif [[ "${arg}" = --opt-report ]]; then
+            ## defaults to debug compiler
+            if [[ -z "${compiler}" ]]; then
+              compiler=${__debug_compiler}
+            fi
+        elif [[ "${arg}" = --compiler ]]; then
+            if [[ $# -lt 2 ]]; then
+                echo "midas_build: The option '--compiler' must be followed by a compiler identificator" >&2
+                exit 1
+            elif [[ ${2} = -* || -z "${2}" ]]; then
+                echo "midas_build: The option '--compiler' must be followed by a compiler identificator" >&2
+                exit 1
+            fi
+            compiler=${2}
+            if [ "${compiler}" = list ]; then
+                echo "midas_build: The compiler supported are '${__default_compiler}' and '${__debug_compiler}'."
+                exit 0
+            fi
+            shift
+       elif [[ "${arg}" = --opt-report ]]; then
             export MIDAS_COMPILE_OPTIMIZE_REPORT=yes
         elif [[ "${arg}" = --optreport ]]; then
             echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
@@ -140,7 +171,7 @@ if [ $# -gt 0 ]; then
             export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=true
         elif [[ "${arg}" = -h || "${arg}" = -help || "${arg}" = --help ]]; then
             print_usage
-            exit 1
+            exit 0
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             if [[ "${arg}" = --code-cov ]]; then
@@ -188,6 +219,10 @@ if [ $# -gt 0 ]; then
     fi
 fi ## End of 'else' associated to 'if [ $# -gt 0 ]'
 
+if [[ -z "${compiler}" ]]; then
+  compiler=$(default_compiler)
+fi
+
 ## default: make all
 if [[ -z "${__target}" ]]; then
   __target=all
@@ -196,17 +231,19 @@ fi
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg} --cmake --no-show-instructions ${__fresh_build_directory} &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
+source ${__midas_dot_cfg} --compiler ${compiler} --cmake --no-show-instructions ${__fresh_build_directory} &> ${__here}/.tmp.config.out || __midas_source_config_status__=1
 
 __listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
-__listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+mv ${__here}/.tmp.config.out ${__listing_config}
+
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
-    mv ${__here}/.tmp.config.out ${__listing_config}
-    echo "An error occured in the build configuration, consult ${__listing_config}"
+    echo "An error occured in the build configuration!"
+    cat ${__listing_config}
+    rm ${__listing_config}
     exit 1
 fi
 
-mv ${__here}/.tmp.config.out ${__listing_config}
+__listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 
 cd ${__here}
 
@@ -266,6 +303,7 @@ function printHeader {
     done
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
+    echo "| compiler: ${compiler}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_BUILD}"
@@ -356,7 +394,7 @@ cd ${__here}
 
 ## No need to rerun 'cmake' here since it has already been run by the
 ## calling script
-source ${__midas_dot_cfg} --no-cmake --no-show-instructions
+source ${__midas_dot_cfg} --compiler ${compiler} --no-cmake --no-show-instructions
 
 make --jobs=${MIDAS_COMPILE_NCORES} ${__target}
 EOF
