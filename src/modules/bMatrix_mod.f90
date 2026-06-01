@@ -234,9 +234,9 @@ contains
     integer                   , intent(in)    :: cvdim                ! control vector dimension
     real(8)                   , intent(in)    :: controlVector(cvdim) ! control vector
     type(struct_gsv)          , intent(inout) :: statevector          ! statevector in/out
-    logical, optional         , intent(in)    :: useFSOFcst_opt       ! use FSO
+    logical,          optional, intent(in)    :: useFSOFcst_opt       ! use FSO
     type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt   ! optional reference statevector
-    integer, optional         , intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     integer :: bmatIndex
@@ -343,12 +343,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer ,                   intent(in)    :: cvdim                ! control vector dimension
-    real(8) ,                   intent(inout) :: controlVector(cvdim) ! control vector
+    integer,                    intent(in)    :: cvdim                ! control vector dimension
+    real(8),                    intent(inout) :: controlVector(cvdim) ! control vector
     type(struct_gsv),           intent(in)    :: statevector          ! statevector in/out
-    logical,optional,           intent(in)    :: useFSOFcst_opt       ! use FSO
+    logical,          optional, intent(in)    :: useFSOFcst_opt       ! use FSO
     type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt   ! optional reference statevector
-    integer, optional,          intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
 
     ! Locals:

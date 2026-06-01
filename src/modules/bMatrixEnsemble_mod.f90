@@ -1782,7 +1782,7 @@ CONTAINS
     type(struct_gsv),           intent(inout) :: statevector        ! statevector
     logical,          optional, intent(in)    :: useFSOFcst_opt     ! use FSO
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! optional reference statevector
-    integer, optional, intent(in) :: numHorizWavebandUsed_opt       ! number of horizontal wavebands to use
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
@@ -1934,16 +1934,16 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_BSqrtAd(instanceIndex, statevector, controlVector_out,  &
                          useFSOFcst_opt, stateVectorRef_opt, &
-                        numHorizWavebandUsed_opt)
+                         numHorizWavebandUsed_opt)
     implicit none
 
     ! Arguments:
     integer,                    intent(in)    :: instanceIndex      ! B matrix instance index
-    real(8) ,                   intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) ! control vector
+    real(8),                    intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) ! control vector
     type(struct_gsv),           intent(inout) :: statevector        ! statevector in/out
     logical,          optional, intent(in)    :: useFSOFcst_opt     ! optional use for FSO
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! optional reference statevector
-    integer, optional, intent(in) :: numHorizWavebandUsed_opt       ! number of horizontal wavebands to use
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
