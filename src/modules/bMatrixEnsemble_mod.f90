@@ -1828,14 +1828,19 @@ CONTAINS
       useFSOFcst = .false.
     end if
 
-    numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     if (present(numHorizWavebandUsed_opt)) then
-      if (numHorizWavebandUsed_opt /= MPC_missingValue_INT .and. &
-          numHorizWavebandUsed_opt >= 1                    .and. &
-          numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
-
-        numHorizWavebandUsed = numHorizWavebandUsed_opt
+      if (numHorizWavebandUsed_opt == MPC_missingValue_INT) then
+        numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+      else
+        if (numHorizWavebandUsed_opt >= 1 .and. &
+            numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
+          numHorizWavebandUsed = numHorizWavebandUsed_opt
+        else
+          call rti_abort('ben_BSqrt: numHorizWavebandUsed variable is not valid')
+        end if
       end if
+    else
+      numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     end if
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: numHorizWavebandUsed=', numHorizWavebandUsed
@@ -1972,14 +1977,19 @@ CONTAINS
       useFSOFcst = .false.
     end if
 
-    numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     if (present(numHorizWavebandUsed_opt)) then
-      if (numHorizWavebandUsed_opt /= MPC_missingValue_INT .and. &
-          numHorizWavebandUsed_opt >= 1                    .and. &
-          numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
-
-        numHorizWavebandUsed = numHorizWavebandUsed_opt
+      if (numHorizWavebandUsed_opt == MPC_missingValue_INT) then
+        numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+      else
+        if (numHorizWavebandUsed_opt >= 1 .and. &
+            numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
+          numHorizWavebandUsed = numHorizWavebandUsed_opt
+        else
+          call rti_abort('ben_BSqrtAd: numHorizWavebandUsed variable is not valid')
+        end if
       end if
+    else
+      numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
     end if
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrtAd: numHorizWavebandUsed=', numHorizWavebandUsed
