@@ -93,8 +93,12 @@ module tovs_mod
   save
   private
 
-  ! Public RTTOV constants
-  character(len=len_instrument), public, parameter :: tvs_inst_name(0:ninst-1)        = inst_name(0:ninst-1)
+  ! Public RTTOV constants published as module parameters
+  !    Note the indexing definition of the array 'tvs_inst_name' which is quite convoluted.
+  !    We must use this formulation because the documentation generation hangs when using the simpler 'tvs_inst_name(0:ninst-1)'.
+  !    Those arrays are only used in the program 'prepcma'.
+  !    Remove those definitions when 'prepcma' is removed from the library.
+  character(len=len_instrument), public, parameter :: tvs_inst_name(lbound(inst_name,1):ubound(inst_name,1)) = inst_name(0:ninst-1)
   character(len=len_platform),   public, parameter :: tvs_platform_name(1:nplatforms) = platform_name(1:nplatforms)
 
   ! Public procedures
