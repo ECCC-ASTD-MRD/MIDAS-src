@@ -21,6 +21,9 @@
 /
  &NAMRMAT
 /
+ &NAMVAR
+   numHorizWavebandOuterLoop(1) = 3
+/
  &NAMMIN
    NVAMAJ = 25,
    NITERMAX = 20,

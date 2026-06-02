@@ -1772,21 +1772,24 @@ CONTAINS
   ! ben_BSqrt
   !--------------------------------------------------------------------------
   subroutine ben_BSqrt(instanceIndex, controlVector_in, statevector,  &
-                       useFSOFcst_opt, stateVectorRef_opt)
+                       useFSOFcst_opt, stateVectorRef_opt, &
+                       numHorizWavebandUsed_opt)
     implicit none
 
     ! Arguments:
-    integer,                    intent(in)    :: instanceIndex
-    real(8),                    intent(in)    :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal)
-    type(struct_gsv),           intent(inout) :: statevector
-    logical,          optional, intent(in)    :: useFSOFcst_opt
-    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
+    integer,                    intent(in)    :: instanceIndex      ! B matrix instance index
+    real(8),                    intent(in)    :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal) ! control vector
+    type(struct_gsv),           intent(inout) :: statevector        ! statevector
+    logical,          optional, intent(in)    :: useFSOFcst_opt     ! use FSO
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! optional reference statevector
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
     integer   :: horizWaveBandIndex, vertWaveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
+    integer   :: numHorizWavebandUsed, horizWaveBandIndexStart
     logical   :: immediateReturn
     logical   :: useFSOFcst
 
@@ -1825,6 +1828,24 @@ CONTAINS
       useFSOFcst = .false.
     end if
 
+    if (present(numHorizWavebandUsed_opt)) then
+      if (numHorizWavebandUsed_opt == MPC_missingValue_INT) then
+        numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+      else
+        if (numHorizWavebandUsed_opt >= 1 .and. &
+            numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
+          numHorizWavebandUsed = numHorizWavebandUsed_opt
+        else
+          call rti_abort('ben_BSqrt: numHorizWavebandUsed variable is not valid')
+        end if
+      end if
+    else
+      numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+    end if
+
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: numHorizWavebandUsed=', numHorizWavebandUsed
+    horizWaveBandIndexStart =  bEns(instanceIndex)%nHorizWaveBand - numHorizWavebandUsed + 1
+
     !
     !- 2.  Compute the analysis increment from Bens
     !
@@ -1849,7 +1870,7 @@ CONTAINS
     call gsv_zero(statevector)
 
     do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand !  Loop on vertical WaveBand (for vert. SDL)
-      do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
+      do horizWaveBandIndex = horizWaveBandIndexStart, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
 
         ! 2.1 Compute the ensemble amplitudes
         call rti_tmg_start(60,'------LocSpectral_TL')
@@ -1912,21 +1933,24 @@ CONTAINS
   ! ben_BSqrtAd
   !--------------------------------------------------------------------------
   subroutine ben_BSqrtAd(instanceIndex, statevector, controlVector_out,  &
-                         useFSOFcst_opt, stateVectorRef_opt)
+                         useFSOFcst_opt, stateVectorRef_opt, &
+                         numHorizWavebandUsed_opt)
     implicit none
 
     ! Arguments:
-    integer,                    intent(in)    :: instanceIndex
-    real(8) ,                   intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal)
-    type(struct_gsv),           intent(inout) :: statevector
-    logical,          optional, intent(in)    :: useFSOFcst_opt
-    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
+    integer,                    intent(in)    :: instanceIndex      ! B matrix instance index
+    real(8),                    intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) ! control vector
+    type(struct_gsv),           intent(inout) :: statevector        ! statevector in/out
+    logical,          optional, intent(in)    :: useFSOFcst_opt     ! optional use for FSO
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! optional reference statevector
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
     integer           :: horizWaveBandIndex, vertWaveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
+    integer           :: numHorizWavebandUsed, horizWaveBandIndexStart
     logical           :: useFSOFcst
 
     !
@@ -1952,6 +1976,24 @@ CONTAINS
     else
       useFSOFcst = .false.
     end if
+
+    if (present(numHorizWavebandUsed_opt)) then
+      if (numHorizWavebandUsed_opt == MPC_missingValue_INT) then
+        numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+      else
+        if (numHorizWavebandUsed_opt >= 1 .and. &
+            numHorizWavebandUsed_opt <= bEns(instanceIndex)%nHorizWaveBand) then
+          numHorizWavebandUsed = numHorizWavebandUsed_opt
+        else
+          call rti_abort('ben_BSqrtAd: numHorizWavebandUsed variable is not valid')
+        end if
+      end if
+    else
+      numHorizWavebandUsed = bEns(instanceIndex)%nHorizWaveBand
+    end if
+
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrtAd: numHorizWavebandUsed=', numHorizWavebandUsed
+    horizWaveBandIndexStart =  bEns(instanceIndex)%nHorizWaveBand - numHorizWavebandUsed + 1
 
     !
     !- 3.  Variable transforms
@@ -1997,7 +2039,7 @@ CONTAINS
       ensAmplitude_ptr => ensAmplitude
     end if
 
-    do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
+    do horizWaveBandIndex = horizWaveBandIndexStart, bEns(instanceIndex)%nHorizWaveBand !  Loop on horizontal WaveBand (for horiz. SDL)
       do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand !  Loop on vertical WaveBand (for vert. SDL)
 
         ! 2.3 Compute increment by multiplying amplitudes by member perturbations

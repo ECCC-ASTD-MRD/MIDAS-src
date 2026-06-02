@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added `numHorizWavebandOuterLoop` namelist variable in `NAMVAR` to use different horizontal wavebands in each outer loop iteration (#1179 and !1100)
  * Two logical variables `writeFSTDensAnalysis` and `writeFSTDInc` are added to `namEnsPostProcModule` to disable LETKF output in RPN stdf format (#1177 and !1099)
  * Added gnu-15.2.0 compiler which is used in debug mode (#1152 and !1098)
  * Scripts for unit tests file tree maintenance (#1148 and !1087)

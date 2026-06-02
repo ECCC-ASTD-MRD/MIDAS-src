@@ -221,7 +221,8 @@ contains
   ! bmat_sqrtB
   !--------------------------------------------------------------------------
   subroutine bmat_sqrtB(controlVector, cvdim, statevector,  &
-                        useFSOFcst_opt, stateVectorRef_opt)
+                        useFSOFcst_opt, stateVectorRef_opt, &
+                        numHorizWavebandUsed_opt)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
     !          space.
@@ -230,11 +231,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer                   , intent(in)    :: cvdim
-    real(8)                   , intent(in)    :: controlVector(cvdim)
-    type(struct_gsv)          , intent(inout) :: statevector
-    logical, optional         , intent(in)    :: useFSOFcst_opt
-    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
+    integer                   , intent(in)    :: cvdim                ! control vector dimension
+    real(8)                   , intent(in)    :: controlVector(cvdim) ! control vector
+    type(struct_gsv)          , intent(inout) :: statevector          ! statevector in/out
+    logical,          optional, intent(in)    :: useFSOFcst_opt       ! use FSO
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt   ! optional reference statevector
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
 
     ! Locals:
     integer :: bmatIndex
@@ -307,7 +309,9 @@ contains
         call rti_tmg_start(57,'----B_ENS_TL')
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
-                        useFSOFcst_opt, stateVectorRef_opt )    ! IN
+                        useFSOFcst_opt, stateVectorRef_opt,   & ! IN
+                        numHorizWavebandUsed_opt )              ! IN
+
         call rti_tmg_stop(57)
 
       end select
@@ -330,7 +334,8 @@ contains
   ! bmat_sqrtBT
   !--------------------------------------------------------------------------
   subroutine bmat_sqrtBT(controlVector, cvdim, statevector,  &
-                         useFSOFcst_opt, stateVectorRef_opt)
+                         useFSOFcst_opt, stateVectorRef_opt, &
+                         numHorizWavebandUsed_opt)
     !
     !:Purpose: To transform model state from grid-point space to
     !          error-covariance space.
@@ -338,11 +343,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer ,                   intent(in)    :: cvdim
-    real(8) ,                   intent(inout) :: controlVector(cvdim)
-    type(struct_gsv),           intent(in)    :: statevector
-    logical,optional,           intent(in)    :: useFSOFcst_opt
-    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
+    integer,                    intent(in)    :: cvdim                ! control vector dimension
+    real(8),                    intent(inout) :: controlVector(cvdim) ! control vector
+    type(struct_gsv),           intent(in)    :: statevector          ! statevector in/out
+    logical,          optional, intent(in)    :: useFSOFcst_opt       ! use FSO
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt   ! optional reference statevector
+    integer,          optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
+
 
     ! Locals:
     integer :: bmatIndex
@@ -380,7 +387,9 @@ contains
 
         call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
                           subVector,                                   &  ! OUT
-                          useFSOFcst_opt, stateVectorRef_opt )            ! IN
+                          useFSOFcst_opt, stateVectorRef_opt,          &  ! IN
+                          numHorizWavebandUsed_opt )                      ! IN
+
         call rti_tmg_stop(61)
 
       case ('DIFF')

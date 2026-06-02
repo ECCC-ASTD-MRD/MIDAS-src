@@ -650,22 +650,27 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_getIncrement
   !--------------------------------------------------------------------------
-  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal)
+  subroutine inc_getIncrement(incr_cv,statevector_incr,nvadim_mpilocal, &
+                              numHorizWavebandUsed_opt)
     !
     ! :Purpose: Get true analysis increment from control vector.
     !
     implicit none
 
     ! Arguments:
-    real(8),          intent(in)    :: incr_cv(:)       ! control vector for computing increment
-    type(struct_gsv), intent(inout) :: statevector_incr ! stateVector object with resulting increment
-    integer,          intent(in)    :: nvadim_mpilocal  ! mpi local dimension of control vector
+    real(8),           intent(in)    :: incr_cv(:)       ! control vector for computing increment
+    type(struct_gsv),  intent(inout) :: statevector_incr ! stateVector object with resulting increment
+    integer,           intent(in)    :: nvadim_mpilocal  ! mpi local dimension of control vector
+    integer, optional, intent(in)    :: numHorizWavebandUsed_opt ! number of horizontal wavebands to use
+
 
     call rti_tmg_start(80,'--Increment')
     call rti_tmg_start(84,'----GetIncrement')
 
     ! compute increment from control vector (multiply by B^1/2)
-    call bmat_sqrtB( incr_cv, nvadim_mpilocal, statevector_incr )
+    call bmat_sqrtB( incr_cv, nvadim_mpilocal, statevector_incr, &
+                     numHorizWavebandUsed_opt=numHorizWavebandUsed_opt)
+
 
     ! Compute new diagnotics based on NAMSTATE
     if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
