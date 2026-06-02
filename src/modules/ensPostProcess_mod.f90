@@ -86,24 +86,16 @@ contains
 
     ! Namelist variables
     integer  :: randomSeed           ! seed used for random perturbation additive inflation
-    logical  :: includeYearInSeed    ! switch for choosing to include year in default random seed
-    logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
-    logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for medium-range fcsts
-    logical  :: recenterSubSample    ! recenter sub-sample members for initializing medium-range fcsts
-    logical  :: recenterSubSampleUnPert ! recenter unperturbed sub-sample members for initializing medium-range fcsts
+    integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
+    integer  :: numBits   ! number of bits when writing ensemble mean and spread
+    integer  :: numBits2D ! number of bits when writing ensemble mean and spread for 2D surface variables
     real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRTPP            ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
     real(8)  :: alphaRandomPertSubSample ! Random pert. additive inflation coeff for medium-range fcsts
-    logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
-    logical  :: qcLimitsBeforeRecenter   ! Choose to apply limits on QC before recentering
-    logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
-    logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
-    logical  :: imposeQcLimits         ! switch for choosing to impose limits QC
     real(8)  :: weightRecenter(vco_maxNumLevels)  ! weight applied to recentering increment (between 0 and 1; 0 means no recentering)
     real(8)  :: weightRecenterLand     ! weight applied to recentering increment for land variables
-    integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
-    logical  :: useOptionTableRecenter ! use values in the optiontable file
+    real(8)  :: horizSmoothMeanInc ! Length scale (in meters) for smoothing the control member increment
     character(len=8)  :: etiket_anl ! etiket for ensemble output files (member number will be appended)
     character(len=8)  :: etiket_inc ! etiket for ensemble output files (member number will be appended)
     character(len=8)  :: etiket_trl ! etiket for ensemble output files (member number will be appended)
@@ -115,8 +107,18 @@ contains
     character(len=12) :: etiket_anlrmspert  ! etiket for rms of perturbed analyses
     character(len=12) :: etiket_trlmean     ! etiket for mean of trials
     character(len=12) :: etiket_trlrms      ! etiket for rms of trials
-    integer  :: numBits ! number of bits when writing ensemble mean and spread
-    integer  :: numBits2D ! number of bits when writing ensemble mean and spread for 2D surface variables
+    character(len=10) :: horizSmoothMeanIncShape ! Shape of smoothing function ('tophat' or 'gaussian')
+    logical  :: includeYearInSeed    ! switch for choosing to include year in default random seed
+    logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
+    logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for medium-range fcsts
+    logical  :: recenterSubSample    ! recenter sub-sample members for initializing medium-range fcsts
+    logical  :: recenterSubSampleUnPert ! recenter unperturbed sub-sample members for initializing medium-range fcsts
+    logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
+    logical  :: qcLimitsBeforeRecenter   ! Choose to apply limits on QC before recentering
+    logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
+    logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
+    logical  :: imposeQcLimits         ! switch for choosing to impose limits QC
+    logical  :: useOptionTableRecenter ! use values in the optiontable file
     logical  :: useAnalIncMask        ! mask out the increment on the pilot zone
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: writeAsciiRmsStats    ! write the global statistics in an ASCII file
@@ -124,8 +126,8 @@ contains
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
     logical  :: writeNetCDFInc             ! to write LETKF increments into a netCDF file
     logical  :: writeNetCDFensAnalysis     ! to write LETKF ensemble analysis into a netCDF file
-    real(8)  :: horizSmoothMeanInc ! Length scale (in meters) for smoothing the control member increment
-    character(len=10) :: horizSmoothMeanIncShape ! Shape of smoothing function ('tophat' or 'gaussian')
+    logical  :: writeFSTDensAnalysis ! to activate LETKF ensemble analysis writing into RPN standard file format
+    logical  :: writeFSTDInc         ! to activate LETKF increment writing into RPN standard file format
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert, &
                                    recenterSubSample, recenterSubSampleUnPert, alphaRTPS, alphaRTPP,    &
@@ -138,7 +140,8 @@ contains
                                    numBits2D, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState, &
                                    use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,          &
                                    qcLimitsBeforeRecenter, writeNetCDFensAnalysis,                      &
-                                   horizSmoothMeanInc, horizSmoothMeanIncShape, writeAsciiRmsStats
+                                   horizSmoothMeanInc, horizSmoothMeanIncShape, writeAsciiRmsStats,     &
+                                   writeFSTDensAnalysis, writeFSTDInc
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -197,6 +200,8 @@ contains
     useOptionTableRecenter   = .false.
     writeNetCDFInc           = .false.
     writeNetCDFensAnalysis   = .false.
+    writeFSTDensAnalysis     = .true.
+    writeFSTDInc             = .true.
 
     ! For the next 3 variables, the member number will be appended to this string
     ! for files '${trialdate}_006_${member}'
@@ -831,10 +836,14 @@ contains
         if (gsv_isAllocated(stateVectorMeanAnl4D)) then
           call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
           do stepIndex = 1, tim_nstepobs
-            call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket, &
-                                 typvar_opt = 'R', writeHeightSfc_opt = .false., &
-                                 numBits_opt = numBits, stepIndex_opt = stepIndex, &
-                                 containsFullField_opt = .false.)
+
+            if (writeFSTDInc) then
+              call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket, &
+                                   typvar_opt = 'R', writeHeightSfc_opt = .false., &
+                                   numBits_opt = numBits, stepIndex_opt = stepIndex, &
+                                   containsFullField_opt = .false.)
+            end if
+
             if (gsv_isAllocated(stateVectorMeanAnlSfcPres4D)) then
               call gio_writeToFile(stateVectorMeanAnlSfcPres4D, outFileName, etiket,  &
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
@@ -854,10 +863,14 @@ contains
         else
           call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
           do stepIndex = 1, tim_nstepobsinc
-            call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
-                                 typvar_opt = 'R', writeHeightSfc_opt = .false., &
-                                 numBits_opt = numBits, stepIndex_opt = stepIndex,&
-                                 containsFullField_opt = .false.)
+
+            if (writeFSTDInc) then
+              call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
+                                   typvar_opt = 'R', writeHeightSfc_opt = .false., &
+                                   numBits_opt = numBits, stepIndex_opt = stepIndex,&
+                                   containsFullField_opt = .false.)
+            end if
+
             if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
               call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
@@ -878,11 +891,16 @@ contains
         !- Output all ensemble member increments
         call rti_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
-          call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
-                                 numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
-                                 containsFullField_opt = .false., &
-                                 resetTimeParams_opt = .true., &
-                                 writeNetCDF_opt = writeNetCDFInc)
+
+          if (writeFSTDInc .or. writeNetCDFInc) then
+            call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
+                                   numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
+                                   containsFullField_opt = .false., &
+                                   resetTimeParams_opt = .true., &
+                                   writeNetCDF_opt = writeNetCDFInc, &
+                                   writeFSTD_opt = writeFSTDInc)
+          end if
+        
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             ! Also write the reference (analysis) surface pressure to increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns, &
@@ -913,11 +931,13 @@ contains
 
       else
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
-                               typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
-                               stepIndex_opt = stepIndex, containsFullField_opt = .true.)
-        end do
+        if (writeFSTDensAnalysis) then
+          do stepIndex = 1, tim_nstepobsinc
+            call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
+                                 typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                                 stepIndex_opt = stepIndex, containsFullField_opt = .true.)
+          end do
+        end if
 
         if (writeNetCDFensAnalysis) then
           call gio_writeToFileNetCDF(stateVectorMeanAnl, outFileName, &
@@ -931,11 +951,13 @@ contains
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
       call rti_tmg_start(3,'--WriteEnsemble')
-      if (.not. outputOnlyEnsMean) then
+      if (.not. outputOnlyEnsMean .and. &
+          (writeFSTDensAnalysis .or. writeNetCDFensAnalysis)) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                                numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                                containsFullField_opt = .true., &
-                               writeNetCDF_opt = writeNetCDFensAnalysis)
+                               writeNetCDF_opt = writeNetCDFensAnalysis, &
+                               writeFSTD_opt = writeFSTDensAnalysis)
       end if
       call rti_tmg_stop(3)
 

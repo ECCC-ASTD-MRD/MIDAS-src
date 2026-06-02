@@ -19,8 +19,8 @@
    mpiDistribution     = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
-   writeNetCDFInc = .true.
-   writeNetCDFensAnalysis = .true.  
+   writeNetCDFInc         = .true.
+   writeNetCDFensAnalysis = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.

@@ -2994,7 +2994,7 @@ CONTAINS
                                etiketAppendMemberNumber_opt, varNames_opt,  &
                                ip3_opt, containsFullField_opt, numBits_opt, &
                                resetTimeParams_opt, writeNetCDF_opt,        &
-                               writeHeightSfc_opt)
+                               writeHeightSfc_opt, writeFSTD_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -3015,6 +3015,7 @@ CONTAINS
     logical, optional,          intent(in)    :: resetTimeParams_opt
     logical, optional,          intent(in)    :: writeNetCDF_opt ! to save outputs in a netCDF file
     logical, optional,          intent(in)    :: writeHeightSfc_opt
+    logical, optional,          intent(in)    :: writeFSTD_opt ! to activate RPN FSTD file writing,
 
     ! Locals:
     integer, parameter :: ensFileExtLengthMax = 9
@@ -3039,7 +3040,7 @@ CONTAINS
     character(len=ensFileExtLengthMax) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
-    logical :: containsFullField, writeNetCDF, writeHeightSfc
+    logical :: containsFullField, writeNetCDF, writeHeightSfc, writeFSTD
 
     write(*,*) 'ens_writeEnsemble: starting'
     call msg_memUsage('ens_writeEnsemble')
@@ -3071,6 +3072,12 @@ CONTAINS
       containsFullField = containsFullField_opt
     else
       containsFullField = (.not. ens%meanIsRemoved)
+    end if
+
+    if (present(writeFSTD_opt)) then
+      writeFSTD = writeFSTD_opt
+    else
+      writeFSTD = .true.
     end if
 
     if (present(writeNetCDF_opt)) then
@@ -3347,13 +3354,15 @@ CONTAINS
         ! 'statevector_member_r4'.
         statevector_member_r4%etiket = etiketStr
 
-        call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, &
-                             typvar_opt = typvar, numBits_opt = numBits_opt,               &
-                             containsFullField_opt = containsFullField,                    &
-                             writeHeightSfc_opt = writeHeightSfc,                          &
-                             varLevIndexBeg_opt = varLevIndexBeg,                          &
-                             varLevIndexEnd_opt = varLevIndexEnd,                          &
-                             doWriteTicTacToc_opt = (varLevIndexBeg == 1)) ! We do write the 'tic-tac-toc' only the first time we write that statevector
+        if (writeFSTD) then
+          call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, &
+                               typvar_opt = typvar, numBits_opt = numBits_opt,               &
+                               containsFullField_opt = containsFullField,                    &
+                               writeHeightSfc_opt = writeHeightSfc,                          &
+                               varLevIndexBeg_opt = varLevIndexBeg,                          &
+                               varLevIndexEnd_opt = varLevIndexEnd,                          &
+                               doWriteTicTacToc_opt = (varLevIndexBeg == 1)) ! We do write the 'tic-tac-toc' only the first time we write that statevector
+        end if
 
         if (writeNetCDF) then
           call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
