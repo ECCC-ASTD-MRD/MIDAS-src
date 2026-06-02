@@ -231,6 +231,9 @@ CONTAINS
     end if
     if ( present(numIterMaxInnerLoopUsed_opt) ) numIterMaxInnerLoopUsed_opt = numIterMaxInnerLoopUsed
 
+    ! Set the module variable numHorizWavebandUsed before entering the minimization.
+    ! This variable is accessed by simvar, which is called internally by n1qn3 and
+    ! therefore cannot receive it through the normal argument list.
     if ( present(numHorizWavebandUsed_opt) ) then
       numHorizWavebandUsed = numHorizWavebandUsed_opt
     else
