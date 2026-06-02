@@ -382,7 +382,7 @@ program midas_var
     call rti_abort('midas-var: some numIterMaxInnerLoop(:) in namelist are negative or zero')
   end if
 
-  if ( any(numHorizWavebandOuterLoop(:) == MPC_missingValue_INT) ) then
+  if ( any(numHorizWavebandOuterLoop(1:numOuterLoopIterations) == MPC_missingValue_INT) ) then
     call msg('midas-var','Total number of wavebands will be used as defined in NAMBEN', mpiAll_opt=.false.)
   end if
 
