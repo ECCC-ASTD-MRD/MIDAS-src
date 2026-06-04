@@ -135,7 +135,7 @@ find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
 
 find_package(NetCDF OPTIONAL_COMPONENTS Fortran)
-if (NETCDF_Fortran_FOUND)
+if(TARGET NetCDF::NetCDF_Fortran)
   set(HDF5_Libraries NetCDF::NetCDF_Fortran)
 else()
   set(HDF5_Libraries netcdff netcdf)
