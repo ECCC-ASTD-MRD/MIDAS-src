@@ -44,6 +44,17 @@ find_package(MPI REQUIRED)
 set(WITH_OPENMP TRUE CACHE BOOL "Control whether to use OpenMP")
 include(ec_openmp)
 
+find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
+find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
+find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
+find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
+find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
+find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C Fortran HL)
+if(NOT MKL_SUPPORT)
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+endif()
 
 ## External libraries on demand compilation
 ## to compile them, define the variable MIDAS_COMPILE_EXTLIBS to include the libraries needed
@@ -87,18 +98,6 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
   # Restore debug flags
   set(CMAKE_Fortran_FLAGS_DEBUG "${SAVED_Fortran_FLAGS_DEBUG}")
   set(CMAKE_C_FLAGS_DEBUG "${SAVED_C_FLAGS_DEBUG}")
-endif()
-
-find_package(rmn ${rmn_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(vgrid ${vgrid_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(rpncomm ${rpncomm_REQ_VERSION} REQUIRED)
-find_package(random ${random_REQ_VERSION} COMPONENTS REQUIRED)
-find_package(burp ${burp_REQ_VERSION} COMPONENTS static REQUIRED)
-find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
-find_package(HDF5 REQUIRED COMPONENTS C Fortran HL)
-if(NOT MKL_SUPPORT)
-  find_package(BLAS REQUIRED)
-  find_package(LAPACK REQUIRED)
 endif()
 
 # Define libraries bundle

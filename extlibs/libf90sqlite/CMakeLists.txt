@@ -15,7 +15,7 @@ set(SOURCES
 add_library(f90sqlite STATIC ${SOURCES})
 
 # Link against udfsqlite target (this propagates its include directories)
-target_link_libraries(f90sqlite PRIVATE udfsqlite)
+target_link_libraries(f90sqlite PRIVATE udfsqlite SQLite::SQLite3)
 
 target_include_directories(f90sqlite
   PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
