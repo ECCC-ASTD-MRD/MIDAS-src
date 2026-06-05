@@ -127,9 +127,10 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       /* Si le fichier n'existe pas encore alors on doit le creer et construire le meme schema */
       sqlite3 *sqldbin;
       char sqlschema[MAXSTR*32];
+      char rdbout[MAXSTR];
 
       /* On lit le fichier d'input */
-      status = sqlite3_open(opt.obsin,&sqldbin);
+      status = sqlite3_open_v2(opt.obsin, &sqldbin, SQLITE_OPEN_READONLY, (char*) NULL);
       if ( status != SQLITE_OK ) {
         App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
@@ -145,7 +146,6 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
          echo .schema | sqlite3 obsin | sqlite3 obsout
          Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
       */
-      strcpy(sqlschema,"");
       status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
       if( status != SQLITE_OK ) {
         App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
@@ -164,9 +164,10 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
         return NOT_OK;
       }
 
-      status = sqlite3_open(opt.obsout,&sqldb);
+      snprintf(rdbout, sizeof(rdbout), "file:%s", opt.obsout);
+      status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, (char*) NULL);
       if ( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", opt.obsout, sqlite3_errmsg(sqldb));
+        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
 
         status = sqlite3_close(sqldbin);
         if( status != SQLITE_OK )
@@ -176,10 +177,10 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
 
       status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
       if( status != SQLITE_OK ){
-        App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
+        App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, rdbout, ErrMsg);
         if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
           App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
-                  "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
+                  "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", rdbout);
         }
         sqlite3_free(ErrMsg);
 
@@ -235,7 +236,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
     if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
       /* Aucun filtrage vertical n'est fait */
-      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
@@ -246,7 +247,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table);
     else if (strlen(opt.channels)==0 && strlen(opt.gz)==0)
       /* Le filtrage vertical est fait a l'aide d'une hauteur en pression */
-      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                "  %s(dbin.%s.%s,dbin.%s.vcoord,%d,%d)=1;\n",
@@ -259,7 +260,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                SQL_VERTICAL_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_data_table, opt.niveau_min, opt.niveau_max);
     else if (strlen(opt.channels)==0)
       /* Le filtrage vertical est fait a l'aide d'une hauteur en metre */
-      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select %s.* from dbin.%s,%s where dbin.%s.%s = %s.%s and \n"
                "  %s(dbin.%s.%s,%s.lat,%s.lon,dbin.%s.vcoord+%s.elev,%d,%d,%d,%d,%d)=1;\n",
@@ -272,7 +273,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                SQL_VERTICAL_GZ_NAME, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_header_table, opt.rdb_header_table, opt.rdb_data_table, opt.rdb_header_table,
                grid_gz.gridid, grid_gz.ni, grid_gz.nj, opt.niveau_min, opt.niveau_max);
     else if (opt.channels_voulus==1) /* On specifie plutot les canaux voulus  */
-      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                "  dbin.%s.vcoord in (%s);\n",
@@ -284,7 +285,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                opt.rdb_data_table, opt.channels);
     else if (opt.channels_voulus==0) /* On specifie plutot les canaux exclus  */
-      snprintf(requete_sql, sizeof(requete_sql), "attach '%s' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s) and \n"
                "  dbin.%s.vcoord not in (%s);\n",
@@ -358,9 +359,10 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
         snprintf(rdbout, sizeof(rdbout), "%s_%s_%s",opt.obsout,npex_str,npey_str);
 
         status = access(rdbout,F_OK);
+        snprintf(rdbout, sizeof(rdbout), "file:%s_%s_%s",opt.obsout,npex_str,npey_str);
         if ( status == 0 ) { /* Le fichier existe deja */
           /* On ouvre la base de donnees SQL de sortie */
-          status = sqlite3_open(rdbout,&sqldb);
+          status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_URI, (char*) NULL);
           if ( status != SQLITE_OK ) {
             App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
             return NOT_OK;
@@ -372,7 +374,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             sqlite3 *sqldbin;
 
             /* On ouvre le fichier d'input */
-            status = sqlite3_open(opt.obsin,&sqldbin);
+            status = sqlite3_open_v2(opt.obsin, &sqldbin, SQLITE_OPEN_READONLY, (char*) NULL);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
@@ -383,11 +385,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
               return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
-              /* Execution de la requete SQL sur la base de donnees */
-              /* L'idee est de reproduire la commande UNIX
-                 echo .schema | sqlite3 obsin | sqlite3 obsout
-                 Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
-              */
+            /* Execution de la requete SQL sur la base de donnees */
+            /* L'idee est de reproduire la commande UNIX
+               echo .schema | sqlite3 obsin | sqlite3 obsout
+               Cette requete provient de la documentation http://www.sqlite.org/faq.html#q7
+            */
             status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
             if( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
@@ -410,9 +412,9 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             }
           } /* Fin du 'if (strlen(sqlschema)==0)' */
 
-          status = sqlite3_open(rdbout,&sqldb);
+          status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, (char*) NULL);
           if ( status != SQLITE_OK ) {
-            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
             return NOT_OK;
           } /* Fin du 'if ( status != SQLITE_OK )' */
 
@@ -432,7 +434,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
         snprintf(requete_sql, sizeof(requete_sql), "drop index if exists idx1;\n"
                  "PRAGMA journal_mode = OFF;\n"
                  "PRAGMA  synchronous = OFF;\n"
-                 "attach '%s' as dbin; \n"
+                 "attach 'file:%s?mode=ro' as dbin; \n"
                  "%s\n", opt.obsin, sqlreq_tables_without_split_key);
         append_table_list_split_key_requests_nsplit(requete_sql,"dbin",table_list_with_split_key,opt.rdb_split_on_key,nsplit,id);
         if ( strcasecmp(opt.rdb_header_table,RDB_HEADER_DEFAUT) == 0   &&
@@ -514,7 +516,7 @@ int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_spl
 
   /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
   /* On ouvre le fichier d'input */
-  status = sqlite3_open(obsin,&sqldbin);
+  status = sqlite3_open_v2(obsin, &sqldbin, SQLITE_OPEN_READONLY, (char*) NULL);
   if ( status != SQLITE_OK ) {
     App_Log(APP_ERROR, "Fonction sqlite_get_tables Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
 
