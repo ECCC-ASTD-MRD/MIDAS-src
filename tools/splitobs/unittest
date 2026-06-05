@@ -159,7 +159,7 @@ say() {
 }
 
 run_splitobs() {
-    typeset -r user_time_file=splitobs.user_time
+    typeset -r user_time_file=splitobs.user_time.$(date +%M.%N)
 
     program_status=0
 
@@ -170,6 +170,8 @@ run_splitobs() {
         printf "\033[0m\033[01;36m${message}\033[0m\n"
     fi
     [[ -f ${user_time_file} ]] && rm ${user_time_file}
+
+    return ${program_status}
 }
 
 paddedPrint() {
