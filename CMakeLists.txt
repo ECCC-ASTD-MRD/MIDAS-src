@@ -76,8 +76,6 @@ if(DEFINED ENV{MIDAS_COMPILE_EXTLIBS})
     set(CMAKE_C_FLAGS_DEBUG "-O2 -w")
   endif()
 
-  set(EXTLIBS_TO_BUILD $ENV{MIDAS_COMPILE_EXTLIBS})
-
   # Add udfsqlite first if needed by anything
   if(EXTLIBS_TO_BUILD MATCHES "udfsqlite" OR EXTLIBS_TO_BUILD MATCHES "f90sqlite")
     message(STATUS "(EC) Adding libudfsqlite external library target")
