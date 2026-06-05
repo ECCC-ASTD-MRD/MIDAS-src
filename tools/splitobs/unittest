@@ -104,6 +104,7 @@ unittest () {
         test_rdb_cherrypick_roundrobin || return 1
         test_rdb_regional_standard || return 1
         test_rdb_regional_global_with_imax_imin_jmax_jmin || return 1
+        test_rdb_concurrent || return 1
         ## The clipping should not change the result since we are using a global grid as clipping domain
         test_rdb_identity || return 1
     fi
@@ -389,6 +390,47 @@ test_rdb_identity () {
 
     echo "test_rdb_identity() ends"
 } ## End of function 'test_rdb_identity'
+
+test_rdb_concurrent () {
+    set -e
+    [ -n "${SET_MX}" ] && ${SET_MX}
+
+    echo "test_rdb_concurrent() begins"
+
+    fam=radar
+
+    npex=3
+    npey=40
+
+    #cp ${INPUTS}/rdb/2011070112_${fam} obs${fam}
+    cp /home/erv000/data_maestro/midas/midas-1180/tools/splitobs/obs${fam} obs${fam}
+    chmod u+w obs${fam}
+
+    for x in $(seq --format="%04g" 1 ${npex}); do
+        for y in $(seq --format="%04g" 1 ${npey}); do
+            extension=${x}_${y}
+            ${SPLITOBS} -obsin obs${fam} -obsout obs${fam} -x ${x} -y ${y} -round-robin -npex ${npex} -npey ${npey} -ndigits 4 > listing.${x}_${y} 2>&1 || touch abort.${extension} &
+        done
+    done
+
+    wait
+
+    status=0
+    for x in $(seq --format="%04g" 1 ${npex}); do
+        for y in $(seq --format="%04g" 1 ${npey}); do
+            extension=${x}_${y}
+            assert "test_rdb_concurrent ${extension}" [ ! -f abort.${extension} -a -f obs${fam}_${extension} ] || status=$?
+            cat listing.${x}_${y} >> check_result.listing
+            [   ! -f abort.${extension} ] && rm listing.${x}_${y}
+            [ -f obs${fam}_${extension} ] && rm obs${fam}_${extension}
+        done
+    done
+
+    [ "${status}" -ne 0 ] && return 1
+    rm obs${fam}
+
+    echo "test_rdb_concurrent() ends"
+} ## End of function 'test_rdb_concurrent'
 
 test_robustness_for_mrbcvt () {
     set -e
