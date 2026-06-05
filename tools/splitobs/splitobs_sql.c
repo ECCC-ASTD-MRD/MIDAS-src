@@ -101,7 +101,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
   strcpy(table_list_without_split_key,"");
   status = sqlite_get_tables(opt.obsin, opt.rdb_split_on_key, table_list_with_split_key, table_list_without_split_key);
   if( status != OK ) {
-    App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
+    App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
     return NOT_OK;
   }
 
@@ -114,11 +114,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     if ( status == 0 ) { /* Le fichier existe deja */
       status = sqlite3_open(opt.obsout,&sqldb);
       if ( status != SQLITE_OK ) {
-        App_Log(APP_ERROR,"Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+        App_Log(APP_ERROR,"Fonction splitobs_sql: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
         return NOT_OK;
       } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -132,11 +132,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       /* On lit le fichier d'input */
       status = sqlite3_open_v2(opt.obsin, &sqldbin, SQLITE_OPEN_READONLY, (char*) NULL);
       if ( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
         status = sqlite3_close(sqldbin);
         if( status != SQLITE_OK )
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
         return NOT_OK;
       } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -148,36 +148,36 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       */
       status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
       if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
         sqlite3_free(ErrMsg);
 
         status = sqlite3_close(sqldbin);
         if( status != SQLITE_OK )
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
         return NOT_OK;
       } /* Fin du 'if ( status != SQLITE_OK )' */
 
       status = sqlite3_close(sqldbin);
       if( status != SQLITE_OK ) {
-        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+        App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
         return NOT_OK;
       }
 
       snprintf(rdbout, sizeof(rdbout), "file:%s", opt.obsout);
       status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, (char*) NULL);
       if ( status != SQLITE_OK ) {
-        App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
 
         status = sqlite3_close(sqldbin);
         if( status != SQLITE_OK )
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+          App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
         return NOT_OK;
       } /* Fin du 'if ( status != SQLITE_OK )' */
 
       status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
       if( status != SQLITE_OK ){
-        App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, rdbout, ErrMsg);
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, rdbout, ErrMsg);
         if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
           App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                   "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", rdbout);
@@ -194,11 +194,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     status = sqlite3_create_function(sqldb, SQLFUNCTION_NAME, NUMBER_OF_ARGS_FOR_CHECK_GRID, SQLITE_UTF8,
                                      NULL, &checkgrid_sql, NULL, NULL);
     if( status != SQLITE_OK ) {
-      App_Log(APP_ERROR,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
+      App_Log(APP_ERROR,"Fonction splitobs_sql: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
 
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK )
-        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+        App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
       return NOT_OK;
     }
@@ -209,11 +209,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
                                      NULL, &checkvertical_sql, NULL, NULL);
     if( status != SQLITE_OK ) {
-      App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
+      App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK )
-        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
       return NOT_OK;
     }
@@ -224,11 +224,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     status = sqlite3_create_function(sqldb, SQL_VERTICAL_GZ_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ, SQLITE_UTF8,
                                      NULL, &checkvertical_gz_sql, NULL, NULL);
     if( status != SQLITE_OK ) {
-      App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
+      App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK )
-        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
       return NOT_OK;
     }
@@ -297,11 +297,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
                opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                opt.rdb_data_table, opt.channels);
     else {
-      App_Log(APP_ERROR, "Fonction main: Incapable de creer la requete SQL\n");
+      App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable de creer la requete SQL\n");
 
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK )
-        App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+        App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
       return NOT_OK;
     }
@@ -319,7 +319,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     /* Execution de la requete SQL sur la base de donnees finale */
     status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
     if( status != SQLITE_OK ){
-      App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+      App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
       if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
         App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                 "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
@@ -331,7 +331,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
     status = sqlite3_close(sqldb);
     if( status != SQLITE_OK ) {
-      App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+      App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
       EXIT_STATUS = NOT_OK;
     }
   }
@@ -364,7 +364,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
           /* On ouvre la base de donnees SQL de sortie */
           status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_URI, (char*) NULL);
           if ( status != SQLITE_OK ) {
-            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+            App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
             return NOT_OK;
           } /* Fin du 'if ( status != SQLITE_OK )' */
         } /* Fin du 'if ( status == 0 )' */
@@ -376,11 +376,11 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             /* On ouvre le fichier d'input */
             status = sqlite3_open_v2(opt.obsin, &sqldbin, SQLITE_OPEN_READONLY, (char*) NULL);
             if ( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
+              App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
               status = sqlite3_close(sqldbin);
               if( status != SQLITE_OK )
-                App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+                App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
 
               return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -392,12 +392,12 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             */
             status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
             if( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
+              App_Log(APP_ERROR, "Fonction splitobs_sql: Ervig Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
               sqlite3_free(ErrMsg);
 
               status = sqlite3_close(sqldbin);
               if( status != SQLITE_OK )
-                App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+                App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
               return NOT_OK;
             } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -406,7 +406,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
 
             status = sqlite3_close(sqldbin);
             if( status != SQLITE_OK ) {
-              App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+              App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
               return NOT_OK;
             }
@@ -414,13 +414,13 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
 
           status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, (char*) NULL);
           if ( status != SQLITE_OK ) {
-            App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
+            App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees '%s': %s\n", rdbout, sqlite3_errmsg(sqldb));
             return NOT_OK;
           } /* Fin du 'if ( status != SQLITE_OK )' */
 
           status = sqlite3_exec(sqldb, sqlschema, NULL, NULL, &ErrMsg);
           if( status != SQLITE_OK ) {
-            App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+            App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
             if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
               App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                       "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
@@ -450,7 +450,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
         /* Execution de la requete SQL sur la base de donnees finale */
         status = sqlite3_exec(sqldb, requete_sql, NULL, NULL, &ErrMsg);
         if( status != SQLITE_OK ) {
-          App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+          App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
           if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
             App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                     "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
@@ -462,7 +462,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
         /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK ) {
-          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR,"Fonction splitobs_sql: Erreur %d de la fonction sqlite3_close\n", status);
           EXIT_STATUS = NOT_OK;
         }
       } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
