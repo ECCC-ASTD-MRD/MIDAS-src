@@ -148,6 +148,8 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       /* Wait up to 1000 milliseconds (1 seconds) for locks to clear */
       sqlite3_busy_timeout(sqldbin, 1000);
 
+      strcpy(sqlschema, "");
+
       /* Execution de la requete SQL sur la base de donnees */
       /* L'idee est de reproduire la commande UNIX
          echo .schema | sqlite3 obsin | sqlite3 obsout
