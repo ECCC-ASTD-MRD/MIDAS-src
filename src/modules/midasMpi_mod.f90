@@ -362,6 +362,8 @@ contains
     ! Locals:
     integer :: ierr
 
+    call mmpi_barrier
+
     ! We need to call 'rpn_comm_finalize' because there was a
     ! 'rpn_comm_init' in 'mmpi_initialize'
     ! call mpi_finalize(ierr)
