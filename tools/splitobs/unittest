@@ -649,6 +649,16 @@ test_rdb_resume () {
 
     echo "test_rdb_resume() begins"
 
+    status=0
+    run_splitobs -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
+    assert "test_rdb_resume clipping program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
+    check_status=0
+    check_result ${INPUTS}/rdb/airs-resume.rdb airs_clipped ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+    assert "test_rdb_resume clipping check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+
+    [ "${status}" -ne 0 ] && return 1
+    rm airs_clipped
+
     test_rdb_resume_ndigits=4
     test_rdb_resume_npex=3
     test_rdb_resume_npey=4
@@ -677,16 +687,6 @@ test_rdb_resume () {
     [ "${status}" -ne 0 ] && return 1
     rm airs_*
     unset test_rdb_resume_npex test_rdb_resume_npey test_rdb_resume_ndigits test_rdb_resume_number_of_process
-
-    status=0
-    run_splitobs -rdbin ${INPUTS}/rdb/airs-resume.rdb -rdbout airs_clipped -fstin ${GRIDS}/glbgrid -nomvar P0 -min_i 1 -max_i =1025 -min_j =0 -max_j 800
-    assert "test_rdb_resume clipping program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-    check_status=0
-    check_result ${INPUTS}/rdb/airs-resume.rdb airs_clipped ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-    assert "test_rdb_resume clipping check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
-
-    [ "${status}" -ne 0 ] && return 1
-    rm airs_clipped
 
     echo "test_rdb_resume() ends"
 } ## End of function 'test_rdb_resume'
