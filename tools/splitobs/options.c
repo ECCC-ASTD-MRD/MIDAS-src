@@ -98,7 +98,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr, int* VERBOSE) {
         strcpy(optptr->obsout,argv[++i]);
       }
       else if (!strcmp(argv[i],BURPIN_OPTION)) { /* Alors, on donne le nom du fichier BURP input */
-        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
+        App_Log(APP_WARNING,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
         if (i+1>=argc || argv[i+1][0]=='-') {
           App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
           App_End(-1);exit(1);
@@ -106,7 +106,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr, int* VERBOSE) {
         strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],BURPOUT_OPTION)) { /* Alors, on donne le nom du fichier BURP output */
-        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
+        App_Log(APP_WARNING,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
         if (i+1>=argc || argv[i+1][0]=='-') {
           App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
           App_End(-1);exit(1);
