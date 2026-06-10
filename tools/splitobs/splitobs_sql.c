@@ -399,7 +399,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             */
             status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
             if( status != SQLITE_OK ) {
-              App_Log(APP_ERROR, "Fonction splitobs_sql: Ervig Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, rdbin, ErrMsg);
+              App_Log(APP_ERROR, "Fonction splitobs_sql: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, rdbin, ErrMsg);
               sqlite3_free(ErrMsg);
 
               status = sqlite3_close(sqldbin);
