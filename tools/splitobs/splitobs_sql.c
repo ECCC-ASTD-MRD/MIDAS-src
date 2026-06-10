@@ -133,7 +133,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
       char rdbin[MAXSTR*2];
 
       /* On lit le fichier d'input */
-      snprintf(rdbin, sizeof(rdbin), "file:%s?immutable=1", opt.obsin);
+      snprintf(rdbin, sizeof(rdbin), "file:%s?mode=ro&immutable=1", opt.obsin);
       status = sqlite3_open_v2(rdbin, &sqldbin, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, (char*) NULL);
       if ( status != SQLITE_OK ) {
         App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees '%s': Erreur: %s\n", rdbin, sqlite3_errmsg(sqldbin));
@@ -244,7 +244,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
     if (strlen(opt.channels)==0 && opt.niveau_min == IP1_VIDE && opt.niveau_max == IP1_VIDE)
       /* Aucun filtrage vertical n'est fait */
-      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?immutable=1' as dbin; \n"
+      snprintf(requete_sql, sizeof(requete_sql), "attach 'file:%s?mode=ro&immutable=1' as dbin; \n"
                "insert into %s select * from dbin.%s where %s(dbin.%s.lat,dbin.%s.lon,%d,%d,%d,%g,%g,%g,%g,%d,%d,%d,%d)=%d;\n"
                "insert into %s select * from dbin.%s where dbin.%s.%s in (select %s from %s);\n",
                opt.obsin, opt.rdb_header_table, opt.rdb_header_table, SQLFUNCTION_NAME, opt.rdb_header_table, opt.rdb_header_table,
@@ -383,7 +383,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
             char rdbin[MAXSTR*2];
 
             /* On ouvre le fichier d'input */
-            snprintf(rdbin, sizeof(rdbin), "file:%s?immutable=1", opt.obsin);
+            snprintf(rdbin, sizeof(rdbin), "file:%s?mode=ro&immutable=1", opt.obsin);
             status = sqlite3_open_v2(rdbin, &sqldbin, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, (char*) NULL);
             if ( status != SQLITE_OK ) {
               App_Log(APP_ERROR, "Fonction splitobs_sql: Incapable d'ouvrir la base de donnees '%s': Erreur %s\n", rdbin, sqlite3_errmsg(sqldbin));
@@ -528,7 +528,7 @@ int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_spl
   sqlite3 *sqldbin;
   sqlite_get_tables_callback_arg callback_arg;
 
-  snprintf(rdbin, sizeof(rdbin), "file:%s?immutable=1", obsin);
+  snprintf(rdbin, sizeof(rdbin), "file:%s?mode=ro&immutable=1", obsin);
   /* Cette partie sert a trouver la requete pour copier les tables 'resume' et 'rdb4_schema' */
   /* On ouvre le fichier d'input */
   status = sqlite3_open_v2(rdbin, &sqldbin, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, (char*) NULL);
