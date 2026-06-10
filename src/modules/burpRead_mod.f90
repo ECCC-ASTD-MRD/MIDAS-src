@@ -2990,7 +2990,7 @@ contains
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde,.false.)
                 time2=time_sonde/10000
                 YMD_DATE_SFC=date2
                 HM_SFC=time2
@@ -3058,7 +3058,7 @@ contains
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde,.false.)
 
                 time2=time_sonde/10000
 
@@ -3134,7 +3134,7 @@ contains
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
                 call INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde)
+                call tim_dateStampToYYYYMMDDHH(kstamp,date2,time_sonde,.false.)
                 time2=time_sonde/10000
                 YMD_DATE=date2
                 HM=time2

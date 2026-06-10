@@ -362,6 +362,11 @@ contains
     ! Locals:
     integer :: ierr
 
+    ! We call here 'mmpi_barrier' to make sure all the PE are
+    ! finished.  Some MPI implementations (notably OpenMPI) requires
+    ! this to avoid crashes when calling 'mpi_finalize'.
+    call mmpi_barrier
+
     ! We need to call 'rpn_comm_finalize' because there was a
     ! 'rpn_comm_init' in 'mmpi_initialize'
     ! call mpi_finalize(ierr)
