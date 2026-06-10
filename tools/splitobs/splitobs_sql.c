@@ -115,7 +115,7 @@ int splitobs_sql(options opt, gridtype grid, gridtype grid_gz,
     /* On ouvre la base de donnees SQL finale */
     status = access(opt.obsout,F_OK);
     if ( status == 0 ) { /* Le fichier existe deja */
-      status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, (char*) NULL);
+      status = sqlite3_open_v2(rdbout, &sqldb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_URI, (char*) NULL);
       if ( status != SQLITE_OK ) {
         App_Log(APP_ERROR,"Fonction splitobs_sql: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
 
