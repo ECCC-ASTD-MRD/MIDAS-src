@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * The program `midas.splitobs.Abs` can now be run concurrently using the same input SQLite database (#1180 and !1104)
  * Adapt the CMake build configuration to allow compilation on external systems (#1182 and !1102)
  * Fixed rejection of sfc wind obs over land, activated with namelist variable DISCARDLANDSFCWIND_ALL (#1126 and !1092)
  * Fixed bug for bias correction predictors L1, L2 and L3 and add L4 and L5. Add `scanBiasCorrectionMode` to `NAMBIASSAT` namelist (#1164 and !1089)
