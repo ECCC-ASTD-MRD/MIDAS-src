@@ -924,6 +924,7 @@ module calcStatsGlb_mod
         
         if (nVertWaveBand > 1) then
           call scd_vertical(ensPertsScaleDecomp,                                    & ! INOUT
+                            ensPerts,                                               & ! IN
                             nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale, & ! IN
                             'Select', 'Covariances',                                & ! IN
                             vertWaveBandIndexSelected_opt=waveBandIndex,            & ! IN
@@ -1023,6 +1024,7 @@ module calcStatsGlb_mod
                       ensPertsScaleDecomp(1))    ! OUT
         
         call scd_vertical(ensPertsScaleDecomp,                                           & ! INOUT
+                          ensPerts,                                                      & ! IN
                           nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale,        & ! IN
                           'Select', 'Covariances',                                       & ! IN
                           vertWaveBandIndexSelected_opt=vertWaveBandIndex,               & ! IN

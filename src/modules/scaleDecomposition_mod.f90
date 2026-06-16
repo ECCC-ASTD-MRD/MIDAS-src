@@ -390,7 +390,8 @@ contains
   !--------------------------------------------------------------------------
   ! scd_vertical
   !--------------------------------------------------------------------------
-  subroutine scd_vertical(ensembleStateVector, nVertWaveBand,                &
+  subroutine scd_vertical(ensembleStateVector,                               &
+                          ensembleStateVectorForMean, nVertWaveBand,         &
                           vertWaveBandPeaks, vertmodesLengthScale,           &
                           decompositionMode, decompositionType,              &
                           vertWaveBandIndexSelected_opt,                     &
@@ -426,6 +427,7 @@ contains
 
     ! Arguments:
     type(struct_ens),           intent(inout) :: ensembleStateVector(:) ! Array of ensemble perturbations. Contains the full vertical perturbations in input and one or more vertical wavebands in output
+    type(struct_ens),           intent(in)    :: ensembleStateVectorForMean ! Ensemble perturbations containing the desired ensemble mean for scaling (if needed)
     integer,                    intent(in)    :: nVertWaveBand ! Number of vertical wavebands
     integer,                    intent(in)    :: vertWaveBandPeaks(:) ! Eigenvectors corresponding to the peaks of each waveband
     real(8),                    intent(in)    :: vertModesLengthScale(2) ! Correlation lenghtscales used to compute the vertical correlation matrix for the eigendecomposition
@@ -619,7 +621,7 @@ contains
                         varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
       if (trim(decompositionType) == 'Covariances') then 
-        call ens_copyEnsMean(ensembleStateVector(1),  & ! IN
+        call ens_copyEnsMean(ensembleStateVectorForMean, & ! IN
                              gridStateVector_ensScaling)   ! OUT
       else
         call ens_computeStdDev(ensembleStateVector(1), containsScaledPerts_opt=.true.)
