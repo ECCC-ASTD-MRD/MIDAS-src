@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed two bugs when combining vSDL and hSDL (#1186 and !1107)
 
 ### Removed
 
