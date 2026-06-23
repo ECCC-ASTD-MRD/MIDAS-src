@@ -950,7 +950,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens),  intent(inout) :: ens
+    type(struct_ens),  intent(in)    :: ens
     type(struct_gsv),  intent(inout) :: statevector
     integer, optional, intent(in)    :: subEnsIndex_opt
 
@@ -960,6 +960,10 @@ CONTAINS
     integer          :: k1, k2, varIndex, varLevIndex, stepIndex, numStep, subEnsIndex
     logical          :: sameVariableOrder
     character(len=4), pointer :: varNamesInEns(:), varNamesInGsv(:)
+
+    if (.not. ens%meanIsComputed) then
+      call utl_abort('ens_copyEnsMean: the ensemble mean as not been computed')
+    end if
 
     nullify(varNamesInEns)
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)

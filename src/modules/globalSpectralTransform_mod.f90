@@ -72,7 +72,7 @@ module globalSpectralTransform_mod
     integer,allocatable   :: allLevBeg(:), allLevEnd(:)
   end type T_gst
 
-  integer,parameter :: nMaxGst = 20
+  integer,parameter :: nMaxGst = 30
   integer      :: gstIdDefault = -1
   integer      :: nGstAlreadyAllocated = 0
   integer      :: gstID = 0
@@ -459,8 +459,8 @@ contains
     integer  :: mynBeg, mynEnd, mynSkip, mynCount
     real(8)  :: znnp1, z1snp1
 
-    if(nGstAlreadyAllocated.eq.nMaxGst) then
-      if(mmpi_myid.eq.0) write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ', nMaxGst
+    if (nGstAlreadyAllocated .eq. nMaxGst) then
+      write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ', nMaxGst
       call utl_abort('gst_setup')
     endif
 

@@ -1183,7 +1183,8 @@ CONTAINS
 
       if (trim(bEns(instanceIndex)%vertLocalizationType) == 'ScaleDependent') then
         do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand
-          call scd_vertical(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,:),       & ! INOUT
+           call scd_vertical(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,:),       & ! INOUT
+                            bEns(instanceIndex)%ensPerts(1,1),                        & ! IN
                             bEns(instanceIndex)%nVertWaveBand,                        & ! IN
                             bEns(instanceIndex)%vertWaveBandPeaks,                    & ! IN
                             bEns(nInstance)%vertModesLengthScale,                     & ! IN
